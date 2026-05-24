@@ -52,492 +52,429 @@ describe('candidateScorer', () => {
     })
 
     describe('calculateRecommendationScore', () => {
-        it('rejects blocked artists with -Infinity score', () => {
-            const current = createTrack({ author: 'Artist A' })
-            const candidate = createTrack({ author: 'Blocked Artist' })
-            const blockedKeys = new Set(['blockedartist'])
+        describe('hard rejections', () => {
+            it('rejects blocked artists, long tracks, and filtered content', () => {
+                // Blocked artist
+                const blocked = calculateRecommendationScore({
+                    candidate: createTrack({ author: 'Blocked Artist' }),
+                    currentTrack: createTrack(),
+                    blockedArtistKeys: new Set(['blockedartist']),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    dislikedWeights: new Map(),
+                })
+                expect(blocked.score).toBe(-Infinity)
+                expect(blocked.signals).toEqual([])
 
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: blockedKeys,
+                // Long track (>15 min)
+                const long = calculateRecommendationScore({
+                    candidate: createTrack({ durationMS: 16 * 60 * 1000 }),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                })
+                expect(long.score).toBe(-Infinity)
+
+                // Ambient content
+                const ambient = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Relaxing Rain Sounds for Sleep',
+                    }),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                })
+                expect(ambient.score).toBe(-Infinity)
+
+                // EDM mix
+                const edm = calculateRecommendationScore({
+                    candidate: createTrack({ title: 'DJ Set 3 Hour Mix' }),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                })
+                expect(edm.score).toBe(-Infinity)
             })
 
-            expect(result.score).toBe(-Infinity)
-            expect(result.signals).toEqual([])
+            it('rejects Spanish candidates without session history', () => {
+                const mood: SessionMood = {
+                    dominantLocale: null,
+                    deepDiveArtist: null,
+                    preferLong: false,
+                    preferShort: false,
+                    restless: false,
+                }
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({ title: 'Reggaeton Song' }),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    sessionMood: mood,
+                })
+                expect(result.score).toBe(-Infinity)
+                expect(result.signals).toEqual([])
+            })
+
+            it('rejects Spanish gospel via Last.fm artist tags', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Derrama Tu Gloria',
+                        author: 'ALISON',
+                    }),
+                    currentTrack: createTrack({
+                        title: 'Só Rock 3',
+                        author: 'Major RD',
+                    }),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    blockedArtistKeys: new Set(),
+                    autoplayMode: 'similar',
+                    artistFrequency: new Map(),
+                    implicitDislikeKeys: new Set(),
+                    implicitLikeKeys: new Set(),
+                    dislikedWeights: new Map(),
+                    sessionMood: {
+                        dominantLocale: null,
+                        deepDiveArtist: null,
+                        preferLong: false,
+                        preferShort: false,
+                        restless: false,
+                    } as SessionMood,
+                    skipNoveltyBoost: false,
+                    genreContext: {
+                        candidateTags: [
+                            'latin christian',
+                            'spanish',
+                            'worship',
+                        ],
+                    },
+                })
+                expect(result.score).toBe(-Infinity)
+                expect(result.signals).toEqual([])
+            })
+
+            it('hard-rejects genre family drift when session has dominant family', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Master of Puppets',
+                        author: 'Metallica',
+                    }),
+                    currentTrack: createTrack({
+                        title: 'Liderança',
+                        author: 'Major RD',
+                    }),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    blockedArtistKeys: new Set(),
+                    autoplayMode: 'similar',
+                    artistFrequency: new Map(),
+                    implicitDislikeKeys: new Set(),
+                    implicitLikeKeys: new Set(),
+                    dislikedWeights: new Map(),
+                    skipNoveltyBoost: false,
+                    genreContext: {
+                        candidateTags: ['thrash metal', 'metal', 'rock'],
+                        currentTrackTags: ['rap', 'hip hop', 'trap'],
+                        sessionGenreFamilies: new Set(['rap_hiphop']),
+                    },
+                })
+                expect(result.score).toBe(-Infinity)
+                expect(result.signals).toEqual([])
+            })
         })
 
-        it('rejects tracks longer than 15 minutes', () => {
-            const current = createTrack()
-            const candidate = createTrack({
-                durationMS: 16 * 60 * 1000,
+        describe('boosts and scoring', () => {
+            it('boosts preferred and frequent artists', () => {
+                const preferredResult = calculateRecommendationScore({
+                    candidate: createTrack({ author: 'Favorite Artist' }),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(['favoriteartist']),
+                })
+                expect(preferredResult.score).toBeGreaterThan(1)
+                expect(preferredResult.signals).toContain('preferred artist')
+
+                const frequentResult = calculateRecommendationScore({
+                    candidate: createTrack({ author: 'Favorite Band' }),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    blockedArtistKeys: new Set(),
+                    autoplayMode: 'similar',
+                    artistFrequency: new Map([['favoriteband', 5]]),
+                })
+                expect(frequentResult.score).toBeGreaterThan(1)
+                expect(frequentResult.signals).toContain('favourite artist')
             })
 
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
+            it('applies dislikes with weight-based thresholds', () => {
+                const highWeight = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Disliked Song',
+                        author: 'Test Artist',
+                    }),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    blockedArtistKeys: new Set(),
+                    autoplayMode: 'similar',
+                    artistFrequency: new Map(),
+                    implicitDislikeKeys: new Set(),
+                    implicitLikeKeys: new Set(),
+                    dislikedWeights: new Map([
+                        ['dislikedsong::testartist', 0.7],
+                    ]),
+                })
+                expect(highWeight.score).toBe(-Infinity)
+
+                const lowWeight = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Xyz Abc',
+                        author: 'Different Artist',
+                        source: 'youtube',
+                    }),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(['existing artist']),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    blockedArtistKeys: new Set(),
+                    autoplayMode: 'similar',
+                    artistFrequency: new Map(),
+                    implicitDislikeKeys: new Set(),
+                    implicitLikeKeys: new Set(),
+                    dislikedWeights: new Map([
+                        ['xyzabc::differentartist', 0.3],
+                    ]),
+                })
+                expect(lowWeight.signals).toContain('old dislike')
+                expect(lowWeight.score).toBeLessThan(1.3)
             })
 
-            expect(result.score).toBe(-Infinity)
-            expect(result.signals).toEqual([])
+            it('applies same-artist novelty penalty', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Xyz Abc',
+                        author: 'Test Artist',
+                        source: 'youtube',
+                    }),
+                    currentTrack: createTrack({ author: 'Test Artist' }),
+                    recentArtists: new Set(),
+                })
+                expect(result.score).toBeLessThan(1)
+            })
         })
 
-        it('rejects ambient/noise content', () => {
-            const current = createTrack()
-            const candidate = createTrack({
-                title: 'Relaxing Rain Sounds for Sleep',
+        describe('Spanish handling', () => {
+            it('allows Spanish when session has Spanish history', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({ title: 'Reggaeton Song' }),
+                    currentTrack: createTrack({
+                        title: 'Despacito',
+                        author: 'Luis Fonsi',
+                    }),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    blockedArtistKeys: new Set(),
+                    autoplayMode: 'similar',
+                    artistFrequency: new Map(),
+                    implicitDislikeKeys: new Set(),
+                    implicitLikeKeys: new Set(),
+                    dislikedWeights: new Map(),
+                    sessionMood: {
+                        dominantLocale: 'spanish',
+                        deepDiveArtist: null,
+                        preferLong: false,
+                        preferShort: false,
+                        restless: false,
+                    } as SessionMood,
+                })
+                expect(result.score).toBeGreaterThan(0)
+                expect(result.signals).not.toContain('cross-locale')
             })
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-            })
-
-            expect(result.score).toBe(-Infinity)
-            expect(result.signals).toEqual([])
         })
 
-        it('rejects EDM mixes', () => {
-            const current = createTrack()
-            const candidate = createTrack({ title: 'DJ Set 3 Hour Mix' })
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
+        describe('genre family handling', () => {
+            it('applies soft penalty when no dominant family yet', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Master of Puppets',
+                        author: 'Metallica',
+                    }),
+                    currentTrack: createTrack({ author: 'Some Artist' }),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    blockedArtistKeys: new Set(),
+                    autoplayMode: 'similar',
+                    artistFrequency: new Map(),
+                    implicitDislikeKeys: new Set(),
+                    implicitLikeKeys: new Set(),
+                    dislikedWeights: new Map(),
+                    sessionMood: null,
+                    skipNoveltyBoost: false,
+                    genreContext: {
+                        candidateTags: ['thrash metal', 'metal', 'rock'],
+                        currentTrackTags: ['rap', 'hip hop'],
+                        sessionGenreFamilies: new Set(),
+                    },
+                })
+                expect(result.score).not.toBe(-Infinity)
+                expect(result.signals).toContain('genre family drift')
             })
 
-            expect(result.score).toBe(-Infinity)
-            expect(result.signals).toEqual([])
+            it('keeps candidates within dominant session genre family', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Outro Funk',
+                        author: 'MC Cabelinho',
+                    }),
+                    currentTrack: createTrack({
+                        title: 'Liderança',
+                        author: 'Major RD',
+                    }),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    blockedArtistKeys: new Set(),
+                    autoplayMode: 'similar',
+                    artistFrequency: new Map(),
+                    implicitDislikeKeys: new Set(),
+                    implicitLikeKeys: new Set(),
+                    dislikedWeights: new Map(),
+                    sessionMood: null,
+                    skipNoveltyBoost: false,
+                    genreContext: {
+                        candidateTags: ['rap', 'trap', 'funk carioca'],
+                        currentTrackTags: ['rap', 'hip hop', 'trap'],
+                        sessionGenreFamilies: new Set(['rap_hiphop']),
+                    },
+                })
+                expect(result.score).toBeGreaterThan(0)
+                expect(result.signals).not.toContain('cross-genre')
+                expect(result.signals).not.toContain('genre family drift')
+            })
         })
 
-        it('boosts preferred artists', () => {
-            const current = createTrack()
-            const candidate = createTrack({ author: 'Favorite Artist' })
-            const preferredKeys = new Set(['favoriteartist'])
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: preferredKeys,
+        describe('mood-driven boosts', () => {
+            it('boosts deep dive artist tracks', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({ author: 'Deep Dive Artist' }),
+                    currentTrack: createTrack({ author: 'Deep Dive Artist' }),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    blockedArtistKeys: new Set(),
+                    autoplayMode: 'similar',
+                    artistFrequency: new Map(),
+                    implicitDislikeKeys: new Set(),
+                    implicitLikeKeys: new Set(),
+                    dislikedWeights: new Map(),
+                    sessionMood: {
+                        dominantLocale: null,
+                        deepDiveArtist: 'deep dive artist',
+                        preferLong: false,
+                        preferShort: false,
+                        restless: false,
+                    } as SessionMood,
+                })
+                expect(result.signals).toContain('deep dive')
             })
 
-            expect(result.score).toBeGreaterThan(1)
-            expect(result.signals).toContain('preferred artist')
+            it('boosts long and short track preferences', () => {
+                const longResult = calculateRecommendationScore({
+                    candidate: createTrack({ durationMS: 7 * 60 * 1000 }),
+                    currentTrack: createTrack({ durationMS: 5 * 60 * 1000 }),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    blockedArtistKeys: new Set(),
+                    autoplayMode: 'similar',
+                    artistFrequency: new Map(),
+                    implicitDislikeKeys: new Set(),
+                    implicitLikeKeys: new Set(),
+                    dislikedWeights: new Map(),
+                    sessionMood: {
+                        dominantLocale: null,
+                        deepDiveArtist: null,
+                        preferLong: true,
+                        preferShort: false,
+                        restless: false,
+                    } as SessionMood,
+                })
+                expect(longResult.signals).toContain('long track match')
+
+                const shortResult = calculateRecommendationScore({
+                    candidate: createTrack({ durationMS: 2 * 60 * 1000 }),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    blockedArtistKeys: new Set(),
+                    autoplayMode: 'similar',
+                    artistFrequency: new Map(),
+                    implicitDislikeKeys: new Set(),
+                    implicitLikeKeys: new Set(),
+                    dislikedWeights: new Map(),
+                    sessionMood: {
+                        dominantLocale: null,
+                        deepDiveArtist: null,
+                        preferLong: false,
+                        preferShort: true,
+                        restless: false,
+                    } as SessionMood,
+                })
+                expect(shortResult.signals).toContain('quick hit match')
+            })
+
+            it('boosts restless discovery with novel artists', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({ author: 'Novel Artist' }),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(['other artist']),
+                    likedWeights: new Map(),
+                    preferredArtistKeys: new Set(),
+                    blockedArtistKeys: new Set(),
+                    autoplayMode: 'similar',
+                    artistFrequency: new Map(),
+                    implicitDislikeKeys: new Set(),
+                    implicitLikeKeys: new Set(),
+                    dislikedWeights: new Map(),
+                    sessionMood: {
+                        dominantLocale: null,
+                        deepDiveArtist: null,
+                        preferLong: false,
+                        preferShort: false,
+                        restless: true,
+                    } as SessionMood,
+                })
+                expect(result.signals).toContain('restless discovery')
+            })
         })
 
-        it('boosts frequent artists (5+ plays)', () => {
-            const current = createTrack()
-            const candidate = createTrack({ author: 'Favorite Band' })
-            const frequency = new Map([['favoriteband', 5]])
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: frequency,
-            })
-
-            expect(result.score).toBeGreaterThan(1)
-            expect(result.signals).toContain('favourite artist')
-        })
-
-        it('handles explicit dislike with high weight by rejecting', () => {
-            const current = createTrack()
-            const candidate = createTrack({
-                title: 'Disliked Song',
-                author: 'Test Artist',
-            })
-            const dislikedWeights = new Map([['dislikedsong::testartist', 0.7]])
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: new Map(),
-                implicitDislikeKeys: new Set(),
-                implicitLikeKeys: new Set(),
-                dislikedWeights: dislikedWeights,
-            })
-
-            expect(result.score).toBe(-Infinity)
-            expect(result.signals).toEqual([])
-        })
-
-        it('applies partial penalty for low-weight dislikes', () => {
-            const current = createTrack()
-            const candidate = createTrack({
-                title: 'Xyz Abc',
-                author: 'Different Artist',
-                source: 'youtube',
-            })
-            const dislikedWeights = new Map([['xyzabc::differentartist', 0.3]])
-            const recentArtists = new Set(['existing artist'])
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: recentArtists,
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: new Map(),
-                implicitDislikeKeys: new Set(),
-                implicitLikeKeys: new Set(),
-                dislikedWeights: dislikedWeights,
-            })
-
-            expect(result.signals).toContain('old dislike')
-            expect(result.score).toBeLessThan(1.3)
-        })
-
-        it('applies same-artist novelty penalty', () => {
-            const current = createTrack({ author: 'Test Artist' })
-            const candidate = createTrack({
-                title: 'Xyz Abc',
-                author: 'Test Artist',
-                source: 'youtube',
-            })
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-            })
-
-            expect(result.score).toBeLessThan(1)
-        })
-
-        it('hard-rejects Spanish candidates when session has no Spanish history', () => {
-            const current = createTrack()
-            const candidate = createTrack({ title: 'Reggaeton Song' })
-            const mood: SessionMood = {
-                dominantLocale: null,
-                deepDiveArtist: null,
-                preferLong: false,
-                preferShort: false,
-                restless: false,
-            }
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: new Map(),
-                implicitDislikeKeys: new Set(),
-                implicitLikeKeys: new Set(),
-                dislikedWeights: new Map(),
-                sessionMood: mood,
-            })
-
-            expect(result.score).toBe(-Infinity)
-            expect(result.signals).toEqual([])
-        })
-
-        it('rejects Spanish gospel via Last.fm artist tags even when title is ambiguous', () => {
-            // Repro for the 2026-04-24 bug: Brazilian rap session pulled in
-            // "Derrama Tu Gloria" by ALISON because no signal in the title
-            // alone identified it as Spanish. Last.fm artist tags carry the
-            // decisive `latin christian` / `spanish` markers.
-            const current = createTrack({
-                title: 'Só Rock 3',
-                author: 'Major RD',
-            })
-            const candidate = createTrack({
-                title: 'Derrama Tu Gloria',
-                author: 'ALISON',
-            })
-            const mood: SessionMood = {
-                dominantLocale: null,
-                deepDiveArtist: null,
-                preferLong: false,
-                preferShort: false,
-                restless: false,
-            }
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: new Map(),
-                implicitDislikeKeys: new Set(),
-                implicitLikeKeys: new Set(),
-                dislikedWeights: new Map(),
-                sessionMood: mood,
-                skipNoveltyBoost: false,
-                genreContext: {
-                    candidateTags: ['latin christian', 'spanish', 'worship'],
-                },
-            })
-
-            expect(result.score).toBe(-Infinity)
-            expect(result.signals).toEqual([])
-        })
-
-        it('does not reject Spanish candidates when session has Spanish history', () => {
-            const current = createTrack({
-                title: 'Despacito',
-                author: 'Luis Fonsi',
-            })
-            const candidate = createTrack({ title: 'Reggaeton Song' })
-            const mood: SessionMood = {
-                dominantLocale: 'spanish',
-                deepDiveArtist: null,
-                preferLong: false,
-                preferShort: false,
-                restless: false,
-            }
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: new Map(),
-                implicitDislikeKeys: new Set(),
-                implicitLikeKeys: new Set(),
-                dislikedWeights: new Map(),
-                sessionMood: mood,
-            })
-
-            expect(result.score).toBeGreaterThan(0)
-            expect(result.signals).not.toContain('cross-locale')
-        })
-
-        it('hard-rejects candidates that drift from the dominant session genre family', () => {
-            // Phase 2: Brazilian rap session has settled into the rap_hiphop
-            // family; a rock_metal candidate with no overlap must be vetoed.
-            const current = createTrack({
-                title: 'Liderança',
-                author: 'Major RD',
-            })
-            const candidate = createTrack({
-                title: 'Master of Puppets',
-                author: 'Metallica',
-            })
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: new Map(),
-                implicitDislikeKeys: new Set(),
-                implicitLikeKeys: new Set(),
-                dislikedWeights: new Map(),
-                sessionMood: null,
-                skipNoveltyBoost: false,
-                genreContext: {
-                    candidateTags: ['thrash metal', 'metal', 'rock'],
-                    currentTrackTags: ['rap', 'hip hop', 'trap'],
-                    sessionGenreFamilies: new Set(['rap_hiphop']),
-                },
-            })
-            expect(result.score).toBe(-Infinity)
-            expect(result.signals).toEqual([])
-        })
-
-        it('does not veto cross-genre when the session has no dominant family yet', () => {
-            const current = createTrack({ author: 'Some Artist' })
-            const candidate = createTrack({
-                title: 'Master of Puppets',
-                author: 'Metallica',
-            })
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: new Map(),
-                implicitDislikeKeys: new Set(),
-                implicitLikeKeys: new Set(),
-                dislikedWeights: new Map(),
-                sessionMood: null,
-                skipNoveltyBoost: false,
-                genreContext: {
-                    candidateTags: ['thrash metal', 'metal', 'rock'],
-                    currentTrackTags: ['rap', 'hip hop'],
-                    sessionGenreFamilies: new Set(),
-                },
-            })
-            // Soft genre-family penalty still applies (rap vs metal, no
-            // overlap), but the candidate is not hard-rejected.
-            expect(result.score).not.toBe(-Infinity)
-            expect(result.signals).toContain('genre family drift')
-        })
-
-        it('keeps candidates within the dominant session genre family', () => {
-            const current = createTrack({
-                title: 'Liderança',
-                author: 'Major RD',
-            })
-            const candidate = createTrack({
-                title: 'Outro Funk',
-                author: 'MC Cabelinho',
-            })
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: new Map(),
-                implicitDislikeKeys: new Set(),
-                implicitLikeKeys: new Set(),
-                dislikedWeights: new Map(),
-                sessionMood: null,
-                skipNoveltyBoost: false,
-                genreContext: {
-                    candidateTags: ['rap', 'trap', 'funk carioca'],
-                    currentTrackTags: ['rap', 'hip hop', 'trap'],
-                    sessionGenreFamilies: new Set(['rap_hiphop']),
-                },
-            })
-            expect(result.score).toBeGreaterThan(0)
-            expect(result.signals).not.toContain('cross-genre')
-            expect(result.signals).not.toContain('genre family drift')
-        })
-
-        it('boosts deep dive artist tracks', () => {
-            const current = createTrack({ author: 'Deep Dive Artist' })
-            const candidate = createTrack({ author: 'Deep Dive Artist' })
-            const mood: SessionMood = {
-                dominantLocale: null,
-                deepDiveArtist: 'deep dive artist',
-                preferLong: false,
-                preferShort: false,
-                restless: false,
-            }
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: new Map(),
-                implicitDislikeKeys: new Set(),
-                implicitLikeKeys: new Set(),
-                dislikedWeights: new Map(),
-                sessionMood: mood,
-            })
-
-            expect(result.signals).toContain('deep dive')
-        })
-
-        it('boosts long tracks when preferLong is true', () => {
-            const current = createTrack({ durationMS: 5 * 60 * 1000 })
-            const candidate = createTrack({ durationMS: 7 * 60 * 1000 })
-            const mood: SessionMood = {
-                dominantLocale: null,
-                deepDiveArtist: null,
-                preferLong: true,
-                preferShort: false,
-                restless: false,
-            }
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: new Map(),
-                implicitDislikeKeys: new Set(),
-                implicitLikeKeys: new Set(),
-                dislikedWeights: new Map(),
-                sessionMood: mood,
-            })
-
-            expect(result.signals).toContain('long track match')
-        })
-
-        it('boosts short tracks when preferShort is true', () => {
-            const current = createTrack()
-            const candidate = createTrack({ durationMS: 2 * 60 * 1000 })
-            const mood: SessionMood = {
-                dominantLocale: null,
-                deepDiveArtist: null,
-                preferLong: false,
-                preferShort: true,
-                restless: false,
-            }
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: new Set(),
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: new Map(),
-                implicitDislikeKeys: new Set(),
-                implicitLikeKeys: new Set(),
-                dislikedWeights: new Map(),
-                sessionMood: mood,
-            })
-
-            expect(result.signals).toContain('quick hit match')
-        })
-
-        it('relaxes genre family penalty by 50% during skip storms (recentSkipCount >= 3)', () => {
-            const current = createTrack({ author: 'Rap Artist' })
-            const candidate = createTrack({
-                author: 'Pop Artist',
-                source: 'youtube',
-            })
+        it('relaxes genre penalty during skip storms', () => {
             const recentArtists = new Set(['other'])
-            const moodWithSkips: SessionMood = {
-                dominantLocale: null,
-                deepDiveArtist: null,
-                preferLong: false,
-                preferShort: false,
-                restless: false,
-                recentSkipCount: 3,
+            const genreContext = {
+                candidateTags: ['pop'],
+                currentTrackTags: ['hip hop', 'rap'],
             }
 
             const withSkips = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
+                candidate: createTrack({
+                    author: 'Pop Artist',
+                    source: 'youtube',
+                }),
+                currentTrack: createTrack({ author: 'Rap Artist' }),
                 recentArtists: recentArtists,
                 likedWeights: new Map(),
                 preferredArtistKeys: new Set(),
@@ -547,16 +484,24 @@ describe('candidateScorer', () => {
                 implicitDislikeKeys: new Set(),
                 implicitLikeKeys: new Set(),
                 dislikedWeights: new Map(),
-                sessionMood: moodWithSkips,
+                sessionMood: {
+                    dominantLocale: null,
+                    deepDiveArtist: null,
+                    preferLong: false,
+                    preferShort: false,
+                    restless: false,
+                    recentSkipCount: 3,
+                } as SessionMood,
                 skipNoveltyBoost: false,
-                genreContext: {
-                    candidateTags: ['pop'],
-                    currentTrackTags: ['hip hop', 'rap'],
-                },
+                genreContext,
             })
+
             const withoutSkips = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
+                candidate: createTrack({
+                    author: 'Pop Artist',
+                    source: 'youtube',
+                }),
+                currentTrack: createTrack({ author: 'Rap Artist' }),
                 recentArtists: recentArtists,
                 likedWeights: new Map(),
                 preferredArtistKeys: new Set(),
@@ -568,114 +513,62 @@ describe('candidateScorer', () => {
                 dislikedWeights: new Map(),
                 sessionMood: null,
                 skipNoveltyBoost: false,
-                genreContext: {
-                    candidateTags: ['pop'],
-                    currentTrackTags: ['hip hop', 'rap'],
-                },
+                genreContext,
             })
 
             expect(withSkips.score).toBeGreaterThan(withoutSkips.score)
         })
 
-        it('boosts candidates in popular mode based on liked weight', () => {
-            const current = createTrack()
-            const candidate = createTrack({
-                title: 'Hit Song',
-                author: 'Test Artist',
-                source: 'youtube',
-            })
-            const likedWeights = new Map([['hitsong::testartist', 0.8]])
-            const recentArtists = new Set(['other'])
-
+        it('boosts in popular mode based on liked weight', () => {
             const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: recentArtists,
-                likedWeights: likedWeights,
+                candidate: createTrack({
+                    title: 'Hit Song',
+                    author: 'Test Artist',
+                    source: 'youtube',
+                }),
+                currentTrack: createTrack(),
+                recentArtists: new Set(['other']),
+                likedWeights: new Map([['hitsong::testartist', 0.8]]),
                 preferredArtistKeys: new Set(),
                 blockedArtistKeys: new Set(),
                 autoplayMode: 'popular',
             })
-
             expect(result.score).toBeGreaterThan(1)
-        })
-
-        it('boosts restless discovery when artist is novel', () => {
-            const current = createTrack()
-            const candidate = createTrack({ author: 'Novel Artist' })
-            const mood: SessionMood = {
-                dominantLocale: null,
-                deepDiveArtist: null,
-                preferLong: false,
-                preferShort: false,
-                restless: true,
-            }
-            const recentArtists = new Set(['other artist'])
-
-            const result = calculateRecommendationScore({
-                candidate: candidate,
-                currentTrack: current,
-                recentArtists: recentArtists,
-                likedWeights: new Map(),
-                preferredArtistKeys: new Set(),
-                blockedArtistKeys: new Set(),
-                autoplayMode: 'similar',
-                artistFrequency: new Map(),
-                implicitDislikeKeys: new Set(),
-                implicitLikeKeys: new Set(),
-                dislikedWeights: new Map(),
-                sessionMood: mood,
-            })
-
-            expect(result.signals).toContain('restless discovery')
         })
     })
 
     describe('calculateGenreFamilyPenalty', () => {
-        it('returns -0.1 when current or candidate has no genres', () => {
-            const penalty = calculateGenreFamilyPenalty(['rock'], [])
-            expect(penalty).toBe(-0.1)
+        it('handles missing genres and family matches', () => {
+            expect(calculateGenreFamilyPenalty(['rock'], [])).toBe(-0.1)
+            expect(calculateGenreFamilyPenalty([], ['rock'])).toBe(-0.1)
+            expect(
+                calculateGenreFamilyPenalty(
+                    ['rock music'],
+                    ['alternative rock'],
+                ),
+            ).toBe(0)
         })
 
-        it('returns 0 when genres share a family', () => {
-            const penalty = calculateGenreFamilyPenalty(
-                ['rock music'],
-                ['alternative rock'],
-            )
-            expect(penalty).toBe(0)
-        })
-
-        it('returns -0.6 for strong genre family mismatch', () => {
-            const penalty = calculateGenreFamilyPenalty(
-                ['hip hop'],
-                ['pop music'],
-            )
-            expect(penalty).toBe(-0.6)
-        })
-
-        it('returns -0.3 for weak genre family mismatch', () => {
-            const penalty = calculateGenreFamilyPenalty(
-                ['pop music'],
-                ['ambient lofi'],
-            )
-            expect(penalty).toBe(-0.3)
+        it('applies penalties for genre family mismatches', () => {
+            expect(
+                calculateGenreFamilyPenalty(['hip hop'], ['pop music']),
+            ).toBe(-0.6)
+            expect(
+                calculateGenreFamilyPenalty(['pop music'], ['ambient lofi']),
+            ).toBe(-0.3)
         })
     })
 
     describe('getGenreFamilies', () => {
-        it('identifies genres in rap_hiphop family', () => {
-            const families = getGenreFamilies(['hip hop', 'rap music'])
-            expect(families.has('rap_hiphop')).toBe(true)
-        })
+        it('identifies genre families from tags', () => {
+            const rapHipHop = getGenreFamilies(['hip hop', 'rap music'])
+            expect(rapHipHop.has('rap_hiphop')).toBe(true)
 
-        it('identifies genres in rock_metal family', () => {
-            const families = getGenreFamilies(['metal', 'punk rock'])
-            expect(families.has('rock_metal')).toBe(true)
-        })
+            const rockMetal = getGenreFamilies(['metal', 'punk rock'])
+            expect(rockMetal.has('rock_metal')).toBe(true)
 
-        it('identifies genres in multiple families', () => {
-            const families = getGenreFamilies(['rock', 'jazz', 'reggaeton'])
-            expect(families.size).toBeGreaterThanOrEqual(3)
+            const multiple = getGenreFamilies(['rock', 'jazz', 'reggaeton'])
+            expect(multiple.size).toBeGreaterThanOrEqual(3)
         })
 
         it('returns empty set for unknown genres', () => {
@@ -685,326 +578,333 @@ describe('candidateScorer', () => {
     })
 
     describe('enrichWithAudioFeatures', () => {
-        it('returns tracks unchanged when no token available', async () => {
-            const tracks = [
-                {
-                    track: createTrack(),
-                    score: 1,
-                    signals: [],
-                },
-            ]
-            spotifyLinkServiceMock.mockResolvedValue(null)
+        describe('error handling', () => {
+            it('returns tracks unchanged on token or API errors', async () => {
+                const tracks = [{ track: createTrack(), score: 1, signals: [] }]
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                null,
-            )
+                spotifyLinkServiceMock.mockResolvedValue(null)
+                const noToken = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    null,
+                )
+                expect(noToken).toEqual(tracks)
 
-            expect(result).toEqual(tracks)
+                spotifyLinkServiceMock.mockRejectedValue(
+                    new Error('Token error'),
+                )
+                const tokenError = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    null,
+                )
+                expect(tokenError).toEqual(tracks)
+
+                spotifyLinkServiceMock.mockResolvedValue('valid-token')
+                getBatchAudioFeaturesMock.mockRejectedValue(
+                    new Error('API error'),
+                )
+                const apiError = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    { energy: 0.5, valence: 0.5 } as SpotifyAudioFeatures,
+                )
+                expect(apiError).toEqual(tracks)
+            })
+
+            it('returns tracks unchanged when no Spotify tracks found', async () => {
+                const youtubeTrack = [
+                    {
+                        track: createTrack({
+                            url: 'https://youtube.com/watch?v=123',
+                        }),
+                        score: 1,
+                        signals: [],
+                    },
+                ]
+                spotifyLinkServiceMock.mockResolvedValue('valid-token')
+
+                const result = await enrichWithAudioFeatures(
+                    youtubeTrack,
+                    'user-123',
+                    { energy: 0.5, valence: 0.5 } as SpotifyAudioFeatures,
+                )
+
+                expect(result).toEqual(youtubeTrack)
+            })
+
+            it('handles artist genre fetch errors gracefully', async () => {
+                const tracks = [{ track: createTrack(), score: 1, signals: [] }]
+                spotifyLinkServiceMock.mockResolvedValue('valid-token')
+                getArtistGenresMock.mockRejectedValue(
+                    new Error('Genre fetch failed'),
+                )
+
+                const result = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    { energy: 0.5, valence: 0.5 } as SpotifyAudioFeatures,
+                    'Current Artist',
+                )
+
+                expect(result).toEqual(tracks)
+            })
         })
 
-        it('returns tracks unchanged when token fetch fails', async () => {
-            const tracks = [
-                {
-                    track: createTrack(),
-                    score: 1,
-                    signals: [],
-                },
-            ]
-            spotifyLinkServiceMock.mockRejectedValue(new Error('Token error'))
+        describe('audio feature scoring', () => {
+            it('boosts for close energy/valence match', async () => {
+                const tracks = [
+                    {
+                        track: createTrack(),
+                        score: 1,
+                        signals: [],
+                    },
+                ]
+                spotifyLinkServiceMock.mockResolvedValue('valid-token')
+                getBatchAudioFeaturesMock.mockResolvedValue(
+                    new Map([
+                        [
+                            'testid',
+                            {
+                                energy: 0.52,
+                                valence: 0.52,
+                            } as SpotifyAudioFeatures,
+                        ],
+                    ]),
+                )
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                null,
-            )
+                const result = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    {
+                        energy: 0.5,
+                        valence: 0.5,
+                    } as SpotifyAudioFeatures,
+                )
 
-            expect(result).toEqual(tracks)
-        })
+                expect(result[0].score).toBeGreaterThan(1)
+            })
 
-        it('returns tracks unchanged when no Spotify tracks found', async () => {
-            const tracks = [
-                {
-                    track: createTrack({
-                        url: 'https://youtube.com/watch?v=123',
-                    }),
-                    score: 1,
-                    signals: [],
-                },
-            ]
-            spotifyLinkServiceMock.mockResolvedValue('valid-token')
+            it('partially boosts for moderate energy/valence delta', async () => {
+                const tracks = [
+                    {
+                        track: createTrack(),
+                        score: 1,
+                        signals: [],
+                    },
+                ]
+                spotifyLinkServiceMock.mockResolvedValue('valid-token')
+                getBatchAudioFeaturesMock.mockResolvedValue(
+                    new Map([
+                        [
+                            'testid',
+                            {
+                                energy: 0.65,
+                                valence: 0.75,
+                            } as SpotifyAudioFeatures,
+                        ],
+                    ]),
+                )
 
-            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
-                energy: 0.5,
-                valence: 0.5,
-            } as SpotifyAudioFeatures)
+                const result = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    {
+                        energy: 0.5,
+                        valence: 0.5,
+                    } as SpotifyAudioFeatures,
+                )
 
-            expect(result).toEqual(tracks)
-        })
+                expect(result[0].score).toBeGreaterThan(1)
+            })
 
-        it('handles getBatchAudioFeatures error gracefully', async () => {
-            const tracks = [
-                {
-                    track: createTrack(),
-                    score: 1,
-                    signals: [],
-                },
-            ]
-            spotifyLinkServiceMock.mockResolvedValue('valid-token')
-            getBatchAudioFeaturesMock.mockRejectedValue(new Error('API error'))
+            it('penalizes high energy/valence delta', async () => {
+                const tracks = [
+                    {
+                        track: createTrack(),
+                        score: 1,
+                        signals: [],
+                    },
+                ]
+                spotifyLinkServiceMock.mockResolvedValue('valid-token')
+                getBatchAudioFeaturesMock.mockResolvedValue(
+                    new Map([
+                        [
+                            'testid',
+                            {
+                                energy: 0.95,
+                                valence: 0.95,
+                            } as SpotifyAudioFeatures,
+                        ],
+                    ]),
+                )
 
-            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
-                energy: 0.5,
-                valence: 0.5,
-            } as SpotifyAudioFeatures)
+                const result = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    {
+                        energy: 0.1,
+                        valence: 0.1,
+                    } as SpotifyAudioFeatures,
+                )
 
-            expect(result).toEqual(tracks)
-        })
+                expect(result[0].score).toBeLessThan(1)
+            })
 
-        it('handles getArtistGenres error when fetching current artist genres', async () => {
-            const tracks = [
-                {
-                    track: createTrack(),
-                    score: 1,
-                    signals: [],
-                },
-            ]
-            spotifyLinkServiceMock.mockResolvedValue('valid-token')
-            getArtistGenresMock.mockRejectedValue(
-                new Error('Genre fetch failed'),
-            )
+            it('penalizes tempo drastic change (delta > 40 BPM)', async () => {
+                const tracks = [{ track: createTrack(), score: 1, signals: [] }]
+                spotifyLinkServiceMock.mockResolvedValue('valid-token')
+                getBatchAudioFeaturesMock.mockResolvedValue(
+                    new Map([
+                        [
+                            'testid',
+                            {
+                                energy: 0.5,
+                                valence: 0.5,
+                                tempo: 180,
+                                acousticness: 0.3,
+                            } as SpotifyAudioFeatures,
+                        ],
+                    ]),
+                )
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.5, valence: 0.5 } as SpotifyAudioFeatures,
-                'Current Artist',
-            )
+                const result = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    {
+                        energy: 0.5,
+                        valence: 0.5,
+                        tempo: 100,
+                        acousticness: 0.3,
+                    } as SpotifyAudioFeatures,
+                )
 
-            expect(result).toEqual(tracks)
-        })
+                expect(result[0].score).toBeLessThan(1)
+            })
 
-        it('boosts score for close energy/valence match', async () => {
-            const tracks = [
-                {
-                    track: createTrack(),
-                    score: 1,
-                    signals: [],
-                },
-            ]
-            spotifyLinkServiceMock.mockResolvedValue('valid-token')
-            getBatchAudioFeaturesMock.mockResolvedValue(
-                new Map([
-                    [
-                        'testid',
-                        {
-                            energy: 0.52,
-                            valence: 0.52,
-                        } as SpotifyAudioFeatures,
-                    ],
-                ]),
-            )
+            it('boosts high acousticness and continuity', async () => {
+                const tracks = [{ track: createTrack(), score: 1, signals: [] }]
+                spotifyLinkServiceMock.mockResolvedValue('valid-token')
+                getBatchAudioFeaturesMock.mockResolvedValue(
+                    new Map([
+                        [
+                            'testid',
+                            {
+                                energy: 0.5,
+                                valence: 0.5,
+                                tempo: 120,
+                                acousticness: 0.8,
+                            } as SpotifyAudioFeatures,
+                        ],
+                    ]),
+                )
 
-            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
-                energy: 0.5,
-                valence: 0.5,
-            } as SpotifyAudioFeatures)
+                const result = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    {
+                        energy: 0.5,
+                        valence: 0.5,
+                        tempo: 120,
+                        acousticness: 0.5,
+                    } as SpotifyAudioFeatures,
+                )
 
-            expect(result[0].score).toBeGreaterThan(1)
-        })
+                expect(result[0].score).toBeGreaterThan(1)
+            })
 
-        it('partially boosts for moderate energy/valence delta', async () => {
-            const tracks = [
-                {
-                    track: createTrack(),
-                    score: 1,
-                    signals: [],
-                },
-            ]
-            spotifyLinkServiceMock.mockResolvedValue('valid-token')
-            getBatchAudioFeaturesMock.mockResolvedValue(
-                new Map([
-                    [
-                        'testid',
-                        {
-                            energy: 0.65,
-                            valence: 0.75,
-                        } as SpotifyAudioFeatures,
-                    ],
-                ]),
-            )
+            it('penalizes extreme acousticness swing', async () => {
+                const tracks = [{ track: createTrack(), score: 1, signals: [] }]
+                spotifyLinkServiceMock.mockResolvedValue('valid-token')
+                getBatchAudioFeaturesMock.mockResolvedValue(
+                    new Map([
+                        [
+                            'testid',
+                            {
+                                energy: 0.95,
+                                valence: 0.95,
+                                tempo: 120,
+                                acousticness: 0.05,
+                            } as SpotifyAudioFeatures,
+                        ],
+                    ]),
+                )
 
-            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
-                energy: 0.5,
-                valence: 0.5,
-            } as SpotifyAudioFeatures)
+                const result = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    {
+                        energy: 0.1,
+                        valence: 0.1,
+                        tempo: 120,
+                        acousticness: 0.8,
+                    } as SpotifyAudioFeatures,
+                )
 
-            expect(result[0].score).toBeGreaterThan(1)
-        })
+                expect(result[0].score).toBeLessThan(1)
+            })
 
-        it('penalizes high energy/valence delta', async () => {
-            const tracks = [
-                {
-                    track: createTrack(),
-                    score: 1,
-                    signals: [],
-                },
-            ]
-            spotifyLinkServiceMock.mockResolvedValue('valid-token')
-            getBatchAudioFeaturesMock.mockResolvedValue(
-                new Map([
-                    [
-                        'testid',
-                        {
-                            energy: 0.95,
-                            valence: 0.95,
-                        } as SpotifyAudioFeatures,
-                    ],
-                ]),
-            )
+            it('applies continuity bonus when both tracks are acoustic', async () => {
+                const tracks = [{ track: createTrack(), score: 1, signals: [] }]
+                spotifyLinkServiceMock.mockResolvedValue('valid-token')
+                getBatchAudioFeaturesMock.mockResolvedValue(
+                    new Map([
+                        [
+                            'testid',
+                            {
+                                energy: 0.4,
+                                valence: 0.4,
+                                tempo: 90,
+                                acousticness: 0.75,
+                            } as SpotifyAudioFeatures,
+                        ],
+                    ]),
+                )
 
-            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
-                energy: 0.1,
-                valence: 0.1,
-            } as SpotifyAudioFeatures)
+                const result = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    {
+                        energy: 0.4,
+                        valence: 0.4,
+                        tempo: 90,
+                        acousticness: 0.7,
+                    } as SpotifyAudioFeatures,
+                )
 
-            expect(result[0].score).toBeLessThan(1)
-        })
+                expect(result[0].score).toBeGreaterThan(1)
+            })
 
-        it('applies tempo drastic change penalty when delta exceeds 40 BPM', async () => {
-            const tracks = [{ track: createTrack(), score: 1, signals: [] }]
-            spotifyLinkServiceMock.mockResolvedValue('valid-token')
-            getBatchAudioFeaturesMock.mockResolvedValue(
-                new Map([
-                    [
-                        'testid',
-                        {
-                            energy: 0.5,
-                            valence: 0.5,
-                            tempo: 180,
-                            acousticness: 0.3,
-                        } as SpotifyAudioFeatures,
-                    ],
-                ]),
-            )
+            it('penalizes acoustic candidate in non-acoustic session', async () => {
+                const tracks = [{ track: createTrack(), score: 1, signals: [] }]
+                spotifyLinkServiceMock.mockResolvedValue('valid-token')
+                getBatchAudioFeaturesMock.mockResolvedValue(
+                    new Map([
+                        [
+                            'testid',
+                            {
+                                energy: 0.95,
+                                valence: 0.95,
+                                tempo: 120,
+                                acousticness: 0.8,
+                            } as SpotifyAudioFeatures,
+                        ],
+                    ]),
+                )
 
-            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
-                energy: 0.5,
-                valence: 0.5,
-                tempo: 100,
-                acousticness: 0.3,
-            } as SpotifyAudioFeatures)
+                const result = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    {
+                        energy: 0.1,
+                        valence: 0.1,
+                        tempo: 120,
+                        acousticness: 0.1,
+                    } as SpotifyAudioFeatures,
+                )
 
-            expect(result[0].score).toBeLessThan(1)
-        })
-
-        it('boosts track with high acousticness feature value', async () => {
-            const tracks = [{ track: createTrack(), score: 1, signals: [] }]
-            spotifyLinkServiceMock.mockResolvedValue('valid-token')
-            getBatchAudioFeaturesMock.mockResolvedValue(
-                new Map([
-                    [
-                        'testid',
-                        {
-                            energy: 0.5,
-                            valence: 0.5,
-                            tempo: 120,
-                            acousticness: 0.8,
-                        } as SpotifyAudioFeatures,
-                    ],
-                ]),
-            )
-
-            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
-                energy: 0.5,
-                valence: 0.5,
-                tempo: 120,
-                acousticness: 0.5,
-            } as SpotifyAudioFeatures)
-
-            expect(result[0].score).toBeGreaterThan(1)
-        })
-
-        it('penalizes extreme acousticness swing when candidate is not acoustic', async () => {
-            const tracks = [{ track: createTrack(), score: 1, signals: [] }]
-            spotifyLinkServiceMock.mockResolvedValue('valid-token')
-            getBatchAudioFeaturesMock.mockResolvedValue(
-                new Map([
-                    [
-                        'testid',
-                        {
-                            energy: 0.95,
-                            valence: 0.95,
-                            tempo: 120,
-                            acousticness: 0.05,
-                        } as SpotifyAudioFeatures,
-                    ],
-                ]),
-            )
-
-            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
-                energy: 0.1,
-                valence: 0.1,
-                tempo: 120,
-                acousticness: 0.8,
-            } as SpotifyAudioFeatures)
-
-            expect(result[0].score).toBeLessThan(1)
-        })
-
-        it('applies continuity bonus when both current and candidate are acoustic', async () => {
-            const tracks = [{ track: createTrack(), score: 1, signals: [] }]
-            spotifyLinkServiceMock.mockResolvedValue('valid-token')
-            getBatchAudioFeaturesMock.mockResolvedValue(
-                new Map([
-                    [
-                        'testid',
-                        {
-                            energy: 0.4,
-                            valence: 0.4,
-                            tempo: 90,
-                            acousticness: 0.75,
-                        } as SpotifyAudioFeatures,
-                    ],
-                ]),
-            )
-
-            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
-                energy: 0.4,
-                valence: 0.4,
-                tempo: 90,
-                acousticness: 0.7,
-            } as SpotifyAudioFeatures)
-
-            expect(result[0].score).toBeGreaterThan(1)
-        })
-
-        it('penalizes acoustic candidate in a non-acoustic session', async () => {
-            const tracks = [{ track: createTrack(), score: 1, signals: [] }]
-            spotifyLinkServiceMock.mockResolvedValue('valid-token')
-            getBatchAudioFeaturesMock.mockResolvedValue(
-                new Map([
-                    [
-                        'testid',
-                        {
-                            energy: 0.95,
-                            valence: 0.95,
-                            tempo: 120,
-                            acousticness: 0.8,
-                        } as SpotifyAudioFeatures,
-                    ],
-                ]),
-            )
-
-            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
-                energy: 0.1,
-                valence: 0.1,
-                tempo: 120,
-                acousticness: 0.1,
-            } as SpotifyAudioFeatures)
-
-            expect(result[0].score).toBeLessThan(1)
+                expect(result[0].score).toBeLessThan(1)
+            })
         })
 
         it('sorts results by score descending', async () => {
