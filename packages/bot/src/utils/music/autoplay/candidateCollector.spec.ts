@@ -8,6 +8,7 @@ import {
 } from './candidateCollector'
 import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import type { SessionMood } from './sessionMood'
+import type { AutoplayContext } from './autoplayContext'
 
 const debugLogMock = jest.fn()
 
@@ -78,6 +79,31 @@ function createGuildQueue(overrides: Partial<GuildQueue> = {}): GuildQueue {
         metadata: {},
         ...overrides,
     } as GuildQueue
+}
+
+function createAutoplayContext(
+    overrides: Partial<AutoplayContext> = {},
+): AutoplayContext {
+    const queue = createGuildQueue()
+    const currentTrack = createTrack()
+    return {
+        queue,
+        excludedUrls: new Set(),
+        excludedKeys: new Set(),
+        dislikedWeights: new Map(),
+        likedWeights: new Map(),
+        preferredArtistKeys: new Set(),
+        blockedArtistKeys: new Set(),
+        currentTrack,
+        recentArtists: new Set(),
+        autoplayMode: 'similar',
+        artistFrequency: new Map(),
+        implicitDislikeKeys: new Set(),
+        implicitLikeKeys: new Set(),
+        sessionMood: null,
+        genreContext: {},
+        ...overrides,
+    }
 }
 
 describe('candidateCollector', () => {
@@ -324,20 +350,14 @@ describe('candidateCollector', () => {
             const queue = createGuildQueue()
             const seedTracks = [createTrack()]
 
-            const result = await collectRecommendationCandidates(
+            const ctx = createAutoplayContext({
                 queue,
+                currentTrack: createTrack(),
+            })
+            const result = await collectRecommendationCandidates(
+                ctx,
                 seedTracks,
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
             )
 
             expect(result.size).toBe(1)
@@ -359,20 +379,14 @@ describe('candidateCollector', () => {
             const queue = createGuildQueue()
             const seedTracks = [createTrack()]
 
-            const result = await collectRecommendationCandidates(
+            const ctx = createAutoplayContext({
                 queue,
+                currentTrack: createTrack(),
+            })
+            const result = await collectRecommendationCandidates(
+                ctx,
                 seedTracks,
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
             )
 
             expect(result.size).toBeGreaterThan(0)
@@ -435,20 +449,14 @@ describe('candidateCollector', () => {
             const queue = createGuildQueue()
             const seedTracks = [createTrack()]
 
-            const result = await collectRecommendationCandidates(
+            const ctx = createAutoplayContext({
                 queue,
+                currentTrack: createTrack(),
+            })
+            const result = await collectRecommendationCandidates(
+                ctx,
                 seedTracks,
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
             )
 
             expect(result.size).toBe(0)
@@ -474,20 +482,14 @@ describe('candidateCollector', () => {
             const queue = createGuildQueue()
             const seedTracks = [createTrack()]
 
-            const result = await collectRecommendationCandidates(
+            const ctx = createAutoplayContext({
                 queue,
+                currentTrack: createTrack(),
+            })
+            const result = await collectRecommendationCandidates(
+                ctx,
                 seedTracks,
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
             )
 
             expect(result.size).toBe(0)
@@ -516,20 +518,14 @@ describe('candidateCollector', () => {
             const queue = createGuildQueue()
             const seedTracks = [createTrack(), createTrack()]
 
-            const result = await collectRecommendationCandidates(
+            const ctx = createAutoplayContext({
                 queue,
+                currentTrack: createTrack(),
+            })
+            const result = await collectRecommendationCandidates(
+                ctx,
                 seedTracks,
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
             )
 
             expect(result.size).toBe(2)

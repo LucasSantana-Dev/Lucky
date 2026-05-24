@@ -17,6 +17,7 @@ import {
     cleanSearchQuery,
 } from '../searchQueryCleaner'
 import type { SessionMood } from './sessionMood'
+import type { AutoplayContext } from './autoplayContext'
 import {
     normalizeTrackKey,
     normalizeText,
@@ -35,35 +36,18 @@ const MAX_AUTOPLAY_DURATION_MS = 7 * 60 * 1000
 const SEARCH_RESULTS_LIMIT = 8
 
 export async function collectSpotifyRecommendationCandidates(
-    queue: GuildQueue,
+    ctx: AutoplayContext,
     seedTracks: Track[],
     requestedBy: User | null,
-    excludedUrls: Set<string>,
-    excludedKeys: Set<string>,
-    dislikedWeights: Map<string, number>,
-    likedWeights: Map<string, number>,
-    preferredArtistKeys: Set<string>,
-    blockedArtistKeys: Set<string>,
-    currentTrack: Track,
-    recentArtists: Set<string>,
     candidates: Map<string, ScoredTrack>,
-    autoplayMode: 'similar' | 'discover' | 'popular',
-    artistFrequency: Map<string, number>,
-    implicitDislikeKeys: Set<string>,
-    implicitLikeKeys: Set<string>,
-    sessionMood: SessionMood | null,
     currentFeatures: SpotifyAudioFeatures | null,
-    genreContext: {
-        getArtistTags?: ArtistTagFetcher
-        currentTrackTags?: string[]
-        sessionGenreFamilies?: Set<string>
-    } = {},
     auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {
-    const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
-    const currentTrackTags = genreContext.currentTrackTags ?? []
+    const getArtistTags =
+        ctx.genreContext.getArtistTags ?? createArtistTagFetcher()
+    const currentTrackTags = ctx.genreContext.currentTrackTags ?? []
     const sessionGenreFamilies =
-        genreContext.sessionGenreFamilies ?? new Set<string>()
+        ctx.genreContext.sessionGenreFamilies ?? new Set<string>()
     if (!requestedBy) return
     const token = await Promise.resolve(
         spotifyLinkService.getValidAccessToken(requestedBy.id),
@@ -123,7 +107,7 @@ export async function collectSpotifyRecommendationCandidates(
     const searchResults = await Promise.allSettled(
         recs.map((rec) => {
             const spotifyUrl = `https://open.spotify.com/track/${rec.id}`
-            return queue.player.search(spotifyUrl, {
+            return ctx.queue.player.search(spotifyUrl, {
                 requestedBy: requestedBy ?? undefined,
                 searchEngine: QueryType.SPOTIFY_SEARCH,
             })
@@ -133,12 +117,14 @@ export async function collectSpotifyRecommendationCandidates(
     for (const result of searchResults) {
         if (result.status !== 'fulfilled') continue
         const track = result.value.tracks.find(
-            (t) => !t.durationMS || t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
+            (t: Track) =>
+                !t.durationMS || t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
         )
         if (!track) continue
-        if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys)) continue
+        if (!shouldIncludeCandidate(track, ctx.excludedUrls, ctx.excludedKeys))
+            continue
         const normalizedKey = normalizeTrackKey(track.title, track.author)
-        const dislikedWeight = dislikedWeights.get(normalizedKey)
+        const dislikedWeight = ctx.dislikedWeights.get(normalizedKey)
         if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
         const lastFmTags = await getArtistTags(track.author)
         // When Last.fm is not linked, fall back to Spotify genres so the
@@ -155,17 +141,17 @@ export async function collectSpotifyRecommendationCandidates(
                   })
         const rec = calculateRecommendationScore({
             candidate: track,
-            currentTrack,
-            recentArtists,
-            likedWeights,
-            preferredArtistKeys,
-            blockedArtistKeys,
-            autoplayMode,
-            artistFrequency,
-            implicitDislikeKeys,
-            implicitLikeKeys,
-            dislikedWeights,
-            sessionMood,
+            currentTrack: ctx.currentTrack,
+            recentArtists: ctx.recentArtists,
+            likedWeights: ctx.likedWeights,
+            preferredArtistKeys: ctx.preferredArtistKeys,
+            blockedArtistKeys: ctx.blockedArtistKeys,
+            autoplayMode: ctx.autoplayMode,
+            artistFrequency: ctx.artistFrequency,
+            implicitDislikeKeys: ctx.implicitDislikeKeys,
+            implicitLikeKeys: ctx.implicitLikeKeys,
+            dislikedWeights: ctx.dislikedWeights,
+            sessionMood: ctx.sessionMood,
             genreContext: {
                 candidateTags: tags,
                 currentTrackTags,
