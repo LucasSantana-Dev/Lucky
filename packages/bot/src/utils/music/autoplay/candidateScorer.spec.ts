@@ -405,19 +405,14 @@ describe('candidateScorer', () => {
     })
 
     describe('enrichWithAudioFeatures', () => {
-        it.each([
-            [false, false],
-            [true, false],
-        ])(
+        it.each([[false], [true]])(
             'returns tracks unchanged with mockError=%s',
-            async (mockError, __) => {
+            async (mockError) => {
                 const tracks = [{ track: createTrack(), score: 1, signals: [] }]
                 if (mockError) {
                     spotifyLinkServiceMock.mockRejectedValue(
                         new Error('Token error'),
                     )
-                } else {
-                    spotifyLinkServiceMock.mockResolvedValue(null)
                 }
                 const result = await enrichWithAudioFeatures(
                     tracks,
