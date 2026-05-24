@@ -208,10 +208,12 @@ describe('queueManipulation.replenishQueue', () => {
                 search: jest.fn().mockResolvedValue({
                     tracks: [
                         {
-                            title: options.candidateTitle ?? 'Stairway to Heaven',
+                            title:
+                                options.candidateTitle ?? 'Stairway to Heaven',
                             author: options.candidateAuthor ?? 'Led Zeppelin',
                             url:
-                                options.candidateUrl ?? 'https://example.com/stairway',
+                                options.candidateUrl ??
+                                'https://example.com/stairway',
                             metadata: options.candidateMetadata ?? {},
                         },
                     ],
@@ -356,9 +358,9 @@ describe('queueManipulation.replenishQueue', () => {
     it.each([
         {
             name: 'when Spotify seed search throws',
-            seedSearch: () =>
-                Promise.reject(new Error('Spotify unavailable')),
-            artistSearch: () => Promise.reject(new Error('Artist search failed')),
+            seedSearch: () => Promise.reject(new Error('Spotify unavailable')),
+            artistSearch: () =>
+                Promise.reject(new Error('Artist search failed')),
             fallbackUrl: 'https://example.com/fallback',
         },
         {
@@ -1642,7 +1644,10 @@ describe('queueManipulation — title-only deduplication', () => {
             })
 
             // Title-only dedup should prevent the candidate from being added
-            expect(addedTracks).toHaveLength(0, `Scenario "${scenario.name}" should not add track`)
+            expect(addedTracks).toHaveLength(
+                0,
+                `Scenario "${scenario.name}" should not add track`,
+            )
         }
     })
 })
@@ -1657,7 +1662,8 @@ describe('queueManipulation — collaborator author deduplication', () => {
         maxExpected: number
     }>([
         {
-            scenario: 'deduplicates same song where one variant has comma-separated collaborators',
+            scenario:
+                'deduplicates same song where one variant has comma-separated collaborators',
             currentTrack: {
                 title: 'Puta Mexicana',
                 author: 'DJ Jesh FSC',
@@ -1677,7 +1683,8 @@ describe('queueManipulation — collaborator author deduplication', () => {
             maxExpected: 0,
         },
         {
-            scenario: 'deduplicates same song where queue has feat. variant and candidate has plain author',
+            scenario:
+                'deduplicates same song where queue has feat. variant and candidate has plain author',
             currentTrack: {
                 title: 'Kanye West',
                 author: 'Farruco feat. Sech',
@@ -1697,7 +1704,8 @@ describe('queueManipulation — collaborator author deduplication', () => {
             maxExpected: 0,
         },
         {
-            scenario: 'does not add both solo and collab versions of the same song',
+            scenario:
+                'does not add both solo and collab versions of the same song',
             currentTrack: {
                 title: 'Different Song',
                 author: 'Other Artist',
@@ -1723,30 +1731,41 @@ describe('queueManipulation — collaborator author deduplication', () => {
             expectedTitle: 'Puta Mexicana',
             maxExpected: 1,
         },
-    ])('$scenario', async ({ currentTrack, candidates, targetSize, expectedTitle, maxExpected }) => {
-        const addedTracks: unknown[] = []
-        const queue = createQueueMock({
-            currentTrack: currentTrack as Track,
-            tracks: {
-                size: 0,
-                toArray: jest.fn().mockReturnValue([]),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: candidates,
-                }),
-            },
-            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
-        })
+    ])(
+        '$scenario',
+        async ({
+            currentTrack,
+            candidates,
+            targetSize,
+            expectedTitle,
+            maxExpected,
+        }) => {
+            const addedTracks: unknown[] = []
+            const queue = createQueueMock({
+                currentTrack: currentTrack as Track,
+                tracks: {
+                    size: 0,
+                    toArray: jest.fn().mockReturnValue([]),
+                },
+                player: {
+                    search: jest.fn().mockResolvedValue({
+                        tracks: candidates,
+                    }),
+                },
+                addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+            })
 
-        await replenishQueue(queue as any, {
-            targetQueueSize: targetSize,
-            guildId: 'guild-test',
-        })
+            await replenishQueue(queue as any, {
+                targetQueueSize: targetSize,
+                guildId: 'guild-test',
+            })
 
-        const count = addedTracks.filter((t: any) => t.title === expectedTitle).length
-        expect(count).toBeLessThanOrEqual(maxExpected)
-    })
+            const count = addedTracks.filter(
+                (t: any) => t.title === expectedTitle,
+            ).length
+            expect(count).toBeLessThanOrEqual(maxExpected)
+        },
+    )
 })
 
 describe('queueManipulation.moveUserTrackToPriority', () => {
@@ -1759,24 +1778,46 @@ describe('queueManipulation.moveUserTrackToPriority', () => {
         expectAddToEnd: boolean
     }>([
         {
-            scenario: 'moves user track from after autoplay to before first autoplay',
+            scenario:
+                'moves user track from after autoplay to before first autoplay',
             initialQueue: [
-                { url: 'https://example.com/ap1', title: 'AP1', metadata: { isAutoplay: true } },
-                { url: 'https://example.com/ap2', title: 'AP2', metadata: { isAutoplay: true } },
+                {
+                    url: 'https://example.com/ap1',
+                    title: 'AP1',
+                    metadata: { isAutoplay: true },
+                },
+                {
+                    url: 'https://example.com/ap2',
+                    title: 'AP2',
+                    metadata: { isAutoplay: true },
+                },
                 { url: 'https://example.com/user', title: 'User' },
             ],
             queueAfterRemoval: [
-                { url: 'https://example.com/ap1', title: 'AP1', metadata: { isAutoplay: true } },
-                { url: 'https://example.com/ap2', title: 'AP2', metadata: { isAutoplay: true } },
+                {
+                    url: 'https://example.com/ap1',
+                    title: 'AP1',
+                    metadata: { isAutoplay: true },
+                },
+                {
+                    url: 'https://example.com/ap2',
+                    title: 'AP2',
+                    metadata: { isAutoplay: true },
+                },
             ],
             userTrack: { url: 'https://example.com/user', title: 'User' },
             expectInsertAt: 0,
             expectAddToEnd: false,
         },
         {
-            scenario: 'adds track to end when no autoplay remains after removal',
+            scenario:
+                'adds track to end when no autoplay remains after removal',
             initialQueue: [
-                { url: 'https://example.com/ap1', title: 'AP1', metadata: { isAutoplay: true } },
+                {
+                    url: 'https://example.com/ap1',
+                    title: 'AP1',
+                    metadata: { isAutoplay: true },
+                },
                 { url: 'https://example.com/user', title: 'User' },
             ],
             queueAfterRemoval: [],
@@ -1785,58 +1826,82 @@ describe('queueManipulation.moveUserTrackToPriority', () => {
             expectAddToEnd: true,
         },
         {
-            scenario: 'does nothing when track already before all autoplay tracks',
+            scenario:
+                'does nothing when track already before all autoplay tracks',
             initialQueue: [
                 { url: 'https://example.com/user', title: 'User' },
-                { url: 'https://example.com/ap1', title: 'AP1', metadata: { isAutoplay: true } },
+                {
+                    url: 'https://example.com/ap1',
+                    title: 'AP1',
+                    metadata: { isAutoplay: true },
+                },
             ],
             queueAfterRemoval: [
                 { url: 'https://example.com/user', title: 'User' },
-                { url: 'https://example.com/ap1', title: 'AP1', metadata: { isAutoplay: true } },
+                {
+                    url: 'https://example.com/ap1',
+                    title: 'AP1',
+                    metadata: { isAutoplay: true },
+                },
             ],
             userTrack: { url: 'https://example.com/user', title: 'User' },
             expectInsertAt: null,
             expectAddToEnd: false,
         },
         {
-            scenario: 'does nothing when track is not in queue (already playing)',
+            scenario:
+                'does nothing when track is not in queue (already playing)',
             initialQueue: [],
             queueAfterRemoval: [],
             userTrack: { url: 'https://example.com/playing', title: 'Playing' },
             expectInsertAt: null,
             expectAddToEnd: false,
         },
-    ])('$scenario', ({ initialQueue, queueAfterRemoval, userTrack, expectInsertAt, expectAddToEnd }) => {
-        const insertTrackMock = jest.fn()
-        const addTrackMock = jest.fn()
-        const removeMock = jest.fn()
-        let callCount = 0
+    ])(
+        '$scenario',
+        ({
+            initialQueue,
+            queueAfterRemoval,
+            userTrack,
+            expectInsertAt,
+            expectAddToEnd,
+        }) => {
+            const insertTrackMock = jest.fn()
+            const addTrackMock = jest.fn()
+            const removeMock = jest.fn()
+            let callCount = 0
 
-        const queue = {
-            tracks: {
-                toArray: jest.fn(() => {
-                    callCount++
-                    return callCount === 1 ? initialQueue : queueAfterRemoval
-                }),
-            },
-            node: { remove: removeMock },
-            addTrack: addTrackMock,
-            insertTrack: insertTrackMock,
-        } as unknown as GuildQueue
+            const queue = {
+                tracks: {
+                    toArray: jest.fn(() => {
+                        callCount++
+                        return callCount === 1
+                            ? initialQueue
+                            : queueAfterRemoval
+                    }),
+                },
+                node: { remove: removeMock },
+                addTrack: addTrackMock,
+                insertTrack: insertTrackMock,
+            } as unknown as GuildQueue
 
-        moveUserTrackToPriority(queue, userTrack as Track)
+            moveUserTrackToPriority(queue, userTrack as Track)
 
-        if (expectInsertAt !== null) {
-            expect(insertTrackMock).toHaveBeenCalledWith(userTrack, expectInsertAt)
-            expect(addTrackMock).not.toHaveBeenCalled()
-        } else if (expectAddToEnd) {
-            expect(addTrackMock).toHaveBeenCalledWith(userTrack)
-            expect(insertTrackMock).not.toHaveBeenCalled()
-        } else {
-            expect(insertTrackMock).not.toHaveBeenCalled()
-            expect(addTrackMock).not.toHaveBeenCalled()
-        }
-    })
+            if (expectInsertAt !== null) {
+                expect(insertTrackMock).toHaveBeenCalledWith(
+                    userTrack,
+                    expectInsertAt,
+                )
+                expect(addTrackMock).not.toHaveBeenCalled()
+            } else if (expectAddToEnd) {
+                expect(addTrackMock).toHaveBeenCalledWith(userTrack)
+                expect(insertTrackMock).not.toHaveBeenCalled()
+            } else {
+                expect(insertTrackMock).not.toHaveBeenCalled()
+                expect(addTrackMock).not.toHaveBeenCalled()
+            }
+        },
+    )
 })
 
 describe('queueManipulation.replenishQueue youtube dedup', () => {
@@ -1915,8 +1980,6 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
         addTrackToHistoryMock.mockResolvedValue(true)
     })
-
-
 
     it('deduplicates same song different URL versions in candidates', async () => {
         const currentTrack = {
@@ -2074,10 +2137,6 @@ describe('queueManipulation — multi-user VC blend', () => {
     afterEach(() => {
         jest.clearAllMocks()
     })
-
-
-
-
 
     it('applies skipped-before penalty when candidate matches implicit dislike key', async () => {
         getImplicitDislikeKeysMock.mockResolvedValue(
@@ -2273,7 +2332,10 @@ describe('queueManipulation — multi-user VC blend', () => {
 
         const addedTracks: unknown[] = []
         const queue = createQueueMock({
-            metadata: { requestedBy: { id: 'user-1' }, vcMemberIds: ['user-1', 'user-2'] },
+            metadata: {
+                requestedBy: { id: 'user-1' },
+                vcMemberIds: ['user-1', 'user-2'],
+            },
             currentTrack: {
                 url: 'https://example.com/current',
                 title: 'Current',
@@ -2311,7 +2373,7 @@ describe('queueManipulation — multi-user VC blend', () => {
 
         const addedTracks: unknown[] = []
         const searchMock = jest.fn()
-        searchMock.mockResolvedValueOnce({ tracks: [] })  // first call returns nothing
+        searchMock.mockResolvedValueOnce({ tracks: [] }) // first call returns nothing
         searchMock.mockResolvedValueOnce({
             tracks: [
                 {
@@ -2343,9 +2405,6 @@ describe('queueManipulation — multi-user VC blend', () => {
         const added = addedTracks[0] as any
         expect(added.metadata?.isAutoplay).toBe(true)
     })
-
-
-
 
     it('skips spotify recommendation result when track is too long', async () => {
         const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
@@ -2552,8 +2611,6 @@ describe('queueManipulation — multi-user VC blend', () => {
         )
     })
 
-
-
     it('applies energy/valence score boost when spotify candidate matches current track features', async () => {
         const sharedMocks = jest.requireMock('@lucky/shared/services') as any
         sharedMocks.spotifyLinkService.getValidAccessToken
@@ -2624,13 +2681,18 @@ describe('queueManipulation — multi-user VC blend', () => {
         )
         expect(addTrackMock).toHaveBeenCalled()
     })
-
 })
 
 describe('buildVcContributionWeights', () => {
-    it.each<{ scenario: string; historyTracks: any[]; vcMemberIds: string[]; verify: (weights: Map<string, number>) => void }>([
+    it.each<{
+        scenario: string
+        historyTracks: any[]
+        vcMemberIds: string[]
+        verify: (weights: Map<string, number>) => void
+    }>([
         {
-            scenario: 'returns equal weights when all users have equal contributions',
+            scenario:
+                'returns equal weights when all users have equal contributions',
             historyTracks: [
                 { requestedBy: { id: 'user-1' } },
                 { requestedBy: { id: 'user-2' } },
@@ -2654,13 +2716,17 @@ describe('buildVcContributionWeights', () => {
             ],
             vcMemberIds: ['user-1', 'user-2'],
             verify: (weights) => {
-                expect(weights.get('user-1')).toBeGreaterThan(weights.get('user-2')!)
-                const totalWeight = weights.get('user-1')! + weights.get('user-2')!
+                expect(weights.get('user-1')).toBeGreaterThan(
+                    weights.get('user-2')!,
+                )
+                const totalWeight =
+                    weights.get('user-1')! + weights.get('user-2')!
                 expect(totalWeight).toBe(2)
             },
         },
         {
-            scenario: 'gives baseline weight of 1 to users with zero contributions',
+            scenario:
+                'gives baseline weight of 1 to users with zero contributions',
             historyTracks: [
                 { requestedBy: { id: 'user-1' } },
                 { requestedBy: { id: 'user-1' } },
@@ -2669,7 +2735,8 @@ describe('buildVcContributionWeights', () => {
             verify: (weights) => {
                 expect(weights.get('user-1')).toBeGreaterThan(0)
                 expect(weights.get('user-2')).toBeGreaterThan(0)
-                const totalWeight = weights.get('user-1')! + weights.get('user-2')!
+                const totalWeight =
+                    weights.get('user-1')! + weights.get('user-2')!
                 expect(totalWeight).toBe(weights.size)
             },
         },
@@ -3200,8 +3267,18 @@ describe('queueManipulation — diversity improvements', () => {
             history: {
                 tracks: {
                     toArray: jest.fn().mockReturnValue([
-                        { title: 'Rock Song', author: 'Rock Artist', url: 'https://example.com/r', durationMS: 240000 },
-                        { title: 'Pop Song', author: 'Pop Artist', url: 'https://example.com/p', durationMS: 200000 },
+                        {
+                            title: 'Rock Song',
+                            author: 'Rock Artist',
+                            url: 'https://example.com/r',
+                            durationMS: 240000,
+                        },
+                        {
+                            title: 'Pop Song',
+                            author: 'Pop Artist',
+                            url: 'https://example.com/p',
+                            durationMS: 200000,
+                        },
                     ]),
                 },
             },
@@ -3236,8 +3313,18 @@ describe('queueManipulation — diversity improvements', () => {
             history: {
                 tracks: {
                     toArray: jest.fn().mockReturnValue([
-                        { title: 'Cumbia vieja', author: 'Artist', url: 'https://example.com/c', durationMS: 200000 },
-                        { title: 'Bachata romántica', author: 'Artist', url: 'https://example.com/b', durationMS: 200000 },
+                        {
+                            title: 'Cumbia vieja',
+                            author: 'Artist',
+                            url: 'https://example.com/c',
+                            durationMS: 200000,
+                        },
+                        {
+                            title: 'Bachata romántica',
+                            author: 'Artist',
+                            url: 'https://example.com/b',
+                            durationMS: 200000,
+                        },
                     ]),
                 },
             },
@@ -3255,8 +3342,6 @@ describe('queueManipulation — diversity improvements', () => {
             )
         }
     })
-})
-
 
     describe('getGenreFamilies', () => {
         it('identifies single genre family', () => {
@@ -3329,12 +3414,19 @@ describe('queueManipulation — diversity improvements', () => {
         })
 
         it('treats latin as strong', () => {
-            expect(calculateGenreFamilyPenalty(['reggaeton'], ['pop'])).toBe(-0.6)
+            expect(calculateGenreFamilyPenalty(['reggaeton'], ['pop'])).toBe(
+                -0.6,
+            )
         })
     })
 
     describe('enrichWithAudioFeatures', () => {
-        it.each<{ scenario: string; userId: string; features: any; url: string }>([
+        it.each<{
+            scenario: string
+            userId: string
+            features: any
+            url: string
+        }>([
             {
                 scenario: 'returns unchanged when features null',
                 userId: 'u1',
@@ -3361,7 +3453,11 @@ describe('queueManipulation — diversity improvements', () => {
                     basis: { source: 'spotify-rec' as const, signals: [] },
                 },
             ]
-            const result = await enrichWithAudioFeatures(tracks, userId, features as any)
+            const result = await enrichWithAudioFeatures(
+                tracks,
+                userId,
+                features as any,
+            )
             expect(result).toEqual(tracks)
         })
     })
