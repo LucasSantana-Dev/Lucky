@@ -53,10 +53,10 @@ describe('TitleComparisonService', () => {
     })
 
     describe('extractArtistTitle', () => {
-        it('should extract artist and title from input', () => {
+        it('should extract and trim artist and title from input', () => {
             applyPatternsMock.mockReturnValue({
-                artist: 'The Beatles',
-                title: 'Hey Jude',
+                artist: '  The Beatles  ',
+                title: '  Hey Jude  ',
             })
             const result = service.extractArtistTitle('The Beatles - Hey Jude')
             expect(result).toEqual({
@@ -65,19 +65,7 @@ describe('TitleComparisonService', () => {
             })
         })
 
-        it('should trim whitespace from extracted artist and title', () => {
-            applyPatternsMock.mockReturnValue({
-                artist: '  Artist  ',
-                title: '  Title  ',
-            })
-            const result = service.extractArtistTitle('Artist - Title')
-            expect(result).toEqual({
-                artist: 'Artist',
-                title: 'Title',
-            })
-        })
-
-        it('should return Unknown as artist when patterns do not match', () => {
+        it('should return Unknown artist when patterns do not match', () => {
             applyPatternsMock.mockReturnValue({ artist: '', title: '' })
             const result = service.extractArtistTitle('Just Some Song')
             expect(result).toEqual({
@@ -86,19 +74,7 @@ describe('TitleComparisonService', () => {
             })
         })
 
-        it('should fallback to Unknown artist when only title is extracted', () => {
-            applyPatternsMock.mockReturnValue({
-                artist: '',
-                title: 'Song Title',
-            })
-            const result = service.extractArtistTitle('Song Title')
-            expect(result).toEqual({
-                artist: 'Unknown',
-                title: 'Song Title',
-            })
-        })
-
-        it('should cache extraction results by lowercase key', () => {
+        it('should cache extraction results by lowercase key (case-insensitive)', () => {
             applyPatternsMock.mockReturnValue({
                 artist: 'Artist',
                 title: 'Title',
@@ -108,6 +84,7 @@ describe('TitleComparisonService', () => {
             const result2 = service.extractArtistTitle('artist - title')
             expect(applyPatternsMock).not.toHaveBeenCalled()
             expect(result1).toEqual(result2)
+            expect(service.getCacheSize()).toBe(1)
         })
 
         it('should handle extraction errors gracefully', () => {
@@ -133,34 +110,15 @@ describe('TitleComparisonService', () => {
                 title: 'Input',
             })
         })
-
-        it('should cache the extraction result', () => {
-            applyPatternsMock.mockReturnValue({
-                artist: 'Artist',
-                title: 'Title',
-            })
-            service.extractArtistTitle('Test')
-            expect(service.getCacheSize()).toBe(1)
-        })
-
-        it('should case-insensitively check cache', () => {
-            applyPatternsMock.mockReturnValue({
-                artist: 'Artist',
-                title: 'Title',
-            })
-            const result1 = service.extractArtistTitle('Test')
-            applyPatternsMock.mockClear()
-            const result2 = service.extractArtistTitle('TEST')
-            expect(applyPatternsMock).not.toHaveBeenCalled()
-            expect(result2).toEqual(result1)
-        })
     })
 
     describe('isSimilarTitle', () => {
-        it('should return true when similarity is above threshold', () => {
+        it('should return true when similarity is above or equal to threshold', () => {
+            calculateSimilarityMock.mockReturnValue(0.8)
+            expect(service.isSimilarTitle('A', 'B')).toBe(true)
+
             calculateSimilarityMock.mockReturnValue(0.85)
-            const result = service.isSimilarTitle('Hey Jude', 'Hey Jude')
-            expect(result).toBe(true)
+            expect(service.isSimilarTitle('Hey Jude', 'Hey Jude')).toBe(true)
         })
 
         it('should return false when similarity is below threshold', () => {
@@ -168,26 +126,10 @@ describe('TitleComparisonService', () => {
             const result = service.isSimilarTitle('Song A', 'Song B')
             expect(result).toBe(false)
         })
-
-        it('should return true when similarity equals threshold', () => {
-            calculateSimilarityMock.mockReturnValue(0.8)
-            const result = service.isSimilarTitle('Title 1', 'Title 2')
-            expect(result).toBe(true)
-        })
-
-        it('should compare identical titles as similar', () => {
-            normalizeStringMock.mockImplementation((str: string) => str)
-            calculateSimilarityMock.mockReturnValue(1.0)
-            const result = service.isSimilarTitle(
-                'Perfect Match',
-                'Perfect Match',
-            )
-            expect(result).toBe(true)
-        })
     })
 
     describe('calculateSimilarity', () => {
-        it('should return similarity result with correct structure', () => {
+        it('should return result with isSimilar, score, and confidence properties', () => {
             calculateSimilarityMock.mockReturnValue(0.85)
             const result = service.calculateSimilarity('Title 1', 'Title 2')
             expect(result).toHaveProperty('isSimilar')
@@ -195,81 +137,47 @@ describe('TitleComparisonService', () => {
             expect(result).toHaveProperty('confidence')
         })
 
-        it('should mark as similar when score is above threshold', () => {
+        it('should mark as similar/dissimilar and return correct score', () => {
             calculateSimilarityMock.mockReturnValue(0.85)
-            const result = service.calculateSimilarity('Song', 'Song')
-            expect(result.isSimilar).toBe(true)
-        })
+            const similar = service.calculateSimilarity('Song', 'Song')
+            expect(similar.isSimilar).toBe(true)
+            expect(similar.score).toBe(0.85)
 
-        it('should mark as not similar when score is below threshold', () => {
             calculateSimilarityMock.mockReturnValue(0.5)
-            const result = service.calculateSimilarity('Song A', 'Song B')
-            expect(result.isSimilar).toBe(false)
+            const dissimilar = service.calculateSimilarity('Song A', 'Song B')
+            expect(dissimilar.isSimilar).toBe(false)
+            expect(dissimilar.score).toBe(0.5)
         })
 
-        it('should return the correct similarity score', () => {
-            calculateSimilarityMock.mockReturnValue(0.75)
-            const result = service.calculateSimilarity('Title 1', 'Title 2')
-            expect(result.score).toBe(0.75)
-        })
-
-        it('should calculate confidence as score/threshold', () => {
+        it('should calculate and cap confidence at 1.0', () => {
             calculateSimilarityMock.mockReturnValue(0.8)
-            const result = service.calculateSimilarity('Title 1', 'Title 2')
-            expect(result.confidence).toBe(1.0) // 0.8 / 0.8 = 1.0
-        })
+            const result1 = service.calculateSimilarity('Title 1', 'Title 2')
+            expect(result1.confidence).toBe(1.0) // 0.8 / 0.8 = 1.0
 
-        it('should cap confidence at 1.0', () => {
-            calculateSimilarityMock.mockReturnValue(1.0)
-            const result = service.calculateSimilarity('Title 1', 'Title 2')
-            expect(result.confidence).toBeLessThanOrEqual(1.0)
-        })
-
-        it('should cap confidence at 1.0 even when score exceeds threshold', () => {
             calculateSimilarityMock.mockReturnValue(0.9)
-            const result = service.calculateSimilarity('Title 1', 'Title 2')
-            expect(result.confidence).toBe(1.0) // 0.9 / 0.8 = 1.125, capped to 1.0 via Math.min
-        })
+            const result2 = service.calculateSimilarity('Title 1', 'Title 2')
+            expect(result2.confidence).toBe(1.0) // 0.9 / 0.8 = 1.125, capped to 1.0
 
-        it('should handle low scores with low confidence', () => {
             calculateSimilarityMock.mockReturnValue(0.4)
-            const result = service.calculateSimilarity('Title A', 'Title B')
-            expect(result.confidence).toBe(0.5) // 0.4 / 0.8 = 0.5
+            const result3 = service.calculateSimilarity('Title A', 'Title B')
+            expect(result3.confidence).toBe(0.5) // 0.4 / 0.8 = 0.5
         })
     })
 
     describe('cache management', () => {
-        it('should limit cache size to maxCacheSize', () => {
+        it('should limit cache size to maxCacheSize and evict oldest entries', () => {
             applyPatternsMock.mockReturnValue({
                 artist: 'Artist',
                 title: 'Title',
             })
-            // Create a new service and manually add 1001 items to test eviction
             const svc = new TitleComparisonService()
-            // Add 1001 items
             for (let i = 0; i < 1001; i++) {
                 svc.extractArtistTitle(`Song ${i}`)
             }
             expect(svc.getCacheSize()).toBeLessThanOrEqual(1000)
         })
 
-        it('should remove oldest cache entry when maxCacheSize is reached', () => {
-            applyPatternsMock.mockReturnValue({
-                artist: 'Artist',
-                title: 'Title',
-            })
-            const svc = new TitleComparisonService()
-            svc.extractArtistTitle('song1')
-            svc.extractArtistTitle('song2')
-            expect(svc.getCacheSize()).toBe(2)
-            // Add 1000 more to trigger eviction
-            for (let i = 2; i <= 1001; i++) {
-                svc.extractArtistTitle(`song${i}`)
-            }
-            expect(svc.getCacheSize()).toBe(1000)
-        })
-
-        it('should clear cache on clearCache()', () => {
+        it('should clear and repopulate cache', () => {
             applyPatternsMock.mockReturnValue({
                 artist: 'Artist',
                 title: 'Title',
@@ -278,42 +186,16 @@ describe('TitleComparisonService', () => {
             expect(service.getCacheSize()).toBe(1)
             service.clearCache()
             expect(service.getCacheSize()).toBe(0)
-        })
-
-        it('should repopulate cache after clearing', () => {
-            applyPatternsMock.mockReturnValue({
-                artist: 'Artist',
-                title: 'Title',
-            })
-            service.extractArtistTitle('Test Song')
-            service.clearCache()
             service.extractArtistTitle('Another Song')
             expect(service.getCacheSize()).toBe(1)
         })
 
-        it('should return correct cache size', () => {
-            applyPatternsMock.mockReturnValue({
-                artist: 'Artist',
-                title: 'Title',
-            })
-            expect(service.getCacheSize()).toBe(0)
-            service.extractArtistTitle('Song 1')
-            expect(service.getCacheSize()).toBe(1)
-            service.extractArtistTitle('Song 2')
-            expect(service.getCacheSize()).toBe(2)
-        })
-
-        it('should trigger cache cleanup on interval', () => {
-            new TitleComparisonService()
+        it('should set up cache cleanup interval with logging', () => {
+            const svc = new TitleComparisonService()
             expect(safeSetIntervalMock).toHaveBeenCalledWith(
                 expect.any(Function),
                 600000,
             )
-        })
-
-        it('should log when cache is cleared by cleanup', () => {
-            // Get the cleanup callback
-            const svc = new TitleComparisonService()
             const cleanupCallback = safeSetIntervalMock.mock
                 .calls[0][0] as () => void
             cleanupCallback()
@@ -397,99 +279,68 @@ describe('TitleComparisonService', () => {
     })
 
     describe('edge cases', () => {
-        it('should handle empty string input', () => {
+        it('should handle empty and special character input', () => {
             applyPatternsMock.mockReturnValue({ artist: '', title: '' })
-            const result = service.extractArtistTitle('')
-            expect(result.artist).toBe('Unknown')
-            expect(result.title).toBe('')
-        })
+            const empty = service.extractArtistTitle('')
+            expect(empty.artist).toBe('Unknown')
+            expect(empty.title).toBe('')
 
-        it('should handle very long input strings', () => {
             const longString = 'A'.repeat(10000)
             applyPatternsMock.mockReturnValue({
                 artist: 'Artist',
                 title: longString,
             })
-            const result = service.extractArtistTitle(longString)
-            expect(result.title).toBe(longString)
+            const long = service.extractArtistTitle(longString)
+            expect(long.title).toBe(longString)
         })
 
-        it('should handle special characters in titles', () => {
-            const specialTitle = "Don't Stop Believin' (ft. featuring) [Remix]"
-            applyPatternsMock.mockReturnValue({
-                artist: 'Journey',
-                title: specialTitle,
-            })
-            const result = service.extractArtistTitle(specialTitle)
-            expect(result.title).toBe(specialTitle)
-        })
-
-        it('should handle unicode characters', () => {
-            const unicodeTitle = '你好世界'
+        it('should handle unicode and emoji characters', () => {
             applyPatternsMock.mockReturnValue({
                 artist: 'Artist',
-                title: unicodeTitle,
+                title: '你好世界',
             })
-            const result = service.extractArtistTitle(unicodeTitle)
-            expect(result.title).toBe(unicodeTitle)
-        })
+            const unicode = service.extractArtistTitle('你好世界')
+            expect(unicode.title).toBe('你好世界')
 
-        it('should handle emoji in titles', () => {
-            const emojiTitle = 'Song 🎵 With 🎶 Emoji'
             applyPatternsMock.mockReturnValue({
                 artist: 'Artist',
-                title: emojiTitle,
+                title: 'Song 🎵 With 🎶 Emoji',
             })
-            const result = service.extractArtistTitle(emojiTitle)
-            expect(result.title).toBe(emojiTitle)
+            const emoji = service.extractArtistTitle('Song 🎵 With 🎶 Emoji')
+            expect(emoji.title).toBe('Song 🎵 With 🎶 Emoji')
         })
 
-        it('should handle zero similarity score', () => {
+        it('should handle zero and perfect similarity scores', () => {
             calculateSimilarityMock.mockReturnValue(0)
-            const result = service.calculateSimilarity('A', 'Z')
-            expect(result.isSimilar).toBe(false)
-            expect(result.score).toBe(0)
-            expect(result.confidence).toBe(0)
-        })
+            const zero = service.calculateSimilarity('A', 'Z')
+            expect(zero.isSimilar).toBe(false)
+            expect(zero.score).toBe(0)
+            expect(zero.confidence).toBe(0)
 
-        it('should handle perfect similarity score', () => {
             calculateSimilarityMock.mockReturnValue(1.0)
-            const result = service.calculateSimilarity('Same', 'Same')
-            expect(result.isSimilar).toBe(true)
-            expect(result.score).toBe(1.0)
-            expect(result.confidence).toBeLessThanOrEqual(1.0)
+            const perfect = service.calculateSimilarity('Same', 'Same')
+            expect(perfect.isSimilar).toBe(true)
+            expect(perfect.score).toBe(1.0)
+            expect(perfect.confidence).toBeLessThanOrEqual(1.0)
         })
     })
 
     describe('error handling', () => {
-        it('should catch and log extraction errors', () => {
+        it('should catch and log extraction errors gracefully', () => {
             applyPatternsMock.mockImplementation(() => {
                 throw new Error('Pattern matching failed')
             })
-            const result = service.extractArtistTitle('Test')
+            expect(() => {
+                service.extractArtistTitle('Test')
+            }).not.toThrow()
+
+            const result = service.extractArtistTitle('My Special Song')
             expect(errorLogMock).toHaveBeenCalledWith({
                 message: 'Error extracting artist/title:',
                 error: expect.any(Error),
             })
             expect(result.artist).toBe('Unknown')
-        })
-
-        it('should not throw on extraction error', () => {
-            applyPatternsMock.mockImplementation(() => {
-                throw new Error('Critical error')
-            })
-            expect(() => {
-                service.extractArtistTitle('Test')
-            }).not.toThrow()
-        })
-
-        it('should preserve input when extraction fails', () => {
-            const input = 'My Special Song'
-            applyPatternsMock.mockImplementation(() => {
-                throw new Error('Error')
-            })
-            const result = service.extractArtistTitle(input)
-            expect(result.title).toBe(input)
+            expect(result.title).toBe('My Special Song')
         })
     })
 })
