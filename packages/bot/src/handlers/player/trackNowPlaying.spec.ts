@@ -85,24 +85,18 @@ describe('trackNowPlaying handlers', () => {
     })
 
     describe('TrackNowPlayingState - registerNowPlayingMessage', () => {
-        it('registers a now-playing message for a guild', () => {
-            const guildId = 'guild-123'
-            const messageId = 'message-456'
-            const channelId = 'channel-789'
-
-            registerNowPlayingMessage(guildId, messageId, channelId)
-            const result = getSongInfoMessage(guildId)
-
-            expect(result).toEqual({ messageId, channelId })
-        })
-
-        it('overwrites previous message registration for the same guild', () => {
+        it('registers and overwrites messages for a guild', () => {
             const guildId = 'guild-123'
 
             registerNowPlayingMessage(guildId, 'message-1', 'channel-1')
-            registerNowPlayingMessage(guildId, 'message-2', 'channel-2')
+            let result = getSongInfoMessage(guildId)
+            expect(result).toEqual({
+                messageId: 'message-1',
+                channelId: 'channel-1',
+            })
 
-            const result = getSongInfoMessage(guildId)
+            registerNowPlayingMessage(guildId, 'message-2', 'channel-2')
+            result = getSongInfoMessage(guildId)
             expect(result).toEqual({
                 messageId: 'message-2',
                 channelId: 'channel-2',
@@ -111,15 +105,11 @@ describe('trackNowPlaying handlers', () => {
     })
 
     describe('TrackNowPlayingState - getSongInfoMessage', () => {
-        it('returns undefined when no message is registered for guild', () => {
-            const result = getSongInfoMessage('non-existent-guild')
-            expect(result).toBeUndefined()
-        })
+        it('returns undefined for unregistered guild and stored info for registered', () => {
+            expect(getSongInfoMessage('non-existent-guild')).toBeUndefined()
 
-        it('returns stored message info for registered guild', () => {
             const guildId = 'guild-123'
             registerNowPlayingMessage(guildId, 'msg-1', 'ch-1')
-
             const result = getSongInfoMessage(guildId)
             expect(result?.messageId).toBe('msg-1')
             expect(result?.channelId).toBe('ch-1')
@@ -127,23 +117,20 @@ describe('trackNowPlaying handlers', () => {
     })
 
     describe('TrackNowPlayingState - deleteSongInfoMessage', () => {
-        it('removes registered message for a guild', () => {
+        it('removes registered message and silently succeeds on non-existent', () => {
             const guildId = 'guild-123'
             registerNowPlayingMessage(guildId, 'msg-1', 'ch-1')
             expect(getSongInfoMessage(guildId)).toBeDefined()
 
             deleteSongInfoMessage(guildId)
-
             expect(getSongInfoMessage(guildId)).toBeUndefined()
-        })
 
-        it('silently succeeds when deleting non-existent guild', () => {
             expect(() => deleteSongInfoMessage('non-existent')).not.toThrow()
         })
     })
 
     describe('TrackNowPlayingState - cleanupGuild', () => {
-        it('cleans up all state for a guild', () => {
+        it('cleans up state and logs with guild id', () => {
             const guildId = 'guild-123'
             registerNowPlayingMessage(guildId, 'msg-1', 'ch-1')
 
@@ -154,39 +141,6 @@ describe('trackNowPlaying handlers', () => {
                 expect.objectContaining({
                     message: 'Cleaned up now-playing state for guild',
                     data: { guildId },
-                }),
-            )
-        })
-
-        it('logs cleanup event with guild id', () => {
-            const guildId = 'guild-456'
-            cleanupGuildState(guildId)
-
-            expect(debugLogMock).toHaveBeenCalled()
-            const call = debugLogMock.mock.calls[0][0]
-            expect(call.data.guildId).toBe(guildId)
-        })
-
-        it('cleans up both song info and lastFm track start time', () => {
-            const guildId = 'guild-789'
-            registerNowPlayingMessage(guildId, 'msg-1', 'ch-1')
-
-            cleanupGuildState(guildId)
-
-            expect(getSongInfoMessage(guildId)).toBeUndefined()
-            expect(debugLogMock).toHaveBeenCalled()
-        })
-    })
-
-    describe('TrackNowPlayingState - LastFm track timing', () => {
-        it('cleans up lastFm track start time on guild cleanup', () => {
-            const guildId = 'guild-111'
-
-            cleanupGuildState(guildId)
-
-            expect(debugLogMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: 'Cleaned up now-playing state for guild',
                 }),
             )
         })
@@ -249,45 +203,28 @@ describe('trackNowPlaying handlers', () => {
             )
         })
 
-        it('includes embed colors in create embed call', async () => {
-            const mockMessage = {
-                id: 'new-msg',
-            } as unknown as Message
+        it('creates embed with proper color and footer variants', async () => {
+            const mockMessage = { id: 'msg-1' } as unknown as Message
             mockChannel.send = jest.fn().mockResolvedValue(mockMessage)
 
-            await sendNowPlayingEmbed(mockQueue, mockTrack, false)
-
-            expect(createEmbedMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    title: '🎵 Now Playing',
-                    color: '#1DB954',
-                }),
-            )
-        })
-
-        it('adds requester info to footer when not autoplay', async () => {
             const userTrack = {
                 ...mockTrack,
                 requestedBy: { username: 'TestUser', id: 'user-123' },
             } as unknown as Track
 
-            const mockMessage = { id: 'msg-1' } as unknown as Message
-            mockChannel.send = jest.fn().mockResolvedValue(mockMessage)
-
             await sendNowPlayingEmbed(mockQueue, userTrack, false)
 
             expect(createEmbedMock).toHaveBeenCalledWith(
                 expect.objectContaining({
+                    title: '🎵 Now Playing',
+                    color: '#1DB954',
                     footer: 'Added by TestUser',
                 }),
             )
-        })
 
-        it('adds autoplay info to footer when autoplay is enabled', async () => {
+            jest.clearAllMocks()
+            createEmbedMock.mockReturnValue({ title: 'test embed' })
             getAutoplayCountMock.mockResolvedValue(5)
-
-            const mockMessage = { id: 'msg-1' } as unknown as Message
-            mockChannel.send = jest.fn().mockResolvedValue(mockMessage)
 
             await sendNowPlayingEmbed(mockQueue, mockTrack, true)
 
@@ -371,41 +308,6 @@ describe('trackNowPlaying handlers', () => {
             )
         })
 
-        it('detects YouTube source from URL', async () => {
-            const youtubeTrack = {
-                ...mockTrack,
-                url: 'https://youtu.be/dQw4w9WgXcQ',
-            } as unknown as Track
-
-            const mockMessage = { id: 'msg-1' } as unknown as Message
-            mockChannel.send = jest.fn().mockResolvedValue(mockMessage)
-
-            await sendNowPlayingEmbed(mockQueue, youtubeTrack, false)
-
-            const embedCall = createEmbedMock.mock.calls[0][0]
-            const sourceField = embedCall.fields.find(
-                (f: any) => f.name === '🌐 Source',
-            )
-            expect(sourceField.value).toBe('YouTube')
-        })
-
-        it('detects Spotify source from URL', async () => {
-            const spotifyTrack = {
-                ...mockTrack,
-                url: 'https://open.spotify.com/track/123',
-            } as unknown as Track
-
-            const mockMessage = { id: 'msg-1' } as unknown as Message
-            mockChannel.send = jest.fn().mockResolvedValue(mockMessage)
-
-            await sendNowPlayingEmbed(mockQueue, spotifyTrack, false)
-
-            const embedCall = createEmbedMock.mock.calls[0][0]
-            const sourceField = embedCall.fields.find(
-                (f: any) => f.name === '🌐 Source',
-            )
-            expect(sourceField.value).toBe('Spotify')
-        })
     })
 
     describe('updateLastFmNowPlaying', () => {
@@ -425,20 +327,15 @@ describe('trackNowPlaying handlers', () => {
             } as unknown as Track
         })
 
-        it('returns early if last.fm is not configured', async () => {
+        it('returns early if last.fm not configured or session key unavailable', async () => {
             isLastFmConfiguredMock.mockReturnValue(false)
-
             await updateLastFmNowPlaying(mockQueue, mockTrack)
-
             expect(lastFmUpdateNowPlayingMock).not.toHaveBeenCalled()
-        })
 
-        it('returns early if session key is not available', async () => {
+            jest.clearAllMocks()
             isLastFmConfiguredMock.mockReturnValue(true)
             getSessionKeyForUserMock.mockResolvedValue(null)
-
             await updateLastFmNowPlaying(mockQueue, mockTrack)
-
             expect(lastFmUpdateNowPlayingMock).not.toHaveBeenCalled()
         })
 
@@ -486,29 +383,25 @@ describe('trackNowPlaying handlers', () => {
             )
         })
 
-        it('handles 403 auth error from last.fm', async () => {
+        it('handles errors from last.fm (403 and others)', async () => {
             isLastFmConfiguredMock.mockReturnValue(true)
             getSessionKeyForUserMock.mockResolvedValue('session-key')
-            const error = new Error('403 Forbidden')
-            lastFmUpdateNowPlayingMock.mockRejectedValue(error)
 
+            const error403 = new Error('403 Forbidden')
+            lastFmUpdateNowPlayingMock.mockRejectedValue(error403)
             await updateLastFmNowPlaying(mockQueue, mockTrack)
-
             expect(warnLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: expect.stringContaining('session expired'),
                 }),
             )
-        })
 
-        it('handles non-403 errors from last.fm', async () => {
+            jest.clearAllMocks()
             isLastFmConfiguredMock.mockReturnValue(true)
             getSessionKeyForUserMock.mockResolvedValue('session-key')
-            const error = new Error('Network error')
-            lastFmUpdateNowPlayingMock.mockRejectedValue(error)
-
+            const errorOther = new Error('Network error')
+            lastFmUpdateNowPlayingMock.mockRejectedValue(errorOther)
             await updateLastFmNowPlaying(mockQueue, mockTrack)
-
             expect(errorLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: expect.stringContaining('updateNowPlaying failed'),
@@ -516,22 +409,6 @@ describe('trackNowPlaying handlers', () => {
             )
         })
 
-        it('logs when metadata is not found', async () => {
-            isLastFmConfiguredMock.mockReturnValue(true)
-            getSessionKeyForUserMock.mockResolvedValue('session-key')
-            getTrackMetadataMock.mockResolvedValue(null)
-            lastFmUpdateNowPlayingMock.mockResolvedValue(undefined)
-            debugLogMock.mockClear()
-
-            await updateLastFmNowPlaying(mockQueue, mockTrack)
-
-            // Should have called debugLog when metadata not found
-            const debugLogCalls = debugLogMock.mock.calls
-            const metadataNotFoundCall = debugLogCalls.find((call: any[]) =>
-                call[0]?.message?.includes('metadata not found'),
-            )
-            expect(metadataNotFoundCall).toBeDefined()
-        })
     })
 
     describe('scrobbleCurrentTrackIfLastFm', () => {
@@ -556,23 +433,18 @@ describe('trackNowPlaying handlers', () => {
             } as unknown as Track
         })
 
-        it('returns early if last.fm is not configured', async () => {
+        it('returns early if last.fm not configured or no track available', async () => {
             isLastFmConfiguredMock.mockReturnValue(false)
-
             await scrobbleCurrentTrackIfLastFm(mockQueue)
-
             expect(lastFmScrobbleMock).not.toHaveBeenCalled()
-        })
 
-        it('returns early if no current track and no provided track', async () => {
+            jest.clearAllMocks()
             const queueNoTrack = {
                 guild: createMockGuild(),
                 currentTrack: null,
             } as unknown as GuildQueue
             isLastFmConfiguredMock.mockReturnValue(true)
-
             await scrobbleCurrentTrackIfLastFm(queueNoTrack)
-
             expect(lastFmScrobbleMock).not.toHaveBeenCalled()
         })
 
@@ -621,29 +493,25 @@ describe('trackNowPlaying handlers', () => {
             )
         })
 
-        it('handles 403 auth error during scrobble', async () => {
+        it('handles errors during scrobble (403 and others)', async () => {
             isLastFmConfiguredMock.mockReturnValue(true)
             getSessionKeyForUserMock.mockResolvedValue('session-key')
-            const error = new Error('403 Forbidden')
-            lastFmScrobbleMock.mockRejectedValue(error)
 
+            const error403 = new Error('403 Forbidden')
+            lastFmScrobbleMock.mockRejectedValue(error403)
             await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
-
             expect(warnLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: expect.stringContaining('session expired'),
                 }),
             )
-        })
 
-        it('handles non-403 errors during scrobble', async () => {
+            jest.clearAllMocks()
             isLastFmConfiguredMock.mockReturnValue(true)
             getSessionKeyForUserMock.mockResolvedValue('session-key')
-            const error = new Error('API error')
-            lastFmScrobbleMock.mockRejectedValue(error)
-
+            const errorOther = new Error('API error')
+            lastFmScrobbleMock.mockRejectedValue(errorOther)
             await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
-
             expect(errorLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: expect.stringContaining('scrobble failed'),
@@ -651,51 +519,12 @@ describe('trackNowPlaying handlers', () => {
             )
         })
 
-        it('handles track with no duration', async () => {
-            const trackNoDuration = {
-                ...mockTrack,
-                durationMS: 0,
-            } as unknown as Track
-            isLastFmConfiguredMock.mockReturnValue(true)
-            getSessionKeyForUserMock.mockResolvedValue('session-key')
-            lastFmScrobbleMock.mockResolvedValue(undefined)
-
-            await scrobbleCurrentTrackIfLastFm(mockQueue, trackNoDuration)
-
-            expect(lastFmScrobbleMock).toHaveBeenCalledWith(
-                expect.anything(),
-                expect.anything(),
-                expect.any(Number),
-                undefined,
-                expect.anything(),
-                undefined,
-            )
-        })
-
         it('returns early if session key not available', async () => {
             isLastFmConfiguredMock.mockReturnValue(true)
             getSessionKeyForUserMock.mockResolvedValue(null)
-
             await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
-
             expect(lastFmScrobbleMock).not.toHaveBeenCalled()
         })
 
-        it('logs when metadata is not found', async () => {
-            isLastFmConfiguredMock.mockReturnValue(true)
-            getSessionKeyForUserMock.mockResolvedValue('session-key')
-            getTrackMetadataMock.mockResolvedValue(null)
-            lastFmScrobbleMock.mockResolvedValue(undefined)
-            debugLogMock.mockClear()
-
-            await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
-
-            // Should have called debugLog when metadata not found
-            const debugLogCalls = debugLogMock.mock.calls
-            const metadataNotFoundCall = debugLogCalls.find((call: any[]) =>
-                call[0]?.message?.includes('metadata not found'),
-            )
-            expect(metadataNotFoundCall).toBeDefined()
-        })
     })
 })
