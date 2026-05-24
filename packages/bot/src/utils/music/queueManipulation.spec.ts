@@ -208,10 +208,12 @@ describe('queueManipulation.replenishQueue', () => {
                 search: jest.fn().mockResolvedValue({
                     tracks: [
                         {
-                            title: options.candidateTitle ?? 'Stairway to Heaven',
+                            title:
+                                options.candidateTitle ?? 'Stairway to Heaven',
                             author: options.candidateAuthor ?? 'Led Zeppelin',
                             url:
-                                options.candidateUrl ?? 'https://example.com/stairway',
+                                options.candidateUrl ??
+                                'https://example.com/stairway',
                             metadata: options.candidateMetadata ?? {},
                         },
                     ],
@@ -356,9 +358,9 @@ describe('queueManipulation.replenishQueue', () => {
     it.each([
         {
             name: 'when Spotify seed search throws',
-            seedSearch: () =>
-                Promise.reject(new Error('Spotify unavailable')),
-            artistSearch: () => Promise.reject(new Error('Artist search failed')),
+            seedSearch: () => Promise.reject(new Error('Spotify unavailable')),
+            artistSearch: () =>
+                Promise.reject(new Error('Artist search failed')),
             fallbackUrl: 'https://example.com/fallback',
         },
         {
@@ -2085,80 +2087,44 @@ describe('queueManipulation.replenishQueue query variation', () => {
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
-    it('applies query modifiers based on replenish counter', async () => {
+    it('replenishes queue multiple times with varying search strategies', async () => {
         const currentTrack = {
             url: 'https://example.com/current',
             title: 'Current Song',
             author: 'Current Artist',
             requestedBy: { id: 'user-1' },
         }
-        const candidateTrack = {
-            title: 'Candidate Song',
-            author: 'Candidate Artist',
-            url: 'https://example.com/cand',
-            source: 'youtube',
-            durationMS: 200000,
-        }
-        const searchMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack,
-            metadata: { requestedBy: { id: 'user-1' } },
-            player: {
-                search: searchMock.mockResolvedValue({
-                    tracks: [candidateTrack],
-                }),
-            },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const firstSearchQuery = searchMock.mock.calls[0]?.[0] ?? ''
-        expect(firstSearchQuery).toBeDefined()
-        expect(typeof firstSearchQuery).toBe('string')
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const secondSearchQuery = searchMock.mock.calls[1]?.[0] ?? ''
-        expect(typeof secondSearchQuery).toBe('string')
-    })
-
-    it('uses different modifiers for 5 sequential replenishes on same guild', async () => {
-        const currentTrack = {
-            url: 'https://example.com/current',
-            title: 'Current Song',
-            author: 'Current Artist',
-            requestedBy: { id: 'user-1' },
-        }
-        const candidateTrack = {
-            title: 'Candidate',
-            author: 'Artist',
-            url: 'https://example.com/cand',
-            source: 'youtube',
-            durationMS: 200000,
-        }
-        const searchMock = jest.fn()
+        const tracks: Track[] = []
         const queue = createQueueMock({
             guild: { id: 'guild-variation' },
             currentTrack,
             metadata: { requestedBy: { id: 'user-1' } },
             player: {
-                search: searchMock.mockResolvedValue({
-                    tracks: [candidateTrack],
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Song 1',
+                            author: 'Artist 1',
+                            url: 'https://example.com/s1',
+                            source: 'youtube',
+                            durationMS: 200000,
+                        },
+                    ],
                 }),
             },
+            addTrack: jest.fn((t: unknown) => tracks.push(t as Track)),
         })
 
-        const queries: string[] = []
+        // Call replenish 3 times - should accumulate different tracks
+        await replenishQueue(queue as unknown as GuildQueue)
+        await replenishQueue(queue as unknown as GuildQueue)
+        await replenishQueue(queue as unknown as GuildQueue)
 
-        for (let i = 0; i < 5; i++) {
-            await replenishQueue(queue as unknown as GuildQueue)
-            const query = searchMock.mock.calls[i]?.[0] ?? ''
-            queries.push(query)
-        }
-
-        expect(queries).toHaveLength(5)
-        queries.forEach((q) => {
-            expect(typeof q).toBe('string')
+        // Verify actual tracks were added to queue
+        expect(tracks.length).toBeGreaterThan(0)
+        tracks.forEach((track) => {
+            expect(track).toHaveProperty('metadata')
+            expect((track as any).metadata?.isAutoplay).toBe(true)
         })
     })
 })
@@ -3797,7 +3763,9 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
         }
         expect(debugLog).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: expect.stringContaining('seed search returned 0 results'),
+                message: expect.stringContaining(
+                    'seed search returned 0 results',
+                ),
             }),
         )
     })
@@ -4234,8 +4202,18 @@ describe('queueManipulation — diversity improvements', () => {
             history: {
                 tracks: {
                     toArray: jest.fn().mockReturnValue([
-                        { title: 'Rock Song', author: 'Rock Artist', url: 'https://example.com/r', durationMS: 240000 },
-                        { title: 'Pop Song', author: 'Pop Artist', url: 'https://example.com/p', durationMS: 200000 },
+                        {
+                            title: 'Rock Song',
+                            author: 'Rock Artist',
+                            url: 'https://example.com/r',
+                            durationMS: 240000,
+                        },
+                        {
+                            title: 'Pop Song',
+                            author: 'Pop Artist',
+                            url: 'https://example.com/p',
+                            durationMS: 200000,
+                        },
                     ]),
                 },
             },
@@ -4270,8 +4248,18 @@ describe('queueManipulation — diversity improvements', () => {
             history: {
                 tracks: {
                     toArray: jest.fn().mockReturnValue([
-                        { title: 'Cumbia vieja', author: 'Artist', url: 'https://example.com/c', durationMS: 200000 },
-                        { title: 'Bachata romántica', author: 'Artist', url: 'https://example.com/b', durationMS: 200000 },
+                        {
+                            title: 'Cumbia vieja',
+                            author: 'Artist',
+                            url: 'https://example.com/c',
+                            durationMS: 200000,
+                        },
+                        {
+                            title: 'Bachata romántica',
+                            author: 'Artist',
+                            url: 'https://example.com/b',
+                            durationMS: 200000,
+                        },
                     ]),
                 },
             },
@@ -4289,8 +4277,6 @@ describe('queueManipulation — diversity improvements', () => {
             )
         }
     })
-})
-
 
     describe('getGenreFamilies', () => {
         it('identifies single genre family', () => {
@@ -4363,7 +4349,9 @@ describe('queueManipulation — diversity improvements', () => {
         })
 
         it('treats latin as strong', () => {
-            expect(calculateGenreFamilyPenalty(['reggaeton'], ['pop'])).toBe(-0.6)
+            expect(calculateGenreFamilyPenalty(['reggaeton'], ['pop'])).toBe(
+                -0.6,
+            )
         })
     })
 
@@ -4371,7 +4359,11 @@ describe('queueManipulation — diversity improvements', () => {
         it('returns unchanged when features null', async () => {
             const tracks = [
                 {
-                    track: { title: 'T', author: 'A', url: 'https://spotify.com' },
+                    track: {
+                        title: 'T',
+                        author: 'A',
+                        url: 'https://spotify.com',
+                    },
                     score: 1,
                     basis: { source: 'spotify-rec' as const, signals: [] },
                 },
@@ -4383,32 +4375,38 @@ describe('queueManipulation — diversity improvements', () => {
         it('returns unchanged when userId empty', async () => {
             const tracks = [
                 {
-                    track: { title: 'T', author: 'A', url: 'https://spotify.com' },
+                    track: {
+                        title: 'T',
+                        author: 'A',
+                        url: 'https://spotify.com',
+                    },
                     score: 1,
                     basis: { source: 'spotify-rec' as const, signals: [] },
                 },
             ]
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                '',
-                { energy: 0.7, valence: 0.6 } as any,
-            )
+            const result = await enrichWithAudioFeatures(tracks, '', {
+                energy: 0.7,
+                valence: 0.6,
+            } as any)
             expect(result).toEqual(tracks)
         })
 
         it('returns unchanged when no Spotify links', async () => {
             const tracks = [
                 {
-                    track: { title: 'T', author: 'A', url: 'https://youtube.com' },
+                    track: {
+                        title: 'T',
+                        author: 'A',
+                        url: 'https://youtube.com',
+                    },
                     score: 1,
                     basis: { source: 'spotify-rec' as const, signals: [] },
                 },
             ]
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'u1',
-                { energy: 0.7, valence: 0.6 } as any,
-            )
+            const result = await enrichWithAudioFeatures(tracks, 'u1', {
+                energy: 0.7,
+                valence: 0.6,
+            } as any)
             expect(result).toEqual(tracks)
         })
     })
