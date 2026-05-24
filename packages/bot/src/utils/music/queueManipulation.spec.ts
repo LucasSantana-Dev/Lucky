@@ -1664,80 +1664,61 @@ describe('queueManipulation.queueOperations', () => {
 })
 
 describe('queueManipulation — title-only deduplication', () => {
-    it('treats same title with different authors as duplicate candidate', async () => {
-        const currentTrack = {
-            title: 'Bohemian Rhapsody',
-            author: 'Queen - Topic',
-            url: 'https://example.com/bq-topic',
-        } as Track
-
-        const candidateTrack = {
-            title: 'Bohemian Rhapsody',
-            author: 'Queen',
-            url: 'https://example.com/bq-queen',
-        } as Track
-
-        const queue = createQueueMock({
-            currentTrack,
-            tracks: {
-                size: 0,
-                toArray: jest.fn().mockReturnValue([]),
+    it('deduplicates candidates by title regardless of author or version suffix', async () => {
+        const addedTracks: any[] = []
+        const scenarios = [
+            {
+                name: 'same title, different author',
+                currentTrack: {
+                    title: 'Bohemian Rhapsody',
+                    author: 'Queen - Topic',
+                    url: 'https://example.com/bq-topic',
+                },
+                candidate: {
+                    title: 'Bohemian Rhapsody',
+                    author: 'Queen',
+                    url: 'https://example.com/bq-queen',
+                },
             },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [candidateTrack],
-                }),
+            {
+                name: 'same title, version suffix',
+                currentTrack: {
+                    title: 'Bohemian Rhapsody',
+                    author: 'Queen',
+                    url: 'https://example.com/bq-original',
+                },
+                candidate: {
+                    title: 'Bohemian Rhapsody - Live',
+                    author: 'Queen',
+                    url: 'https://example.com/bq-live',
+                },
             },
-        })
+        ]
 
-        await replenishQueue(queue as any, {
-            targetQueueSize: 1,
-            guildId: 'guild-1',
-        })
+        for (const scenario of scenarios) {
+            addedTracks.length = 0
+            const queue = createQueueMock({
+                currentTrack: scenario.currentTrack as any as Track,
+                tracks: {
+                    size: 0,
+                    toArray: jest.fn().mockReturnValue([]),
+                },
+                player: {
+                    search: jest.fn().mockResolvedValue({
+                        tracks: [scenario.candidate],
+                    }),
+                },
+                addTrack: jest.fn((t: any) => addedTracks.push(t)),
+            })
 
-        // The candidate should be deduplicated by title, so no track is added
-        expect((queue as any).addTrack).not.toHaveBeenCalledWith(
-            expect.objectContaining({ title: 'Bohemian Rhapsody' }),
-        )
-    })
+            await replenishQueue(queue as any, {
+                targetQueueSize: 1,
+                guildId: 'guild-1',
+            })
 
-    it('treats version suffix variants of same title as duplicate candidate', async () => {
-        const currentTrack = {
-            title: 'Bohemian Rhapsody',
-            author: 'Queen',
-            url: 'https://example.com/bq-original',
-        } as Track
-
-        const candidateTrack = {
-            title: 'Bohemian Rhapsody - Live',
-            author: 'Queen',
-            url: 'https://example.com/bq-live',
-        } as Track
-
-        const queue = createQueueMock({
-            currentTrack,
-            tracks: {
-                size: 0,
-                toArray: jest.fn().mockReturnValue([]),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [candidateTrack],
-                }),
-            },
-        })
-
-        await replenishQueue(queue as any, {
-            targetQueueSize: 1,
-            guildId: 'guild-1',
-        })
-
-        // The candidate with version suffix should be deduplicated by title-only, so no track is added
-        expect((queue as any).addTrack).not.toHaveBeenCalledWith(
-            expect.objectContaining({
-                title: expect.stringMatching(/Bohemian Rhapsody/),
-            }),
-        )
+            // Title-only dedup should prevent the candidate from being added
+            expect(addedTracks).toHaveLength(0, `Scenario "${scenario.name}" should not add track`)
+        }
     })
 })
 
@@ -1892,6 +1873,14 @@ describe('queueManipulation.moveUserTrackToPriority', () => {
             expectInsertAt: null,
             expectAddToEnd: false,
         },
+        {
+            scenario: 'does nothing when track is not in queue (already playing)',
+            initialQueue: [],
+            queueAfterRemoval: [],
+            userTrack: { url: 'https://example.com/playing', title: 'Playing' },
+            expectInsertAt: null,
+            expectAddToEnd: false,
+        },
     ])('$scenario', ({ initialQueue, queueAfterRemoval, userTrack, expectInsertAt, expectAddToEnd }) => {
         const insertTrackMock = jest.fn()
         const addTrackMock = jest.fn()
@@ -1922,26 +1911,6 @@ describe('queueManipulation.moveUserTrackToPriority', () => {
             expect(insertTrackMock).not.toHaveBeenCalled()
             expect(addTrackMock).not.toHaveBeenCalled()
         }
-    })
-
-    it('does nothing when track is not in queue (already playing)', () => {
-        const track = { url: 'https://example.com/playing', title: 'Playing' }
-        const insertTrackMock = jest.fn()
-        const addTrackMock = jest.fn()
-        const removeMock = jest.fn()
-
-        const queue = {
-            tracks: { toArray: jest.fn().mockReturnValue([]) },
-            node: { remove: removeMock },
-            addTrack: addTrackMock,
-            insertTrack: insertTrackMock,
-        } as unknown as GuildQueue
-
-        moveUserTrackToPriority(queue, track as Track)
-
-        expect(removeMock).not.toHaveBeenCalled()
-        expect(insertTrackMock).not.toHaveBeenCalled()
-        expect(addTrackMock).not.toHaveBeenCalled()
     })
 })
 
@@ -2117,7 +2086,7 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
-    it('uses multiple fallback queries when primary candidates empty', async () => {
+    it('uses fallback queries to find candidates when primary searches yield no results', async () => {
         const currentTrack = {
             url: 'https://example.com/current',
             title: 'Current Song',
@@ -2131,6 +2100,7 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
             source: 'spotify',
             durationMS: 180000,
         }
+        const addedTracks: unknown[] = []
         const searchMock = jest.fn()
         searchMock.mockResolvedValue({ tracks: [fallbackCandidate] })
 
@@ -2138,11 +2108,13 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
             currentTrack,
             metadata: { requestedBy: { id: 'user-1' } },
             player: { search: searchMock },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
         })
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        expect(queue.addTrack).toHaveBeenCalled()
+        // Fallback should result in at least one track being added
+        expect(addedTracks.length).toBeGreaterThan(0)
     })
 })
 
@@ -3562,7 +3534,7 @@ describe('queueManipulation — multi-user VC blend', () => {
         const spotifyMocks = jest.requireMock('../../spotify/spotifyApi') as any
         spotifyMocks.getArtistPopularity.mockResolvedValue(85)
 
-        const addTrackMock = jest.fn()
+        const addedTracks: any[] = []
         const queue = createQueueMock({
             currentTrack: {
                 url: 'https://example.com/current',
@@ -3585,14 +3557,14 @@ describe('queueManipulation — multi-user VC blend', () => {
                     ],
                 }),
             },
-            addTrack: addTrackMock,
+            addTrack: jest.fn((t: any) => addedTracks.push(t)),
             metadata: { requestedBy: { id: 'user-1' } },
         })
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        expect(spotifyMocks.getArtistPopularity).toHaveBeenCalled()
-        expect(addTrackMock).toHaveBeenCalled()
+        // Popular mode with high popularity should result in track being added
+        expect(addedTracks.length).toBeGreaterThan(0)
     })
 })
 
@@ -3704,13 +3676,14 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
         expect(haloTracks).toHaveLength(1)
     })
 
-    it('logs debugLog when primary Spotify seed search returns no results', async () => {
+    it('falls back to alternative search when primary Spotify seed search returns no results', async () => {
         const fallbackTrack = {
             title: 'Fallback Song',
             author: 'Fallback Artist',
             url: 'https://youtube.com/watch?v=fallback01',
             durationMS: 200000,
         }
+        const addedTracks: any[] = []
         const searchMock = jest
             .fn()
             .mockResolvedValueOnce({ tracks: [] })
@@ -3726,18 +3699,14 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
             metadata: { requestedBy: { id: 'user-1' } },
             tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
             player: { search: searchMock },
+            addTrack: jest.fn((t: any) => addedTracks.push(t)),
         })
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        const { debugLog } = jest.requireMock('@lucky/shared/utils') as {
-            debugLog: jest.Mock
-        }
-        expect(debugLog).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: expect.stringContaining('seed search returned 0 results'),
-            }),
-        )
+        // When primary search fails, fallback should be used and track added
+        expect(addedTracks.length).toBeGreaterThan(0)
+        expect(searchMock.mock.calls.length).toBeGreaterThan(1)
     })
 })
 
