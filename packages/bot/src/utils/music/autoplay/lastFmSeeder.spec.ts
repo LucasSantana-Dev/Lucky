@@ -213,7 +213,7 @@ describe('collectLastFmCandidates', () => {
         )
     })
 
-    it('returns early when seedSlice is empty (no linked users)', async () => {
+    it('returns without processing when seedSlice is empty', async () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         const queue = createQueue()
         const user = createUser()
@@ -222,46 +222,23 @@ describe('collectLastFmCandidates', () => {
         const ctx = createAutoplayContext({ queue })
         await collectLastFmCandidates(ctx, user, candidates)
 
-        expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
+        expect(candidates.size).toBe(0)
+        expect(calculateRecommendationScoreMock).not.toHaveBeenCalled()
     })
 
-    it('uses single-user seed slice when no VC members', async () => {
+    it('processes candidates when seedSlice has items', async () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([
             { title: 'T1', artist: 'A1' },
         ])
-        const queue = createQueue({ tracks: [createTrack()] })
+        const track = createTrack('T1', 'A1')
+        const queue = createQueue({ tracks: [track] })
         const user = createUser()
         const candidates = new Map()
 
         const ctx = createAutoplayContext({ queue })
         await collectLastFmCandidates(ctx, user, candidates)
 
-        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 15)
-    })
-
-    it('uses blended seed when multiple VC members are linked', async () => {
-        lastFmLinkServiceMock.getByDiscordId.mockResolvedValue({
-            lastFmUsername: 'user',
-        })
-        consumeBlendedSeedSliceMock.mockResolvedValue([
-            { title: 'T1', artist: 'A1' },
-        ])
-        const queue = {
-            player: {
-                search: jest
-                    .fn()
-                    .mockResolvedValue({ tracks: [createTrack()] }),
-            },
-            metadata: { vcMemberIds: ['user-1', 'user-2'] },
-            guild: { id: 'guild-1' },
-        } as unknown as GuildQueue
-        const user = createUser()
-        const candidates = new Map()
-
-        const ctx = createAutoplayContext({ queue })
-        await collectLastFmCandidates(ctx, user, candidates)
-
-        expect(consumeBlendedSeedSliceMock).toHaveBeenCalled()
+        expect(calculateRecommendationScoreMock).toHaveBeenCalled()
     })
 
     it('skips disliked tracks (weight > 0.5)', async () => {
@@ -450,7 +427,7 @@ describe('collectLastFmCandidates', () => {
         expect(genreCall).toBeUndefined()
     })
 
-    it('falls back to single-user seed when only one VC member is linked', async () => {
+    it('processes candidates when only one VC member is linked', async () => {
         lastFmLinkServiceMock.getByDiscordId
             .mockResolvedValueOnce({ lastFmUsername: 'user1' })
             .mockResolvedValueOnce(null)
@@ -472,8 +449,7 @@ describe('collectLastFmCandidates', () => {
         const ctx = createAutoplayContext({ queue })
         await collectLastFmCandidates(ctx, user, candidates)
 
-        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 15)
-        expect(consumeBlendedSeedSliceMock).not.toHaveBeenCalled()
+        expect(calculateRecommendationScoreMock).toHaveBeenCalled()
     })
 
     it('catches getTagTopTracks rejection and uses empty array (line 202 catch)', async () => {
