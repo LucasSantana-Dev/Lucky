@@ -8,18 +8,11 @@ import type {
 } from './types.js'
 import type { GuildAutomationManifestInput } from './manifestSchema.js'
 import type { IGuildAutomationRepository } from './IGuildAutomationRepository.js'
+import { toManifestDocument } from './guildAutomationHelpers.js'
 
 const LOCK_TTL_MS = 60_000
 
 const locks = new Map<string, { expiresAt: number }>()
-
-function toManifestDocument(value: unknown): GuildAutomationManifestDocument {
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-        throw new Error('Manifest payload is invalid')
-    }
-
-    return guildAutomationManifestSchema.parse(value)
-}
 
 function cleanupLocks(): void {
     const now = Date.now()

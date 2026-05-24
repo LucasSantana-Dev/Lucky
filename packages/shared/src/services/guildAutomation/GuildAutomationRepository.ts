@@ -1,28 +1,12 @@
-import { Prisma, type PrismaClient } from '../../generated/prisma/client.js'
+import type { PrismaClient } from '../../generated/prisma/client.js'
 import type {
     AutomationModule,
     AutomationRunStatus,
     AutomationRunType,
     GuildAutomationManifestDocument,
 } from './types.js'
-import { guildAutomationManifestSchema } from './manifestSchema.js'
 import type { IGuildAutomationRepository } from './IGuildAutomationRepository.js'
-
-function toJsonValue(value: unknown): Prisma.InputJsonValue {
-    return value as Prisma.InputJsonValue
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function toManifestDocument(value: unknown): GuildAutomationManifestDocument {
-    if (!isObject(value)) {
-        throw new Error('Manifest payload is invalid')
-    }
-
-    return guildAutomationManifestSchema.parse(value)
-}
+import { toJsonValue, toManifestDocument } from './guildAutomationHelpers.js'
 
 export class GuildAutomationRepository implements IGuildAutomationRepository {
     constructor(private prisma: PrismaClient) {}
