@@ -3700,13 +3700,14 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
         expect(haloTracks).toHaveLength(1)
     })
 
-    it('logs debugLog when primary Spotify seed search returns no results', async () => {
+    it('uses fallback search when primary seed search returns no results', async () => {
         const fallbackTrack = {
             title: 'Fallback Song',
             author: 'Fallback Artist',
             url: 'https://youtube.com/watch?v=fallback01',
             durationMS: 200000,
         }
+        const addedTracks: Track[] = []
         const searchMock = jest
             .fn()
             .mockResolvedValueOnce({ tracks: [] })
@@ -3722,20 +3723,13 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
             metadata: { requestedBy: { id: 'user-1' } },
             tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
             player: { search: searchMock },
+            addTrack: jest.fn((t) => addedTracks.push(t as Track)),
         })
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        const { debugLog } = jest.requireMock('@lucky/shared/utils') as {
-            debugLog: jest.Mock
-        }
-        expect(debugLog).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: expect.stringContaining(
-                    'seed search returned 0 results',
-                ),
-            }),
-        )
+        expect(addedTracks.length).toBeGreaterThan(0)
+        expect(addedTracks.some((t) => t.title === 'Fallback Song')).toBe(true)
     })
 })
 
