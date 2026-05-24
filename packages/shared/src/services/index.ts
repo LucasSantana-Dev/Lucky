@@ -45,7 +45,35 @@ export {
 } from './GuildSettingsService'
 export { roleManagementService } from './RoleManagementService'
 export { reactionRolesService } from './ReactionRolesService'
-export * from './guildAutomation/index'
+export {
+    guildAutomationManifestSchema,
+    validateGuildAutomationManifest,
+    type GuildAutomationManifestInput,
+    createAutomationPlan,
+    isPlanIdempotent,
+    onboardingToManifest,
+    manifestOnboardingToDiscordEdit,
+    guildAutomationService,
+    validateManifestOrThrow,
+    parseManifestForDiff,
+    createAutomationPlanWithDefaults,
+    type GuildAutomationManifestDocument,
+    AUTOMATION_MODULES,
+    type AutomationModule,
+    type AutomationAction,
+    type AutomationRunType,
+    type AutomationRunStatus,
+    type DriftSeverity,
+    type GuildAutomationPlan,
+    type GuildAutomationDiffOperation,
+    type GuildAutomationStatus,
+    createAutoMessagesExecutor,
+    type AutoMessagesLiveState,
+    type AutoMessagesManifestSection,
+    type AutoMessagesDiff,
+    type AutoMessagesResult,
+    type AutoMessagesPort,
+} from './guildAutomation/index'
 export {
     guildRoleAccessService,
     RBAC_MODULES,

@@ -42,11 +42,11 @@ specified.
 
 ## Bump strategy (proposed by `version-bump` from conventional commits)
 
-| Prefix mix in the batch                  | Bump  |
-|------------------------------------------|-------|
-| any `BREAKING CHANGE` or `feat!:`        | major |
-| at least one `feat:` (no breaking)       | minor |
-| only `fix:`, `chore:`, `ci:`, `docs:`    | patch |
+| Prefix mix in the batch               | Bump  |
+| ------------------------------------- | ----- |
+| any `BREAKING CHANGE` or `feat!:`     | major |
+| at least one `feat:` (no breaking)    | minor |
+| only `fix:`, `chore:`, `ci:`, `docs:` | patch |
 
 ## CHANGELOG hygiene
 
@@ -64,6 +64,7 @@ permissive on `fix:` and `refactor:` prefixes).
 ## Bot PRs (Dependabot)
 
 Handled by `/dep-sweep`. See `.claude/dep-sweep-config.json` for the rules:
+
 - Dev-deps: auto-merge minor + patch
 - Production deps: manual review (see `sensitive` list)
 - Framework deps (react, vite, next): always hold (see `always_hold`)
@@ -74,6 +75,7 @@ Handled by `/dep-sweep`. See `.claude/dep-sweep-config.json` for the rules:
 
 `/hotfix` is the **only** acceptable bypass of the release branch.
 Criteria:
+
 1. The fix is for a production-impacting bug, not new functionality
 2. It can be expressed in ≤ 100 LOC across ≤ 3 files
 3. The fix is reviewed by at least one human before merge

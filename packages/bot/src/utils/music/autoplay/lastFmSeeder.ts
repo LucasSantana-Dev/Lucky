@@ -11,6 +11,7 @@ import { getSimilarTracks, getTagTopTracks } from '../../../lastfm'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
 import { cleanSearchQuery, cleanTitle } from '../searchQueryCleaner'
 import type { SessionMood } from './sessionMood'
+import type { AutoplayContext } from './autoplayContext'
 import { calculateRecommendationScore } from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'
 import {
@@ -29,31 +30,13 @@ const MAX_AUTOPLAY_DURATION_MS = 10 * 60 * 1000
 const AUTOPLAY_BUFFER_SIZE = 8
 
 export async function collectLastFmCandidates(
-    queue: GuildQueue,
+    ctx: AutoplayContext,
     requestedBy: User,
-    excludedUrls: Set<string>,
-    excludedKeys: Set<string>,
-    dislikedWeights: Map<string, number>,
-    likedWeights: Map<string, number>,
-    preferredArtistKeys: Set<string>,
-    blockedArtistKeys: Set<string>,
-    currentTrack: Track,
-    recentArtists: Set<string>,
     candidates: Map<string, ScoredTrack>,
-    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
-    artistFrequency: Map<string, number> = new Map(),
-    implicitDislikeKeys: Set<string> = new Set(),
-    implicitLikeKeys: Set<string> = new Set(),
-    sessionMood: SessionMood | null = null,
     contributionWeights?: Map<string, number>,
-    genreContext: {
-        getArtistTags?: ArtistTagFetcher
-        currentTrackTags?: string[]
-        sessionGenreFamilies?: Set<string>
-    } = {},
     auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {
-    const metadata = queue.metadata as QueueMetadata
+    const metadata = ctx.queue.metadata as QueueMetadata
     const vcMemberIds = metadata?.vcMemberIds ?? []
 
     const otherUserIds = vcMemberIds.filter((id) => id !== requestedBy.id)
@@ -91,10 +74,11 @@ export async function collectLastFmCandidates(
 
     if (seedSlice.length === 0) return
 
-    const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
-    const currentTrackTags = genreContext.currentTrackTags ?? []
+    const getArtistTags =
+        ctx.genreContext.getArtistTags ?? createArtistTagFetcher()
+    const currentTrackTags = ctx.genreContext.currentTrackTags ?? []
     const sessionGenreFamilies =
-        genreContext.sessionGenreFamilies ?? new Set<string>()
+        ctx.genreContext.sessionGenreFamilies ?? new Set<string>()
 
     for (const seed of seedSlice) {
         if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
@@ -102,27 +86,33 @@ export async function collectLastFmCandidates(
             ? LOVED_SEED_EXTRA_BOOST
             : 0
         const query = cleanSearchQuery(seed.title, seed.artist)
-        const tracks = await searchLastFmQuery(queue, query, requestedBy)
+        const tracks = await searchLastFmQuery(ctx.queue, query, requestedBy)
         for (const track of tracks) {
-            if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
+            if (
+                !shouldIncludeCandidate(
+                    track,
+                    ctx.excludedUrls,
+                    ctx.excludedKeys,
+                )
+            )
                 continue
             const normalizedKey = normalizeTrackKey(track.title, track.author)
-            const dislikedWeight = dislikedWeights.get(normalizedKey)
+            const dislikedWeight = ctx.dislikedWeights.get(normalizedKey)
             if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
             const tags = await getArtistTags(track.author)
             const rec = calculateRecommendationScore({
                 candidate: track,
-                currentTrack,
-                recentArtists,
-                likedWeights,
-                preferredArtistKeys,
-                blockedArtistKeys,
-                autoplayMode,
-                artistFrequency,
-                implicitDislikeKeys,
-                implicitLikeKeys,
-                dislikedWeights,
-                sessionMood,
+                currentTrack: ctx.currentTrack,
+                recentArtists: ctx.recentArtists,
+                likedWeights: ctx.likedWeights,
+                preferredArtistKeys: ctx.preferredArtistKeys,
+                blockedArtistKeys: ctx.blockedArtistKeys,
+                autoplayMode: ctx.autoplayMode,
+                artistFrequency: ctx.artistFrequency,
+                implicitDislikeKeys: ctx.implicitDislikeKeys,
+                implicitLikeKeys: ctx.implicitLikeKeys,
+                dislikedWeights: ctx.dislikedWeights,
+                sessionMood: ctx.sessionMood,
                 skipNoveltyBoost: true,
                 genreContext: {
                     candidateTags: tags,
@@ -148,31 +138,41 @@ export async function collectLastFmCandidates(
         )
         for (const s of similar.slice(0, MAX_SIMILAR_LOOKUPS)) {
             const query = cleanSearchQuery(s.title, s.artist)
-            const tracks = await searchLastFmQuery(queue, query, requestedBy)
+            const tracks = await searchLastFmQuery(
+                ctx.queue,
+                query,
+                requestedBy,
+            )
             for (const track of tracks) {
-                if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
+                if (
+                    !shouldIncludeCandidate(
+                        track,
+                        ctx.excludedUrls,
+                        ctx.excludedKeys,
+                    )
+                )
                     continue
                 const normalizedKey = normalizeTrackKey(
                     track.title,
                     track.author,
                 )
-                const dislikedWeight = dislikedWeights.get(normalizedKey)
+                const dislikedWeight = ctx.dislikedWeights.get(normalizedKey)
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
                 const tags = await getArtistTags(track.author)
                 const rec = calculateRecommendationScore({
                     candidate: track,
-                    currentTrack,
-                    recentArtists,
-                    likedWeights,
-                    preferredArtistKeys,
-                    blockedArtistKeys,
-                    autoplayMode,
-                    artistFrequency,
-                    implicitDislikeKeys,
-                    implicitLikeKeys,
-                    dislikedWeights,
-                    sessionMood,
+                    currentTrack: ctx.currentTrack,
+                    recentArtists: ctx.recentArtists,
+                    likedWeights: ctx.likedWeights,
+                    preferredArtistKeys: ctx.preferredArtistKeys,
+                    blockedArtistKeys: ctx.blockedArtistKeys,
+                    autoplayMode: ctx.autoplayMode,
+                    artistFrequency: ctx.artistFrequency,
+                    implicitDislikeKeys: ctx.implicitDislikeKeys,
+                    implicitLikeKeys: ctx.implicitLikeKeys,
+                    dislikedWeights: ctx.dislikedWeights,
+                    sessionMood: ctx.sessionMood,
                     skipNoveltyBoost: true,
                     genreContext: {
                         candidateTags: tags,
@@ -199,7 +199,7 @@ export async function collectLastFmCandidates(
     // Sparse-artist fallback: if similar tracks yielded < 3 candidates,
     // use the current track's dominant genre tag to find tracks in-genre.
     if (candidates.size < 3 && seedSlice.length > 0) {
-        const dominantTags = await getArtistTags(currentTrack.author)
+        const dominantTags = await getArtistTags(ctx.currentTrack.author)
         const dominantTag = dominantTags[0]
         if (dominantTag) {
             const tagTracks = await getTagTopTracks(dominantTag, 20).catch(
@@ -208,7 +208,7 @@ export async function collectLastFmCandidates(
             for (const t of tagTracks.slice(0, 5)) {
                 const tagQuery = cleanSearchQuery(t.title, t.artist)
                 const found = await searchLastFmQuery(
-                    queue,
+                    ctx.queue,
                     tagQuery,
                     requestedBy,
                 )
@@ -216,8 +216,8 @@ export async function collectLastFmCandidates(
                     if (
                         !shouldIncludeCandidate(
                             track,
-                            excludedUrls,
-                            excludedKeys,
+                            ctx.excludedUrls,
+                            ctx.excludedKeys,
                         )
                     )
                         continue
@@ -225,23 +225,24 @@ export async function collectLastFmCandidates(
                         track.title,
                         track.author,
                     )
-                    const dislikedWeight = dislikedWeights.get(normalizedKey)
+                    const dislikedWeight =
+                        ctx.dislikedWeights.get(normalizedKey)
                     if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                         continue
                     const tags = await getArtistTags(track.author)
                     const rec = calculateRecommendationScore({
                         candidate: track,
-                        currentTrack,
-                        recentArtists,
-                        likedWeights,
-                        preferredArtistKeys,
-                        blockedArtistKeys,
-                        autoplayMode,
-                        artistFrequency,
-                        implicitDislikeKeys,
-                        implicitLikeKeys,
-                        dislikedWeights,
-                        sessionMood,
+                        currentTrack: ctx.currentTrack,
+                        recentArtists: ctx.recentArtists,
+                        likedWeights: ctx.likedWeights,
+                        preferredArtistKeys: ctx.preferredArtistKeys,
+                        blockedArtistKeys: ctx.blockedArtistKeys,
+                        autoplayMode: ctx.autoplayMode,
+                        artistFrequency: ctx.artistFrequency,
+                        implicitDislikeKeys: ctx.implicitDislikeKeys,
+                        implicitLikeKeys: ctx.implicitLikeKeys,
+                        dislikedWeights: ctx.dislikedWeights,
+                        sessionMood: ctx.sessionMood,
                         skipNoveltyBoost: true,
                         genreContext: {
                             candidateTags: tags,

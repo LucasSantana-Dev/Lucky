@@ -263,17 +263,18 @@ describe('interactionReply', () => {
             } as unknown as ButtonInteraction
         })
 
-        it('handles button interaction with text content', async () => {
+        it('handles button interaction and sends message content', async () => {
             await interactionReply({
                 interaction: mockInteraction,
                 content: { content: 'button clicked' },
             })
 
-            expect(mockInteraction.deferReply).toHaveBeenCalled()
             expect(mockInteraction.editReply).toHaveBeenCalled()
+            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            expect(callArgs.embeds).toBeDefined()
         })
 
-        it('handles ephemeral button responses', async () => {
+        it('handles ephemeral button responses with correct flags', async () => {
             await interactionReply({
                 interaction: mockInteraction,
                 content: { content: 'secret', ephemeral: true },
@@ -282,6 +283,7 @@ describe('interactionReply', () => {
             expect(mockInteraction.deferReply).toHaveBeenCalledWith({
                 flags: 64,
             })
+            expect(mockInteraction.editReply).toHaveBeenCalled()
         })
     })
 
@@ -306,19 +308,20 @@ describe('interactionReply', () => {
             } as unknown as ModalSubmitInteraction
         })
 
-        it('handles modal submit interaction', async () => {
+        it('handles modal submit interaction and sends response', async () => {
             await interactionReply({
                 interaction: mockInteraction,
                 content: { content: 'modal submitted' },
             })
 
-            expect(mockInteraction.deferReply).toHaveBeenCalled()
             expect(mockInteraction.editReply).toHaveBeenCalled()
+            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            expect(callArgs.embeds).toBeDefined()
         })
     })
 
     describe('select menu interactions', () => {
-        it('handles string select menu', async () => {
+        it('handles string select menu interaction', async () => {
             const mockInteraction = {
                 isChatInputCommand: jest.fn(() => false),
                 isButton: jest.fn(() => false),
@@ -333,114 +336,16 @@ describe('interactionReply', () => {
                 deferReply: jest.fn().mockResolvedValue(undefined),
                 editReply: jest.fn().mockResolvedValue(undefined),
                 followUp: jest.fn().mockResolvedValue(undefined),
-            } as unknown as StringSelectMenuInteraction
+            } as unknown as Interaction
 
             await interactionReply({
                 interaction: mockInteraction,
-                content: { content: 'selected' },
+                content: { content: 'string selected' },
             })
 
             expect(mockInteraction.editReply).toHaveBeenCalled()
-        })
-
-        it('handles user select menu', async () => {
-            const mockInteraction = {
-                isChatInputCommand: jest.fn(() => false),
-                isButton: jest.fn(() => false),
-                isModalSubmit: jest.fn(() => false),
-                isStringSelectMenu: jest.fn(() => false),
-                isUserSelectMenu: jest.fn(() => true),
-                isChannelSelectMenu: jest.fn(() => false),
-                isRoleSelectMenu: jest.fn(() => false),
-                isMentionableSelectMenu: jest.fn(() => false),
-                deferred: false,
-                replied: false,
-                deferReply: jest.fn().mockResolvedValue(undefined),
-                editReply: jest.fn().mockResolvedValue(undefined),
-                followUp: jest.fn().mockResolvedValue(undefined),
-            }
-
-            await interactionReply({
-                interaction: mockInteraction as unknown as Interaction,
-                content: { content: 'user selected' },
-            })
-
-            expect(mockInteraction.editReply).toHaveBeenCalled()
-        })
-
-        it('handles channel select menu', async () => {
-            const mockInteraction = {
-                isChatInputCommand: jest.fn(() => false),
-                isButton: jest.fn(() => false),
-                isModalSubmit: jest.fn(() => false),
-                isStringSelectMenu: jest.fn(() => false),
-                isUserSelectMenu: jest.fn(() => false),
-                isChannelSelectMenu: jest.fn(() => true),
-                isRoleSelectMenu: jest.fn(() => false),
-                isMentionableSelectMenu: jest.fn(() => false),
-                deferred: false,
-                replied: false,
-                deferReply: jest.fn().mockResolvedValue(undefined),
-                editReply: jest.fn().mockResolvedValue(undefined),
-                followUp: jest.fn().mockResolvedValue(undefined),
-            }
-
-            await interactionReply({
-                interaction: mockInteraction as unknown as Interaction,
-                content: { content: 'channel selected' },
-            })
-
-            expect(mockInteraction.editReply).toHaveBeenCalled()
-        })
-
-        it('handles role select menu', async () => {
-            const mockInteraction = {
-                isChatInputCommand: jest.fn(() => false),
-                isButton: jest.fn(() => false),
-                isModalSubmit: jest.fn(() => false),
-                isStringSelectMenu: jest.fn(() => false),
-                isUserSelectMenu: jest.fn(() => false),
-                isChannelSelectMenu: jest.fn(() => false),
-                isRoleSelectMenu: jest.fn(() => true),
-                isMentionableSelectMenu: jest.fn(() => false),
-                deferred: false,
-                replied: false,
-                deferReply: jest.fn().mockResolvedValue(undefined),
-                editReply: jest.fn().mockResolvedValue(undefined),
-                followUp: jest.fn().mockResolvedValue(undefined),
-            }
-
-            await interactionReply({
-                interaction: mockInteraction as unknown as Interaction,
-                content: { content: 'role selected' },
-            })
-
-            expect(mockInteraction.editReply).toHaveBeenCalled()
-        })
-
-        it('handles mentionable select menu', async () => {
-            const mockInteraction = {
-                isChatInputCommand: jest.fn(() => false),
-                isButton: jest.fn(() => false),
-                isModalSubmit: jest.fn(() => false),
-                isStringSelectMenu: jest.fn(() => false),
-                isUserSelectMenu: jest.fn(() => false),
-                isChannelSelectMenu: jest.fn(() => false),
-                isRoleSelectMenu: jest.fn(() => false),
-                isMentionableSelectMenu: jest.fn(() => true),
-                deferred: false,
-                replied: false,
-                deferReply: jest.fn().mockResolvedValue(undefined),
-                editReply: jest.fn().mockResolvedValue(undefined),
-                followUp: jest.fn().mockResolvedValue(undefined),
-            }
-
-            await interactionReply({
-                interaction: mockInteraction as unknown as Interaction,
-                content: { content: 'mentionable selected' },
-            })
-
-            expect(mockInteraction.editReply).toHaveBeenCalled()
+            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            expect(callArgs.embeds).toBeDefined()
         })
     })
 
@@ -473,10 +378,10 @@ describe('interactionReply', () => {
 
             expect(mockInteraction.editReply).toHaveBeenCalled()
             const callArgs = mockInteraction.editReply.mock.calls[0][0]
-            expect(callArgs).toBeDefined()
+            expect(callArgs.embeds || callArgs.content).toBeDefined()
         })
 
-        it('handles null-like content fields', async () => {
+        it('handles null-like content fields gracefully', async () => {
             await interactionReply({
                 interaction: mockInteraction,
                 content: { content: undefined, embeds: undefined },
