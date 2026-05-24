@@ -12,6 +12,11 @@ COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-lucky}"
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 export COMPOSE_PROJECT_NAME
+GITHUB_DEPLOY_STATUS_TOKEN="${GITHUB_DEPLOY_STATUS_TOKEN:-}"
+GITHUB_REPO="${GITHUB_REPO:-LucasSantana-Dev/Lucky}"
+DEPLOY_FINAL_STATE="failure"
+DEPLOY_FINAL_DESC="Deploy failed"
+DEPLOYED_SHA=""
 
 log() { echo "$LOG_PREFIX $(date '+%H:%M:%S') $1"; }
 
@@ -304,6 +309,17 @@ acquire_lock() {
     return 0
 }
 
+post_deploy_status() {
+    [[ -z "$GITHUB_DEPLOY_STATUS_TOKEN" ]] && return 0
+    [[ -z "$DEPLOYED_SHA" ]] && return 0
+    curl -s -o /dev/null \
+        -X POST \
+        -H "Authorization: token $GITHUB_DEPLOY_STATUS_TOKEN" \
+        -H "Content-Type: application/json" \
+        "https://api.github.com/repos/${GITHUB_REPO}/statuses/${DEPLOYED_SHA}" \
+        -d "{\"state\":\"${1}\",\"description\":\"${2}\",\"context\":\"homelab-deploy\"}" || true
+}
+
 if [[ -z "$EXPECTED_SECRET" ]]; then
     log "ERROR: DEPLOY_WEBHOOK_SECRET not configured"
     exit 1
@@ -319,7 +335,8 @@ if ! acquire_lock; then
     notify 16711680 "Deploy Skipped" "Another deploy is already in progress"
     exit 1
 fi
-trap 'rm -rf "$LOCK_DIR" 2>/dev/null || true' EXIT
+_on_exit() { rm -rf "$LOCK_DIR" 2>/dev/null || true; post_deploy_status "$DEPLOY_FINAL_STATE" "$DEPLOY_FINAL_DESC"; }
+trap _on_exit EXIT
 
 COMPOSE_WORKDIR="$(resolve_compose_workdir)"
 CLOUDFLARED_CONFIG_DIR="$(resolve_cloudflared_config_dir)"
@@ -347,6 +364,9 @@ if ! sync_checkout_to_origin_main; then
     notify 16711680 "Deploy Failed" "Checkout recovery failed"
     exit 1
 fi
+
+DEPLOYED_SHA=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)
+post_deploy_status "pending" "Deploy in progress"
 
 # Rebuild webhook early: after git pull lands new hooks.json/Dockerfile but
 # BEFORE the long build/migrate/rollout phase. The -V flag renews anonymous
@@ -482,5 +502,7 @@ fi
 log "Pruning old images..."
 docker image prune -f --filter "until=24h"
 
+DEPLOY_FINAL_STATE="success"
+DEPLOY_FINAL_DESC="All services healthy"
 log "Deploy complete!"
 notify 65280 "Deploy Successful" "All services healthy and running"

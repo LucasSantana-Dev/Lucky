@@ -21,6 +21,7 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             actions: read
+            contents: read
         if: |
             github.event_name == 'workflow_dispatch' ||
             (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
@@ -263,6 +264,7 @@ jobs:
               env:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
                   DOCKER_REBUILT: ${{ steps.docker_wait.outputs.docker_rebuilt }}
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   set -euo pipefail
                   base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
@@ -274,19 +276,49 @@ jobs:
 
                   if [ "${DOCKER_REBUILT:-false}" != "true" ]; then
                     health_url="${base_url}/api/health"
-                    echo "==> No Docker rebuild for this commit — verifying service health at $health_url..."
+                    echo "==> No Docker rebuild — checking for homelab-deploy commit status (SHA: $expected)..."
+
+                    status_was_seen=false
                     for attempt in $(seq 1 20); do
                       echo "Attempt ${attempt}/20..."
-                      response=$(curl -sS --max-time 20 -w "\n%{http_code}" "$health_url" || true)
-                      http_code=$(echo "$response" | tail -1)
-                      if [ "$http_code" = "200" ]; then
-                        echo "==> Service healthy after deploy. Done."
+                      deploy_state=$(gh api \
+                        "repos/${{ github.repository }}/commits/${expected}/statuses" \
+                        --jq '[.[] | select(.context == "homelab-deploy")] | first | .state // ""' \
+                        2>/dev/null || echo "")
+
+                      [ "$deploy_state" = "pending" ] && status_was_seen=true
+
+                      if [ "$deploy_state" = "success" ]; then
+                        echo "==> Homelab deploy completed successfully."
                         exit 0
                       fi
-                      echo "Not ready (HTTP $http_code). Waiting 15s..."
+                      if [ "$deploy_state" = "failure" ] || [ "$deploy_state" = "error" ]; then
+                        echo "::error::Homelab deploy reported failure — check deploy logs on homelab"
+                        exit 1
+                      fi
+
+                      if [ "$status_was_seen" = "false" ] && [ "$attempt" -eq 6 ]; then
+                        echo "::notice::No homelab-deploy status after ~90s — GITHUB_DEPLOY_STATUS_TOKEN not configured on homelab. Falling back to HTTP health check."
+                        for http_attempt in $(seq 1 20); do
+                          echo "HTTP attempt ${http_attempt}/20..."
+                          response=$(curl -sS --max-time 20 -w "\n%{http_code}" "$health_url" || true)
+                          http_code=$(echo "$response" | tail -1)
+                          if [ "$http_code" = "200" ]; then
+                            echo "==> Service healthy. Done."
+                            exit 0
+                          fi
+                          echo "Not ready (HTTP $http_code). Waiting 15s..."
+                          sleep 15
+                        done
+                        echo "::error::Service did not become healthy after all attempts"
+                        exit 1
+                      fi
+
+                      echo "Deploy status: ${deploy_state:-none}. Waiting 15s..."
                       sleep 15
                     done
-                    echo "::error::Service did not become healthy after all attempts"
+
+                    echo "::error::Deploy validation timed out"
                     exit 1
                   fi
 
