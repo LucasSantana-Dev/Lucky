@@ -420,7 +420,7 @@ async function _replenishQueue(
         const currentAudioFeatures = await getTrackAudioFeatures(
             currentTrack,
             requestedBy?.id ?? '',
-        )
+        ).catch(() => null)
         const enriched = await enrichWithAudioFeatures(
             selected,
             requestedBy?.id ?? '',

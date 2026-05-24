@@ -3015,16 +3015,20 @@ describe('queueManipulation — multi-user VC blend', () => {
             .mockResolvedValueOnce('token-for-current')
             .mockResolvedValueOnce(null) // spotifyToken for artist tag fetcher
             .mockResolvedValueOnce(null) // collectSpotifyRecommendationCandidates
-            .mockResolvedValueOnce('token-for-enrich')
+            .mockResolvedValueOnce('token-for-current') // second getTrackAudioFeatures (post-select)
+            .mockResolvedValueOnce('token-for-enrich') // enrichWithAudioFeatures
 
-        const spotifyMocks = jest.requireMock('../../spotify/spotifyApi') as any
-        spotifyMocks.getAudioFeatures.mockResolvedValueOnce({
+        const currentFeatures = {
             energy: 0.7,
             valence: 0.65,
             danceability: 0.6,
             tempo: 125,
             acousticness: 0.2,
-        })
+        }
+        const spotifyMocks = jest.requireMock('../../spotify/spotifyApi') as any
+        spotifyMocks.getAudioFeatures
+            .mockResolvedValueOnce(currentFeatures) // first getTrackAudioFeatures
+            .mockResolvedValueOnce(currentFeatures) // second getTrackAudioFeatures (post-select)
         const candidateFeatureMap = new Map([
             [
                 'candidateSpotifyId01',
