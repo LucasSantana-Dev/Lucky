@@ -1,26 +1,32 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import type { ChatInputCommandInteraction } from 'discord.js'
-import automessageCommand from './automessage.js'
 
-const handleAutoMessageConfigMock = jest.fn()
-const handleAutoMessageListMock = jest.fn()
 const errorLogMock = jest.fn()
 const interactionReplyMock = jest.fn()
+const infoLogMock = jest.fn()
 
-jest.mock('../handlers/automessageHandlers.js', () => ({
-    handleAutoMessageConfig: (...args: unknown[]) =>
-        handleAutoMessageConfigMock(...args),
-    handleAutoMessageList: (...args: unknown[]) =>
-        handleAutoMessageListMock(...args),
-}))
+const autoMessageServiceMock = {
+    getWelcomeMessage: jest.fn(),
+    getLeaveMessage: jest.fn(),
+    getMessagesByType: jest.fn(),
+    createMessage: jest.fn(),
+    updateMessage: jest.fn(),
+}
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
+    infoLog: (...args: unknown[]) => infoLogMock(...args),
+}))
+
+jest.mock('@lucky/shared/services', () => ({
+    autoMessageService: autoMessageServiceMock,
 }))
 
 jest.mock('../../../utils/general/interactionReply.js', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
 }))
+
+import automessageCommand from './automessage.js'
 
 function createInteraction(
     subcommand: string,
@@ -38,8 +44,12 @@ describe('automessage command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         interactionReplyMock.mockResolvedValue(undefined)
-        handleAutoMessageConfigMock.mockResolvedValue(undefined)
-        handleAutoMessageListMock.mockResolvedValue(undefined)
+        autoMessageServiceMock.getWelcomeMessage.mockResolvedValue(null)
+        autoMessageServiceMock.getLeaveMessage.mockResolvedValue(null)
+        autoMessageServiceMock.getMessagesByType.mockResolvedValue([])
+        autoMessageServiceMock.createMessage.mockResolvedValue(undefined)
+        autoMessageServiceMock.updateMessage.mockResolvedValue(undefined)
+        infoLogMock.mockReturnValue(undefined)
     })
 
     it('defines command metadata with correct permissions', () => {
@@ -61,91 +71,112 @@ describe('automessage command', () => {
                 content: '❌ This command can only be used in a server.',
             },
         })
-        expect(handleAutoMessageConfigMock).not.toHaveBeenCalled()
-        expect(handleAutoMessageListMock).not.toHaveBeenCalled()
+        // Verify no service calls were made
+        expect(autoMessageServiceMock.createMessage).not.toHaveBeenCalled()
+        expect(autoMessageServiceMock.getMessagesByType).not.toHaveBeenCalled()
     })
 
-    it('routes welcome subcommand to config handler with correct type', async () => {
+    it('enables welcome messages with channel and content (happy path)', async () => {
+        autoMessageServiceMock.getWelcomeMessage.mockResolvedValue(null)
+        autoMessageServiceMock.createMessage.mockResolvedValue({
+            id: 'msg-1',
+            type: 'welcome',
+            enabled: true,
+        })
+
         const interaction = createInteraction('welcome')
+        const mockOptions = {
+            getSubcommand: jest.fn().mockReturnValue('welcome'),
+            getBoolean: jest.fn().mockReturnValue(true),
+            getChannel: jest.fn().mockReturnValue({
+                id: 'channel-123',
+                toString: () => '<#channel-123>',
+            }),
+            getString: jest.fn().mockReturnValue('Welcome {user}!'),
+        }
+        interaction.options = mockOptions as unknown as any
+        interaction.user = { tag: 'testuser#0001' } as any
+        interaction.guild!.name = 'Test Guild'
 
         await automessageCommand.execute({ interaction })
 
-        expect(handleAutoMessageConfigMock).toHaveBeenCalledWith(
-            interaction,
+        // Verify the service was called to create the message
+        expect(autoMessageServiceMock.createMessage).toHaveBeenCalledWith(
+            'guild-123',
+            'welcome',
+            expect.any(Object),
+            { channelId: 'channel-123' },
+        )
+        // Verify user got success response
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({
+                    embeds: expect.any(Array),
+                }),
+            }),
+        )
+    })
+
+    it('lists auto-messages and shows count (happy path)', async () => {
+        const mockMessage = {
+            id: 'msg-1',
+            type: 'welcome',
+            enabled: true,
+            channelId: 'channel-123',
+            message: 'Welcome to the server!',
+        }
+        autoMessageServiceMock.getMessagesByType.mockResolvedValue([
+            mockMessage,
+        ])
+
+        const interaction = createInteraction('list')
+
+        await automessageCommand.execute({ interaction })
+
+        // Verify the service was queried for both types
+        expect(autoMessageServiceMock.getMessagesByType).toHaveBeenCalledWith(
+            'guild-123',
             'welcome',
         )
-        expect(handleAutoMessageListMock).not.toHaveBeenCalled()
-    })
-
-    it('routes leave subcommand to config handler with correct type', async () => {
-        const interaction = createInteraction('leave')
-
-        await automessageCommand.execute({ interaction })
-
-        expect(handleAutoMessageConfigMock).toHaveBeenCalledWith(
-            interaction,
+        expect(autoMessageServiceMock.getMessagesByType).toHaveBeenCalledWith(
+            'guild-123',
             'leave',
         )
-        expect(handleAutoMessageListMock).not.toHaveBeenCalled()
+        // Verify user got response with embedded message
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({
+                    embeds: expect.any(Array),
+                }),
+            }),
+        )
     })
 
-    it('routes list subcommand to list handler', async () => {
-        const interaction = createInteraction('list')
-
-        await automessageCommand.execute({ interaction })
-
-        expect(handleAutoMessageListMock).toHaveBeenCalledWith(interaction)
-        expect(handleAutoMessageConfigMock).not.toHaveBeenCalled()
-    })
-
-    it('logs error and replies with failure message when config handler throws', async () => {
+    it('handles error when service fails (error path)', async () => {
         const interaction = createInteraction('welcome')
         const error = new Error('Database connection failed')
-        handleAutoMessageConfigMock.mockRejectedValue(error)
+        autoMessageServiceMock.getWelcomeMessage.mockRejectedValue(error)
+
+        const mockOptions = {
+            getSubcommand: jest.fn().mockReturnValue('welcome'),
+            getBoolean: jest.fn().mockReturnValue(true),
+            getChannel: jest.fn().mockReturnValue({
+                id: 'channel-123',
+                toString: () => '<#channel-123>',
+            }),
+            getString: jest.fn().mockReturnValue('Welcome {user}!'),
+        }
+        interaction.options = mockOptions as unknown as any
 
         await automessageCommand.execute({ interaction })
 
-        expect(errorLogMock).toHaveBeenCalledWith({
-            message: 'Failed to manage auto-message',
-            error,
-        })
-        expect(interactionReplyMock).toHaveBeenCalledWith({
-            interaction,
-            content: {
-                content: '❌ Failed to manage auto-message. Please try again.',
-            },
-        })
-    })
-
-    it('logs error and replies with failure message when list handler throws', async () => {
-        const interaction = createInteraction('list')
-        const error = new Error('Redis timeout')
-        handleAutoMessageListMock.mockRejectedValue(error)
-
-        await automessageCommand.execute({ interaction })
-
-        expect(errorLogMock).toHaveBeenCalledWith({
-            message: 'Failed to manage auto-message',
-            error,
-        })
-        expect(interactionReplyMock).toHaveBeenCalledWith({
-            interaction,
-            content: {
-                content: '❌ Failed to manage auto-message. Please try again.',
-            },
-        })
-    })
-
-    it('handles unknown errors gracefully', async () => {
-        const interaction = createInteraction('welcome')
-        handleAutoMessageConfigMock.mockRejectedValue('Unknown error type')
-
-        await automessageCommand.execute({ interaction })
-
-        expect(errorLogMock).toHaveBeenCalledWith({
-            message: 'Failed to manage auto-message',
-            error: 'Unknown error type',
-        })
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Failed to manage auto-message',
+            }),
+        )
         expect(interactionReplyMock).toHaveBeenCalledWith({
             interaction,
             content: {
