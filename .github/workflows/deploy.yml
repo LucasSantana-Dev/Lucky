@@ -2,6 +2,12 @@ name: Deploy to Homelab
 
 on:
     workflow_dispatch:
+        inputs:
+            allow_deploy_unverified_oauth:
+                description: 'Skip OAuth redirect contract check (use only if Discord is rate-limiting and auth-config check passed)'
+                required: false
+                default: 'false'
+                type: boolean
     workflow_run:
         workflows: ["Build & Push Docker Images"]
         types: [completed]
@@ -406,6 +412,7 @@ jobs:
               env:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
                   EXPECTED_CLIENT_ID: ${{ secrets.WEBAPP_EXPECTED_CLIENT_ID }}
+                  ALLOW_DEPLOY_UNVERIFIED_OAUTH: ${{ inputs.allow_deploy_unverified_oauth || '' }}
               run: |
                   set -euo pipefail
 
@@ -532,8 +539,13 @@ jobs:
                   done
 
                   if [ "$non_rate_limited_attempts" -eq 0 ] && [ "$rate_limited_count" -gt 0 ]; then
-                    echo "::warning::OAuth redirect contract check hit sustained Discord rate limiting (429) across all retries; treating as non-blocking after auth-config contract pass."
-                    exit 0
+                    if [ "${ALLOW_DEPLOY_UNVERIFIED_OAUTH:-false}" = "true" ]; then
+                      echo "::warning::OAuth redirect contract check was rate-limited on all attempts; bypassing because ALLOW_DEPLOY_UNVERIFIED_OAUTH=true — verify OAuth flow manually."
+                      exit 0
+                    fi
+                    echo "::error::OAuth redirect contract check was rate-limited (429) on all $rate_limited_count attempts — contract not verified."
+                    echo "::error::Options: (1) redeploy after Discord rate-limit clears (~5 min); (2) trigger workflow_dispatch with allow_deploy_unverified_oauth=true to bypass"
+                    exit 1
                   fi
 
                   echo "::error::Timed out waiting for OAuth redirect contract"
