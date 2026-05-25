@@ -181,7 +181,10 @@ export default new Command({
                     return
                 }
 
-                const updateData: any = {}
+                const updateData: {
+                    response?: string
+                    description?: string | null
+                } = {}
                 if (response) updateData.response = response
                 if (description !== null) updateData.description = description
 

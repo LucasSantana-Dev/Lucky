@@ -7,6 +7,9 @@ import {
     type Guild,
     type GuildChannel,
     type Role,
+    type GuildBan,
+    type DMChannel,
+    type NonThreadGuildBasedChannel,
     AuditLogEvent,
 } from 'discord.js'
 import { serverLogService } from '@lucky/shared/services'
@@ -312,7 +315,7 @@ export function handleAuditEvents(client: Client): void {
         },
     )
 
-    client.on(Events.GuildBanAdd, async (ban: any) => {
+    client.on(Events.GuildBanAdd, async (ban: GuildBan) => {
         try {
             await handleGuildBanAdd(ban)
         } catch (error) {
@@ -323,7 +326,7 @@ export function handleAuditEvents(client: Client): void {
         }
     })
 
-    client.on(Events.GuildBanRemove, async (ban: any) => {
+    client.on(Events.GuildBanRemove, async (ban: GuildBan) => {
         try {
             await handleGuildBanRemove(ban)
         } catch (error) {
@@ -334,31 +337,37 @@ export function handleAuditEvents(client: Client): void {
         }
     })
 
-    client.on(Events.ChannelCreate, async (channel: any) => {
-        try {
-            if ('guild' in channel) {
-                await handleChannelCreate(channel as GuildChannel)
+    client.on(
+        Events.ChannelCreate,
+        async (channel: DMChannel | NonThreadGuildBasedChannel) => {
+            try {
+                if ('guild' in channel) {
+                    await handleChannelCreate(channel as GuildChannel)
+                }
+            } catch (error) {
+                errorLog({
+                    message: 'Error in channel create handler:',
+                    error,
+                })
             }
-        } catch (error) {
-            errorLog({
-                message: 'Error in channel create handler:',
-                error,
-            })
-        }
-    })
+        },
+    )
 
-    client.on(Events.ChannelDelete, async (channel: any) => {
-        try {
-            if ('guild' in channel) {
-                await handleChannelDelete(channel as GuildChannel)
+    client.on(
+        Events.ChannelDelete,
+        async (channel: DMChannel | NonThreadGuildBasedChannel) => {
+            try {
+                if ('guild' in channel) {
+                    await handleChannelDelete(channel as GuildChannel)
+                }
+            } catch (error) {
+                errorLog({
+                    message: 'Error in channel delete handler:',
+                    error,
+                })
             }
-        } catch (error) {
-            errorLog({
-                message: 'Error in channel delete handler:',
-                error,
-            })
-        }
-    })
+        },
+    )
 
     client.on(Events.GuildRoleCreate, async (role: Role) => {
         try {

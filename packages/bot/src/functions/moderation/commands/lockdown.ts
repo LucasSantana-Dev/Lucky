@@ -3,6 +3,7 @@ import {
     PermissionFlagsBits,
     EmbedBuilder,
     ChannelType,
+    type TextChannel,
 } from 'discord.js'
 import Command from '../../../models/Command.js'
 import { infoLog, errorLog } from '@lucky/shared/utils'
@@ -39,7 +40,7 @@ export default new Command({
         }
 
         const channel =
-            (interaction.options.getChannel('channel') as any) ||
+            (interaction.options.getChannel('channel') as TextChannel | null) ||
             interaction.channel
         const reason =
             interaction.options.getString('reason') || 'No reason provided'
@@ -48,7 +49,8 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    content: '❌ This command can only be used in text channels.',
+                    content:
+                        '❌ This command can only be used in text channels.',
                 },
             })
             return
@@ -60,8 +62,9 @@ export default new Command({
                 everyone.id,
             )
 
-            const isSendMessagesBlocked =
-                currentOverwrite?.deny?.has(PermissionFlagsBits.SendMessages)
+            const isSendMessagesBlocked = currentOverwrite?.deny?.has(
+                PermissionFlagsBits.SendMessages,
+            )
 
             let isLocking: boolean
             let action: string
@@ -82,7 +85,9 @@ export default new Command({
 
             const embed = new EmbedBuilder()
                 .setColor(isLocking ? 0xf44336 : 0x4caf50)
-                .setTitle(isLocking ? '🔒 Channel Locked' : '🔓 Channel Unlocked')
+                .setTitle(
+                    isLocking ? '🔒 Channel Locked' : '🔓 Channel Unlocked',
+                )
                 .addFields({
                     name: 'Channel',
                     value: `${channel}`,
@@ -95,10 +100,12 @@ export default new Command({
                 })
             }
 
-            embed.addFields({
-                name: 'Moderator',
-                value: interaction.user.tag,
-            }).setTimestamp()
+            embed
+                .addFields({
+                    name: 'Moderator',
+                    value: interaction.user.tag,
+                })
+                .setTimestamp()
 
             await interactionReply({
                 interaction,
