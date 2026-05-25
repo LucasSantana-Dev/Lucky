@@ -269,8 +269,7 @@ export function selectDiverseCandidates(
         const artistKey = candidate.track.author.toLowerCase()
         const sourceKey = (candidate.track.source ?? 'unknown').toLowerCase()
         const titleKey = normalizeTitleOnly(candidate.track.title)
-        const albumName =
-            (candidate.track.raw as any)?.album?.name?.toLowerCase() ?? ''
+        const albumName = candidate.track.raw?.album?.name?.toLowerCase() ?? ''
         const core = extractSongCore(
             candidate.track.title ?? '',
             candidate.track.author,
