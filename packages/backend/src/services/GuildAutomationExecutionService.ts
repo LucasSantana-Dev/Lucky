@@ -10,24 +10,19 @@ import {
     type GuildAutomationManifestDocument,
     type GuildAutomationPlan,
 } from '@lucky/shared/services'
+import { createAutoMessagesExecutor } from '@lucky/shared/services/guildAutomation'
 import {
     type GuildAutomationRole,
     type GuildAutomationChannel,
     type GuildAutomationParity,
 } from '@lucky/shared/services/guildAutomation/types'
-import { debugLog } from '@lucky/shared/utils'
+import { debugLog, warnLog } from '@lucky/shared/utils'
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
 const DEFAULT_SOURCE = 'discord-capture'
 
 type AutoModUpdatePayload = Parameters<typeof autoModService.updateSettings>[1]
 type ModerationUpdatePayload = Parameters<typeof updateModerationSettings>[1]
-
-type ManagedAutoMessage = {
-    enabled?: boolean
-    channelId?: string
-    message?: string
-}
 
 type DiscordGuildResponse = {
     id: string
@@ -220,7 +215,6 @@ function defaultParityChecklist() {
     ]
 }
 
-
 type RemapFn = (id: string | undefined | null) => string | undefined | null
 
 function remapRolesSection(
@@ -269,9 +263,10 @@ function remapModerationSection(
     remapChannel: RemapFn,
 ): void {
     if (next.moderation?.automod) {
-        next.moderation.automod.exemptRoles = next.moderation.automod.exemptRoles
-            ?.map((id) => remapRole(id))
-            .filter((id): id is string => Boolean(id))
+        next.moderation.automod.exemptRoles =
+            next.moderation.automod.exemptRoles
+                ?.map((id) => remapRole(id))
+                .filter((id): id is string => Boolean(id))
         next.moderation.automod.exemptChannels =
             next.moderation.automod.exemptChannels
                 ?.map((id) => remapChannel(id))
@@ -319,11 +314,13 @@ function remapReactionRolesSection(
             })),
         }),
     )
-    next.reactionroles.exclusiveRoles =
-        next.reactionroles.exclusiveRoles?.map((item) => ({
+    next.reactionroles.exclusiveRoles = next.reactionroles.exclusiveRoles?.map(
+        (item) => ({
             roleId: remapRole(item.roleId) ?? item.roleId,
-            excludedRoleId: remapRole(item.excludedRoleId) ?? item.excludedRoleId,
-        }))
+            excludedRoleId:
+                remapRole(item.excludedRoleId) ?? item.excludedRoleId,
+        }),
+    )
 }
 
 function remapCommandAccessSection(
@@ -338,6 +335,10 @@ function remapCommandAccessSection(
 }
 
 class GuildAutomationExecutionService {
+    private readonly autoMessagesExecutor = createAutoMessagesExecutor({
+        autoMessageService,
+    })
+
     private getBotToken(): string {
         const token = process.env.DISCORD_TOKEN?.trim()
 
@@ -549,42 +550,6 @@ class GuildAutomationExecutionService {
         return next
     }
 
-    private async upsertAutoMessage(
-        guildId: string,
-        type: 'welcome' | 'leave',
-        payload: ManagedAutoMessage | undefined,
-    ): Promise<void> {
-        if (!payload?.message) {
-            return
-        }
-
-        const existing = (
-            type === 'welcome'
-                ? await autoMessageService.getWelcomeMessage(guildId)
-                : await autoMessageService.getLeaveMessage(guildId)
-        ) as unknown
-
-        if (!existing) {
-            await autoMessageService.createMessage(
-                guildId,
-                type,
-                {
-                    message: payload.message,
-                },
-                {
-                    channelId: payload.channelId,
-                },
-            )
-            return
-        }
-
-        await autoMessageService.updateMessage((existing as unknown & { id: string }).id, {
-            message: payload.message,
-            channelId: payload.channelId,
-            enabled: payload.enabled,
-        })
-    }
-
     private async applyOneRole(params: {
         token: string
         guildId: string
@@ -593,7 +558,14 @@ class GuildAutomationExecutionService {
         usedActualRoleIds: Set<string>
         roleRemap: RoleRemap
     }): Promise<void> {
-        const { token, guildId, role, actualRoles, usedActualRoleIds, roleRemap } = params
+        const {
+            token,
+            guildId,
+            role,
+            actualRoles,
+            usedActualRoleIds,
+            roleRemap,
+        } = params
         const targetRoleId = this.resolveRoleTargetId({
             desiredRoleId: role.id,
             desiredRoleName: role.name,
@@ -639,7 +611,14 @@ class GuildAutomationExecutionService {
         actualChannels: ManifestChannel[]
         usedActualChannelIds: Set<string>
     }): Promise<void> {
-        const { token, guildId, channel, channelRemap, actualChannels, usedActualChannelIds } = params
+        const {
+            token,
+            guildId,
+            channel,
+            channelRemap,
+            actualChannels,
+            usedActualChannelIds,
+        } = params
         const remappedParentId =
             (channel.parentId
                 ? channelRemap.get(channel.parentId)
@@ -716,12 +695,12 @@ class GuildAutomationExecutionService {
         desiredChannels: ManifestChannel[],
         channelRemap: ChannelRemap,
     ): Promise<void> {
-        const latestChannels = await this.discordRequest<DiscordChannelResponse[]>(
-            {
-                token,
-                endpoint: `/guilds/${guildId}/channels`,
-            },
-        )
+        const latestChannels = await this.discordRequest<
+            DiscordChannelResponse[]
+        >({
+            token,
+            endpoint: `/guilds/${guildId}/channels`,
+        })
         const desiredChannelIds = new Set(
             desiredChannels.map(
                 (channel) => channelRemap.get(channel.id) ?? channel.id,
@@ -811,10 +790,15 @@ class GuildAutomationExecutionService {
             ),
         )
 
-        const existing = (await roleManagementService.listExclusiveRoles(guildId)) as unknown[]
+        const existing = (await roleManagementService.listExclusiveRoles(
+            guildId,
+        )) as unknown[]
 
         for (const item of existing as unknown[]) {
-            const typedItem = item as unknown & { roleId: string; excludedRoleId: string }
+            const typedItem = item as unknown & {
+                roleId: string
+                excludedRoleId: string
+            }
             const key = `${typedItem.roleId}:${typedItem.excludedRoleId}`
             if (!nextPairs.has(key)) {
                 await roleManagementService.removeExclusiveRole(
@@ -826,7 +810,10 @@ class GuildAutomationExecutionService {
         }
 
         for (const item of desired.reactionroles?.exclusiveRoles ?? []) {
-            const typedItem = item as unknown & { roleId: string; excludedRoleId: string };
+            const typedItem = item as unknown & {
+                roleId: string
+                excludedRoleId: string
+            }
             await roleManagementService.setExclusiveRole(
                 guildId,
                 typedItem.roleId,
@@ -836,19 +823,19 @@ class GuildAutomationExecutionService {
     }
 
     private buildGuildAutomationManifest(data: {
-        guild: unknown & { id: string; name: string };
-        manifestRoles: unknown[];
-        manifestChannels: unknown[];
-        onboarding: unknown;
-        manifest: unknown;
-        automodSettings: Record<string, unknown> | null;
-        moderationSettings: Record<string, unknown> | null;
-        welcomeMessage: unknown;
-        leaveMessage: unknown;
-        reactionRoleMessages: unknown[];
-        exclusiveRoles: unknown[];
-        roleGrants: unknown[];
-        parity: unknown;
+        guild: unknown & { id: string; name: string }
+        manifestRoles: unknown[]
+        manifestChannels: unknown[]
+        onboarding: unknown
+        manifest: unknown
+        automodSettings: Record<string, unknown> | null
+        moderationSettings: Record<string, unknown> | null
+        welcomeMessage: unknown
+        leaveMessage: unknown
+        reactionRoleMessages: unknown[]
+        exclusiveRoles: unknown[]
+        roleGrants: unknown[]
+        parity: unknown
     }): GuildAutomationManifestDocument {
         const {
             guild,
@@ -864,35 +851,39 @@ class GuildAutomationExecutionService {
             exclusiveRoles,
             roleGrants,
             parity,
-        } = data;
+        } = data
 
         const typedWelcomeMessage = welcomeMessage as unknown & {
-            enabled?: boolean;
-            channelId?: string | null;
-            message?: string | null;
-        };
+            enabled?: boolean
+            channelId?: string | null
+            message?: string | null
+        }
         const typedLeaveMessage = leaveMessage as unknown & {
-            enabled?: boolean;
-            channelId?: string | null;
-            message?: string | null;
-        };
+            enabled?: boolean
+            channelId?: string | null
+            message?: string | null
+        }
 
         return {
-            version: ((manifest as unknown & { manifest?: { version?: number } })?.manifest?.version) ?? 1,
+            version:
+                (manifest as unknown & { manifest?: { version?: number } })
+                    ?.manifest?.version ?? 1,
             guild: {
                 id: guild.id,
                 name: guild.name,
             },
-            onboarding: this.toOnboardingManifest(onboarding as DiscordOnboardingResponse | null),
+            onboarding: this.toOnboardingManifest(
+                onboarding as DiscordOnboardingResponse | null,
+            ),
             roles: {
                 roles: manifestRoles as GuildAutomationRole[],
                 channels: manifestChannels as GuildAutomationChannel[],
             },
             moderation: {
-                automod:
-                    toAutoModPayload(automodSettings ?? null) ?? undefined,
+                automod: toAutoModPayload(automodSettings ?? null) ?? undefined,
                 moderationSettings:
-                    toModerationPayload(moderationSettings ?? null) ?? undefined,
+                    toModerationPayload(moderationSettings ?? null) ??
+                    undefined,
             },
             automessages: {
                 welcome: typedWelcomeMessage
@@ -912,44 +903,67 @@ class GuildAutomationExecutionService {
             },
             reactionroles: {
                 messages: reactionRoleMessages.map((message) => {
-                    const msg = message as unknown & { id: string; messageId: string; channelId: string; mappings: unknown[] };
+                    const msg = message as unknown & {
+                        id: string
+                        messageId: string
+                        channelId: string
+                        mappings: unknown[]
+                    }
                     return {
                         id: msg.id,
                         messageId: msg.messageId,
                         channelId: msg.channelId,
                         mappings: (msg.mappings ?? []).map((mapping) => {
-                            const map = mapping as unknown & { roleId: string; label?: string; emoji?: string; style?: string };
+                            const map = mapping as unknown & {
+                                roleId: string
+                                label?: string
+                                emoji?: string
+                                style?: string
+                            }
                             return {
                                 roleId: map.roleId,
                                 label: map.label ?? map.roleId,
                                 emoji: map.emoji ?? undefined,
                                 style: map.style ?? undefined,
-                            };
+                            }
                         }),
-                    };
+                    }
                 }),
                 exclusiveRoles: exclusiveRoles.map((item) => {
-                    const typed = item as unknown & { roleId: string; excludedRoleId: string };
+                    const typed = item as unknown & {
+                        roleId: string
+                        excludedRoleId: string
+                    }
                     return {
                         roleId: typed.roleId,
                         excludedRoleId: typed.excludedRoleId,
-                    };
+                    }
                 }),
             },
             commandaccess: {
                 grants: roleGrants.map((grant) => {
-                    const g = grant as unknown & { roleId: string; module: 'overview' | 'settings' | 'moderation' | 'automation' | 'music' | 'integrations'; mode: 'view' | 'manage' };
+                    const g = grant as unknown & {
+                        roleId: string
+                        module:
+                            | 'overview'
+                            | 'settings'
+                            | 'moderation'
+                            | 'automation'
+                            | 'music'
+                            | 'integrations'
+                        mode: 'view' | 'manage'
+                    }
                     return {
                         roleId: g.roleId,
                         module: g.module,
                         mode: g.mode,
-                    };
+                    }
                 }),
             },
             parity: parity as GuildAutomationParity | undefined,
             source: DEFAULT_SOURCE,
             capturedAt: new Date().toISOString(),
-        };
+        }
     }
 
     async captureGuildAutomationState(
@@ -1029,7 +1043,9 @@ class GuildAutomationExecutionService {
                 readonly: false,
             }))
 
-        const parity = (manifest as unknown & { manifest?: { parity?: unknown } })?.manifest?.parity ?? {
+        const parity = (
+            manifest as unknown & { manifest?: { parity?: unknown } }
+        )?.manifest?.parity ?? {
             shadowMode: true,
             externalBots: [],
             checklist: defaultParityChecklist(),
@@ -1043,7 +1059,10 @@ class GuildAutomationExecutionService {
             onboarding,
             manifest,
             automodSettings: automodSettings as Record<string, unknown> | null,
-            moderationSettings: moderationSettings as Record<string, unknown> | null,
+            moderationSettings: moderationSettings as Record<
+                string,
+                unknown
+            > | null,
             welcomeMessage,
             leaveMessage,
             reactionRoleMessages,
@@ -1113,8 +1132,22 @@ class GuildAutomationExecutionService {
         desired: GuildAutomationManifestDocument,
         appliedModules: string[],
     ): Promise<void> {
-        await this.upsertAutoMessage(guildId, 'welcome', desired.automessages?.welcome)
-        await this.upsertAutoMessage(guildId, 'leave', desired.automessages?.leave)
+        const live = await this.autoMessagesExecutor.capture({ guildId })
+        const diff = this.autoMessagesExecutor.diff(
+            live,
+            desired.automessages ?? {},
+        )
+        const result = await this.autoMessagesExecutor.apply(diff, { guildId })
+        if (result.status !== 'success') {
+            warnLog({
+                message: `AutoMessages executor apply: ${result.status}`,
+                data: {
+                    guildId,
+                    errors:
+                        result.status === 'partial' ? result.errors : undefined,
+                },
+            })
+        }
         appliedModules.push('automessages')
     }
 
@@ -1162,8 +1195,15 @@ class GuildAutomationExecutionService {
         const channelRemap: ChannelRemap = new Map()
         let effectiveDesired = params.desired
 
-        if (shouldApplyModule(params.plan, 'onboarding', params.allowProtected)) {
-            await this.applyOnboardingModule(token, params.guildId, effectiveDesired, appliedModules)
+        if (
+            shouldApplyModule(params.plan, 'onboarding', params.allowProtected)
+        ) {
+            await this.applyOnboardingModule(
+                token,
+                params.guildId,
+                effectiveDesired,
+                appliedModules,
+            )
         }
 
         if (shouldApplyModule(params.plan, 'roles', params.allowProtected)) {
@@ -1186,20 +1226,57 @@ class GuildAutomationExecutionService {
             appliedModules.push('roles')
         }
 
-        if (shouldApplyModule(params.plan, 'moderation', params.allowProtected)) {
-            await this.applyModerationModule(params.guildId, effectiveDesired, appliedModules)
+        if (
+            shouldApplyModule(params.plan, 'moderation', params.allowProtected)
+        ) {
+            await this.applyModerationModule(
+                params.guildId,
+                effectiveDesired,
+                appliedModules,
+            )
         }
 
-        if (shouldApplyModule(params.plan, 'automessages', params.allowProtected)) {
-            await this.applyAutoMessagesModule(params.guildId, effectiveDesired, appliedModules)
+        if (
+            shouldApplyModule(
+                params.plan,
+                'automessages',
+                params.allowProtected,
+            )
+        ) {
+            await this.applyAutoMessagesModule(
+                params.guildId,
+                effectiveDesired,
+                appliedModules,
+            )
         }
 
-        if (shouldApplyModule(params.plan, 'reactionroles', params.allowProtected)) {
-            await this.applyReactionRolesModule(params.guildId, effectiveDesired, appliedModules, skippedModules)
+        if (
+            shouldApplyModule(
+                params.plan,
+                'reactionroles',
+                params.allowProtected,
+            )
+        ) {
+            await this.applyReactionRolesModule(
+                params.guildId,
+                effectiveDesired,
+                appliedModules,
+                skippedModules,
+            )
         }
 
-        if (shouldApplyModule(params.plan, 'commandaccess', params.allowProtected)) {
-            await this.applyCommandAccessModule(params.guildId, effectiveDesired, appliedModules)
+        if (
+            shouldApplyModule(
+                params.plan,
+                'commandaccess',
+                params.allowProtected,
+            )
+        ) {
+            await this.applyCommandAccessModule(
+                params.guildId,
+                effectiveDesired,
+                appliedModules,
+            )
         }
 
         if (shouldApplyModule(params.plan, 'parity', params.allowProtected)) {
