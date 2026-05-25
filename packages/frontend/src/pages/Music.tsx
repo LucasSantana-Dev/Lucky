@@ -169,7 +169,7 @@ function NowPlayingHero({
         )
     }
 
-    const duration = state.duration || 0
+    const duration = currentTrack.duration || 0
     const position = state.position || 0
     const progress = duration > 0 ? (position / duration) * 100 : 0
 
@@ -179,9 +179,9 @@ function NowPlayingHero({
                 <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 items-start'>
                     <div className='sm:col-span-1'>
                         <div className='w-full aspect-square rounded-lg bg-lucky-bg-active border border-lucky-border overflow-hidden flex items-center justify-center'>
-                            {currentTrack.albumArt ? (
+                            {currentTrack.thumbnail ? (
                                 <img
-                                    src={currentTrack.albumArt}
+                                    src={currentTrack.thumbnail}
                                     alt={currentTrack.title}
                                     className='w-full h-full object-cover'
                                 />
@@ -244,7 +244,7 @@ function NowPlayingHero({
                         <ControlButton
                             icon={<Shuffle className='h-4 w-4' />}
                             onClick={onShuffle}
-                            active={state.isShuffle}
+                            active={state.shuffled}
                             aria-label='Shuffle'
                         />
                         <button
