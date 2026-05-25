@@ -12,6 +12,7 @@ const getTwitchUserAccessTokenMock = jest.fn()
 const getDistinctTwitchUserIdsMock = jest.fn()
 const getNotificationsByTwitchUserIdMock = jest.fn()
 const debugLogMock = jest.fn()
+const warnLogMock = jest.fn()
 const errorLogMock = jest.fn()
 
 jest.mock('./token', () => ({
@@ -28,6 +29,7 @@ jest.mock('@lucky/shared/services', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: errorLogMock,
     debugLog: debugLogMock,
+    warnLog: warnLogMock,
 }))
 
 import {
@@ -307,6 +309,11 @@ describe('eventsubSubscriptions', () => {
             await handleStreamOnline(payload as any, mockClient as Client)
 
             expect(mockChannel.send).not.toHaveBeenCalled()
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Twitch EventSub: channel is not a text channel',
+                }),
+            )
         })
 
         it('should skip DM channels', async () => {
@@ -343,6 +350,12 @@ describe('eventsubSubscriptions', () => {
             await handleStreamOnline(payload as any, mockClient as Client)
 
             expect(mockChannel.send).not.toHaveBeenCalled()
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message:
+                        'Twitch EventSub: channel is a DM channel, skipping',
+                }),
+            )
         })
 
         it('should handle channel fetch error', async () => {
@@ -406,6 +419,82 @@ describe('eventsubSubscriptions', () => {
             const embed = sendCall[0].embeds[0]
 
             expect(embed.data.url).toBe('https://twitch.tv/testuser')
+        })
+
+        it('should handle channel send error', async () => {
+            jest.mocked(mockChannel.send).mockRejectedValue(
+                new Error('No permission to send message'),
+            )
+
+            const notifications = [
+                { discordChannelId: 'channel1', twitchLogin: 'testuser' },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'stream.online',
+                    condition: { broadcaster_user_id: 'twitch123' },
+                },
+                event: {
+                    id: 'event123',
+                    broadcaster_user_id: 'twitch123',
+                    broadcaster_user_login: 'testuser',
+                    broadcaster_user_name: 'Test User',
+                    type: 'stream.online',
+                    started_at: '2024-01-01T00:00:00Z',
+                },
+            }
+
+            await handleStreamOnline(payload as any, mockClient as Client)
+
+            expect(errorLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message:
+                        'Twitch EventSub: failed to send notification to channel channel1',
+                }),
+            )
+        })
+
+        it('should handle null channel gracefully', async () => {
+            jest.mocked(mockClient.channels!.fetch).mockResolvedValue(null)
+
+            const notifications = [
+                {
+                    discordChannelId: 'deleted-channel',
+                    twitchLogin: 'testuser',
+                },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'stream.online',
+                    condition: { broadcaster_user_id: 'twitch123' },
+                },
+                event: {
+                    id: 'event123',
+                    broadcaster_user_id: 'twitch123',
+                    broadcaster_user_login: 'testuser',
+                    broadcaster_user_name: 'Test User',
+                    type: 'stream.online',
+                    started_at: '2024-01-01T00:00:00Z',
+                },
+            }
+
+            await handleStreamOnline(payload as any, mockClient as Client)
+
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message:
+                        'Twitch EventSub: channel not found (may be deleted or inaccessible)',
+                }),
+            )
+            expect(mockChannel.send).not.toHaveBeenCalled()
         })
     })
 })
