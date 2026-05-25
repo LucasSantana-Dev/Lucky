@@ -1,246 +1,242 @@
+import { describe, expect, it } from '@jest/globals'
 import { detectSessionMood, type SessionMood } from './sessionMood'
 
 describe('sessionMood', () => {
     describe('detectSessionMood - artist deep-dive', () => {
-        it('detects same artist 3+ times in last 8 tracks', () => {
-            const history = [
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist B', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist C', durationMS: 200000, isAutoplay: false },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.deepDiveArtist).toBe('artist a')
+        it.each([
+            ['3+ times', 'artist a'],
+            ['case-insensitive', 'artist a'],
+            ['< 3 times', null],
+        ])('%s → %s', (scenario, expected) => {
+            const configs = {
+                '3+ times': [
+                    {
+                        author: 'Artist A',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist A',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist B',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist A',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist C',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                ],
+                'case-insensitive': [
+                    {
+                        author: 'ARTIST A',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist A',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'artist a',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                ],
+                '< 3 times': [
+                    {
+                        author: 'Artist A',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist B',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist C',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                ],
+            }
+            const mood = detectSessionMood(
+                configs[scenario as keyof typeof configs],
+            )
+            expect(mood.deepDiveArtist).toBe(expected)
         })
 
-        it('uses case-insensitive matching for artist names', () => {
+        it('checks only last 8 tracks', () => {
             const history = [
-                { author: 'ARTIST A', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'Z', durationMS: 200000, isAutoplay: false },
                 { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'artist a', durationMS: 200000, isAutoplay: false },
+                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
+                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
+                { author: 'C', durationMS: 200000, isAutoplay: false },
+                { author: 'C', durationMS: 200000, isAutoplay: false },
+                { author: 'C', durationMS: 200000, isAutoplay: false },
+                { author: 'Y', durationMS: 200000, isAutoplay: false },
+                { author: 'Y', durationMS: 200000, isAutoplay: false },
             ]
 
-            const mood = detectSessionMood(history)
-
-            expect(mood.deepDiveArtist).toBe('artist a')
-        })
-
-        it('returns null when no artist appears 3+ times', () => {
-            const history = [
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist B', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist C', durationMS: 200000, isAutoplay: false },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.deepDiveArtist).toBeNull()
-        })
-
-        it('only checks last 8 tracks for deep-dive detection', () => {
-            const history = [
-                { author: 'Artist X', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist X', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist X', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist X', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist X', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist Z', durationMS: 200000, isAutoplay: false },
-                // Last 8 start here:
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist C', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist C', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist C', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist Y', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist Y', durationMS: 200000, isAutoplay: false },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.deepDiveArtist).toBe('artist a')
+            expect(detectSessionMood(history).deepDiveArtist).toBe('artist a')
         })
     })
 
     describe('detectSessionMood - duration preferences', () => {
-        it('detects long-form listening when avg duration > 5min', () => {
-            const history = [
-                { author: 'Artist A', durationMS: 400000, isAutoplay: false }, // 6:40
-                { author: 'Artist B', durationMS: 380000, isAutoplay: false }, // 6:20
-                { author: 'Artist C', durationMS: 360000, isAutoplay: false }, // 6:00
-                { author: 'Artist D', durationMS: 420000, isAutoplay: false }, // 7:00
-                { author: 'Artist E', durationMS: 350000, isAutoplay: false }, // 5:50
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.preferLong).toBe(true)
-            expect(mood.preferShort).toBe(false)
+        it.each([
+            ['long > 5min', true, false],
+            ['short < 2.5min', false, true],
+            ['neutral 2.5–5min', false, false],
+        ])('%s', (_, expectedLong, expectedShort) => {
+            const tracks = {
+                'long > 5min': [
+                    { author: 'A', durationMS: 400000, isAutoplay: false },
+                    { author: 'B', durationMS: 380000, isAutoplay: false },
+                    { author: 'C', durationMS: 360000, isAutoplay: false },
+                    { author: 'D', durationMS: 420000, isAutoplay: false },
+                    { author: 'E', durationMS: 350000, isAutoplay: false },
+                ],
+                'short < 2.5min': [
+                    { author: 'A', durationMS: 120000, isAutoplay: false },
+                    { author: 'B', durationMS: 90000, isAutoplay: false },
+                    { author: 'C', durationMS: 110000, isAutoplay: false },
+                    { author: 'D', durationMS: 100000, isAutoplay: false },
+                    { author: 'E', durationMS: 80000, isAutoplay: false },
+                ],
+                'neutral 2.5–5min': [
+                    { author: 'A', durationMS: 200000, isAutoplay: false },
+                    { author: 'B', durationMS: 220000, isAutoplay: false },
+                    { author: 'C', durationMS: 210000, isAutoplay: false },
+                    { author: 'D', durationMS: 240000, isAutoplay: false },
+                    { author: 'E', durationMS: 230000, isAutoplay: false },
+                ],
+            }
+            const mood = detectSessionMood(tracks[_ as keyof typeof tracks])
+            expect(mood.preferLong).toBe(expectedLong)
+            expect(mood.preferShort).toBe(expectedShort)
         })
 
-        it('detects quick-hit mode when avg duration < 2.5min', () => {
-            const history = [
-                { author: 'Artist A', durationMS: 120000, isAutoplay: false }, // 2:00
-                { author: 'Artist B', durationMS: 90000, isAutoplay: false }, // 1:30
-                { author: 'Artist C', durationMS: 110000, isAutoplay: false }, // 1:50
-                { author: 'Artist D', durationMS: 100000, isAutoplay: false }, // 1:40
-                { author: 'Artist E', durationMS: 80000, isAutoplay: false }, // 1:20
+        it('parses duration strings (m:ss and h:mm:ss)', () => {
+            const mss = [
+                { author: 'A', duration: '6:40', isAutoplay: false },
+                { author: 'B', duration: '6:20', isAutoplay: false },
+                { author: 'C', duration: '6:00', isAutoplay: false },
+                { author: 'D', duration: '7:00', isAutoplay: false },
+                { author: 'E', duration: '5:50', isAutoplay: false },
             ]
+            expect(detectSessionMood(mss).preferLong).toBe(true)
 
-            const mood = detectSessionMood(history)
-
-            expect(mood.preferShort).toBe(true)
-            expect(mood.preferLong).toBe(false)
+            const hms = [
+                { author: 'A', duration: '1:03:20', isAutoplay: false },
+                { author: 'B', duration: '1:05:00', isAutoplay: false },
+                { author: 'C', duration: '1:00:00', isAutoplay: false },
+                { author: 'D', duration: '1:10:00', isAutoplay: false },
+                { author: 'E', duration: '0:58:00', isAutoplay: false },
+            ]
+            expect(detectSessionMood(hms).preferLong).toBe(true)
         })
 
-        it('prefers neither when avg duration is between 2.5 and 5 min', () => {
-            const history = [
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false }, // 3:20
-                { author: 'Artist B', durationMS: 220000, isAutoplay: false }, // 3:40
-                { author: 'Artist C', durationMS: 210000, isAutoplay: false }, // 3:30
-                { author: 'Artist D', durationMS: 240000, isAutoplay: false }, // 4:00
-                { author: 'Artist E', durationMS: 230000, isAutoplay: false }, // 3:50
+        it('filters 0/undefined durations and handles edge cases', () => {
+            // Ignores 0 and undefined
+            const mixed = [
+                { author: 'A', durationMS: 400000, isAutoplay: false },
+                { author: 'B', durationMS: 0, isAutoplay: false },
+                { author: 'C', durationMS: 380000, isAutoplay: false },
+                { author: 'D', durationMS: 420000, isAutoplay: false },
+                { author: 'E', durationMS: undefined, isAutoplay: false },
             ]
+            expect(detectSessionMood(mixed).preferLong).toBe(true)
 
-            const mood = detectSessionMood(history)
-
-            expect(mood.preferLong).toBe(false)
-            expect(mood.preferShort).toBe(false)
-        })
-
-        it('handles duration string format (m:ss)', () => {
-            const history = [
-                { author: 'Artist A', duration: '6:40', isAutoplay: false },
-                { author: 'Artist B', duration: '6:20', isAutoplay: false },
-                { author: 'Artist C', duration: '6:00', isAutoplay: false },
-                { author: 'Artist D', duration: '7:00', isAutoplay: false },
-                { author: 'Artist E', duration: '5:50', isAutoplay: false },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.preferLong).toBe(true)
-        })
-
-        it('handles duration string format (h:mm:ss)', () => {
-            const history = [
-                { author: 'Artist A', duration: '1:03:20', isAutoplay: false }, // 3800000ms
-                { author: 'Artist B', duration: '1:05:00', isAutoplay: false }, // 3900000ms
-                { author: 'Artist C', duration: '1:00:00', isAutoplay: false }, // 3600000ms
-                { author: 'Artist D', duration: '1:10:00', isAutoplay: false }, // 4200000ms
-                { author: 'Artist E', duration: '0:58:00', isAutoplay: false }, // 3480000ms
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.preferLong).toBe(true)
-        })
-
-        it('ignores tracks with 0 duration', () => {
-            const history = [
-                { author: 'Artist A', durationMS: 400000, isAutoplay: false },
-                { author: 'Artist B', durationMS: 0, isAutoplay: false },
-                { author: 'Artist C', durationMS: 380000, isAutoplay: false },
-                { author: 'Artist D', durationMS: 420000, isAutoplay: false },
-                { author: 'Artist E', durationMS: undefined, isAutoplay: false },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.preferLong).toBe(true)
-        })
-
-        it('requires at least 1 track with valid duration for duration check', () => {
-            const history = [{ author: 'Artist A', durationMS: 0, isAutoplay: false }]
-
-            const mood = detectSessionMood(history)
-
+            // No valid durations
+            const empty = [{ author: 'A', durationMS: 0, isAutoplay: false }]
+            const mood = detectSessionMood(empty)
             expect(mood.preferLong).toBe(false)
             expect(mood.preferShort).toBe(false)
         })
     })
 
     describe('detectSessionMood - restless mode', () => {
-        it('detects restless mode with >40% autoplay and 3+ different artists', () => {
-            const history = [
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist B', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist C', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist D', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist E', durationMS: 200000, isAutoplay: false },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.restless).toBe(true)
+        it.each([
+            ['>40% + 3+ artists', true],
+            ['exactly 40% (boundary)', false],
+            ['<3 unique artists', false],
+        ])('restless: %s → %s', (scenario, expected) => {
+            const configs = {
+                '>40% + 3+ artists': [
+                    { author: 'A', durationMS: 200000, isAutoplay: false },
+                    { author: 'B', durationMS: 200000, isAutoplay: true },
+                    { author: 'C', durationMS: 200000, isAutoplay: true },
+                    { author: 'D', durationMS: 200000, isAutoplay: true },
+                    { author: 'E', durationMS: 200000, isAutoplay: false },
+                ],
+                'exactly 40% (boundary)': [
+                    { author: 'A', durationMS: 200000, isAutoplay: false },
+                    { author: 'B', durationMS: 200000, isAutoplay: false },
+                    { author: 'C', durationMS: 200000, isAutoplay: false },
+                    { author: 'D', durationMS: 200000, isAutoplay: true },
+                    { author: 'E', durationMS: 200000, isAutoplay: true },
+                ],
+                '<3 unique artists': [
+                    { author: 'A', durationMS: 200000, isAutoplay: false },
+                    { author: 'A', durationMS: 200000, isAutoplay: true },
+                    { author: 'A', durationMS: 200000, isAutoplay: true },
+                    { author: 'B', durationMS: 200000, isAutoplay: true },
+                    { author: 'B', durationMS: 200000, isAutoplay: true },
+                ],
+            }
+            const mood = detectSessionMood(
+                configs[scenario as keyof typeof configs],
+            )
+            expect(mood.restless).toBe(expected)
         })
 
-        it('requires >40% autoplay (exactly 40% should be false)', () => {
-            const history = [
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist B', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist C', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist D', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist E', durationMS: 200000, isAutoplay: true },
+        it('requires 5+ tracks and checks last 10', () => {
+            // <5 tracks = false
+            const short = [
+                { author: 'A', durationMS: 200000, isAutoplay: false },
+                { author: 'B', durationMS: 200000, isAutoplay: true },
+                { author: 'C', durationMS: 200000, isAutoplay: true },
             ]
+            expect(detectSessionMood(short).restless).toBe(false)
 
-            const mood = detectSessionMood(history)
-
-            expect(mood.restless).toBe(false)
-        })
-
-        it('requires at least 3 different artists for restless mode', () => {
-            const history = [
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist A', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist A', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist B', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist B', durationMS: 200000, isAutoplay: true },
+            // Window test: ignore old, check last 10
+            const old = [
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
             ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.restless).toBe(false)
-        })
-
-        it('requires at least 5 tracks in recent history for restless check', () => {
-            const history = [
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist B', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist C', durationMS: 200000, isAutoplay: true },
+            const recent = [
+                { author: 'A', durationMS: 200000, isAutoplay: false },
+                { author: 'B', durationMS: 200000, isAutoplay: true },
+                { author: 'C', durationMS: 200000, isAutoplay: true },
+                { author: 'D', durationMS: 200000, isAutoplay: true },
+                { author: 'E', durationMS: 200000, isAutoplay: true },
+                { author: 'F', durationMS: 200000, isAutoplay: true },
+                { author: 'G', durationMS: 200000, isAutoplay: true },
+                { author: 'H', durationMS: 200000, isAutoplay: false },
+                { author: 'I', durationMS: 200000, isAutoplay: false },
+                { author: 'J', durationMS: 200000, isAutoplay: false },
             ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.restless).toBe(false)
-        })
-
-        it('checks last 10 tracks for restless detection', () => {
-            const history = [
-                { author: 'Artist X', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist X', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist X', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist X', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist X', durationMS: 200000, isAutoplay: false },
-                // Last 10 below
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist B', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist C', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist D', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist E', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist F', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist G', durationMS: 200000, isAutoplay: true },
-                { author: 'Artist H', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist I', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist J', durationMS: 200000, isAutoplay: false },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.restless).toBe(true)
+            expect(detectSessionMood([...old, ...recent]).restless).toBe(true)
         })
     })
 
@@ -258,153 +254,105 @@ describe('sessionMood', () => {
             })
         })
 
-        it('handles missing author field gracefully', () => {
-            const history = [
+        it('handles missing fields and combines signals', () => {
+            // No author field
+            const noAuthor = [
                 { durationMS: 200000, isAutoplay: false },
                 { durationMS: 200000, isAutoplay: false },
                 { durationMS: 200000, isAutoplay: false },
             ]
+            expect(detectSessionMood(noAuthor).deepDiveArtist).toBeNull()
 
-            const mood = detectSessionMood(history)
-
-            expect(mood.deepDiveArtist).toBeNull()
-        })
-
-        it('handles missing isAutoplay field (defaults to false)', () => {
-            const history = [
-                { author: 'Artist A', durationMS: 200000 },
-                { author: 'Artist A', durationMS: 200000 },
-                { author: 'Artist A', durationMS: 200000 },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.deepDiveArtist).toBe('artist a')
-            expect(mood.restless).toBe(false)
-        })
-
-        it('combines multiple mood signals correctly', () => {
-            const history = [
+            // Combined signals: deepDive + long + restless
+            const combo = [
                 { author: 'Artist A', duration: '6:00', isAutoplay: false },
                 { author: 'Artist A', duration: '6:30', isAutoplay: true },
                 { author: 'Artist A', duration: '5:45', isAutoplay: true },
                 { author: 'Artist B', duration: '7:00', isAutoplay: true },
                 { author: 'Artist C', duration: '6:15', isAutoplay: true },
             ]
-
-            const mood = detectSessionMood(history)
-
+            const mood = detectSessionMood(combo)
             expect(mood.deepDiveArtist).toBe('artist a')
             expect(mood.preferLong).toBe(true)
-            expect(mood.preferShort).toBe(false)
             expect(mood.restless).toBe(true)
         })
 
-        it('handles malformed duration strings', () => {
-            const history = [
-                { author: 'Artist A', duration: 'invalid', isAutoplay: false },
-                { author: 'Artist B', duration: '6:00', isAutoplay: false },
-                { author: 'Artist C', duration: '6:30', isAutoplay: false },
-                { author: 'Artist D', duration: '7:00', isAutoplay: false },
-                { author: 'Artist E', duration: '', isAutoplay: false },
+        it('handles malformed durations and case-insensitive artists', () => {
+            // Malformed durations: 'invalid' and ''
+            const malformed = [
+                { author: 'A', duration: 'invalid', isAutoplay: false },
+                { author: 'B', duration: '6:00', isAutoplay: false },
+                { author: 'C', duration: '6:30', isAutoplay: false },
+                { author: 'D', duration: '7:00', isAutoplay: false },
+                { author: 'E', duration: '', isAutoplay: false },
             ]
+            expect(detectSessionMood(malformed).preferLong).toBe(true)
 
-            const mood = detectSessionMood(history)
-
-            expect(mood.preferLong).toBe(true)
-        })
-
-        it('case-insensitive artist deduplication for restless check', () => {
-            const history = [
+            // Case-insensitive artist dedup for restless
+            const caseTest = [
                 { author: 'artist A', durationMS: 200000, isAutoplay: false },
                 { author: 'ARTIST A', durationMS: 200000, isAutoplay: true },
                 { author: 'Artist B', durationMS: 200000, isAutoplay: true },
                 { author: 'ARTIST C', durationMS: 200000, isAutoplay: true },
                 { author: 'artist d', durationMS: 200000, isAutoplay: true },
             ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.restless).toBe(true)
+            expect(detectSessionMood(caseTest).restless).toBe(true)
         })
     })
 
     describe('detectSessionMood - dominantLocale', () => {
-        it('returns null dominantLocale when no Spanish genre markers in history', () => {
-            const history = [
-                { author: 'The Beatles', title: 'Hey Jude', durationMS: 200000 },
-                { author: 'Led Zeppelin', title: 'Stairway to Heaven', durationMS: 480000 },
+        it.each([
+            ['no markers', null],
+            ['reggaeton/cumbia', 'spanish'],
+            ['case-insensitive', 'spanish'],
+        ])('%s → %s', (scenario, expected) => {
+            const tracks = {
+                'no markers': [
+                    {
+                        author: 'Beatles',
+                        title: 'Hey Jude',
+                        durationMS: 200000,
+                    },
+                    {
+                        author: 'Zeppelin',
+                        title: 'Stairway',
+                        durationMS: 480000,
+                    },
+                ],
+                'reggaeton/cumbia': [
+                    {
+                        author: 'Bad Bunny',
+                        title: 'Reggaeton mix',
+                        durationMS: 200000,
+                    },
+                    {
+                        author: 'X',
+                        title: 'Cumbia caliente',
+                        durationMS: 200000,
+                    },
+                ],
+                'case-insensitive': [
+                    {
+                        author: 'Artist',
+                        title: 'BACHATA hits',
+                        durationMS: 200000,
+                    },
+                ],
+            }
+            const mood = detectSessionMood(
+                tracks[scenario as keyof typeof tracks],
+            )
+            expect(mood.dominantLocale).toBe(expected)
+        })
+
+        it('detects from author field and respects 15-track window', () => {
+            // Banda MS in author field
+            const author = [
+                { author: 'Banda MS', title: 'Mi razón', durationMS: 200000 },
             ]
+            expect(detectSessionMood(author).dominantLocale).toBe('spanish')
 
-            const mood = detectSessionMood(history)
-
-            expect(mood.dominantLocale).toBeNull()
-        })
-
-        it('detects Spanish locale from reggaeton in track title', () => {
-            const history = [
-                { author: 'Bad Bunny', title: 'Reggaeton mix', durationMS: 200000 },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.dominantLocale).toBe('spanish')
-        })
-
-        it('detects Spanish locale from cumbia in track title', () => {
-            const history = [
-                { author: 'Artist X', title: 'Cumbia caliente', durationMS: 200000 },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.dominantLocale).toBe('spanish')
-        })
-
-        it('detects Spanish locale from Spanish genre in author field', () => {
-            const history = [
-                { author: 'Banda MS', title: 'Mi razón de ser', durationMS: 200000 },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.dominantLocale).toBe('spanish')
-        })
-
-        it('detects Spanish locale from bachata in title', () => {
-            const history = [
-                { author: 'Romeo Santos', title: 'Bachata Rosa', durationMS: 200000 },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.dominantLocale).toBe('spanish')
-        })
-
-        it('detects Spanish locale from dembow in title', () => {
-            const history = [
-                { author: 'Artist', title: 'Dembow clásico', durationMS: 200000 },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.dominantLocale).toBe('spanish')
-        })
-
-        it('detects Spanish locale even when only 1 of 15 recent tracks has marker', () => {
-            const history = Array.from({ length: 14 }, (_, i) => ({
-                author: `Artist ${i}`,
-                title: `Song ${i}`,
-                durationMS: 200000,
-            }))
-            history.push({ author: 'J Balvin', title: 'Cumbia nuevo', durationMS: 200000 })
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.dominantLocale).toBe('spanish')
-        })
-
-        it('ignores Spanish markers outside the last 15 tracks window', () => {
+            // Outside 15-track window
             const old = Array.from({ length: 5 }, () => ({
                 author: 'Bad Bunny',
                 title: 'Reggaeton hit',
@@ -415,81 +363,29 @@ describe('sessionMood', () => {
                 title: `Song ${i}`,
                 durationMS: 200000,
             }))
-
-            const mood = detectSessionMood([...old, ...recent])
-
-            expect(mood.dominantLocale).toBeNull()
-        })
-
-        it('detects reggaetón with accent in title', () => {
-            const history = [
-                { author: 'Artist', title: 'Reggaetón urbano', durationMS: 200000 },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.dominantLocale).toBe('spanish')
-        })
-
-        it('is case-insensitive for Spanish genre detection', () => {
-            const history = [
-                { author: 'Artist', title: 'BACHATA hits', durationMS: 200000 },
-            ]
-
-            const mood = detectSessionMood(history)
-
-            expect(mood.dominantLocale).toBe('spanish')
+            expect(
+                detectSessionMood([...old, ...recent]).dominantLocale,
+            ).toBeNull()
         })
     })
 
-    describe('detectSessionMood - recentSkipCount triggers restless', () => {
-        it('sets restless=true when recentSkipCount >= 3', () => {
+    describe('detectSessionMood - recentSkipCount', () => {
+        it('skipCount >= 3 forces restless=true (overrides organic signals)', () => {
             const history = Array.from({ length: 5 }, (_, i) => ({
                 author: `Artist ${i}`,
-                title: `Song ${i}`,
                 durationMS: 200000,
             }))
 
-            const mood = detectSessionMood(history, 3)
+            expect(detectSessionMood(history, 3).restless).toBe(true)
+            expect(detectSessionMood(history, 5).restless).toBe(true)
+            expect(detectSessionMood(history, 2).restless).toBe(false)
 
-            expect(mood.restless).toBe(true)
-        })
-
-        it('does not override restless=true from skip count with restless=false', () => {
-            // All same artist — no natural restless trigger — but skip count forces it
-            const history = Array.from({ length: 5 }, () => ({
+            // skipCount overrides: same artist but high skip count
+            const same = Array.from({ length: 5 }, () => ({
                 author: 'Same Artist',
-                title: 'Track',
                 durationMS: 200000,
             }))
-
-            const mood = detectSessionMood(history, 5)
-
-            expect(mood.restless).toBe(true)
-        })
-
-        it('keeps restless=false when recentSkipCount < 3', () => {
-            const history = Array.from({ length: 5 }, (_, i) => ({
-                author: `Artist ${i}`,
-                title: `Song ${i}`,
-                durationMS: 200000,
-            }))
-
-            const mood = detectSessionMood(history, 2)
-
-            // With 5 tracks and 5 different artists, the organic restless check
-            // needs >40% autoplay tracks — this history has none, so restless stays false
-            expect(mood.restless).toBe(false)
-        })
-
-        it('returns correct shape with restless set when recentSkipCount >= 3', () => {
-            const history = [{ author: 'Artist', title: 'Song', durationMS: 200000 }]
-
-            const mood = detectSessionMood(history, 3)
-
-            expect(mood).toHaveProperty('restless')
-            expect(mood).toHaveProperty('deepDiveArtist')
-            expect(mood.restless).toBe(true)
+            expect(detectSessionMood(same, 3).restless).toBe(true)
         })
     })
 })

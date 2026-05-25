@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import {
     GitBranch,
     Play,
@@ -16,7 +15,6 @@ import {
 } from 'lucide-react'
 import { useGuildStore } from '@/stores/guildStore'
 import { api } from '@/services/api'
-import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import SectionHeader from '@/components/ui/SectionHeader'
@@ -66,46 +64,52 @@ function RunCard({ run }: { run: AutomationRun }) {
     const [expanded, setExpanded] = useState(false)
     const date = new Date(run.createdAt).toLocaleString()
     return (
-        <motion.div
-            layout
-            className='surface-panel rounded-lg p-4 space-y-2'
-        >
-            <div className='flex items-start justify-between gap-2'>
-                <div className='flex items-center gap-2'>
+        <div className='surface-panel rounded-lg border border-lucky-border overflow-hidden'>
+            <button
+                onClick={() => setExpanded(!expanded)}
+                className='w-full p-3 flex items-center justify-between gap-2 hover:bg-lucky-bg-active/30 transition-colors text-left'
+            >
+                <div className='flex items-center gap-2 min-w-0'>
                     <StatusIcon status={run.status} />
-                    <span className='text-sm font-medium text-lucky-text-strong capitalize'>{run.type}</span>
-                    <Badge className={`text-xs border ${statusColor(run.status)}`}>{run.status}</Badge>
-                </div>
-                <div className='flex items-center gap-2'>
-                    <span className='text-xs text-lucky-text-muted'>{date}</span>
-                    {run.summary && (
-                        <button
-                            onClick={() => setExpanded(!expanded)}
-                            className='text-lucky-text-muted hover:text-lucky-text-body'
-                        >
-                            {expanded ? <ChevronUp className='h-3 w-3' /> : <ChevronDown className='h-3 w-3' />}
-                        </button>
-                    )}
-                </div>
-            </div>
-            <AnimatePresence>
-                {expanded && run.summary && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className='overflow-hidden'
+                    <span className='text-sm font-medium text-lucky-text-strong capitalize truncate'>
+                        {run.type}
+                    </span>
+                    <Badge
+                        className={`text-xs border flex-shrink-0 ${statusColor(run.status)}`}
                     >
-                        <p className='text-xs text-lucky-text-muted font-mono bg-lucky-bg-primary/60 rounded p-2 break-all'>
-                            {run.summary}
-                        </p>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-            {run.error && (
-                <p className='text-xs text-red-400 font-mono bg-red-500/5 rounded p-2 break-all'>{run.error}</p>
+                        {run.status}
+                    </Badge>
+                </div>
+                <div className='flex items-center gap-2 flex-shrink-0'>
+                    <span className='text-xs text-lucky-text-muted'>
+                        {date}
+                    </span>
+                    {run.summary &&
+                        (expanded ? (
+                            <ChevronUp className='h-4 w-4' />
+                        ) : (
+                            <ChevronDown className='h-4 w-4' />
+                        ))}
+                </div>
+            </button>
+            {expanded && (
+                <>
+                    <div className='border-t border-lucky-border' />
+                    <div className='p-3 space-y-2 bg-lucky-bg-active/20'>
+                        {run.summary && (
+                            <p className='text-xs text-lucky-text-muted font-mono bg-lucky-bg-primary/60 rounded p-2 break-all'>
+                                {run.summary}
+                            </p>
+                        )}
+                        {run.error && (
+                            <p className='text-xs text-red-400 font-mono bg-red-500/5 rounded p-2 break-all'>
+                                {run.error}
+                            </p>
+                        )}
+                    </div>
+                </>
             )}
-        </motion.div>
+        </div>
     )
 }
 
@@ -118,18 +122,32 @@ function PlanResultView({ result }: { result: PlanResult }) {
                     {result.changes.map((change, i) => (
                         <div
                             key={i}
-                            className='surface-panel rounded p-3 flex items-center gap-3'
+                            className='surface-panel rounded border border-lucky-border p-3 flex items-center gap-3'
                         >
-                            <Badge className={`text-xs border ${change.action === 'create' ? 'bg-green-500/10 text-green-400 border-green-500/20' : change.action === 'delete' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'}`}>
+                            <Badge
+                                className={`text-xs border flex-shrink-0 ${
+                                    change.action === 'create'
+                                        ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                        : change.action === 'delete'
+                                          ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                          : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                                }`}
+                            >
                                 {change.action}
                             </Badge>
-                            <span className='text-xs text-lucky-text-muted capitalize'>{change.type}</span>
-                            <span className='text-xs text-lucky-text-strong font-mono'>{change.resource}</span>
+                            <span className='text-xs text-lucky-text-muted capitalize'>
+                                {change.type}
+                            </span>
+                            <span className='text-xs text-lucky-text-strong font-mono'>
+                                {change.resource}
+                            </span>
                         </div>
                     ))}
                 </div>
             ) : (
-                <p className='text-sm text-lucky-text-muted'>No changes detected.</p>
+                <p className='text-sm text-lucky-text-muted'>
+                    No changes detected.
+                </p>
             )}
         </div>
     )
@@ -139,9 +157,13 @@ function ApplyResultView({ result }: { result: ApplyResult }) {
     return (
         <div className='space-y-3'>
             <div className='flex gap-4'>
-                <span className='text-sm text-green-400'>{result.applied} applied</span>
+                <span className='text-sm text-green-400'>
+                    {result.applied} applied
+                </span>
                 {result.failed > 0 && (
-                    <span className='text-sm text-red-400'>{result.failed} failed</span>
+                    <span className='text-sm text-red-400'>
+                        {result.failed} failed
+                    </span>
                 )}
             </div>
             <p className='text-sm text-lucky-text-body'>{result.summary}</p>
@@ -150,14 +172,24 @@ function ApplyResultView({ result }: { result: ApplyResult }) {
                     {result.changes.map((change, i) => (
                         <div
                             key={i}
-                            className='surface-panel rounded p-3 flex items-center gap-3'
+                            className='surface-panel rounded border border-lucky-border p-3 flex items-center gap-3'
                         >
                             <StatusIcon status={change.status} />
-                            <Badge className={`text-xs border ${statusColor(change.status)}`}>{change.status}</Badge>
-                            <span className='text-xs text-lucky-text-muted capitalize'>{change.type}</span>
-                            <span className='text-xs text-lucky-text-strong font-mono'>{change.resource}</span>
+                            <Badge
+                                className={`text-xs border flex-shrink-0 ${statusColor(change.status)}`}
+                            >
+                                {change.status}
+                            </Badge>
+                            <span className='text-xs text-lucky-text-muted capitalize'>
+                                {change.type}
+                            </span>
+                            <span className='text-xs text-lucky-text-strong font-mono'>
+                                {change.resource}
+                            </span>
                             {change.error && (
-                                <span className='text-xs text-red-400 ml-auto'>{change.error}</span>
+                                <span className='text-xs text-red-400 ml-auto'>
+                                    {change.error}
+                                </span>
                             )}
                         </div>
                     ))}
@@ -171,7 +203,9 @@ export default function GuildAutomation() {
     const { selectedGuild } = useGuildStore()
     const [status, setStatus] = useState<string | null>(null)
     const [runs, setRuns] = useState<AutomationRun[]>([])
-    const [manifest, setManifest] = useState<GuildAutomationManifest | null>(null)
+    const [manifest, setManifest] = useState<GuildAutomationManifest | null>(
+        null,
+    )
     const [manifestJson, setManifestJson] = useState<string>('')
     const [manifestError, setManifestError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
@@ -213,7 +247,9 @@ export default function GuildAutomation() {
         try {
             parsed = JSON.parse(manifestJson) as GuildAutomationManifest
         } catch {
-            setManifestError('Invalid JSON — please fix syntax errors before saving.')
+            setManifestError(
+                'Invalid JSON — please fix syntax errors before saving.',
+            )
             return
         }
         setActionLoading('save')
@@ -295,27 +331,39 @@ export default function GuildAutomation() {
                 description='Manage your guild configuration as code — plan, apply, and track changes.'
             />
 
-            {/* Status + Actions */}
-            <Card className='p-5 space-y-4'>
-                <div className='flex items-center justify-between flex-wrap gap-3'>
+            {/* Status + Action Bar (Polaris structured actions) */}
+            <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-4'>
+                <div className='flex items-center justify-between'>
                     <div className='flex items-center gap-3'>
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>Automation Status</h2>
+                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
+                            Automation Status
+                        </h2>
                         {loading ? (
                             <Skeleton className='h-5 w-20 rounded' />
                         ) : status ? (
-                            <Badge className={`text-xs border ${statusColor(status)}`}>{status}</Badge>
+                            <Badge
+                                className={`text-xs border ${statusColor(status)}`}
+                            >
+                                {status}
+                            </Badge>
                         ) : (
-                            <Badge className='text-xs border bg-lucky-bg-active/60 text-lucky-text-muted border-lucky-border'>unknown</Badge>
+                            <Badge className='text-xs border bg-lucky-bg-active/60 text-lucky-text-muted border-lucky-border'>
+                                unknown
+                            </Badge>
                         )}
                     </div>
                     <button
                         onClick={() => void fetchData()}
                         disabled={loading}
                         className='text-lucky-text-muted hover:text-lucky-text-body disabled:opacity-40 transition-colors'
+                        title='Refresh status'
                     >
-                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                        <RefreshCw
+                            className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
+                        />
                     </button>
                 </div>
+                <div className='border-t border-lucky-border' />
                 <div className='flex flex-wrap gap-2'>
                     <Button
                         variant='secondary'
@@ -357,111 +405,110 @@ export default function GuildAutomation() {
                         Reconcile
                     </Button>
                 </div>
-            </Card>
+            </div>
 
-            {/* Plan / Apply Results */}
-            <AnimatePresence>
-                {planResult && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                    >
-                        <Card className='p-5 space-y-3'>
-                            <div className='flex items-center gap-2'>
-                                <GitBranch className='h-4 w-4 text-lucky-brand' />
-                                <h2 className='text-sm font-semibold text-lucky-text-strong'>Plan Result</h2>
-                            </div>
-                            <PlanResultView result={planResult} />
-                        </Card>
-                    </motion.div>
-                )}
-                {applyResult && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                    >
-                        <Card className='p-5 space-y-3'>
-                            <div className='flex items-center gap-2'>
-                                <Zap className='h-4 w-4 text-lucky-accent' />
-                                <h2 className='text-sm font-semibold text-lucky-text-strong'>Apply Result</h2>
-                            </div>
-                            <ApplyResultView result={applyResult} />
-                        </Card>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* Plan / Apply Results (surface-panel groups) */}
+            {planResult && (
+                <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-3'>
+                    <div className='flex items-center gap-2'>
+                        <GitBranch className='h-4 w-4 text-lucky-brand' />
+                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
+                            Plan Result
+                        </h2>
+                    </div>
+                    <div className='border-t border-lucky-border' />
+                    <PlanResultView result={planResult} />
+                </div>
+            )}
+            {applyResult && (
+                <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-3'>
+                    <div className='flex items-center gap-2'>
+                        <Zap className='h-4 w-4 text-lucky-accent' />
+                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
+                            Apply Result
+                        </h2>
+                    </div>
+                    <div className='border-t border-lucky-border' />
+                    <ApplyResultView result={applyResult} />
+                </div>
+            )}
 
-            {/* Manifest Editor */}
-            <Card className='p-5 space-y-4'>
-                <div className='flex items-center justify-between'>
+            {/* Manifest Editor (collapsible surface-panel) */}
+            <div className='surface-panel rounded-lg border border-lucky-border overflow-hidden'>
+                <button
+                    onClick={() => setManifestExpanded(!manifestExpanded)}
+                    aria-label='Expand'
+                    className='w-full p-4 flex items-center justify-between gap-2 hover:bg-lucky-bg-active/30 transition-colors text-left'
+                >
                     <div className='flex items-center gap-2'>
                         <FileJson className='h-4 w-4 text-lucky-brand' />
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>Manifest</h2>
+                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
+                            Manifest
+                        </h2>
                         {manifest?.version && (
                             <Badge className='text-xs border bg-lucky-bg-active/60 text-lucky-text-muted border-lucky-border'>
                                 v{manifest.version}
                             </Badge>
                         )}
                     </div>
-                    <button
-                        onClick={() => setManifestExpanded(!manifestExpanded)}
-                        className='text-lucky-text-muted hover:text-lucky-text-body transition-colors text-xs flex items-center gap-1'
-                    >
-                        {manifestExpanded ? 'Collapse' : 'Expand'}
-                        {manifestExpanded ? <ChevronUp className='h-3 w-3' /> : <ChevronDown className='h-3 w-3' />}
-                    </button>
-                </div>
-                {loading ? (
-                    <Skeleton className='h-40 w-full rounded' />
-                ) : (
-                    <AnimatePresence initial={false}>
-                        {manifestExpanded && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className='overflow-hidden space-y-3'
-                            >
-                                {!manifest && (
-                                    <p className='text-sm text-lucky-text-muted flex items-center gap-2'>
-                                        <AlertTriangle className='h-4 w-4 text-yellow-400' />
-                                        No manifest found. Paste or write a manifest below to get started.
-                                    </p>
-                                )}
-                                <textarea
-                                    value={manifestJson}
-                                    onChange={(e) => setManifestJson(e.target.value)}
-                                    rows={16}
-                                    spellCheck={false}
-                                    className='w-full rounded-lg bg-lucky-bg-primary/80 border border-lucky-border text-lucky-text-body font-mono text-xs p-3 resize-y focus:outline-none focus:border-lucky-brand transition-colors'
-                                    placeholder='{ "guildId": "...", "version": "1", "roles": {}, "channels": {} }'
-                                />
-                                {manifestError && (
-                                    <p className='text-xs text-red-400 flex items-center gap-1'>
-                                        <XCircle className='h-3 w-3' />
-                                        {manifestError}
-                                    </p>
-                                )}
-                                <div className='flex gap-2'>
-                                    <Button
-                                        variant='primary'
-                                        size='sm'
-                                        onClick={() => void handleSaveManifest()}
-                                        disabled={actionLoading === 'save'}
-                                    >
-                                        {actionLoading === 'save' ? (
-                                            <Loader2 className='h-3 w-3 animate-spin' />
-                                        ) : null}
-                                        Save Manifest
-                                    </Button>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    {manifestExpanded ? (
+                        <ChevronUp className='h-4 w-4' />
+                    ) : (
+                        <ChevronDown className='h-4 w-4' />
+                    )}
+                </button>
+                {manifestExpanded && (
+                    <>
+                        <div className='border-t border-lucky-border' />
+                        <div className='p-4 space-y-3 bg-lucky-bg-active/20'>
+                            {loading ? (
+                                <Skeleton className='h-40 w-full rounded' />
+                            ) : (
+                                <>
+                                    {!manifest && (
+                                        <p className='text-sm text-lucky-text-muted flex items-center gap-2'>
+                                            <AlertTriangle className='h-4 w-4 text-yellow-400' />
+                                            No manifest found. Paste or write a
+                                            manifest below to get started.
+                                        </p>
+                                    )}
+                                    <textarea
+                                        value={manifestJson}
+                                        onChange={(e) =>
+                                            setManifestJson(e.target.value)
+                                        }
+                                        rows={16}
+                                        spellCheck={false}
+                                        className='w-full rounded-lg bg-lucky-bg-primary/80 border border-lucky-border text-lucky-text-body font-mono text-xs p-3 resize-y focus:outline-none focus:border-lucky-brand transition-colors'
+                                        placeholder='{ "guildId": "...", "version": "1", "roles": {}, "channels": {} }'
+                                    />
+                                    {manifestError && (
+                                        <p className='text-xs text-red-400 flex items-center gap-1'>
+                                            <XCircle className='h-3 w-3' />
+                                            {manifestError}
+                                        </p>
+                                    )}
+                                    <div className='flex gap-2'>
+                                        <Button
+                                            variant='primary'
+                                            size='sm'
+                                            onClick={() =>
+                                                void handleSaveManifest()
+                                            }
+                                            disabled={actionLoading === 'save'}
+                                        >
+                                            {actionLoading === 'save' ? (
+                                                <Loader2 className='h-3 w-3 animate-spin' />
+                                            ) : null}
+                                            Save Manifest
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </>
                 )}
-            </Card>
+            </div>
 
             {/* Run History */}
             <div className='space-y-3'>
@@ -469,7 +516,10 @@ export default function GuildAutomation() {
                 {loading ? (
                     <div className='space-y-2'>
                         {Array.from({ length: 3 }).map((_, i) => (
-                            <Skeleton key={i} className='h-14 w-full rounded-lg' />
+                            <Skeleton
+                                key={i}
+                                className='h-14 w-full rounded-lg'
+                            />
                         ))}
                     </div>
                 ) : runs.length === 0 ? (
@@ -480,11 +530,9 @@ export default function GuildAutomation() {
                     />
                 ) : (
                     <div className='space-y-2'>
-                        <AnimatePresence>
-                            {runs.map((run) => (
-                                <RunCard key={run.id} run={run} />
-                            ))}
-                        </AnimatePresence>
+                        {runs.map((run) => (
+                            <RunCard key={run.id} run={run} />
+                        ))}
                     </div>
                 )}
             </div>

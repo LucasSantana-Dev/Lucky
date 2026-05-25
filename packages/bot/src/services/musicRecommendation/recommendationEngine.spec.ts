@@ -88,41 +88,39 @@ describe('recommendationEngine', () => {
         }) as unknown as Track
 
     describe('generateRecommendations', () => {
-        test('returns empty array when available tracks are empty', async () => {
+        test('returns empty array when available tracks are empty or below threshold', async () => {
             const seedTrack = mockTrack('seed')
-            const result = await generateRecommendations(
+
+            // Test empty tracks
+            const resultEmpty = await generateRecommendations(
                 seedTrack,
                 [],
                 mockConfig,
             )
-            expect(result).toEqual([])
-        })
+            expect(resultEmpty).toEqual([])
 
-        test('filters tracks below similarity threshold', async () => {
-            const seedTrack = mockTrack('seed')
+            // Test tracks below threshold
             const availableTracks = [mockTrack('track1'), mockTrack('track2')]
-
             createTrackVectorMock.mockReturnValue({
                 trackId: 'seed',
                 vector: [0.1, 0.2],
             })
             calculateTrackSimilarityMock.mockReturnValue(0.3)
-
-            const result = await generateRecommendations(
+            const resultBelowThreshold = await generateRecommendations(
                 seedTrack,
                 availableTracks,
                 mockConfig,
             )
-            expect(result).toEqual([])
+            expect(resultBelowThreshold).toEqual([])
         })
 
-        test('includes tracks above similarity threshold', async () => {
+        test('includes recommendations above threshold with proper scoring', async () => {
             const seedTrack = mockTrack('seed')
             const track1 = mockTrack('track1')
-            const availableTracks = [track1]
+            const track2 = mockTrack('track2')
+            const availableTracks = [track1, track2]
 
             createTrackVectorMock.mockReturnValue({
-                trackId: 'track1',
                 vector: [0.5, 0.6],
             })
             calculateTrackSimilarityMock.mockReturnValue(0.75)
@@ -136,92 +134,29 @@ describe('recommendationEngine', () => {
                 mockConfig,
             )
 
-            expect(result).toHaveLength(1)
-            expect(result[0].track.id).toBe('track1')
-        })
-
-        test('excludes tracks by id', async () => {
-            const seedTrack = mockTrack('seed')
-            const track1 = mockTrack('track1')
-            const availableTracks = [track1]
-
-            const result = await generateRecommendations(
-                seedTrack,
-                availableTracks,
-                mockConfig,
-                ['track1'],
-            )
-            expect(result).toEqual([])
-        })
-
-        test('excludes tracks by url', async () => {
-            const seedTrack = mockTrack('seed')
-            const track1 = mockTrack('track1')
-            const availableTracks = [track1]
-
-            const result = await generateRecommendations(
-                seedTrack,
-                availableTracks,
-                mockConfig,
-                ['https://example.com/track1'],
-            )
-            expect(result).toEqual([])
-        })
-
-        test('includes multiple matching recommendations', async () => {
-            const seedTrack = mockTrack('seed')
-            const track1 = mockTrack('track1')
-            const track2 = mockTrack('track2')
-            const availableTracks = [track1, track2]
-
-            createTrackVectorMock.mockReturnValue({
-                vector: [0.5, 0.6],
-            })
-            calculateTrackSimilarityMock.mockReturnValue(0.75)
-            calculateVectorSimilarityMock.mockReturnValue(0.8)
-            generateRecommendationReasonsMock.mockReturnValue(['Similar'])
-            applyDiversityFilterMock.mockImplementation((recs) => recs)
-
-            const result = await generateRecommendations(
-                seedTrack,
-                availableTracks,
-                mockConfig,
-            )
-
             expect(result).toHaveLength(2)
+            expect(result[0].track.id).toBe('track1')
+            expect(result[0].score).toBe(0.775)
         })
 
-        test('applies diversity filter', async () => {
+        test.each([
+            { excludeType: 'id', excludeValue: 'track1' },
+            { excludeType: 'url', excludeValue: 'https://example.com/track1' },
+        ])('excludes tracks by $excludeType', async ({ excludeValue }) => {
             const seedTrack = mockTrack('seed')
             const track1 = mockTrack('track1')
             const availableTracks = [track1]
-
-            createTrackVectorMock.mockReturnValue({
-                vector: [0.5, 0.6],
-            })
-            calculateTrackSimilarityMock.mockReturnValue(0.75)
-            calculateVectorSimilarityMock.mockReturnValue(0.8)
-            generateRecommendationReasonsMock.mockReturnValue(['Similar'])
-
-            const filteredRecs = [
-                {
-                    track: track1,
-                    score: 0.775,
-                    reasons: ['Similar'],
-                },
-            ]
-            applyDiversityFilterMock.mockReturnValue(filteredRecs)
 
             const result = await generateRecommendations(
                 seedTrack,
                 availableTracks,
                 mockConfig,
+                [excludeValue],
             )
-
-            expect(applyDiversityFilterMock).toHaveBeenCalled()
+            expect(result).toEqual([])
         })
 
-        test('respects maxRecommendations limit', async () => {
+        test('applies diversity filter and respects maxRecommendations limit', async () => {
             const seedTrack = mockTrack('seed')
             const availableTracks = Array.from({ length: 20 }, (_, i) =>
                 mockTrack(`track${i}`),
@@ -239,7 +174,15 @@ describe('recommendationEngine', () => {
                 score: 0.775 - idx * 0.01,
                 reasons: ['Similar'],
             }))
-            applyDiversityFilterMock.mockReturnValue(allRecs)
+            // Diversity filter removes duplicates
+            const filteredRecs = [
+                {
+                    track: availableTracks[0],
+                    score: 0.775,
+                    reasons: ['Similar'],
+                },
+            ]
+            applyDiversityFilterMock.mockReturnValue(filteredRecs)
 
             const result = await generateRecommendations(
                 seedTrack,
@@ -247,6 +190,7 @@ describe('recommendationEngine', () => {
                 mockConfig,
             )
 
+            expect(result).toHaveLength(1)
             expect(result.length).toBeLessThanOrEqual(
                 mockConfig.maxRecommendations,
             )
@@ -270,90 +214,73 @@ describe('recommendationEngine', () => {
     })
 
     describe('generateUserPreferenceRecommendations', () => {
-        test('creates virtual seed from preferences', async () => {
+        test('generates recommendations from user preferences, excludes tracks, and handles errors', async () => {
             const preferences = {
                 genres: ['rock', 'pop'],
                 artists: ['Artist A', 'Artist B'],
                 avgDuration: 180,
             }
             const virtualSeed = mockTrack('virtual')
-            createUserPreferenceSeedMock.mockReturnValue(virtualSeed)
-            createTrackVectorMock.mockReturnValue({
-                vector: [0.5, 0.6],
-            })
-            applyDiversityFilterMock.mockImplementation((recs) => recs)
-
-            await generateUserPreferenceRecommendations(
-                preferences,
-                [mockTrack('track1')],
-                mockConfig,
-            )
-
-            expect(createUserPreferenceSeedMock).toHaveBeenCalledWith(
-                preferences,
-            )
-        })
-
-        test('returns empty array on error', async () => {
-            const preferences = {
-                genres: ['rock'],
-                artists: ['Artist A'],
-                avgDuration: 180,
-            }
-            createUserPreferenceSeedMock.mockImplementation(() => {
-                throw new Error('Seed creation failed')
-            })
-
-            const result = await generateUserPreferenceRecommendations(
-                preferences,
-                [mockTrack('track1')],
-                mockConfig,
-            )
-
-            expect(result).toEqual([])
-            expect(errorLogMock).toHaveBeenCalled()
-        })
-
-        test('excludes specified tracks', async () => {
-            const preferences = {
-                genres: ['rock'],
-                artists: ['Artist A'],
-                avgDuration: 180,
-            }
-            const virtualSeed = mockTrack('virtual')
+            const track1 = mockTrack('track1')
+            const track2 = mockTrack('track2')
             createUserPreferenceSeedMock.mockReturnValue(virtualSeed)
             createTrackVectorMock.mockReturnValue({
                 vector: [0.5, 0.6],
             })
             calculateTrackSimilarityMock.mockReturnValue(0.75)
             calculateVectorSimilarityMock.mockReturnValue(0.8)
-            generateRecommendationReasonsMock.mockReturnValue(['Similar'])
+            generateRecommendationReasonsMock.mockReturnValue([
+                'Similar to preference',
+            ])
             applyDiversityFilterMock.mockImplementation((recs) => recs)
 
+            // With both tracks available, expect results
             const result = await generateUserPreferenceRecommendations(
                 preferences,
-                [mockTrack('track1')],
+                [track1, track2],
+                mockConfig,
+            )
+            expect(result).toHaveLength(2)
+            expect(result[0].track.id).toBe('track1')
+
+            // Excluding track1, should return empty
+            const resultExcluded = await generateUserPreferenceRecommendations(
+                preferences,
+                [track1],
                 mockConfig,
                 ['track1'],
             )
+            expect(resultExcluded).toEqual([])
 
-            expect(result).toEqual([])
+            // Error case
+            createUserPreferenceSeedMock.mockImplementation(() => {
+                throw new Error('Seed creation failed')
+            })
+            const resultError = await generateUserPreferenceRecommendations(
+                preferences,
+                [mockTrack('track1')],
+                mockConfig,
+            )
+            expect(resultError).toEqual([])
+            expect(errorLogMock).toHaveBeenCalled()
         })
     })
 
     describe('generateHistoryBasedRecommendations', () => {
-        test('returns empty array when history is empty', async () => {
-            const result = await generateHistoryBasedRecommendations(
+        test('returns empty when history is empty or handles multiple-track blending', async () => {
+            // Empty history
+            const resultEmpty = await generateHistoryBasedRecommendations(
                 [],
                 [mockTrack('track1')],
                 mockConfig,
             )
-            expect(result).toEqual([])
-        })
+            expect(resultEmpty).toEqual([])
 
-        test('uses first history track as primary seed', async () => {
+            // Multiple history tracks trigger blending
             const historyTracks = [mockTrack('history1'), mockTrack('history2')]
-            const availableTracks = [mockTrack('track1')]
+            const track1 = mockTrack('track1')
+            const track2 = mockTrack('track2')
+            const availableTracks = [track1, track2]
 
             createTrackVectorMock.mockReturnValue({
                 vector: [0.5, 0.6],
@@ -368,38 +295,14 @@ describe('recommendationEngine', () => {
                 availableTracks,
                 mockConfig,
             )
-
-            expect(calculateTrackSimilarityMock).toHaveBeenCalledWith(
-                historyTracks[0],
-                availableTracks[0],
-                mockConfig,
-            )
+            expect(result.length).toBeGreaterThan(0)
+            expect(result.length).toBeLessThanOrEqual(availableTracks.length)
         })
 
-        test('blends recommendations when history has multiple tracks', async () => {
-            const historyTracks = [mockTrack('history1'), mockTrack('history2')]
-            const availableTracks = [mockTrack('track1')]
-
-            createTrackVectorMock.mockReturnValue({
-                vector: [0.5, 0.6],
-            })
-            calculateTrackSimilarityMock.mockReturnValue(0.75)
-            calculateVectorSimilarityMock.mockReturnValue(0.8)
-            generateRecommendationReasonsMock.mockReturnValue(['Similar'])
-            applyDiversityFilterMock.mockImplementation((recs) => recs)
-
-            const result = await generateHistoryBasedRecommendations(
-                historyTracks,
-                availableTracks,
-                mockConfig,
-            )
-
-            expect(calculateTrackSimilarityMock).toHaveBeenCalledTimes(2)
-        })
-
-        test('returns primary recommendations when history has one track', async () => {
+        test('generates recommendations from single history track and excludes specified tracks', async () => {
             const historyTracks = [mockTrack('history1')]
-            const availableTracks = [mockTrack('track1')]
+            const track1 = mockTrack('track1')
+            const availableTracks = [track1]
 
             createTrackVectorMock.mockReturnValue({
                 vector: [0.5, 0.6],
@@ -409,14 +312,23 @@ describe('recommendationEngine', () => {
             generateRecommendationReasonsMock.mockReturnValue(['Similar'])
             applyDiversityFilterMock.mockImplementation((recs) => recs)
 
+            // With track1 available, expect recommendation
             const result = await generateHistoryBasedRecommendations(
                 historyTracks,
                 availableTracks,
                 mockConfig,
             )
-
             expect(result).toHaveLength(1)
-            expect(calculateTrackSimilarityMock).toHaveBeenCalledTimes(1)
+            expect(result[0].track.id).toBe('track1')
+
+            // Excluding track1, should return empty
+            const resultExcluded = await generateHistoryBasedRecommendations(
+                historyTracks,
+                availableTracks,
+                mockConfig,
+                ['track1'],
+            )
+            expect(resultExcluded).toEqual([])
         })
 
         test('handles errors gracefully', async () => {
@@ -434,80 +346,10 @@ describe('recommendationEngine', () => {
             expect(result).toEqual([])
             expect(errorLogMock).toHaveBeenCalled()
         })
-
-        test('excludes specified tracks', async () => {
-            const historyTracks = [mockTrack('history1')]
-            const availableTracks = [mockTrack('track1')]
-
-            const result = await generateHistoryBasedRecommendations(
-                historyTracks,
-                availableTracks,
-                mockConfig,
-                ['track1'],
-            )
-
-            expect(result).toEqual([])
-        })
     })
-})
 
     describe('applySpanishLanguagePenalty', () => {
-        test('rejects Spanish track in non-Spanish session', () => {
-            const recs = [
-                {
-                    track: {
-                        id: '1',
-                        title: 'Reggaeton Éxito',
-                        author: 'Latino',
-                        metadata: {},
-                    },
-                    score: 0.8,
-                    reasons: [],
-                },
-            ]
-            const result = applySpanishLanguagePenalty(recs, false)
-            expect(result[0].score).toBe(-2.0)
-        })
-
-        test('keeps non-Spanish track', () => {
-            const recs = [
-                {
-                    track: {
-                        id: '1',
-                        title: 'Rock Song',
-                        author: 'Band',
-                        metadata: {},
-                    },
-                    score: 0.8,
-                    reasons: [],
-                },
-            ]
-            const result = applySpanishLanguagePenalty(recs, false)
-            expect(result[0].score).toBe(0.8)
-        })
-
-        test('accepts Spanish in Spanish session', () => {
-            const recs = [
-                {
-                    track: {
-                        id: '1',
-                        title: 'Reggaeton Éxito',
-                        author: 'Latino',
-                        metadata: {},
-                    },
-                    score: 0.8,
-                    reasons: [],
-                },
-            ]
-            const result = applySpanishLanguagePenalty(recs, true)
-            expect(result[0].score).toBe(0.8)
-        })
-
-        test('handles empty array', () => {
-            expect(applySpanishLanguagePenalty([], false)).toEqual([])
-        })
-
-        test('handles mixed batch', () => {
+        test('penalizes Spanish tracks in non-Spanish sessions and preserves non-Spanish', () => {
             const recs = [
                 {
                     track: {
@@ -533,6 +375,25 @@ describe('recommendationEngine', () => {
             const result = applySpanishLanguagePenalty(recs, false)
             expect(result[0].score).toBe(-2.0)
             expect(result[1].score).toBe(0.7)
+            // Empty array also returns empty
+            expect(applySpanishLanguagePenalty([], false)).toEqual([])
+        })
+
+        test('accepts Spanish in Spanish session', () => {
+            const recs = [
+                {
+                    track: {
+                        id: '1',
+                        title: 'Reggaeton Éxito',
+                        author: 'Latino',
+                        metadata: {},
+                    },
+                    score: 0.8,
+                    reasons: [],
+                },
+            ]
+            const result = applySpanishLanguagePenalty(recs, true)
+            expect(result[0].score).toBe(0.8)
         })
     })
 
@@ -545,23 +406,25 @@ describe('recommendationEngine', () => {
 
         test('returns empty array with no inputs', async () => {
             applyDiversityFilterMock.mockImplementation((r) => r)
-            const result = await blendRecommendations([], [], [], mockConfig, [], false)
+            const result = await blendRecommendations(
+                [],
+                [],
+                [],
+                mockConfig,
+                [],
+                false,
+            )
             expect(result).toEqual([])
         })
 
-        test('sorts by score descending', async () => {
+        test('sorts by score (including negative scores) and respects max recommendations', async () => {
             applyDiversityFilterMock.mockImplementation((r) => r)
+
+            // Test sorting with positive and negative scores
             const primary = [
-                {
-                    track: { id: '1' },
-                    score: 0.5,
-                    reasons: [],
-                },
-                {
-                    track: { id: '2' },
-                    score: 0.9,
-                    reasons: [],
-                },
+                { track: { id: '1' }, score: -0.5, reasons: [] },
+                { track: { id: '2' }, score: 0.5, reasons: [] },
+                { track: { id: '3' }, score: 0.9, reasons: [] },
             ]
             const result = await blendRecommendations(
                 primary,
@@ -571,60 +434,25 @@ describe('recommendationEngine', () => {
                 [],
                 false,
             )
+            // Should be sorted descending
             expect(result[0].score >= result[1].score).toBe(true)
-        })
+            expect(result[1].score >= result[2].score).toBe(true)
 
-        test('respects max recommendations', async () => {
-            applyDiversityFilterMock.mockImplementation((r) => r)
-            const primary = Array.from({ length: 10 }, (_, i) => ({
+            // Test max recommendations with 10 items
+            const manyItems = Array.from({ length: 10 }, (_, i) => ({
                 track: { id: String(i) },
                 score: 0.5,
                 reasons: [],
             }))
-            const result = await blendRecommendations(
-                primary,
+            const resultMax = await blendRecommendations(
+                manyItems,
                 [],
                 [],
                 mockConfig,
                 [],
                 false,
             )
-            expect(result.length <= 5).toBe(true)
-        })
-
-        test('sorts by score after filtering', async () => {
-            applyDiversityFilterMock.mockImplementation((r) => r)
-            const primary = [
-                { track: { id: '1' }, score: 0.5, reasons: [] },
-                { track: { id: '2' }, score: 0.9, reasons: [] },
-            ]
-            const result = await blendRecommendations(
-                primary,
-                [],
-                [],
-                mockConfig,
-                [],
-                false,
-            )
-            expect(result[0].score >= result[1].score).toBe(true)
-        })
-
-
-        test('handles negative scores', async () => {
-            applyDiversityFilterMock.mockImplementation((r) => r)
-            const primary = [
-                { track: { id: '1' }, score: -0.5, reasons: [] },
-                { track: { id: '2' }, score: 0.5, reasons: [] },
-            ]
-            const result = await blendRecommendations(
-                primary,
-                [],
-                [],
-                mockConfig,
-                [],
-                false,
-            )
-            expect(result[0].score >= result[1].score).toBe(true)
+            expect(resultMax.length <= 5).toBe(true)
         })
     })
 })

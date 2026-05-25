@@ -132,28 +132,12 @@ describe('externalScrobbler', () => {
         dateNowSpy = null
     })
 
-    it('parses now-playing line and updates Last.fm for voice members', async () => {
-        const { guild, handler } = createHarness('guild-1')
-
-        await handler(
-            createMessage('**Now playing: My Artist – My Song**', guild),
-        )
-
-        expect(updateNowPlayingMock).toHaveBeenCalledWith(
-            'My Artist',
-            'My Song',
-            undefined,
-            'session-1',
-            undefined,
-        )
-        expect(getSessionKeyForUserMock).toHaveBeenCalledWith('user-1')
-    })
-
-    it('forwards metadata to updateNowPlaying when available', async () => {
+    it('parses now-playing messages and updates Last.fm with metadata', async () => {
         const testMeta = { mbid: 'test-mbid', album: 'Test Album' }
         getTrackMetadataMock.mockResolvedValue(testMeta)
-        const { guild, handler } = createHarness('guild-meta-1')
+        const { guild, handler } = createHarness('guild-1')
 
+        // Test standard separator (–)
         await handler(
             createMessage('**Now playing: My Artist – My Song**', guild),
         )
@@ -165,9 +149,25 @@ describe('externalScrobbler', () => {
             'session-1',
             testMeta,
         )
+
+        // Test em dash separator (—)
+        updateNowPlayingMock.mockClear()
+        getSessionKeyForUserMock.mockClear()
+        getTrackMetadataMock.mockResolvedValue(null)
+
+        await handler(createMessage('Now playing: Artist 2 — Song 2', guild))
+
+        expect(updateNowPlayingMock).toHaveBeenCalledWith(
+            'Artist 2',
+            'Song 2',
+            undefined,
+            'session-1',
+            undefined,
+        )
+        expect(getSessionKeyForUserMock).toHaveBeenCalledWith('user-1')
     })
 
-    it('scrobbles previous track on next now-playing event after 30 seconds', async () => {
+    it('scrobbles previous track after 30 seconds and updates now-playing', async () => {
         dateNowSpy = jest.spyOn(Date, 'now')
         dateNowSpy
             .mockReturnValueOnce(100000)
@@ -176,13 +176,24 @@ describe('externalScrobbler', () => {
 
         const { guild, handler } = createHarness('guild-2')
 
+        // First track triggers registration
         await handler(
             createMessage('Now playing: First Artist — First Song', guild),
         )
+
+        expect(updateNowPlayingMock).toHaveBeenCalled()
+        expect(updateNowPlayingMock.mock.calls[0][0]).toBe('First Artist')
+        expect(updateNowPlayingMock.mock.calls[0][1]).toBe('First Song')
+
+        // Second track (after 40 seconds elapsed) triggers scrobble of first and update of second
+        updateNowPlayingMock.mockClear()
+        scrobbleMock.mockClear()
+
         await handler(
             createMessage('Now playing: Second Artist - Second Song', guild),
         )
 
+        // Should have scrobbled the previous track with correct elapsed time (40 seconds)
         expect(scrobbleMock).toHaveBeenCalledWith(
             'First Artist',
             'First Song',
@@ -191,36 +202,14 @@ describe('externalScrobbler', () => {
             'session-1',
             undefined,
         )
+
+        // Should have updated now playing for the new track
         expect(updateNowPlayingMock).toHaveBeenCalledWith(
             'Second Artist',
             'Second Song',
             undefined,
             'session-1',
             undefined,
-        )
-    })
-
-    it('forwards metadata to scrobble when available', async () => {
-        const testMeta = { mbid: 'scrobble-mbid' }
-        getTrackMetadataMock.mockResolvedValue(testMeta)
-        dateNowSpy = jest.spyOn(Date, 'now')
-        dateNowSpy
-            .mockReturnValueOnce(100000)
-            .mockReturnValueOnce(140000)
-            .mockReturnValueOnce(140000)
-
-        const { guild, handler } = createHarness('guild-meta-2')
-
-        await handler(createMessage('Now playing: First Artist — First Song', guild))
-        await handler(createMessage('Now playing: Second Artist - Second Song', guild))
-
-        expect(scrobbleMock).toHaveBeenCalledWith(
-            'First Artist',
-            'First Song',
-            100,
-            40,
-            'session-1',
-            testMeta,
         )
     })
 

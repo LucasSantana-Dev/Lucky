@@ -1,6 +1,7 @@
 import type { Track, GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
+import type { AutoplayContext } from './autoplayContext'
 import { recommendationFeedbackService } from '../../../services/musicRecommendation/feedbackService'
 import {
     trackHistoryService,
@@ -287,10 +288,8 @@ async function _replenishQueue(
                 blockSertanejo,
             },
         })
-        const candidates = await collectRecommendationCandidates(
+        const autoplayContext: AutoplayContext = {
             queue,
-            seedTracks,
-            requestedBy,
             excludedUrls,
             excludedKeys,
             dislikedWeights,
@@ -299,14 +298,19 @@ async function _replenishQueue(
             blockedArtistKeys,
             currentTrack,
             recentArtists,
-            replenishCount,
             autoplayMode,
             artistFrequency,
             implicitDislikeKeys,
             implicitLikeKeys,
             sessionMood,
+            genreContext: candidateGenreContext,
+        }
+        const candidates = await collectRecommendationCandidates(
+            autoplayContext,
+            seedTracks,
+            requestedBy,
+            replenishCount,
             currentFeatures,
-            candidateGenreContext,
             blockSertanejo,
         )
         sourcesCounts.recommendation = candidates.size
@@ -319,24 +323,10 @@ async function _replenishQueue(
         if (requestedBy?.id) {
             const beforeLastFm = candidates.size
             await collectLastFmCandidates(
-                queue,
+                autoplayContext,
                 requestedBy,
-                excludedUrls,
-                excludedKeys,
-                dislikedWeights,
-                likedWeights,
-                preferredArtistKeys,
-                blockedArtistKeys,
-                currentTrack,
-                recentArtists,
                 candidates,
-                autoplayMode,
-                artistFrequency,
-                implicitDislikeKeys,
-                implicitLikeKeys,
-                sessionMood,
                 contributionWeights,
-                candidateGenreContext,
             )
             sourcesCounts.lastfm = candidates.size - beforeLastFm
             debugLog({
@@ -390,25 +380,7 @@ async function _replenishQueue(
         }
         if (candidates.size === 0 && currentTrack) {
             const beforeFallback = candidates.size
-            await collectBroadFallbackCandidates(
-                queue,
-                currentTrack,
-                requestedBy,
-                excludedUrls,
-                excludedKeys,
-                dislikedWeights,
-                likedWeights,
-                preferredArtistKeys,
-                blockedArtistKeys,
-                recentArtists,
-                candidates,
-                autoplayMode,
-                artistFrequency,
-                implicitDislikeKeys,
-                implicitLikeKeys,
-                sessionMood,
-                candidateGenreContext,
-            )
+            await collectBroadFallbackCandidates(autoplayContext, candidates)
             sourcesCounts.fallback = candidates.size - beforeFallback
             debugLog({
                 message: 'Autoplay: broad fallback candidates',
@@ -448,7 +420,7 @@ async function _replenishQueue(
         const currentAudioFeatures = await getTrackAudioFeatures(
             currentTrack,
             requestedBy?.id ?? '',
-        )
+        ).catch(() => null)
         const enriched = await enrichWithAudioFeatures(
             selected,
             requestedBy?.id ?? '',

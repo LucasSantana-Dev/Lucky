@@ -35,6 +35,8 @@ jobs:
               run: npm run build:shared
             - name: Verify shared package exports
               run: npm run verify:shared-exports
+              env:
+                  DATABASE_URL: postgresql://localhost:5432/test
             - name: Type check
               run: npm run type:check
             - name: Build project
@@ -53,7 +55,7 @@ jobs:
             - run: npx prisma generate && npm run build:shared
             - name: Run backend tests
               run: npm run test --workspace=packages/backend -- --ci --coverage
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               if: always()
               with:
                   name: coverage-backend
@@ -75,10 +77,39 @@ jobs:
               run: npm run test --workspace=packages/bot -- --ci --coverage
             - name: Run music incident regression
               run: npm run test:music:incident
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               if: always()
               with:
                   name: coverage-bot
+                  path: packages/bot/coverage/lcov.info
+                  retention-days: 1
+
+    test-youtube-smoke:
+        name: Test — YouTube smoke (dependabot guard)
+        runs-on: ubuntu-latest
+        # Only runs on dependabot pull_request events; the push trigger never matches dependabot.
+        if: |
+          github.actor == 'dependabot[bot]' && (
+            contains(github.event.pull_request.title, 'youtubei.js') ||
+            contains(github.event.pull_request.title, 'discord-player-youtubei') ||
+            contains(github.event.pull_request.title, 'yt-dlp') ||
+            contains(github.event.pull_request.title, 'youtube-dl-exec') ||
+            contains(github.event.pull_request.title, 'play-dl')
+          )
+        steps:
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: '22'
+                  cache: 'npm'
+            - run: npm ci --legacy-peer-deps --ignore-scripts
+            - run: npx prisma generate && npm run build:shared
+            - name: Run YouTube smoke test
+              run: YOUTUBE_SMOKE_TEST=true npm run test --workspace=packages/bot -- --testPathPatterns="youtube.smoke" --ci --coverage
+            - uses: actions/upload-artifact@v7
+              if: always()
+              with:
+                  name: coverage-bot-youtube-smoke
                   path: packages/bot/coverage/lcov.info
                   retention-days: 1
 
@@ -95,7 +126,7 @@ jobs:
             - run: npx prisma generate && npm run build:shared
             - name: Run frontend tests
               run: npm run test --workspace=packages/frontend -- --coverage --coverage.reporter=lcov --coverage.reporter=text
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               if: always()
               with:
                   name: coverage-frontend
@@ -103,6 +134,7 @@ jobs:
                   retention-days: 1
 
     quality-gate:
+        # test-youtube-smoke intentionally excluded: advisory-only, runs on YouTube dependency PRs only
         name: Quality Gates
         runs-on: ubuntu-latest
         needs: [checks, test-backend, test-bot, test-frontend]
@@ -132,15 +164,15 @@ jobs:
             - uses: actions/checkout@v6
               with:
                   fetch-depth: 0
-            - uses: actions/download-artifact@v4
+            - uses: actions/download-artifact@v8
               with:
                   name: coverage-backend
                   path: packages/backend/coverage
-            - uses: actions/download-artifact@v4
+            - uses: actions/download-artifact@v8
               with:
                   name: coverage-bot
                   path: packages/bot/coverage
-            - uses: actions/download-artifact@v4
+            - uses: actions/download-artifact@v8
               with:
                   name: coverage-frontend
                   path: packages/frontend/coverage
@@ -187,7 +219,7 @@ jobs:
             - name: Secrets scan
               run: npx secretlint "**/*"
             - name: TruffleHog secret scan
-              uses: trufflesecurity/trufflehog@0fa069c12f0c7baf431041cd1e564a9c5058846c  # post-v3.95.2 (2026-05-07)
+              uses: trufflesecurity/trufflehog@0ec3634f6cf66a61912a923fee9d20cc45633a67  # post-v3.95.2 (2026-05-07)
               with:
                   extra_args: --only-verified
               continue-on-error: true

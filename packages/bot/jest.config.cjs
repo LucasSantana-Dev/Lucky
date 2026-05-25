@@ -11,29 +11,35 @@ module.exports = {
     ],
     coverageDirectory: 'coverage',
     coverageReporters: ['text', 'lcov'],
-    // Floor pinned to the round-down of the post-#821 baseline
-    // (stmts 67 / branches 63 / functions 63 / lines 68). Binding without
-    // forcing emergency work; tighten 2-3 % per cleanup phase as the suite
-    // shrinks. See .agents/plans/test-cleanup-phase2.md.
+    // Floor tightened after Phase 4 cleanup (post-Phase-4 baseline: stmts 66.33 /
+    // branches 64.04 / functions 62.51 / lines 67.28). Each threshold = actual − 0.5pp.
+    // Statements/functions/lines didn't reach the 68/63/63/68 target — actual coverage
+    // didn't improve enough after Phase 4 deletions. See issue #964.
     coverageThreshold: {
         global: {
-            statements: 65,
-            branches: 60,
-            functions: 60,
-            lines: 65,
+            statements: 65.7,
+            branches: 62.5,
+            functions: 62,
+            lines: 66.7,
         },
     },
     moduleNameMapper: {
         '^(\\.{1,2}/.*)\\.js$': '$1',
         '^chalk$': '<rootDir>/tests/__mocks__/chalk.ts',
+        '^@lucky/shared/utils/database/prismaClient$':
+            '<rootDir>/tests/__mocks__/prismaClient.ts',
+        '^@lucky/shared/services/guildAutomation/service$':
+            '<rootDir>/tests/__mocks__/guildAutomationService.ts',
         '^@lucky/shared$': '<rootDir>/../shared/src/index',
         '^@lucky/shared/services$':
             '<rootDir>/../shared/src/services/index',
         '^@lucky/shared/utils$': '<rootDir>/../shared/src/utils/index',
         '^@lucky/shared/config$': '<rootDir>/../shared/src/config/index',
         '^@lucky/shared/types$': '<rootDir>/../shared/src/types/index',
-        '^@lucky/shared/utils/database/prismaClient$':
-            '<rootDir>/tests/__mocks__/prismaClient.ts',
+        '^@lucky/shared/services/guildAutomation$':
+            '<rootDir>/../shared/src/services/guildAutomation/index',
+        '^@lucky/shared/services/guildAutomation/(.*)$':
+            '<rootDir>/../shared/src/services/guildAutomation/$1',
         '^@lucky/shared/(.*)$': '<rootDir>/../shared/src/$1',
     },
     transform: {

@@ -3,6 +3,10 @@
 # Usage: docker compose --env-file .env.production up -d --build
 
 ARG NODE_VERSION=22-alpine
+# Lockfile-hash cache key — auto-busts npm BuildKit caches when package-lock.json
+# changes. Passed as a build-arg from the workflow: hashFiles('package-lock.json').
+# Bump the default (v1 → v2) only if you need a forced one-off cache wipe.
+ARG NPM_CACHE_KEY=v1
 
 FROM node:${NODE_VERSION} AS base-runtime
 
@@ -52,7 +56,7 @@ COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
 COPY packages/frontend/package*.json ./packages/frontend/
 
-RUN --mount=type=cache,id=npm-build-stage,target=/root/.npm,sharing=locked \
+RUN --mount=type=cache,id=npm-build-stage-${NPM_CACHE_KEY},target=/root/.npm,sharing=locked \
     YOUTUBE_DL_SKIP_DOWNLOAD=1 \
     npm ci --legacy-peer-deps --no-audit --no-fund && \
     (npm cache verify 2>/dev/null || true)
@@ -95,7 +99,7 @@ COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
 COPY packages/frontend/package*.json ./packages/frontend/
 
-RUN --mount=type=cache,id=npm-deps-production,target=/root/.npm,sharing=locked \
+RUN --mount=type=cache,id=npm-deps-production-${NPM_CACHE_KEY},target=/root/.npm,sharing=locked \
     YOUTUBE_DL_SKIP_DOWNLOAD=1 \
     YOUTUBE_DL_SKIP_PYTHON_CHECK=1 \
     npm ci --legacy-peer-deps --omit=dev --no-audit --no-fund && \
@@ -130,11 +134,10 @@ RUN mkdir -p downloads logs && \
 
 USER bot
 
-# Liveness via Redis TCP PING — confirms node can run AND the bot's
-# Redis dependency is reachable. A wedged node process or broken Redis
-# link both fail this; the old `console.log` check did neither.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD node -e "const net=require('net');const s=net.createConnection({host:process.env.REDIS_HOST||'redis',port:+(process.env.REDIS_PORT||6379)},()=>s.write('*1\r\n\$4\r\nPING\r\n'));s.on('data',d=>process.exit(d.toString().startsWith('+PONG')?0:1));s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),3000);" || exit 1
+# Gateway readiness via /healthz — returns 200 when client.isReady(), 503 otherwise.
+# Covers Redis reachability implicitly (the bot cannot complete login without it).
+HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=3 \
+    CMD node -e "require('http').get('http://127.0.0.1:9091/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
 CMD ["sh", "-c", "npx prisma migrate deploy --config prisma/prisma.config.ts && node packages/bot/dist/index.js"]
 

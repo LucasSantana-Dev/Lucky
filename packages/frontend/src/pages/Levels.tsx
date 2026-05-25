@@ -10,14 +10,13 @@ import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
 import { TrashIcon } from 'lucide-react'
-import type { MemberXP, LevelReward, LevelConfig } from '@/services/levelsApi'
+import type { MemberXP, LevelReward } from '@/services/levelsApi'
 import type { GuildRoleOption } from '@/types'
 
 function Levels() {
     const { selectedGuild } = useGuildStore()
     const [loading, setLoading] = useState(true)
     const [leaderboard, setLeaderboard] = useState<MemberXP[]>([])
-    const [config, setConfig] = useState<LevelConfig | null>(null)
     const [rewards, setRewards] = useState<LevelReward[]>([])
     const [roles, setRoles] = useState<GuildRoleOption[]>([])
     const [saving, setSaving] = useState(false)
@@ -59,13 +58,11 @@ function Levels() {
                 setRoles(rbacData.data.roles)
 
                 if (configData) {
-                    setConfig(configData)
                     setEnabled(configData.enabled)
                     setXpPerMessage(configData.xpPerMessage)
                     setXpCooldownMs(configData.xpCooldownMs)
                     setAnnounceChannel(configData.announceChannel || '')
                 } else {
-                    setConfig(null)
                     setEnabled(false)
                     setXpPerMessage(0)
                     setXpCooldownMs(0)

@@ -1,4 +1,4 @@
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, RotateCcw } from 'lucide-react'
 import Skeleton from '@/components/ui/Skeleton'
 import Button from '@/components/ui/Button'
 import GlobalTogglesSection from '@/components/Features/GlobalTogglesSection'
@@ -28,28 +28,60 @@ export default function AdminPage() {
 
     if (!isAuthenticated) {
         return (
-            <main className='p-6 flex flex-col items-center justify-center min-h-[60vh] gap-6'>
-                <ShieldCheck className='w-12 h-12 text-lucky-purple' />
-                <div className='text-center space-y-2'>
-                    <h1 className='type-h1 text-lucky-text-primary'>Admin Panel</h1>
-                    <p className='text-lucky-text-secondary'>
-                        Sign in with Discord to access the admin panel.
-                    </p>
+            <main className='flex flex-col items-center justify-center min-h-[64vh] gap-8 bg-lucky-bg-primary px-4'>
+                <div className='flex flex-col items-center gap-4 text-center max-w-sm'>
+                    <div className='p-3 rounded-lg bg-lucky-surface-elevated'>
+                        <ShieldCheck
+                            className='w-8 h-8 text-lucky-brand'
+                            aria-hidden='true'
+                        />
+                    </div>
+                    <div className='space-y-2'>
+                        <h1
+                            className='text-xl font-semibold text-lucky-text-primary'
+                            style={{ fontFamily: 'Sora' }}
+                        >
+                            Admin Panel
+                        </h1>
+                        <p
+                            className='text-sm text-lucky-text-secondary'
+                            style={{ fontFamily: 'Manrope' }}
+                        >
+                            Sign in with Discord to access the admin panel.
+                        </p>
+                    </div>
                 </div>
-                <Button onClick={login}>Sign in with Discord</Button>
+                <Button onClick={login} className='w-fit'>
+                    Sign in with Discord
+                </Button>
             </main>
         )
     }
 
     if (!isDeveloper) {
         return (
-            <main className='p-6 flex flex-col items-center justify-center min-h-[60vh] gap-4'>
-                <ShieldCheck className='w-12 h-12 text-lucky-red' />
-                <div className='text-center space-y-2'>
-                    <h1 className='type-h1 text-lucky-text-primary'>Access Denied</h1>
-                    <p className='text-lucky-text-secondary'>
-                        This page is restricted to bot administrators.
-                    </p>
+            <main className='flex flex-col items-center justify-center min-h-[64vh] gap-6 bg-lucky-bg-primary px-4'>
+                <div className='flex flex-col items-center gap-4 text-center max-w-sm'>
+                    <div className='p-3 rounded-lg bg-lucky-surface-elevated'>
+                        <ShieldCheck
+                            className='w-8 h-8 text-lucky-error'
+                            aria-hidden='true'
+                        />
+                    </div>
+                    <div className='space-y-2'>
+                        <h1
+                            className='text-xl font-semibold text-lucky-text-primary'
+                            style={{ fontFamily: 'Sora' }}
+                        >
+                            Access Denied
+                        </h1>
+                        <p
+                            className='text-sm text-lucky-text-secondary'
+                            style={{ fontFamily: 'Manrope' }}
+                        >
+                            This page is restricted to bot administrators.
+                        </p>
+                    </div>
                 </div>
             </main>
         )
@@ -57,36 +89,110 @@ export default function AdminPage() {
 
     if (isLoading) {
         return (
-            <main className='p-6 space-y-6'>
-                <Skeleton className='h-10 w-48' />
+            <main className='p-4 md:p-6 bg-lucky-bg-primary space-y-6 min-h-screen'>
                 <div className='space-y-4'>
-                    {[1, 2, 3].map((i) => (
-                        <Skeleton key={i} className='h-24 w-full' />
-                    ))}
+                    <Skeleton className='h-8 w-48' />
+                    <div className='space-y-3'>
+                        {[1, 2, 3].map((i) => (
+                            <Skeleton key={i} className='h-10 w-full' />
+                        ))}
+                    </div>
                 </div>
             </main>
         )
     }
 
     return (
-        <main className='p-4 md:p-6 space-y-10'>
-            <header className='flex items-center gap-3'>
-                <ShieldCheck className='w-7 h-7 text-lucky-purple' aria-hidden='true' />
-                <h1 className='type-h1 text-lucky-text-primary'>Admin Panel</h1>
+        <main className='bg-lucky-bg-primary min-h-screen'>
+            {/* Header — compact, density-first */}
+            <header className='border-b border-lucky-border-soft bg-lucky-surface-sidebar px-4 md:px-6 py-4'>
+                <div className='flex items-center justify-between gap-3'>
+                    <div className='flex items-center gap-3'>
+                        <ShieldCheck
+                            className='w-6 h-6 text-lucky-brand flex-shrink-0'
+                            aria-hidden='true'
+                        />
+                        <h1
+                            className='text-lg font-semibold text-lucky-text-primary'
+                            style={{ fontFamily: 'Sora' }}
+                        >
+                            Admin Panel
+                        </h1>
+                    </div>
+                    {loadError && (
+                        <Button
+                            variant='ghost'
+                            size='sm'
+                            onClick={retryLoad}
+                            className='text-lucky-text-secondary hover:text-lucky-text-primary'
+                            aria-label='Retry loading features'
+                        >
+                            <RotateCcw className='w-4 h-4' />
+                        </Button>
+                    )}
+                </div>
             </header>
 
-            {loadError && <FeatureErrorBanner loadError={loadError} retryLoad={retryLoad} />}
+            {/* Content area — enterprise admin density */}
+            <div className='px-4 md:px-6 py-6 space-y-6'>
+                {loadError && (
+                    <FeatureErrorBanner
+                        loadError={loadError}
+                        retryLoad={retryLoad}
+                    />
+                )}
 
-            <section aria-labelledby='global-toggles-heading'>
-                <GlobalTogglesSection
-                    toggles={globalToggles}
-                    provider={globalToggleProvider}
-                    writable={globalTogglesWritable}
-                    onToggle={handleGlobalToggle}
-                />
-            </section>
+                {/* Global Toggles Section — grid density control */}
+                <section
+                    aria-labelledby='global-toggles-heading'
+                    className='space-y-4'
+                >
+                    <div className='space-y-1'>
+                        <h2
+                            id='global-toggles-heading'
+                            className='text-base font-semibold text-lucky-text-primary'
+                            style={{ fontFamily: 'Sora' }}
+                        >
+                            Global Feature Toggles
+                        </h2>
+                        <p
+                            className='text-xs text-lucky-text-tertiary'
+                            style={{ fontFamily: 'Manrope' }}
+                        >
+                            Manage feature flags across all servers
+                        </p>
+                    </div>
+                    <GlobalTogglesSection
+                        toggles={globalToggles}
+                        provider={globalToggleProvider}
+                        writable={globalTogglesWritable}
+                        onToggle={handleGlobalToggle}
+                    />
+                </section>
 
-            <BotGuildsSection />
+                {/* Bot Guilds Section — enterprise list density */}
+                <section
+                    aria-labelledby='bot-guilds-heading'
+                    className='space-y-4'
+                >
+                    <div className='space-y-1'>
+                        <h2
+                            id='bot-guilds-heading'
+                            className='text-base font-semibold text-lucky-text-primary'
+                            style={{ fontFamily: 'Sora' }}
+                        >
+                            Server Management
+                        </h2>
+                        <p
+                            className='text-xs text-lucky-text-tertiary'
+                            style={{ fontFamily: 'Manrope' }}
+                        >
+                            View and manage bot activity across all servers
+                        </p>
+                    </div>
+                    <BotGuildsSection />
+                </section>
+            </div>
         </main>
     )
 }

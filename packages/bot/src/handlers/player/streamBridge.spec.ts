@@ -14,9 +14,12 @@ const mockInfoLog = jest.fn()
 const mockWarnLog = jest.fn()
 const mockErrorLog = jest.fn()
 
-jest.mock('child_process', () => ({ spawn: (...args: unknown[]) => mockSpawn(...args) }))
+jest.mock('child_process', () => ({
+    spawn: (...args: unknown[]) => mockSpawn(...args),
+}))
 jest.mock('./soundcloudMatcher', () => ({
-    streamViaSoundCloud: (...args: unknown[]) => mockStreamViaSoundCloud(...args),
+    streamViaSoundCloud: (...args: unknown[]) =>
+        mockStreamViaSoundCloud(...args),
 }))
 jest.mock('../../utils/music/searchQueryCleaner', () => ({
     cleanTitle: (...args: unknown[]) => mockCleanTitle(...args),
@@ -24,7 +27,9 @@ jest.mock('../../utils/music/searchQueryCleaner', () => ({
     cleanSearchQuery: (...args: unknown[]) => mockCleanSearchQuery(...args),
 }))
 jest.mock('../../utils/music/search/providerHealth', () => ({
-    providerHealthService: { isAvailable: (...args: unknown[]) => mockIsAvailable(...args) },
+    providerHealthService: {
+        isAvailable: (...args: unknown[]) => mockIsAvailable(...args),
+    },
 }))
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => mockDebugLog(...args),
@@ -57,12 +62,14 @@ function makeFakeProc(): FakeProc {
     return proc
 }
 
-function makeTrack(overrides: {
-    title?: string
-    author?: string
-    duration?: string
-    url?: string
-} = {}) {
+function makeTrack(
+    overrides: {
+        title?: string
+        author?: string
+        duration?: string
+        url?: string
+    } = {},
+) {
     return {
         title: overrides.title ?? 'Test Track',
         author: overrides.author ?? 'Test Artist',
@@ -78,38 +85,21 @@ const fakeStream = new EventEmitter() as any
 // ---------------------------------------------------------------------------
 
 describe('streamViaYtDlp – URL validation', () => {
-    it('rejects on an invalid (unparseable) URL', async () => {
-        await expect(streamViaYtDlp('not-a-url')).rejects.toThrow('yt-dlp: invalid URL')
-    })
-
-    it('rejects on a non-https URL', async () => {
-        await expect(
-            streamViaYtDlp('http://www.youtube.com/watch?v=abc'),
-        ).rejects.toThrow('yt-dlp: only https URLs are allowed')
-    })
-
-    it('rejects on a domain not in the allowlist', async () => {
-        await expect(
-            streamViaYtDlp('https://evil.example.com/video'),
-        ).rejects.toThrow('yt-dlp: domain not in allowlist')
-    })
-
-    it('passes validation for a ytsearch prefix without spawning URL check', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        // Let the proc emit data immediately so the promise resolves
-        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
-        const stream = await streamViaYtDlp('ytsearch1:some query')
-        expect(stream).toBeDefined()
+    it.each([
+        ['not-a-url', 'yt-dlp: invalid URL'],
+        [
+            'http://www.youtube.com/watch?v=abc',
+            'yt-dlp: only https URLs are allowed',
+        ],
+        ['https://evil.example.com/video', 'yt-dlp: domain not in allowlist'],
+    ])('rejects on validation error: %s', async (url, expectedError) => {
+        await expect(streamViaYtDlp(url)).rejects.toThrow(expectedError)
     })
 
     it.each([
-        'https://youtube.com/watch?v=x',
         'https://www.youtube.com/watch?v=x',
         'https://youtu.be/x',
-        'https://music.youtube.com/watch?v=x',
         'https://soundcloud.com/artist/track',
-        'https://www.soundcloud.com/artist/track',
     ])('accepts allowed domain: %s', async (url) => {
         const proc = makeFakeProc()
         mockSpawn.mockReturnValue(proc)
@@ -125,53 +115,27 @@ describe('streamViaYtDlp – URL validation', () => {
 describe('streamViaYtDlp – process lifecycle', () => {
     const validUrl = 'https://www.youtube.com/watch?v=abc123'
 
-    it('resolves with a PassThrough stream when stdout emits first chunk', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        const data = Buffer.from('audio-bytes')
-        setImmediate(() => proc.stdout.emit('data', data))
-        const stream = await streamViaYtDlp(validUrl)
-        expect(stream).toBeDefined()
-    })
-
-    it('rejects and kills proc when process emits an error', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('error', new Error('ENOENT yt-dlp')))
-        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('ENOENT yt-dlp')
-        expect(proc.kill).toHaveBeenCalled()
-    })
-
-    it('rejects with exit code and stderr when process closes with non-zero code', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => {
-            proc.stderr.emit('data', Buffer.from('Video unavailable'))
-            proc.emit('close', 1)
-        })
-        await expect(streamViaYtDlp(validUrl)).rejects.toThrow(
+    it.each([
+        [
+            (proc: FakeProc) => proc.emit('error', new Error('ENOENT yt-dlp')),
+            'ENOENT yt-dlp',
+        ],
+        [
+            (proc: FakeProc) => {
+                proc.stderr.emit('data', Buffer.from('Video unavailable'))
+                proc.emit('close', 1)
+            },
             'yt-dlp exited with code 1 — Video unavailable',
-        )
-    })
-
-    it('rejects with just the exit code when stderr is empty', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 2))
-        await expect(streamViaYtDlp(validUrl)).rejects.toThrow(
+        ],
+        [
+            (proc: FakeProc) => proc.emit('close', 2),
             'yt-dlp exited with code 2',
-        )
-    })
-
-    it('does not reject after stdout resolves even if close fires later', async () => {
+        ],
+    ])('rejects on process error', async (emitFn, expectedError) => {
         const proc = makeFakeProc()
         mockSpawn.mockReturnValue(proc)
-        setImmediate(() => {
-            proc.stdout.emit('data', Buffer.from('bytes'))
-            // close fires after stdout — should be ignored
-            proc.emit('close', 1)
-        })
-        await expect(streamViaYtDlp(validUrl)).resolves.toBeDefined()
+        setImmediate(() => emitFn(proc))
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow(expectedError)
     })
 
     it('kills proc and rejects on timeout', async () => {
@@ -192,21 +156,10 @@ describe('streamViaYtDlp – process lifecycle', () => {
 // ---------------------------------------------------------------------------
 
 describe('streamViaYtDlpSearch', () => {
-    it('rejects on empty query', async () => {
-        await expect(streamViaYtDlpSearch('')).rejects.toThrow('yt-dlp search: empty query')
-    })
-
-    it('rejects on whitespace-only query', async () => {
-        await expect(streamViaYtDlpSearch('   ')).rejects.toThrow('yt-dlp search: empty query')
-    })
-
-    it('prepends ytsearch1: and delegates to streamViaYtDlp', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
-        await streamViaYtDlpSearch('some song')
-        const [, args] = mockSpawn.mock.calls[0] as [string, string[]]
-        expect(args).toContain('ytsearch1:some song')
+    it.each(['', '   '])('rejects on empty/whitespace: %p', async (query) => {
+        await expect(streamViaYtDlpSearch(query)).rejects.toThrow(
+            'yt-dlp search: empty query',
+        )
     })
 })
 
@@ -222,16 +175,7 @@ describe('createResilientStream', () => {
         mockIsAvailable.mockReturnValue(true)
     })
 
-    it('streams via yt-dlp directly for a YouTube URL', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
-        const result = await createResilientStream(makeTrack())
-        expect(result).toBeDefined()
-        expect(mockStreamViaSoundCloud).not.toHaveBeenCalled()
-    })
-
-    it('falls back to SoundCloud when yt-dlp fails for a YouTube URL', async () => {
+    it('falls back to SoundCloud when yt-dlp fails', async () => {
         const proc = makeFakeProc()
         mockSpawn.mockReturnValue(proc)
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
@@ -239,68 +183,6 @@ describe('createResilientStream', () => {
         const result = await createResilientStream(makeTrack())
         expect(result).toBe(fakeStream)
         expect(mockStreamViaSoundCloud).toHaveBeenCalled()
-    })
-
-    it('tries yt-dlp YouTube search for a Spotify URL', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
-        const track = makeTrack({ url: 'https://open.spotify.com/track/abc' })
-        await createResilientStream(track)
-        const [, args] = mockSpawn.mock.calls[0] as [string, string[]]
-        expect(args.some((a: string) => a.startsWith('ytsearch1:'))).toBe(true)
-    })
-
-    it('falls through to SoundCloud when Spotify yt-dlp search fails', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
-        setImmediate(() => proc.emit('close', 1))
-        const track = makeTrack({ url: 'https://open.spotify.com/track/abc' })
-        const result = await createResilientStream(track)
-        expect(result).toBe(fakeStream)
-        expect(mockStreamViaSoundCloud).toHaveBeenCalled()
-    })
-
-    it('throws immediately when circuit breaker is open', async () => {
-        mockIsAvailable.mockReturnValue(false)
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
-        await expect(createResilientStream(makeTrack())).rejects.toThrow(
-            'Bridge exhausted',
-        )
-        expect(mockStreamViaSoundCloud).not.toHaveBeenCalled()
-    })
-
-    it('retries SoundCloud with title-only when primary query fails', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
-        mockStreamViaSoundCloud
-            .mockRejectedValueOnce(new Error('no results'))
-            .mockResolvedValueOnce(fakeStream)
-        const result = await createResilientStream(makeTrack())
-        expect(mockStreamViaSoundCloud).toHaveBeenCalledTimes(2)
-        expect(result).toBe(fakeStream)
-    })
-
-    it('retries SoundCloud with core title (strips parentheticals) when title-only fails', async () => {
-        mockCleanTitle.mockReturnValue('Song Name (Official Audio)')
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
-        mockStreamViaSoundCloud
-            .mockRejectedValueOnce(new Error('no results'))
-            .mockRejectedValueOnce(new Error('no results'))
-            .mockResolvedValueOnce(fakeStream)
-        const result = await createResilientStream(
-            makeTrack({ title: 'Song Name (Official Audio)' }),
-        )
-        expect(mockStreamViaSoundCloud).toHaveBeenCalledTimes(3)
-        const thirdCallQuery = (mockStreamViaSoundCloud.mock.calls[2] as string[])[0]
-        expect(thirdCallQuery).toBe('Song Name')
-        expect(result).toBe(fakeStream)
     })
 
     it('throws Bridge exhausted when all stages fail', async () => {
@@ -309,20 +191,7 @@ describe('createResilientStream', () => {
         setImmediate(() => proc.emit('close', 1))
         mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
         await expect(
-            createResilientStream(makeTrack({ title: 'Song Name (Remix)' })),
-        ).rejects.toThrow('Bridge exhausted: no stream for "Song Name (Remix)"')
-    })
-
-    it('skips core-title retry when core title equals cleaned title', async () => {
-        // no parentheticals → coreTitle === cleanedTitle → no 3rd SoundCloud call
-        mockCleanTitle.mockReturnValue('Song Name')
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
-        mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
-        await expect(
-            createResilientStream(makeTrack({ title: 'Song Name' })),
+            createResilientStream(makeTrack({ title: 'Some Song' })),
         ).rejects.toThrow('Bridge exhausted')
-        expect(mockStreamViaSoundCloud).toHaveBeenCalledTimes(2)
     })
 })

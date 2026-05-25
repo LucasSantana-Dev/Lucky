@@ -276,7 +276,7 @@ function Starboard() {
                             <Button
                                 onClick={handleDisable}
                                 disabled={saving}
-                                variant='outline'
+                                variant='secondary'
                             >
                                 Disable Starboard
                             </Button>

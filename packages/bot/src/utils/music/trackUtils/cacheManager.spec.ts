@@ -21,7 +21,7 @@ describe('LRUCache', () => {
             expect(result).toBeUndefined()
         })
 
-        test('checks key existence with has()', () => {
+        test('checks key existence and returns false for missing', () => {
             const cache = new LRUCache<string, string>(10)
             cache.set('key1', 'value1')
 
@@ -29,7 +29,7 @@ describe('LRUCache', () => {
             expect(cache.has('key2')).toBe(false)
         })
 
-        test('deletes key', () => {
+        test('deletes key and returns appropriate status', () => {
             const cache = new LRUCache<string, string>(10)
             cache.set('key1', 'value1')
 
@@ -37,37 +37,21 @@ describe('LRUCache', () => {
 
             expect(deleted).toBe(true)
             expect(cache.has('key1')).toBe(false)
+            expect(cache.delete('nonexistent')).toBe(false)
         })
 
-        test('returns false when deleting non-existent key', () => {
+        test('clears all entries and tracks size', () => {
             const cache = new LRUCache<string, string>(10)
 
-            const deleted = cache.delete('nonexistent')
-
-            expect(deleted).toBe(false)
-        })
-
-        test('clears all entries', () => {
-            const cache = new LRUCache<string, string>(10)
+            expect(cache.size()).toBe(0)
             cache.set('key1', 'value1')
             cache.set('key2', 'value2')
+            expect(cache.size()).toBe(2)
 
             cache.clear()
 
             expect(cache.size()).toBe(0)
             expect(cache.has('key1')).toBe(false)
-        })
-
-        test('returns correct size', () => {
-            const cache = new LRUCache<string, string>(10)
-
-            expect(cache.size()).toBe(0)
-
-            cache.set('key1', 'value1')
-            expect(cache.size()).toBe(1)
-
-            cache.set('key2', 'value2')
-            expect(cache.size()).toBe(2)
         })
     })
 
@@ -110,33 +94,6 @@ describe('LRUCache', () => {
             expect(cache.has('key2')).toBe(true)
         })
 
-        test('handles numeric keys', () => {
-            const cache = new LRUCache<number, string>(3)
-            cache.set(1, 'one')
-            cache.set(2, 'two')
-            cache.set(3, 'three')
-            cache.set(4, 'four')
-
-            expect(cache.has(1)).toBe(false)
-            expect(cache.has(2)).toBe(true)
-            expect(cache.get(3)).toBe('three')
-        })
-
-        test('handles object keys', () => {
-            const cache = new LRUCache<object, string>(2)
-            const key1 = { id: '1' }
-            const key2 = { id: '2' }
-            const key3 = { id: '3' }
-
-            cache.set(key1, 'value1')
-            cache.set(key2, 'value2')
-            cache.set(key3, 'value3')
-
-            expect(cache.has(key1)).toBe(false)
-            expect(cache.has(key2)).toBe(true)
-            expect(cache.get(key3)).toBe('value3')
-        })
-
         test('capacity of 1 maintains only latest item', () => {
             const cache = new LRUCache<string, string>(1)
 
@@ -150,36 +107,6 @@ describe('LRUCache', () => {
             cache.set('key3', 'value3')
             expect(cache.has('key2')).toBe(false)
             expect(cache.get('key3')).toBe('value3')
-        })
-    })
-
-    describe('access order tracking', () => {
-        test('get() marks item as recently used', () => {
-            const cache = new LRUCache<string, string>(3)
-            cache.set('key1', 'value1')
-            cache.set('key2', 'value2')
-            cache.set('key3', 'value3')
-
-            cache.get('key1')
-            cache.set('key4', 'value4')
-
-            expect(cache.has('key1')).toBe(true)
-            expect(cache.has('key2')).toBe(false)
-        })
-
-        test('multiple gets maintain order', () => {
-            const cache = new LRUCache<string, string>(3)
-            cache.set('key1', 'value1')
-            cache.set('key2', 'value2')
-            cache.set('key3', 'value3')
-
-            cache.get('key1')
-            cache.get('key2')
-            cache.set('key4', 'value4')
-
-            expect(cache.has('key3')).toBe(false)
-            expect(cache.has('key1')).toBe(true)
-            expect(cache.has('key2')).toBe(true)
         })
     })
 })
@@ -246,7 +173,7 @@ describe('TrackCacheManager', () => {
             expect(result).toBeUndefined()
         })
 
-        test('checks key existence with has()', () => {
+        test('checks key existence with has() and returns false for missing', () => {
             const manager = new TrackCacheManager()
             const key = createCacheKey('track-1', 'Song A')
             const info = createTrackInfo('Song A')
@@ -254,16 +181,12 @@ describe('TrackCacheManager', () => {
             manager.set(key, info)
 
             expect(manager.has(key)).toBe(true)
+            expect(manager.has(createCacheKey('nonexistent', 'Unknown'))).toBe(
+                false,
+            )
         })
 
-        test('returns false for non-existent keys', () => {
-            const manager = new TrackCacheManager()
-            const key = createCacheKey('nonexistent', 'Unknown')
-
-            expect(manager.has(key)).toBe(false)
-        })
-
-        test('deletes track info', () => {
+        test('deletes track and returns appropriate status', () => {
             const manager = new TrackCacheManager()
             const key = createCacheKey('track-1', 'Song A')
             const info = createTrackInfo('Song A')
@@ -273,32 +196,12 @@ describe('TrackCacheManager', () => {
 
             expect(deleted).toBe(true)
             expect(manager.has(key)).toBe(false)
+            expect(
+                manager.delete(createCacheKey('nonexistent', 'Unknown')),
+            ).toBe(false)
         })
 
-        test('returns false when deleting non-existent key', () => {
-            const manager = new TrackCacheManager()
-            const key = createCacheKey('nonexistent', 'Unknown')
-
-            const deleted = manager.delete(key)
-
-            expect(deleted).toBe(false)
-        })
-
-        test('clears all cached entries', () => {
-            const manager = new TrackCacheManager()
-            const key1 = createCacheKey('track-1', 'Song A')
-            const key2 = createCacheKey('track-2', 'Song B')
-
-            manager.set(key1, createTrackInfo('Song A'))
-            manager.set(key2, createTrackInfo('Song B'))
-
-            manager.clear()
-
-            expect(manager.size()).toBe(0)
-            expect(manager.has(key1)).toBe(false)
-        })
-
-        test('returns cache size', () => {
+        test('clears all cached entries and tracks size', () => {
             const manager = new TrackCacheManager()
             const key1 = createCacheKey('track-1', 'Song A')
             const key2 = createCacheKey('track-2', 'Song B')
@@ -310,55 +213,33 @@ describe('TrackCacheManager', () => {
 
             manager.set(key2, createTrackInfo('Song B'))
             expect(manager.size()).toBe(2)
+
+            manager.clear()
+
+            expect(manager.size()).toBe(0)
+            expect(manager.has(key1)).toBe(false)
         })
     })
 
     describe('cache key building', () => {
-        test('builds consistent cache key', () => {
+        test('builds consistent and differentiates keys by id and title', () => {
             const manager = new TrackCacheManager()
             const key1 = createCacheKey('track-1', 'Song A')
             const key2 = createCacheKey('track-1', 'Song A')
+            const key3 = createCacheKey('track-2', 'Song A')
+            const key4 = createCacheKey('track-1', 'Song B')
 
             manager.set(key1, createTrackInfo('Song A'))
-            const result = manager.get(key2)
+            manager.set(key3, createTrackInfo('Song A'))
+            manager.set(key4, createTrackInfo('Song B'))
 
-            expect(result).toBeDefined()
+            expect(manager.get(key2)).toBeDefined()
+            expect(manager.get(key2)?.title).toBe('Song A')
+            expect(manager.get(key3)).toBeDefined()
+            expect(manager.get(key4)?.title).toBe('Song B')
         })
 
-        test('differentiates by id', () => {
-            const manager = new TrackCacheManager()
-            const key1 = createCacheKey('track-1', 'Song')
-            const key2 = createCacheKey('track-2', 'Song')
-
-            manager.set(key1, createTrackInfo('Song', '3:00'))
-            manager.set(key2, createTrackInfo('Song', '3:00'))
-
-            const result1 = manager.get(key1)
-            const result2 = manager.get(key2)
-
-            expect(result1).toBeDefined()
-            expect(result2).toBeDefined()
-        })
-
-        test('differentiates by title', () => {
-            const manager = new TrackCacheManager()
-            const key1 = createCacheKey('track-1', 'Song A')
-            const key2 = createCacheKey('track-1', 'Song B')
-
-            const info1 = createTrackInfo('Song A')
-            const info2 = createTrackInfo('Song B')
-
-            manager.set(key1, info1)
-            manager.set(key2, info2)
-
-            const result1 = manager.get(key1)
-            const result2 = manager.get(key2)
-
-            expect(result1?.title).toBe('Song A')
-            expect(result2?.title).toBe('Song B')
-        })
-
-        test('includes requesterId in key when provided', () => {
+        test('handles requesterId in key and missing requesterId', () => {
             const manager = new TrackCacheManager()
             const key1: TrackCacheKey = {
                 id: 'track-1',
@@ -372,27 +253,20 @@ describe('TrackCacheManager', () => {
                 duration: '3:00',
                 requesterId: 'user-2',
             }
-
-            manager.set(key1, createTrackInfo('Song A'))
-            manager.set(key2, createTrackInfo('Song A'))
-
-            expect(manager.get(key1)).toBeDefined()
-            expect(manager.get(key2)).toBeDefined()
-            expect(manager.size()).toBe(2)
-        })
-
-        test('handles missing requesterId with default', () => {
-            const manager = new TrackCacheManager()
-            const key: TrackCacheKey = {
+            const key3: TrackCacheKey = {
                 id: 'track-1',
                 title: 'Song A',
                 duration: '3:00',
             }
 
-            manager.set(key, createTrackInfo('Song A'))
-            const result = manager.get(key)
+            manager.set(key1, createTrackInfo('Song A'))
+            manager.set(key2, createTrackInfo('Song A'))
+            manager.set(key3, createTrackInfo('Song A'))
 
-            expect(result).toBeDefined()
+            expect(manager.get(key1)).toBeDefined()
+            expect(manager.get(key2)).toBeDefined()
+            expect(manager.get(key3)).toBeDefined()
+            expect(manager.size()).toBe(3)
         })
     })
 

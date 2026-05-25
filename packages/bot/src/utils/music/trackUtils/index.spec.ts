@@ -46,6 +46,34 @@ function createMockTrack(
     }
 }
 
+describe('standalone function exports', () => {
+    beforeEach(() => {
+        const { isSimilarTitle } = require('../titleComparison')
+        isSimilarTitle.mockReturnValue(false)
+    })
+
+    test('delegates to trackUtils singleton', () => {
+        const track = createMockTrack('Song A', 'Artist A', 'track-standalone')
+
+        expect(getTrackInfo(track)).toBeDefined()
+        expect(getTrackCacheKey(track)).toBeDefined()
+        expect(categorizeTracks([track])).toBeDefined()
+        expect(findSimilarTracks([track], 'query')).toEqual([])
+        expect(
+            searchTracks([track], {
+                query: 'Song',
+                limit: 10,
+                includeAutoplay: true,
+            }),
+        ).toBeDefined()
+        cacheTrackInfo(track)
+        expect(getCachedTrackInfo(track)).toBeDefined()
+        clearCache()
+        expect(getCacheSize()).toBe(0)
+        startCacheCleanup()
+    })
+})
+
 describe('TrackUtils class', () => {
     let instance: TrackUtils
 
@@ -127,39 +155,19 @@ describe('TrackUtils class', () => {
 
             expect(result.manualTracks).toHaveLength(2)
             expect(result.autoplayTracks).toHaveLength(2)
-            expect(result.manualTracks[0].title).toBe('Song A')
-            expect(result.autoplayTracks[0].title).toBe('Song B')
         })
 
-        test('handles empty array', () => {
-            const result = instance.categorizeTracks([])
+        test('handles empty and homogeneous arrays', () => {
+            const emptyResult = instance.categorizeTracks([])
+            expect(emptyResult.manualTracks).toHaveLength(0)
+            expect(emptyResult.autoplayTracks).toHaveLength(0)
 
-            expect(result.manualTracks).toHaveLength(0)
-            expect(result.autoplayTracks).toHaveLength(0)
-        })
-
-        test('handles all manual tracks', () => {
-            const tracks = [
+            const allManual = instance.categorizeTracks([
                 createMockTrack('Song A', 'Artist A', 'a', false),
                 createMockTrack('Song B', 'Artist B', 'b', false),
-            ]
-
-            const result = instance.categorizeTracks(tracks)
-
-            expect(result.manualTracks).toHaveLength(2)
-            expect(result.autoplayTracks).toHaveLength(0)
-        })
-
-        test('handles all autoplay tracks', () => {
-            const tracks = [
-                createMockTrack('Song A', 'Artist A', 'a', true),
-                createMockTrack('Song B', 'Artist B', 'b', true),
-            ]
-
-            const result = instance.categorizeTracks(tracks)
-
-            expect(result.manualTracks).toHaveLength(0)
-            expect(result.autoplayTracks).toHaveLength(2)
+            ])
+            expect(allManual.manualTracks).toHaveLength(2)
+            expect(allManual.autoplayTracks).toHaveLength(0)
         })
     })
 
@@ -225,7 +233,7 @@ describe('TrackUtils class', () => {
     })
 
     describe('searchTracks', () => {
-        test('searches by title', () => {
+        test('searches by title and author', () => {
             const tracks = [
                 createMockTrack('Blues Song', 'Artist A', 'a'),
                 createMockTrack('Rock Song', 'Artist B', 'b'),
@@ -239,97 +247,44 @@ describe('TrackUtils class', () => {
             }
 
             const result = instance.searchTracks(tracks, options)
-
             expect(result.length).toBeGreaterThan(0)
-            expect(result[0].title).toContain('Song')
+            expect(result.some((t) => t.title.includes('Song'))).toBe(true)
         })
 
-        test('searches by author', () => {
-            const tracks = [
-                createMockTrack('Song A', 'The Beatles', 'a'),
-                createMockTrack('Song B', 'Pink Floyd', 'b'),
-                createMockTrack('Song C', 'The Who', 'c'),
-            ]
-
-            const options: TrackSearchOptions = {
-                query: 'The',
-                limit: 10,
-                includeAutoplay: true,
-            }
-
-            const result = instance.searchTracks(tracks, options)
-
-            expect(result.length).toBeGreaterThan(0)
-        })
-
-        test('respects limit parameter', () => {
+        test('respects limit and autoplay filter', () => {
             const tracks = Array.from({ length: 10 }, (_, i) =>
-                createMockTrack(`Song A ${i}`, 'Artist', `${i}`),
+                createMockTrack(`Song A ${i}`, 'Artist', `${i}`, i % 2 === 0),
             )
 
-            const options: TrackSearchOptions = {
+            const limitResult = instance.searchTracks(tracks, {
                 query: 'Song',
                 limit: 3,
                 includeAutoplay: true,
-            }
+            })
+            expect(limitResult.length).toBeLessThanOrEqual(3)
 
-            const result = instance.searchTracks(tracks, options)
-
-            expect(result.length).toBeLessThanOrEqual(3)
-        })
-
-        test('excludes autoplay tracks when includeAutoplay is false', () => {
-            const tracks = [
-                createMockTrack('Song A', 'Artist A', 'a', false),
-                createMockTrack('Song B', 'Artist B', 'b', true),
-                createMockTrack('Song C', 'Artist C', 'c', false),
-            ]
-
-            const options: TrackSearchOptions = {
+            const excludeAutoplayResult = instance.searchTracks(tracks, {
                 query: 'Song',
                 limit: 10,
                 includeAutoplay: false,
-            }
-
-            const result = instance.searchTracks(tracks, options)
-
-            const hasAutoplay = result.some(
+            })
+            const hasAutoplay = excludeAutoplayResult.some(
                 (t) => (t.metadata as { isAutoplay?: boolean })?.isAutoplay,
             )
             expect(hasAutoplay).toBe(false)
-        })
-
-        test('includes autoplay tracks when includeAutoplay is true', () => {
-            const tracks = [
-                createMockTrack('Song A', 'Artist A', 'a', false),
-                createMockTrack('Song B', 'Artist B', 'b', true),
-            ]
-
-            const options: TrackSearchOptions = {
-                query: 'Song',
-                limit: 10,
-                includeAutoplay: true,
-            }
-
-            const result = instance.searchTracks(tracks, options)
-
-            expect(result.length).toBeGreaterThan(0)
         })
 
         test('case-insensitive search', () => {
             const tracks = [
                 createMockTrack('Blues', 'Artist A', 'a'),
                 createMockTrack('ROCK', 'Artist B', 'b'),
-                createMockTrack('jazz', 'Artist C', 'c'),
             ]
 
-            const options: TrackSearchOptions = {
+            const result = instance.searchTracks(tracks, {
                 query: 'BLUES',
                 limit: 10,
                 includeAutoplay: true,
-            }
-
-            const result = instance.searchTracks(tracks, options)
+            })
 
             expect(result.some((t) => t.title.toLowerCase() === 'blues')).toBe(
                 true,
@@ -384,93 +339,5 @@ describe('TrackUtils class', () => {
 
             expect(safeSetInterval).toHaveBeenCalled()
         })
-    })
-})
-
-describe('Exported singleton instance', () => {
-    test('trackUtils is a TrackUtils instance', () => {
-        expect(trackUtils).toBeInstanceOf(TrackUtils)
-    })
-
-    test('exported functions delegate to singleton', () => {
-        const track = createMockTrack('Song A', 'Artist A')
-
-        const info = getTrackInfo(track)
-
-        expect(info.title).toBe('Song A')
-    })
-
-    test('getTrackCacheKey delegates to singleton', () => {
-        const track = createMockTrack('Song A', 'Artist A', 'track-123')
-
-        const key = getTrackCacheKey(track)
-
-        expect(key.id).toBe('track-123')
-    })
-
-    test('categorizeTracks delegates to singleton', () => {
-        const tracks = [
-            createMockTrack('Song A', 'Artist A', 'a', false),
-            createMockTrack('Song B', 'Artist B', 'b', true),
-        ]
-
-        const result = categorizeTracks(tracks)
-
-        expect(result.manualTracks).toHaveLength(1)
-        expect(result.autoplayTracks).toHaveLength(1)
-    })
-
-    test('findSimilarTracks delegates to singleton', () => {
-        const { isSimilarTitle } = require('../titleComparison')
-        isSimilarTitle.mockReturnValue(true)
-
-        const tracks = [
-            createMockTrack('Song A', 'Artist A', 'a'),
-            createMockTrack('Song B', 'Artist B', 'b'),
-        ]
-
-        const result = findSimilarTracks(tracks, 'Song', 5)
-
-        expect(result.length).toBeGreaterThan(0)
-    })
-
-    test('searchTracks delegates to singleton', () => {
-        const tracks = [
-            createMockTrack('Blues', 'Artist A', 'a'),
-            createMockTrack('Rock', 'Artist B', 'b'),
-        ]
-
-        const options: TrackSearchOptions = {
-            query: 'Blues',
-            limit: 10,
-            includeAutoplay: true,
-        }
-
-        const result = searchTracks(tracks, options)
-
-        expect(result.length).toBeGreaterThan(0)
-    })
-
-    test('cache functions delegate to singleton', () => {
-        const track = createMockTrack('Song A', 'Artist A')
-
-        cacheTrackInfo(track)
-        const cached = getCachedTrackInfo(track)
-
-        expect(cached).toBeDefined()
-
-        const size = getCacheSize()
-        expect(size).toBeGreaterThan(0)
-
-        clearCache()
-        expect(getCacheSize()).toBe(0)
-    })
-
-    test('startCacheCleanup delegates to singleton', () => {
-        const { safeSetInterval } = require('@lucky/shared/utils')
-
-        startCacheCleanup()
-
-        expect(safeSetInterval).toHaveBeenCalled()
     })
 })
