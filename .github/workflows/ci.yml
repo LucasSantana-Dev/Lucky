@@ -106,7 +106,7 @@ jobs:
             - run: npx prisma generate && npm run build:shared
             - name: Run YouTube smoke test
               run: YOUTUBE_SMOKE_TEST=true npm run test --workspace=packages/bot -- --testPathPatterns="youtube.smoke" --ci --coverage
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               if: always()
               with:
                   name: coverage-bot-youtube-smoke
