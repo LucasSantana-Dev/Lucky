@@ -86,9 +86,14 @@ function LogEntry({ log, index }: { log: ServerLog; index: number }) {
             initial={{ opacity: 0, x: -4 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.15, delay: index * 0.015 }}
-            className='flex items-start gap-3 px-4 py-3 hover:bg-lucky-bg-tertiary/30 transition-colors group'
+            className='flex items-start gap-3 px-4 py-3.5 hover:bg-lucky-bg-tertiary/40 transition-colors group border-b border-lucky-border/20 last:border-b-0'
         >
-            <div className={cn('p-1.5 rounded-md mt-0.5 shrink-0', config.bg)}>
+            <div
+                className={cn(
+                    'p-2 rounded-md mt-0.5 shrink-0 flex-center',
+                    config.bg,
+                )}
+            >
                 <Icon className={cn('w-3.5 h-3.5', config.color)} />
             </div>
             <div className='flex-1 min-w-0'>
@@ -96,7 +101,7 @@ function LogEntry({ log, index }: { log: ServerLog; index: number }) {
                     <Badge
                         variant='outline'
                         className={cn(
-                            'text-[9px] uppercase font-bold border-0 px-1.5 py-0',
+                            'text-[8px] uppercase font-bold border-0 px-1.5 py-0.5',
                             config.bg,
                             config.color,
                         )}
@@ -104,28 +109,32 @@ function LogEntry({ log, index }: { log: ServerLog; index: number }) {
                         {log.level}
                     </Badge>
                     {log.type && (
-                        <span className='text-[10px] text-lucky-text-tertiary font-mono'>
+                        <code className='text-[9px] text-lucky-text-tertiary font-mono bg-lucky-bg-tertiary/50 px-1.5 py-0.5 rounded'>
                             {log.type}
-                        </span>
+                        </code>
                     )}
                 </div>
-                <p className='text-sm text-lucky-text-secondary mt-1 wrap-break-word'>
+                <p className='text-sm text-lucky-text-secondary mt-1.5 break-words'>
                     {log.message}
                 </p>
                 {(log.userName || log.channelName) && (
-                    <div className='flex items-center gap-3 mt-1.5 text-[11px] text-lucky-text-tertiary'>
+                    <div className='flex items-center gap-3 mt-2 text-[10px] text-lucky-text-tertiary'>
                         {log.userName && (
                             <span>
-                                User:{' '}
-                                <span className='text-lucky-text-secondary'>
+                                <span className='text-lucky-text-tertiary'>
+                                    User:
+                                </span>{' '}
+                                <span className='text-lucky-text-secondary font-medium'>
                                     {log.userName}
                                 </span>
                             </span>
                         )}
                         {log.channelName && (
                             <span>
-                                Channel:{' '}
-                                <span className='text-lucky-text-secondary'>
+                                <span className='text-lucky-text-tertiary'>
+                                    Channel:
+                                </span>{' '}
+                                <span className='text-lucky-text-secondary font-medium'>
                                     #{log.channelName}
                                 </span>
                             </span>
@@ -133,8 +142,8 @@ function LogEntry({ log, index }: { log: ServerLog; index: number }) {
                     </div>
                 )}
             </div>
-            <div className='flex items-center gap-1.5 shrink-0 text-[11px] text-lucky-text-tertiary'>
-                <Clock className='w-3 h-3' />
+            <div className='flex items-center gap-1.5 shrink-0 text-[10px] text-lucky-text-tertiary whitespace-nowrap'>
+                <Clock className='w-3 h-3 opacity-70' />
                 {formatTimestamp(log.createdAt)}
             </div>
         </motion.div>
@@ -161,9 +170,6 @@ export default function ServerLogsPage() {
         if (!selectedGuild?.id) return
         setLoading(true)
         try {
-            const filters: Record<string, string | number | undefined> = {}
-            if (levelFilter !== 'all') filters.level = levelFilter
-            if (debouncedSearch) filters.search = debouncedSearch
             const pageLimit = limit * page
             const res =
                 levelFilter !== 'all'
@@ -179,7 +185,9 @@ export default function ServerLogsPage() {
             const allLogs = res.data.logs
             setLogs(allLogs.slice((page - 1) * limit, page * limit))
             setTotal(res.data.total)
-        } catch {
+        } catch (error) {
+            console.error('Failed to load logs:', error)
+            toast.error('Failed to load logs. Please try again.')
             setLogs([])
             setTotal(0)
         } finally {
@@ -247,8 +255,12 @@ export default function ServerLogsPage() {
                 </div>
             </div>
 
-            {/* Filters */}
-            <Card className='p-4'>
+            {/* Filters: Linear-density layout */}
+            <Card className='p-4 space-y-3'>
+                <div className='flex items-center gap-2 text-xs font-semibold text-lucky-text-tertiary uppercase tracking-wider'>
+                    <Filter className='w-4 h-4' />
+                    Search & Filter
+                </div>
                 <div className='flex flex-col sm:flex-row gap-3'>
                     <div className='relative flex-1'>
                         <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lucky-text-tertiary' />
@@ -256,54 +268,47 @@ export default function ServerLogsPage() {
                             placeholder='Search logs...'
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className='pl-9 bg-lucky-bg-tertiary border-lucky-border text-white placeholder:text-lucky-text-tertiary'
+                            className='pl-9 bg-lucky-bg-tertiary border-lucky-border text-lucky-text-primary placeholder:text-lucky-text-tertiary'
                         />
                         {searchQuery && (
                             <button
                                 onClick={() => setSearchQuery('')}
-                                className='absolute right-3 top-1/2 -translate-y-1/2 text-lucky-text-tertiary hover:text-white'
+                                className='absolute right-3 top-1/2 -translate-y-1/2 text-lucky-text-tertiary hover:text-white transition-colors'
                             >
                                 <X className='w-4 h-4' />
                             </button>
                         )}
                     </div>
-                    <div className='flex items-center gap-2'>
-                        <Filter className='w-4 h-4 text-lucky-text-tertiary shrink-0' />
-                        <Select
-                            value={levelFilter}
-                            onValueChange={setLevelFilter}
-                        >
-                            <SelectTrigger className='w-[150px] bg-lucky-bg-tertiary border-lucky-border text-white'>
-                                <SelectValue placeholder='All levels' />
-                            </SelectTrigger>
-                            <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
-                                <SelectItem value='all'>All levels</SelectItem>
-                                <SelectItem value='info'>Info</SelectItem>
-                                <SelectItem value='warn'>Warnings</SelectItem>
-                                <SelectItem value='error'>Errors</SelectItem>
-                                <SelectItem value='moderation'>
-                                    Moderation
-                                </SelectItem>
-                                <SelectItem value='automod'>
-                                    Auto-Mod
-                                </SelectItem>
-                                <SelectItem value='system'>System</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    <Select value={levelFilter} onValueChange={setLevelFilter}>
+                        <SelectTrigger className='sm:w-[140px] bg-lucky-bg-tertiary border-lucky-border text-lucky-text-primary'>
+                            <SelectValue placeholder='All levels' />
+                        </SelectTrigger>
+                        <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
+                            <SelectItem value='all'>All levels</SelectItem>
+                            <SelectItem value='info'>Info</SelectItem>
+                            <SelectItem value='warn'>Warnings</SelectItem>
+                            <SelectItem value='error'>Errors</SelectItem>
+                            <SelectItem value='moderation'>
+                                Moderation
+                            </SelectItem>
+                            <SelectItem value='automod'>Auto-Mod</SelectItem>
+                            <SelectItem value='system'>System</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </Card>
 
-            {/* Log Level Summary */}
-            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2'>
+            {/* Log Level Summary: Asymmetric Linear-style KPI grid */}
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3'>
                 {(
                     Object.entries(LEVEL_CONFIG) as [
                         LogLevel,
                         (typeof LEVEL_CONFIG)[LogLevel],
                     ][]
-                ).map(([level, config]) => {
+                ).map(([level, config], idx) => {
                     const Icon = config.icon
                     const count = logs.filter((l) => l.level === level).length
+                    const isLead = idx < 3
                     return (
                         <button
                             key={level}
@@ -313,23 +318,32 @@ export default function ServerLogsPage() {
                                 )
                             }
                             className={cn(
-                                'flex items-center gap-2 p-2.5 rounded-lg border transition-all text-left',
+                                'flex flex-col items-start p-3.5 rounded-lg border transition-all text-left',
+                                isLead && 'lg:col-span-2',
                                 levelFilter === level
                                     ? 'border-lucky-border/80 bg-lucky-bg-active'
-                                    : 'border-lucky-border/40 bg-lucky-bg-secondary/50 hover:bg-lucky-bg-tertiary',
+                                    : 'border-lucky-border/40 bg-lucky-bg-secondary/50 hover:border-lucky-border/60 hover:bg-lucky-bg-tertiary/50',
                             )}
                         >
-                            <Icon
-                                className={cn('w-4 h-4 shrink-0', config.color)}
-                            />
-                            <div className='min-w-0'>
-                                <p className='text-[10px] uppercase font-semibold text-lucky-text-tertiary tracking-wider'>
+                            <div className='flex items-center gap-2 mb-2 w-full'>
+                                <Icon
+                                    className={cn(
+                                        'w-4 h-4 shrink-0',
+                                        config.color,
+                                    )}
+                                />
+                                <p className='text-[9px] uppercase font-semibold text-lucky-text-tertiary tracking-wider'>
                                     {level}
                                 </p>
-                                <p className='text-sm font-bold text-white'>
-                                    {count}
-                                </p>
                             </div>
+                            <p
+                                className={cn(
+                                    'font-semibold text-lucky-text-primary',
+                                    isLead ? 'text-2xl' : 'text-lg',
+                                )}
+                            >
+                                {count}
+                            </p>
                         </button>
                     )
                 })}
