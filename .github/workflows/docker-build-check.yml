@@ -1,0 +1,70 @@
+name: Build — Docker images
+
+on:
+    pull_request:
+        branches: [main]
+        paths:
+            - 'packages/**'
+            - 'prisma/**'
+            - 'Dockerfile'
+            - 'Dockerfile.*'
+            - 'nginx/**'
+            - 'package*.json'
+            - '.github/workflows/docker-build-check.yml'
+            - '.github/workflows/docker-publish.yml'
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - service: bot
+                      dockerfile: Dockerfile
+                      target: production-bot
+                    - service: backend
+                      dockerfile: Dockerfile
+                      target: production-backend
+                    - service: frontend
+                      dockerfile: Dockerfile
+                      target: production-frontend
+                    - service: nginx
+                      dockerfile: Dockerfile.nginx
+                      target: ''
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v4
+
+            - name: Build ${{ matrix.service }}
+              uses: docker/build-push-action@v7
+              with:
+                  context: .
+                  file: ${{ matrix.dockerfile }}
+                  target: ${{ matrix.target || '' }}
+                  push: false
+                  build-args: |
+                      COMMIT_SHA=${{ github.sha }}
+                      NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+
+    check:
+        name: Build — Docker images
+        needs: build
+        runs-on: ubuntu-latest
+        if: always()
+        steps:
+            - name: Assert all builds passed
+              run: |
+                  if [[ "${{ needs.build.result }}" != "success" ]]; then
+                    echo "One or more Docker image builds failed or were cancelled."
+                    exit 1
+                  fi
