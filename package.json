@@ -7,7 +7,7 @@
         "packages/*"
     ],
     "scripts": {
-        "prepare": "husky",
+        "prepare": "husky || true",
         "build": "npm run db:generate && npm run build --workspace=packages/shared && npm run build --workspace=packages/bot && npm run build --workspace=packages/backend && npm run build --workspace=packages/frontend",
         "build:shared": "npm run build --workspace=packages/shared",
         "build:bot": "npm run build --workspace=packages/bot",
