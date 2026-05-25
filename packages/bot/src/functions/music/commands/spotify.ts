@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import { SlashCommandBuilder } from '@discordjs/builders'
+import { ChatInputCommandInteraction } from 'discord.js'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { createErrorEmbed } from '../../../utils/general/embeds'
@@ -21,9 +22,11 @@ function getAbsoluteOrigin(rawUrl?: string): string | null {
     if (!value) return null
     try {
         const parsed = new URL(value)
-        const isHttp = parsed.protocol === 'http:' || parsed.protocol === 'https:'
+        const isHttp =
+            parsed.protocol === 'http:' || parsed.protocol === 'https:'
         if (!isHttp) return null
-        if (parsed.hostname.toLowerCase() === 'nexus.lucassantana.tech') return null
+        if (parsed.hostname.toLowerCase() === 'nexus.lucassantana.tech')
+            return null
         return parsed.origin
     } catch {
         return null
@@ -43,7 +46,7 @@ function getConnectUrl(discordId: string): string | null {
 }
 
 async function handleSpotifyLink(
-    interaction: any,
+    interaction: ChatInputCommandInteraction,
     discordId: string,
 ): Promise<void> {
     const url = getConnectUrl(discordId)
@@ -76,7 +79,7 @@ async function handleSpotifyLink(
 }
 
 async function handleSpotifyUnlink(
-    interaction: any,
+    interaction: ChatInputCommandInteraction,
     discordId: string,
 ): Promise<void> {
     const link = await spotifyLinkService.getByDiscordId(discordId)
@@ -127,7 +130,7 @@ async function handleSpotifyUnlink(
 }
 
 async function handleSpotifyStatus(
-    interaction: any,
+    interaction: ChatInputCommandInteraction,
     discordId: string,
 ): Promise<void> {
     const link = await spotifyLinkService.getByDiscordId(discordId)
