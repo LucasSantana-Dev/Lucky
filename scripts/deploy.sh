@@ -330,8 +330,22 @@ if [[ "$RECEIVED_SECRET" != "$EXPECTED_SECRET" ]]; then
     exit 1
 fi
 
+incoming_sha=""
+if git -C "$DEPLOY_DIR" fetch origin main 2>/dev/null; then
+    incoming_sha=$(git -C "$DEPLOY_DIR" rev-parse FETCH_HEAD 2>/dev/null || true)
+fi
+
 if ! acquire_lock; then
     log "ERROR: LOCK_CONTENTION (another deploy is already running)"
+    if [[ -n "$GITHUB_DEPLOY_STATUS_TOKEN" && -n "$incoming_sha" ]]; then
+        curl -s -o /dev/null \
+            -X POST \
+            -H "Authorization: token $GITHUB_DEPLOY_STATUS_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${GITHUB_REPO}/statuses/${incoming_sha}" \
+            -d '{"state":"error","description":"Deploy skipped — another deploy in progress","context":"homelab-deploy"}' || true
+        log "INFO: posted error status for ${incoming_sha}"
+    fi
     notify 16711680 "Deploy Skipped" "Another deploy is already in progress"
     exit 1
 fi
