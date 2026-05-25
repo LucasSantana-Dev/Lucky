@@ -1,6 +1,6 @@
 import type { Client } from 'discord.js'
 import { EmbedBuilder } from 'discord.js'
-import { errorLog, debugLog } from '@lucky/shared/utils'
+import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { twitchNotificationService } from '@lucky/shared/services'
 import { getTwitchUserAccessToken } from './token'
 
@@ -118,9 +118,39 @@ export async function handleStreamOnline(
     for (const notif of notifications) {
         try {
             const channel = await client.channels.fetch(notif.discordChannelId)
-            if (channel?.isTextBased() && !channel.isDMBased()) {
-                await channel.send({ embeds: [embed] })
+            if (!channel) {
+                warnLog({
+                    message:
+                        'Twitch EventSub: channel not found (may be deleted or inaccessible)',
+                    data: {
+                        discordChannelId: notif.discordChannelId,
+                        twitchLogin: notif.twitchLogin,
+                    },
+                })
+                continue
             }
+            if (!channel.isTextBased()) {
+                warnLog({
+                    message: 'Twitch EventSub: channel is not a text channel',
+                    data: {
+                        discordChannelId: notif.discordChannelId,
+                        twitchLogin: notif.twitchLogin,
+                    },
+                })
+                continue
+            }
+            if (channel.isDMBased()) {
+                warnLog({
+                    message:
+                        'Twitch EventSub: channel is a DM channel, skipping',
+                    data: {
+                        discordChannelId: notif.discordChannelId,
+                        twitchLogin: notif.twitchLogin,
+                    },
+                })
+                continue
+            }
+            await channel.send({ embeds: [embed] })
         } catch (err) {
             errorLog({
                 message: `Twitch EventSub: failed to send notification to channel ${notif.discordChannelId}`,
