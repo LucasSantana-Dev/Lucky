@@ -14,12 +14,9 @@ packages/*/pnpm-lock.yaml
 
 # AI / IDE tooling (local-only)
 .claude/
-# Repo-level Claude workflow configs ARE committed (single-source-of-truth for
-# /dep-sweep, /branch-hygiene, release-cadence). Per-developer state stays local.
+# dep-sweep policy (sensitive/always_hold lists) is repo-level config — committed.
+# release cadence docs live in docs/RELEASE_CADENCE.md. All other .claude/ state is local.
 !.claude/dep-sweep-config.json
-!.claude/branch-hygiene-config.json
-!.claude/standards/
-!.claude/standards/**
 .serena/
 .windsurf/
 .data/
@@ -110,6 +107,7 @@ worktrees/
 # AI-generated docs / generator outputs — see
 # docs/decisions/2026-05-15-no-ai-generated-docs-in-tracked-state.md.
 # Exact filenames only (no broad wildcards that would catch human-authored guides).
+.github/copilot-instructions.md
 .context/
 packages/bot/TEST_MAP.md
 docs/IMPLEMENTATION_STATUS.md

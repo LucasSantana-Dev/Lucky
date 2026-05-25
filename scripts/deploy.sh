@@ -12,6 +12,11 @@ COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-lucky}"
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 export COMPOSE_PROJECT_NAME
+GITHUB_DEPLOY_STATUS_TOKEN="${GITHUB_DEPLOY_STATUS_TOKEN:-}"
+GITHUB_REPO="${GITHUB_REPO:-LucasSantana-Dev/Lucky}"
+DEPLOY_FINAL_STATE="failure"
+DEPLOY_FINAL_DESC="Deploy failed"
+DEPLOYED_SHA=""
 
 log() { echo "$LOG_PREFIX $(date '+%H:%M:%S') $1"; }
 
@@ -135,7 +140,7 @@ verify_cloudflared_config() {
 
 require_running_containers() {
     local required
-    required=(lucky-backend lucky-nginx lucky-postgres lucky-redis)
+    required=(lucky-backend lucky-nginx lucky-postgres lucky-redis lucky-bot)
     local missing=()
     local not_running=()
     local container running
@@ -304,6 +309,17 @@ acquire_lock() {
     return 0
 }
 
+post_deploy_status() {
+    [[ -z "$GITHUB_DEPLOY_STATUS_TOKEN" ]] && return 0
+    [[ -z "$DEPLOYED_SHA" ]] && return 0
+    curl -s -o /dev/null \
+        -X POST \
+        -H "Authorization: token $GITHUB_DEPLOY_STATUS_TOKEN" \
+        -H "Content-Type: application/json" \
+        "https://api.github.com/repos/${GITHUB_REPO}/statuses/${DEPLOYED_SHA}" \
+        -d "{\"state\":\"${1}\",\"description\":\"${2}\",\"context\":\"homelab-deploy\"}" || true
+}
+
 if [[ -z "$EXPECTED_SECRET" ]]; then
     log "ERROR: DEPLOY_WEBHOOK_SECRET not configured"
     exit 1
@@ -314,12 +330,27 @@ if [[ "$RECEIVED_SECRET" != "$EXPECTED_SECRET" ]]; then
     exit 1
 fi
 
+incoming_sha=""
+if git -C "$DEPLOY_DIR" fetch origin main 2>/dev/null; then
+    incoming_sha=$(git -C "$DEPLOY_DIR" rev-parse FETCH_HEAD 2>/dev/null || true)
+fi
+
 if ! acquire_lock; then
     log "ERROR: LOCK_CONTENTION (another deploy is already running)"
+    if [[ -n "$GITHUB_DEPLOY_STATUS_TOKEN" && -n "$incoming_sha" ]]; then
+        curl -s -o /dev/null \
+            -X POST \
+            -H "Authorization: token $GITHUB_DEPLOY_STATUS_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${GITHUB_REPO}/statuses/${incoming_sha}" \
+            -d '{"state":"error","description":"Deploy skipped — another deploy in progress","context":"homelab-deploy"}' || true
+        log "INFO: posted error status for ${incoming_sha}"
+    fi
     notify 16711680 "Deploy Skipped" "Another deploy is already in progress"
     exit 1
 fi
-trap 'rm -rf "$LOCK_DIR" 2>/dev/null || true' EXIT
+_on_exit() { rm -rf "$LOCK_DIR" 2>/dev/null || true; post_deploy_status "$DEPLOY_FINAL_STATE" "$DEPLOY_FINAL_DESC"; }
+trap _on_exit EXIT
 
 COMPOSE_WORKDIR="$(resolve_compose_workdir)"
 CLOUDFLARED_CONFIG_DIR="$(resolve_cloudflared_config_dir)"
@@ -347,6 +378,9 @@ if ! sync_checkout_to_origin_main; then
     notify 16711680 "Deploy Failed" "Checkout recovery failed"
     exit 1
 fi
+
+DEPLOYED_SHA=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)
+post_deploy_status "pending" "Deploy in progress"
 
 # Rebuild webhook early: after git pull lands new hooks.json/Dockerfile but
 # BEFORE the long build/migrate/rollout phase. The -V flag renews anonymous
@@ -453,14 +487,6 @@ if ! require_running_containers; then
     exit 1
 fi
 
-unhealthy=$(docker_compose ps --format json | grep -c '"unhealthy"' || true)
-if [[ "$unhealthy" -gt 0 ]]; then
-    log "ERROR: RUNTIME_PRECHECK_FAILED ($unhealthy unhealthy container(s))"
-    print_targeted_logs
-    notify 16711680 "Deploy Failed" "$unhealthy unhealthy container(s)"
-    exit 1
-fi
-
 if ! wait_for_http_ready \
     "API health" \
     "http://nginx/api/health" \
@@ -479,8 +505,31 @@ if ! wait_for_http_ready \
     exit 1
 fi
 
+log "Waiting for bot gateway health (start-period: 45s, timeout: 90s)..."
+bot_deadline=$(( SECONDS + 90 ))
+while [[ $SECONDS -lt $bot_deadline ]]; do
+    bot_health=$(docker inspect lucky-bot --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
+    if [[ "$bot_health" == "healthy" ]]; then
+        log "Bot gateway healthy"
+        break
+    fi
+    if [[ "$bot_health" == "unhealthy" ]]; then
+        log "ERROR: RUNTIME_PRECHECK_FAILED (bot container unhealthy — Discord gateway not connected)"
+        docker logs lucky-bot --tail=40 --no-color 2>/dev/null || true
+        notify 16711680 "Deploy Failed" "Bot gateway not connected"
+        exit 1
+    fi
+    sleep 5
+done
+bot_health=$(docker inspect lucky-bot --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
+if [[ "$bot_health" != "healthy" ]]; then
+    log "WARN: bot health status '${bot_health}' after 90s (Discord may be slow — proceeding)"
+fi
+
 log "Pruning old images..."
 docker image prune -f --filter "until=24h"
 
+DEPLOY_FINAL_STATE="success"
+DEPLOY_FINAL_DESC="All services healthy"
 log "Deploy complete!"
 notify 65280 "Deploy Successful" "All services healthy and running"

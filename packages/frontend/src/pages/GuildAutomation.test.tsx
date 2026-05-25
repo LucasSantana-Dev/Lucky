@@ -135,7 +135,7 @@ describe('GuildAutomation', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Guild Automation')).toBeInTheDocument()
-            expect(screen.getByText('Automation Status')).toBeInTheDocument()
+            expect(screen.getByText(/Automation Status/)).toBeInTheDocument()
         })
     })
 
@@ -362,7 +362,7 @@ describe('GuildAutomation', () => {
 
         await waitFor(() => screen.getByText('Manifest'))
 
-        const expandButton = screen.getByText('Expand')
+        const expandButton = screen.getByRole('button', { name: /Expand/i })
         await user.click(expandButton)
 
         await waitFor(() => {
@@ -392,7 +392,7 @@ describe('GuildAutomation', () => {
 
         await waitFor(() => screen.getByText('Manifest'))
 
-        const expandButton = screen.getByText('Expand')
+        const expandButton = screen.getByRole('button', { name: /Expand/i })
         await user.click(expandButton)
 
         await waitFor(() => screen.getByText('Save Manifest'))
@@ -425,7 +425,7 @@ describe('GuildAutomation', () => {
 
         await waitFor(() => screen.getByText('Manifest'))
 
-        const expandButton = screen.getByText('Expand')
+        const expandButton = screen.getByRole('button', { name: /Expand/i })
         await user.click(expandButton)
 
         await waitFor(() => screen.getByText('Save Manifest'))
@@ -515,6 +515,7 @@ describe('GuildAutomation', () => {
     })
 
     test('displays error message in run card when error exists', async () => {
+        const user = userEvent.setup()
         const runWithError: AutomationRun = {
             ...mockRun,
             status: 'failed',
@@ -533,6 +534,15 @@ describe('GuildAutomation', () => {
                 <GuildAutomation />
             </MemoryRouter>,
         )
+
+        // Wait for the run card to render
+        await waitFor(() => {
+            expect(screen.getByText('plan')).toBeInTheDocument()
+        })
+
+        // Expand the run card to show the error message
+        const runCard = screen.getByText('plan').closest('button')
+        await user.click(runCard!)
 
         await waitFor(() => {
             expect(
@@ -556,7 +566,7 @@ describe('GuildAutomation', () => {
             </MemoryRouter>,
         )
 
-        await waitFor(() => screen.getByText('Automation Status'))
+        await waitFor(() => screen.getByText(/Automation Status/))
 
         vi.clearAllMocks()
 
@@ -612,7 +622,7 @@ describe('GuildAutomation', () => {
 
         await waitFor(() => screen.getByText('Manifest'))
 
-        const expandButton = screen.getByText('Expand')
+        const expandButton = screen.getByRole('button', { name: /Expand/i })
         await user.click(expandButton)
 
         await waitFor(() => {

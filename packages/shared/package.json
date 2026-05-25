@@ -1,6 +1,6 @@
 {
     "name": "@lucky/shared",
-    "version": "2.14.1",
+    "version": "2.15.0",
     "description": "Shared code for Lucky modular monolith",
     "type": "module",
     "main": "./dist/index.js",
@@ -17,6 +17,10 @@
         "./services": {
             "types": "./dist/services/index.d.ts",
             "default": "./dist/services/index.js"
+        },
+        "./services/guildAutomation": {
+            "types": "./dist/services/guildAutomation/index.d.ts",
+            "default": "./dist/services/guildAutomation/index.js"
         },
         "./services/*": {
             "types": "./dist/services/*.d.ts",
@@ -75,8 +79,8 @@
     },
     "devDependencies": {
         "@swc/cli": "^0.8.1",
-        "@swc/core": "^1.15.33",
-        "@types/node": "^25.8.0",
+        "@swc/core": "^1.15.40",
+        "@types/node": "^25.9.1",
         "glob": "^13.0.6",
         "typescript": "^6.0.3"
     }

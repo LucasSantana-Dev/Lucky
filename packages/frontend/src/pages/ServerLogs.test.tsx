@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import ServerLogsPage from './ServerLogs'
 import { api } from '@/services/api'
@@ -202,5 +203,148 @@ describe('ServerLogsPage', () => {
 
         expect(screen.getAllByText('warn').length).toBeGreaterThanOrEqual(1)
         expect(screen.getAllByText('error').length).toBeGreaterThanOrEqual(1)
+    })
+
+    test('updates search query when typing', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+            data: { logs: mockLogs, total: 3 },
+        } as any)
+
+        renderPage()
+        await waitFor(() =>
+            expect(
+                screen.getByText('User joined the server'),
+            ).toBeInTheDocument(),
+        )
+
+        const searchInput = screen.getByPlaceholderText('Search logs...')
+        await user.type(searchInput, 'hello')
+
+        expect(searchInput).toHaveValue('hello')
+    })
+
+    test('clears search when X button is clicked', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+            data: { logs: mockLogs, total: 3 },
+        } as any)
+
+        renderPage()
+        await waitFor(() =>
+            expect(
+                screen.getByText('User joined the server'),
+            ).toBeInTheDocument(),
+        )
+
+        const searchInput = screen.getByPlaceholderText('Search logs...')
+        await user.type(searchInput, 'test')
+        expect(searchInput).toHaveValue('test')
+
+        const clearBtn = within(searchInput.parentElement!).getByRole('button')
+        await user.click(clearBtn)
+
+        expect(searchInput).toHaveValue('')
+    })
+
+    test('clicking level chip filters by that level', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+            data: { logs: mockLogs, total: 3 },
+        } as any)
+        vi.mocked(api.serverLogs.getByType).mockResolvedValue({
+            data: { logs: [mockLogs[0]], total: 1 },
+        } as any)
+
+        renderPage()
+        await waitFor(() =>
+            expect(
+                screen.getByText('User joined the server'),
+            ).toBeInTheDocument(),
+        )
+
+        const infoChip = screen
+            .getAllByRole('button')
+            .find((btn) => btn.querySelector('p')?.textContent === 'info')
+        expect(infoChip).toBeDefined()
+        await user.click(infoChip!)
+
+        await waitFor(() => {
+            expect(api.serverLogs.getByType).toHaveBeenCalledWith(
+                mockGuild.id,
+                'info',
+                expect.any(Number),
+            )
+        })
+    })
+
+    test('exports logs as JSON when export button clicked', async () => {
+        const user = userEvent.setup()
+        const { toast } = await import('sonner')
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+            data: { logs: mockLogs, total: 3 },
+        } as any)
+
+        const createObjectURL = vi
+            .spyOn(URL, 'createObjectURL')
+            .mockReturnValue('blob:test')
+        const revokeObjectURL = vi
+            .spyOn(URL, 'revokeObjectURL')
+            .mockImplementation(() => {})
+        const anchorClick = vi
+            .spyOn(HTMLAnchorElement.prototype, 'click')
+            .mockImplementation(() => {})
+
+        renderPage()
+        await waitFor(() =>
+            expect(
+                screen.getByText('User joined the server'),
+            ).toBeInTheDocument(),
+        )
+
+        await user.click(screen.getByText('Export'))
+
+        expect(createObjectURL).toHaveBeenCalled()
+        expect(anchorClick).toHaveBeenCalled()
+        expect(revokeObjectURL).toHaveBeenCalledWith('blob:test')
+        expect(toast.success).toHaveBeenCalledWith('Logs exported!')
+
+        createObjectURL.mockRestore()
+        revokeObjectURL.mockRestore()
+        anchorClick.mockRestore()
+    })
+
+    test('navigates to next and previous pages', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+            data: { logs: mockLogs, total: 50 },
+        } as any)
+
+        renderPage()
+        await waitFor(() =>
+            expect(
+                screen.getByText('User joined the server'),
+            ).toBeInTheDocument(),
+        )
+
+        expect(screen.getByText('1/2')).toBeInTheDocument()
+        const [prevBtn, nextBtn] = within(
+            screen.getByText('1/2').parentElement!,
+        ).getAllByRole('button')
+        expect(prevBtn).toBeDisabled()
+
+        await user.click(nextBtn)
+        await waitFor(() => expect(screen.getByText('2/2')).toBeInTheDocument())
+
+        const [prevBtn2] = within(
+            screen.getByText('2/2').parentElement!,
+        ).getAllByRole('button')
+        await user.click(prevBtn2)
+        await waitFor(() => expect(screen.getByText('1/2')).toBeInTheDocument())
     })
 })

@@ -2,6 +2,12 @@ name: Deploy to Homelab
 
 on:
     workflow_dispatch:
+        inputs:
+            allow_deploy_unverified_oauth:
+                description: 'Skip OAuth redirect contract check (use only if Discord is rate-limiting and auth-config check passed)'
+                required: false
+                default: 'false'
+                type: boolean
     workflow_run:
         workflows: ["Build & Push Docker Images"]
         types: [completed]
@@ -15,6 +21,7 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             actions: read
+            contents: read
         if: |
             github.event_name == 'workflow_dispatch' ||
             (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
@@ -257,6 +264,7 @@ jobs:
               env:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
                   DOCKER_REBUILT: ${{ steps.docker_wait.outputs.docker_rebuilt }}
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   set -euo pipefail
                   base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
@@ -268,19 +276,49 @@ jobs:
 
                   if [ "${DOCKER_REBUILT:-false}" != "true" ]; then
                     health_url="${base_url}/api/health"
-                    echo "==> No Docker rebuild for this commit — verifying service health at $health_url..."
+                    echo "==> No Docker rebuild — checking for homelab-deploy commit status (SHA: $expected)..."
+
+                    status_was_seen=false
                     for attempt in $(seq 1 20); do
                       echo "Attempt ${attempt}/20..."
-                      response=$(curl -sS --max-time 20 -w "\n%{http_code}" "$health_url" || true)
-                      http_code=$(echo "$response" | tail -1)
-                      if [ "$http_code" = "200" ]; then
-                        echo "==> Service healthy after deploy. Done."
+                      deploy_state=$(gh api \
+                        "repos/${{ github.repository }}/commits/${expected}/statuses" \
+                        --jq '[.[] | select(.context == "homelab-deploy")] | first | .state // ""' \
+                        2>/dev/null || echo "")
+
+                      [ "$deploy_state" = "pending" ] && status_was_seen=true
+
+                      if [ "$deploy_state" = "success" ]; then
+                        echo "==> Homelab deploy completed successfully."
                         exit 0
                       fi
-                      echo "Not ready (HTTP $http_code). Waiting 15s..."
+                      if [ "$deploy_state" = "failure" ] || [ "$deploy_state" = "error" ]; then
+                        echo "::error::Homelab deploy reported failure — check deploy logs on homelab"
+                        exit 1
+                      fi
+
+                      if [ "$status_was_seen" = "false" ] && [ "$attempt" -eq 6 ]; then
+                        echo "::notice::No homelab-deploy status after ~90s — GITHUB_DEPLOY_STATUS_TOKEN not configured on homelab. Falling back to HTTP health check."
+                        for http_attempt in $(seq 1 20); do
+                          echo "HTTP attempt ${http_attempt}/20..."
+                          response=$(curl -sS --max-time 20 -w "\n%{http_code}" "$health_url" || true)
+                          http_code=$(echo "$response" | tail -1)
+                          if [ "$http_code" = "200" ]; then
+                            echo "==> Service healthy. Done."
+                            exit 0
+                          fi
+                          echo "Not ready (HTTP $http_code). Waiting 15s..."
+                          sleep 15
+                        done
+                        echo "::error::Service did not become healthy after all attempts"
+                        exit 1
+                      fi
+
+                      echo "Deploy status: ${deploy_state:-none}. Waiting 15s..."
                       sleep 15
                     done
-                    echo "::error::Service did not become healthy after all attempts"
+
+                    echo "::error::Deploy validation timed out"
                     exit 1
                   fi
 
@@ -406,6 +444,7 @@ jobs:
               env:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
                   EXPECTED_CLIENT_ID: ${{ secrets.WEBAPP_EXPECTED_CLIENT_ID }}
+                  ALLOW_DEPLOY_UNVERIFIED_OAUTH: ${{ inputs.allow_deploy_unverified_oauth || '' }}
               run: |
                   set -euo pipefail
 
@@ -532,13 +571,62 @@ jobs:
                   done
 
                   if [ "$non_rate_limited_attempts" -eq 0 ] && [ "$rate_limited_count" -gt 0 ]; then
-                    echo "::warning::OAuth redirect contract check hit sustained Discord rate limiting (429) across all retries; treating as non-blocking after auth-config contract pass."
-                    exit 0
+                    if [ "${ALLOW_DEPLOY_UNVERIFIED_OAUTH:-false}" = "true" ]; then
+                      echo "::warning::OAuth redirect contract check was rate-limited on all attempts; bypassing because ALLOW_DEPLOY_UNVERIFIED_OAUTH=true — verify OAuth flow manually."
+                      exit 0
+                    fi
+                    echo "::error::OAuth redirect contract check was rate-limited (429) on all $rate_limited_count attempts — contract not verified."
+                    echo "::error::Options: (1) redeploy after Discord rate-limit clears (~5 min); (2) trigger workflow_dispatch with allow_deploy_unverified_oauth=true to bypass"
+                    exit 1
                   fi
 
                   echo "::error::Timed out waiting for OAuth redirect contract"
                   echo "::error::OAuth redirect smoke summary: non_rate_limited_attempts=$non_rate_limited_attempts, rate_limited_count=$rate_limited_count"
                   exit 1
+
+            - name: Wait for homelab deploy completion
+              if: steps.docker_wait.outputs.docker_rebuilt == 'true'
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  set -euo pipefail
+                  if [ "${{ github.event_name }}" = "workflow_run" ]; then
+                    expected="${{ github.event.workflow_run.head_sha }}"
+                  else
+                    expected="${{ github.sha }}"
+                  fi
+
+                  echo "==> Waiting for homelab deploy to complete (SHA: $expected)..."
+                  status_was_seen=false
+
+                  for attempt in $(seq 1 12); do
+                    echo "Attempt ${attempt}/12..."
+                    deploy_state=$(gh api \
+                      "repos/${{ github.repository }}/commits/${expected}/statuses" \
+                      --jq '[.[] | select(.context == "homelab-deploy")] | first | .state // ""' \
+                      2>/dev/null || echo "")
+
+                    [ "$deploy_state" = "pending" ] && status_was_seen=true
+
+                    if [ "$deploy_state" = "success" ]; then
+                      echo "==> Homelab deploy completed successfully."
+                      exit 0
+                    fi
+                    if [ "$deploy_state" = "failure" ] || [ "$deploy_state" = "error" ]; then
+                      echo "::error::Homelab deploy reported failure after image deployment — check deploy logs on homelab"
+                      exit 1
+                    fi
+
+                    if [ "$status_was_seen" = "false" ] && [ "$attempt" -eq 6 ]; then
+                      echo "::warning::No homelab-deploy status after ~90s — GITHUB_DEPLOY_STATUS_TOKEN likely not configured on homelab. Cannot confirm full deploy completion."
+                      exit 0
+                    fi
+
+                    echo "Deploy status: ${deploy_state:-none}. Waiting 15s..."
+                    sleep 15
+                  done
+
+                  echo "::warning::Deploy completion timed out after 3 min — bot health gate may still be running. Check Discord notification for full outcome."
 
             - name: Notify failure
               if: failure()

@@ -1,6 +1,4 @@
 {
-  "base_branch": "release/v2.10.0",
-  "base_branch_strategy": "versioned",
   "sensitive": [
     "discord.js",
     "@discordjs/voice",
@@ -24,5 +22,5 @@
   ],
   "auto_merge_minor": false,
   "auto_merge_dev_deps": true,
-  "notes": "Lucky uses versioned release branches (release/vX.Y.Z). 'base_branch' points at the currently-active release-staging branch and is bumped when a new release is cut. Bot deps (discord.js, discord-player) and ORM (prisma) are sensitive — manual review even on patches. Frontend frameworks always hold for review."
+  "notes": "Bot deps (discord.js, discord-player) and ORM (prisma) are sensitive — manual review even on patches. Frontend frameworks always hold for review. Pass the target release branch explicitly when invoking /dep-sweep (e.g. /dep-sweep release/v2.15.0)."
 }
