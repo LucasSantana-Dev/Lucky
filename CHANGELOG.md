@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-05-24
+
+### Added
+- feat(frontend): ServerLogs + ServerSettings UI pages — view live container logs and edit server config from the dashboard (#965)
+- feat(guild-automation): wire AutoMessages executor into the execution service; full apply path now flows through the Module Executor seam (#950)
+
+### Changed
+- ui(admin,config): redesign Admin + Config pages with full test coverage (#970)
+- ui(entry-funnel): redesign Login + ServersPage; all tests passing (#967)
+- ui(automation): redesign CustomCommands + GuildAutomation with full test coverage (#969)
+- ui(integrations): add Spotify + LastFm test coverage (#968)
+- refactor(bot): introduce `AutoplayContext` value object — removes primitive obsession in the autoplay pipeline (#983)
+- refactor(shared): split `GuildAutomationService` into `GuildAutomationOrchestrator` + `GuildAutomationRepository` (#982)
+- refactor(bot): extract `MessagePipeline` handler chain from the command dispatch layer (#981)
+- refactor(artists): extract `ArtistSuggestionService` from the route handler into a testable service (#980)
+- refactor(musicRecommendation): collapse multi-entrypoint engine to a single `recommendTracks` function (#979)
+
+### Fixed
+- fix(ci): add `lucky-bot` to required containers, remove dead unhealthy-grep before HEALTHCHECK TTL, add bot health poll after API checks (#1054)
+- fix(bot): healthcheck now polls the Discord gateway (`/healthz` HTTP 200) instead of the Redis TCP port — catches real bot connectivity loss (#1047)
+- fix(ci): post `error` commit status on deploy lock contention so CI sees the failure instead of timing out silently (#1052)
+- ci(deploy): add "Wait for homelab deploy completion" step on the `docker_rebuilt=true` path — closes the race where CI went green before `deploy.sh` finished the bot health poll (#1056)
+- fix(ci): surface async deploy outcomes via GitHub Statuses API (`homelab-deploy` context) — `deploy.sh` now posts `pending` → `success`/`failure` (#1046)
+- fix(ci): hard-fail `deploy.sh` on sustained HTTP 429 from the OAuth endpoint instead of treating it as a successful deploy (#1045)
+- fix(ci): lockfile-hash BuildKit npm cache key to prevent esbuild version mismatch across concurrent jobs (#1016)
+- fix(ci): archive squash-merged release branches instead of failing the fast-forward job (#946)
+- fix: resolve Prettier syntax error in `queueManipulation.spec.ts` (#985)
+
+### Internal
+- chore(backend): delete orphaned automod templates constant (#1053)
+- test(bot): add YouTube smoke tests for search + playlist flows (#948)
+- test(bot): Phase 4 test cleanup — ~93 tests removed (2,853 → 2,760); replace delegation-only specs with focused behavioural tests (#956–#1035)
+- chore(bot): tighten coverage gate to 65.8/63.5/62/66.7 after Phase 4 cleanup (#996)
+- chore: wire husky + lint-staged + `tsc --noEmit` pre-commit hook (#1007)
+- chore: OSS positioning — portfolio framing, `SECURITY.md`, ADR-first README (#952)
+- chore: repo organisation — untrack machine-local AI config, move release cadence docs (#951)
+- ci: promote `madge` circular-dep gate to blocking on `main`
+- docs: ADR for branch protection required checks (#949)
+- docs: add decision records for May 23 refactor batch (#1040)
+- chore(deps): routine dependabot bumps — actions, dev tools, production patches (#971–#977, #1042)
+
 ## [2.14.1] - 2026-05-23
 
 ### Fixed
