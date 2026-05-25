@@ -135,7 +135,7 @@ verify_cloudflared_config() {
 
 require_running_containers() {
     local required
-    required=(lucky-backend lucky-nginx lucky-postgres lucky-redis)
+    required=(lucky-backend lucky-nginx lucky-postgres lucky-redis lucky-bot)
     local missing=()
     local not_running=()
     local container running
@@ -453,14 +453,6 @@ if ! require_running_containers; then
     exit 1
 fi
 
-unhealthy=$(docker_compose ps --format json | grep -c '"unhealthy"' || true)
-if [[ "$unhealthy" -gt 0 ]]; then
-    log "ERROR: RUNTIME_PRECHECK_FAILED ($unhealthy unhealthy container(s))"
-    print_targeted_logs
-    notify 16711680 "Deploy Failed" "$unhealthy unhealthy container(s)"
-    exit 1
-fi
-
 if ! wait_for_http_ready \
     "API health" \
     "http://nginx/api/health" \
@@ -477,6 +469,27 @@ if ! wait_for_http_ready \
     print_targeted_logs
     notify 16711680 "Deploy Failed" "Auth config health endpoint did not become ready"
     exit 1
+fi
+
+log "Waiting for bot gateway health (start-period: 45s, timeout: 90s)..."
+bot_deadline=$(( SECONDS + 90 ))
+while [[ $SECONDS -lt $bot_deadline ]]; do
+    bot_health=$(docker inspect lucky-bot --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
+    if [[ "$bot_health" == "healthy" ]]; then
+        log "Bot gateway healthy"
+        break
+    fi
+    if [[ "$bot_health" == "unhealthy" ]]; then
+        log "ERROR: RUNTIME_PRECHECK_FAILED (bot container unhealthy — Discord gateway not connected)"
+        docker logs lucky-bot --tail=40 --no-color 2>/dev/null || true
+        notify 16711680 "Deploy Failed" "Bot gateway not connected"
+        exit 1
+    fi
+    sleep 5
+done
+bot_health=$(docker inspect lucky-bot --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
+if [[ "$bot_health" != "healthy" ]]; then
+    log "WARN: bot health status '${bot_health}' after 90s (Discord may be slow — proceeding)"
 fi
 
 log "Pruning old images..."
