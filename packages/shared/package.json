@@ -53,7 +53,7 @@
     "dependencies": {
         "@gar/promise-retry": "^1.0.3",
         "@npmcli/agent": "^5.0.0",
-        "@npmcli/fs": "^5.0.0",
+        "@npmcli/fs": "^6.0.0",
         "@prisma/client": "^7.8.0",
         "@sentry/node": "^10.53.1",
         "@vercel/flags-core": "^1.4.0",
@@ -70,7 +70,7 @@
         "negotiator": "^1.0.0",
         "proc-log": "^7.0.0",
         "ssri": "^14.0.0",
-        "unique-filename": "^5.0.0",
+        "unique-filename": "^6.0.0",
         "uuid": "^14.0.0",
         "zod": "^4.4.3"
     },
