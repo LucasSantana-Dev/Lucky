@@ -14,20 +14,40 @@ import {
     type GuildAutomationManifestDocument,
     type GuildAutomationPlan,
 } from '@lucky/shared/services'
-import { errorLog } from '@lucky/shared/utils'
+import {
+    createAutoMessagesExecutor,
+    createModerationExecutor,
+} from '@lucky/shared/services/guildAutomation'
+import { errorLog, warnLog } from '@lucky/shared/utils'
+
+const autoMessagesExecutor = createAutoMessagesExecutor({
+    autoMessageService,
+})
+
+const moderationExecutor = createModerationExecutor({
+    port: {
+        updateAutoModSettings: (guildId, settings) =>
+            autoModService.updateSettings(
+                guildId,
+                settings as Parameters<typeof autoModService.updateSettings>[1],
+            ),
+        updateModerationSettings: (guildId, settings) =>
+            updateModerationSettings(
+                guildId,
+                settings as Parameters<typeof updateModerationSettings>[1],
+            ),
+    },
+})
 
 type ApplyResult = {
     appliedModules: string[]
     skippedModules: string[]
 }
 
-type ReconciliableChannelType = Exclude<GuildChannelCreateOptions['type'], undefined>
-
-type ManagedAutoMessage = {
-    enabled?: boolean
-    channelId?: string
-    message?: string
-}
+type ReconciliableChannelType = Exclude<
+    GuildChannelCreateOptions['type'],
+    undefined
+>
 
 function toPermissions(value: string | undefined) {
     if (!value) {
@@ -64,41 +84,6 @@ function shouldApplyModule(
             operation.module === module &&
             (allowProtected || operation.protected === false),
     )
-}
-
-async function upsertAutoMessage(
-    guildId: string,
-    type: 'welcome' | 'leave',
-    payload: ManagedAutoMessage | undefined,
-): Promise<void> {
-    if (!payload?.message) {
-        return
-    }
-
-    const existing =
-        type === 'welcome'
-            ? await autoMessageService.getWelcomeMessage(guildId)
-            : await autoMessageService.getLeaveMessage(guildId)
-
-    if (!existing) {
-        await autoMessageService.createMessage(
-            guildId,
-            type,
-            {
-                message: payload.message,
-            },
-            {
-                channelId: payload.channelId,
-            },
-        )
-        return
-    }
-
-    await autoMessageService.updateMessage(existing.id, {
-        message: payload.message,
-        channelId: payload.channelId,
-        enabled: payload.enabled,
-    })
 }
 
 function findChannel(guild: Guild, id: string): GuildBasedChannel | null {
@@ -183,7 +168,9 @@ async function applyRolesAndChannels(
     }
 
     const desiredRoleIds = new Set(desiredRoles.map((role) => role.id))
-    const desiredChannelIds = new Set(desiredChannels.map((channel) => channel.id))
+    const desiredChannelIds = new Set(
+        desiredChannels.map((channel) => channel.id),
+    )
 
     for (const role of guild.roles.cache.values()) {
         if (role.id === guild.id || desiredRoleIds.has(role.id)) {
@@ -201,7 +188,9 @@ async function applyRolesAndChannels(
         }
 
         try {
-            await channel.delete('Lucky guild automation protected-delete apply')
+            await channel.delete(
+                'Lucky guild automation protected-delete apply',
+            )
         } catch (error) {
             if (shouldIgnoreProtectedDeleteError(error)) {
                 errorLog({
@@ -277,26 +266,41 @@ export async function applyAutomationModules(params: {
     }
 
     if (shouldApplyModule(plan, 'moderation', allowProtected)) {
-        if (desired.moderation?.automod) {
-            await autoModService.updateSettings(
-                guild.id,
-                desired.moderation.automod as never,
-            )
+        const live = moderationExecutor.capture()
+        const diff = moderationExecutor.diff(live, desired.moderation ?? {})
+        const result = await moderationExecutor.apply(diff, {
+            guildId: guild.id,
+        })
+        if (result.status !== 'success') {
+            errorLog({
+                message: `Moderation executor apply: ${result.status}`,
+                data: {
+                    guildId: guild.id,
+                    errors: 'errors' in result ? result.errors : result.error,
+                },
+            })
         }
-
-        if (desired.moderation?.moderationSettings) {
-            await updateModerationSettings(
-                guild.id,
-                desired.moderation.moderationSettings as never,
-            )
-        }
-
         appliedModules.push('moderation')
     }
 
     if (shouldApplyModule(plan, 'automessages', allowProtected)) {
-        await upsertAutoMessage(guild.id, 'welcome', desired.automessages?.welcome)
-        await upsertAutoMessage(guild.id, 'leave', desired.automessages?.leave)
+        const live = await autoMessagesExecutor.capture({ guildId: guild.id })
+        const diff = autoMessagesExecutor.diff(live, desired.automessages ?? {})
+        const applyResult = await autoMessagesExecutor.apply(diff, {
+            guildId: guild.id,
+        })
+        if (applyResult.status !== 'success') {
+            warnLog({
+                message: `AutoMessages executor apply: ${applyResult.status}`,
+                data: {
+                    guildId: guild.id,
+                    errors:
+                        'errors' in applyResult
+                            ? applyResult.errors
+                            : applyResult.error,
+                },
+            })
+        }
         appliedModules.push('automessages')
     }
 
