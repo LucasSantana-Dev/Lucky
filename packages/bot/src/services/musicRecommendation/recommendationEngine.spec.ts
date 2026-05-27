@@ -169,11 +169,6 @@ describe('recommendationEngine', () => {
             calculateVectorSimilarityMock.mockReturnValue(0.8)
             generateRecommendationReasonsMock.mockReturnValue(['Similar'])
 
-            const allRecs = availableTracks.map((track, idx) => ({
-                track,
-                score: 0.775 - idx * 0.01,
-                reasons: ['Similar'],
-            }))
             // Diversity filter removes duplicates
             const filteredRecs = [
                 {

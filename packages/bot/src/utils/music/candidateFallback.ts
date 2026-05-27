@@ -114,12 +114,6 @@ export async function collectBroadFallbackCandidates(
         `${ctx.currentTrack.author} popular`,
     ].filter(Boolean)
 
-    // Obtain Spotify token once for the whole fallback pass — used to enrich
-    // genre tags when Last.fm is not linked (getArtistTags returns []).
-    // Promise.resolve() guards against stubs that return undefined rather than
-    // a Promise (matches the pattern used throughout replenisher.ts).
-    const spotifyToken = null // Will be obtained from context if needed
-
     for (const query of fallbackQueries) {
         try {
             const result = await ctx.queue.player.search(query, {
@@ -156,23 +150,6 @@ export async function collectBroadFallbackCandidates(
                         return [] as string[]
                     },
                 )
-                // When Last.fm returns nothing (not linked or artist unknown),
-                // use Spotify's genre data so the cross-locale Spanish veto in
-                // candidateScorer can still fire for Spanish gospel artists
-                // that have non-Spanish-looking artist names / titles.
-                if (candidateTags.length === 0 && spotifyToken) {
-                    candidateTags = await getArtistGenres(
-                        spotifyToken,
-                        track.author,
-                    ).catch((err: unknown) => {
-                        logAndSwallow(
-                            err,
-                            'candidateFallback.getArtistGenres.spotifyFallback',
-                            { author: track.author },
-                        )
-                        return [] as string[]
-                    }) // NOSONAR — track.author used as URLSearchParams search query inside getArtistGenres; no raw URL interpolation
-                }
                 const rec = calculateRecommendationScore({
                     candidate: track,
                     currentTrack: ctx.currentTrack,

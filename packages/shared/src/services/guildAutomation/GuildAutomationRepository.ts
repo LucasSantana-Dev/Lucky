@@ -258,37 +258,33 @@ export class GuildAutomationRepository implements IGuildAutomationRepository {
         checklist: unknown[],
         initiatedBy?: string,
     ) {
-        const { manifestRow, run } = await this.prisma.$transaction(
-            async (tx) => {
-                const manifestRow = await tx.guildAutomationManifest.update({
-                    where: { guildId },
-                    data: {
-                        version: nextManifest.version,
-                        manifest: toJsonValue(nextManifest),
-                    },
-                })
+        const { run } = await this.prisma.$transaction(async (tx) => {
+            const manifestRow = await tx.guildAutomationManifest.update({
+                where: { guildId },
+                data: {
+                    version: nextManifest.version,
+                    manifest: toJsonValue(nextManifest),
+                },
+            })
 
-                const run = await tx.guildAutomationRun.create({
-                    data: {
-                        guildId,
-                        manifestId: manifestRow.id,
-                        type: 'cutover',
-                        status: 'completed',
-                        summary: toJsonValue({
-                            checklistComplete: true,
-                            checklist:
-                                nextManifest.parity?.checklist ?? checklist,
-                            externalBots:
-                                nextManifest.parity?.externalBots ?? [],
-                        }),
-                        initiatedBy,
-                        completedAt: new Date(),
-                    },
-                })
+            const run = await tx.guildAutomationRun.create({
+                data: {
+                    guildId,
+                    manifestId: manifestRow.id,
+                    type: 'cutover',
+                    status: 'completed',
+                    summary: toJsonValue({
+                        checklistComplete: true,
+                        checklist: nextManifest.parity?.checklist ?? checklist,
+                        externalBots: nextManifest.parity?.externalBots ?? [],
+                    }),
+                    initiatedBy,
+                    completedAt: new Date(),
+                },
+            })
 
-                return { manifestRow, run }
-            },
-        )
+            return { manifestRow, run }
+        })
 
         return {
             id: run.id,
