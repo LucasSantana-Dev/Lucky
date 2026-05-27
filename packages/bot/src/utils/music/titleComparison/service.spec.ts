@@ -191,7 +191,7 @@ describe('TitleComparisonService', () => {
         })
 
         it('should set up cache cleanup interval with logging', () => {
-            const svc = new TitleComparisonService()
+            new TitleComparisonService()
             expect(safeSetIntervalMock).toHaveBeenCalledWith(
                 expect.any(Function),
                 600000,

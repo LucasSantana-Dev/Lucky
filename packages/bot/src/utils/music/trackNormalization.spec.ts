@@ -11,7 +11,6 @@ jest.mock('./searchQueryCleaner', () => ({
 import {
     normalizeText,
     normalizeTrackKey,
-    FUZZY_TITLE_THRESHOLD,
     getGenreFamilies,
     calculateGenreFamilyPenalty,
 } from './trackNormalization'

@@ -42,13 +42,6 @@ const QueryType = {
     SPOTIFY_SEARCH: 'spotifySearch',
 } as const
 
-const QueueRepeatMode = {
-    OFF: 0,
-    TRACK: 1,
-    QUEUE: 2,
-    AUTOPLAY: 3,
-} as const
-
 type GuildQueue = any
 type Track = any
 

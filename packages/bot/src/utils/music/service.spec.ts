@@ -39,7 +39,6 @@ import * as queueStateMgr from './queueStateManager'
 import { trackHistoryService } from '@lucky/shared/services'
 
 const queueOpsMock = queueOps as unknown as Record<string, jest.Mock>
-const queueStateMgrMock = queueStateMgr as unknown as Record<string, jest.Mock>
 const trackHistoryServiceMock = trackHistoryService as unknown as Record<
     string,
     jest.Mock

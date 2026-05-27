@@ -10,7 +10,6 @@ import {
 } from './spotifyRecommender'
 import { calculateRecommendationScore } from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'
-import { isDuplicateCandidate } from './diversitySelector'
 import {
     shouldIncludeCandidate,
     upsertScoredCandidate,

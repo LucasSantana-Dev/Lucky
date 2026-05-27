@@ -5,7 +5,6 @@ import {
     searchSpotifyArtists,
     getSpotifyRelatedArtists,
     getPrismaClient,
-    errorLog,
 } from '@lucky/shared/utils'
 import {
     getSpotifyClientToken,

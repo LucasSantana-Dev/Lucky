@@ -1,7 +1,6 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import {
     TrackUtils,
-    trackUtils,
     getTrackInfo,
     getTrackCacheKey,
     categorizeTracks,

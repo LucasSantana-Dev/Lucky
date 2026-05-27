@@ -8,7 +8,6 @@ import { requireGuild } from '../../../utils/command/commandValidations'
 import {
     createSuccessEmbed,
     createErrorEmbed,
-    createInfoEmbed,
 } from '../../../utils/general/embeds'
 import { errorLog } from '@lucky/shared/utils'
 
