@@ -17,6 +17,7 @@ import {
 import {
     createAutoMessagesExecutor,
     createModerationExecutor,
+    createReactionRolesExecutor,
 } from '@lucky/shared/services/guildAutomation'
 import { errorLog, warnLog } from '@lucky/shared/utils'
 
@@ -35,6 +36,25 @@ const moderationExecutor = createModerationExecutor({
             updateModerationSettings(
                 guildId,
                 settings as Parameters<typeof updateModerationSettings>[1],
+            ),
+    },
+})
+
+const reactionRolesExecutor = createReactionRolesExecutor({
+    port: {
+        listExclusiveRoles: (guildId) =>
+            roleManagementService.listExclusiveRoles(guildId),
+        removeExclusiveRole: (guildId, roleId, excludedRoleId) =>
+            roleManagementService.removeExclusiveRole(
+                guildId,
+                roleId,
+                excludedRoleId,
+            ),
+        setExclusiveRole: (guildId, roleId, excludedRoleId) =>
+            roleManagementService.setExclusiveRole(
+                guildId,
+                roleId,
+                excludedRoleId,
             ),
     },
 })
@@ -210,38 +230,6 @@ async function applyRolesAndChannels(
     }
 }
 
-async function applyReactionRoleRules(
-    guildId: string,
-    desired: GuildAutomationManifestDocument,
-): Promise<void> {
-    const nextPairs = new Set(
-        (desired.reactionroles?.exclusiveRoles ?? []).map(
-            (item) => `${item.roleId}:${item.excludedRoleId}`,
-        ),
-    )
-
-    const existing = await roleManagementService.listExclusiveRoles(guildId)
-
-    for (const item of existing) {
-        const key = `${item.roleId}:${item.excludedRoleId}`
-        if (!nextPairs.has(key)) {
-            await roleManagementService.removeExclusiveRole(
-                guildId,
-                item.roleId,
-                item.excludedRoleId,
-            )
-        }
-    }
-
-    for (const item of desired.reactionroles?.exclusiveRoles ?? []) {
-        await roleManagementService.setExclusiveRole(
-            guildId,
-            item.roleId,
-            item.excludedRoleId,
-        )
-    }
-}
-
 export async function applyAutomationModules(params: {
     guild: Guild
     desired: GuildAutomationManifestDocument
@@ -305,7 +293,24 @@ export async function applyAutomationModules(params: {
     }
 
     if (shouldApplyModule(plan, 'reactionroles', allowProtected)) {
-        await applyReactionRoleRules(guild.id, desired)
+        const live = await reactionRolesExecutor.capture({ guildId: guild.id })
+        const diff = reactionRolesExecutor.diff(
+            live,
+            desired.reactionroles ?? {},
+        )
+        const rrResult = await reactionRolesExecutor.apply(diff, {
+            guildId: guild.id,
+        })
+        if (rrResult.status !== 'success') {
+            warnLog({
+                message: `ReactionRoles executor apply: ${rrResult.status}`,
+                data: {
+                    guildId: guild.id,
+                    errors:
+                        'errors' in rrResult ? rrResult.errors : rrResult.error,
+                },
+            })
+        }
         if ((desired.reactionroles?.messages?.length ?? 0) > 0) {
             skippedModules.push(
                 'reactionroles.messages requires manual message-template publish',

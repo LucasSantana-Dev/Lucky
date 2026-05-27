@@ -44,3 +44,11 @@ export {
     type ModerationResult,
     type ModerationPort,
 } from './moderationExecutor'
+export {
+    createReactionRolesExecutor,
+    type ReactionRolesLiveState,
+    type ReactionRolesManifestSection,
+    type ReactionRolesDiff,
+    type ReactionRolesResult,
+    type ReactionRolesPort,
+} from './reactionRolesExecutor'

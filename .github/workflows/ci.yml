@@ -218,6 +218,10 @@ jobs:
               with:
                   name: coverage-frontend
                   path: packages/frontend/coverage
+            - uses: actions/setup-java@v4
+              with:
+                  distribution: temurin
+                  java-version: '17'
             - name: Validate Sonar token policy
               if: env.SONAR_TOKEN_PRESENT != 'true' && github.actor != 'dependabot[bot]'
               run: |
