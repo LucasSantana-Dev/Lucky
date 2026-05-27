@@ -114,8 +114,16 @@ describe('NamedSessionService', () => {
         })
 
         it.each([
-            { name: 'invalid name!', setup: () => {}, desc: 'invalid name format' },
-            { name: 'party-mix', setup: () => redisClientMock.exists.mockResolvedValueOnce(true), desc: 'session already exists' },
+            {
+                name: 'invalid name!',
+                setup: () => {},
+                desc: 'invalid name format',
+            },
+            {
+                name: 'party-mix',
+                setup: () => redisClientMock.exists.mockResolvedValueOnce(true),
+                desc: 'session already exists',
+            },
         ])('rejects if $desc', async ({ name, setup }) => {
             setup()
             const session = await service.save(queue, name, 'user-1')
@@ -125,58 +133,65 @@ describe('NamedSessionService', () => {
         it('returns null if queue is empty', async () => {
             const emptyQueue = createQueue(0)
             emptyQueue.currentTrack = null
-            const session = await service.save(emptyQueue, 'party-mix', 'user-1')
+            const session = await service.save(
+                emptyQueue,
+                'party-mix',
+                'user-1',
+            )
             expect(session).toBeNull()
         })
     })
 
     describe('restore', () => {
-        it.each([
-            { found: true },
-            { found: false },
-        ])('restores session or returns 0 when not found', async ({ found }) => {
-            if (found) {
-                redisClientMock.get.mockResolvedValueOnce(
-                    JSON.stringify({
-                        name: 'party-mix',
-                        guildId: 'guild-1',
-                        savedBy: 'user-1',
-                        savedAt: Date.now(),
-                        trackCount: 2,
-                        currentTrack: {
-                            title: 'Song 1',
-                            author: 'Artist',
-                            url: 'https://example.com/1',
-                            duration: '3:00',
-                            source: 'spotify',
-                        },
-                        upcomingTracks: [
-                            {
-                                title: 'Song 2',
+        it.each([{ found: true }, { found: false }])(
+            'restores session or returns 0 when not found',
+            async ({ found }) => {
+                if (found) {
+                    redisClientMock.get.mockResolvedValueOnce(
+                        JSON.stringify({
+                            name: 'party-mix',
+                            guildId: 'guild-1',
+                            savedBy: 'user-1',
+                            savedAt: Date.now(),
+                            trackCount: 2,
+                            currentTrack: {
+                                title: 'Song 1',
                                 author: 'Artist',
-                                url: 'https://example.com/2',
+                                url: 'https://example.com/1',
                                 duration: '3:00',
                                 source: 'spotify',
                             },
-                        ],
-                    }),
-                )
-                const result = await service.restore(queue, 'party-mix')
-                expect(result.restoredCount).toBeGreaterThan(0)
-                expect(queue.addTrack).toHaveBeenCalled()
-                expect(queue.node.play).toHaveBeenCalled()
-            } else {
-                redisClientMock.get.mockResolvedValueOnce(null)
-                const result = await service.restore(queue, 'nonexistent')
-                expect(result.restoredCount).toBe(0)
-            }
-        })
+                            upcomingTracks: [
+                                {
+                                    title: 'Song 2',
+                                    author: 'Artist',
+                                    url: 'https://example.com/2',
+                                    duration: '3:00',
+                                    source: 'spotify',
+                                },
+                            ],
+                        }),
+                    )
+                    const result = await service.restore(queue, 'party-mix')
+                    expect(result.restoredCount).toBeGreaterThan(0)
+                    expect(queue.addTrack).toHaveBeenCalled()
+                    expect(queue.node.play).toHaveBeenCalled()
+                } else {
+                    redisClientMock.get.mockResolvedValueOnce(null)
+                    const result = await service.restore(queue, 'nonexistent')
+                    expect(result.restoredCount).toBe(0)
+                }
+            },
+        )
     })
 
     describe('list', () => {
         it('returns sorted session summaries', async () => {
             const now = Date.now()
-            redisClientMock.smembers.mockResolvedValueOnce(['session-1', 'session-2'])
+            redisClientMock.smembers.mockResolvedValueOnce([
+                'session-1',
+                'session-2',
+            ])
             redisClientMock.get
                 .mockResolvedValueOnce(
                     JSON.stringify({
@@ -225,7 +240,9 @@ describe('NamedSessionService', () => {
                 currentTrack: null,
                 upcomingTracks: [],
             }
-            redisClientMock.get.mockResolvedValueOnce(JSON.stringify(sessionData))
+            redisClientMock.get.mockResolvedValueOnce(
+                JSON.stringify(sessionData),
+            )
             const session = await service.get('guild-1', 'party-mix')
             expect(session).toEqual(sessionData)
         })

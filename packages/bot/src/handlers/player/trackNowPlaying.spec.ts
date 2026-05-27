@@ -307,7 +307,6 @@ describe('trackNowPlaying handlers', () => {
                 }),
             )
         })
-
     })
 
     describe('updateLastFmNowPlaying', () => {
@@ -408,7 +407,6 @@ describe('trackNowPlaying handlers', () => {
                 }),
             )
         })
-
     })
 
     describe('scrobbleCurrentTrackIfLastFm', () => {
@@ -525,6 +523,5 @@ describe('trackNowPlaying handlers', () => {
             await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
             expect(lastFmScrobbleMock).not.toHaveBeenCalled()
         })
-
     })
 })

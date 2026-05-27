@@ -122,7 +122,10 @@ describe('recommendationHelpers', () => {
                 },
             ]
             const configNoDiv = { ...mockConfig, diversityFactor: 0 }
-            const resultNoDiversity = applyDiversityFilter(multiple, configNoDiv)
+            const resultNoDiversity = applyDiversityFilter(
+                multiple,
+                configNoDiv,
+            )
             expect(resultNoDiversity).toEqual(multiple)
         })
 
@@ -171,20 +174,23 @@ describe('recommendationHelpers', () => {
         test.each([
             [0.85, 'Very similar to your current track'],
             [0.65, 'Similar style to your current track'],
-        ])('includes reason for similarity score %f', (similarity, expectedReason) => {
-            const seedTrack = mockTrack('seed')
-            const rec = mockTrack('track1', 'Diff')
-            rec.duration = 350000
+        ])(
+            'includes reason for similarity score %f',
+            (similarity, expectedReason) => {
+                const seedTrack = mockTrack('seed')
+                const rec = mockTrack('track1', 'Diff')
+                rec.duration = 350000
 
-            const reasons = generateRecommendationReasons(
-                seedTrack,
-                rec,
-                similarity,
-                0.2,
-            )
+                const reasons = generateRecommendationReasons(
+                    seedTrack,
+                    rec,
+                    similarity,
+                    0.2,
+                )
 
-            expect(reasons).toContain(expectedReason)
-        })
+                expect(reasons).toContain(expectedReason)
+            },
+        )
 
         test('includes pattern matching at high vector similarity', () => {
             const seedTrack = mockTrack('seed')
@@ -217,8 +223,18 @@ describe('recommendationHelpers', () => {
         })
 
         test.each([
-            [180000, 185000, true, 'includes similar duration for close durations'],
-            [180000, 300000, false, 'excludes duration for very different lengths'],
+            [
+                180000,
+                185000,
+                true,
+                'includes similar duration for close durations',
+            ],
+            [
+                180000,
+                300000,
+                false,
+                'excludes duration for very different lengths',
+            ],
             [100000, 130000, false, 'duration threshold boundary at 30000ms'],
         ])(
             '$2: seed duration %d, rec duration %d',

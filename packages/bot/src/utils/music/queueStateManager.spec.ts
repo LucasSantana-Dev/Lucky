@@ -110,9 +110,16 @@ describe('queueStateManager', () => {
         it.each([
             ['getTimestamp returns null', () => null],
             ['current is null', () => ({ current: null })],
-            ['current is non-numeric', () => ({ current: { valueOf: jest.fn().mockReturnValue('invalid') } })],
+            [
+                'current is non-numeric',
+                () => ({
+                    current: { valueOf: jest.fn().mockReturnValue('invalid') },
+                }),
+            ],
         ])('returns position 0 when %s', (_label, factory) => {
-            ;(mockQueue.node?.getTimestamp as jest.Mock).mockReturnValue(factory())
+            ;(mockQueue.node?.getTimestamp as jest.Mock).mockReturnValue(
+                factory(),
+            )
             expect(getQueueState(mockQueue).position).toBe(0)
         })
 
@@ -138,7 +145,9 @@ describe('queueStateManager', () => {
         it('reports paused and custom repeatMode state', () => {
             ;(mockQueue.node?.isPlaying as jest.Mock).mockReturnValue(false)
             ;(mockQueue.node?.isPaused as jest.Mock).mockReturnValue(true)
-            ;(mockQueue.repeatMode?.toString as jest.Mock).mockReturnValue('QUEUE')
+            ;(mockQueue.repeatMode?.toString as jest.Mock).mockReturnValue(
+                'QUEUE',
+            )
             const state = getQueueState(mockQueue)
             expect(state.isPlaying).toBe(false)
             expect(state.isPaused).toBe(true)
@@ -168,9 +177,10 @@ describe('queueStateManager', () => {
             [1, 1, true],
         ])('size %s vs max %s → %s', (size, max, expected) => {
             mockQueue.tracks!.size = size
-            const result = max === undefined
-                ? isQueueFull(mockQueue)
-                : isQueueFull(mockQueue, max)
+            const result =
+                max === undefined
+                    ? isQueueFull(mockQueue)
+                    : isQueueFull(mockQueue, max)
             expect(result).toBe(expected)
         })
     })
@@ -184,7 +194,11 @@ describe('queueStateManager', () => {
                     { duration: 240000, author: 'Artist Two' },
                     { duration: 200000, author: 'Artist One' },
                 ],
-                { totalTracks: 3, totalDuration: 620000, averageDuration: 206666.66666666666 },
+                {
+                    totalTracks: 3,
+                    totalDuration: 620000,
+                    averageDuration: 206666.66666666666,
+                },
             ],
             [
                 'coerce string durations',
@@ -192,12 +206,20 @@ describe('queueStateManager', () => {
                     { duration: '180000', author: 'Artist One' },
                     { duration: 240000, author: 'Artist Two' },
                 ],
-                { totalTracks: 2, totalDuration: 420000, averageDuration: 210000 },
+                {
+                    totalTracks: 2,
+                    totalDuration: 420000,
+                    averageDuration: 210000,
+                },
             ],
             [
                 'single track',
                 [{ duration: 300000, author: 'Artist' }],
-                { totalTracks: 1, totalDuration: 300000, averageDuration: 300000 },
+                {
+                    totalTracks: 1,
+                    totalDuration: 300000,
+                    averageDuration: 300000,
+                },
             ],
             [
                 'equal-duration tracks',
@@ -206,7 +228,11 @@ describe('queueStateManager', () => {
                     { duration: 200000, author: 'Artist' },
                     { duration: 200000, author: 'Artist' },
                 ],
-                { totalTracks: 3, totalDuration: 600000, averageDuration: 200000 },
+                {
+                    totalTracks: 3,
+                    totalDuration: 600000,
+                    averageDuration: 200000,
+                },
             ],
             [
                 'empty queue',
@@ -219,7 +245,10 @@ describe('queueStateManager', () => {
             if (expected.averageDuration !== 0 || tracks.length > 0) {
                 expect(stats.totalTracks).toBe(expected.totalTracks)
                 expect(stats.totalDuration).toBe(expected.totalDuration)
-                expect(stats.averageDuration).toBeCloseTo(expected.averageDuration, 5)
+                expect(stats.averageDuration).toBeCloseTo(
+                    expected.averageDuration,
+                    5,
+                )
             } else {
                 expect(stats.averageDuration).toBe(0)
                 expect(stats.totalTracks).toBe(0)
@@ -266,10 +295,13 @@ describe('queueStateManager', () => {
         ] as const)('%s', (_label, tracks, expected) => {
             const lookup = { mockTrack2 }
             if (tracks === null) withTracks([mockTrack2])
-            else if (Array.isArray(tracks) && tracks.length === 0) withTracks([])
+            else if (Array.isArray(tracks) && tracks.length === 0)
+                withTracks([])
             else withTracks([mockTrack2, mockTrack3])
             const next = getNextTrack(mockQueue)
-            expect(next).toBe(expected ? lookup[expected as keyof typeof lookup] : null)
+            expect(next).toBe(
+                expected ? lookup[expected as keyof typeof lookup] : null,
+            )
         })
 
         it('returns null on exception and logs it', () => {
@@ -294,7 +326,9 @@ describe('queueStateManager', () => {
         ] as const)('position %s → %s', (_label, position, expected) => {
             const lookup = { mockTrack, mockTrack2, mockTrack3 }
             const track = getTrackAtPosition(mockQueue, position)
-            expect(track).toBe(expected ? lookup[expected as keyof typeof lookup] : null)
+            expect(track).toBe(
+                expected ? lookup[expected as keyof typeof lookup] : null,
+            )
         })
 
         it('returns null on exception and logs it', () => {
@@ -324,8 +358,12 @@ describe('queueStateManager', () => {
         })
 
         it('falls back to url when id does not match', () => {
-            withTracks([{ id: 'different-id', url: 'https://example.com/track1.mp3' }])
-            expect(isTrackInQueue(mockQueue, 'https://example.com/track1.mp3')).toBe(true)
+            withTracks([
+                { id: 'different-id', url: 'https://example.com/track1.mp3' },
+            ])
+            expect(
+                isTrackInQueue(mockQueue, 'https://example.com/track1.mp3'),
+            ).toBe(true)
         })
 
         it('returns false on exception and logs it', () => {

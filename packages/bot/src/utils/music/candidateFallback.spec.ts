@@ -137,7 +137,9 @@ describe('interleaveByArtist', () => {
         const result = interleaveByArtist([])
         expect(result).toEqual([])
 
-        const singleArtistResult = interleaveByArtist([createScoredTrack('Artist A')])
+        const singleArtistResult = interleaveByArtist([
+            createScoredTrack('Artist A'),
+        ])
         expect(singleArtistResult).toHaveLength(1)
     })
 
@@ -166,20 +168,18 @@ describe('enrichWithAudioFeatures', () => {
         expect(result).toBe(tracks)
 
         // empty userId
-        result = await enrichWithAudioFeatures(
-            tracks,
-            '',
-            { energy: 0.7, valence: 0.5 } as never,
-        )
+        result = await enrichWithAudioFeatures(tracks, '', {
+            energy: 0.7,
+            valence: 0.5,
+        } as never)
         expect(result).toBe(tracks)
 
         // no spotify token
         getValidAccessTokenMock.mockResolvedValue(null)
-        result = await enrichWithAudioFeatures(
-            tracks,
-            'user1',
-            { energy: 0.7, valence: 0.5 } as never,
-        )
+        result = await enrichWithAudioFeatures(tracks, 'user1', {
+            energy: 0.7,
+            valence: 0.5,
+        } as never)
         expect(result).toBe(tracks)
     })
 
@@ -194,11 +194,10 @@ describe('enrichWithAudioFeatures', () => {
         getBatchAudioFeaturesMock.mockResolvedValue(trackFeatures)
         getArtistGenresMock.mockResolvedValue([])
         let track = createScoredTrack('Artist A', 0.5, spotifyUrl)
-        let result = await enrichWithAudioFeatures(
-            [track],
-            'user1',
-            { energy: 0.7, valence: 0.5 } as never,
-        )
+        let result = await enrichWithAudioFeatures([track], 'user1', {
+            energy: 0.7,
+            valence: 0.5,
+        } as never)
         expect(result[0].score).toBeGreaterThan(0.5)
 
         // Far apart: penalize
@@ -207,11 +206,10 @@ describe('enrichWithAudioFeatures', () => {
         getBatchAudioFeaturesMock.mockResolvedValue(trackFeatures)
         getArtistGenresMock.mockResolvedValue([])
         track = createScoredTrack('Artist A', 0.5, spotifyUrl)
-        result = await enrichWithAudioFeatures(
-            [track],
-            'user1',
-            { energy: 0.1, valence: 0.1 } as never,
-        )
+        result = await enrichWithAudioFeatures([track], 'user1', {
+            energy: 0.1,
+            valence: 0.1,
+        } as never)
         expect(result[0].score).toBeLessThan(0.5)
     })
 
@@ -245,21 +243,19 @@ describe('enrichWithAudioFeatures', () => {
 
         // getBatchAudioFeatures error
         getBatchAudioFeaturesMock.mockRejectedValue(new Error('API error'))
-        let result = await enrichWithAudioFeatures(
-            [track],
-            'user1',
-            { energy: 0.7, valence: 0.5 } as never,
-        )
+        let result = await enrichWithAudioFeatures([track], 'user1', {
+            energy: 0.7,
+            valence: 0.5,
+        } as never)
         expect(result[0].score).toBe(0.5)
 
         // getValidAccessToken error
         jest.clearAllMocks()
         getValidAccessTokenMock.mockRejectedValue(new Error('auth failure'))
-        result = await enrichWithAudioFeatures(
-            [track],
-            'user1',
-            { energy: 0.7, valence: 0.5 } as never,
-        )
+        result = await enrichWithAudioFeatures([track], 'user1', {
+            energy: 0.7,
+            valence: 0.5,
+        } as never)
         expect(result[0].score).toBe(0.5)
     })
 })
@@ -413,7 +409,12 @@ describe('collectBroadFallbackCandidates', () => {
         jest.clearAllMocks()
         searchMock.mockResolvedValue({
             tracks: [
-                { title: 'Found', author: 'Artist', url: 'u2', durationMS: 180_000 },
+                {
+                    title: 'Found',
+                    author: 'Artist',
+                    url: 'u2',
+                    durationMS: 180_000,
+                },
             ],
         })
         shouldIncludeCandidateMock.mockReturnValue(false)

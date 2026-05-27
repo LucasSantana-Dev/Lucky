@@ -45,7 +45,9 @@ export default function SpotifyPage() {
         try {
             await api.spotify.unlink()
             setStatus((previous) =>
-                previous ? { ...previous, linked: false, username: null } : previous,
+                previous
+                    ? { ...previous, linked: false, username: null }
+                    : previous,
             )
         } catch {
             setError('Failed to unlink account')
@@ -103,7 +105,8 @@ export default function SpotifyPage() {
                                 Not Configured
                             </h2>
                             <p className='type-body-sm text-lucky-text-secondary mt-2'>
-                                Spotify integration is not configured. Ask the server owner to set:
+                                Spotify integration is not configured. Ask the
+                                server owner to set:
                             </p>
                             <div className='mt-3 space-y-2 text-xs'>
                                 <code className='block rounded bg-lucky-bg-active px-2 py-1 text-lucky-text-body font-600'>
@@ -145,8 +148,8 @@ export default function SpotifyPage() {
                     </div>
 
                     <p className='type-body-sm text-lucky-text-secondary border-t border-lucky-border/20 pt-4'>
-                        Lucky can access your library and listening history to provide
-                        personalized autoplay recommendations.
+                        Lucky can access your library and listening history to
+                        provide personalized autoplay recommendations.
                     </p>
 
                     <button
@@ -169,8 +172,9 @@ export default function SpotifyPage() {
                             Connect Your Account
                         </h2>
                         <p className='type-body-sm text-lucky-text-secondary mt-2'>
-                            Link your Spotify account so Lucky can learn your music preferences
-                            and provide personalized autoplay recommendations.
+                            Link your Spotify account so Lucky can learn your
+                            music preferences and provide personalized autoplay
+                            recommendations.
                         </p>
                     </div>
 
@@ -193,7 +197,8 @@ export default function SpotifyPage() {
                                 Smarter autoplay
                             </h3>
                             <p className='type-body-sm text-lucky-text-secondary mt-2'>
-                                Lucky learns from your library, top tracks, and recent listening.
+                                Lucky learns from your library, top tracks, and
+                                recent listening.
                             </p>
                         </div>
                     </div>
@@ -207,7 +212,8 @@ export default function SpotifyPage() {
                                 Privacy control
                             </h3>
                             <p className='type-body-sm text-lucky-text-secondary mt-2'>
-                                Disconnect anytime without affecting server playback.
+                                Disconnect anytime without affecting server
+                                playback.
                             </p>
                         </div>
                     </div>
@@ -215,7 +221,9 @@ export default function SpotifyPage() {
             </div>
 
             <section className='surface-panel space-y-4 rounded-xl border border-lucky-border/20 p-8'>
-                <h3 className='type-title text-lucky-text-primary'>How it works</h3>
+                <h3 className='type-title text-lucky-text-primary'>
+                    How it works
+                </h3>
                 <ol className='space-y-3 text-sm'>
                     {[
                         'Connect your Spotify account above',

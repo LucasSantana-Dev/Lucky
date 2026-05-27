@@ -31,7 +31,12 @@ import {
     blendAutoplayTracks,
 } from './queueEditOps'
 
-function createTrack(title: string, author: string, url = '', requestedById?: string): Track {
+function createTrack(
+    title: string,
+    author: string,
+    url = '',
+    requestedById?: string,
+): Track {
     return {
         title,
         author,
@@ -44,11 +49,15 @@ function createTrack(title: string, author: string, url = '', requestedById?: st
 function createQueue(tracks: Track[]): GuildQueue {
     let queueTracks = [...tracks]
     const addTrackMock = jest.fn((track: Track) => queueTracks.push(track))
-    const clearMock = jest.fn(() => { queueTracks = [] })
+    const clearMock = jest.fn(() => {
+        queueTracks = []
+    })
     return {
         tracks: {
             toArray: () => [...queueTracks],
-            get size() { return queueTracks.length },
+            get size() {
+                return queueTracks.length
+            },
         },
         clear: clearMock,
         addTrack: addTrackMock,
@@ -57,7 +66,9 @@ function createQueue(tracks: Track[]): GuildQueue {
         }),
         node: {
             remove: jest.fn((track: Track) => {
-                const idx = queueTracks.findIndex((t) => t.url === track.url && t.title === track.title)
+                const idx = queueTracks.findIndex(
+                    (t) => t.url === track.url && t.title === track.title,
+                )
                 if (idx >= 0) queueTracks.splice(idx, 1)
             }),
         },
@@ -80,7 +91,9 @@ describe('clearQueue', () => {
 
     it('returns false and logs error when clear throws', async () => {
         const queue = createQueue([])
-        ;(queue.clear as jest.Mock).mockImplementation(() => { throw new Error('fail') })
+        ;(queue.clear as jest.Mock).mockImplementation(() => {
+            throw new Error('fail')
+        })
         errorLogMock.mockReturnValue(undefined)
         const result = await clearQueue(queue)
         expect(result).toBe(false)
@@ -103,7 +116,11 @@ describe('shuffleQueue', () => {
     })
 
     it('clears and re-adds tracks after shuffle', async () => {
-        const tracks = [createTrack('T1', 'A1', 'u1'), createTrack('T2', 'A2', 'u2'), createTrack('T3', 'A3', 'u3')]
+        const tracks = [
+            createTrack('T1', 'A1', 'u1'),
+            createTrack('T2', 'A2', 'u2'),
+            createTrack('T3', 'A3', 'u3'),
+        ]
         const queue = createQueue(tracks)
         const result = await shuffleQueue(queue)
         expect(result).toBe(true)
@@ -114,7 +131,9 @@ describe('shuffleQueue', () => {
     it('returns false when queue operation throws', async () => {
         const tracks = [createTrack('T1', 'A1'), createTrack('T2', 'A2')]
         const queue = createQueue(tracks)
-        ;(queue.clear as jest.Mock).mockImplementation(() => { throw new Error('fail') })
+        ;(queue.clear as jest.Mock).mockImplementation(() => {
+            throw new Error('fail')
+        })
         errorLogMock.mockReturnValue(undefined)
         const result = await shuffleQueue(queue)
         expect(result).toBe(false)
@@ -128,7 +147,11 @@ describe('smartShuffleQueue', () => {
     })
 
     it('shuffles queue and returns true on success', async () => {
-        const tracks = [createTrack('T1', 'A1', 'u1'), createTrack('T2', 'A2', 'u2'), createTrack('T3', 'A3', 'u3')]
+        const tracks = [
+            createTrack('T1', 'A1', 'u1'),
+            createTrack('T2', 'A2', 'u2'),
+            createTrack('T3', 'A3', 'u3'),
+        ]
         const queue = createQueue(tracks)
         const result = await smartShuffleQueue(queue)
         expect(result).toBe(true)
@@ -138,7 +161,9 @@ describe('smartShuffleQueue', () => {
     it('returns false on error', async () => {
         const tracks = [createTrack('T1', 'A1'), createTrack('T2', 'A2')]
         const queue = createQueue(tracks)
-        ;(queue.clear as jest.Mock).mockImplementation(() => { throw new Error('fail') })
+        ;(queue.clear as jest.Mock).mockImplementation(() => {
+            throw new Error('fail')
+        })
         errorLogMock.mockReturnValue(undefined)
         const result = await smartShuffleQueue(queue)
         expect(result).toBe(false)
@@ -166,7 +191,9 @@ describe('removeTrackFromQueue', () => {
 
     it('returns null and logs error on exception', async () => {
         const queue = createQueue([createTrack('T1', 'A1', 'u1')])
-        ;(queue.node.remove as jest.Mock).mockImplementation(() => { throw new Error('fail') })
+        ;(queue.node.remove as jest.Mock).mockImplementation(() => {
+            throw new Error('fail')
+        })
         errorLogMock.mockReturnValue(undefined)
         const result = await removeTrackFromQueue(queue, 0)
         expect(result).toBeNull()
@@ -194,8 +221,13 @@ describe('moveTrackInQueue', () => {
     })
 
     it('returns null and logs error on exception', async () => {
-        const queue = createQueue([createTrack('T1', 'A1', 'u1'), createTrack('T2', 'A2', 'u2')])
-        ;(queue.node.remove as jest.Mock).mockImplementation(() => { throw new Error('fail') })
+        const queue = createQueue([
+            createTrack('T1', 'A1', 'u1'),
+            createTrack('T2', 'A2', 'u2'),
+        ])
+        ;(queue.node.remove as jest.Mock).mockImplementation(() => {
+            throw new Error('fail')
+        })
         errorLogMock.mockReturnValue(undefined)
         const result = await moveTrackInQueue(queue, 0, 1)
         expect(result).toBeNull()
@@ -204,7 +236,11 @@ describe('moveTrackInQueue', () => {
 
 describe('extractSpotifyTrackId', () => {
     it('extracts ID from spotify URL', () => {
-        const track = createTrack('T', 'A', 'https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh')
+        const track = createTrack(
+            'T',
+            'A',
+            'https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh',
+        )
         expect(extractSpotifyTrackId(track)).toBe('4iV5W9uYEdYUVa79Axb7Rh')
     })
 
@@ -218,7 +254,8 @@ describe('markAsAutoplayTrack', () => {
     it('marks track as autoplay with metadata', () => {
         const track = createTrack('T', 'A')
         markAsAutoplayTrack(track, 'similar vibes', 'user123')
-        const meta = (track as unknown as { metadata: Record<string, unknown> }).metadata
+        const meta = (track as unknown as { metadata: Record<string, unknown> })
+            .metadata
         expect(meta.isAutoplay).toBe(true)
         expect(meta.recommendationReason).toBe('similar vibes')
         expect(meta.requestedById).toBe('user123')
@@ -233,7 +270,8 @@ describe('markAsAutoplayTrack', () => {
             writable: false,
         })
         markAsAutoplayTrack(track, 'reason', 'user456')
-        const meta = (track as unknown as { metadata: Record<string, unknown> }).metadata
+        const meta = (track as unknown as { metadata: Record<string, unknown> })
+            .metadata
         expect(meta.isAutoplay).toBe(true)
         expect(meta.existing).toBe('value')
     })
@@ -246,7 +284,9 @@ describe('moveUserTrackToPriority', () => {
 
     it('moves user track before autoplay tracks', () => {
         const autoTrack = createTrack('Auto', 'Bot', 'u1')
-        ;(autoTrack as unknown as { metadata: Record<string, unknown> }).metadata = { isAutoplay: true }
+        ;(
+            autoTrack as unknown as { metadata: Record<string, unknown> }
+        ).metadata = { isAutoplay: true }
         const userTrack = createTrack('User', 'Human', 'u2')
         const queue = createQueue([autoTrack, userTrack])
         moveUserTrackToPriority(queue, userTrack)
@@ -261,10 +301,14 @@ describe('moveUserTrackToPriority', () => {
 
     it('handles exception from queue.node.remove', () => {
         const autoTrack = createTrack('Auto', 'Bot', 'u1')
-        ;(autoTrack as unknown as { metadata: Record<string, unknown> }).metadata = { isAutoplay: true }
+        ;(
+            autoTrack as unknown as { metadata: Record<string, unknown> }
+        ).metadata = { isAutoplay: true }
         const userTrack = createTrack('User', 'Human', 'u2')
         const queue = createQueue([autoTrack, userTrack])
-        ;(queue.node.remove as jest.Mock).mockImplementation(() => { throw new Error('fail') })
+        ;(queue.node.remove as jest.Mock).mockImplementation(() => {
+            throw new Error('fail')
+        })
         debugLogMock.mockReturnValue(undefined)
         moveUserTrackToPriority(queue, userTrack)
         expect(queue.insertTrack).not.toHaveBeenCalled()
@@ -292,7 +336,8 @@ describe('blendAutoplayTracks', () => {
         const auto3 = createTrack('Auto3', 'Bot', 'u3')
         const auto4 = createTrack('Auto4', 'Bot', 'u4')
         for (const t of [auto1, auto2, auto3, auto4]) {
-            ;(t as unknown as { metadata: Record<string, unknown> }).metadata = { isAutoplay: true }
+            ;(t as unknown as { metadata: Record<string, unknown> }).metadata =
+                { isAutoplay: true }
         }
         const queue = createQueue([auto1, auto2, auto3, auto4])
         await blendAutoplayTracks(queue, seedTrack, 0.5)

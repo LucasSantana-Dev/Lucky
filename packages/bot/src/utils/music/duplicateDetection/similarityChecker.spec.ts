@@ -119,12 +119,17 @@ describe('calculateSimilarityScore', () => {
     it('returns weighted score with title 0.7 and artist 0.3', () => {
         const t1Identical = makeTrack('Halo', 'Beyoncé')
         const t2Identical = makeHistory('Halo', 'Beyoncé')
-        expect(calculateSimilarityScore(t1Identical, t2Identical, cfg)).toBe(1.0)
+        expect(calculateSimilarityScore(t1Identical, t2Identical, cfg)).toBe(
+            1.0,
+        )
 
         // title sim = 0 (completely different), artist sim = 1 → 0*0.7 + 1*0.3 = 0.3
         const t1Diff = makeTrack('aaaa', 'same')
         const t2Diff = makeHistory('bbbb', 'same')
-        expect(calculateSimilarityScore(t1Diff, t2Diff, cfg)).toBeCloseTo(0.3, 1)
+        expect(calculateSimilarityScore(t1Diff, t2Diff, cfg)).toBeCloseTo(
+            0.3,
+            1,
+        )
     })
 
     it('returns value between 0 and 1 for any track pair', () => {

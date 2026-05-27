@@ -40,7 +40,10 @@ import { trackHistoryService } from '@lucky/shared/services'
 
 const queueOpsMock = queueOps as unknown as Record<string, jest.Mock>
 const queueStateMgrMock = queueStateMgr as unknown as Record<string, jest.Mock>
-const trackHistoryServiceMock = trackHistoryService as unknown as Record<string, jest.Mock>
+const trackHistoryServiceMock = trackHistoryService as unknown as Record<
+    string,
+    jest.Mock
+>
 
 function createTrack(id: string, title: string): Track {
     return {
@@ -152,7 +155,9 @@ describe('TrackManagementService', () => {
 
             // Verify allowDuplicates option controls skipDuplicates
             jest.clearAllMocks()
-            const serviceAllowDupes = new TrackManagementService({ allowDuplicates: true })
+            const serviceAllowDupes = new TrackManagementService({
+                allowDuplicates: true,
+            })
             queueOpsMock.addTrackToQueue.mockResolvedValue({
                 success: true,
                 tracksAdded: 1,
@@ -234,7 +239,12 @@ describe('TrackManagementService', () => {
                 tracksAdded: 1,
                 tracksSkipped: 0,
             })
-            await serviceWithLimit.addTracksToQueue(queue, [tracks[0]], false, requester)
+            await serviceWithLimit.addTracksToQueue(
+                queue,
+                [tracks[0]],
+                false,
+                requester,
+            )
             expect(queueOpsMock.addTracksToQueue).toHaveBeenCalledWith(
                 expect.any(Object),
                 expect.any(Object),
@@ -254,11 +264,19 @@ describe('TrackManagementService', () => {
                 tracksSkipped: 0,
             })
 
-            const emptyResult = await service.addTracksToQueue(queue, [], false, requester)
+            const emptyResult = await service.addTracksToQueue(
+                queue,
+                [],
+                false,
+                requester,
+            )
             expect(emptyResult.tracksAdded).toBe(0)
 
             jest.clearAllMocks()
-            const tracks = [createTrack('track-1', 'Song 1'), createTrack('track-2', 'Song 2')]
+            const tracks = [
+                createTrack('track-1', 'Song 1'),
+                createTrack('track-2', 'Song 2'),
+            ]
             const testError = new Error('Queue operation failed')
             queueOpsMock.addTracksToQueue.mockRejectedValue(testError)
 
@@ -327,7 +345,9 @@ describe('TrackManagementService', () => {
             const tracksToAdd = [createTrack('track-1', 'Song 1')]
             const requester = { user: { id: 'user-123' } } as any
             queue.node.isPlaying = jest.fn(() => false)
-            queueOpsMock.addTracksToQueue.mockRejectedValue(new Error('Test error'))
+            queueOpsMock.addTracksToQueue.mockRejectedValue(
+                new Error('Test error'),
+            )
 
             const result = await service.manageQueue(
                 queue,
@@ -343,13 +363,15 @@ describe('TrackManagementService', () => {
 
     describe('clearGuildHistory', () => {
         it('clears guild cache and handles errors with guild ID passed correctly', async () => {
-            trackHistoryServiceMock.clearAllGuildCaches.mockResolvedValue(undefined)
+            trackHistoryServiceMock.clearAllGuildCaches.mockResolvedValue(
+                undefined,
+            )
 
             await service.clearGuildHistory('guild-123')
 
-            expect(trackHistoryServiceMock.clearAllGuildCaches).toHaveBeenCalledWith(
-                'guild-123',
-            )
+            expect(
+                trackHistoryServiceMock.clearAllGuildCaches,
+            ).toHaveBeenCalledWith('guild-123')
             expect(debugLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: 'Cleared guild history',
@@ -359,7 +381,9 @@ describe('TrackManagementService', () => {
 
             jest.clearAllMocks()
             const testError = new Error('Cache clear failed')
-            trackHistoryServiceMock.clearAllGuildCaches.mockRejectedValue(testError)
+            trackHistoryServiceMock.clearAllGuildCaches.mockRejectedValue(
+                testError,
+            )
 
             await service.clearGuildHistory('guild-999')
 
@@ -369,12 +393,11 @@ describe('TrackManagementService', () => {
                     error: testError,
                 }),
             )
-            expect(trackHistoryServiceMock.clearAllGuildCaches).toHaveBeenCalledWith(
-                'guild-999',
-            )
+            expect(
+                trackHistoryServiceMock.clearAllGuildCaches,
+            ).toHaveBeenCalledWith('guild-999')
         })
     })
-
 
     describe('updateOptions', () => {
         it('updates partial options and preserves defaults across multiple updates', () => {

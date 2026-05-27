@@ -87,7 +87,10 @@ export default function ConfigPage() {
                         className='text-xs text-lucky-text-tertiary'
                         style={{ fontFamily: 'Manrope' }}
                     >
-                        Server: <span className='text-lucky-text-secondary font-medium'>{selectedGuild.name}</span>
+                        Server:{' '}
+                        <span className='text-lucky-text-secondary font-medium'>
+                            {selectedGuild.name}
+                        </span>
                     </p>
                 </div>
             </header>
@@ -108,10 +111,24 @@ export default function ConfigPage() {
                                         key={module.id}
                                         type='button'
                                         className='group relative flex items-start gap-4 p-4 rounded-lg border border-lucky-border-soft bg-lucky-surface-panel transition-colors duration-120 hover:border-lucky-border-strong hover:bg-lucky-surface-elevated focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-bg-primary'
-                                        onClick={() => handleModuleClick(module.id)}
-                                        style={{ transitionDuration: '120ms', transitionTimingFunction: 'cubic-bezier(0.2, 0, 0, 1)' }}
+                                        onClick={() =>
+                                            handleModuleClick(module.id)
+                                        }
+                                        style={{
+                                            transitionDuration: '120ms',
+                                            transitionTimingFunction:
+                                                'cubic-bezier(0.2, 0, 0, 1)',
+                                        }}
                                     >
-                                        <div className='flex-shrink-0 p-2 rounded-lg bg-lucky-surface-highlight group-hover:bg-lucky-brand/15 transition-colors duration-120' style={{ transitionDuration: '120ms', transitionTimingFunction: 'cubic-bezier(0.2, 0, 0, 1)' }} aria-hidden='true'>
+                                        <div
+                                            className='flex-shrink-0 p-2 rounded-lg bg-lucky-surface-highlight group-hover:bg-lucky-brand/15 transition-colors duration-120'
+                                            style={{
+                                                transitionDuration: '120ms',
+                                                transitionTimingFunction:
+                                                    'cubic-bezier(0.2, 0, 0, 1)',
+                                            }}
+                                            aria-hidden='true'
+                                        >
                                             <Icon className='w-5 h-5 text-lucky-brand' />
                                         </div>
                                         <div className='flex-1 text-left space-y-1'>
@@ -123,12 +140,21 @@ export default function ConfigPage() {
                                             </h3>
                                             <p
                                                 className='text-xs text-lucky-text-secondary leading-snug'
-                                                style={{ fontFamily: 'Manrope' }}
+                                                style={{
+                                                    fontFamily: 'Manrope',
+                                                }}
                                             >
                                                 {module.description}
                                             </p>
                                         </div>
-                                        <div className='flex-shrink-0 text-lucky-text-tertiary group-hover:text-lucky-text-secondary transition-colors duration-120' style={{ transitionDuration: '120ms', transitionTimingFunction: 'cubic-bezier(0.2, 0, 0, 1)' }}>
+                                        <div
+                                            className='flex-shrink-0 text-lucky-text-tertiary group-hover:text-lucky-text-secondary transition-colors duration-120'
+                                            style={{
+                                                transitionDuration: '120ms',
+                                                transitionTimingFunction:
+                                                    'cubic-bezier(0.2, 0, 0, 1)',
+                                            }}
+                                        >
                                             →
                                         </div>
                                     </button>
@@ -146,11 +172,16 @@ export default function ConfigPage() {
                                 onClick={() => setSelectedModule(null)}
                                 className='gap-2 text-lucky-text-secondary hover:text-lucky-text-primary'
                             >
-                                <ArrowLeft className='w-4 h-4' />
-                                ← Back
+                                <ArrowLeft className='w-4 h-4' />← Back
                             </Button>
                         </div>
-                        <Suspense fallback={<div className='flex justify-center py-12'><LoadingSpinner /></div>}>
+                        <Suspense
+                            fallback={
+                                <div className='flex justify-center py-12'>
+                                    <LoadingSpinner />
+                                </div>
+                            }
+                        >
                             {selectedModule === 'music' && (
                                 <MusicConfig guildId={selectedGuild.id} />
                             )}
