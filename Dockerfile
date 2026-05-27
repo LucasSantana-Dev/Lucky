@@ -45,6 +45,7 @@ CMD ["sh", "-c", "npm ci --legacy-peer-deps --no-audit --no-fund && npx prisma g
 
 # Build stage — installs all deps, generates prisma, builds shared + target
 FROM node:${NODE_VERSION} AS build
+ARG NPM_CACHE_KEY
 
 RUN apk add --no-cache git build-base python3 python3-dev opus-dev && rm -rf /var/cache/apk/*
 
@@ -88,6 +89,7 @@ RUN npm run build --workspace=packages/frontend
 
 # Production deps — slim install (no dev deps)
 FROM node:${NODE_VERSION} AS deps-production
+ARG NPM_CACHE_KEY
 
 RUN apk add --no-cache python3 && rm -rf /var/cache/apk/*
 
