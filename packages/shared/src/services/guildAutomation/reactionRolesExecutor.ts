@@ -61,27 +61,33 @@ export function createReactionRolesExecutor(deps: { port: ReactionRolesPort }) {
         ): ReactionRolesDiff {
             const ops: ReactionRolesDiffOp[] = []
 
-            const desiredPairs = section.exclusiveRoles ?? []
-            const desiredKeys = new Set(
-                desiredPairs.map((p) => `${p.roleId}:${p.excludedRoleId}`),
-            )
+            if (section.exclusiveRoles !== undefined) {
+                const desiredPairs = section.exclusiveRoles
+                const desiredKeys = new Set(
+                    desiredPairs.map((p) => `${p.roleId}:${p.excludedRoleId}`),
+                )
 
-            for (const pair of live.exclusiveRoles) {
-                if (!desiredKeys.has(`${pair.roleId}:${pair.excludedRoleId}`)) {
+                for (const pair of live.exclusiveRoles) {
+                    if (
+                        !desiredKeys.has(
+                            `${pair.roleId}:${pair.excludedRoleId}`,
+                        )
+                    ) {
+                        ops.push({
+                            kind: 'remove-exclusive',
+                            roleId: pair.roleId,
+                            excludedRoleId: pair.excludedRoleId,
+                        })
+                    }
+                }
+
+                for (const pair of desiredPairs) {
                     ops.push({
-                        kind: 'remove-exclusive',
+                        kind: 'set-exclusive',
                         roleId: pair.roleId,
                         excludedRoleId: pair.excludedRoleId,
                     })
                 }
-            }
-
-            for (const pair of desiredPairs) {
-                ops.push({
-                    kind: 'set-exclusive',
-                    roleId: pair.roleId,
-                    excludedRoleId: pair.excludedRoleId,
-                })
             }
 
             const messageCount = section.messages?.length ?? 0

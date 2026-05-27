@@ -1172,8 +1172,7 @@ class GuildAutomationExecutionService {
                 message: `ReactionRoles executor apply: ${result.status}`,
                 data: {
                     guildId,
-                    errors:
-                        result.status === 'partial' ? result.errors : undefined,
+                    errors: 'errors' in result ? result.errors : result.error,
                 },
             })
         }

@@ -71,6 +71,24 @@ describe('createReactionRolesExecutor', () => {
         expect(port.removeExclusiveRole).not.toHaveBeenCalled()
     })
 
+    it('does not remove live exclusive pairs when exclusiveRoles is omitted', async () => {
+        const port = makePort()
+        port.listExclusiveRoles.mockResolvedValue([
+            { roleId: 'r1', excludedRoleId: 'r2' },
+        ])
+        const executor = createReactionRolesExecutor({ port })
+
+        const live = await executor.capture({ guildId: 'g1' })
+        const diff = executor.diff(live, {
+            messages: [{ messageId: 'm1', channelId: 'c1' }],
+        })
+        const result = await executor.apply(diff, { guildId: 'g1' })
+
+        expect(result.status).toBe('success')
+        expect(port.removeExclusiveRole).not.toHaveBeenCalled()
+        expect(port.setExclusiveRole).not.toHaveBeenCalled()
+    })
+
     it('is noop when section is empty', async () => {
         const port = makePort()
         const executor = createReactionRolesExecutor({ port })
