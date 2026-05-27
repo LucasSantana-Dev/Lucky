@@ -10,7 +10,10 @@ import {
     type GuildAutomationManifestDocument,
     type GuildAutomationPlan,
 } from '@lucky/shared/services'
-import { createAutoMessagesExecutor } from '@lucky/shared/services/guildAutomation'
+import {
+    createAutoMessagesExecutor,
+    createModerationExecutor,
+} from '@lucky/shared/services/guildAutomation'
 import {
     type GuildAutomationRole,
     type GuildAutomationChannel,
@@ -337,6 +340,20 @@ function remapCommandAccessSection(
 class GuildAutomationExecutionService {
     private readonly autoMessagesExecutor = createAutoMessagesExecutor({
         autoMessageService,
+    })
+
+    private readonly moderationExecutor = createModerationExecutor({
+        port: {
+            updateAutoModSettings: async (guildId, settings) => {
+                const payload = toAutoModPayload(settings)
+                if (payload)
+                    await autoModService.updateSettings(guildId, payload)
+            },
+            updateModerationSettings: async (guildId, settings) => {
+                const payload = toModerationPayload(settings)
+                if (payload) await updateModerationSettings(guildId, payload)
+            },
+        },
     })
 
     private getBotToken(): string {
@@ -1114,15 +1131,21 @@ class GuildAutomationExecutionService {
         desired: GuildAutomationManifestDocument,
         appliedModules: string[],
     ): Promise<void> {
-        const automodPayload = toAutoModPayload(desired.moderation?.automod)
-        if (automodPayload) {
-            await autoModService.updateSettings(guildId, automodPayload)
-        }
-        const moderationPayload = toModerationPayload(
-            desired.moderation?.moderationSettings,
+        const live = this.moderationExecutor.capture()
+        const diff = this.moderationExecutor.diff(
+            live,
+            desired.moderation ?? {},
         )
-        if (moderationPayload) {
-            await updateModerationSettings(guildId, moderationPayload)
+        const result = await this.moderationExecutor.apply(diff, { guildId })
+        if (result.status !== 'success') {
+            warnLog({
+                message: `Moderation executor apply: ${result.status}`,
+                data: {
+                    guildId,
+                    errors:
+                        result.status === 'partial' ? result.errors : undefined,
+                },
+            })
         }
         appliedModules.push('moderation')
     }
