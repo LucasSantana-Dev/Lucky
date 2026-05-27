@@ -6,7 +6,7 @@ ARG NODE_VERSION=22-alpine
 # Lockfile-hash cache key — auto-busts npm BuildKit caches when package-lock.json
 # changes. Passed as a build-arg from the workflow: hashFiles('package-lock.json').
 # Bump the default (v1 → v2) only if you need a forced one-off cache wipe.
-ARG NPM_CACHE_KEY=v1
+ARG NPM_CACHE_KEY=v2
 
 FROM node:${NODE_VERSION} AS base-runtime
 
@@ -57,7 +57,7 @@ COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
 COPY packages/frontend/package*.json ./packages/frontend/
 
-RUN --mount=type=cache,id=npm-build-stage-${NPM_CACHE_KEY},target=/root/.npm,sharing=locked \
+RUN --mount=type=cache,id=npm-build-stage-v2-${NPM_CACHE_KEY},target=/root/.npm,sharing=locked \
     YOUTUBE_DL_SKIP_DOWNLOAD=1 \
     npm ci --legacy-peer-deps --no-audit --no-fund && \
     (npm cache verify 2>/dev/null || true)
@@ -101,7 +101,7 @@ COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
 COPY packages/frontend/package*.json ./packages/frontend/
 
-RUN --mount=type=cache,id=npm-deps-production-${NPM_CACHE_KEY},target=/root/.npm,sharing=locked \
+RUN --mount=type=cache,id=npm-deps-production-v2-${NPM_CACHE_KEY},target=/root/.npm,sharing=locked \
     YOUTUBE_DL_SKIP_DOWNLOAD=1 \
     YOUTUBE_DL_SKIP_PYTHON_CHECK=1 \
     npm ci --legacy-peer-deps --omit=dev --no-audit --no-fund && \
