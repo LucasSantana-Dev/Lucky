@@ -37,10 +37,16 @@ export default function AdminPage() {
                         />
                     </div>
                     <div className='space-y-2'>
-                        <h1 className='text-xl font-semibold text-lucky-text-primary' style={{ fontFamily: 'Sora' }}>
+                        <h1
+                            className='text-xl font-semibold text-lucky-text-primary'
+                            style={{ fontFamily: 'Sora' }}
+                        >
                             Admin Panel
                         </h1>
-                        <p className='text-sm text-lucky-text-secondary' style={{ fontFamily: 'Manrope' }}>
+                        <p
+                            className='text-sm text-lucky-text-secondary'
+                            style={{ fontFamily: 'Manrope' }}
+                        >
                             Sign in with Discord to access the admin panel.
                         </p>
                     </div>
@@ -63,10 +69,16 @@ export default function AdminPage() {
                         />
                     </div>
                     <div className='space-y-2'>
-                        <h1 className='text-xl font-semibold text-lucky-text-primary' style={{ fontFamily: 'Sora' }}>
+                        <h1
+                            className='text-xl font-semibold text-lucky-text-primary'
+                            style={{ fontFamily: 'Sora' }}
+                        >
                             Access Denied
                         </h1>
-                        <p className='text-sm text-lucky-text-secondary' style={{ fontFamily: 'Manrope' }}>
+                        <p
+                            className='text-sm text-lucky-text-secondary'
+                            style={{ fontFamily: 'Manrope' }}
+                        >
                             This page is restricted to bot administrators.
                         </p>
                     </div>
@@ -100,7 +112,10 @@ export default function AdminPage() {
                             className='w-6 h-6 text-lucky-brand flex-shrink-0'
                             aria-hidden='true'
                         />
-                        <h1 className='text-lg font-semibold text-lucky-text-primary' style={{ fontFamily: 'Sora' }}>
+                        <h1
+                            className='text-lg font-semibold text-lucky-text-primary'
+                            style={{ fontFamily: 'Sora' }}
+                        >
                             Admin Panel
                         </h1>
                     </div>
@@ -140,7 +155,10 @@ export default function AdminPage() {
                         >
                             Global Feature Toggles
                         </h2>
-                        <p className='text-xs text-lucky-text-tertiary' style={{ fontFamily: 'Manrope' }}>
+                        <p
+                            className='text-xs text-lucky-text-tertiary'
+                            style={{ fontFamily: 'Manrope' }}
+                        >
                             Manage feature flags across all servers
                         </p>
                     </div>
@@ -165,7 +183,10 @@ export default function AdminPage() {
                         >
                             Server Management
                         </h2>
-                        <p className='text-xs text-lucky-text-tertiary' style={{ fontFamily: 'Manrope' }}>
+                        <p
+                            className='text-xs text-lucky-text-tertiary'
+                            style={{ fontFamily: 'Manrope' }}
+                        >
                             View and manage bot activity across all servers
                         </p>
                     </div>

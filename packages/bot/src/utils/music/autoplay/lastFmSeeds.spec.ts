@@ -54,19 +54,16 @@ describe('getLastFmSeedTracks', () => {
         { name: 'no Last.fm link (null)', link: null },
         { name: 'no lastFmUsername', link: { lastFmUsername: null } },
         { name: 'API throws', link: { lastFmUsername: 'user' }, error: true },
-    ])(
-        'returns empty array when user $name',
-        async ({ link, error }) => {
-            getByDiscordIdMock.mockResolvedValue(link)
-            if (error) {
-                getTopTracksMock.mockRejectedValue(new Error('API error'))
-            }
+    ])('returns empty array when user $name', async ({ link, error }) => {
+        getByDiscordIdMock.mockResolvedValue(link)
+        if (error) {
+            getTopTracksMock.mockRejectedValue(new Error('API error'))
+        }
 
-            const tracks = await getLastFmSeedTracks('user-test')
+        const tracks = await getLastFmSeedTracks('user-test')
 
-            expect(tracks).toEqual([])
-        },
-    )
+        expect(tracks).toEqual([])
+    })
 
     it('returns tracks with API call and caching', async () => {
         getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
@@ -108,7 +105,10 @@ describe('getLastFmSeedTracks', () => {
         expect(tracks[0]).toEqual({ artist: 'Artist A', title: 'Song X' })
         expect(tracks[1]).toEqual({ artist: 'Artist B', title: 'Song B' })
         expect(tracks[2]).toEqual({ artist: 'Artist A', title: 'Good Song' })
-        expect(tracks[3]).toEqual({ artist: 'Recent Artist', title: 'Recent Song' })
+        expect(tracks[3]).toEqual({
+            artist: 'Recent Artist',
+            title: 'Recent Song',
+        })
     })
 })
 
@@ -129,9 +129,24 @@ describe('getLastFmSeedSlice', () => {
     })
 
     it.each([
-        { poolSize: 4, requestCount: 2, advanceFirst: false, expectedLength: 2 },
-        { poolSize: 20, requestCount: 8, advanceFirst: true, expectedLength: 5 },
-        { poolSize: 2, requestCount: 5, advanceFirst: false, expectedLength: 2 },
+        {
+            poolSize: 4,
+            requestCount: 2,
+            advanceFirst: false,
+            expectedLength: 2,
+        },
+        {
+            poolSize: 20,
+            requestCount: 8,
+            advanceFirst: true,
+            expectedLength: 5,
+        },
+        {
+            poolSize: 2,
+            requestCount: 5,
+            advanceFirst: false,
+            expectedLength: 2,
+        },
     ])(
         'returns slices at correct offset (pool=$poolSize)',
         async ({ poolSize, requestCount, advanceFirst, expectedLength }) => {
@@ -154,7 +169,10 @@ describe('getLastFmSeedSlice', () => {
             const slice = getLastFmSeedSlice(userId, requestCount)
 
             expect(slice).toHaveLength(expectedLength)
-            expect(slice[0]).toEqual({ artist: expect.stringMatching(/^A\d+$/), title: expect.stringMatching(/^S\d+$/) })
+            expect(slice[0]).toEqual({
+                artist: expect.stringMatching(/^A\d+$/),
+                title: expect.stringMatching(/^S\d+$/),
+            })
         },
     )
 
@@ -247,7 +265,11 @@ describe('consumeLastFmSeedSlice', () => {
     it.each([
         { poolSize: 5, requestCount: 3, expectedFirstOffset: 3 },
         { poolSize: 2, requestCount: 5, expectedFirstOffset: undefined },
-        { poolSize: 20, requestCount: undefined, expectedFirstOffset: undefined },
+        {
+            poolSize: 20,
+            requestCount: undefined,
+            expectedFirstOffset: undefined,
+        },
     ])(
         'loads, slices, advances atomically (pool=$poolSize)',
         async ({ poolSize, requestCount, expectedFirstOffset }) => {
@@ -320,7 +342,10 @@ describe('consumeBlendedSeedSlice', () => {
 
         getByDiscordIdMock.mockResolvedValue(null)
         getTopTracksMock.mockResolvedValue([])
-        const noLinkSlice = await consumeBlendedSeedSlice(['no-link-1', 'no-link-2'], 5)
+        const noLinkSlice = await consumeBlendedSeedSlice(
+            ['no-link-1', 'no-link-2'],
+            5,
+        )
         expect(noLinkSlice).toEqual([])
     })
 
@@ -369,7 +394,11 @@ describe('consumeBlendedSeedSlice', () => {
             ['user-1', 2],
             ['user-2', 1],
         ])
-        const slice = await consumeBlendedSeedSlice(['user-1', 'user-2'], 3, weights)
+        const slice = await consumeBlendedSeedSlice(
+            ['user-1', 'user-2'],
+            3,
+            weights,
+        )
 
         expect(slice.length).toBeLessThanOrEqual(3)
         const user1Tracks = slice.filter((t) => t.artist.includes('User1'))
@@ -398,7 +427,9 @@ describe('isLovedSeed', () => {
             artist: 'Loved Artist',
             title: 'Loved Song',
             setupFn: async () => {
-                getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+                getByDiscordIdMock.mockResolvedValue({
+                    lastFmUsername: 'user123',
+                })
                 getTopTracksMock.mockResolvedValue([])
                 getLovedTracksMock.mockResolvedValue([
                     { artist: 'Loved Artist', title: 'Loved Song' },
@@ -412,7 +443,9 @@ describe('isLovedSeed', () => {
             artist: 'Other Artist',
             title: 'Other Song',
             setupFn: async () => {
-                getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+                getByDiscordIdMock.mockResolvedValue({
+                    lastFmUsername: 'user123',
+                })
                 getTopTracksMock.mockResolvedValue([])
                 getLovedTracksMock.mockResolvedValue([
                     { artist: 'Loved Artist', title: 'Loved Song' },
@@ -421,13 +454,20 @@ describe('isLovedSeed', () => {
             },
             expected: false,
         },
-    ])('$name: returns $expected', async ({ artist, title, setupFn, expected }) => {
-        if (setupFn) {
-            await setupFn()
-        }
+    ])(
+        '$name: returns $expected',
+        async ({ artist, title, setupFn, expected }) => {
+            if (setupFn) {
+                await setupFn()
+            }
 
-        const result = isLovedSeed(setupFn ? 'loved-user' : 'unknown-user', artist, title)
+            const result = isLovedSeed(
+                setupFn ? 'loved-user' : 'unknown-user',
+                artist,
+                title,
+            )
 
-        expect(result).toBe(expected)
-    })
+            expect(result).toBe(expected)
+        },
+    )
 })

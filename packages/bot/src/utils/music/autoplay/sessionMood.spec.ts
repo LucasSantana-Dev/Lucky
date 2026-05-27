@@ -10,24 +10,70 @@ describe('sessionMood', () => {
         ])('%s → %s', (scenario, expected) => {
             const configs = {
                 '3+ times': [
-                    { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                    { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                    { author: 'Artist B', durationMS: 200000, isAutoplay: false },
-                    { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                    { author: 'Artist C', durationMS: 200000, isAutoplay: false },
+                    {
+                        author: 'Artist A',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist A',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist B',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist A',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist C',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
                 ],
                 'case-insensitive': [
-                    { author: 'ARTIST A', durationMS: 200000, isAutoplay: false },
-                    { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                    { author: 'artist a', durationMS: 200000, isAutoplay: false },
+                    {
+                        author: 'ARTIST A',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist A',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'artist a',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
                 ],
                 '< 3 times': [
-                    { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                    { author: 'Artist B', durationMS: 200000, isAutoplay: false },
-                    { author: 'Artist C', durationMS: 200000, isAutoplay: false },
+                    {
+                        author: 'Artist A',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist B',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
+                    {
+                        author: 'Artist C',
+                        durationMS: 200000,
+                        isAutoplay: false,
+                    },
                 ],
             }
-            const mood = detectSessionMood(configs[scenario as keyof typeof configs])
+            const mood = detectSessionMood(
+                configs[scenario as keyof typeof configs],
+            )
             expect(mood.deepDiveArtist).toBe(expected)
         })
 
@@ -155,7 +201,9 @@ describe('sessionMood', () => {
                     { author: 'B', durationMS: 200000, isAutoplay: true },
                 ],
             }
-            const mood = detectSessionMood(configs[scenario as keyof typeof configs])
+            const mood = detectSessionMood(
+                configs[scenario as keyof typeof configs],
+            )
             expect(mood.restless).toBe(expected)
         })
 
@@ -260,18 +308,40 @@ describe('sessionMood', () => {
         ])('%s → %s', (scenario, expected) => {
             const tracks = {
                 'no markers': [
-                    { author: 'Beatles', title: 'Hey Jude', durationMS: 200000 },
-                    { author: 'Zeppelin', title: 'Stairway', durationMS: 480000 },
+                    {
+                        author: 'Beatles',
+                        title: 'Hey Jude',
+                        durationMS: 200000,
+                    },
+                    {
+                        author: 'Zeppelin',
+                        title: 'Stairway',
+                        durationMS: 480000,
+                    },
                 ],
                 'reggaeton/cumbia': [
-                    { author: 'Bad Bunny', title: 'Reggaeton mix', durationMS: 200000 },
-                    { author: 'X', title: 'Cumbia caliente', durationMS: 200000 },
+                    {
+                        author: 'Bad Bunny',
+                        title: 'Reggaeton mix',
+                        durationMS: 200000,
+                    },
+                    {
+                        author: 'X',
+                        title: 'Cumbia caliente',
+                        durationMS: 200000,
+                    },
                 ],
                 'case-insensitive': [
-                    { author: 'Artist', title: 'BACHATA hits', durationMS: 200000 },
+                    {
+                        author: 'Artist',
+                        title: 'BACHATA hits',
+                        durationMS: 200000,
+                    },
                 ],
             }
-            const mood = detectSessionMood(tracks[scenario as keyof typeof tracks])
+            const mood = detectSessionMood(
+                tracks[scenario as keyof typeof tracks],
+            )
             expect(mood.dominantLocale).toBe(expected)
         })
 
@@ -293,7 +363,9 @@ describe('sessionMood', () => {
                 title: `Song ${i}`,
                 durationMS: 200000,
             }))
-            expect(detectSessionMood([...old, ...recent]).dominantLocale).toBeNull()
+            expect(
+                detectSessionMood([...old, ...recent]).dominantLocale,
+            ).toBeNull()
         })
     })
 
