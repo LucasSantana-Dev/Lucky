@@ -57,6 +57,10 @@ const moderationExecutorCaptureMock = jest.fn()
 const moderationExecutorDiffMock = jest.fn()
 const moderationExecutorApplyMock = jest.fn()
 
+const reactionRolesExecutorCaptureMock = jest.fn()
+const reactionRolesExecutorDiffMock = jest.fn()
+const reactionRolesExecutorApplyMock = jest.fn()
+
 jest.mock('@lucky/shared/services/guildAutomation', () => ({
     createAutoMessagesExecutor: jest.fn(() => ({
         capture: (...args: unknown[]) =>
@@ -68,6 +72,12 @@ jest.mock('@lucky/shared/services/guildAutomation', () => ({
         capture: (...args: unknown[]) => moderationExecutorCaptureMock(...args),
         diff: (...args: unknown[]) => moderationExecutorDiffMock(...args),
         apply: (...args: unknown[]) => moderationExecutorApplyMock(...args),
+    })),
+    createReactionRolesExecutor: jest.fn(() => ({
+        capture: (...args: unknown[]) =>
+            reactionRolesExecutorCaptureMock(...args),
+        diff: (...args: unknown[]) => reactionRolesExecutorDiffMock(...args),
+        apply: (...args: unknown[]) => reactionRolesExecutorApplyMock(...args),
     })),
 }))
 
@@ -135,6 +145,14 @@ describe('applyAutomationModules', () => {
             status: 'success',
             applied: [],
         })
+        reactionRolesExecutorCaptureMock.mockResolvedValue({
+            exclusiveRoles: [],
+        })
+        reactionRolesExecutorDiffMock.mockReturnValue({ ops: [] })
+        reactionRolesExecutorApplyMock.mockResolvedValue({
+            status: 'success',
+            applied: [],
+        })
     })
 
     it('applies configured modules and returns skipped guidance', async () => {
@@ -199,16 +217,11 @@ describe('applyAutomationModules', () => {
         })
         expect(autoMessagesExecutorDiffMock).toHaveBeenCalled()
         expect(autoMessagesExecutorApplyMock).toHaveBeenCalled()
-        expect(removeExclusiveRoleMock).toHaveBeenCalledWith(
-            'guild-1',
-            'legacy-role',
-            'legacy-excluded',
-        )
-        expect(setExclusiveRoleMock).toHaveBeenCalledWith(
-            'guild-1',
-            'role-a',
-            'role-b',
-        )
+        expect(reactionRolesExecutorCaptureMock).toHaveBeenCalledWith({
+            guildId: 'guild-1',
+        })
+        expect(reactionRolesExecutorDiffMock).toHaveBeenCalled()
+        expect(reactionRolesExecutorApplyMock).toHaveBeenCalled()
         expect(replaceRoleGrantsMock).toHaveBeenCalledWith('guild-1', [
             {
                 roleId: 'role-admin',
