@@ -1,0 +1,63 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+        "config:recommended",
+        ":semanticCommitType(chore)",
+        ":dependencyDashboard"
+    ],
+    "timezone": "America/Sao_Paulo",
+    "schedule": ["before 6am on monday"],
+    "labels": ["dependencies"],
+    "prHourlyLimit": 4,
+    "prConcurrentLimit": 8,
+    "rebaseStalePrs": true,
+    "vulnerabilityAlerts": {
+        "enabled": true,
+        "labels": ["security"],
+        "schedule": ["at any time"]
+    },
+    "packageRules": [
+        {
+            "description": "Auto-merge patch and minor npm updates",
+            "matchManagers": ["npm"],
+            "matchUpdateTypes": ["patch", "minor"],
+            "automerge": true,
+            "automergeType": "pr",
+            "platformAutomerge": true
+        },
+        {
+            "description": "Auto-merge GitHub Actions patch/digest updates",
+            "matchManagers": ["github-actions"],
+            "matchUpdateTypes": ["patch", "digest", "pin"],
+            "automerge": true,
+            "platformAutomerge": true
+        },
+        {
+            "description": "Auto-merge Docker patch/digest updates",
+            "matchManagers": ["docker-compose", "dockerfile"],
+            "matchUpdateTypes": ["patch", "digest"],
+            "automerge": true,
+            "platformAutomerge": true
+        },
+        {
+            "description": "Never auto-merge major bumps",
+            "matchUpdateTypes": ["major"],
+            "automerge": false
+        },
+        {
+            "description": "YouTube-adjacent packages require manual smoke test review",
+            "matchPackageNames": [
+                "youtubei.js",
+                "discord-player-youtubei",
+                "yt-dlp",
+                "youtube-dl-exec",
+                "play-dl"
+            ],
+            "automerge": false,
+            "labels": ["youtube-dep", "dependencies"]
+        }
+    ],
+    "github-actions": {
+        "pinDigests": true
+    }
+}

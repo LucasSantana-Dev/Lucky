@@ -5,6 +5,8 @@ on:
         branches: [main, 'release/**']
     pull_request:
         branches: [main, 'release/**']
+    merge_group:
+        branches: [main, 'release/**']
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
@@ -85,11 +87,11 @@ jobs:
                   retention-days: 1
 
     test-youtube-smoke:
-        name: Test — YouTube smoke (dependabot guard)
+        name: Test — YouTube smoke (dependency guard)
         runs-on: ubuntu-latest
-        # Only runs on dependabot pull_request events; the push trigger never matches dependabot.
+        # Only runs on dependabot/renovate pull_request events touching YouTube packages.
         if: |
-          github.actor == 'dependabot[bot]' && (
+          (github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]') && (
             contains(github.event.pull_request.title, 'youtubei.js') ||
             contains(github.event.pull_request.title, 'discord-player-youtubei') ||
             contains(github.event.pull_request.title, 'yt-dlp') ||
@@ -136,7 +138,7 @@ jobs:
     docker-build:
         name: Build — ${{ matrix.service }}
         runs-on: ubuntu-latest
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         strategy:
             fail-fast: false
             matrix:
@@ -166,7 +168,7 @@ jobs:
         name: Build — Docker images
         runs-on: ubuntu-latest
         needs: docker-build
-        if: always() && github.event_name == 'pull_request'
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
         steps:
             - name: Assert all builds passed
               run: |
