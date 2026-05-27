@@ -1,7 +1,8 @@
 ---
 status: accepted
 date: 2026-05-19
-revisit_after: after-pilot-executor
+amended: 2026-05-24
+revisit_after: after-guild-automation-decommission
 ---
 
 # Guild Automation reconciles via Module Executors with a Capture / Diff / Apply seam in shared
@@ -95,6 +96,42 @@ Four locked design choices:
 2. **Bot consumer.** Wire bot to call the AutoMessages Executor through `DiscordJsAdapter`. Delete the duplicated automessages logic in `bot/src/utils/guildAutomation/applyPlan.ts`. This is the first cross-package consumption — proves the location works.
 3. **Migrate remaining 6 Executors** one PR per Executor, easiest first: Moderation (DB-only) → ReactionRoles → CommandAccess → Onboarding (mostly read) → Channels → Roles (most complex; ID remap-heavy).
 4. **Decommission the monolith.** Once all 7 executors are migrated, delete `GuildAutomationExecutionService` and the duplicated bot apply path. Verify the guardrail test in `bot/utils/guildAutomation/` is updated to enforce "no Manifest reconciliation outside `shared/services/guildAutomation/`".
+
+## Amendment — 2026-05-24: cross-module ID remapping and executor execution order
+
+### Status of pilot
+
+AutoMessages Executor ✅ implemented and wired into both bot (`applyPlan.ts`) and backend (`GuildAutomationExecutionService.ts`).
+Moderation Executor ✅ implemented and wired into bot only; backend wiring is the next PR.
+Five remaining: Roles, Channels, Onboarding, ReactionRoles, CommandAccess.
+
+### ID remapping contract
+
+The orchestrator builds a `roleRemap: Map<desiredId, liveId>` and `channelRemap: Map<desiredId, liveId>` by name-matching desired manifest IDs against live Discord state. It then calls `remapManifestEntityIds()` to produce a remapped manifest where all cross-module references use live Discord IDs, BEFORE passing sections to executor `diff()`.
+
+**Executors always receive a remapped manifest section. Executors must never resolve IDs themselves.**
+
+When the Roles executor creates new roles during `apply()`, the orchestrator receives those new `{desiredId → liveId}` pairs in the apply result and adds them to `roleRemap` / `channelRemap` before processing later sections. This is why execution order is mandatory.
+
+### Mandatory execution order for Discord-write executors
+
+Roles → Channels → Onboarding
+
+Roles executor runs first and produces new role and channel IDs. Orchestrator extends the remap maps from the Roles apply result. Channels executor runs next using the extended channelRemap. Onboarding executor runs last using both extended maps.
+
+DB-only executors (Moderation, AutoMessages, ReactionRoles, CommandAccess) are order-independent relative to each other and should run after the Discord-write trilogy completes.
+
+The Roles executor apply result **must** expose a `createdIds: { roles: Map<desiredId, liveId>; channels: Map<desiredId, liveId> }` field so the orchestrator can extend the remap maps. This is the only output that crosses executor boundaries.
+
+### Recommended sequencing for remaining PRs
+
+1. Wire `moderationExecutor` into `GuildAutomationExecutionService.ts` backend (currently bot-only) — no new executor file needed.
+2. `ReactionRoles Executor` — DB-only, `reactionRolesService` port. No DiscordWriteAdapter extension needed.
+3. `CommandAccess Executor` — DB-only, `guildRoleAccessService` port.
+4. `Onboarding Executor` — one DiscordWriteAdapter write (`PATCH /guilds/:id/onboarding`). Extend `DiscordWriteAdapter` with `patchOnboarding`.
+5. `Channels Executor` — Discord write (create/edit/delete channels). Extend `DiscordWriteAdapter` with channel methods. Receives pre-remapped section.
+6. `Roles Executor` — Most complex. Discord role CRUD. Must return `createdIds` for orchestrator remap extension. Runs first in the Discord-write trilogy.
+7. **Decommission** `GuildAutomationExecutionService.ts` — delete legacy code once all 7 executors are wired.
 
 ## Revisit when
 
