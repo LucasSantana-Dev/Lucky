@@ -523,7 +523,10 @@ describe('ServerSettingsPage', () => {
         renderPage()
 
         const heading = await screen.findByText('Criativaria Baseline')
-        const card = heading.closest('section') || heading.closest('div[class*="space-y"]')?.parentElement as HTMLElement
+        const card =
+            heading.closest('section') ||
+            (heading.closest('div[class*="space-y"]')
+                ?.parentElement as HTMLElement)
         const applyButton = within(card).getByRole('button', { name: /Apply/i })
         await user.click(applyButton)
 
@@ -557,7 +560,10 @@ describe('ServerSettingsPage', () => {
         renderPage()
 
         const heading = await screen.findByText('Criativaria Baseline')
-        const card = heading.closest('section') || heading.closest('div[class*="space-y"]')?.parentElement as HTMLElement
+        const card =
+            heading.closest('section') ||
+            (heading.closest('div[class*="space-y"]')
+                ?.parentElement as HTMLElement)
         const applyButton = within(card).getByRole('button', { name: /Apply/i })
         await user.click(applyButton)
 

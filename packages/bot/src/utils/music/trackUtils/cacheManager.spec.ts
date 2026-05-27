@@ -109,7 +109,6 @@ describe('LRUCache', () => {
             expect(cache.get('key3')).toBe('value3')
         })
     })
-
 })
 
 describe('TrackCacheManager', () => {
@@ -182,7 +181,9 @@ describe('TrackCacheManager', () => {
             manager.set(key, info)
 
             expect(manager.has(key)).toBe(true)
-            expect(manager.has(createCacheKey('nonexistent', 'Unknown'))).toBe(false)
+            expect(manager.has(createCacheKey('nonexistent', 'Unknown'))).toBe(
+                false,
+            )
         })
 
         test('deletes track and returns appropriate status', () => {
@@ -195,7 +196,9 @@ describe('TrackCacheManager', () => {
 
             expect(deleted).toBe(true)
             expect(manager.has(key)).toBe(false)
-            expect(manager.delete(createCacheKey('nonexistent', 'Unknown'))).toBe(false)
+            expect(
+                manager.delete(createCacheKey('nonexistent', 'Unknown')),
+            ).toBe(false)
         })
 
         test('clears all cached entries and tracks size', () => {

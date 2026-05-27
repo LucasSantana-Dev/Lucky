@@ -25,6 +25,7 @@ The GHA workflow also uses `type=gha,mode=max` for Docker layer caching. When `t
 Use the lockfile hash as the BuildKit npm mount cache key, passed from the workflow as a build arg:
 
 **Dockerfile:**
+
 ```dockerfile
 ARG NPM_CACHE_KEY=v1
 ...
@@ -33,6 +34,7 @@ RUN --mount=type=cache,id=npm-deps-production-${NPM_CACHE_KEY},...
 ```
 
 **docker-publish.yml:**
+
 ```yaml
 build-args: |
     COMMIT_SHA=${{ github.sha }}

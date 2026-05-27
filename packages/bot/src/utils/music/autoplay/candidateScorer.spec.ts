@@ -96,9 +96,7 @@ describe('candidateScorer', () => {
                 currentTrack: createTrack(),
                 recentArtists: new Set(),
                 autoplayMode: 'similar',
-                dislikedWeights: new Map([
-                    ['dislikedsong::testartist', 0.7],
-                ]),
+                dislikedWeights: new Map([['dislikedsong::testartist', 0.7]]),
             })
             expect(result.score).toBe(-Infinity)
         })
@@ -154,28 +152,35 @@ describe('candidateScorer', () => {
         })
 
         it.each([
-            ['long tracks', { author: 'Test Artist', durationMS: 7 * 60 * 1000 }, { preferLong: true }, 'long track match'],
-            ['short tracks', { author: 'Test Artist', durationMS: 2 * 60 * 1000 }, { preferShort: true }, 'quick hit match'],
-        ])(
-            'boosts %s',
-            (_, trackOverrides, moodOverride, signal) => {
-                const baseMood = {
-                    dominantLocale: null,
-                    deepDiveArtist: null,
-                    preferLong: moodOverride.preferLong ?? false,
-                    preferShort: moodOverride.preferShort ?? false,
-                    restless: false,
-                }
-                const result = calculateRecommendationScore({
-                    candidate: createTrack(trackOverrides),
-                    currentTrack: createTrack({ durationMS: 5 * 60 * 1000 }),
-                    recentArtists: new Set(),
-                    autoplayMode: 'similar',
-                    sessionMood: baseMood,
-                })
-                expect(result.signals).toContain(signal)
-            },
-        )
+            [
+                'long tracks',
+                { author: 'Test Artist', durationMS: 7 * 60 * 1000 },
+                { preferLong: true },
+                'long track match',
+            ],
+            [
+                'short tracks',
+                { author: 'Test Artist', durationMS: 2 * 60 * 1000 },
+                { preferShort: true },
+                'quick hit match',
+            ],
+        ])('boosts %s', (_, trackOverrides, moodOverride, signal) => {
+            const baseMood = {
+                dominantLocale: null,
+                deepDiveArtist: null,
+                preferLong: moodOverride.preferLong ?? false,
+                preferShort: moodOverride.preferShort ?? false,
+                restless: false,
+            }
+            const result = calculateRecommendationScore({
+                candidate: createTrack(trackOverrides),
+                currentTrack: createTrack({ durationMS: 5 * 60 * 1000 }),
+                recentArtists: new Set(),
+                autoplayMode: 'similar',
+                sessionMood: baseMood,
+            })
+            expect(result.signals).toContain(signal)
+        })
 
         it('boosts popular mode based on liked weight', () => {
             const result = calculateRecommendationScore({
@@ -220,9 +225,7 @@ describe('candidateScorer', () => {
     describe('enrichWithAudioFeatures', () => {
         it('returns tracks unchanged on token error', async () => {
             const tracks = [{ track: createTrack(), score: 1, signals: [] }]
-            spotifyLinkServiceMock.mockRejectedValue(
-                new Error('Token error'),
-            )
+            spotifyLinkServiceMock.mockRejectedValue(new Error('Token error'))
             const result = await enrichWithAudioFeatures(
                 tracks,
                 'user-123',
@@ -278,7 +281,15 @@ describe('candidateScorer', () => {
             ['extreme acousticness swing', 0.95, 0.95, 0.05, 0.8, 120, false],
         ])(
             '%s',
-            async (_, candEnergy, candValence, candAc, sessAc, candTempo, shouldBoost) => {
+            async (
+                _,
+                candEnergy,
+                candValence,
+                candAc,
+                sessAc,
+                candTempo,
+                shouldBoost,
+            ) => {
                 const tracks = [{ track: createTrack(), score: 1, signals: [] }]
                 spotifyLinkServiceMock.mockResolvedValue('valid-token')
                 getBatchAudioFeaturesMock.mockResolvedValue(
@@ -294,12 +305,16 @@ describe('candidateScorer', () => {
                         ],
                     ]),
                 )
-                const result = await enrichWithAudioFeatures(tracks, 'user-123', {
-                    energy: candEnergy < 0.7 && shouldBoost ? 0.5 : 0.1,
-                    valence: candValence < 0.7 && shouldBoost ? 0.5 : 0.1,
-                    tempo: candTempo > 160 ? 100 : 120,
-                    acousticness: sessAc,
-                } as SpotifyAudioFeatures)
+                const result = await enrichWithAudioFeatures(
+                    tracks,
+                    'user-123',
+                    {
+                        energy: candEnergy < 0.7 && shouldBoost ? 0.5 : 0.1,
+                        valence: candValence < 0.7 && shouldBoost ? 0.5 : 0.1,
+                        tempo: candTempo > 160 ? 100 : 120,
+                        acousticness: sessAc,
+                    } as SpotifyAudioFeatures,
+                )
                 if (shouldBoost) {
                     expect(result[0].score).toBeGreaterThan(1)
                 } else {

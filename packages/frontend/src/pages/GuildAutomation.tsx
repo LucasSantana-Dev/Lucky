@@ -74,15 +74,22 @@ function RunCard({ run }: { run: AutomationRun }) {
                     <span className='text-sm font-medium text-lucky-text-strong capitalize truncate'>
                         {run.type}
                     </span>
-                    <Badge className={`text-xs border flex-shrink-0 ${statusColor(run.status)}`}>
+                    <Badge
+                        className={`text-xs border flex-shrink-0 ${statusColor(run.status)}`}
+                    >
                         {run.status}
                     </Badge>
                 </div>
                 <div className='flex items-center gap-2 flex-shrink-0'>
-                    <span className='text-xs text-lucky-text-muted'>{date}</span>
-                    {run.summary && (
-                        expanded ? <ChevronUp className='h-4 w-4' /> : <ChevronDown className='h-4 w-4' />
-                    )}
+                    <span className='text-xs text-lucky-text-muted'>
+                        {date}
+                    </span>
+                    {run.summary &&
+                        (expanded ? (
+                            <ChevronUp className='h-4 w-4' />
+                        ) : (
+                            <ChevronDown className='h-4 w-4' />
+                        ))}
                 </div>
             </button>
             {expanded && (
@@ -128,13 +135,19 @@ function PlanResultView({ result }: { result: PlanResult }) {
                             >
                                 {change.action}
                             </Badge>
-                            <span className='text-xs text-lucky-text-muted capitalize'>{change.type}</span>
-                            <span className='text-xs text-lucky-text-strong font-mono'>{change.resource}</span>
+                            <span className='text-xs text-lucky-text-muted capitalize'>
+                                {change.type}
+                            </span>
+                            <span className='text-xs text-lucky-text-strong font-mono'>
+                                {change.resource}
+                            </span>
                         </div>
                     ))}
                 </div>
             ) : (
-                <p className='text-sm text-lucky-text-muted'>No changes detected.</p>
+                <p className='text-sm text-lucky-text-muted'>
+                    No changes detected.
+                </p>
             )}
         </div>
     )
@@ -144,8 +157,14 @@ function ApplyResultView({ result }: { result: ApplyResult }) {
     return (
         <div className='space-y-3'>
             <div className='flex gap-4'>
-                <span className='text-sm text-green-400'>{result.applied} applied</span>
-                {result.failed > 0 && <span className='text-sm text-red-400'>{result.failed} failed</span>}
+                <span className='text-sm text-green-400'>
+                    {result.applied} applied
+                </span>
+                {result.failed > 0 && (
+                    <span className='text-sm text-red-400'>
+                        {result.failed} failed
+                    </span>
+                )}
             </div>
             <p className='text-sm text-lucky-text-body'>{result.summary}</p>
             {result.changes.length > 0 && (
@@ -156,13 +175,21 @@ function ApplyResultView({ result }: { result: ApplyResult }) {
                             className='surface-panel rounded border border-lucky-border p-3 flex items-center gap-3'
                         >
                             <StatusIcon status={change.status} />
-                            <Badge className={`text-xs border flex-shrink-0 ${statusColor(change.status)}`}>
+                            <Badge
+                                className={`text-xs border flex-shrink-0 ${statusColor(change.status)}`}
+                            >
                                 {change.status}
                             </Badge>
-                            <span className='text-xs text-lucky-text-muted capitalize'>{change.type}</span>
-                            <span className='text-xs text-lucky-text-strong font-mono'>{change.resource}</span>
+                            <span className='text-xs text-lucky-text-muted capitalize'>
+                                {change.type}
+                            </span>
+                            <span className='text-xs text-lucky-text-strong font-mono'>
+                                {change.resource}
+                            </span>
                             {change.error && (
-                                <span className='text-xs text-red-400 ml-auto'>{change.error}</span>
+                                <span className='text-xs text-red-400 ml-auto'>
+                                    {change.error}
+                                </span>
                             )}
                         </div>
                     ))}
@@ -176,7 +203,9 @@ export default function GuildAutomation() {
     const { selectedGuild } = useGuildStore()
     const [status, setStatus] = useState<string | null>(null)
     const [runs, setRuns] = useState<AutomationRun[]>([])
-    const [manifest, setManifest] = useState<GuildAutomationManifest | null>(null)
+    const [manifest, setManifest] = useState<GuildAutomationManifest | null>(
+        null,
+    )
     const [manifestJson, setManifestJson] = useState<string>('')
     const [manifestError, setManifestError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
@@ -218,7 +247,9 @@ export default function GuildAutomation() {
         try {
             parsed = JSON.parse(manifestJson) as GuildAutomationManifest
         } catch {
-            setManifestError('Invalid JSON — please fix syntax errors before saving.')
+            setManifestError(
+                'Invalid JSON — please fix syntax errors before saving.',
+            )
             return
         }
         setActionLoading('save')
@@ -304,11 +335,17 @@ export default function GuildAutomation() {
             <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-4'>
                 <div className='flex items-center justify-between'>
                     <div className='flex items-center gap-3'>
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>Automation Status</h2>
+                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
+                            Automation Status
+                        </h2>
                         {loading ? (
                             <Skeleton className='h-5 w-20 rounded' />
                         ) : status ? (
-                            <Badge className={`text-xs border ${statusColor(status)}`}>{status}</Badge>
+                            <Badge
+                                className={`text-xs border ${statusColor(status)}`}
+                            >
+                                {status}
+                            </Badge>
                         ) : (
                             <Badge className='text-xs border bg-lucky-bg-active/60 text-lucky-text-muted border-lucky-border'>
                                 unknown
@@ -321,7 +358,9 @@ export default function GuildAutomation() {
                         className='text-lucky-text-muted hover:text-lucky-text-body disabled:opacity-40 transition-colors'
                         title='Refresh status'
                     >
-                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                        <RefreshCw
+                            className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
+                        />
                     </button>
                 </div>
                 <div className='border-t border-lucky-border' />
@@ -373,7 +412,9 @@ export default function GuildAutomation() {
                 <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-3'>
                     <div className='flex items-center gap-2'>
                         <GitBranch className='h-4 w-4 text-lucky-brand' />
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>Plan Result</h2>
+                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
+                            Plan Result
+                        </h2>
                     </div>
                     <div className='border-t border-lucky-border' />
                     <PlanResultView result={planResult} />
@@ -383,7 +424,9 @@ export default function GuildAutomation() {
                 <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-3'>
                     <div className='flex items-center gap-2'>
                         <Zap className='h-4 w-4 text-lucky-accent' />
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>Apply Result</h2>
+                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
+                            Apply Result
+                        </h2>
                     </div>
                     <div className='border-t border-lucky-border' />
                     <ApplyResultView result={applyResult} />
@@ -399,7 +442,9 @@ export default function GuildAutomation() {
                 >
                     <div className='flex items-center gap-2'>
                         <FileJson className='h-4 w-4 text-lucky-brand' />
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>Manifest</h2>
+                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
+                            Manifest
+                        </h2>
                         {manifest?.version && (
                             <Badge className='text-xs border bg-lucky-bg-active/60 text-lucky-text-muted border-lucky-border'>
                                 v{manifest.version}
@@ -423,12 +468,15 @@ export default function GuildAutomation() {
                                     {!manifest && (
                                         <p className='text-sm text-lucky-text-muted flex items-center gap-2'>
                                             <AlertTriangle className='h-4 w-4 text-yellow-400' />
-                                            No manifest found. Paste or write a manifest below to get started.
+                                            No manifest found. Paste or write a
+                                            manifest below to get started.
                                         </p>
                                     )}
                                     <textarea
                                         value={manifestJson}
-                                        onChange={(e) => setManifestJson(e.target.value)}
+                                        onChange={(e) =>
+                                            setManifestJson(e.target.value)
+                                        }
                                         rows={16}
                                         spellCheck={false}
                                         className='w-full rounded-lg bg-lucky-bg-primary/80 border border-lucky-border text-lucky-text-body font-mono text-xs p-3 resize-y focus:outline-none focus:border-lucky-brand transition-colors'
@@ -444,7 +492,9 @@ export default function GuildAutomation() {
                                         <Button
                                             variant='primary'
                                             size='sm'
-                                            onClick={() => void handleSaveManifest()}
+                                            onClick={() =>
+                                                void handleSaveManifest()
+                                            }
                                             disabled={actionLoading === 'save'}
                                         >
                                             {actionLoading === 'save' ? (
@@ -466,7 +516,10 @@ export default function GuildAutomation() {
                 {loading ? (
                     <div className='space-y-2'>
                         {Array.from({ length: 3 }).map((_, i) => (
-                            <Skeleton key={i} className='h-14 w-full rounded-lg' />
+                            <Skeleton
+                                key={i}
+                                className='h-14 w-full rounded-lg'
+                            />
                         ))}
                     </div>
                 ) : runs.length === 0 ? (

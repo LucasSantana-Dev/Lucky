@@ -286,7 +286,9 @@ describe('TrackUtils class', () => {
                 includeAutoplay: true,
             })
 
-            expect(result.some((t) => t.title.toLowerCase() === 'blues')).toBe(true)
+            expect(result.some((t) => t.title.toLowerCase() === 'blues')).toBe(
+                true,
+            )
         })
     })
 

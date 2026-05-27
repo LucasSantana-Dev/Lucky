@@ -64,13 +64,19 @@ describe('diversitySelector', () => {
                 historyTracks as Track[],
             )
 
-            expect(excluded.has('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true)
+            expect(
+                excluded.has('https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
+            ).toBe(true)
             expect(excluded.has('dQw4w9WgXcQ')).toBe(true)
-            expect(excluded.has('https://www.youtube.com/watch?v=oldTrack1')).toBe(true)
+            expect(
+                excluded.has('https://www.youtube.com/watch?v=oldTrack1'),
+            ).toBe(true)
         })
 
         test('handles short URLs and persistent history', () => {
-            const shortTrack: Partial<Track> = { url: 'https://youtu.be/dQw4w9WgXcQ' }
+            const shortTrack: Partial<Track> = {
+                url: 'https://youtu.be/dQw4w9WgXcQ',
+            }
             const persistentHistory = [
                 { url: 'https://www.youtube.com/watch?v=persistent1' },
             ]
@@ -84,7 +90,9 @@ describe('diversitySelector', () => {
 
             expect(excluded.has('https://youtu.be/dQw4w9WgXcQ')).toBe(true)
             expect(excluded.has('dQw4w9WgXcQ')).toBe(true)
-            expect(excluded.has('https://www.youtube.com/watch?v=persistent1')).toBe(true)
+            expect(
+                excluded.has('https://www.youtube.com/watch?v=persistent1'),
+            ).toBe(true)
         })
     })
 
@@ -101,17 +109,28 @@ describe('diversitySelector', () => {
             )
 
             expect(excluded.size).toBeGreaterThan(0)
-            expect(Array.from(excluded).some((key) => key.includes('testsong'))).toBe(true)
+            expect(
+                Array.from(excluded).some((key) => key.includes('testsong')),
+            ).toBe(true)
 
             // Handle missing titles and authors gracefully
-            const trackWithoutMeta: Partial<Track> = { title: undefined, author: undefined }
+            const trackWithoutMeta: Partial<Track> = {
+                title: undefined,
+                author: undefined,
+            }
             expect(() => {
-                buildExcludedKeys(mockQueue as GuildQueue, trackWithoutMeta as Track, [])
+                buildExcludedKeys(
+                    mockQueue as GuildQueue,
+                    trackWithoutMeta as Track,
+                    [],
+                )
             }).not.toThrow()
         })
 
         test('includes persistent history keys', () => {
-            const persistentHistory = [{ title: 'Old Song', author: 'Old Artist' }]
+            const persistentHistory = [
+                { title: 'Old Song', author: 'Old Artist' },
+            ]
 
             const excluded = buildExcludedKeys(
                 mockQueue as GuildQueue,
@@ -127,18 +146,32 @@ describe('diversitySelector', () => {
     describe('isDuplicateCandidate', () => {
         test('detects duplicates by URL, video ID, or normalized key', () => {
             // By full URL
-            let excludedUrls = new Set(['https://www.youtube.com/watch?v=dQw4w9WgXcQ'])
+            let excludedUrls = new Set([
+                'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            ])
             let excludedKeys = new Set<string>()
             let track: Partial<Track> = {
                 url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
                 title: 'Some Song',
                 author: 'Some Artist',
             }
-            expect(isDuplicateCandidate(track as Track, excludedUrls, excludedKeys)).toBe(true)
+            expect(
+                isDuplicateCandidate(
+                    track as Track,
+                    excludedUrls,
+                    excludedKeys,
+                ),
+            ).toBe(true)
 
             // By video ID only
             excludedUrls = new Set(['dQw4w9WgXcQ'])
-            expect(isDuplicateCandidate(track as Track, excludedUrls, excludedKeys)).toBe(true)
+            expect(
+                isDuplicateCandidate(
+                    track as Track,
+                    excludedUrls,
+                    excludedKeys,
+                ),
+            ).toBe(true)
 
             // By normalized track key
             excludedUrls = new Set<string>()
@@ -148,41 +181,69 @@ describe('diversitySelector', () => {
                 title: 'Some Song',
                 author: 'Some Artist',
             }
-            expect(isDuplicateCandidate(track as Track, excludedUrls, excludedKeys)).toBe(true)
+            expect(
+                isDuplicateCandidate(
+                    track as Track,
+                    excludedUrls,
+                    excludedKeys,
+                ),
+            ).toBe(true)
         })
 
         test('handles non-duplicates, missing URLs, and variant titles correctly', () => {
             // Non-duplicate
-            const excludedUrls = new Set(['https://www.youtube.com/watch?v=old'])
+            const excludedUrls = new Set([
+                'https://www.youtube.com/watch?v=old',
+            ])
             const excludedKeys = new Set(['oldsong::oldartist'])
             let track: Partial<Track> = {
                 url: 'https://www.youtube.com/watch?v=new',
                 title: 'New Song',
                 author: 'New Artist',
             }
-            expect(isDuplicateCandidate(track as Track, excludedUrls, excludedKeys)).toBe(false)
+            expect(
+                isDuplicateCandidate(
+                    track as Track,
+                    excludedUrls,
+                    excludedKeys,
+                ),
+            ).toBe(false)
 
             // Missing URL
             track = { url: undefined, title: 'New Song', author: 'New Artist' }
-            expect(isDuplicateCandidate(track as Track, excludedUrls, excludedKeys)).toBe(false)
+            expect(
+                isDuplicateCandidate(
+                    track as Track,
+                    excludedUrls,
+                    excludedKeys,
+                ),
+            ).toBe(false)
 
             // Variant titles (remastered, live) stripped and matched
             let variantUrls = new Set<string>()
-            let variantKeys = new Set(['bohemian rhapsody', 'hotel california', 'live and let die'])
+            let variantKeys = new Set([
+                'bohemian rhapsody',
+                'hotel california',
+                'live and let die',
+            ])
 
             track = {
                 url: 'https://open.spotify.com/track/xyz',
                 title: 'Bohemian Rhapsody - Remastered',
                 author: 'Queen',
             }
-            expect(isDuplicateCandidate(track as Track, variantUrls, variantKeys)).toBe(true)
+            expect(
+                isDuplicateCandidate(track as Track, variantUrls, variantKeys),
+            ).toBe(true)
 
             track = {
                 url: 'https://open.spotify.com/track/abc',
                 title: 'Hotel California - Live',
                 author: 'Eagles',
             }
-            expect(isDuplicateCandidate(track as Track, variantUrls, variantKeys)).toBe(true)
+            expect(
+                isDuplicateCandidate(track as Track, variantUrls, variantKeys),
+            ).toBe(true)
 
             // Mid-title variant words not stripped
             track = {
@@ -190,7 +251,9 @@ describe('diversitySelector', () => {
                 title: 'Live and Let Die - Remastered',
                 author: 'Wings',
             }
-            expect(isDuplicateCandidate(track as Track, variantUrls, variantKeys)).toBe(true)
+            expect(
+                isDuplicateCandidate(track as Track, variantUrls, variantKeys),
+            ).toBe(true)
         })
     })
 
@@ -239,7 +302,9 @@ describe('diversitySelector', () => {
             const selected = selectDiverseCandidates(candidates, 2, 2, 3, '')
             expect(selected.length).toBeLessThanOrEqual(2)
             expect(selected.length).toBeGreaterThan(0)
-            expect(selected[0].score).toBeGreaterThanOrEqual(selected[1]?.score ?? -1)
+            expect(selected[0].score).toBeGreaterThanOrEqual(
+                selected[1]?.score ?? -1,
+            )
         })
 
         test('respects maxPerArtist and maxPerSource limits', () => {
@@ -270,7 +335,13 @@ describe('diversitySelector', () => {
                     },
                 ],
             ])
-            let selected = selectDiverseCandidates(singleArtistCandidates, 3, 1, 3, '')
+            let selected = selectDiverseCandidates(
+                singleArtistCandidates,
+                3,
+                1,
+                3,
+                '',
+            )
             expect(selected.length).toBe(1)
 
             // All same source: maxPerSource=1 → max 1 track
@@ -300,7 +371,13 @@ describe('diversitySelector', () => {
                     },
                 ],
             ])
-            selected = selectDiverseCandidates(singleSourceCandidates, 3, 3, 1, '')
+            selected = selectDiverseCandidates(
+                singleSourceCandidates,
+                3,
+                3,
+                1,
+                '',
+            )
             expect(selected.length).toBe(1)
 
             // Empty candidates
@@ -329,55 +406,61 @@ describe('diversitySelector', () => {
         })
     })
 
-        describe('same-album soft penalty', () => {
-            function makeCandidate(
-                title: string,
-                author: string,
-                score: number,
-                albumName?: string,
-            ) {
-                return {
-                    track: {
-                        title,
-                        author,
-                        url: `http://example.com/${title}`,
-                        source: 'spotify',
-                        raw: albumName ? { album: { name: albumName } } : {},
-                    } as unknown as Track,
-                    score,
-                    basis: { source: 'spotify-rec' as const, signals: [] },
-                }
+    describe('same-album soft penalty', () => {
+        function makeCandidate(
+            title: string,
+            author: string,
+            score: number,
+            albumName?: string,
+        ) {
+            return {
+                track: {
+                    title,
+                    author,
+                    url: `http://example.com/${title}`,
+                    source: 'spotify',
+                    raw: albumName ? { album: { name: albumName } } : {},
+                } as unknown as Track,
+                score,
+                basis: { source: 'spotify-rec' as const, signals: [] },
             }
+        }
 
-            test('penalizes same-album tracks or excludes if score too low', () => {
-                const candidates = new Map([
-                    ['a', makeCandidate('Track A', 'Artist 1', 0.9, 'Great Album')],
-                    ['b', makeCandidate('Track B', 'Artist 2', 0.85, 'Great Album')],
-                    ['c', makeCandidate('Track C', 'Artist 3', 0.05, 'Great Album')],
-                    ['d', makeCandidate('Track D', 'Artist 4', 0.5)],
-                ])
+        test('penalizes same-album tracks or excludes if score too low', () => {
+            const candidates = new Map([
+                ['a', makeCandidate('Track A', 'Artist 1', 0.9, 'Great Album')],
+                [
+                    'b',
+                    makeCandidate('Track B', 'Artist 2', 0.85, 'Great Album'),
+                ],
+                [
+                    'c',
+                    makeCandidate('Track C', 'Artist 3', 0.05, 'Great Album'),
+                ],
+                ['d', makeCandidate('Track D', 'Artist 4', 0.5)],
+            ])
 
-                const selected = selectDiverseCandidates(candidates, 4, 2, 3, '')
+            const selected = selectDiverseCandidates(candidates, 4, 2, 3, '')
 
-                // Track A: 0.9, no penalty (first from album)
-                // Track B: 0.85 - 0.12 = 0.73, reduced but selected
-                // Track C: 0.05 - 0.12 < 0, excluded
-                // Track D: 0.5, no album penalty
-                const titles = selected.map((s) => s.track.title)
-                expect(titles).toContain('Track A')
-                expect(titles).not.toContain('Track C')
-            })
-
-            test('does not penalize tracks without album metadata', () => {
-                const candidates = new Map([
-                    ['a', makeCandidate('Track A', 'Artist 1', 0.9)],
-                    ['b', makeCandidate('Track B', 'Artist 2', 0.8)],
-                ])
-
-                const selected = selectDiverseCandidates(candidates, 2, 2, 3, '')
-                expect(selected).toHaveLength(2)
-            })
+            // Track A: 0.9, no penalty (first from album)
+            // Track B: 0.85 - 0.12 = 0.73, reduced but selected
+            // Track C: 0.05 - 0.12 < 0, excluded
+            // Track D: 0.5, no album penalty
+            const titles = selected.map((s) => s.track.title)
+            expect(titles).toContain('Track A')
+            expect(titles).not.toContain('Track C')
         })
+
+        test('does not penalize tracks without album metadata', () => {
+            const candidates = new Map([
+                ['a', makeCandidate('Track A', 'Artist 1', 0.9)],
+                ['b', makeCandidate('Track B', 'Artist 2', 0.8)],
+            ])
+
+            const selected = selectDiverseCandidates(candidates, 2, 2, 3, '')
+            expect(selected).toHaveLength(2)
+        })
+    })
 
     describe('purgeDuplicatesOfCurrentTrack', () => {
         test('removes duplicates and ignores non-duplicates and empty queues', () => {
@@ -393,7 +476,10 @@ describe('diversitySelector', () => {
                 tracks: { toArray: jest.fn(() => [dupTrack as Track]) },
                 node: { remove: queueRemove } as any,
             }
-            purgeDuplicatesOfCurrentTrack(mockQueueWithTracks as GuildQueue, mockTrack as Track)
+            purgeDuplicatesOfCurrentTrack(
+                mockQueueWithTracks as GuildQueue,
+                mockTrack as Track,
+            )
             expect(queueRemove).toHaveBeenCalled()
 
             // Don't remove non-duplicate
@@ -408,8 +494,13 @@ describe('diversitySelector', () => {
                 tracks: { toArray: jest.fn(() => [otherTrack as Track]) },
                 node: { remove: jest.fn() } as any,
             }
-            purgeDuplicatesOfCurrentTrack(mockQueueWithTracks as GuildQueue, mockTrack as Track)
-            expect((mockQueueWithTracks.node as any).remove).not.toHaveBeenCalled()
+            purgeDuplicatesOfCurrentTrack(
+                mockQueueWithTracks as GuildQueue,
+                mockTrack as Track,
+            )
+            expect(
+                (mockQueueWithTracks.node as any).remove,
+            ).not.toHaveBeenCalled()
 
             // Handle empty queue
             mockQueueWithTracks = {
@@ -432,7 +523,8 @@ describe('diversitySelector', () => {
         beforeEach(() => {
             jest.clearAllMocks()
             const { markAndRecordAutoplayTrack } = require('./queueMarkers')
-            markAndRecordAutoplayTrackMock = markAndRecordAutoplayTrack as jest.Mock
+            markAndRecordAutoplayTrackMock =
+                markAndRecordAutoplayTrack as jest.Mock
         })
 
         test('marks and records each selected track with user ID or undefined', async () => {
@@ -484,7 +576,8 @@ describe('diversitySelector', () => {
                 'requesting-user-id',
             )
             expect(markAndRecordAutoplayTrackMock).toHaveBeenCalledTimes(2)
-            expect(markAndRecordAutoplayTrackMock).toHaveBeenNthCalledWith(1,
+            expect(markAndRecordAutoplayTrackMock).toHaveBeenNthCalledWith(
+                1,
                 track1,
                 expect.objectContaining({ source: 'spotify-rec' }),
                 'guild-id-123',
