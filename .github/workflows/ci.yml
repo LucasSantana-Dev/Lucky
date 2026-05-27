@@ -133,6 +133,48 @@ jobs:
                   path: packages/frontend/coverage/lcov.info
                   retention-days: 1
 
+    docker-build:
+        name: Build — ${{ matrix.service }}
+        runs-on: ubuntu-latest
+        if: github.event_name == 'pull_request'
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - {service: bot, file: Dockerfile, target: production-bot}
+                    - {service: backend, file: Dockerfile, target: production-backend}
+                    - {service: frontend, file: Dockerfile, target: production-frontend}
+                    - {service: nginx, file: Dockerfile.nginx, target: ''}
+        steps:
+            - uses: actions/checkout@v6
+            - uses: docker/setup-buildx-action@v4
+            - name: Build ${{ matrix.service }}
+              uses: docker/build-push-action@v7
+              with:
+                  context: .
+                  file: ${{ matrix.file }}
+                  target: ${{ matrix.target }}
+                  push: false
+                  load: false
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+                  build-args: |
+                      COMMIT_SHA=${{ github.sha }}
+                      NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
+
+    docker-build-check:
+        name: Build — Docker images
+        runs-on: ubuntu-latest
+        needs: docker-build
+        if: always() && github.event_name == 'pull_request'
+        steps:
+            - name: Assert all builds passed
+              run: |
+                  if [[ "${{ needs.docker-build.result }}" != "success" ]]; then
+                      echo "Docker build result: ${{ needs.docker-build.result }}"
+                      exit 1
+                  fi
+
     quality-gate:
         # test-youtube-smoke intentionally excluded: advisory-only, runs on YouTube dependency PRs only
         name: Quality Gates
