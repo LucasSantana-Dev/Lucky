@@ -501,7 +501,7 @@ export default function ServerSettingsPage() {
                         >
                             <Select
                                 value={grant.roleId}
-                                onValueChange={(value) =>
+                                onValueChange={(value: string) =>
                                     updateRbacGrant(index, {
                                         roleId: value,
                                     })
@@ -524,7 +524,7 @@ export default function ServerSettingsPage() {
 
                             <Select
                                 value={grant.module}
-                                onValueChange={(value) =>
+                                onValueChange={(value: string) =>
                                     updateRbacGrant(index, {
                                         module: value as RoleGrant['module'],
                                     })
@@ -544,7 +544,7 @@ export default function ServerSettingsPage() {
 
                             <Select
                                 value={grant.mode}
-                                onValueChange={(value) =>
+                                onValueChange={(value: string) =>
                                     updateRbacGrant(index, {
                                         mode: value as RoleGrant['mode'],
                                     })
@@ -673,7 +673,9 @@ export default function ServerSettingsPage() {
                             </Label>
                             <Select
                                 value={settings.timezone}
-                                onValueChange={(v) => update('timezone', v)}
+                                onValueChange={(v: string) =>
+                                    update('timezone', v)
+                                }
                             >
                                 <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white'>
                                     <SelectValue />
@@ -696,7 +698,7 @@ export default function ServerSettingsPage() {
                                     value={
                                         settings.updatesChannel || '__none__'
                                     }
-                                    onValueChange={(v) =>
+                                    onValueChange={(v: string) =>
                                         update(
                                             'updatesChannel',
                                             v === '__none__' ? '' : v,
@@ -761,7 +763,7 @@ export default function ServerSettingsPage() {
                     {managerRoleOptions.length > 0 &&
                         availableManagerRoles.length > 0 && (
                             <Select
-                                onValueChange={(id) => {
+                                onValueChange={(id: string) => {
                                     update('managerRoles', [
                                         ...(settings.managerRoles ?? []),
                                         id,
@@ -843,7 +845,7 @@ export default function ServerSettingsPage() {
                         </div>
                         <Switch
                             checked={settings.disableWarnings}
-                            onCheckedChange={(v) =>
+                            onCheckedChange={(v: boolean) =>
                                 update('disableWarnings', v)
                             }
                         />

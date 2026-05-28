@@ -169,7 +169,7 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                                     </div>
                                     <Switch
                                         checked={command.enabled}
-                                        onCheckedChange={(checked) =>
+                                        onCheckedChange={(checked: boolean) =>
                                             toggleCommand(command.id, checked)
                                         }
                                         aria-label={`Toggle ${command.name} command`}
