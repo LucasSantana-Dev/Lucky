@@ -300,3 +300,69 @@ export async function getSummary(
         globalAcceptanceRate,
     }
 }
+
+/**
+ * Result of autoplay skip-rate computation.
+ *
+ * - skipRate: null if no resolved outcomes, otherwise rejected / (accepted + rejected)
+ * - sampleSize: count of resolved (accepted + rejected) autoplay recommendations
+ * - canTrip: true if sampleSize >= 5 (minimum sample guard)
+ */
+export interface AutoplaySkipRateResult {
+    skipRate: number | null
+    sampleSize: number
+    acceptedCount: number
+    rejectedCount: number
+    canTrip: boolean
+}
+
+/**
+ * Returns the rolling 24-hour autoplay skip-rate for a guild.
+ * Requires minimum sample size of 5 resolved outcomes before canTrip=true.
+ * Used by the circuit breaker to pause autoplay replenishment on high skip rates.
+ */
+export async function getAutoplaySkipRateForGuild(
+    guildId: string,
+): Promise<AutoplaySkipRateResult> {
+    const prisma = getPrismaClient()
+    const createdAtGte = new Date(Date.now() - 24 * 60 * 60 * 1000) // 24 hours
+
+    const getCountValue = (result: any): number =>
+        typeof result === 'number' ? result : result.count
+
+    const acceptedCount = getCountValue(
+        await prisma.recommendation.count({
+            where: {
+                guildId,
+                isAccepted: true,
+                createdAt: {
+                    gte: createdAtGte,
+                },
+            },
+        }),
+    )
+
+    const rejectedCount = getCountValue(
+        await prisma.recommendation.count({
+            where: {
+                guildId,
+                isRejected: true,
+                createdAt: {
+                    gte: createdAtGte,
+                },
+            },
+        }),
+    )
+
+    const sampleSize = acceptedCount + rejectedCount
+    const skipRate = sampleSize === 0 ? null : rejectedCount / sampleSize
+    const canTrip = sampleSize >= 5
+
+    return {
+        skipRate,
+        sampleSize,
+        acceptedCount,
+        rejectedCount,
+        canTrip,
+    }
+}

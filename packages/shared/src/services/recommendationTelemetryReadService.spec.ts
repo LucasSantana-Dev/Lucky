@@ -16,6 +16,7 @@ import {
     getPerSourceAcceptance,
     getPerModeAcceptance,
     getSummary,
+    getAutoplaySkipRateForGuild,
     type PerSourceRow,
     type PerModeRow,
     type Summary,
@@ -472,6 +473,93 @@ describe('recommendationTelemetryReadService', () => {
                 minus7Days,
                 -2,
             )
+        })
+    })
+
+    describe('getAutoplaySkipRateForGuild', () => {
+        const mockGuildId = 'guild-123'
+
+        it('returns skip rate when sample >= minimum (5 resolved outcomes)', async () => {
+            mockCount.mockResolvedValueOnce(3).mockResolvedValueOnce(2)
+
+            const result = await getAutoplaySkipRateForGuild(mockGuildId)
+
+            expect(result).toEqual({
+                skipRate: 0.4,
+                sampleSize: 5,
+                acceptedCount: 3,
+                rejectedCount: 2,
+                canTrip: true,
+            })
+        })
+
+        it('returns canTrip=false when sample < minimum (< 5 resolved)', async () => {
+            mockCount.mockResolvedValueOnce(2).mockResolvedValueOnce(1)
+
+            const result = await getAutoplaySkipRateForGuild(mockGuildId)
+
+            expect(result).toEqual({
+                skipRate: 1 / 3,
+                sampleSize: 3,
+                acceptedCount: 2,
+                rejectedCount: 1,
+                canTrip: false,
+            })
+        })
+
+        it('returns 0% skip rate with no rejections', async () => {
+            mockCount.mockResolvedValueOnce(10).mockResolvedValueOnce(0)
+
+            const result = await getAutoplaySkipRateForGuild(mockGuildId)
+
+            expect(result).toEqual({
+                skipRate: 0,
+                sampleSize: 10,
+                acceptedCount: 10,
+                rejectedCount: 0,
+                canTrip: true,
+            })
+        })
+
+        it('returns 100% skip rate with no acceptances', async () => {
+            mockCount.mockResolvedValueOnce(0).mockResolvedValueOnce(5)
+
+            const result = await getAutoplaySkipRateForGuild(mockGuildId)
+
+            expect(result).toEqual({
+                skipRate: 1,
+                sampleSize: 5,
+                acceptedCount: 0,
+                rejectedCount: 5,
+                canTrip: true,
+            })
+        })
+
+        it('applies a 24-hour window and does not filter by mode', async () => {
+            mockCount.mockResolvedValueOnce(3).mockResolvedValueOnce(2)
+
+            await getAutoplaySkipRateForGuild(mockGuildId)
+
+            expect(mockCount).toHaveBeenCalledTimes(2)
+            for (const call of mockCount.mock.calls) {
+                expect((call[0] as any).where?.createdAt?.gte).toBeDefined()
+                expect((call[0] as any).where?.guildId).toBe(mockGuildId)
+                expect((call[0] as any).where?.mode).toBeUndefined()
+            }
+        })
+
+        it('returns null skip rate when no resolved outcomes', async () => {
+            mockCount.mockResolvedValueOnce(0).mockResolvedValueOnce(0)
+
+            const result = await getAutoplaySkipRateForGuild(mockGuildId)
+
+            expect(result).toEqual({
+                skipRate: null,
+                sampleSize: 0,
+                acceptedCount: 0,
+                rejectedCount: 0,
+                canTrip: false,
+            })
         })
     })
 })
