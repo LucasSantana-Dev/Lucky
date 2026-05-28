@@ -1,3 +1,4 @@
+/** Music command types supported by the queue. */
 export type MusicCommandType =
     | 'play'
     | 'pause'
@@ -14,8 +15,10 @@ export type MusicCommandType =
     | 'seek'
     | 'get_state'
 
+/** Repeat mode for playback. */
 export type RepeatMode = 'off' | 'track' | 'queue' | 'autoplay'
 
+/** Music command issued by a user. */
 export interface MusicCommand {
     id: string
     guildId: string
@@ -25,6 +28,7 @@ export interface MusicCommand {
     timestamp: number
 }
 
+/** Information about a playable track. */
 export interface TrackInfo {
     id: string
     title: string
@@ -40,6 +44,7 @@ export interface TrackInfo {
     sessionSnapshotId?: string
 }
 
+/** Health state of a music provider. */
 export interface ProviderHealthState {
     provider: string
     score: number
@@ -47,6 +52,7 @@ export interface ProviderHealthState {
     cooldownUntil: number | null
 }
 
+/** Current state of the music queue. */
 export interface QueueState {
     guildId: string
     currentTrack: TrackInfo | null

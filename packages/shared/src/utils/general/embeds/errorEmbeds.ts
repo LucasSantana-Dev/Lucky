@@ -2,6 +2,7 @@ import { EMBED_COLORS, EMOJIS } from './constants'
 import { createEmbed } from './core'
 import { handleError, createUserErrorMessage } from '../../error/errorHandler'
 
+/** Creates an error embed with details, logging the error for debugging. */
 export function createErrorEmbed(
     title: string,
     description: string,
@@ -34,6 +35,7 @@ export function createErrorEmbed(
     return embed
 }
 
+/** Creates a user-friendly error embed with sanitized error message. */
 export function createUserErrorEmbed(
     title: string,
     description: string,

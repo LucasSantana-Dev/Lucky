@@ -4,8 +4,10 @@ import type { EmbedData } from './embedValidation.js'
 
 const prisma = getPrismaClient()
 
+/** Type of auto message: welcome, leave, auto-response, or scheduled. */
 export type MessageType = 'welcome' | 'leave' | 'auto_response' | 'scheduled'
 
+/** Content of an auto message including optional embed data. */
 export interface AutoMessageData {
     message: string
     embedData?: EmbedData
@@ -18,10 +20,9 @@ type AutoMessageOptions = {
     cronSchedule?: string
 }
 
+/** Service for managing guild auto messages (welcome, leave, auto-response, scheduled). */
 export class AutoMessageService {
-    /**
-     * Create a new auto message
-     */
+    /** Creates a new auto message. */
     async createMessage(
         guildId: string,
         type: MessageType,
@@ -44,6 +45,7 @@ export class AutoMessageService {
         })
     }
 
+    /** Creates or updates an auto message of a given type for a guild. */
     async upsertGuildTypeMessage(
         guildId: string,
         type: MessageType,
@@ -159,10 +161,7 @@ export class AutoMessageService {
     /**
      * Update a message
      */
-    async updateMessage(
-        id: string,
-        data: Prisma.AutoMessageUpdateInput,
-    ) {
+    async updateMessage(id: string, data: Prisma.AutoMessageUpdateInput) {
         return await prisma.autoMessage.update({
             where: { id },
             data,

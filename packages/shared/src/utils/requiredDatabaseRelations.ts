@@ -18,6 +18,7 @@ type RequiredDatabaseRelationsPrismaModels = Pick<
     | 'guildAutomationDrift'
 >
 
+/** Prisma client subset containing required database models for schema verification. */
 export type RequiredDatabaseStatePrisma = {
     guildRoleGrant: Pick<
         RequiredDatabaseRelationsPrismaModels['guildRoleGrant'],
@@ -70,6 +71,7 @@ const relationChecks: RelationCheck[] = [
     },
 ]
 
+/** Verifies that all required database relations exist, throwing if any are missing. */
 export async function verifyRequiredDatabaseRelations(
     prisma: RequiredDatabaseStatePrisma = getPrismaClient(),
 ): Promise<void> {

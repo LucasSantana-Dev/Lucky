@@ -81,4 +81,43 @@ describe('createModerationExecutor', () => {
         expect(port.updateAutoModSettings).not.toHaveBeenCalled()
         expect(port.updateModerationSettings).not.toHaveBeenCalled()
     })
+
+    it('returns partial when one operation fails and the other succeeds', async () => {
+        const port = makePort()
+        port.updateAutoModSettings.mockRejectedValue(new Error('discord error'))
+        const executor = createModerationExecutor({ port })
+
+        const live = executor.capture()
+        const diff = executor.diff(live, {
+            automod: { exemptRoles: ['r1'] },
+            moderationSettings: { muteRoleId: 'r2' },
+        })
+        const result = await executor.apply(diff, { guildId: 'g4' })
+
+        expect(result.status).toBe('partial')
+        if (result.status === 'partial') {
+            expect(result.applied).toContain('moderationSettings')
+        }
+    })
+
+    it('returns failed when all operations fail', async () => {
+        const port = makePort()
+        port.updateAutoModSettings.mockRejectedValue(new Error('automod error'))
+        port.updateModerationSettings.mockRejectedValue(
+            new Error('moderation error'),
+        )
+        const executor = createModerationExecutor({ port })
+
+        const live = executor.capture()
+        const diff = executor.diff(live, {
+            automod: { exemptRoles: ['r1'] },
+            moderationSettings: { muteRoleId: 'r2' },
+        })
+        const result = await executor.apply(diff, { guildId: 'g5' })
+
+        expect(result.status).toBe('failed')
+        if (result.status === 'failed') {
+            expect(result.error).toContain('automod error')
+        }
+    })
 })

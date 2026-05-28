@@ -2,6 +2,7 @@ import { getPrismaClient } from '../utils/database/prismaClient.js'
 
 const prisma = getPrismaClient()
 
+/** Configuration for the leveling system in a guild. */
 export type LevelConfig = {
     id: string
     guildId: string
@@ -13,6 +14,7 @@ export type LevelConfig = {
     updatedAt: Date
 }
 
+/** User's XP and level tracking in a guild. */
 export type MemberXP = {
     id: string
     guildId: string
@@ -24,6 +26,7 @@ export type MemberXP = {
     updatedAt: Date
 }
 
+/** Role reward granted when a user reaches a specific level. */
 export type LevelReward = {
     id: string
     guildId: string
@@ -38,16 +41,21 @@ type UpsertConfigData = {
     announceChannel?: string | null
 }
 
+/** Calculates XP required to reach a specific level. */
 export function xpNeededForLevel(level: number): number {
     return level * level * 100
 }
 
+/** Manages user leveling, XP, and level-based rewards. */
 export class LevelService {
     async getConfig(guildId: string): Promise<LevelConfig | null> {
         return await prisma.levelConfig.findUnique({ where: { guildId } })
     }
 
-    async upsertConfig(guildId: string, data: UpsertConfigData): Promise<LevelConfig> {
+    async upsertConfig(
+        guildId: string,
+        data: UpsertConfigData,
+    ): Promise<LevelConfig> {
         return await prisma.levelConfig.upsert({
             where: { guildId },
             create: { guildId, ...data },
@@ -55,7 +63,10 @@ export class LevelService {
         })
     }
 
-    async getMemberXP(guildId: string, userId: string): Promise<MemberXP | null> {
+    async getMemberXP(
+        guildId: string,
+        userId: string,
+    ): Promise<MemberXP | null> {
         return await prisma.memberXP.findUnique({
             where: { guildId_userId: { guildId, userId } },
         })
@@ -108,7 +119,11 @@ export class LevelService {
         return count + 1
     }
 
-    async addReward(guildId: string, level: number, roleId: string): Promise<LevelReward> {
+    async addReward(
+        guildId: string,
+        level: number,
+        roleId: string,
+    ): Promise<LevelReward> {
         return await prisma.levelReward.upsert({
             where: { guildId_level: { guildId, level } },
             create: { guildId, level, roleId },

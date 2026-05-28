@@ -35,10 +35,13 @@ describe('SpotifyLinkService', () => {
             }
             mockPrismaClient.spotifyLink.findUnique.mockResolvedValue(mockLink)
 
-            const result = await spotifyLinkService.getByDiscordId('discord-123')
+            const result =
+                await spotifyLinkService.getByDiscordId('discord-123')
 
             expect(result).toEqual(mockLink)
-            expect(mockPrismaClient.spotifyLink.findUnique).toHaveBeenCalledWith({
+            expect(
+                mockPrismaClient.spotifyLink.findUnique,
+            ).toHaveBeenCalledWith({
                 where: { discordId: 'discord-123' },
             })
         })
@@ -46,15 +49,19 @@ describe('SpotifyLinkService', () => {
         it('returns null when not found', async () => {
             mockPrismaClient.spotifyLink.findUnique.mockResolvedValue(null)
 
-            const result = await spotifyLinkService.getByDiscordId('discord-123')
+            const result =
+                await spotifyLinkService.getByDiscordId('discord-123')
 
             expect(result).toBeNull()
         })
 
         it('returns null on error', async () => {
-            mockPrismaClient.spotifyLink.findUnique.mockRejectedValue(new Error('DB error'))
+            mockPrismaClient.spotifyLink.findUnique.mockRejectedValue(
+                new Error('DB error'),
+            )
 
-            const result = await spotifyLinkService.getByDiscordId('discord-123')
+            const result =
+                await spotifyLinkService.getByDiscordId('discord-123')
 
             expect(result).toBeNull()
         })
@@ -71,7 +78,8 @@ describe('SpotifyLinkService', () => {
                 spotifyUsername: 'test-user',
             })
 
-            const result = await spotifyLinkService.getValidAccessToken('discord-123')
+            const result =
+                await spotifyLinkService.getValidAccessToken('discord-123')
 
             expect(result).toBe('valid-token')
         })
@@ -79,7 +87,8 @@ describe('SpotifyLinkService', () => {
         it('returns null when link not found', async () => {
             mockPrismaClient.spotifyLink.findUnique.mockResolvedValue(null)
 
-            const result = await spotifyLinkService.getValidAccessToken('discord-123')
+            const result =
+                await spotifyLinkService.getValidAccessToken('discord-123')
 
             expect(result).toBeNull()
         })
@@ -109,10 +118,95 @@ describe('SpotifyLinkService', () => {
             )
             ;(global as any).fetch = mockFetch
 
-            const result = await spotifyLinkService.getValidAccessToken('discord-123')
+            const result =
+                await spotifyLinkService.getValidAccessToken('discord-123')
 
             expect(result).toBe('new-token')
             expect(mockPrismaClient.spotifyLink.update).toHaveBeenCalled()
+        })
+
+        it('returns null when SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET is missing', async () => {
+            const pastDate = new Date(Date.now() - 3600000)
+            mockPrismaClient.spotifyLink.findUnique.mockResolvedValue({
+                spotifyId: 'spotify-123',
+                accessToken: 'expired-token',
+                refreshToken: 'refresh-token',
+                tokenExpiresAt: pastDate,
+            } as any)
+
+            delete process.env.SPOTIFY_CLIENT_ID
+            delete process.env.SPOTIFY_CLIENT_SECRET
+
+            const result =
+                await spotifyLinkService.getValidAccessToken('discord-123')
+
+            expect(result).toBeNull()
+        })
+
+        it('returns null when Spotify token endpoint responds with !ok', async () => {
+            const pastDate = new Date(Date.now() - 3600000)
+            mockPrismaClient.spotifyLink.findUnique.mockResolvedValue({
+                spotifyId: 'spotify-123',
+                accessToken: 'expired-token',
+                refreshToken: 'refresh-token',
+                tokenExpiresAt: pastDate,
+            } as any)
+
+            process.env.SPOTIFY_CLIENT_ID = 'test-client-id'
+            process.env.SPOTIFY_CLIENT_SECRET = 'test-client-secret'
+            ;(global as any).fetch = jest.fn(() =>
+                Promise.resolve({ ok: false, json: async () => ({}) } as any),
+            )
+
+            const result =
+                await spotifyLinkService.getValidAccessToken('discord-123')
+
+            expect(result).toBeNull()
+        })
+
+        it('returns null when token response contains an error field or no access_token', async () => {
+            const pastDate = new Date(Date.now() - 3600000)
+            mockPrismaClient.spotifyLink.findUnique.mockResolvedValue({
+                spotifyId: 'spotify-123',
+                accessToken: 'expired-token',
+                refreshToken: 'refresh-token',
+                tokenExpiresAt: pastDate,
+            } as any)
+
+            process.env.SPOTIFY_CLIENT_ID = 'test-client-id'
+            process.env.SPOTIFY_CLIENT_SECRET = 'test-client-secret'
+            ;(global as any).fetch = jest.fn(() =>
+                Promise.resolve({
+                    ok: true,
+                    json: async () => ({ error: 'invalid_grant' }),
+                } as any),
+            )
+
+            const result =
+                await spotifyLinkService.getValidAccessToken('discord-123')
+
+            expect(result).toBeNull()
+        })
+
+        it('returns null when fetch throws a network error', async () => {
+            const pastDate = new Date(Date.now() - 3600000)
+            mockPrismaClient.spotifyLink.findUnique.mockResolvedValue({
+                spotifyId: 'spotify-123',
+                accessToken: 'expired-token',
+                refreshToken: 'refresh-token',
+                tokenExpiresAt: pastDate,
+            } as any)
+
+            process.env.SPOTIFY_CLIENT_ID = 'test-client-id'
+            process.env.SPOTIFY_CLIENT_SECRET = 'test-client-secret'
+            ;(global as any).fetch = jest.fn(() =>
+                Promise.reject(new Error('Network failure')),
+            )
+
+            const result =
+                await spotifyLinkService.getValidAccessToken('discord-123')
+
+            expect(result).toBeNull()
         })
     })
 
@@ -135,7 +229,9 @@ describe('SpotifyLinkService', () => {
         })
 
         it('returns false on error', async () => {
-            mockPrismaClient.spotifyLink.upsert.mockRejectedValue(new Error('DB error') as any)
+            mockPrismaClient.spotifyLink.upsert.mockRejectedValue(
+                new Error('DB error') as any,
+            )
 
             const result = await spotifyLinkService.set({
                 discordId: 'discord-123',
@@ -172,7 +268,9 @@ describe('SpotifyLinkService', () => {
         })
 
         it('returns false on other error', async () => {
-            mockPrismaClient.spotifyLink.delete.mockRejectedValue(new Error('DB error') as any)
+            mockPrismaClient.spotifyLink.delete.mockRejectedValue(
+                new Error('DB error') as any,
+            )
 
             const result = await spotifyLinkService.unlink('discord-123')
 

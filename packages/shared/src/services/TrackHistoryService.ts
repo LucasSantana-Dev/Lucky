@@ -1,6 +1,7 @@
 import { redisClient } from './redis'
 import { infoLog, errorLog } from '../utils/general/log'
 
+/** A track entry in guild playback history. */
 export interface TrackHistoryEntry {
     trackId: string
     title: string
@@ -13,6 +14,7 @@ export interface TrackHistoryEntry {
     isAutoplay?: boolean
 }
 
+/** Input data for adding a track to history. */
 export interface TrackHistoryInput {
     id: string
     title: string
@@ -22,6 +24,7 @@ export interface TrackHistoryInput {
     metadata?: { isAutoplay?: boolean }
 }
 
+/** Statistics for guild track playback history. */
 export interface TrackHistoryStats {
     totalTracks: number
     totalPlayTime: number
@@ -30,6 +33,7 @@ export interface TrackHistoryStats {
     lastUpdated: Date
 }
 
+/** Manages track playback history stored in Redis for guilds. */
 export class TrackHistoryService {
     private readonly ttl: number
     private readonly maxHistorySize: number
@@ -39,12 +43,14 @@ export class TrackHistoryService {
         this.maxHistorySize = maxHistorySize
     }
 
+    /** Generates Redis key for track history storage. */
     private getRedisKey(guildId: string, trackId?: string): string {
         return trackId
             ? `track_history:${guildId}:${trackId}`
             : `track_history:${guildId}`
     }
 
+    /** Adds a track to a guild's playback history. */
     async addTrackToHistory(
         track: TrackHistoryInput,
         guildId: string,
@@ -90,6 +96,7 @@ export class TrackHistoryService {
         }
     }
 
+    /** Retrieves track history for a guild with pagination. */
     async getTrackHistory(
         guildId: string,
         limit = 10,
@@ -112,6 +119,7 @@ export class TrackHistoryService {
         }
     }
 
+    /** Retrieves the most recently played track for a guild. */
     async getLastTrack(guildId: string): Promise<TrackHistoryEntry | null> {
         try {
             const lastTrackData = await redisClient.lindex(
@@ -127,6 +135,7 @@ export class TrackHistoryService {
         }
     }
 
+    /** Gets the total count of tracks in a guild's history. */
     async getTrackHistoryCount(guildId: string): Promise<number> {
         try {
             return await redisClient.llen(this.getRedisKey(guildId))
@@ -136,6 +145,7 @@ export class TrackHistoryService {
         }
     }
 
+    /** Clears all track history for a guild. */
     async clearHistory(guildId: string): Promise<boolean> {
         try {
             await redisClient.del(this.getRedisKey(guildId))
@@ -147,6 +157,7 @@ export class TrackHistoryService {
         }
     }
 
+    /** Checks if a track was recently played within a time window. */
     async isDuplicateTrack(
         guildId: string,
         trackUrl: string,
@@ -166,6 +177,7 @@ export class TrackHistoryService {
         }
     }
 
+    /** Retrieves top played tracks for a guild. */
     async getTopTracks(
         guildId: string,
         limit = 10,
@@ -202,6 +214,7 @@ export class TrackHistoryService {
         }
     }
 
+    /** Retrieves top artists by play count for a guild. */
     async getTopArtists(
         guildId: string,
         limit = 10,
@@ -225,6 +238,7 @@ export class TrackHistoryService {
         }
     }
 
+    /** Generates comprehensive playback statistics for a guild. */
     async generateStats(guildId: string): Promise<TrackHistoryStats | null> {
         try {
             const history = await this.getTrackHistory(guildId, 100)
@@ -255,6 +269,7 @@ export class TrackHistoryService {
         }
     }
 
+    /** Parses duration string (MM:SS format) to seconds. */
     private parseDuration(duration: string): number {
         const parts = duration.split(':')
         if (parts.length === 2) {
@@ -263,10 +278,12 @@ export class TrackHistoryService {
         return 0
     }
 
+    /** Cleans up expired track history data. */
     async cleanupOldData(): Promise<number> {
         return 0
     }
 
+    /** Marks a track as played for duplicate detection. */
     async markTrackAsPlayed(guildId: string, trackUrl: string): Promise<void> {
         try {
             const key = this.getRedisKey(guildId, `played:${trackUrl}`)
@@ -276,6 +293,7 @@ export class TrackHistoryService {
         }
     }
 
+    /** Clears all cached track data for a guild. */
     async clearAllGuildCaches(guildId: string): Promise<void> {
         try {
             const pattern = this.getRedisKey(guildId, '*')
@@ -290,6 +308,7 @@ export class TrackHistoryService {
         }
     }
 
+    /** Generates statistics on autoplay recommendations for a guild. */
     async getAutoplayStats(
         guildId: string,
         limit = 200,
@@ -339,4 +358,5 @@ export class TrackHistoryService {
     }
 }
 
+/** Singleton instance of TrackHistoryService. */
 export const trackHistoryService = new TrackHistoryService()

@@ -8,17 +8,21 @@ const prisma = getPrismaClient()
 const CACHE_TTL = 300
 const CACHE_PREFIX = 'cmd:'
 
+/** Manages guild-specific custom commands with caching and permissions. */
 export class CustomCommandService {
+    /** Generates cache key for a custom command. */
     private cacheKey(guildId: string, name: string): string {
         return `${CACHE_PREFIX}${guildId}:${name.toLowerCase()}`
     }
 
+    /** Clears cache for a custom command. */
     private invalidateCommand(guildId: string, name: string): void {
         if (redisClient.isHealthy()) {
             redisClient.del(this.cacheKey(guildId, name)).catch(() => {})
         }
     }
 
+    /** Creates a new custom command for a guild. */
     async createCommand(
         guildId: string,
         name: string,
@@ -49,6 +53,7 @@ export class CustomCommandService {
         return result
     }
 
+    /** Creates or updates a custom command with transactional locking. */
     async upsertCommand(
         guildId: string,
         name: string,
@@ -115,6 +120,7 @@ export class CustomCommandService {
         return state
     }
 
+    /** Retrieves a custom command by name with caching. */
     async getCommand(guildId: string, name: string) {
         const key = this.cacheKey(guildId, name)
 
@@ -160,6 +166,7 @@ export class CustomCommandService {
         return result
     }
 
+    /** Lists all custom commands for a guild. */
     async listCommands(guildId: string) {
         return await prisma.customCommand.findMany({
             where: { guildId },
@@ -167,6 +174,7 @@ export class CustomCommandService {
         })
     }
 
+    /** Updates a custom command. */
     async updateCommand(
         guildId: string,
         name: string,
@@ -185,6 +193,7 @@ export class CustomCommandService {
         return result
     }
 
+    /** Deletes a custom command. */
     async deleteCommand(guildId: string, name: string) {
         const result = await prisma.customCommand.delete({
             where: {
@@ -198,9 +207,7 @@ export class CustomCommandService {
         return result
     }
 
-    /**
-     * Increment command usage
-     */
+    /** Increments command usage counter and updates last used timestamp. */
     async incrementUsage(guildId: string, name: string) {
         return await prisma.customCommand.update({
             where: {
@@ -218,9 +225,7 @@ export class CustomCommandService {
         })
     }
 
-    /**
-     * Check if user can use command
-     */
+    /** Checks if a user can execute a command based on role and channel permissions. */
     canUseCommand(
         command: {
             allowedRoles: string[]
@@ -256,9 +261,7 @@ export class CustomCommandService {
         return true
     }
 
-    /**
-     * Get command statistics
-     */
+    /** Generates statistics about custom commands in a guild. */
     async getStats(guildId: string) {
         const commands = await this.listCommands(guildId)
 
@@ -273,4 +276,5 @@ export class CustomCommandService {
     }
 }
 
+/** Singleton instance of CustomCommandService. */
 export const customCommandService = new CustomCommandService()

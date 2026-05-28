@@ -3,7 +3,7 @@ import * as helpers from './serverLogHelpers.js'
 
 const prisma = getPrismaClient()
 
-// Type definition (normally from @prisma/client but not resolvable)
+/** Represents a server audit log entry. */
 export type ServerLog = {
     id: string
     guildId: string
@@ -15,6 +15,7 @@ export type ServerLog = {
     createdAt: Date
 }
 
+/** Discriminated union of all server log event types. */
 export type LogType =
     | 'message_delete'
     | 'message_edit'
@@ -32,11 +33,14 @@ export type LogType =
     | 'auto_message'
     | 'settings_change'
 
+/** Arbitrary key-value payload attached to a log entry. */
 export interface LogDetails {
     [key: string]: any
 }
 
+/** Service for creating and querying server audit logs persisted in the database. */
 export class ServerLogService {
+    /** Creates a new audit log entry for the given guild. */
     async createLog(
         guildId: string,
         type: LogType,
@@ -57,6 +61,7 @@ export class ServerLogService {
         })
     }
 
+    /** Retrieves logs of a specific type for a guild, most recent first. */
     async getLogsByType(guildId: string, type: LogType, limit: number = 50) {
         return await prisma.serverLog.findMany({
             where: { guildId, type },
@@ -65,6 +70,7 @@ export class ServerLogService {
         })
     }
 
+    /** Retrieves all logs attributed to a specific user in a guild. */
     async getUserLogs(guildId: string, userId: string, limit: number = 50) {
         return await prisma.serverLog.findMany({
             where: { guildId, userId },
@@ -73,6 +79,7 @@ export class ServerLogService {
         })
     }
 
+    /** Retrieves the most recent logs across all types for a guild. */
     async getRecentLogs(guildId: string, limit: number = 100) {
         return await prisma.serverLog.findMany({
             where: { guildId },
@@ -81,16 +88,19 @@ export class ServerLogService {
         })
     }
 
+    /** Returns the total number of log entries for a guild. */
     async countRecentLogs(guildId: string) {
         return await prisma.serverLog.count({ where: { guildId } })
     }
 
+    /** Returns the count of logs of a specific type for a guild. */
     async countLogsByType(guildId: string, type: LogType) {
         return await prisma.serverLog.count({
             where: { guildId, type },
         })
     }
 
+    /** Searches logs with optional filters on type, user, channel, moderator, and date range. */
     async searchLogs(
         guildId: string,
         filters: {
@@ -124,6 +134,7 @@ export class ServerLogService {
         })
     }
 
+    /** Deletes log entries older than the specified number of days and returns the deletion count. */
     async deleteOldLogs(guildId: string, daysToKeep: number = 30) {
         const cutoffDate = new Date()
         cutoffDate.setDate(cutoffDate.getDate() - daysToKeep)
@@ -133,6 +144,7 @@ export class ServerLogService {
         return result.count
     }
 
+    /** Returns log statistics including total count and per-type breakdown. */
     async getStats(guildId: string) {
         const [totalLogs, logsByType] = await Promise.all([
             prisma.serverLog.count({ where: { guildId } }),
@@ -153,6 +165,7 @@ export class ServerLogService {
         }
     }
 
+    /** Logs a message deletion event. */
     async logMessageDelete(
         guildId: string,
         messageId: string,
@@ -172,6 +185,7 @@ export class ServerLogService {
         )
     }
 
+    /** Logs a message edit event. */
     async logMessageEdit(
         guildId: string,
         messageId: string,
@@ -191,6 +205,7 @@ export class ServerLogService {
         )
     }
 
+    /** Logs a member join event. */
     async logMemberJoin(
         guildId: string,
         userId: string,
@@ -206,6 +221,7 @@ export class ServerLogService {
         )
     }
 
+    /** Logs a member leave event. */
     async logMemberLeave(
         guildId: string,
         userId: string,
@@ -215,6 +231,7 @@ export class ServerLogService {
         return helpers.logMemberLeave(this, guildId, userId, username, roles)
     }
 
+    /** Logs a role assignment or removal event for a user. */
     async logRoleUpdate(
         guildId: string,
         userId: string,
@@ -232,6 +249,7 @@ export class ServerLogService {
         )
     }
 
+    /** Logs a voice channel state change event. */
     async logVoiceState(
         guildId: string,
         userId: string,
@@ -249,6 +267,7 @@ export class ServerLogService {
         )
     }
 
+    /** Logs a moderation action event. */
     async logModerationAction(
         guildId: string,
         action: string,
@@ -272,6 +291,7 @@ export class ServerLogService {
         )
     }
 
+    /** Logs a moderation case update event. */
     async logCaseUpdate(
         guildId: string,
         details: {
@@ -289,6 +309,7 @@ export class ServerLogService {
         return helpers.logCaseUpdate(this, guildId, details, moderatorId)
     }
 
+    /** Logs an auto-moderation trigger event. */
     async logAutoModTrigger(
         guildId: string,
         details: {
@@ -302,6 +323,7 @@ export class ServerLogService {
         return helpers.logAutoModTrigger(this, guildId, details, userId)
     }
 
+    /** Logs an auto-moderation settings change event. */
     async logAutoModSettingsChange(
         guildId: string,
         details: {
@@ -319,6 +341,7 @@ export class ServerLogService {
         )
     }
 
+    /** Logs a custom command create, update, or delete event. */
     async logCustomCommandChange(
         guildId: string,
         action: 'created' | 'updated' | 'deleted',
@@ -334,6 +357,7 @@ export class ServerLogService {
         )
     }
 
+    /** Logs an embed template create, update, delete, or send event. */
     async logEmbedTemplateChange(
         guildId: string,
         action: 'created' | 'updated' | 'deleted' | 'sent',
@@ -349,6 +373,7 @@ export class ServerLogService {
         )
     }
 
+    /** Logs an auto-message create, update, enable, or disable event. */
     async logAutoMessageChange(
         guildId: string,
         action: 'created' | 'updated' | 'enabled' | 'disabled',
@@ -368,6 +393,7 @@ export class ServerLogService {
         )
     }
 
+    /** Logs a settings change event. */
     async logSettingsChange(
         guildId: string,
         details: { setting: string; oldValue?: unknown; newValue?: unknown },
