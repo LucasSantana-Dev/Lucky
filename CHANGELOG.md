@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.15.1] - 2026-05-28
+
+### Fixed
+- fix(backend): add primary redis cache read-through to `GuildAccessService.fetchUserGuilds` — every request was hitting Discord's `/users/@me/guilds` unconditionally, causing the 429 rate-limit storm (LUCKY-27, LUCKY-28) (#1078)
+- fix(bot): unarchive idle discord thread before syncing the ai-dev-toolkit board; skip cycle gracefully if unarchive is not permitted, preventing recurring `DiscordAPIError[50083]` (LUCKY-3G) (#1078)
+
 ## [2.15.0] - 2026-05-24
 
 ### Added
