@@ -387,7 +387,7 @@ describe('AutoModPage', () => {
 
         const linkCard = screen
             .getByRole('heading', { name: 'Link Filtering' })
-            .closest('[class*="overflow-hidden"]')
+            .closest('button')
 
         expect(linkCard).toBeTruthy()
 

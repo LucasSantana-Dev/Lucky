@@ -34,7 +34,6 @@ import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
-import { cn } from '@/lib/utils'
 import type {
     AutoModSettings,
     AutoModTemplate,
@@ -42,39 +41,31 @@ import type {
     GuildRoleOption,
 } from '@/types'
 
-interface FilterCardProps {
+interface FilterRowProps {
     title: string
     description: string
     icon: React.ComponentType<{ className?: string }>
     enabled: boolean
     onToggle: (enabled: boolean) => void
-    accent: string
     children?: React.ReactNode
 }
 
-function FilterCard({
+function FilterRow({
     title,
     description,
     icon: Icon,
     enabled,
     onToggle,
-    accent,
     children,
-}: FilterCardProps) {
+}: FilterRowProps) {
     return (
-        <Card
-            className={cn(
-                'p-0 overflow-hidden transition-all',
-                enabled
-                    ? 'border-lucky-border/80 ring-1 ring-lucky-border/30'
-                    : 'opacity-80',
-            )}
-        >
-            <div className='flex items-center justify-between p-4 pb-3'>
-                <div className='flex items-center gap-3'>
-                    <div className={cn('p-2 rounded-lg', accent)}>
-                        <Icon className='w-4 h-4 text-white' />
-                    </div>
+        <div className='border-b border-lucky-border/50 last:border-b-0'>
+            <button
+                onClick={() => onToggle(!enabled)}
+                className='w-full flex items-center justify-between px-6 py-3 hover:bg-[rgba(236,72,153,0.02)] transition-colors'
+            >
+                <div className='flex items-center gap-3 flex-1 text-left'>
+                    <Icon className='w-4 h-4 text-lucky-brand flex-shrink-0' />
                     <div>
                         <h3 className='text-sm font-semibold text-white'>
                             {title}
@@ -85,19 +76,21 @@ function FilterCard({
                     </div>
                 </div>
                 <Switch checked={enabled} onCheckedChange={onToggle} />
-            </div>
+            </button>
             {enabled && children && (
                 <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className='border-t border-lucky-border'
+                    className='border-t border-lucky-border/30'
                 >
-                    <div className='p-4 pt-3 space-y-3'>{children}</div>
+                    <div className='px-6 py-3 space-y-3 bg-lucky-bg-secondary/20'>
+                        {children}
+                    </div>
                 </motion.div>
             )}
-        </Card>
+        </div>
     )
 }
 
@@ -253,7 +246,7 @@ function ChannelPicker({
             )}
             {channels.length === 0 && (
                 <p className='text-xs text-lucky-text-tertiary'>
-                    Channels unavailable — enter IDs manually below
+                    Channels unavailable, enter IDs manually below
                 </p>
             )}
         </div>
@@ -317,7 +310,7 @@ function RolePicker({
             )}
             {roles.length === 0 && (
                 <p className='text-xs text-lucky-text-tertiary'>
-                    Roles unavailable — enter IDs manually below
+                    Roles unavailable, enter IDs manually below
                 </p>
             )}
         </div>
@@ -680,9 +673,9 @@ export default function AutoModPage() {
                 </Button>
             </div>
 
-            <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+            <div className='space-y-6'>
+                {/* Templates Section */}
                 <motion.div
-                    className='lg:col-span-2'
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0 }}
@@ -702,157 +695,127 @@ export default function AutoModPage() {
                     </Card>
                 </motion.div>
 
-                {/* Spam Detection */}
+                {/* Content Filters */}
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.05 }}
                 >
-                    <FilterCard
-                        title='Spam Detection'
-                        description='Detect and act on message spam'
-                        icon={MessageSquare}
-                        enabled={settings.spamEnabled}
-                        onToggle={(v) => update('spamEnabled', v)}
-                        accent='bg-orange-500/20'
-                    >
-                        <div className='grid grid-cols-2 gap-3'>
-                            <NumberInput
-                                label='Max messages'
-                                value={settings.spamThreshold}
-                                onChange={(v) => update('spamThreshold', v)}
-                                min={2}
-                                max={20}
-                            />
-                            <NumberInput
-                                label='Time window (s)'
-                                value={settings.spamTimeWindow}
-                                onChange={(v) => update('spamTimeWindow', v)}
-                                min={1}
-                                max={60}
-                            />
+                    <Card className='overflow-hidden'>
+                        <div className='px-6 py-4 border-b border-lucky-border/50'>
+                            <h2 className='text-base font-semibold text-white'>
+                                Content Filters
+                            </h2>
                         </div>
-                    </FilterCard>
-                </motion.div>
-
-                {/* Caps Detection */}
-                <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 }}
-                >
-                    <FilterCard
-                        title='Caps Lock Detection'
-                        description='Detect excessive use of capital letters'
-                        icon={Type}
-                        enabled={settings.capsEnabled}
-                        onToggle={(v) => update('capsEnabled', v)}
-                        accent='bg-yellow-500/20'
-                    >
-                        <NumberInput
-                            label='Caps threshold (%)'
-                            value={settings.capsThreshold}
-                            onChange={(v) => update('capsThreshold', v)}
-                            min={50}
-                            max={100}
+                        <FilterRow
+                            title='Spam Detection'
+                            description='Detect and act on message spam'
+                            icon={MessageSquare}
+                            enabled={settings.spamEnabled}
+                            onToggle={(v) => update('spamEnabled', v)}
+                        >
+                            <div className='grid grid-cols-2 gap-3'>
+                                <NumberInput
+                                    label='Max messages'
+                                    value={settings.spamThreshold}
+                                    onChange={(v) => update('spamThreshold', v)}
+                                    min={2}
+                                    max={20}
+                                />
+                                <NumberInput
+                                    label='Time window (s)'
+                                    value={settings.spamTimeWindow}
+                                    onChange={(v) => update('spamTimeWindow', v)}
+                                    min={1}
+                                    max={60}
+                                />
+                            </div>
+                        </FilterRow>
+                        <FilterRow
+                            title='Caps Lock Detection'
+                            description='Detect excessive use of capital letters'
+                            icon={Type}
+                            enabled={settings.capsEnabled}
+                            onToggle={(v) => update('capsEnabled', v)}
+                        >
+                            <NumberInput
+                                label='Caps threshold (%)'
+                                value={settings.capsThreshold}
+                                onChange={(v) => update('capsThreshold', v)}
+                                min={50}
+                                max={100}
+                            />
+                        </FilterRow>
+                        <FilterRow
+                            title='Link Filtering'
+                            description='Block or restrict links in messages'
+                            icon={Link2}
+                            enabled={settings.linksEnabled}
+                            onToggle={(v) => update('linksEnabled', v)}
+                        >
+                            <div className='space-y-1.5'>
+                                <Label className='text-xs text-lucky-text-secondary'>
+                                    Allowed domains
+                                </Label>
+                                <TagList
+                                    items={settings.allowedDomains}
+                                    onAdd={(d) =>
+                                        update('allowedDomains', [
+                                            ...settings.allowedDomains,
+                                            d,
+                                        ])
+                                    }
+                                    onRemove={(d) =>
+                                        update(
+                                            'allowedDomains',
+                                            settings.allowedDomains.filter(
+                                                (x) => x !== d,
+                                            ),
+                                        )
+                                    }
+                                    placeholder='e.g. youtube.com'
+                                />
+                            </div>
+                        </FilterRow>
+                        <FilterRow
+                            title='Invite Link Filtering'
+                            description='Block Discord invite links'
+                            icon={Mail}
+                            enabled={settings.invitesEnabled}
+                            onToggle={(v) => update('invitesEnabled', v)}
                         />
-                    </FilterCard>
-                </motion.div>
-
-                {/* Link Filtering */}
-                <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                >
-                    <FilterCard
-                        title='Link Filtering'
-                        description='Block or restrict links in messages'
-                        icon={Link2}
-                        enabled={settings.linksEnabled}
-                        onToggle={(v) => update('linksEnabled', v)}
-                        accent='bg-blue-500/20'
-                    >
-                        <div className='space-y-1.5'>
-                            <Label className='text-xs text-lucky-text-secondary'>
-                                Allowed domains
-                            </Label>
-                            <TagList
-                                items={settings.allowedDomains}
-                                onAdd={(d) =>
-                                    update('allowedDomains', [
-                                        ...settings.allowedDomains,
-                                        d,
-                                    ])
-                                }
-                                onRemove={(d) =>
-                                    update(
-                                        'allowedDomains',
-                                        settings.allowedDomains.filter(
-                                            (x) => x !== d,
-                                        ),
-                                    )
-                                }
-                                placeholder='e.g. youtube.com'
-                            />
-                        </div>
-                    </FilterCard>
-                </motion.div>
-
-                {/* Invite Filtering */}
-                <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                >
-                    <FilterCard
-                        title='Invite Link Filtering'
-                        description='Block Discord invite links'
-                        icon={Mail}
-                        enabled={settings.invitesEnabled}
-                        onToggle={(v) => update('invitesEnabled', v)}
-                        accent='bg-purple-500/20'
-                    />
-                </motion.div>
-
-                {/* Banned Words */}
-                <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                >
-                    <FilterCard
-                        title='Banned Words'
-                        description='Filter messages containing specific words'
-                        icon={Ban}
-                        enabled={settings.wordsEnabled}
-                        onToggle={(v) => update('wordsEnabled', v)}
-                        accent='bg-red-500/20'
-                    >
-                        <div className='space-y-1.5'>
-                            <Label className='text-xs text-lucky-text-secondary'>
-                                Banned words
-                            </Label>
-                            <TagList
-                                items={settings.bannedWords}
-                                onAdd={(w) =>
-                                    update('bannedWords', [
-                                        ...settings.bannedWords,
-                                        w,
-                                    ])
-                                }
-                                onRemove={(w) =>
-                                    update(
-                                        'bannedWords',
-                                        settings.bannedWords.filter(
-                                            (x) => x !== w,
-                                        ),
-                                    )
-                                }
-                                placeholder='Add a word to ban...'
-                            />
-                        </div>
-                    </FilterCard>
+                        <FilterRow
+                            title='Banned Words'
+                            description='Filter messages containing specific words'
+                            icon={Ban}
+                            enabled={settings.wordsEnabled}
+                            onToggle={(v) => update('wordsEnabled', v)}
+                        >
+                            <div className='space-y-1.5'>
+                                <Label className='text-xs text-lucky-text-secondary'>
+                                    Banned words
+                                </Label>
+                                <TagList
+                                    items={settings.bannedWords}
+                                    onAdd={(w) =>
+                                        update('bannedWords', [
+                                            ...settings.bannedWords,
+                                            w,
+                                        ])
+                                    }
+                                    onRemove={(w) =>
+                                        update(
+                                            'bannedWords',
+                                            settings.bannedWords.filter(
+                                                (x) => x !== w,
+                                            ),
+                                        )
+                                    }
+                                    placeholder='Add a word to ban...'
+                                />
+                            </div>
+                        </FilterRow>
+                    </Card>
                 </motion.div>
             </div>
 
@@ -860,21 +823,23 @@ export default function AutoModPage() {
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
+                transition={{ delay: 0.1 }}
             >
-                <Card className='p-5'>
-                    <div className='flex items-center gap-2 mb-4'>
-                        <CheckCircle2 className='w-5 h-5 text-lucky-success' />
-                        <h2 className='text-base font-semibold text-white'>
-                            Exemptions
-                        </h2>
+                <Card className='overflow-hidden'>
+                    <div className='px-6 py-4 border-b border-lucky-border/50'>
+                        <div className='flex items-center gap-2 mb-2'>
+                            <CheckCircle2 className='w-5 h-5 text-lucky-success' />
+                            <h2 className='text-base font-semibold text-white'>
+                                Exemptions
+                            </h2>
+                        </div>
+                        <p className='text-xs text-lucky-text-tertiary'>
+                            Channels and roles exempt from auto-moderation
+                            filters
+                        </p>
                     </div>
-                    <p className='text-xs text-lucky-text-tertiary mb-4'>
-                        Channels and roles that are exempt from auto-moderation
-                        filters
-                    </p>
-                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                        <div className='space-y-2'>
+                    <div className='grid grid-cols-1 md:grid-cols-2'>
+                        <div className='p-6 space-y-3 border-r border-lucky-border/50 md:border-r md:border-b-0 border-b md:border-b-0'>
                             <Label className='text-xs text-lucky-text-secondary'>
                                 Exempt Channels
                             </Label>
@@ -917,7 +882,7 @@ export default function AutoModPage() {
                                 />
                             )}
                         </div>
-                        <div className='space-y-2'>
+                        <div className='p-6 space-y-3'>
                             <Label className='text-xs text-lucky-text-secondary'>
                                 Exempt Roles
                             </Label>

@@ -11,10 +11,6 @@ import {
     ChevronLeft,
     ChevronRight,
     X,
-    Eye,
-    Hash,
-    User,
-    Calendar,
     BarChart3,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
@@ -30,17 +26,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
 import Skeleton from '@/components/ui/Skeleton'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
-import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import type { ModerationCase, ModerationStats } from '@/types'
 
 const ACTION_STYLES: Record<
@@ -119,8 +109,7 @@ function timeAgo(dateStr: string): string {
     return formatDate(dateStr)
 }
 
-
-function CaseDetailModal({
+function CaseDetailPanel({
     caseData,
     open,
     onClose,
@@ -138,128 +127,164 @@ function CaseDetailModal({
     const ActionIcon = ACTION_ICONS[caseData.type] || Shield
 
     return (
-        <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className='bg-lucky-bg-secondary border-lucky-border max-w-lg'>
-                <DialogHeader>
-                    <DialogTitle className='flex items-center gap-3 text-lucky-text-primary'>
-                        <div className={cn('p-2 rounded-lg', style.bg)}>
-                            <ActionIcon className={cn('w-5 h-5', style.text)} />
-                        </div>
-                        Case #{caseData.caseNumber}
-                    </DialogTitle>
-                </DialogHeader>
-                <div className='space-y-4 mt-2'>
-                    <div className='grid grid-cols-2 gap-4'>
-                        <div className='space-y-1'>
-                            <p className='type-meta text-lucky-text-tertiary flex items-center gap-1.5'>
-                                <User className='w-3 h-3' /> User
-                            </p>
-                            <p className='type-body-sm font-medium text-lucky-text-primary'>
-                                {caseData.userName || caseData.userId}
-                            </p>
-                        </div>
-                        <div className='space-y-1'>
-                            <p className='type-meta text-lucky-text-tertiary flex items-center gap-1.5'>
-                                <Shield className='w-3 h-3' /> Moderator
-                            </p>
-                            <p className='type-body-sm font-medium text-lucky-text-primary'>
-                                {caseData.moderatorName || caseData.moderatorId}
-                            </p>
-                        </div>
-                        <div className='space-y-1'>
-                            <p className='type-meta text-lucky-text-tertiary flex items-center gap-1.5'>
-                                <Hash className='w-3 h-3' /> Action
-                            </p>
-                            <Badge
-                                variant='outline'
-                                className={cn(
-                                    'type-meta uppercase font-semibold border',
-                                    style.bg,
-                                    style.text,
-                                    style.border,
-                                )}
+        <AnimatePresence>
+            {open && (
+                <>
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className='fixed inset-0 z-40 bg-black/40'
+                    />
+                    <motion.div
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        transition={{
+                            type: 'spring',
+                            damping: 25,
+                            stiffness: 300,
+                        }}
+                        className='fixed right-0 top-0 h-screen w-96 bg-lucky-bg-secondary border-l border-lucky-border z-50 flex flex-col'
+                    >
+                        <div className='flex items-center justify-between p-6 border-b border-lucky-border'>
+                            <div className='flex items-center gap-3'>
+                                <div className={cn('p-2 rounded-lg', style.bg)}>
+                                    <ActionIcon
+                                        className={cn('w-5 h-5', style.text)}
+                                    />
+                                </div>
+                                <h2 className='type-title text-lucky-text-primary'>
+                                    Case #{caseData.caseNumber}
+                                </h2>
+                            </div>
+                            <button
+                                onClick={onClose}
+                                className='text-lucky-text-tertiary hover:text-lucky-text-primary transition-colors p-1'
                             >
-                                {caseData.type}
-                            </Badge>
+                                <X className='w-5 h-5' />
+                            </button>
                         </div>
-                        <div className='space-y-1'>
-                            <p className='type-meta text-lucky-text-tertiary flex items-center gap-1.5'>
-                                <Calendar className='w-3 h-3' /> Date
-                            </p>
-                            <p className='type-body-sm text-lucky-text-secondary'>
-                                {formatDate(caseData.createdAt)}
-                            </p>
-                        </div>
-                    </div>
-                    <div className='p-3 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
-                        <p className='type-meta text-lucky-text-tertiary mb-1'>
-                            Reason
-                        </p>
-                        <p className='type-body-sm text-lucky-text-secondary'>
-                            {caseData.reason || 'No reason provided'}
-                        </p>
-                    </div>
-                    {caseData.duration && (
-                        <div className='flex items-center gap-2'>
-                            <Clock className='w-4 h-4 text-lucky-text-tertiary' />
-                            <span className='type-body-sm text-lucky-text-secondary'>
-                                Duration: {Math.floor(caseData.duration / 60)}{' '}
-                                minutes
-                            </span>
-                        </div>
-                    )}
-                    <div className='flex items-center gap-3'>
-                        <div
-                            className={cn(
-                                'flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border',
-                                caseData.active
-                                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                                    : 'bg-lucky-bg-tertiary text-lucky-text-tertiary border-lucky-border',
+
+                        <div className='flex-1 overflow-y-auto p-6 space-y-4'>
+                            <div className='space-y-1'>
+                                <p className='type-meta text-lucky-text-tertiary'>
+                                    User
+                                </p>
+                                <p className='type-body text-lucky-text-primary'>
+                                    {caseData.userName || caseData.userId}
+                                </p>
+                            </div>
+
+                            <div className='space-y-1'>
+                                <p className='type-meta text-lucky-text-tertiary'>
+                                    Moderator
+                                </p>
+                                <p className='type-body text-lucky-text-primary'>
+                                    {caseData.moderatorName ||
+                                        caseData.moderatorId}
+                                </p>
+                            </div>
+
+                            <div className='space-y-1'>
+                                <p className='type-meta text-lucky-text-tertiary'>
+                                    Action
+                                </p>
+                                <Badge
+                                    variant='outline'
+                                    className={cn(
+                                        'type-meta uppercase font-semibold border',
+                                        style.bg,
+                                        style.text,
+                                        style.border,
+                                    )}
+                                >
+                                    {caseData.type}
+                                </Badge>
+                            </div>
+
+                            <div className='space-y-1'>
+                                <p className='type-meta text-lucky-text-tertiary'>
+                                    Date
+                                </p>
+                                <p className='type-body-sm text-lucky-text-secondary'>
+                                    {formatDate(caseData.createdAt)}
+                                </p>
+                            </div>
+
+                            <div className='space-y-1 pt-2'>
+                                <p className='type-meta text-lucky-text-tertiary mb-2'>
+                                    Reason
+                                </p>
+                                <p className='type-body-sm text-lucky-text-secondary bg-lucky-bg-tertiary border border-lucky-border rounded-lg p-3'>
+                                    {caseData.reason || 'No reason provided'}
+                                </p>
+                            </div>
+
+                            {caseData.duration && (
+                                <div className='space-y-1'>
+                                    <p className='type-meta text-lucky-text-tertiary'>
+                                        Duration
+                                    </p>
+                                    <p className='type-body-sm text-lucky-text-secondary'>
+                                        Duration:{' '}
+                                        {Math.floor(caseData.duration / 60)}{' '}
+                                        minutes
+                                    </p>
+                                </div>
                             )}
-                        >
-                            <div
-                                className={cn(
-                                    'w-1.5 h-1.5 rounded-full',
-                                    caseData.active
-                                        ? 'bg-green-400'
-                                        : 'bg-lucky-text-disabled',
+
+                            <div className='flex gap-2 pt-4'>
+                                <div
+                                    className={cn(
+                                        'flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border',
+                                        caseData.active
+                                            ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                            : 'bg-lucky-bg-tertiary text-lucky-text-tertiary border-lucky-border',
+                                    )}
+                                >
+                                    <div
+                                        className={cn(
+                                            'w-1.5 h-1.5 rounded-full',
+                                            caseData.active
+                                                ? 'bg-green-400'
+                                                : 'bg-lucky-text-disabled',
+                                        )}
+                                    />
+                                    {caseData.active ? 'Active' : 'Expired'}
+                                </div>
+                                {caseData.appealed && (
+                                    <div className='flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'>
+                                        Appealed
+                                    </div>
                                 )}
-                            />
-                            {caseData.active ? 'Active' : 'Expired'}
+                            </div>
                         </div>
-                        {caseData.appealed && (
-                            <div className='flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'>
-                                Appealed
+
+                        {caseData.active && (
+                            <div className='border-t border-lucky-border p-4'>
+                                <Button
+                                    onClick={() => onDeactivate(caseData.id)}
+                                    disabled={deactivating}
+                                    variant='destructive'
+                                    className='w-full'
+                                >
+                                    {deactivating
+                                        ? 'Deactivating...'
+                                        : 'Deactivate Case'}
+                                </Button>
                             </div>
                         )}
-                    </div>
-                    <div className='flex justify-end gap-2 pt-2 border-t border-lucky-border'>
-                        <Button
-                            size='sm'
-                            variant='ghost'
-                            onClick={onClose}
-                            disabled={deactivating}
-                        >
-                            Close
-                        </Button>
-                        {caseData.active && (
-                            <Button
-                                size='sm'
-                                variant='destructive'
-                                onClick={() => onDeactivate(caseData.id)}
-                                disabled={deactivating}
-                            >
-                                {deactivating
-                                    ? 'Deactivating...'
-                                    : 'Deactivate Case'}
-                            </Button>
-                        )}
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+                    </motion.div>
+                </>
+            )}
+        </AnimatePresence>
     )
 }
+
+// Alias for consistency with usage
+const CaseDetailModal = CaseDetailPanel
 
 export default function ModerationPage() {
     const prefersReducedMotion = useReducedMotion()
@@ -467,23 +492,17 @@ export default function ModerationPage() {
             {/* Cases Table */}
             <Card className='overflow-hidden p-0'>
                 {/* Header */}
-                <div className='hidden md:grid grid-cols-[60px_1fr_1fr_100px_100px_140px_48px] gap-4 px-5 py-3 border-b border-lucky-border bg-lucky-bg-tertiary/30'>
-                    {[
-                        '#',
-                        'User',
-                        'Moderator',
-                        'Type',
-                        'Status',
-                        'Date',
-                        '',
-                    ].map((h) => (
-                        <span
-                            key={h}
-                            className='type-meta text-lucky-text-tertiary'
-                        >
-                            {h}
-                        </span>
-                    ))}
+                <div className='hidden md:grid grid-cols-[40px_1fr_1fr_80px_80px_120px] gap-4 px-6 py-3 border-b border-lucky-border bg-lucky-bg-tertiary/20'>
+                    {['#', 'User', 'Moderator', 'Type', 'Status', 'Date'].map(
+                        (h) => (
+                            <span
+                                key={h}
+                                className='type-meta text-lucky-text-tertiary text-xs'
+                            >
+                                {h}
+                            </span>
+                        ),
+                    )}
                 </div>
 
                 {/* Rows */}
@@ -492,16 +511,14 @@ export default function ModerationPage() {
                         Array.from({ length: 8 }).map((_, i) => (
                             <div
                                 key={i}
-                                className='flex items-center gap-4 px-5 py-3.5'
+                                className='grid grid-cols-1 md:grid-cols-[40px_1fr_1fr_80px_80px_120px] gap-2 md:gap-4 px-6 py-3'
                             >
-                                <Skeleton className='w-10 h-4' />
-                                <Skeleton className='w-8 h-8 rounded-full' />
-                                <div className='flex-1 space-y-1'>
-                                    <Skeleton className='h-4 w-28' />
-                                    <Skeleton className='h-3 w-20' />
-                                </div>
-                                <Skeleton className='h-5 w-16 rounded-full' />
-                                <Skeleton className='h-4 w-20' />
+                                <Skeleton className='h-3 w-6' />
+                                <Skeleton className='h-3 w-32' />
+                                <Skeleton className='h-3 w-28' />
+                                <Skeleton className='h-5 w-12 rounded-full' />
+                                <Skeleton className='h-4 w-16' />
+                                <Skeleton className='h-3 w-20' />
                             </div>
                         ))
                     ) : cases.length > 0 ? (
@@ -514,89 +531,79 @@ export default function ModerationPage() {
                                 return (
                                     <motion.div
                                         key={c.id}
-                                        initial={prefersReducedMotion ? false : { opacity: 0 }}
+                                        initial={
+                                            prefersReducedMotion
+                                                ? false
+                                                : { opacity: 0 }
+                                        }
                                         animate={{ opacity: 1 }}
                                         transition={{
                                             duration: 0.15,
-                                            delay: prefersReducedMotion ? 0 : i * 0.02,
+                                            delay: prefersReducedMotion
+                                                ? 0
+                                                : i * 0.02,
                                         }}
-                                        className='grid grid-cols-1 md:grid-cols-[60px_1fr_1fr_100px_100px_140px_48px] gap-2 md:gap-4 px-5 py-3.5 hover:bg-lucky-bg-tertiary/30 transition-colors cursor-pointer group'
+                                        className='grid grid-cols-1 md:grid-cols-[40px_1fr_1fr_80px_80px_120px] gap-2 md:gap-4 px-6 py-3 items-center hover:bg-[rgba(236,72,153,0.04)] transition-colors cursor-pointer'
                                         onClick={() => setSelectedCase(c)}
                                     >
-                                        <div className='flex items-center'>
-                                            <span className='type-meta font-mono text-lucky-text-tertiary normal-case tracking-normal'>
-                                                #{c.caseNumber}
-                                            </span>
-                                        </div>
-                                        <div className='flex items-center gap-2.5 min-w-0'>
-                                            <div className='w-7 h-7 rounded-full bg-lucky-bg-active flex items-center justify-center shrink-0'>
-                                                <span className='type-meta font-medium text-lucky-text-secondary normal-case tracking-normal'>
-                                                    {(c.userName || c.userId)
-                                                        .substring(0, 2)
-                                                        .toUpperCase()}
-                                                </span>
-                                            </div>
-                                            <span className='type-body-sm text-lucky-text-primary truncate'>
-                                                {c.userName || c.userId}
-                                            </span>
-                                        </div>
-                                        <div className='flex items-center min-w-0'>
-                                            <span className='type-body-sm text-lucky-text-secondary truncate'>
-                                                {c.moderatorName ||
-                                                    c.moderatorId}
-                                            </span>
-                                        </div>
-                                        <div className='flex items-center'>
-                                            <Badge
-                                                variant='outline'
-                                                className={cn(
-                                                    'text-[10px] uppercase font-semibold gap-1 border',
-                                                    style.bg,
-                                                    style.text,
-                                                    style.border,
-                                                )}
-                                            >
-                                                <ActionIcon className='w-3 h-3' />
-                                                {c.type}
-                                            </Badge>
-                                        </div>
-                                        <div className='flex items-center'>
+                                        <span className='type-meta font-mono text-lucky-text-tertiary text-xs'>
+                                            {c.caseNumber}
+                                        </span>
+                                        <span className='type-body-sm text-lucky-text-primary truncate'>
+                                            {c.userName || c.userId}
+                                        </span>
+                                        <span className='type-body-sm text-lucky-text-secondary truncate'>
+                                            {c.moderatorName || c.moderatorId}
+                                        </span>
+                                        <Badge
+                                            variant='outline'
+                                            className={cn(
+                                                'text-[10px] uppercase font-semibold gap-1 border w-fit',
+                                                style.bg,
+                                                style.text,
+                                                style.border,
+                                            )}
+                                        >
+                                            <ActionIcon className='w-3 h-3' />
+                                            {c.type}
+                                        </Badge>
+                                        <div
+                                            className={cn(
+                                                'type-body-sm flex items-center gap-1',
+                                                c.active
+                                                    ? 'text-green-400'
+                                                    : 'text-lucky-text-tertiary',
+                                            )}
+                                        >
                                             <div
                                                 className={cn(
-                                                    'type-body-sm flex items-center gap-1.5',
+                                                    'w-1.5 h-1.5 rounded-full shrink-0',
                                                     c.active
-                                                        ? 'text-green-400'
-                                                        : 'text-lucky-text-tertiary',
+                                                        ? 'bg-green-400'
+                                                        : 'bg-lucky-text-disabled',
                                                 )}
-                                            >
-                                                <div
-                                                    className={cn(
-                                                        'w-1.5 h-1.5 rounded-full shrink-0',
-                                                        c.active
-                                                            ? 'bg-green-400'
-                                                            : 'bg-lucky-text-disabled',
-                                                    )}
-                                                />
+                                            />
+                                            <span className='text-xs'>
                                                 {c.active
                                                     ? 'Active'
                                                     : 'Expired'}
-                                            </div>
-                                        </div>
-                                        <div className='flex items-center'>
-                                            <span className='type-body-sm text-lucky-text-tertiary'>
-                                                {timeAgo(c.createdAt)}
                                             </span>
                                         </div>
-                                        <div className='flex items-center justify-center'>
-                                            <Eye className='w-4 h-4 text-lucky-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity' />
-                                        </div>
+                                        <span className='type-body-sm text-lucky-text-tertiary text-xs'>
+                                            {timeAgo(c.createdAt)}
+                                        </span>
                                     </motion.div>
                                 )
                             })}
                         </AnimatePresence>
                     ) : (
                         <EmptyState
-                            icon={<Shield className='w-10 h-10' aria-hidden='true' />}
+                            icon={
+                                <Shield
+                                    className='w-10 h-10'
+                                    aria-hidden='true'
+                                />
+                            }
                             title='No cases found'
                             description={
                                 searchQuery || typeFilter !== 'all'
@@ -612,7 +619,7 @@ export default function ModerationPage() {
                 {total > limit && (
                     <div className='flex items-center justify-between px-5 py-3 border-t border-lucky-border'>
                         <span className='type-body-sm text-lucky-text-tertiary'>
-                            Showing {(page - 1) * limit + 1}–
+                            Showing {(page - 1) * limit + 1} to
                             {Math.min(page * limit, total)} of {total}
                         </span>
                         <div className='flex items-center gap-1'>
