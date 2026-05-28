@@ -1,4 +1,10 @@
 import { jest } from '@jest/globals'
+
+// Transitively pulled in via replenisher -> skipCircuitBreaker; real module loads
+// prismaClient (import.meta). Factory-mock to keep this suite loadable.
+jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
+    getAutoplaySkipRateForGuild: jest.fn(),
+}))
 import {
     replenishQueue,
     enrichWithAudioFeatures,

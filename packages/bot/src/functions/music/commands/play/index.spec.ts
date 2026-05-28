@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
+// Transitively pulled in via playHandler -> skipCircuitBreaker; real module loads
+// prismaClient (import.meta). Factory-mock to keep this suite loadable.
+jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
+    getAutoplaySkipRateForGuild: jest.fn(),
+}))
+
 const flushPromises = () =>
     new Promise<void>((resolve) => setImmediate(resolve))
 
