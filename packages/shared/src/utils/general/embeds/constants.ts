@@ -36,5 +36,8 @@ export const EMOJIS = {
     EXIT: '🚪',
 } as const
 
+/** Type representing a valid embed color from EMBED_COLORS constants. */
 export type EmbedColor = (typeof EMBED_COLORS)[keyof typeof EMBED_COLORS]
+
+/** Type representing a valid emoji from EMOJIS constants. */
 export type EmbedEmoji = (typeof EMOJIS)[keyof typeof EMOJIS]

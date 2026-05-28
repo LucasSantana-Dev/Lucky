@@ -41,6 +41,8 @@ jobs:
                   DATABASE_URL: postgresql://localhost:5432/test
             - name: Type check
               run: npm run type:check
+            - name: Check documentation coverage
+              run: npm run docs:check --workspace=packages/shared
             - name: Build project
               run: npm run build
 

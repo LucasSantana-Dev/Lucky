@@ -16,6 +16,7 @@ function prisma(): PrismaClient {
     return prismaInstance
 }
 
+/** Retrieves moderation settings for a guild with caching support. */
 export async function getModerationSettings(
     guildId: string,
 ): Promise<ModerationSettings> {
@@ -50,6 +51,7 @@ export async function getModerationSettings(
     return settings
 }
 
+/** Updates or creates moderation settings for a guild and invalidates cache. */
 export async function updateModerationSettings(
     guildId: string,
     data: Partial<
@@ -69,6 +71,7 @@ export async function updateModerationSettings(
     return result
 }
 
+/** Checks if a user has moderation permissions in a guild. */
 export async function hasModPermissions(
     guildId: string,
     userRoles: string[],
@@ -81,6 +84,7 @@ export async function hasModPermissions(
     )
 }
 
+/** Retrieves aggregated moderation case statistics for a guild. */
 export async function getModerationStats(guildId: string) {
     const [totalCases, activeCases, casesByType] = await Promise.all([
         prisma().moderationCase.count({ where: { guildId } }),

@@ -6,6 +6,7 @@ import { errorLog } from '../utils/general/log'
 // past_due, incomplete, and incomplete_expired all fail the gate.
 const ACTIVE_STATUSES: ReadonlySet<string> = new Set(['active', 'trialing'])
 
+/** Service for checking guild premium subscription status via Stripe. */
 export class PremiumService {
     /**
      * Returns true when the guild has an active Stripe subscription.
@@ -17,12 +18,16 @@ export class PremiumService {
         const sub = await this.getSubscription(guildId)
         if (!sub) return false
         if (!ACTIVE_STATUSES.has(sub.status)) return false
-        if (sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() <= Date.now()) {
+        if (
+            sub.currentPeriodEnd &&
+            sub.currentPeriodEnd.getTime() <= Date.now()
+        ) {
             return false
         }
         return true
     }
 
+    /** Returns the guild's subscription if it exists, null otherwise. */
     async getSubscription(guildId: string): Promise<GuildSubscription | null> {
         try {
             const prisma = getPrismaClient()

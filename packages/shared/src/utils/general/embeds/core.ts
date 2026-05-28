@@ -90,6 +90,7 @@ export function createEmbed(options: CreateEmbedOptions): EmbedBuilder {
     return embed
 }
 
+/** Formats a duration in seconds into a human-readable time string. */
 export function formatTime(seconds: number): string {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
@@ -101,6 +102,7 @@ export function formatTime(seconds: number): string {
     return `${minutes}:${secs.toString().padStart(2, '0')}`
 }
 
+/** Creates a visual progress bar showing completion percentage as a string. */
 export function createProgressBar(
     current: number,
     total: number,

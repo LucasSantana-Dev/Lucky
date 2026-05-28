@@ -8,8 +8,10 @@ export const TOP_GG_VOTE_TIERS = [
     { threshold: 1, label: 'Lucky Supporter' },
 ] as const
 
+/** Type representing a voting tier from the top.gg vote tiers list. */
 export type TopggVoteTier = (typeof TOP_GG_VOTE_TIERS)[number]
 
+/** Returns the top.gg voting tier matching the given vote streak, or null if below minimum. */
 export function tierForVoteStreak(streak: number): TopggVoteTier | null {
     for (const tier of TOP_GG_VOTE_TIERS) {
         if (streak >= tier.threshold) return tier
