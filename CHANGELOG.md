@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.15.2] - 2026-05-28
+
+### Fixed
+- fix(deploy): move `prisma` CLI from devDependencies to dependencies so it ships in the production backend/bot images. The deploy-time `prisma migrate deploy --config prisma/prisma.config.ts` and the bot container startup both load `prisma.config.ts`, which imports `prisma/config` — that subpath must resolve in the production `node_modules`. It was only present by a hoisting accident that the #944 lockfile regen corrected, silently breaking every homelab deploy after that with `Cannot find module 'prisma/config'` → `MIGRATION_FAILED`.
+
 ## [2.15.1] - 2026-05-28
 
 ### Fixed
