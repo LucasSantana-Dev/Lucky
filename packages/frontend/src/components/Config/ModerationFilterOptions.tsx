@@ -83,7 +83,7 @@ export default function ModerationFilterOptions({
                                     key as keyof ModerationConfigValues,
                                 ) as boolean
                             }
-                            onCheckedChange={(checked) =>
+                            onCheckedChange={(checked: boolean) =>
                                 form.setValue(
                                     key as keyof ModerationConfigValues,
                                     checked,

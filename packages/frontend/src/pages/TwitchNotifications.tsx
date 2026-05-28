@@ -355,7 +355,9 @@ export default function TwitchNotificationsPage() {
                         />
                         <Select
                             value={newChannelId}
-                            onValueChange={(value) => setNewChannelId(value)}
+                            onValueChange={(value: string) =>
+                                setNewChannelId(value)
+                            }
                         >
                             <SelectTrigger className='bg-lucky-bg-active border-lucky-border text-white'>
                                 <SelectValue placeholder='Select Discord channel' />

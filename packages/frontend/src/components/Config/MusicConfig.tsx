@@ -141,7 +141,7 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
                     <Switch
                         id='autoplay'
                         checked={form.watch('autoplay')}
-                        onCheckedChange={(checked) =>
+                        onCheckedChange={(checked: boolean) =>
                             form.setValue('autoplay', checked)
                         }
                         aria-label='Toggle autoplay'
@@ -158,7 +158,7 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
                     </Label>
                     <Select
                         value={form.watch('repeatMode')}
-                        onValueChange={(value) =>
+                        onValueChange={(value: string) =>
                             form.setValue(
                                 'repeatMode',
                                 value as 'off' | 'track' | 'queue',
@@ -198,7 +198,7 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
                     <Switch
                         id='shuffle'
                         checked={form.watch('shuffle')}
-                        onCheckedChange={(checked) =>
+                        onCheckedChange={(checked: boolean) =>
                             form.setValue('shuffle', checked)
                         }
                         aria-label='Toggle shuffle'

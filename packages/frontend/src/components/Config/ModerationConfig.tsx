@@ -116,7 +116,7 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
                     </div>
                     <Switch
                         checked={form.watch('autoModeration')}
-                        onCheckedChange={(checked) =>
+                        onCheckedChange={(checked: boolean) =>
                             form.setValue('autoModeration', checked)
                         }
                         aria-label='Toggle auto-moderation'
@@ -161,7 +161,7 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
                                         key as keyof ModerationConfigValues,
                                     ) as string
                                 }
-                                onValueChange={(value) =>
+                                onValueChange={(value: string) =>
                                     form.setValue(
                                         key as keyof ModerationConfigValues,
                                         value as
@@ -220,7 +220,7 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
                                         key as keyof ModerationConfigValues,
                                     ) as boolean
                                 }
-                                onCheckedChange={(checked) =>
+                                onCheckedChange={(checked: boolean) =>
                                     form.setValue(
                                         key as keyof ModerationConfigValues,
                                         checked,
