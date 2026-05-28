@@ -1,4 +1,9 @@
-import { type Client, type TextChannel, type Message } from 'discord.js'
+import {
+    type Client,
+    type TextChannel,
+    type ThreadChannel,
+    type Message,
+} from 'discord.js'
 import { getPrismaClient } from '@lucky/shared/utils'
 import { infoLog, errorLog, debugLog } from '@lucky/shared/utils'
 
@@ -387,14 +392,27 @@ class AiDevToolkitService {
         const stored = await this.getStoredGuide()
 
         try {
-            const channel = (await client.channels.fetch(
-                CHANNEL_ID,
-            )) as TextChannel | null
+            const channel = (await client.channels.fetch(CHANNEL_ID)) as
+                | TextChannel
+                | ThreadChannel
+                | null
             if (!channel?.isTextBased()) {
                 errorLog({
                     message: `AiDevToolkitService: channel ${CHANNEL_ID} not found or not text-based`,
                 })
                 return
+            }
+
+            if (channel.isThread() && channel.archived) {
+                try {
+                    await channel.setArchived(false)
+                } catch (error) {
+                    errorLog({
+                        message: `AiDevToolkitService: cannot unarchive thread ${CHANNEL_ID}, skipping sync`,
+                        error,
+                    })
+                    return
+                }
             }
 
             const existingMessages: Message[] = []

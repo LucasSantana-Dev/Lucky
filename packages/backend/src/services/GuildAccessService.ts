@@ -151,6 +151,11 @@ class GuildAccessService {
         options?: { allowCachedFallback?: boolean },
     ): Promise<DiscordGuild[]> {
         const allowCachedFallback = options?.allowCachedFallback ?? true
+        const cached = await this.getCachedGuilds(session)
+        if (cached) {
+            return cached
+        }
+
         const cacheKey = this.getCacheKey(session)
         const inFlight = this.userGuildsInFlight.get(cacheKey)
         if (inFlight) {

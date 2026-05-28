@@ -9,7 +9,10 @@ const mockHasAdminPermission = jest.fn<
 >()
 
 class MockDiscordApiError extends Error {
-    constructor(public readonly statusCode: number, message = 'Discord API error') {
+    constructor(
+        public readonly statusCode: number,
+        message = 'Discord API error',
+    ) {
         super(message)
         this.name = 'DiscordApiError'
     }
@@ -40,8 +43,7 @@ jest.mock('../../../src/services/DiscordOAuthService', () => ({
         getUserGuilds: (...args: [string]) => mockGetUserGuilds(...args),
         hasAdminPermission: (
             ...args: [string | null | undefined, string | null | undefined]
-        ) =>
-            mockHasAdminPermission(...args),
+        ) => mockHasAdminPermission(...args),
     },
 }))
 
@@ -93,9 +95,7 @@ const MANAGE_ALL_ACCESS = {
     integrations: 'manage',
 }
 
-async function expectRbacStorageUnavailable(
-    operation: Promise<unknown>,
-) {
+async function expectRbacStorageUnavailable(operation: Promise<unknown>) {
     await expect(operation).rejects.toMatchObject({
         statusCode: 503,
         message:
@@ -244,7 +244,9 @@ describe('GuildAccessService', () => {
             new DiscordApiError(401, 'invalid token'),
         )
 
-        await expect(guildAccessService.listAuthorizedGuilds(SESSION)).rejects.toMatchObject({
+        await expect(
+            guildAccessService.listAuthorizedGuilds(SESSION),
+        ).rejects.toMatchObject({
             statusCode: 401,
             message: 'Discord session expired. Please sign in again.',
         })
@@ -256,9 +258,12 @@ describe('GuildAccessService', () => {
             message: 'missing scope',
         })
 
-        await expect(guildAccessService.listAuthorizedGuilds(SESSION)).rejects.toMatchObject({
+        await expect(
+            guildAccessService.listAuthorizedGuilds(SESSION),
+        ).rejects.toMatchObject({
             statusCode: 403,
-            message: 'Discord OAuth scope is missing. Re-authenticate and try again.',
+            message:
+                'Discord OAuth scope is missing. Re-authenticate and try again.',
         })
     })
 
@@ -288,7 +293,9 @@ describe('GuildAccessService', () => {
             message: 'rate limited',
         })
 
-        await expect(guildAccessService.listAuthorizedGuilds(SESSION)).rejects.toMatchObject({
+        await expect(
+            guildAccessService.listAuthorizedGuilds(SESSION),
+        ).rejects.toMatchObject({
             statusCode: 502,
             message: 'Discord API is temporarily unavailable. Please retry.',
         })
@@ -319,9 +326,9 @@ describe('GuildAccessService', () => {
         const unknownError = new Error('boom')
         mockGetUserGuilds.mockRejectedValue(unknownError)
 
-        await expect(guildAccessService.listAuthorizedGuilds(SESSION)).rejects.toBe(
-            unknownError,
-        )
+        await expect(
+            guildAccessService.listAuthorizedGuilds(SESSION),
+        ).rejects.toBe(unknownError)
     })
 
     test('listAuthorizedGuilds skips guild when access resolution throws', async () => {
@@ -330,12 +337,14 @@ describe('GuildAccessService', () => {
 
         mockGetUserGuilds.mockResolvedValue(guilds)
         mockHasBotInGuild.mockResolvedValue(true)
-        mockResolveEffectiveAccess.mockImplementation(async (guildId: string) => {
-            if (guildId === '202') {
-                throw new Error('policy lookup failed')
-            }
-            return adminAccess
-        })
+        mockResolveEffectiveAccess.mockImplementation(
+            async (guildId: string) => {
+                if (guildId === '202') {
+                    throw new Error('policy lookup failed')
+                }
+                return adminAccess
+            },
+        )
 
         const result = await guildAccessService.listAuthorizedGuilds(SESSION)
 
@@ -370,7 +379,9 @@ describe('GuildAccessService', () => {
             new Error('rbac dependency unavailable'),
         )
 
-        await expect(guildAccessService.listAuthorizedGuilds(SESSION)).rejects.toMatchObject({
+        await expect(
+            guildAccessService.listAuthorizedGuilds(SESSION),
+        ).rejects.toMatchObject({
             statusCode: 502,
             message: 'Unable to resolve server access right now. Please retry.',
         })
@@ -460,7 +471,9 @@ describe('GuildAccessService', () => {
             new Error('member context unavailable'),
         )
 
-        await expect(guildAccessService.listAuthorizedGuilds(SESSION)).rejects.toMatchObject({
+        await expect(
+            guildAccessService.listAuthorizedGuilds(SESSION),
+        ).rejects.toMatchObject({
             statusCode: 502,
             message: 'Unable to resolve server access right now. Please retry.',
         })
@@ -479,9 +492,9 @@ describe('GuildAccessService', () => {
             { ...guild, id: 'unknown-guild', hasBot: true },
         ])
 
-        await expect(guildAccessService.listAuthorizedGuilds(SESSION)).rejects.toThrow(
-            'Missing authorized context for guild unknown-guild',
-        )
+        await expect(
+            guildAccessService.listAuthorizedGuilds(SESSION),
+        ).rejects.toThrow('Missing authorized context for guild unknown-guild')
     })
 
     test('resolveGuildContext returns null when guild is not in user guild list', async () => {
@@ -596,13 +609,15 @@ describe('GuildAccessService', () => {
         const cachedGuilds = JSON.stringify([guild])
 
         mockRedisIsHealthy.mockReturnValue(true)
-        mockRedisGet.mockResolvedValue(cachedGuilds)
+        // First call: cache miss → Discord API populates it
+        mockRedisGet.mockResolvedValueOnce(null)
         mockGetUserGuilds.mockResolvedValueOnce([guild])
         mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
         await guildAccessService.listAuthorizedGuilds(SESSION)
         expect(mockRedisSetex).toHaveBeenCalledTimes(1)
 
-        mockGetUserGuilds.mockRejectedValueOnce({ status: 429 })
+        // Second call: cache is populated — Discord is never called, no 429 possible
+        mockRedisGet.mockResolvedValue(cachedGuilds)
 
         await expect(
             guildAccessService.resolveGuildContext(SESSION, guild.id),
@@ -625,7 +640,9 @@ describe('GuildAccessService', () => {
 
         expect(mockRedisSetex).toHaveBeenCalledTimes(1)
         const redisKey = mockRedisSetex.mock.calls[0][0]
-        expect(redisKey).toContain(`guild-access:user-guilds:${SESSION.user.id}:`)
+        expect(redisKey).toContain(
+            `guild-access:user-guilds:${SESSION.user.id}:`,
+        )
         expect(redisKey).not.toContain(SESSION.accessToken)
         expect(redisKey).not.toContain(SESSION.accessToken.slice(0, 24))
     })
