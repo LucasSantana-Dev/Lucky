@@ -89,6 +89,7 @@ describe('recommendationTelemetry', () => {
                     signals: input.basis.signals,
                     reason: 'spotify rec • preferred artist • completed before',
                     confidence: null,
+                    mode: null,
                 },
             })
         })

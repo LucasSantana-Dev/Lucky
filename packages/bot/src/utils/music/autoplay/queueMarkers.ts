@@ -62,27 +62,30 @@ export function markAsAutoplayTrack(
  * @param basis - The RecommendationBasis (source + signals) for this pick
  * @param guildId - The guild where the track is being queued
  * @param discordUserId - Optional: the Discord user who initiated the replenish
+ * @param mode - Optional: the active autoplay mode (similar | discover | popular)
  */
 export async function markAndRecordAutoplayTrack(
-	track: Track,
-	basis: RecommendationBasis,
-	guildId: string,
-	discordUserId?: string,
+    track: Track,
+    basis: RecommendationBasis,
+    guildId: string,
+    discordUserId?: string,
+    mode?: 'similar' | 'discover' | 'popular',
 ): Promise<void> {
-	// Mark the track synchronously with serialized reason
-	const serializedReason = serializeBasis(basis)
-	markAsAutoplayTrack(track, serializedReason, discordUserId)
+    // Mark the track synchronously with serialized reason
+    const serializedReason = serializeBasis(basis)
+    markAsAutoplayTrack(track, serializedReason, discordUserId)
 
-	// Fire telemetry asynchronously (non-blocking)
-	// recordRecommendationPick is non-throwing, so we don't need try/catch
-	await recordRecommendationPick({
-		guildId,
-		discordUserId,
-		trackId: track.id || track.url,
-		title: track.title ?? '',
-		author: track.author ?? '',
-		url: track.url,
-		thumbnail: undefined,
-		basis,
-	})
+    // Fire telemetry asynchronously (non-blocking)
+    // recordRecommendationPick is non-throwing, so we don't need try/catch
+    await recordRecommendationPick({
+        guildId,
+        discordUserId,
+        trackId: track.id || track.url,
+        title: track.title ?? '',
+        author: track.author ?? '',
+        url: track.url,
+        thumbnail: undefined,
+        basis,
+        mode,
+    })
 }

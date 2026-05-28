@@ -582,6 +582,7 @@ describe('diversitySelector', () => {
                 expect.objectContaining({ source: 'spotify-rec' }),
                 'guild-id-123',
                 'requesting-user-id',
+                undefined,
             )
 
             // Without user ID
@@ -597,6 +598,87 @@ describe('diversitySelector', () => {
                 expect.any(Object),
                 'guild-id-123',
                 undefined,
+                undefined,
+            )
+        })
+
+        test('passes autoplay mode when provided', async () => {
+            const mockQueueWithAdd: Partial<GuildQueue> = {
+                ...mockQueue,
+                guild: { id: 'guild-id-123' },
+                tracks: { toArray: jest.fn(() => []) },
+                addTrack: jest.fn(),
+            }
+
+            const track: Partial<Track> = {
+                url: 'https://youtube.com/track1',
+                title: 'Track 1',
+                author: 'Artist 1',
+                id: 'track-1',
+            }
+
+            const selected = [
+                {
+                    track: track as Track,
+                    score: 0.8,
+                    basis: {
+                        source: 'spotify-rec' as const,
+                        signals: ['preferred artist'],
+                    },
+                },
+            ]
+
+            // Test with discover mode
+            await addSelectedTracks(
+                mockQueueWithAdd as GuildQueue,
+                selected,
+                new Set(),
+                new Set(),
+                'user-id',
+                'discover',
+            )
+            expect(markAndRecordAutoplayTrackMock).toHaveBeenCalledWith(
+                track,
+                expect.any(Object),
+                'guild-id-123',
+                'user-id',
+                'discover',
+            )
+
+            // Test with popular mode
+            jest.clearAllMocks()
+            await addSelectedTracks(
+                mockQueueWithAdd as GuildQueue,
+                selected,
+                new Set(),
+                new Set(),
+                'user-id',
+                'popular',
+            )
+            expect(markAndRecordAutoplayTrackMock).toHaveBeenCalledWith(
+                track,
+                expect.any(Object),
+                'guild-id-123',
+                'user-id',
+                'popular',
+            )
+
+            // Test with similar mode
+            jest.clearAllMocks()
+            await addSelectedTracks(
+                mockQueueWithAdd as GuildQueue,
+                selected,
+                new Set(),
+                new Set(),
+                'user-id',
+                'similar',
+            )
+            expect(markAndRecordAutoplayTrackMock).toHaveBeenCalledWith(
+                track,
+                expect.any(Object),
+                'guild-id-123',
+                'user-id',
+                'similar',
             )
         })
     })

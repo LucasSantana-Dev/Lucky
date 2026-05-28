@@ -429,6 +429,9 @@ model Recommendation {
   // Denormalized human-readable serialization of source + signals. Computed
   // by serializeBasis(). Kept for Discord display and ad-hoc query inspection.
   reason     String?
+  // Phase D: active autoplay mode at pick time (similar | discover | popular).
+  // Nullable for forward-compatibility with pre-migration rows.
+  mode       String?
 
   // Phase B closed-loop outcome
   isAccepted Boolean?
@@ -440,6 +443,7 @@ model Recommendation {
 
   @@index([guildId, createdAt])
   @@index([guildId, source, createdAt])
+  @@index([guildId, mode, createdAt])
   @@map("recommendations")
 }
 

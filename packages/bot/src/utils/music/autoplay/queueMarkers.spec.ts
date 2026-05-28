@@ -95,6 +95,68 @@ describe('markAndRecordAutoplayTrack', () => {
         expect(recordRecommendationPick).toHaveBeenCalled()
     })
 
+    it('records the mode when provided', async () => {
+        const track = createTrack({
+            title: 'Song Title',
+            author: 'Song Author',
+            url: 'https://youtube.com/watch?v=abc123',
+            id: 'track-id-123',
+        })
+        const basis: RecommendationBasis = {
+            source: 'spotify-rec',
+            signals: [],
+        }
+
+        await markAndRecordAutoplayTrack(
+            track,
+            basis,
+            'guild-123',
+            'user-456',
+            'discover',
+        )
+
+        expect(recordRecommendationPick).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mode: 'discover',
+            }),
+        )
+    })
+
+    it('records with all three mode values', async () => {
+        const modes: Array<'similar' | 'discover' | 'popular'> = [
+            'similar',
+            'discover',
+            'popular',
+        ]
+
+        for (const mode of modes) {
+            jest.clearAllMocks()
+            ;(recordRecommendationPick as jest.Mock).mockResolvedValueOnce(
+                undefined,
+            )
+
+            const track = createTrack()
+            const basis: RecommendationBasis = {
+                source: 'spotify-rec',
+                signals: [],
+            }
+
+            await markAndRecordAutoplayTrack(
+                track,
+                basis,
+                'guild-123',
+                'user-456',
+                mode,
+            )
+
+            expect(recordRecommendationPick).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    mode,
+                }),
+            )
+        }
+    })
+
     it('does not throw even if recordRecommendationPick resolves successfully', async () => {
         const track = createTrack()
         const basis: RecommendationBasis = {
