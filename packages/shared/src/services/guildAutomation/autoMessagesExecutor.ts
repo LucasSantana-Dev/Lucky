@@ -1,7 +1,9 @@
 import type { ExecutorApplyResult, ExecutorOpError } from './types'
 
+/** Type of auto message (welcome or leave). */
 type AutoMessageType = 'welcome' | 'leave'
 
+/** Snapshot of a stored auto message. */
 type AutoMessageSnapshot = {
     id: string
     channelId: string | null
@@ -9,16 +11,19 @@ type AutoMessageSnapshot = {
     enabled: boolean
 } | null
 
+/** Current live state of auto messages in a guild. */
 export type AutoMessagesLiveState = {
     welcome: AutoMessageSnapshot
     leave: AutoMessageSnapshot
 }
 
+/** Auto messages section of the manifest document. */
 export type AutoMessagesManifestSection = {
     welcome?: { enabled?: boolean; channelId?: string; message?: string }
     leave?: { enabled?: boolean; channelId?: string; message?: string }
 }
 
+/** Diff operation for auto message changes. */
 export type AutoMessagesDiffOp =
     | {
           kind: 'create'
@@ -36,8 +41,10 @@ export type AutoMessagesDiffOp =
       }
     | { kind: 'noop'; type: AutoMessageType }
 
+/** Diff between auto message manifest and live state. */
 export type AutoMessagesDiff = { ops: AutoMessagesDiffOp[] }
 
+/** Result of auto message apply operation. */
 export type AutoMessagesResult = {
     applied: Array<{
         type: AutoMessageType
@@ -45,8 +52,10 @@ export type AutoMessagesResult = {
     }>
 }
 
+/** Context for executor operations. */
 export type ExecutorContext = { guildId: string }
 
+/** Port interface for auto message operations. */
 export type AutoMessagesPort = {
     getWelcomeMessage(guildId: string): Promise<AutoMessageSnapshot>
     getLeaveMessage(guildId: string): Promise<AutoMessageSnapshot>
@@ -66,6 +75,7 @@ export type AutoMessagesPort = {
     ): Promise<unknown>
 }
 
+/** Creates an auto messages executor with given dependencies. */
 export function createAutoMessagesExecutor(deps: {
     autoMessageService: AutoMessagesPort
 }) {

@@ -3,6 +3,7 @@ import { errorLog, debugLog } from '../../utils/general/log'
 import { featureToggleService } from '../FeatureToggleService'
 import { getPrismaClient } from '../../utils/database/prismaClient'
 
+/** Manages role exclusions and role assignment rules. */
 export class RoleManagementService {
     async isEnabled(guildId?: string, userId?: string): Promise<boolean> {
         return featureToggleService.isEnabled('ROLE_MANAGEMENT', {

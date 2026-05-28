@@ -48,7 +48,8 @@
         "dev": "tsc --watch",
         "type:check": "tsc --noEmit",
         "test": "jest",
-        "test:ci": "jest --ci"
+        "test:ci": "jest --ci",
+        "docs:check": "typedoc --emit none"
     },
     "dependencies": {
         "@gar/promise-retry": "^1.0.3",
@@ -82,6 +83,8 @@
         "@swc/core": "^1.15.40",
         "@types/node": "^25.9.1",
         "glob": "^13.0.6",
+        "typedoc": "^0.28.19",
+        "typedoc-plugin-coverage": "^4.0.3",
         "typescript": "^6.0.3"
     }
 }

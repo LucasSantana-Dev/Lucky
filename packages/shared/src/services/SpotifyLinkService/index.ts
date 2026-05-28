@@ -1,6 +1,7 @@
 import { getPrismaClient } from '../../utils/database/prismaClient'
 import { errorLog, debugLog } from '../../utils/general/log'
 
+/** Spotify account link data for a Discord user. */
 export type SpotifyLinkRow = {
     spotifyId: string
     accessToken: string
@@ -9,7 +10,9 @@ export type SpotifyLinkRow = {
     spotifyUsername: string | null
 }
 
+/** Manages Spotify account links and token refresh for Discord users. */
 export class SpotifyLinkService {
+    /** Retrieves Spotify link data for a Discord user. */
     async getByDiscordId(discordId: string): Promise<SpotifyLinkRow | null> {
         try {
             const prisma = getPrismaClient()
@@ -35,6 +38,7 @@ export class SpotifyLinkService {
         }
     }
 
+    /** Gets a valid Spotify access token, refreshing if necessary. */
     async getValidAccessToken(discordId: string): Promise<string | null> {
         const row = await this.getByDiscordId(discordId)
         if (!row) return null
@@ -47,6 +51,7 @@ export class SpotifyLinkService {
         return await this.refreshAccessToken(discordId, row.refreshToken)
     }
 
+    /** Refreshes an expired Spotify access token using the refresh token. */
     private async refreshAccessToken(
         discordId: string,
         refreshToken: string,
@@ -61,11 +66,13 @@ export class SpotifyLinkService {
                 return null
             }
 
-            const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+            const auth = Buffer.from(`${clientId}:${clientSecret}`).toString(
+                'base64',
+            )
             const res = await fetch('https://accounts.spotify.com/api/token', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Basic ${auth}`,
+                    Authorization: `Basic ${auth}`,
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
                 body: new URLSearchParams({
@@ -128,6 +135,7 @@ export class SpotifyLinkService {
         }
     }
 
+    /** Creates or updates a Spotify account link for a Discord user. */
     async set(data: {
         discordId: string
         spotifyId: string
@@ -177,6 +185,7 @@ export class SpotifyLinkService {
         }
     }
 
+    /** Removes a Discord user's Spotify account link. */
     async unlink(discordId: string): Promise<boolean> {
         try {
             const prisma = getPrismaClient()
@@ -213,4 +222,5 @@ export class SpotifyLinkService {
     }
 }
 
+/** Singleton instance of SpotifyLinkService. */
 export const spotifyLinkService = new SpotifyLinkService()

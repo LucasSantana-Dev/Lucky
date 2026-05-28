@@ -9,6 +9,7 @@ import { setupRedisEventHandlers } from './eventHandlers'
 import { RedisOperations } from './operations.js'
 import type { RedisClientState, IRedisClient } from './types'
 
+/** Redis client wrapper with connection management and operations. */
 export class RedisClient implements IRedisClient {
     private client: Redis | null = null
     private readonly state: RedisClientState = {

@@ -1,6 +1,7 @@
 import { redisClient } from './redis'
 import { infoLog, errorLog } from '../utils/general/log'
 
+/** Guild-specific music and command settings cached in Redis. */
 export interface GuildSettings {
     guildId: string
     defaultVolume: number
@@ -25,12 +26,14 @@ export interface GuildSettings {
     updatedAt: Date
 }
 
+/** Autoplay recommendation counter tracking for a guild. */
 export interface AutoplayCounter {
     guildId: string
     count: number
     lastReset: Date
 }
 
+/** Manages guild settings and counters stored in Redis. */
 export class GuildSettingsService {
     private readonly ttl: number
 
@@ -70,6 +73,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Retrieves guild settings from Redis cache. */
     async getGuildSettings(guildId: string): Promise<GuildSettings | null> {
         try {
             const settingsData = await redisClient.get(
@@ -85,6 +89,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Sets guild settings, fully replacing existing values. */
     async setGuildSettings(
         guildId: string,
         settings: Partial<GuildSettings>,
@@ -114,16 +119,16 @@ export class GuildSettingsService {
         }
     }
 
+    /** Updates guild settings, merging with existing values. */
     async updateGuildSettings(
         guildId: string,
         updates: Partial<GuildSettings>,
     ): Promise<boolean> {
         try {
-            const currentSettings =
-                (await this.getGuildSettings(guildId)) ?? {
-                    ...this.getDefaultSettings(),
-                    guildId,
-                }
+            const currentSettings = (await this.getGuildSettings(guildId)) ?? {
+                ...this.getDefaultSettings(),
+                guildId,
+            }
 
             const updatedSettings = {
                 ...currentSettings,
@@ -146,6 +151,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Deletes all guild settings from cache. */
     async deleteGuildSettings(guildId: string): Promise<boolean> {
         try {
             await redisClient.del(this.getRedisKey(guildId))
@@ -157,6 +163,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Gets the autoplay recommendation counter for a guild. */
     async getAutoplayCounter(guildId: string): Promise<AutoplayCounter | null> {
         try {
             const counterData = await redisClient.get(
@@ -172,6 +179,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Sets the autoplay recommendation counter for a guild. */
     async setAutoplayCounter(
         guildId: string,
         counter: AutoplayCounter,
@@ -189,6 +197,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Increments and returns the autoplay counter for a guild. */
     async incrementAutoplayCounter(guildId: string): Promise<number> {
         try {
             const counter = (await this.getAutoplayCounter(guildId)) || {
@@ -207,6 +216,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Resets the autoplay counter for a guild to zero. */
     async resetAutoplayCounter(guildId: string): Promise<boolean> {
         try {
             const counter: AutoplayCounter = {
@@ -221,6 +231,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Gets the repeat counter for a guild. */
     async getRepeatCount(guildId: string): Promise<number> {
         try {
             const countData = await redisClient.get(
@@ -233,6 +244,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Sets the repeat counter for a guild. */
     async setRepeatCount(guildId: string, count: number): Promise<boolean> {
         try {
             await redisClient.setex(
@@ -247,6 +259,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Increments and returns the repeat counter for a guild. */
     async incrementRepeatCount(guildId: string): Promise<number> {
         try {
             const currentCount = await this.getRepeatCount(guildId)
@@ -259,6 +272,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Resets the repeat counter for a guild to zero. */
     async resetRepeatCount(guildId: string): Promise<boolean> {
         try {
             return await this.setRepeatCount(guildId, 0)
@@ -268,6 +282,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Clears all guild session state (settings, counters, repeat count). */
     async clearGuildSessions(guildId: string): Promise<boolean> {
         try {
             const settingsDeleted = await this.deleteGuildSettings(guildId)
@@ -281,6 +296,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Checks if a command is rate-limited for a guild. */
     async isRateLimited(
         guildId: string,
         command: string,
@@ -303,6 +319,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Sets the rate limit for a command in a guild. */
     async setRateLimit(
         guildId: string,
         command: string,
@@ -316,6 +333,7 @@ export class GuildSettingsService {
         }
     }
 
+    /** Clears all autoplay counters across all guilds. */
     async clearAllAutoplayCounters(): Promise<boolean> {
         try {
             const pattern = 'guild_settings:*:autoplay_counter'
@@ -336,4 +354,5 @@ export class GuildSettingsService {
     }
 }
 
+/** Singleton instance of GuildSettingsService. */
 export const guildSettingsService = new GuildSettingsService()

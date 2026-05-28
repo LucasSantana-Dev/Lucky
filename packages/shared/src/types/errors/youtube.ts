@@ -1,7 +1,4 @@
-/**
- * YouTube and external services error codes
- */
-
+/** Error codes for YouTube and external media services. */
 export const YOUTUBE_ERROR_CODES = {
     YOUTUBE_VIDEO_NOT_FOUND: 'ERR_YOUTUBE_VIDEO_NOT_FOUND',
     YOUTUBE_PLAYLIST_NOT_FOUND: 'ERR_YOUTUBE_PLAYLIST_NOT_FOUND',
@@ -9,5 +6,6 @@ export const YOUTUBE_ERROR_CODES = {
     YOUTUBE_SERVICE_UNAVAILABLE: 'ERR_YOUTUBE_SERVICE_UNAVAILABLE',
 } as const
 
+/** Type representing YouTube error codes. */
 export type YouTubeErrorCode =
     (typeof YOUTUBE_ERROR_CODES)[keyof typeof YOUTUBE_ERROR_CODES]

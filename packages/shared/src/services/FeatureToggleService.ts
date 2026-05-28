@@ -11,6 +11,7 @@ import { getFeatureToggleConfig } from '../config/featureToggles'
 import { debugLog } from '../utils/general/log'
 import { getPrismaClient } from '../utils/database/prismaClient'
 
+/** Manages feature toggles with multi-layer provider support (database, Vercel, environment). */
 class FeatureToggleService {
     private fallbackToggles: Map<FeatureToggleName, boolean> = new Map()
 
@@ -36,9 +37,7 @@ class FeatureToggleService {
         return getPrismaClient()
     }
 
-    private async getDbGlobalOverride(
-        name: string,
-    ): Promise<boolean | null> {
+    private async getDbGlobalOverride(name: string): Promise<boolean | null> {
         try {
             const row = await this.db.globalFeatureToggle.findUnique({
                 where: { name },
@@ -50,6 +49,7 @@ class FeatureToggleService {
         }
     }
 
+    /** Sets a global feature toggle override in the database. */
     async setGlobalFeatureToggle(
         name: FeatureToggleName,
         enabled: boolean,
@@ -96,10 +96,12 @@ class FeatureToggleService {
         }
     }
 
+    /** Gets the current toggle provider (Vercel or database). */
     getGlobalToggleProvider(): GlobalFeatureToggleProvider {
         return isVercelFlagsConfigured() ? 'vercel' : 'database'
     }
 
+    /** Gets the global toggle status with provider information. */
     async getGlobalToggleStatus(
         name: FeatureToggleName,
     ): Promise<GlobalFeatureToggleState> {
@@ -130,11 +132,13 @@ class FeatureToggleService {
         }
     }
 
+    /** Checks if a feature is globally enabled. */
     async isEnabledGlobal(name: FeatureToggleName): Promise<boolean> {
         const status = await this.getGlobalToggleStatus(name)
         return status.enabled
     }
 
+    /** Checks if a feature is enabled (optionally scoped to user/guild). */
     async isEnabled(
         name: FeatureToggleName,
         context?: { userId?: string; guildId?: string },
@@ -142,13 +146,16 @@ class FeatureToggleService {
         return this.isEnabledGlobal(name)
     }
 
+    /** Returns a copy of all loaded fallback toggles. */
     getAllToggles(): Map<FeatureToggleName, boolean> {
         return new Map(this.fallbackToggles)
     }
 
+    /** Gets a toggle value from the fallback configuration. */
     getToggle(name: FeatureToggleName): boolean {
         return this.getFallbackValue(name)
     }
 }
 
+/** Singleton instance of FeatureToggleService. */
 export const featureToggleService = new FeatureToggleService()

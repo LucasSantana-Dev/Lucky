@@ -6,6 +6,7 @@ const prisma = getPrismaClient()
 const CACHE_TTL = 300
 const CACHE_PREFIX = 'automod:'
 
+/** Auto-moderation settings configuration for a guild. */
 export interface AutoModSettings {
     id: string
     guildId: string
@@ -27,11 +28,13 @@ export interface AutoModSettings {
     updatedAt: Date
 }
 
+/** Mutable subset of AutoModSettings excluding metadata fields. */
 type AutoModMutableSettings = Omit<
     AutoModSettings,
     'id' | 'guildId' | 'createdAt' | 'updatedAt'
 >
 
+/** Pre-configured auto-moderation template. */
 export interface AutoModTemplate {
     id: string
     name: string
@@ -39,6 +42,7 @@ export interface AutoModTemplate {
     settings: Partial<AutoModMutableSettings>
 }
 
+/** Error thrown when an auto-moderation template is not found. */
 export class AutoModTemplateNotFoundError extends Error {
     readonly code = 'ERR_AUTOMOD_TEMPLATE_NOT_FOUND'
 
@@ -147,12 +151,14 @@ const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
     },
 ]
 
+/** Normalizes text for case-insensitive matching by removing accents. */
 const normalizeForMatch = (value: string): string =>
     value
         .normalize('NFD')
         .replaceAll(/\p{M}+/gu, '')
         .toLowerCase()
 
+/** Normalizes and validates a list of allowed domains. */
 const normalizeAllowedDomains = (domains: string[]): string[] =>
     domains
         .map((domain) => domain.trim().toLowerCase())
@@ -172,6 +178,7 @@ const normalizeAllowedDomains = (domains: string[]): string[] =>
         .map((domain) => (domain.startsWith('www.') ? domain.slice(4) : domain))
         .filter((domain) => domain.length > 0)
 
+/** Removes trailing punctuation from URLs. */
 const trimTrailingUrlPunctuation = (value: string): string => {
     let result = value.trim()
     const trailing = new Set([')', ',', '.', '!', '?', ';', ':'])
@@ -183,6 +190,7 @@ const trimTrailingUrlPunctuation = (value: string): string => {
     return result
 }
 
+/** Extracts hostname from a URL string. */
 const extractHostname = (rawUrl: string): string | null => {
     const sanitized = trimTrailingUrlPunctuation(rawUrl)
 
@@ -194,7 +202,9 @@ const extractHostname = (rawUrl: string): string | null => {
     }
 }
 
+/** Provides auto-moderation checks and management for message content. */
 export class AutoModService {
+    /** Retrieves auto-mod settings for a guild with caching. */
     async getSettings(guildId: string): Promise<AutoModSettings | null> {
         if (redisClient.isHealthy()) {
             try {
@@ -224,12 +234,14 @@ export class AutoModService {
         return settings
     }
 
+    /** Clears cached settings for a guild. */
     private invalidateCache(guildId: string): void {
         if (redisClient.isHealthy()) {
             redisClient.del(`${CACHE_PREFIX}${guildId}`).catch(() => {})
         }
     }
 
+    /** Creates default auto-mod settings for a guild. */
     async createSettings(guildId: string): Promise<AutoModSettings> {
         const result = await prisma.autoModSettings.create({
             data: { guildId },
@@ -238,6 +250,7 @@ export class AutoModService {
         return result
     }
 
+    /** Updates auto-mod settings for a guild. */
     async updateSettings(
         guildId: string,
         settings: Partial<AutoModMutableSettings>,
@@ -251,10 +264,12 @@ export class AutoModService {
         return result
     }
 
+    /** Lists all available auto-mod templates. */
     async listTemplates(): Promise<AutoModTemplate[]> {
         return AUTO_MOD_TEMPLATES
     }
 
+    /** Applies a pre-configured template to a guild's auto-mod settings. */
     async applyTemplate(
         guildId: string,
         templateId: string,
@@ -293,6 +308,7 @@ export class AutoModService {
         return { settings, template }
     }
 
+    /** Tracks a message and checks if spam threshold is exceeded. */
     async trackMessageAndCheckSpam(
         guildId: string,
         userId: string,
@@ -318,6 +334,7 @@ export class AutoModService {
         return recentCount >= settings.spamThreshold
     }
 
+    /** Checks if message timestamps exceed spam threshold. */
     async checkSpam(
         guildId: string,
         userId: string,
@@ -335,6 +352,7 @@ export class AutoModService {
         return recentMessages.length >= settings.spamThreshold
     }
 
+    /** Checks if message content exceeds caps lock threshold. */
     async checkCaps(guildId: string, content: string): Promise<boolean> {
         const settings = await this.getSettings(guildId)
         if (!settings?.capsEnabled) return false
@@ -349,6 +367,7 @@ export class AutoModService {
         return capsPercentage >= settings.capsThreshold
     }
 
+    /** Checks if message contains disallowed links. */
     async checkLinks(
         guildId: string,
         content: string,
@@ -379,6 +398,7 @@ export class AutoModService {
         })
     }
 
+    /** Checks if message contains Discord invite links. */
     async checkInvites(guildId: string, content: string): Promise<boolean> {
         const settings = await this.getSettings(guildId)
         if (!settings?.invitesEnabled) return false
@@ -388,6 +408,7 @@ export class AutoModService {
         return inviteRegex.test(content)
     }
 
+    /** Checks if message contains banned words. */
     async checkWords(guildId: string, content: string): Promise<boolean> {
         const settings = await this.getSettings(guildId)
         if (!settings?.wordsEnabled) return false
@@ -410,6 +431,7 @@ export class AutoModService {
         })
     }
 
+    /** Checks if a channel or role is exempt from auto-mod checks. */
     isExempt(
         settings: AutoModSettings,
         channelId?: string,
@@ -430,4 +452,5 @@ export class AutoModService {
     }
 }
 
+/** Singleton instance of AutoModService. */
 export const autoModService = new AutoModService()

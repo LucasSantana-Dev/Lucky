@@ -1,0 +1,18 @@
+{
+    "entryPoints": ["src/index.ts"],
+    "tsconfig": "tsconfig.json",
+    "plugin": ["typedoc-plugin-coverage"],
+    "requiredToBeDocumented": [
+        "Function",
+        "Class",
+        "Interface",
+        "TypeAlias",
+        "Enum",
+        "EnumMember"
+    ],
+    "coverageOutputType": "json",
+    "coverageOutputPath": "/tmp/typedoc-coverage.json",
+    "out": "/tmp/typedoc-out",
+    "skipErrorChecking": true,
+    "logLevel": "Warn"
+}
