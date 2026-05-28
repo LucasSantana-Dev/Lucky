@@ -16,6 +16,7 @@ export interface RecordPickInput {
     thumbnail?: string
     basis: RecommendationBasis
     confidence?: number
+    mode?: 'similar' | 'discover' | 'popular'
 }
 
 export interface RecordOutcomeArgs {
@@ -49,6 +50,7 @@ export async function recordRecommendationPick(
                 signals: input.basis.signals,
                 reason,
                 confidence: input.confidence ?? null,
+                mode: input.mode ?? null,
             },
         })
     } catch (err) {

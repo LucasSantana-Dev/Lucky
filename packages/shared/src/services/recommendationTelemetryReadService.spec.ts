@@ -14,8 +14,10 @@ jest.mock('../utils/database/prismaClient', () => ({
 // Now import the module under test
 import {
     getPerSourceAcceptance,
+    getPerModeAcceptance,
     getSummary,
     type PerSourceRow,
+    type PerModeRow,
     type Summary,
 } from './recommendationTelemetryReadService'
 
@@ -220,6 +222,150 @@ describe('recommendationTelemetryReadService', () => {
             mockCount.mockResolvedValue({ count: 0 })
 
             await getPerSourceAcceptance('guild-123')
+
+            const call = mockGroupBy.mock.calls[0][0] as any
+            const minus7Days = Date.now() - 7 * 86_400_000
+            expect(call.where.createdAt.gte.getTime()).toBeCloseTo(
+                minus7Days,
+                -2,
+            )
+        })
+    })
+
+    describe('getPerModeAcceptance', () => {
+        it('returns empty array when guild has no recommendations', async () => {
+            mockGroupBy.mockResolvedValue([])
+
+            const result = await getPerModeAcceptance('guild-123')
+
+            expect(result).toEqual([])
+            expect(mockGroupBy).toHaveBeenCalled()
+        })
+
+        it('returns rows for all three modes', async () => {
+            const mockGroupResult = [
+                { mode: 'similar', _count: { id: 10 } },
+                { mode: 'discover', _count: { id: 8 } },
+                { mode: 'popular', _count: { id: 6 } },
+            ]
+            mockGroupBy.mockResolvedValue(mockGroupResult)
+
+            // similar: 7 accepted, 2 rejected, 1 pending
+            mockCount
+                .mockResolvedValueOnce({ count: 7 })
+                .mockResolvedValueOnce({ count: 2 })
+                .mockResolvedValueOnce({ count: 1 })
+                // discover: 5 accepted, 2 rejected, 1 pending
+                .mockResolvedValueOnce({ count: 5 })
+                .mockResolvedValueOnce({ count: 2 })
+                .mockResolvedValueOnce({ count: 1 })
+                // popular: 4 accepted, 1 rejected, 1 pending
+                .mockResolvedValueOnce({ count: 4 })
+                .mockResolvedValueOnce({ count: 1 })
+                .mockResolvedValueOnce({ count: 1 })
+
+            const result = await getPerModeAcceptance('guild-123')
+
+            expect(result).toHaveLength(3)
+            expect(result[0]).toEqual({
+                mode: 'similar',
+                count: 10,
+                acceptedCount: 7,
+                rejectedCount: 2,
+                pendingCount: 1,
+                acceptanceRate: 7 / 9,
+            })
+            expect(result[1]).toEqual({
+                mode: 'discover',
+                count: 8,
+                acceptedCount: 5,
+                rejectedCount: 2,
+                pendingCount: 1,
+                acceptanceRate: 5 / 7,
+            })
+            expect(result[2]).toEqual({
+                mode: 'popular',
+                count: 6,
+                acceptedCount: 4,
+                rejectedCount: 1,
+                pendingCount: 1,
+                acceptanceRate: 4 / 5,
+            })
+        })
+
+        it('handles null mode value (pre-migration rows)', async () => {
+            const mockGroupResult = [
+                { mode: null, _count: { id: 2 } },
+                { mode: 'similar', _count: { id: 5 } },
+            ]
+            mockGroupBy.mockResolvedValue(mockGroupResult)
+
+            mockCount
+                .mockResolvedValueOnce({ count: 1 }) // null: accepted
+                .mockResolvedValueOnce({ count: 1 }) // null: rejected
+                .mockResolvedValueOnce({ count: 0 }) // null: pending
+                .mockResolvedValueOnce({ count: 4 }) // similar: accepted
+                .mockResolvedValueOnce({ count: 1 }) // similar: rejected
+                .mockResolvedValueOnce({ count: 0 }) // similar: pending
+
+            const result = await getPerModeAcceptance('guild-123')
+
+            expect(result).toHaveLength(2)
+            expect(result[0].mode).toBeNull()
+            expect(result[0].acceptanceRate).toBe(0.5) // 1/(1+1)
+            expect(result[1].mode).toBe('similar')
+        })
+
+        it('returns null acceptanceRate when all pending', async () => {
+            const mockGroupResult = [{ mode: 'similar', _count: { id: 5 } }]
+            mockGroupBy.mockResolvedValue(mockGroupResult)
+
+            mockCount
+                .mockResolvedValueOnce({ count: 0 }) // accepted
+                .mockResolvedValueOnce({ count: 0 }) // rejected
+                .mockResolvedValueOnce({ count: 5 }) // pending
+
+            const result = await getPerModeAcceptance('guild-123')
+
+            expect(result[0].acceptanceRate).toBeNull()
+        })
+
+        it('clamps days to [1, 30] range', async () => {
+            mockGroupBy.mockResolvedValue([])
+            mockCount.mockResolvedValue({ count: 0 })
+
+            // Test with days: 0 (should clamp to 1)
+            await getPerModeAcceptance('guild-123', 0)
+            const firstCall = mockGroupBy.mock.calls[0][0] as any
+            const minusOneDay = Date.now() - 1 * 86_400_000
+            expect(firstCall.where.createdAt.gte.getTime()).toBeCloseTo(
+                minusOneDay,
+                -2,
+            )
+
+            jest.clearAllMocks()
+            mockGetPrismaClient.mockReturnValue({
+                recommendation: {
+                    groupBy: mockGroupBy,
+                    count: mockCount,
+                },
+            })
+
+            // Test with days: 999 (should clamp to 30)
+            await getPerModeAcceptance('guild-123', 999)
+            const secondCall = mockGroupBy.mock.calls[0][0] as any
+            const minus30Days = Date.now() - 30 * 86_400_000
+            expect(secondCall.where.createdAt.gte.getTime()).toBeCloseTo(
+                minus30Days,
+                -2,
+            )
+        })
+
+        it('defaults to 7 days when days is undefined', async () => {
+            mockGroupBy.mockResolvedValue([])
+            mockCount.mockResolvedValue({ count: 0 })
+
+            await getPerModeAcceptance('guild-123')
 
             const call = mockGroupBy.mock.calls[0][0] as any
             const minus7Days = Date.now() - 7 * 86_400_000

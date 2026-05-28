@@ -498,6 +498,7 @@ async function _replenishQueue(
             excludedUrls,
             excludedKeys,
             requestedBy?.id,
+            autoplayMode,
         )
 
         // Increment replenish counter for next call's query variation
