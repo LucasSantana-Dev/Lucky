@@ -1,6 +1,6 @@
 {
     "name": "lucky-bot",
-    "version": "2.15.0",
+    "version": "2.15.2",
     "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
     "type": "module",
     "workspaces": [
@@ -91,7 +91,6 @@
         "jest": "^30.4.2",
         "lint-staged": "^17.0.5",
         "prettier": "^3.8.3",
-        "prisma": "^7.8.0",
         "secretlint": "^13.0.2",
         "ts-jest": "^29.4.11",
         "unfetch": "^5.0.0"
@@ -105,6 +104,7 @@
         "discord-player-youtubei": "^3.0.0-beta.4",
         "jintr": "^3.3.1",
         "minipass-flush": "^2.0.0",
+        "prisma": "^7.8.0",
         "prom-client": "^15.1.3",
         "ws": "^8.21.0"
     },
@@ -126,6 +126,7 @@
         "yauzl": ">=3.2.1",
         "picomatch": ">=2.3.2",
         "follow-redirects": "1.16.0",
-        "ip-address": ">=10.1.1"
+        "ip-address": ">=10.1.1",
+        "esbuild": "0.27.3"
     }
 }

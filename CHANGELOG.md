@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.15.2] - 2026-05-28
+
+### Fixed
+- fix(deploy): move `prisma` CLI from devDependencies to dependencies so it ships in the production backend/bot images. The deploy-time `prisma migrate deploy --config prisma/prisma.config.ts` and the bot container startup both load `prisma.config.ts`, which imports `prisma/config` — that subpath must resolve in the production `node_modules`. It was only present by a hoisting accident that the #944 lockfile regen corrected, silently breaking every homelab deploy after that with `Cannot find module 'prisma/config'` → `MIGRATION_FAILED`.
+- fix(build): pin `esbuild` to a single version (`0.27.3`) via `overrides`. Promoting `prisma` to a production dep pulled `tsx` (via `@prisma/dev`) into the `--omit=dev` image, where its nested `esbuild@0.28.0` collided with the hoisted `esbuild@0.27.3` and failed the binary-version postinstall validation. Unifying the version removes the dual-version conflict that caused the recurring esbuild build failures.
+
+## [2.15.1] - 2026-05-28
+
+### Fixed
+- fix(backend): add primary redis cache read-through to `GuildAccessService.fetchUserGuilds` — every request was hitting Discord's `/users/@me/guilds` unconditionally, causing the 429 rate-limit storm (LUCKY-27, LUCKY-28) (#1078)
+- fix(bot): unarchive idle discord thread before syncing the ai-dev-toolkit board; skip cycle gracefully if unarchive is not permitted, preventing recurring `DiscordAPIError[50083]` (LUCKY-3G) (#1078)
+
 ## [2.15.0] - 2026-05-24
 
 ### Added
