@@ -1,5 +1,6 @@
 import type { GuildQueue } from 'discord-player'
 import { debugLog, warnLog } from '@lucky/shared/utils'
+import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
 import type { CustomClient } from '../../types'
 
 export type QueueResolutionSource =
@@ -7,8 +8,8 @@ export type QueueResolutionSource =
     | 'queues.get'
     | 'nodes.resolve'
     | 'nodes.cache.get'
-    | 'cache.id'
     | 'cache.guild'
+    | 'cache.id'
     | 'miss'
 
 export type QueueResolutionDiagnostics = {
@@ -56,7 +57,9 @@ type PlayerLike = {
     queues?: QueueManagerLike
 }
 
-function toGuildQueue(value: QueueNodeLike | null | undefined): GuildQueue | null {
+function toGuildQueue(
+    value: QueueNodeLike | null | undefined,
+): GuildQueue | null {
     if (!value) return null
     return value as GuildQueue
 }
@@ -89,6 +92,17 @@ function resolveByCacheScan(
     return null
 }
 
+function emitTelemetry(source: QueueResolutionSource, cacheSize: number): void {
+    try {
+        addBreadcrumb('queue_resolution_source', 'queue_resolution', 'info', {
+            source,
+            cacheSize,
+        })
+    } catch {
+        // Telemetry failures must never break queue resolution
+    }
+}
+
 function resolveWithSource(
     queue: GuildQueue | null,
     source: QueueResolutionSource,
@@ -103,6 +117,8 @@ function resolveWithSource(
             },
         })
     }
+
+    emitTelemetry(source, diagnostics.cacheSize)
 
     return { queue, source, diagnostics }
 }
@@ -127,6 +143,9 @@ export function resolveGuildQueue(
         return resolveWithSource(fromQueuesGet, 'queues.get', diagnostics)
     }
 
+    // discord-player v7.x: nodes.resolve performs lazy initialization of a GuildQueue
+    // if missing; it's redundant with nodes.get when the queue already exists but
+    // returns a fresh instance if the backing store has the queue but nodes.get misses.
     const fromNodesResolve = toGuildQueue(nodes?.resolve?.(guildId))
     if (fromNodesResolve) {
         return resolveWithSource(fromNodesResolve, 'nodes.resolve', diagnostics)
@@ -138,14 +157,7 @@ export function resolveGuildQueue(
     }
 
     if (cache) {
-        const fromCacheId = resolveByCacheScan(
-            cache,
-            (queue) => queue.id === guildId,
-        )
-        if (fromCacheId) {
-            return resolveWithSource(fromCacheId, 'cache.id', diagnostics)
-        }
-
+        // Guild ID is more authoritative: check it first (path 5)
         const fromCacheGuild = resolveByCacheScan(
             cache,
             (queue) =>
@@ -156,6 +168,15 @@ export function resolveGuildQueue(
         if (fromCacheGuild) {
             return resolveWithSource(fromCacheGuild, 'cache.guild', diagnostics)
         }
+
+        // Queue ID scan is less authoritative (path 6)
+        const fromCacheId = resolveByCacheScan(
+            cache,
+            (queue) => queue.id === guildId,
+        )
+        if (fromCacheId) {
+            return resolveWithSource(fromCacheId, 'cache.id', diagnostics)
+        }
     }
 
     const log = diagnostics.cacheSize > 0 ? warnLog : debugLog
@@ -164,9 +185,5 @@ export function resolveGuildQueue(
         data: diagnostics,
     })
 
-    return {
-        queue: null,
-        source: 'miss',
-        diagnostics,
-    }
+    return resolveWithSource(null, 'miss', diagnostics)
 }
