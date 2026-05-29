@@ -2,14 +2,19 @@ import { SlashCommandBuilder } from '@discordjs/builders'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
 import {
-    requireGuild, requireDJRole,
+    requireGuild,
+    requireDJRole,
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
 } from '../../../utils/command/commandValidations'
+import { clearSessionMoodCache } from '../../../utils/music/autoplay/replenisher'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
@@ -36,6 +41,7 @@ async function skipCurrentSong(
     guildId: string,
 ): Promise<void> {
     queue.node.skip()
+    clearSessionMoodCache(guildId)
 
     debugLog({
         message: `Skipped current song in guild ${guildId}`,
@@ -72,7 +78,11 @@ async function sendSkipSuccess(
         return
     }
 
-    const trackEmbed = buildCommandTrackEmbed(nextTrack, '⏭️ Song skipped - Now playing', interaction.user)
+    const trackEmbed = buildCommandTrackEmbed(
+        nextTrack,
+        '⏭️ Song skipped - Now playing',
+        interaction.user,
+    )
     await interactionReply({ interaction, content: { embeds: [trackEmbed] } })
 }
 
