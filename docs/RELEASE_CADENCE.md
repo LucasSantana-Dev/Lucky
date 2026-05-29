@@ -2,47 +2,40 @@
 
 How this repo ships.
 
-## Model — versioned release branches
+## Model — trunk-based development on `main`
 
-Lucky uses **trunk-based development with versioned release branches**, NOT a
-single long-lived `release` branch. For each upcoming version a dedicated
-`release/vX.Y.Z` branch is created off `main`; PRs targeting the next release
-land there via `/pr-to-release`. When the batch is ready, `/release-cut`
-promotes `release/vX.Y.Z` → `main` with a merge commit (preserves individual
-PR SHAs), tags `vX.Y.Z`, and publishes the GitHub release.
+Lucky uses **trunk-based development**: `main` is the single integration branch
+and is always releasable. Short-lived `feature/<slug>` and `fix/<slug>` branches
+are cut from `main`, reviewed via PR, and merged back to `main`. There are **no
+long-lived or versioned release branches** — versions are cut directly from
+`main` by tagging.
 
-This memory entry is canonical (see `feedback_tbd_release_branches.md` in
-project memory).
+> **Squash-only.** This repo is configured for squash-merge
+> (`allow_merge_commit: false`, `allow_rebase_merge: false`). Every PR collapses
+> to one commit on `main`; individual pre-squash SHAs are **not** preserved. This
+> supersedes the earlier versioned-release-branch model and its inaccurate "merge
+> commit preserves individual PR SHAs" claim — see ADR
+> `docs/decisions/2026-05-28-branch-strategy-main-as-trunk.md`.
 
 ```
-main ─────●──────────────────●─────────●──────────────────●─────────
-           \                 ↑          \                 ↑
-            release/v2.9.0 ──┘           release/v2.10.0 ──┘  (next: release/v2.11.0)
-            (15 PRs squashed)            (15 PRs squashed)
+main ──●──●──●──●──●──●──── (tag v2.16.0) ──●──●──●──── (tag v2.17.0)
+       feature/ + fix/ PRs squash-merge to main; versions are tags on main
 ```
 
-## Active release branch
+## Versioning — batch via CHANGELOG, cut by tagging `main`
 
-The currently active release-staging branch is recorded in
-`.claude/dep-sweep-config.json#base_branch`. As of 2026-05-13: **v2.10.0
-shipped**; next active branch is `release/v2.11.0` (to be created by the
-first PR that needs to ship in v2.11.0).
+Work accumulates under `## [Unreleased]` in `CHANGELOG.md`. To ship a version:
 
-`/pr-to-release` falls back to the latest `release/vX.Y.Z` if no version is
-specified.
-
-## Cadence triggers
-
-- **Manual:** user invokes `/release-cut release/vX.Y.Z`
-- **Nudge:** `git rev-list --count main..release/vX.Y.Z` ≥ 5 commits → surface
-  in `/next-priority` and `/session-bootstrap` output
-- **Hotfix exception:** `/hotfix` bypasses the release branch, patches `main`
-  directly, tags `vX.Y.Z+1`, then cherry-picks the fix back to the active
-  release branch
+1. `version-bump` proposes patch / minor / major from conventional commits.
+2. In one PR: bump the 5 `package.json` versions and promote `[Unreleased]` →
+   `[X.Y.Z] - YYYY-MM-DD`.
+3. Merge to `main`, create annotated tag `vX.Y.Z`, publish the GitHub release.
+4. Push to `main` auto-deploys to homelab (gated by the Production 30-minute
+   `wait_timer` environment rule).
 
 ## Bump strategy (proposed by `version-bump` from conventional commits)
 
-| Prefix mix in the batch               | Bump  |
+| Prefix mix since last tag             | Bump  |
 | ------------------------------------- | ----- |
 | any `BREAKING CHANGE` or `feat!:`     | major |
 | at least one `feat:` (no breaking)    | minor |
@@ -50,63 +43,33 @@ specified.
 
 ## CHANGELOG hygiene
 
-- Every PR that touches `packages/{bot,backend,frontend}/src/` adds a line
-  under `## [Unreleased]` (see `dangerfile.ts` rule)
-- `chore(deps)`, `chore(deps-dev)`, `ci:`, `build:`, `style:`, `docs:` are
-  exempt — they're internal-only
-- `/release-cut` Phase 3 promotes `[Unreleased]` → `[X.Y.Z] - YYYY-MM-DD`
-- **Hard stop:** `/release-cut` refuses to proceed if `[Unreleased]` is empty
-  but the branch has > 0 commits ahead of main — caller must populate first
-
-See follow-up issue Lucky #840 for tightening this rule (currently too
-permissive on `fix:` and `refactor:` prefixes).
+- Every PR touching `packages/{bot,backend,frontend}/src/` adds a line under
+  `## [Unreleased]` (see `dangerfile.ts` rule).
+- `chore(deps)`, `chore(deps-dev)`, `ci:`, `build:`, `style:`, `docs:` are exempt.
+- The version-cut PR promotes `[Unreleased]` → `[X.Y.Z] - YYYY-MM-DD` and re-adds
+  an empty `[Unreleased]` skeleton.
 
 ## Bot PRs (Dependabot)
 
-Handled by `/dep-sweep`. See `.claude/dep-sweep-config.json` for the rules:
+Handled by `/dep-sweep`. See `.claude/dep-sweep-config.json`:
 
 - Dev-deps: auto-merge minor + patch
 - Production deps: manual review (see `sensitive` list)
 - Framework deps (react, vite, next): always hold (see `always_hold`)
-- `discord.js`, `discord-player`, `@prisma/client`: sensitive, manual review
-  even on patches — runtime-critical for the bot's voice / DB layer
+- `discord.js`, `discord-player`, `@prisma/client`: sensitive, manual review even
+  on patches — runtime-critical for the bot's voice / DB layer
 
-## Hotfix policy
+## Hotfix
 
-`/hotfix` is the **only** acceptable bypass of the release branch.
-Criteria:
+A production-impacting fix is just a `fix/<slug>` branch → PR → `main` → tag
+`vX.Y.Z+1`. No release-branch cherry-pick or sync is needed (there is no release
+branch). Criteria for fast-tracking:
 
-1. The fix is for a production-impacting bug, not new functionality
-2. It can be expressed in ≤ 100 LOC across ≤ 3 files
-3. The fix is reviewed by at least one human before merge
-4. After merge to `main` + tag, the commit is cherry-picked back to the
-   active `release/vX.Y.Z` so the next planned cut includes it
-
-Routine "small fix" work goes through `/pr-to-release`, not `/hotfix`.
-
-## Sync invariant
-
-`release/vX.Y.Z` must always be at-or-ahead-of `main`, never behind. After
-any direct-to-main merge (hotfix, dependabot to main, etc.), fast-forward
-the active release branch.
-
-### Automated enforcement
-
-The workflow `.github/workflows/release-branch-autosync.yml` runs after every
-push to `main` and automatically fast-forwards the active release branch
-(highest semver `release/vX.Y.Z`) to match `main`. The workflow:
-
-- Detects the active release branch by finding the highest semver tag
-- Fast-forwards to `main` using `git push origin main:<active> --force-with-lease`
-- Fails loudly if the release branch has commits NOT in `main` (true divergence),
-  surfacing a warning and requiring manual sync
-
-For local verification, use the script `scripts/check-release-sync.sh` to
-validate the invariant before pushing to main.
+1. Production-impacting bug, not new functionality
+2. ≤ 100 LOC across ≤ 3 files
+3. Required checks green (main is protected: 5 required checks, `enforce_admins`)
 
 ## References
 
+- ADR: `docs/decisions/2026-05-28-branch-strategy-main-as-trunk.md` (this model)
 - ADR: `docs/decisions/2026-05-09-branch-strategy-no-stacking.md`
-- ADR: `docs/decisions/2026-05-09-bot-test-suite-cleanup-strategy.md`
-- Memory: `feedback_tbd_release_branches.md`
-- Follow-ups: Lucky #840 (changelog hygiene), Lucky #841 (release sync invariant)
