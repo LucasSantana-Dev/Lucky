@@ -3,10 +3,15 @@ import { resolveGuildQueue } from './queueResolver'
 
 const debugLogMock = jest.fn()
 const warnLogMock = jest.fn()
+const addBreadcrumbMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
+}))
+
+jest.mock('@lucky/shared/utils/monitoring', () => ({
+    addBreadcrumb: (...args: unknown[]) => addBreadcrumbMock(...args),
 }))
 
 type QueueLike = {
@@ -83,6 +88,14 @@ describe('queueResolver', () => {
         expect(result.source).toBe('nodes.get')
         expect(debugLogMock).toHaveBeenCalled()
         expect(warnLogMock).not.toHaveBeenCalled()
+        expect(addBreadcrumbMock).toHaveBeenCalledWith(
+            'queue_resolution_source',
+            'queue_resolution',
+            'info',
+            expect.objectContaining({
+                source: 'nodes.get',
+            }),
+        )
     })
 
     it('falls back to queues.get when nodes.get misses', () => {
@@ -93,6 +106,14 @@ describe('queueResolver', () => {
 
         expect(result.queue).toBe(queue)
         expect(result.source).toBe('queues.get')
+        expect(addBreadcrumbMock).toHaveBeenCalledWith(
+            'queue_resolution_source',
+            'queue_resolution',
+            'info',
+            expect.objectContaining({
+                source: 'queues.get',
+            }),
+        )
     })
 
     it('falls back to nodes.resolve when direct getters miss', () => {
@@ -103,6 +124,14 @@ describe('queueResolver', () => {
 
         expect(result.queue).toBe(queue)
         expect(result.source).toBe('nodes.resolve')
+        expect(addBreadcrumbMock).toHaveBeenCalledWith(
+            'queue_resolution_source',
+            'queue_resolution',
+            'info',
+            expect.objectContaining({
+                source: 'nodes.resolve',
+            }),
+        )
     })
 
     it('falls back to nodes.cache.get by guild key', () => {
@@ -114,6 +143,14 @@ describe('queueResolver', () => {
 
         expect(result.queue).toBe(queue)
         expect(result.source).toBe('nodes.cache.get')
+        expect(addBreadcrumbMock).toHaveBeenCalledWith(
+            'queue_resolution_source',
+            'queue_resolution',
+            'info',
+            expect.objectContaining({
+                source: 'nodes.cache.get',
+            }),
+        )
     })
 
     it('falls back to cache scan by queue id', () => {
@@ -125,9 +162,17 @@ describe('queueResolver', () => {
 
         expect(result.queue).toBe(queue)
         expect(result.source).toBe('cache.id')
+        expect(addBreadcrumbMock).toHaveBeenCalledWith(
+            'queue_resolution_source',
+            'queue_resolution',
+            'info',
+            expect.objectContaining({
+                source: 'cache.id',
+            }),
+        )
     })
 
-    it('falls back to cache scan by queue.guild.id', () => {
+    it('falls back to cache scan by queue.guild.id (guild is authoritative before queue.id)', () => {
         const queue = createQueue('queue-id', 'guild-1')
         const cacheMap = new Map<string, QueueLike>([['different-key', queue]])
         const client = createClient({ cacheMap })
@@ -135,6 +180,27 @@ describe('queueResolver', () => {
         const result = resolveGuildQueue(client, 'guild-1')
 
         expect(result.queue).toBe(queue)
+        expect(result.source).toBe('cache.guild')
+        expect(addBreadcrumbMock).toHaveBeenCalledWith(
+            'queue_resolution_source',
+            'queue_resolution',
+            'info',
+            expect.objectContaining({
+                source: 'cache.guild',
+            }),
+        )
+    })
+
+    it('prefers cache.guild over cache.id when both match', () => {
+        const queue = createQueue('same-id', 'same-id')
+        const cacheMap = new Map<string, QueueLike>([['different-key', queue]])
+        const client = createClient({ cacheMap })
+
+        // Request by the guild ID (which is same as queue id)
+        const result = resolveGuildQueue(client, 'same-id')
+
+        expect(result.queue).toBe(queue)
+        // Should resolve via guild first (authoritative)
         expect(result.source).toBe('cache.guild')
     })
 
@@ -154,9 +220,17 @@ describe('queueResolver', () => {
 
         expect(result.queue).toBe(queue)
         expect(result.source).toBe('cache.guild')
+        expect(addBreadcrumbMock).toHaveBeenCalledWith(
+            'queue_resolution_source',
+            'queue_resolution',
+            'info',
+            expect.objectContaining({
+                source: 'cache.guild',
+            }),
+        )
     })
 
-    it('returns miss with diagnostics when queue cannot be resolved', () => {
+    it('returns miss with diagnostics and telemetry when queue cannot be resolved', () => {
         const cacheMap = new Map<string, QueueLike>([
             ['guild-a', createQueue('guild-a')],
             ['guild-b', createQueue('guild-b')],
@@ -179,6 +253,14 @@ describe('queueResolver', () => {
                 message: 'Unable to resolve guild queue',
             }),
         )
+        expect(addBreadcrumbMock).toHaveBeenCalledWith(
+            'queue_resolution_source',
+            'queue_resolution',
+            'info',
+            expect.objectContaining({
+                source: 'miss',
+            }),
+        )
     })
 
     it('logs debug on miss when queue cache is empty', () => {
@@ -196,5 +278,13 @@ describe('queueResolver', () => {
             }),
         )
         expect(warnLogMock).not.toHaveBeenCalled()
+        expect(addBreadcrumbMock).toHaveBeenCalledWith(
+            'queue_resolution_source',
+            'queue_resolution',
+            'info',
+            expect.objectContaining({
+                source: 'miss',
+            }),
+        )
     })
 })

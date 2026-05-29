@@ -3,13 +3,21 @@ import path from 'node:path'
 
 const ROOT = process.cwd()
 const TARGET_DIRECTORIES = [
-    'src/functions/music/commands',
-    'src/handlers/webMusic',
+    'packages/bot/src/functions/music/commands',
+    'packages/bot/src/handlers/webMusic',
+    'packages/bot/src/utils/music/autoplay',
+    'packages/bot/src/services/musicRecommendation',
 ]
 const FORBIDDEN_PATTERNS = [/\.player\.nodes\.get\(/, /\.player\.queues\.get\(/]
 
 function readTsFiles(directory: string): string[] {
     const absolute = path.resolve(ROOT, directory)
+
+    // Check if directory exists
+    if (!fs.existsSync(absolute)) {
+        return []
+    }
+
     const entries = fs.readdirSync(absolute, { withFileTypes: true })
     const files: string[] = []
 
@@ -37,7 +45,7 @@ function readTsFiles(directory: string): string[] {
 }
 
 describe('queue resolver guardrails', () => {
-    it('avoids direct queue lookups in command and web handler folders', () => {
+    it('avoids direct queue lookups in guarded directories', () => {
         const violations: string[] = []
 
         for (const directory of TARGET_DIRECTORIES) {

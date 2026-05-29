@@ -1,0 +1,52 @@
+name: queueResolver Canary
+
+on:
+  pull_request:
+    paths:
+      - 'packages/bot/src/utils/music/queueResolver.ts'
+      - 'packages/bot/src/utils/music/queueResolver.spec.ts'
+      - 'packages/bot/src/utils/music/queueResolver.guard.spec.ts'
+      - 'package-lock.json'
+
+jobs:
+  canary:
+    name: Verify queueResolver against pinned discord-player
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check discord-player version
+        id: discord_player
+        run: |
+          VERSION=$(npm list discord-player 2>/dev/null | grep discord-player | head -1 | grep -oP '\d+\.\d+\.\d+')
+          PINNED=$(grep '"discord-player"' package-lock.json | head -1 | grep -oP '\d+\.\d+\.\d+')
+          echo "installed=$VERSION" >> $GITHUB_OUTPUT
+          echo "pinned=$PINNED" >> $GITHUB_OUTPUT
+
+      - name: Detect major version bump beyond pinned
+        run: |
+          PINNED_MAJOR=$(echo "${{ steps.discord_player.outputs.pinned }}" | cut -d. -f1)
+          INSTALLED_MAJOR=$(echo "${{ steps.discord_player.outputs.installed }}" | cut -d. -f1)
+          if [ "$INSTALLED_MAJOR" -gt "$PINNED_MAJOR" ]; then
+            echo "ERROR: discord-player MAJOR bump detected"
+            echo "Pinned: ${{ steps.discord_player.outputs.pinned }} (major: $PINNED_MAJOR)"
+            echo "Installed: ${{ steps.discord_player.outputs.installed }} (major: $INSTALLED_MAJOR)"
+            exit 1
+          fi
+          echo "discord-player version compatible (pinned: ${{ steps.discord_player.outputs.pinned }}, installed: ${{ steps.discord_player.outputs.installed }})"
+
+      - name: Run queueResolver spec
+        run: npm run test --workspace=packages/bot -- queueResolver.spec.ts --no-coverage
+
+      - name: Run queueResolver guard
+        run: npm run test --workspace=packages/bot -- queueResolver.guard.spec.ts --no-coverage
