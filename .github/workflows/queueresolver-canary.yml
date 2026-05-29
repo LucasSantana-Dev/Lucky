@@ -30,8 +30,8 @@ jobs:
         run: |
           VERSION=$(npm list discord-player 2>/dev/null | grep discord-player | head -1 | grep -oP '\d+\.\d+\.\d+')
           PINNED=$(grep '"discord-player"' package-lock.json | head -1 | grep -oP '\d+\.\d+\.\d+')
-          echo "installed=$VERSION" >> $GITHUB_OUTPUT
-          echo "pinned=$PINNED" >> $GITHUB_OUTPUT
+          echo "installed=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "pinned=$PINNED" >> "$GITHUB_OUTPUT"
 
       - name: Detect major version bump beyond pinned
         run: |
