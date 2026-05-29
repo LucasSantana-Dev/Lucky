@@ -669,10 +669,11 @@ describe('play command', () => {
             expect.anything(),
             track,
         )
-        // Blending error is now logged as "Post-play background ops failed" in background task
+        // Each post-play bg op is isolated; a blend failure is logged per-op
+        // (see runPostPlayBackgroundOps) rather than as one shared catch.
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: 'Post-play background ops failed',
+                message: 'Post-play background op failed: blendAutoplayTracks',
             }),
         )
         expect(interactionReplyMock).toHaveBeenCalledWith(

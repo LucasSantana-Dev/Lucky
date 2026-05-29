@@ -1,5 +1,5 @@
 import type { GuildMember, ChatInputCommandInteraction } from 'discord.js'
-import { QueueRepeatMode, QueryType } from 'discord-player'
+import { QueryType } from 'discord-player'
 import type { CommandExecuteParams } from '../../../../../types/CommandData'
 import type { CustomClient } from '../../../../../types'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
@@ -9,10 +9,7 @@ import { createErrorEmbed } from '../../../../../utils/general/embeds'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { collaborativePlaylistService } from '../../../../../utils/music/collaborativePlaylist'
-import {
-    moveUserTrackToPriority,
-    blendAutoplayTracks,
-} from '../../../../../utils/music/queueManipulation'
+import { moveUserTrackToPriority } from '../../../../../utils/music/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../../utils/music/nowPlayingEmbed'
 import { registerNowPlayingMessage } from '../../../../../handlers/player/trackNowPlaying'
 import { resolveGuildQueue } from '../../../../../utils/music/queueResolver'
@@ -21,8 +18,7 @@ import {
     resolveSearchEngine,
     normalizeSoundCloudUrl,
 } from '../queryUtils'
-import { applyStoredAutoplayPreference } from './autoplayPreference'
-import { clearAutoplayPause } from '../../../../../utils/music/autoplay/skipCircuitBreaker'
+import { runPostPlayBackgroundOps } from './postPlayBackgroundOps'
 
 export async function executePlayHandler({
     client,
@@ -209,32 +205,15 @@ export async function executePlayHandler({
             content: { embeds: [embed] },
         })
 
-        const bgOps = (async () => {
-            try {
-                // Clear any autoplay pause state when a manual play succeeds
-                clearAutoplayPause(interaction.guildId!)
-                if (!hadQueueBeforePlay && queue) {
-                    await applyStoredAutoplayPreference(
-                        queue,
-                        interaction.guildId!,
-                    )
-                }
-                if (
-                    !isPlaylist &&
-                    queue &&
-                    queue.repeatMode === QueueRepeatMode.AUTOPLAY
-                ) {
-                    await blendAutoplayTracks(queue, track)
-                }
-            } catch (bgError) {
-                errorLog({
-                    message: 'Post-play background ops failed',
-                    error: bgError,
-                    data: { guildId: interaction.guildId },
-                })
-            }
-        })()
-        void bgOps
+        // Fire-and-forget: each op is isolated inside runPostPlayBackgroundOps so a
+        // single failure never silently skips the others (#1085).
+        void runPostPlayBackgroundOps({
+            queue,
+            guildId: interaction.guildId!,
+            track,
+            hadQueueBeforePlay,
+            isPlaylist,
+        })
     } catch (error) {
         if (isUnknownInteractionError(error)) {
             debugLog({
