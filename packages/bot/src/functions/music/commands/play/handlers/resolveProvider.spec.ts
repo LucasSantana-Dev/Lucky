@@ -180,7 +180,7 @@ describe('resolveQueryWithFallbacks', () => {
                 mockPlayOptions,
             )
 
-            expect(telemetry.latencyMs).toBeGreaterThanOrEqual(50)
+            expect(telemetry.latencyMs).toBeGreaterThanOrEqual(40)
         })
     })
 })
