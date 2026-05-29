@@ -10,6 +10,7 @@ import {
     createMusicActionButtons,
 } from '../../utils/music/buttonComponents'
 import type { QueueMetadata } from '../../types/QueueMetadata'
+import { getPerSourceAcceptanceRateCached } from '../../utils/music/autoplay/autoplayAcceptanceCache'
 import {
     isLastFmConfigured,
     getSessionKeyForUser,
@@ -89,7 +90,11 @@ export function registerNowPlayingMessage(
     messageId: string,
     channelId: string,
 ): void {
-    trackNowPlayingState.registerNowPlayingMessage(guildId, messageId, channelId)
+    trackNowPlayingState.registerNowPlayingMessage(
+        guildId,
+        messageId,
+        channelId,
+    )
 }
 
 export function getSongInfoMessage(
@@ -133,6 +138,36 @@ function getSource(url: string) {
     return 'Unknown'
 }
 
+/**
+ * Append the per-source acceptance rate to the recommendation reason.
+ * Returns the original reason if the rate is unavailable or if reading fails.
+ */
+async function appendAcceptanceRate(
+    reason: string,
+    recommendationSource: string | undefined,
+    guildId: string,
+): Promise<string> {
+    // Graceful omission if source is not available
+    if (!recommendationSource) {
+        return reason
+    }
+
+    try {
+        const rows = await getPerSourceAcceptanceRateCached(guildId)
+        const sourceRow = rows.find((r) => r.source === recommendationSource)
+
+        if (!sourceRow || sourceRow.acceptanceRate === null) {
+            return reason
+        }
+
+        const ratePercent = Math.round(sourceRow.acceptanceRate * 100)
+        return `${reason} · ${ratePercent}% accepted`
+    } catch {
+        // On any error (cache issue, service issue), omit the rate gracefully
+        return reason
+    }
+}
+
 export async function sendNowPlayingEmbed(
     queue: GuildQueue,
     track: Track,
@@ -148,6 +183,7 @@ export async function sendNowPlayingEmbed(
     const requestedByInfo = requester ? requester.username : 'Autoplay'
     const trackMetadata = (track.metadata ?? {}) as {
         recommendationReason?: string
+        recommendationSource?: string
     }
     const autoplayCount = isAutoplay
         ? await getAutoplayCount(queue.guild.id)
@@ -165,10 +201,16 @@ export async function sendNowPlayingEmbed(
         { name: '🌐 Source', value: getSource(track.url), inline: true },
         { name: '👤 Requested', value: requestedByInfo, inline: true },
     ]
+
     if (isAutoplay && trackMetadata.recommendationReason) {
+        const reasonWithRate = await appendAcceptanceRate(
+            trackMetadata.recommendationReason,
+            trackMetadata.recommendationSource,
+            queue.guild.id,
+        )
         fields.push({
             name: '🤖 Why this track',
-            value: trackMetadata.recommendationReason,
+            value: reasonWithRate,
             inline: false,
         })
     }
@@ -248,7 +290,8 @@ export async function updateLastFmNowPlaying(
     const meta = await getTrackMetadata(track.author, track.title)
     if (!meta) {
         debugLog({
-            message: 'Last.fm metadata not found, updating now-playing without metadata',
+            message:
+                'Last.fm metadata not found, updating now-playing without metadata',
             data: { artist: track.author, title: track.title },
         })
     }
@@ -296,11 +339,17 @@ export async function scrobbleCurrentTrackIfLastFm(
         trackToScrobble.durationMS > 0
             ? Math.round(trackToScrobble.durationMS / 1000)
             : undefined
-    const meta = await getTrackMetadata(trackToScrobble.author, trackToScrobble.title)
+    const meta = await getTrackMetadata(
+        trackToScrobble.author,
+        trackToScrobble.title,
+    )
     if (!meta) {
         debugLog({
             message: 'Last.fm metadata not found, scrobbling without metadata',
-            data: { artist: trackToScrobble.author, title: trackToScrobble.title },
+            data: {
+                artist: trackToScrobble.author,
+                title: trackToScrobble.title,
+            },
         })
     }
     try {
