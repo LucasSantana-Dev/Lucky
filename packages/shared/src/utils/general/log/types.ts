@@ -1,7 +1,4 @@
-/**
- * Log types and interfaces
- */
-
+/** Log level constants. */
 export const LogLevel = {
     ERROR: 0,
     WARN: 1,
@@ -10,8 +7,10 @@ export const LogLevel = {
     DEBUG: 4,
 } as const
 
+/** Log level type. */
 export type LogLevelType = (typeof LogLevel)[keyof typeof LogLevel]
 
+/** Parameters for logging. */
 export type LogParams = {
     message: string
     error?: unknown
@@ -20,6 +19,7 @@ export type LogParams = {
     correlationId?: string
 }
 
+/** Log configuration. */
 export type LogConfig = {
     level: LogLevelType
     enableColors: boolean

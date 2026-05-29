@@ -13,6 +13,7 @@ import { errorLog, debugLog } from '../../utils/general/log'
 import { featureToggleService } from '../FeatureToggleService'
 import { getPrismaClient } from '../../utils/database/prismaClient'
 
+/** Options for creating a reaction role message with button-based role assignments. */
 export interface CreateReactionRoleOptions {
     guild: Guild
     channel: TextChannel
@@ -25,7 +26,9 @@ export interface CreateReactionRoleOptions {
     }>
 }
 
+/** Manages reaction role messages with button-based role assignment. */
 export class ReactionRolesService {
+    /** Checks if reaction roles feature is enabled for a guild or user. */
     async isEnabled(guildId?: string, userId?: string): Promise<boolean> {
         return featureToggleService.isEnabled('REACTION_ROLES', {
             guildId,
@@ -33,6 +36,7 @@ export class ReactionRolesService {
         })
     }
 
+    /** Creates a new reaction role message with button-based role assignment. */
     async createReactionRoleMessage(
         options: CreateReactionRoleOptions,
     ): Promise<Message | null> {
@@ -120,6 +124,7 @@ export class ReactionRolesService {
         }
     }
 
+    /** Deletes a reaction role message and its associated mappings. */
     async deleteReactionRoleMessage(
         messageId: string,
         guildId: string,
@@ -153,6 +158,7 @@ export class ReactionRolesService {
         }
     }
 
+    /** Lists all reaction role messages for a guild. */
     async listReactionRoleMessages(guildId: string) {
         try {
             const prisma = getPrismaClient()
@@ -171,6 +177,7 @@ export class ReactionRolesService {
         }
     }
 
+    /** Handles button interaction for reaction role assignment or removal. */
     async handleButtonInteraction(
         interaction: ButtonInteraction,
     ): Promise<boolean> {
@@ -265,4 +272,5 @@ export class ReactionRolesService {
     }
 }
 
+/** Singleton instance of ReactionRolesService. */
 export const reactionRolesService = new ReactionRolesService()

@@ -1,6 +1,7 @@
 import { EMBED_COLORS, EMOJIS } from './constants'
 import { createEmbed } from './core'
 
+/** Creates a success-styled embed with the given title and optional description. */
 export function successEmbed(title: string, description?: string) {
     return createEmbed({
         title,
@@ -10,6 +11,7 @@ export function successEmbed(title: string, description?: string) {
     })
 }
 
+/** Creates an error-styled embed with the given title and optional description. */
 export function errorEmbed(title: string, description?: string) {
     return createEmbed({
         title,
@@ -19,6 +21,7 @@ export function errorEmbed(title: string, description?: string) {
     })
 }
 
+/** Creates a warning-styled embed with the given title and optional description. */
 export function warningEmbed(title: string, description?: string) {
     return createEmbed({
         title,
@@ -28,6 +31,7 @@ export function warningEmbed(title: string, description?: string) {
     })
 }
 
+/** Creates an info-styled embed with the given title and optional description. */
 export function infoEmbed(title: string, description?: string) {
     return createEmbed({
         title,
@@ -37,6 +41,7 @@ export function infoEmbed(title: string, description?: string) {
     })
 }
 
+/** Creates a success-styled embed with timestamp and optional footer. */
 export function createSuccessEmbed(
     title: string,
     description: string,
@@ -52,6 +57,7 @@ export function createSuccessEmbed(
     })
 }
 
+/** Creates a warning-styled embed with timestamp and optional footer. */
 export function createWarningEmbed(
     title: string,
     description: string,
@@ -67,6 +73,7 @@ export function createWarningEmbed(
     })
 }
 
+/** Creates an info-styled embed with timestamp and optional footer. */
 export function createInfoEmbed(
     title: string,
     description: string,
@@ -82,6 +89,7 @@ export function createInfoEmbed(
     })
 }
 
+/** Creates a loading-styled embed with the given message. */
 export function createLoadingEmbed(message: string) {
     return createEmbed({
         title: 'Loading...',

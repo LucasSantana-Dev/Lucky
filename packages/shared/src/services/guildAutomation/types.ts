@@ -1,3 +1,4 @@
+/** List of available guild automation modules. */
 export const AUTOMATION_MODULES = [
     'onboarding',
     'roles',
@@ -8,10 +9,13 @@ export const AUTOMATION_MODULES = [
     'parity',
 ] as const
 
+/** Guild automation module type. */
 export type AutomationModule = (typeof AUTOMATION_MODULES)[number]
 
+/** Automation operation action types. */
 export type AutomationAction = 'create' | 'update' | 'delete' | 'noop'
 
+/** Automation run type (capture, plan, apply, etc). */
 export type AutomationRunType =
     | 'capture'
     | 'plan'
@@ -19,6 +23,7 @@ export type AutomationRunType =
     | 'reconcile'
     | 'cutover'
 
+/** Automation run execution status. */
 export type AutomationRunStatus =
     | 'pending'
     | 'running'
@@ -26,8 +31,10 @@ export type AutomationRunStatus =
     | 'failed'
     | 'blocked'
 
+/** Drift severity level. */
 export type DriftSeverity = 'none' | 'low' | 'medium' | 'high'
 
+/** Guild role definition for automation. */
 export interface GuildAutomationRole {
     id: string
     name: string
@@ -37,6 +44,7 @@ export interface GuildAutomationRole {
     permissions?: string
 }
 
+/** Guild channel definition for automation. */
 export interface GuildAutomationChannel {
     id: string
     name: string
@@ -46,6 +54,7 @@ export interface GuildAutomationChannel {
     readonly?: boolean
 }
 
+/** Onboarding prompt option in guild automation. */
 export interface GuildAutomationOnboardingPromptOption {
     id?: string
     title: string
@@ -55,6 +64,7 @@ export interface GuildAutomationOnboardingPromptOption {
     emoji?: string | null
 }
 
+/** Onboarding prompt in guild automation. */
 export interface GuildAutomationOnboardingPrompt {
     id?: string
     title: string
@@ -65,6 +75,7 @@ export interface GuildAutomationOnboardingPrompt {
     options: GuildAutomationOnboardingPromptOption[]
 }
 
+/** Guild onboarding automation configuration. */
 export interface GuildAutomationOnboarding {
     enabled: boolean
     mode: number
@@ -72,6 +83,7 @@ export interface GuildAutomationOnboarding {
     prompts: GuildAutomationOnboardingPrompt[]
 }
 
+/** Guild moderation automation configuration. */
 export interface GuildAutomationModeration {
     automod?: {
         exemptRoles?: string[]
@@ -86,12 +98,14 @@ export interface GuildAutomationModeration {
     }
 }
 
+/** Guild automation message configuration. */
 export interface GuildAutomationAutoMessage {
     enabled?: boolean
     channelId?: string
     message?: string
 }
 
+/** Guild automation reaction role message. */
 export interface GuildAutomationReactionRoleMessage {
     id?: string
     messageId?: string
@@ -106,12 +120,14 @@ export interface GuildAutomationReactionRoleMessage {
     }>
 }
 
+/** Parity checklist item in guild automation. */
 export interface GuildAutomationParityChecklistItem {
     key: string
     label: string
     done: boolean
 }
 
+/** Guild parity automation configuration. */
 export interface GuildAutomationParity {
     shadowMode?: boolean
     externalBots?: Array<{
@@ -123,6 +139,7 @@ export interface GuildAutomationParity {
     cutoverReady?: boolean
 }
 
+/** Guild automation manifest document (full schema). */
 export interface GuildAutomationManifestDocument {
     version: number
     guild: {

@@ -1,7 +1,4 @@
-/**
- * Discord bot error codes
- */
-
+/** Error codes for Discord bot operations. */
 export const DISCORD_ERROR_CODES = {
     DISCORD_VOICE_CONNECTION_FAILED: 'ERR_DISCORD_VOICE_CONNECTION_FAILED',
     DISCORD_PERMISSION_MISSING: 'ERR_DISCORD_PERMISSION_MISSING',
@@ -9,5 +6,6 @@ export const DISCORD_ERROR_CODES = {
     DISCORD_CHANNEL_NOT_FOUND: 'ERR_DISCORD_CHANNEL_NOT_FOUND',
 } as const
 
+/** Type representing Discord error codes. */
 export type DiscordErrorCode =
     (typeof DISCORD_ERROR_CODES)[keyof typeof DISCORD_ERROR_CODES]

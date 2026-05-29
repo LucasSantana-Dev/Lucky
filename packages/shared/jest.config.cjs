@@ -14,15 +14,22 @@ module.exports = {
     '!src/**/*.d.ts',
     '!src/**/*.test.ts',
     '!src/**/*.spec.ts',
+    '!src/generated/**',
+    // Barrel files: pure re-exports, no logic
+    '!src/index.ts',
+    '!src/services/index.ts',
+    '!src/utils/index.ts',
+    '!src/types/index.ts',
+    '!src/types/errors/index.ts',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
   coverageThreshold: {
     global: {
-      statements: 19,
-      branches: 16,
-      functions: 15,
-      lines: 18
+      statements: 89,
+      branches: 89,
+      functions: 90,
+      lines: 89
     }
   },
   testTimeout: 30000,

@@ -1,7 +1,4 @@
-/**
- * Music and media error codes
- */
-
+/** Error codes for music and media playback failures. */
 export const MUSIC_ERROR_CODES = {
     MUSIC_TRACK_NOT_FOUND: 'ERR_MUSIC_TRACK_NOT_FOUND',
     MUSIC_PLAYLIST_NOT_FOUND: 'ERR_MUSIC_PLAYLIST_NOT_FOUND',
@@ -10,9 +7,11 @@ export const MUSIC_ERROR_CODES = {
     MUSIC_DOWNLOAD_FAILED: 'ERR_MUSIC_DOWNLOAD_FAILED',
 } as const
 
+/** Type representing music error codes. */
 export type MusicErrorCode =
     (typeof MUSIC_ERROR_CODES)[keyof typeof MUSIC_ERROR_CODES]
 
+/** Error for music playback operations. */
 export class MusicError extends Error {
     public readonly metadata: {
         correlationId: string

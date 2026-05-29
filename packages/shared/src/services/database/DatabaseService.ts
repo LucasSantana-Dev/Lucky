@@ -224,6 +224,7 @@ async function typedRateLimitFindUnique(
     return { resetAt: resetAtValue, count: countValue }
 }
 
+/** Configuration options for the database connection pool. */
 export interface DatabaseConfig {
     url: string
     ttl: number
@@ -231,6 +232,7 @@ export interface DatabaseConfig {
     connectionTimeout: number
 }
 
+/** Service for managing PostgreSQL operations via Prisma. */
 export class DatabaseService {
     private readonly prisma: PrismaClient
     private isConnected = false
@@ -259,6 +261,7 @@ export class DatabaseService {
         }
     }
 
+    /** Establishes the database connection. */
     async connect(): Promise<Result<boolean>> {
         return this.executeWithFallback(
             async () => {
@@ -277,6 +280,7 @@ export class DatabaseService {
         )
     }
 
+    /** Closes the database connection. */
     async disconnect(): Promise<Result<void>> {
         return this.executeWithFallback(
             async () => {
@@ -294,6 +298,7 @@ export class DatabaseService {
         )
     }
 
+    /** Checks the database connection by executing a test query. */
     async isHealthy(): Promise<Result<boolean>> {
         return this.executeWithFallback(
             async () => {
@@ -310,6 +315,7 @@ export class DatabaseService {
     }
 
     // User operations
+    /** Creates or updates a user record by Discord ID. */
     async createUser(
         discordId: string,
         username: string,
@@ -350,6 +356,7 @@ export class DatabaseService {
         )
     }
 
+    /** Retrieves a user by Discord ID, or null if not found. */
     async getUser(discordId: string): Promise<Result<DatabaseUser | null>> {
         return this.executeWithFallback(
             async () => {
@@ -381,6 +388,7 @@ export class DatabaseService {
     }
 
     // Guild operations
+    /** Creates or updates a guild record by Discord ID. */
     async createGuild(
         discordId: string,
         name: string,
@@ -424,6 +432,7 @@ export class DatabaseService {
         )
     }
 
+    /** Retrieves a guild by Discord ID, or null if not found. */
     async getGuild(discordId: string): Promise<Result<DatabaseGuild | null>> {
         return this.executeWithFallback(
             async () => {
@@ -454,6 +463,7 @@ export class DatabaseService {
     }
 
     // Track history operations
+    /** Records a played track in the guild's history. */
     async addTrackToHistory(data: {
         guildId: string
         trackId: string
@@ -538,6 +548,7 @@ export class DatabaseService {
         )
     }
 
+    /** Retrieves the most recently played tracks for a guild. */
     async getTrackHistory(
         guildId: string,
         limit = 10,
@@ -594,6 +605,7 @@ export class DatabaseService {
     }
 
     // Command usage analytics
+    /** Records a bot command invocation for analytics. */
     async recordCommandUsage(data: {
         userId?: string
         guildId?: string
@@ -652,6 +664,7 @@ export class DatabaseService {
     }
 
     // Rate limiting
+    /** Checks whether the given key is within the allowed rate limit window. */
     async checkRateLimit(
         key: string,
         limit: number,
@@ -704,6 +717,7 @@ export class DatabaseService {
     }
 
     // Analytics queries
+    /** Returns the most-played tracks for a guild by play count. */
     async getTopTracks(
         guildId: string,
         limit = 10,
@@ -753,6 +767,7 @@ export class DatabaseService {
         )
     }
 
+    /** Returns the most-played artists for a guild by play count. */
     async getTopArtists(
         guildId: string,
         limit = 10,
@@ -797,6 +812,7 @@ export class DatabaseService {
     }
 
     // Cleanup operations
+    /** Deletes track history, command usage, and expired rate limit records older than 30 days. */
     async cleanupOldData(): Promise<Result<number>> {
         return this.executeWithFallback(
             async () => {
@@ -824,6 +840,7 @@ export class DatabaseService {
     }
 
     // Get Prisma client for direct access
+    /** Returns the underlying Prisma client for direct database access. */
     getClient(): PrismaClient {
         return this.prisma
     }

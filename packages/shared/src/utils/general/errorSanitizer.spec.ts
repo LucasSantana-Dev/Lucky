@@ -234,6 +234,11 @@ describe('sanitizeMessage', () => {
         const result = sanitizeMessage(message)
         expect(result).toBe('Module loading load error')
     })
+
+    it('returns fallback when message is whitespace-only and becomes empty after sanitization', () => {
+        const result = sanitizeMessage('   \t\n  ')
+        expect(result).toBe('An unknown error occurred')
+    })
 })
 
 describe('createUserFriendlyError', () => {

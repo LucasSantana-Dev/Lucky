@@ -2,7 +2,7 @@
  * Unit tests for Result utility functions
  */
 
-import { describe, it, expect } from '@jest/globals'
+import { describe, it, expect, jest } from '@jest/globals'
 import {
     createSuccess,
     createFailure,
@@ -63,7 +63,7 @@ describe('Result Utilities', () => {
     describe('map', () => {
         it('should transform success data', () => {
             const result = createSuccess(5)
-            const mapped = map(result, x => x * 2)
+            const mapped = map(result, (x) => x * 2)
             expect(mapped.success).toBe(true)
             if (mapped.success) {
                 expect(mapped.data).toBe(10)
@@ -72,7 +72,7 @@ describe('Result Utilities', () => {
 
         it('should preserve failure state', () => {
             const result = createFailure('error')
-            const mapped = map(result, x => x * 2)
+            const mapped = map(result, (x) => x * 2)
             expect(mapped.success).toBe(false)
         })
     })
@@ -80,7 +80,7 @@ describe('Result Utilities', () => {
     describe('mapError', () => {
         it('should transform error in failure results', () => {
             const result = createFailure('original error')
-            const mapped = mapError(result, err => `Modified: ${err}`)
+            const mapped = mapError(result, (err) => `Modified: ${err}`)
             expect(mapped.success).toBe(false)
             if (!mapped.success) {
                 expect(mapped.error).toBe('Modified: original error')
@@ -89,7 +89,7 @@ describe('Result Utilities', () => {
 
         it('should preserve success state', () => {
             const result = createSuccess('data')
-            const mapped = mapError(result, err => `Modified: ${err}`)
+            const mapped = mapError(result, (err) => `Modified: ${err}`)
             expect(mapped.success).toBe(true)
         })
     })
@@ -97,7 +97,7 @@ describe('Result Utilities', () => {
     describe('flatMap', () => {
         it('should chain success results', () => {
             const result = createSuccess(5)
-            const chained = flatMap(result, x => createSuccess(x * 2))
+            const chained = flatMap(result, (x) => createSuccess(x * 2))
             expect(chained.success).toBe(true)
             if (chained.success) {
                 expect(chained.data).toBe(10)
@@ -106,11 +106,21 @@ describe('Result Utilities', () => {
 
         it('should chain failure results', () => {
             const result = createSuccess(5)
-            const chained = flatMap(result, _x => createFailure('chained error'))
+            const chained = flatMap(result, (_x) =>
+                createFailure('chained error'),
+            )
             expect(chained.success).toBe(false)
             if (!chained.success) {
                 expect(chained.error).toBe('chained error')
             }
+        })
+
+        it('returns the failure without calling fn when input is already a failure', () => {
+            const failure = createFailure('original error')
+            const fn = jest.fn<() => ReturnType<typeof createSuccess>>()
+            const result = flatMap(failure, fn)
+            expect(result.success).toBe(false)
+            expect(fn).not.toHaveBeenCalled()
         })
     })
 

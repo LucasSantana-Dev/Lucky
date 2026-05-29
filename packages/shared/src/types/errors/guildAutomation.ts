@@ -1,24 +1,26 @@
+/** Guild automation error codes. */
 export const GUILD_AUTOMATION_ERROR_CODES = {
     GUILD_AUTOMATION_INVALID_MANIFEST_PAYLOAD:
         'ERR_GUILD_AUTOMATION_INVALID_MANIFEST_PAYLOAD',
     GUILD_AUTOMATION_MANIFEST_NOT_FOUND:
         'ERR_GUILD_AUTOMATION_MANIFEST_NOT_FOUND',
-    GUILD_AUTOMATION_CAPTURE_REQUIRED:
-        'ERR_GUILD_AUTOMATION_CAPTURE_REQUIRED',
+    GUILD_AUTOMATION_CAPTURE_REQUIRED: 'ERR_GUILD_AUTOMATION_CAPTURE_REQUIRED',
     GUILD_AUTOMATION_APPLY_LOCKED: 'ERR_GUILD_AUTOMATION_APPLY_LOCKED',
-    GUILD_AUTOMATION_LOCK_UNAVAILABLE:
-        'ERR_GUILD_AUTOMATION_LOCK_UNAVAILABLE',
+    GUILD_AUTOMATION_LOCK_UNAVAILABLE: 'ERR_GUILD_AUTOMATION_LOCK_UNAVAILABLE',
 } as const
 
+/** Guild automation error code type. */
 export type GuildAutomationErrorCode =
     (typeof GUILD_AUTOMATION_ERROR_CODES)[keyof typeof GUILD_AUTOMATION_ERROR_CODES]
 
-type GuildAutomationErrorContext = {
+/** Context information for guild automation errors. */
+export type GuildAutomationErrorContext = {
     guildId?: string
     runId?: string
     details?: Record<string, unknown>
 }
 
+/** Base error class for guild automation operations. */
 export class GuildAutomationError extends Error {
     public readonly code: GuildAutomationErrorCode
     public readonly retryable: boolean
@@ -38,6 +40,7 @@ export class GuildAutomationError extends Error {
     }
 }
 
+/** Error thrown when a guild automation manifest payload is invalid. */
 export class GuildAutomationInvalidManifestPayloadError extends GuildAutomationError {
     constructor() {
         super({
@@ -48,6 +51,7 @@ export class GuildAutomationInvalidManifestPayloadError extends GuildAutomationE
     }
 }
 
+/** Error thrown when a guild automation manifest is not found. */
 export class GuildAutomationManifestNotFoundError extends GuildAutomationError {
     constructor(guildId: string) {
         super({
@@ -59,10 +63,12 @@ export class GuildAutomationManifestNotFoundError extends GuildAutomationError {
     }
 }
 
+/** Error thrown when a guild automation capture is required before apply. */
 export class GuildAutomationCaptureRequiredError extends GuildAutomationError {
     constructor(guildId: string) {
         super({
-            message: 'No captured guild state available. Run capture before plan/apply.',
+            message:
+                'No captured guild state available. Run capture before plan/apply.',
             code: GUILD_AUTOMATION_ERROR_CODES.GUILD_AUTOMATION_CAPTURE_REQUIRED,
             retryable: false,
             context: { guildId },
@@ -70,6 +76,7 @@ export class GuildAutomationCaptureRequiredError extends GuildAutomationError {
     }
 }
 
+/** Error thrown when another guild automation apply operation is locked. */
 export class GuildAutomationApplyLockedError extends GuildAutomationError {
     constructor(guildId: string) {
         super({
@@ -81,6 +88,7 @@ export class GuildAutomationApplyLockedError extends GuildAutomationError {
     }
 }
 
+/** Error thrown when the guild automation lock backend is unavailable. */
 export class GuildAutomationLockUnavailableError extends GuildAutomationError {
     constructor(guildId: string) {
         super({

@@ -305,6 +305,7 @@ export async function addSelectedTracks(
     excludedUrls: Set<string>,
     excludedKeys: Set<string>,
     requestedById?: string,
+    mode?: 'similar' | 'discover' | 'popular',
 ): Promise<void> {
     const historyWrites: Promise<boolean>[] = []
     const telemetryWrites: Promise<void>[] = []
@@ -317,6 +318,7 @@ export async function addSelectedTracks(
                 candidate.basis,
                 guildId,
                 requestedById,
+                mode,
             ),
         )
         queue.addTrack(candidate.track)

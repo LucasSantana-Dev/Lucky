@@ -44,6 +44,7 @@ import {
 } from '../candidateFallback'
 import { buildVcContributionWeights } from './vcWeights'
 import { getTrackAudioFeatures } from './audioFeatures'
+import { evaluateSkipRateBreaker } from './skipCircuitBreaker'
 
 // Autoplay backfill target. Non-premium guilds keep the existing 8-song
 // runway; premium guilds get 2× (16) so large listening sessions rarely
@@ -122,6 +123,10 @@ async function _replenishQueue(
         ).length
         const missingTracks = bufferSize - autoplayInQueue
         if (missingTracks <= 0) return
+
+        // Autoplay skip-rate circuit breaker: check if we should pause replenishment
+        const shouldContinue = await evaluateSkipRateBreaker(queue)
+        if (!shouldContinue) return
 
         const allHistoryTracks = getAllHistoryTracks(queue)
         const replenishGuildId = queue.guild.id
@@ -498,6 +503,7 @@ async function _replenishQueue(
             excludedUrls,
             excludedKeys,
             requestedBy?.id,
+            autoplayMode,
         )
 
         // Increment replenish counter for next call's query variation

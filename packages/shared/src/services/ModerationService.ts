@@ -8,7 +8,7 @@ import {
 
 const prisma = getPrismaClient()
 
-// Type definitions (normally from @prisma/client but not resolvable)
+/** Represents a moderation case record. */
 export type ModerationCase = {
     id: string
     caseNumber: number
@@ -32,6 +32,7 @@ export type ModerationCase = {
     updatedAt: Date
 }
 
+/** Guild-level moderation configuration. */
 export type ModerationSettings = {
     id: string
     guildId: string
@@ -48,6 +49,7 @@ export type ModerationSettings = {
     updatedAt: Date
 }
 
+/** Input payload for creating a new moderation case. */
 export interface CreateCaseInput {
     guildId: string
     type: 'warn' | 'mute' | 'kick' | 'ban' | 'timeout' | 'unban' | 'unmute'
@@ -61,12 +63,15 @@ export interface CreateCaseInput {
     evidence?: string[]
 }
 
+/** Input payload for submitting a case appeal. */
 export interface AppealCaseInput {
     caseId: string
     appealReason: string
 }
 
+/** Service for managing guild moderation cases and settings. */
 export class ModerationService {
+    /** Creates a new moderation case with an auto-incremented case number. */
     async createCase(input: CreateCaseInput): Promise<ModerationCase> {
         const lastCase = await prisma.moderationCase.findFirst({
             where: { guildId: input.guildId },
@@ -94,6 +99,7 @@ export class ModerationService {
         })
     }
 
+    /** Retrieves a moderation case by guild and case number. */
     async getCase(
         guildId: string,
         caseNumber: number,
@@ -103,6 +109,7 @@ export class ModerationService {
         })
     }
 
+    /** Retrieves all moderation cases for a user, optionally filtered to active cases only. */
     async getUserCases(
         guildId: string,
         userId: string,
@@ -114,6 +121,7 @@ export class ModerationService {
         })
     }
 
+    /** Retrieves the most recent moderation cases for a guild. */
     async getRecentCases(
         guildId: string,
         limit = 10,
@@ -125,6 +133,7 @@ export class ModerationService {
         })
     }
 
+    /** Retrieves all moderation cases created after the given date. */
     async getCasesSince(
         guildId: string,
         since: Date,
@@ -135,6 +144,7 @@ export class ModerationService {
         })
     }
 
+    /** Returns the count of active warning cases for a user in a guild. */
     async getActiveWarningsCount(
         guildId: string,
         userId: string,
@@ -144,6 +154,7 @@ export class ModerationService {
         })
     }
 
+    /** Deactivates all active warning cases for a user and returns the count cleared. */
     async clearWarnings(guildId: string, userId: string): Promise<number> {
         const result = await prisma.moderationCase.updateMany({
             where: { guildId, userId, type: 'warn', active: true },
@@ -152,6 +163,7 @@ export class ModerationService {
         return result.count
     }
 
+    /** Marks a moderation case as inactive by its ID. */
     async deactivateCase(caseId: string): Promise<ModerationCase> {
         return await prisma.moderationCase.update({
             where: { id: caseId },
@@ -159,6 +171,7 @@ export class ModerationService {
         })
     }
 
+    /** Submits an appeal for a moderation case. */
     async appealCase(input: AppealCaseInput): Promise<ModerationCase> {
         return await prisma.moderationCase.update({
             where: { id: input.caseId },
@@ -170,6 +183,7 @@ export class ModerationService {
         })
     }
 
+    /** Reviews a submitted appeal, optionally deactivating the case if approved. */
     async reviewAppeal(
         caseId: string,
         approved: boolean,
@@ -184,16 +198,19 @@ export class ModerationService {
         })
     }
 
+    /** Retrieves all active cases whose expiry date has passed. */
     async getExpiredCases(): Promise<ModerationCase[]> {
         return await prisma.moderationCase.findMany({
             where: { active: true, expiresAt: { lte: new Date() } },
         })
     }
 
+    /** Retrieves the moderation settings for a guild. */
     async getSettings(guildId: string): Promise<ModerationSettings> {
         return getModerationSettings(guildId)
     }
 
+    /** Updates moderation settings for a guild. */
     async updateSettings(
         guildId: string,
         data: Partial<
@@ -206,6 +223,7 @@ export class ModerationService {
         return updateModerationSettings(guildId, data)
     }
 
+    /** Checks whether any of the given role IDs grant moderation permissions in the guild. */
     async hasModPermissions(
         guildId: string,
         userRoles: string[],
@@ -213,6 +231,7 @@ export class ModerationService {
         return hasModPermissions(guildId, userRoles)
     }
 
+    /** Returns moderation statistics for a guild. */
     async getStats(guildId: string) {
         return getModerationStats(guildId)
     }

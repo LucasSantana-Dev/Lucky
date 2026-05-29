@@ -125,4 +125,26 @@ describe('createReactionRolesExecutor', () => {
             expect(result.applied).toContain('remove-exclusive')
         }
     })
+
+    it('returns failed when all operations fail', async () => {
+        const port = makePort()
+        port.setExclusiveRole.mockRejectedValue(new Error('set error'))
+        port.removeExclusiveRole.mockRejectedValue(new Error('remove error'))
+        port.listExclusiveRoles.mockResolvedValue([
+            { roleId: 'r1', excludedRoleId: 'r2' },
+        ])
+        const executor = createReactionRolesExecutor({ port })
+
+        const live = await executor.capture({ guildId: 'g1' })
+        // live has r1:r2 (triggers remove); manifest has r3:r4 (triggers set) — both fail
+        const diff = executor.diff(live, {
+            exclusiveRoles: [{ roleId: 'r3', excludedRoleId: 'r4' }],
+        })
+        const result = await executor.apply(diff, { guildId: 'g1' })
+
+        expect(result.status).toBe('failed')
+        if (result.status === 'failed') {
+            expect(result.error).toBeTruthy()
+        }
+    })
 })

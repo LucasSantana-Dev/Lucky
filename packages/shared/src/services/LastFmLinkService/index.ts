@@ -1,12 +1,15 @@
 import { getPrismaClient } from '../../utils/database/prismaClient'
 import { errorLog, debugLog } from '../../utils/general/log'
 
+/** Last.fm link data for a user. */
 export type LastFmLinkRow = {
     sessionKey: string
     lastFmUsername: string | null
 }
 
+/** Manages Last.fm account links for Discord users. */
 export class LastFmLinkService {
+    /** Gets the Last.fm link for a Discord user. */
     async getByDiscordId(discordId: string): Promise<LastFmLinkRow | null> {
         try {
             const prisma = getPrismaClient()
@@ -29,11 +32,13 @@ export class LastFmLinkService {
         }
     }
 
+    /** Gets the Last.fm session key for a Discord user. */
     async getSessionKey(discordId: string): Promise<string | null> {
         const row = await this.getByDiscordId(discordId)
         return row?.sessionKey ?? null
     }
 
+    /** Sets or updates a Last.fm link for a Discord user. */
     async set(
         discordId: string,
         sessionKey: string,
@@ -72,6 +77,7 @@ export class LastFmLinkService {
         }
     }
 
+    /** Removes a Last.fm link for a Discord user. */
     async unlink(discordId: string): Promise<boolean> {
         try {
             const prisma = getPrismaClient()
@@ -111,4 +117,5 @@ export class LastFmLinkService {
     }
 }
 
+/** Singleton instance of LastFmLinkService. */
 export const lastFmLinkService = new LastFmLinkService()

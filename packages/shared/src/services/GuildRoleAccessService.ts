@@ -6,6 +6,7 @@ const prisma = getPrismaClient()
 const CACHE_TTL_SECONDS = 300
 const CACHE_PREFIX = 'guild_rbac:'
 
+/** List of RBAC module types available for guild permissions. */
 export const RBAC_MODULES = [
     'overview',
     'settings',
@@ -15,10 +16,14 @@ export const RBAC_MODULES = [
     'integrations',
 ] as const
 
+/** Guild automation module identifiers. */
 export type ModuleKey = (typeof RBAC_MODULES)[number]
+/** Guild role access mode. */
 export type AccessMode = 'view' | 'manage'
+/** Effective access level granted to a user. */
 export type EffectiveAccess = 'none' | 'view' | 'manage'
 
+/** Stored role grant mapping modules to access modes. */
 export interface RoleGrant {
     guildId: string
     roleId: string
@@ -28,14 +33,17 @@ export interface RoleGrant {
     updatedAt: Date
 }
 
+/** Input for creating or updating role grants. */
 export interface RoleGrantInput {
     roleId: string
     module: ModuleKey
     mode: AccessMode
 }
 
+/** Effective access levels across all modules for a user. */
 export type EffectiveAccessMap = Record<ModuleKey, EffectiveAccess>
 
+/** Error thrown when RBAC storage is unavailable. */
 export class GuildRoleGrantStorageError extends Error {
     readonly code = 'ERR_GUILD_ROLE_GRANT_STORAGE_UNAVAILABLE'
     readonly guildId: string
@@ -117,6 +125,7 @@ function toRoleGrant(row: {
     }
 }
 
+/** Manages role-based access control for guild modules. */
 class GuildRoleAccessService {
     private isMissingTableError(error: unknown): boolean {
         if (typeof error !== 'object' || error === null) {
@@ -186,6 +195,7 @@ class GuildRoleAccessService {
         }
     }
 
+    /** Lists all role grants for a guild with caching. */
     async listRoleGrants(guildId: string): Promise<RoleGrant[]> {
         const cached = await this.readCached(guildId)
         if (cached) {
@@ -227,6 +237,7 @@ class GuildRoleAccessService {
         return grants
     }
 
+    /** Replaces all role grants for a guild with the given input. */
     async replaceRoleGrants(
         guildId: string,
         input: RoleGrantInput[],
@@ -278,6 +289,7 @@ class GuildRoleAccessService {
         return this.listRoleGrants(guildId)
     }
 
+    /** Resolves the effective access map for a user with given roles. */
     async resolveEffectiveAccess(
         guildId: string,
         roleIds: string[],
@@ -309,6 +321,7 @@ class GuildRoleAccessService {
         return access
     }
 
+    /** Checks if a user has the required access mode for a module. */
     hasAccess(
         effectiveAccess: EffectiveAccessMap,
         module: ModuleKey,
@@ -323,9 +336,11 @@ class GuildRoleAccessService {
         return current === 'manage'
     }
 
+    /** Checks if a user has any access to any module. */
     hasAnyAccess(effectiveAccess: EffectiveAccessMap): boolean {
         return RBAC_MODULES.some((module) => effectiveAccess[module] !== 'none')
     }
 }
 
+/** Singleton instance of GuildRoleAccessService. */
 export const guildRoleAccessService = new GuildRoleAccessService()

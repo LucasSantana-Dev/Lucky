@@ -10,6 +10,17 @@ export interface PerSourceRow {
     acceptanceRate: number | null
 }
 
+export interface PerModeRow {
+    // Loose typing intentional: read aggregation may encounter pre-migration
+    // null rows or unexpected values; the strict union is enforced at write time.
+    mode: string | null
+    count: number
+    acceptedCount: number
+    rejectedCount: number
+    pendingCount: number
+    acceptanceRate: number | null
+}
+
 export interface Summary {
     totalPicks: number
     accepted: number
@@ -126,6 +137,97 @@ export async function getPerSourceAcceptance(
 }
 
 /**
+ * Returns one row per distinct mode value seen in the Recommendation table
+ * for this guild within the window. Null mode is its own row.
+ */
+export async function getPerModeAcceptance(
+    guildId: string,
+    days?: number,
+): Promise<PerModeRow[]> {
+    const prisma = getPrismaClient()
+    const createdAtGte = getCreatedAtCutoff(days)
+
+    // Group by mode to get distinct modes and total count per mode
+    const groupByResult = await prisma.recommendation.groupBy({
+        by: ['mode'],
+        where: {
+            guildId,
+            createdAt: {
+                gte: createdAtGte,
+            },
+        },
+        _count: {
+            id: true,
+        },
+    })
+
+    // For each mode, fetch accepted, rejected, and pending counts
+    const rows: PerModeRow[] = []
+    for (const group of groupByResult) {
+        const mode = group.mode
+        const count = group._count.id
+
+        const getCountValue = (result: any): number =>
+            typeof result === 'number' ? result : result.count
+
+        const acceptedCount = getCountValue(
+            await prisma.recommendation.count({
+                where: {
+                    guildId,
+                    mode,
+                    isAccepted: true,
+                    createdAt: {
+                        gte: createdAtGte,
+                    },
+                },
+            }),
+        )
+
+        const rejectedCount = getCountValue(
+            await prisma.recommendation.count({
+                where: {
+                    guildId,
+                    mode,
+                    isRejected: true,
+                    createdAt: {
+                        gte: createdAtGte,
+                    },
+                },
+            }),
+        )
+
+        const pendingCount = getCountValue(
+            await prisma.recommendation.count({
+                where: {
+                    guildId,
+                    mode,
+                    isAccepted: null,
+                    isRejected: null,
+                    createdAt: {
+                        gte: createdAtGte,
+                    },
+                },
+            }),
+        )
+
+        const denominator = acceptedCount + rejectedCount
+        const acceptanceRate =
+            denominator === 0 ? null : acceptedCount / denominator
+
+        rows.push({
+            mode,
+            count,
+            acceptedCount,
+            rejectedCount,
+            pendingCount,
+            acceptanceRate,
+        })
+    }
+
+    return rows
+}
+
+/**
  * Returns aggregated totals across all sources for this guild within the window.
  */
 export async function getSummary(
@@ -196,5 +298,71 @@ export async function getSummary(
         rejected,
         pending,
         globalAcceptanceRate,
+    }
+}
+
+/**
+ * Result of autoplay skip-rate computation.
+ *
+ * - skipRate: null if no resolved outcomes, otherwise rejected / (accepted + rejected)
+ * - sampleSize: count of resolved (accepted + rejected) autoplay recommendations
+ * - canTrip: true if sampleSize >= 5 (minimum sample guard)
+ */
+export interface AutoplaySkipRateResult {
+    skipRate: number | null
+    sampleSize: number
+    acceptedCount: number
+    rejectedCount: number
+    canTrip: boolean
+}
+
+/**
+ * Returns the rolling 24-hour autoplay skip-rate for a guild.
+ * Requires minimum sample size of 5 resolved outcomes before canTrip=true.
+ * Used by the circuit breaker to pause autoplay replenishment on high skip rates.
+ */
+export async function getAutoplaySkipRateForGuild(
+    guildId: string,
+): Promise<AutoplaySkipRateResult> {
+    const prisma = getPrismaClient()
+    const createdAtGte = new Date(Date.now() - 24 * 60 * 60 * 1000) // 24 hours
+
+    const getCountValue = (result: any): number =>
+        typeof result === 'number' ? result : result.count
+
+    const acceptedCount = getCountValue(
+        await prisma.recommendation.count({
+            where: {
+                guildId,
+                isAccepted: true,
+                createdAt: {
+                    gte: createdAtGte,
+                },
+            },
+        }),
+    )
+
+    const rejectedCount = getCountValue(
+        await prisma.recommendation.count({
+            where: {
+                guildId,
+                isRejected: true,
+                createdAt: {
+                    gte: createdAtGte,
+                },
+            },
+        }),
+    )
+
+    const sampleSize = acceptedCount + rejectedCount
+    const skipRate = sampleSize === 0 ? null : rejectedCount / sampleSize
+    const canTrip = sampleSize >= 5
+
+    return {
+        skipRate,
+        sampleSize,
+        acceptedCount,
+        rejectedCount,
+        canTrip,
     }
 }

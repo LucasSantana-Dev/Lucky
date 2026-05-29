@@ -12,20 +12,17 @@ try {
 
 let prismaInstance: PrismaClient | null = null
 
+/** Returns a singleton Prisma client instance, initializing if necessary. */
 export function getPrismaClient(): PrismaClient {
     if (!prismaInstance) {
         const { PrismaClient: PrismaClientConstructor } = _require(
             '../../generated/prisma/client.js',
         ) as {
-            PrismaClient: new (
-                options?: unknown,
-            ) => PrismaClient
+            PrismaClient: new (options?: unknown) => PrismaClient
         }
         const databaseUrl = process.env.DATABASE_URL
         if (!databaseUrl) {
-            throw new Error(
-                'DATABASE_URL environment variable is required',
-            )
+            throw new Error('DATABASE_URL environment variable is required')
         }
         const adapter = new PrismaPg({
             connectionString: databaseUrl,
@@ -35,6 +32,7 @@ export function getPrismaClient(): PrismaClient {
     return prismaInstance
 }
 
+/** Disconnects the Prisma client if it is initialized. */
 export function disconnectPrisma(): Promise<void> {
     if (prismaInstance) {
         return prismaInstance.$disconnect()

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-05-28
+
+### Added
+- feat(autoplay): record the selected autoplay mode (similar/discover/popular) on recommendation telemetry rows, enabling per-mode acceptance analysis (Phase D prerequisite) (#1096)
+- feat(autoplay): guild skip-rate circuit breaker — pauses autoplay replenishment when a guild's rolling 24h skip-rate exceeds 60% (minimum sample of 5 resolved outcomes), posts a one-time notice to the music channel, and auto-resumes on the next manual `/play` (#1097)
+
+### Changed
+- test(shared): make the `packages/shared` Jest coverage gate honest — measure full runtime source (drop the broad `src/services`/`src/utils` exclusions) and set the threshold to the real floor (89/89/90/89) (#1076)
+
 ## [2.15.2] - 2026-05-28
 
 ### Fixed

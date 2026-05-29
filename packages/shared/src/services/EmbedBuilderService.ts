@@ -10,6 +10,7 @@ import {
 
 const prisma = getPrismaClient()
 
+/** Data structure representing a stored embed template. */
 export type EmbedTemplate = {
     id: string
     guildId: string
@@ -27,7 +28,9 @@ export type EmbedTemplate = {
     updatedAt: Date
 }
 
+/** Service for managing Discord embed templates with persistence and validation. */
 export class EmbedBuilderService {
+    /** Creates a new embed template with the given data. */
     async createTemplate(
         guildId: string,
         name: string,
@@ -53,6 +56,7 @@ export class EmbedBuilderService {
         })
     }
 
+    /** Creates or updates an embed template, returning whether it was created or updated. */
     async upsertTemplate(
         guildId: string,
         name: string,
@@ -108,6 +112,7 @@ export class EmbedBuilderService {
         })
     }
 
+    /** Retrieves an embed template by guild and name, or null if not found. */
     async getTemplate(
         guildId: string,
         name: string,
@@ -117,6 +122,7 @@ export class EmbedBuilderService {
         })
     }
 
+    /** Lists all embed templates for a guild, ordered by name. */
     async listTemplates(guildId: string): Promise<EmbedTemplate[]> {
         return await prisma.embedTemplate.findMany({
             where: { guildId },
@@ -124,6 +130,7 @@ export class EmbedBuilderService {
         })
     }
 
+    /** Updates an existing embed template with the provided data. */
     async updateTemplate(
         guildId: string,
         name: string,
@@ -147,6 +154,7 @@ export class EmbedBuilderService {
         })
     }
 
+    /** Deletes an embed template from the database. */
     async deleteTemplate(guildId: string, name: string): Promise<void> {
         const existing = await prisma.embedTemplate.findFirst({
             where: { guildId, name },
@@ -159,6 +167,7 @@ export class EmbedBuilderService {
         })
     }
 
+    /** Increments the usage count of an embed template. */
     async incrementUsage(guildId: string, name: string): Promise<void> {
         const existing = await prisma.embedTemplate.findFirst({
             where: { guildId, name },
@@ -170,6 +179,7 @@ export class EmbedBuilderService {
         })
     }
 
+    /** Validates embed data and returns validation errors if any. */
     validateEmbedData(embedData: Partial<EmbedData>): {
         valid: boolean
         errors: string[]
@@ -177,13 +187,17 @@ export class EmbedBuilderService {
         return _validateEmbedData(embedData)
     }
 
+    /** Converts a hexadecimal color string to a decimal number. */
     hexToDecimal(hex: string): number {
         return _hexToDecimal(hex)
     }
 
+    /** Converts a decimal color number to a hexadecimal string. */
     decimalToHex(decimal: number): string {
         return _decimalToHex(decimal)
     }
 }
+
+/** Global instance of the embed builder service. */
 
 export const embedBuilderService = new EmbedBuilderService()

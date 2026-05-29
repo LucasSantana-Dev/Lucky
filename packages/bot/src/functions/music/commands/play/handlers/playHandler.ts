@@ -22,6 +22,7 @@ import {
     normalizeSoundCloudUrl,
 } from '../queryUtils'
 import { applyStoredAutoplayPreference } from './autoplayPreference'
+import { clearAutoplayPause } from '../../../../../utils/music/autoplay/skipCircuitBreaker'
 
 export async function executePlayHandler({
     client,
@@ -107,8 +108,7 @@ export async function executePlayHandler({
                     requestedBy: interaction.user,
                     vcMemberIds,
                 },
-                connectionTimeout:
-                    ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
+                connectionTimeout: ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
                 leaveOnEmpty: true,
                 leaveOnEmptyCooldown: 30_000,
                 leaveOnEnd: true,
@@ -120,16 +120,11 @@ export async function executePlayHandler({
 
         let result
         try {
-            result = await client.player.play(
-                voiceChannel,
-                query,
-                playOptions,
-            )
+            result = await client.player.play(voiceChannel, query, playOptions)
         } catch (primaryError) {
             if (searchEngine !== QueryType.AUTO) {
                 warnLog({
-                    message:
-                        'Primary search failed, falling back to YouTube',
+                    message: 'Primary search failed, falling back to YouTube',
                     data: {
                         query,
                         requestedProvider: provider ?? 'default',
@@ -161,10 +156,7 @@ export async function executePlayHandler({
         const track = result.track
 
         const isPlaylist = !!result.searchResult.playlist
-        const { queue } = resolveGuildQueue(
-            client,
-            interaction.guildId ?? '',
-        )
+        const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 
         if (!isPlaylist && queue) {
             moveUserTrackToPriority(queue, track)
@@ -219,6 +211,8 @@ export async function executePlayHandler({
 
         const bgOps = (async () => {
             try {
+                // Clear any autoplay pause state when a manual play succeeds
+                clearAutoplayPause(interaction.guildId!)
                 if (!hadQueueBeforePlay && queue) {
                     await applyStoredAutoplayPreference(
                         queue,

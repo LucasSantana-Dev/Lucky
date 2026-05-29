@@ -2,6 +2,7 @@ import { getPrismaClient } from '../../utils/database/prismaClient'
 import { errorLog, debugLog } from '../../utils/general/log'
 import type { TwitchNotification } from '../../generated/prisma/client.js'
 
+/** Twitch notification configuration for a guild channel. */
 export type TwitchNotificationRow = Pick<
     TwitchNotification,
     'id' | 'guildId' | 'twitchUserId' | 'twitchLogin' | 'discordChannelId'
@@ -9,7 +10,9 @@ export type TwitchNotificationRow = Pick<
     guild?: { discordId: string }
 }
 
+/** Manages Twitch notification subscriptions for Discord guilds. */
 export class TwitchNotificationService {
+    /** Adds or updates a Twitch notification subscription for a guild. */
     async add(
         guildId: string,
         discordChannelId: string,
@@ -43,6 +46,7 @@ export class TwitchNotificationService {
         }
     }
 
+    /** Removes a Twitch notification subscription from a guild. */
     async remove(guildId: string, twitchUserId: string): Promise<boolean> {
         try {
             const prisma = getPrismaClient()
@@ -62,6 +66,7 @@ export class TwitchNotificationService {
         }
     }
 
+    /** Lists all Twitch notification subscriptions for a guild. */
     async listByGuild(guildId: string): Promise<TwitchNotificationRow[]> {
         try {
             const prisma = getPrismaClient()
@@ -78,6 +83,7 @@ export class TwitchNotificationService {
         }
     }
 
+    /** Lists all Twitch notification subscriptions for a Twitch user. */
     async getNotificationsByTwitchUserId(
         twitchUserId: string,
     ): Promise<TwitchNotificationRow[]> {
@@ -96,6 +102,7 @@ export class TwitchNotificationService {
         }
     }
 
+    /** Gets all unique Twitch user IDs with active notifications. */
     async getDistinctTwitchUserIds(): Promise<string[]> {
         try {
             const prisma = getPrismaClient()
@@ -114,4 +121,5 @@ export class TwitchNotificationService {
     }
 }
 
+/** Singleton instance of TwitchNotificationService. */
 export const twitchNotificationService = new TwitchNotificationService()
