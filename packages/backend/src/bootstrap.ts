@@ -3,6 +3,7 @@ import { redisClient } from '@lucky/shared/services'
 import {
     initializeSentry,
     setupErrorHandlers,
+    startHeartbeat,
     warnLog,
 } from '@lucky/shared/utils'
 import { startWebApp } from './server'
@@ -18,6 +19,7 @@ export async function bootstrapBackend(): Promise<void> {
         serverName: process.env.HOSTNAME,
         tags: { runtime: 'express' },
     })
+    startHeartbeat({ serviceName: 'backend' })
     await verifyRequiredDatabaseState()
 
     try {

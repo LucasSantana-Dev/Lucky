@@ -1,0 +1,74 @@
+# Lucky — Prometheus alerting rules (Layer 3 of the observability remediation).
+#
+# Portable PromQL alert DEFINITIONS. They are NOT auto-loaded: the homelab owns the
+# Prometheus/Grafana config (Lucky's /metrics are scraped over the `lucky-monitoring`
+# Docker network). Wire these per monitoring/README.md.
+#
+# Metrics referenced (already exported today):
+#   - lucky_backend_http_server_errors_total  (backend, counter, 5xx only)
+#   - lucky_backend_http_requests_total        (backend, counter)
+#   - up{job=...}                              (Prometheus scrape liveness)
+#
+# NOTE: adjust the `job` label values to match your Prometheus scrape_configs.
+# These are STARTER symptom alerts. Per ADR 2026-05-30, the availability SLO and a
+# proper multi-window burn-rate are defined AFTER ~14 days of observed data.
+
+groups:
+  - name: lucky-backend-errors
+    rules:
+      - alert: LuckyBackendHighErrorRate
+        expr: |
+          sum(rate(lucky_backend_http_server_errors_total[5m]))
+            / clamp_min(sum(rate(lucky_backend_http_requests_total[5m])), 1)
+            > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: lucky-backend
+        annotations:
+          summary: "Lucky backend 5xx error ratio > 5% (5m window)"
+          description: >-
+            More than 5% of backend requests returned 5xx over the last 5 minutes.
+            Check recent deploy, Redis/DB connectivity, and Sentry for the release.
+
+      - alert: LuckyBackendErrorBurstFast
+        expr: |
+          sum(rate(lucky_backend_http_server_errors_total[2m]))
+            / clamp_min(sum(rate(lucky_backend_http_requests_total[2m])), 1)
+            > 0.10
+        for: 2m
+        labels:
+          severity: critical
+          service: lucky-backend
+        annotations:
+          summary: "Lucky backend 5xx error ratio > 10% (fast burn, 2m window)"
+          description: >-
+            Backend is erroring on more than 10% of requests over 2 minutes —
+            fast-burn signal of an outage or a bad release.
+
+  - name: lucky-liveness
+    rules:
+      - alert: LuckyBackendScrapeDown
+        expr: up{job="lucky-backend"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: lucky-backend
+        annotations:
+          summary: "Prometheus cannot scrape the Lucky backend /metrics"
+          description: >-
+            The backend metrics endpoint has been unreachable for 5 minutes. The
+            backend may be down. NOTE: this cannot fire if Prometheus itself is
+            down — the off-box heartbeat (HEALTHCHECK_URL_EXTERNAL) covers that.
+
+      - alert: LuckyBotScrapeDown
+        expr: up{job="lucky-bot"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: lucky-bot
+        annotations:
+          summary: "Prometheus cannot scrape the Lucky bot /metrics"
+          description: >-
+            The bot metrics endpoint (:9091) has been unreachable for 5 minutes.
+            Cross-check the bot's Docker HEALTHCHECK (/healthz) and the heartbeat.
