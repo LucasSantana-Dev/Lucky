@@ -1,0 +1,19 @@
+# Grafana Provisioning Provider Configuration Template
+#
+# This file defines how Grafana automatically provisions dashboards from JSON files.
+# Replace placeholder values (e.g., GRAFANA_DASHBOARDS_PATH, GRAFANA_CONFIG_PATH) 
+# with actual values for your environment before deploying.
+#
+# Reference: https://grafana.com/docs/grafana/latest/administration/provisioning/#dashboards
+
+apiVersion: 1
+
+providers:
+  - name: Lucky Dashboards
+    type: file
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: GRAFANA_DASHBOARDS_PATH
+      folderId: 0
+      folderTitle: Lucky Monitoring
