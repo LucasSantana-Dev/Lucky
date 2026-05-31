@@ -70,6 +70,7 @@ model Guild {
   featureToggles      GuildFeatureToggle[]
   namedQueues         NamedQueue[]
   sessionSnapshot     MusicSessionSnapshot?
+  counter             GuildCounter?
 
   @@map("guilds")
 }
@@ -307,6 +308,22 @@ model MusicSessionSnapshot {
   updatedAt DateTime @updatedAt
 
   @@map("music_session_snapshots")
+}
+
+// Per-guild music counters (autoplay recommendation count + repeat count).
+model GuildCounter {
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  autoplayCount     Int      @default(0)
+  autoplayLastReset DateTime @default(now())
+  repeatCount       Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("guild_counters")
 }
 
 // Track History & Analytics

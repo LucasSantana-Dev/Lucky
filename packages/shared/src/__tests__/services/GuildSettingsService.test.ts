@@ -10,6 +10,13 @@ jest.mock('../../services/redis', () => ({
     },
 }))
 
+// Counters now use Prisma; settings tests don't exercise them, but the import
+// must be mocked so the real prismaClient (import.meta) isn't compiled here.
+jest.mock('../../utils/database/prismaClient', () => ({
+    getPrismaClient: jest.fn(),
+    disconnectPrisma: jest.fn(),
+}))
+
 const mockGet = redisClient.get as jest.MockedFunction<typeof redisClient.get>
 const mockSetex = redisClient.setex as unknown as jest.MockedFunction<
     (key: string, ttl: number, value: string) => Promise<string>
