@@ -31,7 +31,13 @@ jobs:
                   node-version: '22'
 
             - name: Install madge
-              run: npm install --no-save madge@^7
+              # --ignore-scripts: this static-analysis job needs only the source
+              # tree, not any postinstall binaries. Without it, the full install
+              # runs youtube-dl-exec's postinstall, which fetches the yt-dlp
+              # binary from GitHub releases unauthenticated and flakes on the
+              # ~60/hr anonymous rate limit (blocked #1105). Matches the
+              # --ignore-scripts convention already used throughout ci.yml.
+              run: npm install --no-save madge@^7 --ignore-scripts
 
             - name: Run madge --circular on packages/bot/src
               run: |

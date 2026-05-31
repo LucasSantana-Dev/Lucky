@@ -193,7 +193,10 @@ COPY nginx/frontend.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 8080
 
+# nginx-unprivileged is alpine/busybox: its `sh` (ash) has no /dev/tcp (a bash
+# builtin), so the previous probe could never run -> false-positive "unhealthy".
+# busybox wget is present and reaches the unprivileged :8080 listener.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD sh -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e "GET / HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n" >&3 && head -1 <&3 | grep -q "200" || exit 1'
+    CMD wget -q --spider http://127.0.0.1:8080/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

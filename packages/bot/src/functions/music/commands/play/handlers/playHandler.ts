@@ -1,5 +1,5 @@
 import type { GuildMember, ChatInputCommandInteraction } from 'discord.js'
-import { QueueRepeatMode, QueryType } from 'discord-player'
+import { QueryType } from 'discord-player'
 import type { CommandExecuteParams } from '../../../../../types/CommandData'
 import type { CustomClient } from '../../../../../types'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
@@ -9,10 +9,7 @@ import { createErrorEmbed } from '../../../../../utils/general/embeds'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { collaborativePlaylistService } from '../../../../../utils/music/collaborativePlaylist'
-import {
-    moveUserTrackToPriority,
-    blendAutoplayTracks,
-} from '../../../../../utils/music/queueManipulation'
+import { moveUserTrackToPriority } from '../../../../../utils/music/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../../utils/music/nowPlayingEmbed'
 import { registerNowPlayingMessage } from '../../../../../handlers/player/trackNowPlaying'
 import { resolveGuildQueue } from '../../../../../utils/music/queueResolver'
@@ -21,8 +18,11 @@ import {
     resolveSearchEngine,
     normalizeSoundCloudUrl,
 } from '../queryUtils'
-import { applyStoredAutoplayPreference } from './autoplayPreference'
-import { clearAutoplayPause } from '../../../../../utils/music/autoplay/skipCircuitBreaker'
+import {
+    resolveQueryWithFallbacks,
+    emitPlayResolutionTelemetry,
+} from './resolveProvider'
+import { runPostPlayBackgroundOps } from './postPlayBackgroundOps'
 
 export async function executePlayHandler({
     client,
@@ -118,44 +118,39 @@ export async function executePlayHandler({
             searchEngine,
         }
 
-        let result
+        let result: any
+        let resolutionTelemetry
         try {
-            result = await client.player.play(voiceChannel, query, playOptions)
-        } catch (primaryError) {
-            if (searchEngine !== QueryType.AUTO) {
-                warnLog({
-                    message: 'Primary search failed, falling back to YouTube',
-                    data: {
-                        query,
-                        requestedProvider: provider ?? 'default',
-                        searchEngine: String(searchEngine),
-                        error: String(primaryError),
-                    },
-                })
-                try {
-                    result = await client.player.play(voiceChannel, query, {
-                        ...playOptions,
-                        searchEngine: QueryType.YOUTUBE_SEARCH,
-                    })
-                } catch (youtubeError) {
-                    warnLog({
-                        message:
-                            'YouTube search failed, falling back to SoundCloud',
-                        data: { query },
-                    })
-                    result = await client.player.play(voiceChannel, query, {
-                        ...playOptions,
-                        searchEngine: QueryType.SOUNDCLOUD_SEARCH,
-                    })
-                }
-            } else {
-                throw primaryError
+            const resolution = await resolveQueryWithFallbacks(
+                client.player,
+                voiceChannel,
+                query,
+                provider ?? 'default',
+                searchEngine,
+                playOptions,
+            )
+            result = resolution.result
+            resolutionTelemetry = resolution.telemetry
+            emitPlayResolutionTelemetry(resolutionTelemetry)
+        } catch (error) {
+            // Emit failure telemetry
+            resolutionTelemetry = {
+                resolvedVia: 'failed' as const,
+                latencyMs: 0,
+                requestedProvider: provider ?? 'default',
+                errorClass: (error as Error).constructor.name,
             }
+            try {
+                emitPlayResolutionTelemetry(resolutionTelemetry)
+            } catch {
+                // Telemetry failure must not break play error handling
+            }
+            throw error
         }
 
-        const track = result.track
+        const track = (result as any).track
 
-        const isPlaylist = !!result.searchResult.playlist
+        const isPlaylist = !!(result as any).searchResult.playlist
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 
         if (!isPlaylist && queue) {
@@ -173,15 +168,15 @@ export async function executePlayHandler({
                     : queuedTracks.length
                 : 0
 
-        const embed = result.searchResult.playlist
+        const embed = (result as any).searchResult.playlist
             ? buildPlayResponseEmbed({
                   kind: 'playlistQueued',
                   track,
                   requestedBy: interaction.user,
                   playlist: {
-                      title: result.searchResult.playlist.title,
-                      trackCount: result.searchResult.tracks.length,
-                      url: result.searchResult.playlist.url,
+                      title: (result as any).searchResult.playlist.title,
+                      trackCount: (result as any).searchResult.tracks.length,
+                      url: (result as any).searchResult.playlist.url,
                   },
               })
             : buildPlayResponseEmbed({
@@ -209,32 +204,15 @@ export async function executePlayHandler({
             content: { embeds: [embed] },
         })
 
-        const bgOps = (async () => {
-            try {
-                // Clear any autoplay pause state when a manual play succeeds
-                clearAutoplayPause(interaction.guildId!)
-                if (!hadQueueBeforePlay && queue) {
-                    await applyStoredAutoplayPreference(
-                        queue,
-                        interaction.guildId!,
-                    )
-                }
-                if (
-                    !isPlaylist &&
-                    queue &&
-                    queue.repeatMode === QueueRepeatMode.AUTOPLAY
-                ) {
-                    await blendAutoplayTracks(queue, track)
-                }
-            } catch (bgError) {
-                errorLog({
-                    message: 'Post-play background ops failed',
-                    error: bgError,
-                    data: { guildId: interaction.guildId },
-                })
-            }
-        })()
-        void bgOps
+        // Fire-and-forget: each op is isolated inside runPostPlayBackgroundOps so a
+        // single failure never silently skips the others (#1085).
+        void runPostPlayBackgroundOps({
+            queue,
+            guildId: interaction.guildId!,
+            track,
+            hadQueueBeforePlay,
+            isPlaylist,
+        })
     } catch (error) {
         if (isUnknownInteractionError(error)) {
             debugLog({

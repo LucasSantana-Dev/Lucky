@@ -53,6 +53,20 @@ describe('markAsAutoplayTrack', () => {
 
         expect(track.metadata?.requestedById).toBe('new-user')
     })
+
+    it('attaches recommendationSource when provided', () => {
+        const track = createTrack()
+        markAsAutoplayTrack(track, 'reason', 'user-id', 'spotify-rec')
+
+        expect(track.metadata?.recommendationSource).toBe('spotify-rec')
+    })
+
+    it('does not attach recommendationSource when not provided', () => {
+        const track = createTrack()
+        markAsAutoplayTrack(track, 'reason', 'user-id')
+
+        expect(track.metadata?.recommendationSource).toBeUndefined()
+    })
 })
 
 describe('markAndRecordAutoplayTrack', () => {
@@ -75,6 +89,18 @@ describe('markAndRecordAutoplayTrack', () => {
         expect(track.metadata?.recommendationReason).toBe(
             'spotify rec • preferred artist',
         )
+    })
+
+    it('attaches the basis.source to track.metadata', async () => {
+        const track = createTrack()
+        const basis: RecommendationBasis = {
+            source: 'lastfm-loved',
+            signals: ['liked artist'],
+        }
+
+        await markAndRecordAutoplayTrack(track, basis, 'guild-123', 'user-456')
+
+        expect(track.metadata?.recommendationSource).toBe('lastfm-loved')
     })
 
     it('records the recommendation pick with serialized reason', async () => {

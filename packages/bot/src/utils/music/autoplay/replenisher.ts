@@ -613,3 +613,13 @@ function getAllHistoryTracks(queue: GuildQueue): Track[] {
     if (Array.isArray(history.tracks.data)) return history.tracks.data
     return []
 }
+
+export function clearSessionMoodCache(guildId: string): void {
+    if (sessionMoodCache.has(guildId)) {
+        sessionMoodCache.delete(guildId)
+        debugLog({
+            message: 'Cleared session mood cache',
+            data: { guildId },
+        })
+    }
+}

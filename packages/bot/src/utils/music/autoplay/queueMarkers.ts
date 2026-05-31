@@ -6,11 +6,13 @@ import { recordRecommendationPick } from '../../../services/musicRecommendation/
 /**
  * Mark a track as autoplay-generated with optional metadata.
  * Handles both mutable and sealed discord-player metadata objects.
+ * Also attaches the recommendation source for per-source acceptance rate lookups.
  */
 export function markAsAutoplayTrack(
     track: Track,
     recommendationReason: string,
     requestedById?: string,
+    recommendationSource?: string,
 ): void {
     const descriptor = Object.getOwnPropertyDescriptor(track, 'metadata')
 
@@ -26,6 +28,8 @@ export function markAsAutoplayTrack(
             meta['recommendationReason'] = recommendationReason
             if (requestedById !== undefined)
                 meta['requestedById'] = requestedById
+            if (recommendationSource !== undefined)
+                meta['recommendationSource'] = recommendationSource
         }
         return
     }
@@ -44,6 +48,9 @@ export function markAsAutoplayTrack(
             isAutoplay: true,
             recommendationReason,
             requestedById: requestedById ?? existingRequestedById,
+            ...(recommendationSource !== undefined && {
+                recommendationSource,
+            }),
         },
         writable: true,
         configurable: true,
@@ -71,9 +78,9 @@ export async function markAndRecordAutoplayTrack(
     discordUserId?: string,
     mode?: 'similar' | 'discover' | 'popular',
 ): Promise<void> {
-    // Mark the track synchronously with serialized reason
+    // Mark the track synchronously with serialized reason and source
     const serializedReason = serializeBasis(basis)
-    markAsAutoplayTrack(track, serializedReason, discordUserId)
+    markAsAutoplayTrack(track, serializedReason, discordUserId, basis.source)
 
     // Fire telemetry asynchronously (non-blocking)
     // recordRecommendationPick is non-throwing, so we don't need try/catch

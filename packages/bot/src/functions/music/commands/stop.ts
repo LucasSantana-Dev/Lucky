@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
+import { clearSessionMoodCache } from '../../../utils/music/autoplay/replenisher'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import {
     requireQueue,
@@ -25,6 +26,7 @@ export default new Command({
         if (queue) {
             musicWatchdogService.markIntentionalStop(queue.guild.id)
             await musicSessionSnapshotService.deleteSnapshot(queue.guild.id)
+            clearSessionMoodCache(queue.guild.id)
         }
         queue?.node.stop()
         queue?.clear()
