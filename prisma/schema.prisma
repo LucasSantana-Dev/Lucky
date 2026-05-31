@@ -69,6 +69,7 @@ model Guild {
   twitchNotifications TwitchNotification[]
   featureToggles      GuildFeatureToggle[]
   namedQueues         NamedQueue[]
+  sessionSnapshot     MusicSessionSnapshot?
 
   @@map("guilds")
 }
@@ -288,6 +289,24 @@ model NamedQueue {
   @@unique([guildId, name])
   @@index([guildId])
   @@map("named_queues")
+}
+
+// Music session snapshot — one per guild; auto-saved queue state for restore-after-restart.
+model MusicSessionSnapshot {
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  sessionSnapshotId String
+  savedAt           DateTime @default(now())
+  currentTrack      Json? // SnapshotTrack | null
+  upcomingTracks    Json // SnapshotTrack[]
+  voiceChannelId    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("music_session_snapshots")
 }
 
 // Track History & Analytics

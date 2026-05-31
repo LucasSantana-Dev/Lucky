@@ -1,22 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { GuildQueue } from 'discord-player'
+import { getPrismaClient } from '@lucky/shared/utils'
 import { MusicSessionSnapshotService } from './sessionSnapshots'
 
-const getMock = jest.fn()
-const setexMock = jest.fn()
-const delMock = jest.fn()
-
 jest.mock('@lucky/shared/utils', () => ({
+    getPrismaClient: jest.fn(),
     debugLog: jest.fn(),
     errorLog: jest.fn(),
-}))
-
-jest.mock('@lucky/shared/services', () => ({
-    redisClient: {
-        get: (...args: unknown[]) => getMock(...args),
-        setex: (...args: unknown[]) => setexMock(...args),
-        del: (...args: unknown[]) => delMock(...args),
-    },
 }))
 
 jest.mock('@lucky/shared/config', () => ({
@@ -29,597 +19,410 @@ jest.mock('discord-player', () => ({
     QueryType: { AUTO: 'auto' },
 }))
 
+const mockGetPrismaClient = jest.mocked(getPrismaClient)
+const mockFindUnique = jest.fn<any>()
+const mockDeleteMany = jest.fn<any>()
+const mockCreate = jest.fn<any>()
+
+/** Builds a `music_session_snapshots` row for mock returns. */
+function snapshotRow(overrides: Record<string, unknown> = {}) {
+    return {
+        id: 'row-1',
+        guildId: 'guild-1',
+        sessionSnapshotId: 'snap-1',
+        savedAt: new Date(),
+        currentTrack: null,
+        upcomingTracks: [
+            {
+                title: 'Recovered Song',
+                author: 'Recovered Artist',
+                url: 'https://example.com/recovered',
+                duration: '3:00',
+                source: 'youtube',
+            },
+        ],
+        voiceChannelId: null,
+        ...overrides,
+    }
+}
+
+function restoringQueue(guildId: string, searchResult?: unknown) {
+    const addTrack = jest.fn()
+    return {
+        guild: { id: guildId },
+        currentTrack: null,
+        tracks: { size: 0 },
+        addTrack,
+        clear: jest.fn(),
+        node: {
+            isPlaying: () => false,
+            play: jest.fn(async () => undefined),
+        },
+        player: {
+            search: jest.fn(
+                async () =>
+                    searchResult ?? {
+                        tracks: [
+                            {
+                                title: 'Recovered Song',
+                                author: 'Recovered Artist',
+                                url: 'https://example.com/recovered',
+                                metadata: null,
+                                setMetadata: jest.fn(function (
+                                    this: { metadata: unknown },
+                                    m: unknown,
+                                ) {
+                                    this.metadata = m
+                                }),
+                            },
+                        ],
+                    },
+            ),
+        },
+    } as unknown as GuildQueue
+}
+
 describe('MusicSessionSnapshotService', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-    })
-
-    it('saves queue snapshot to redis', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const queue = {
-            guild: { id: 'guild-1' },
-            currentTrack: {
-                title: 'Now Song',
-                author: 'Now Artist',
-                url: 'https://example.com/now',
-                duration: '3:10',
-                source: 'youtube',
+        mockGetPrismaClient.mockReturnValue({
+            musicSessionSnapshot: {
+                findUnique: mockFindUnique,
+                deleteMany: mockDeleteMany,
+                create: mockCreate,
             },
-            tracks: {
-                toArray: () => [
-                    {
-                        title: 'Next Song',
-                        author: 'Next Artist',
-                        url: 'https://example.com/next',
-                        duration: '2:40',
-                        source: 'youtube',
-                    },
-                ],
-            },
-            metadata: { channel: { id: 'channel-1' } },
-        } as unknown as GuildQueue
-
-        await service.saveSnapshot(queue)
-
-        expect(setexMock).toHaveBeenCalledTimes(1)
-        expect(setexMock.mock.calls[0]?.[0]).toContain('music:session:guild-1')
+        } as any)
+        mockFindUnique.mockResolvedValue(null)
+        mockDeleteMany.mockResolvedValue({ count: 1 })
+        mockCreate.mockResolvedValue(snapshotRow())
     })
 
-    it('returns null when queue is empty and does not write to redis', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const queue = {
-            guild: { id: 'guild-empty' },
-            currentTrack: null,
-            tracks: { toArray: () => [] },
-        } as unknown as GuildQueue
-
-        const result = await service.saveSnapshot(queue)
-
-        expect(result).toBeNull()
-        expect(setexMock).not.toHaveBeenCalled()
-    })
-
-    it('restores tracks from snapshot by searching and adding to queue', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const snapshot = {
-            sessionSnapshotId: 'snap-1',
-            guildId: 'guild-2',
-            savedAt: Date.now(),
-            currentTrack: null,
-            upcomingTracks: [
-                {
-                    title: 'Recovered Song',
-                    author: 'Recovered Artist',
-                    url: 'https://example.com/recovered',
-                    duration: '3:00',
+    describe('saveSnapshot', () => {
+        it('overwrites the guild snapshot (delete + create) and returns it', async () => {
+            const service = new MusicSessionSnapshotService()
+            const queue = {
+                guild: { id: 'guild-1' },
+                currentTrack: {
+                    title: 'Now Song',
+                    author: 'Now Artist',
+                    url: 'https://example.com/now',
+                    duration: '3:10',
                     source: 'youtube',
                 },
-            ],
-        }
-        getMock.mockResolvedValue(JSON.stringify(snapshot))
-        delMock.mockResolvedValue(1)
-
-        const addTrack = jest.fn()
-        const queue = {
-            guild: { id: 'guild-2' },
-            currentTrack: null,
-            tracks: { size: 0 },
-            addTrack,
-            node: {
-                isPlaying: () => false,
-                play: jest.fn().mockResolvedValue(undefined),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            title: 'Recovered Song',
-                            author: 'Recovered Artist',
-                            url: 'https://example.com/recovered',
-                            metadata: null,
-                            setMetadata: jest.fn(function (
-                                this: { metadata: unknown },
-                                m: unknown,
-                            ) {
-                                this.metadata = m
-                            }),
-                        },
-                    ],
-                }),
-            },
-        } as unknown as GuildQueue
-
-        const result = await service.restoreSnapshot(queue)
-
-        expect(result.restoredCount).toBe(1)
-        expect(addTrack).toHaveBeenCalledTimes(1)
-        // Snapshot must be cleared after restore (Gap 3 fix)
-        expect(delMock).toHaveBeenCalledWith('music:session:guild-2')
-    })
-
-    it('also restores currentTrack prepended to the queue (Gap 4 fix)', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const snapshot = {
-            sessionSnapshotId: 'snap-ct',
-            guildId: 'guild-ct',
-            savedAt: Date.now(),
-            currentTrack: {
-                title: 'Was Playing',
-                author: 'Artist A',
-                url: 'https://example.com/current',
-                duration: '3:00',
-                source: 'youtube',
-            },
-            upcomingTracks: [
-                {
-                    title: 'Next Up',
-                    author: 'Artist B',
-                    url: 'https://example.com/next',
-                    duration: '2:30',
-                    source: 'youtube',
-                },
-            ],
-        }
-        getMock.mockResolvedValue(JSON.stringify(snapshot))
-        delMock.mockResolvedValue(1)
-
-        const addTrack = jest.fn()
-        const queue = {
-            guild: { id: 'guild-ct' },
-            currentTrack: null,
-            tracks: { size: 0 },
-            addTrack,
-            node: {
-                isPlaying: () => false,
-                play: jest.fn().mockResolvedValue(undefined),
-            },
-            player: {
-                search: jest.fn().mockImplementation(async (query: unknown) => {
-                    const t: {
-                        title: string
-                        author: string
-                        url: unknown
-                        metadata: unknown
-                        setMetadata: (m: unknown) => void
-                    } = {
-                        title: String(query).split(' ')[0],
-                        author: 'resolved',
-                        url: query,
-                        metadata: null,
-                        setMetadata(m) {
-                            this.metadata = m
-                        },
-                    }
-                    return { tracks: [t] }
-                }),
-            },
-        } as unknown as GuildQueue
-
-        const result = await service.restoreSnapshot(queue)
-
-        // currentTrack + 1 upcoming = 2 tracks
-        expect(result.restoredCount).toBe(2)
-        expect(addTrack).toHaveBeenCalledTimes(2)
-    })
-
-    it('rejects snapshot older than maxAgeMs (Gap 2 staleness guard)', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const staleSnapshot = {
-            sessionSnapshotId: 'snap-stale',
-            guildId: 'guild-stale',
-            savedAt: Date.now() - 60 * 60 * 1_000, // 1 hour ago
-            currentTrack: null,
-            upcomingTracks: [
-                {
-                    title: 'Old Song',
-                    author: 'Old Artist',
-                    url: 'https://example.com/old',
-                    duration: '3:00',
-                    source: 'youtube',
-                },
-            ],
-        }
-        getMock.mockResolvedValue(JSON.stringify(staleSnapshot))
-
-        const addTrack = jest.fn()
-        const queue = {
-            guild: { id: 'guild-stale' },
-            currentTrack: null,
-            tracks: { size: 0 },
-            addTrack,
-            node: { isPlaying: () => false, play: jest.fn() },
-            player: { search: jest.fn() },
-        } as unknown as GuildQueue
-
-        // Use 30-min maxAge (default)
-        const result = await service.restoreSnapshot(queue, undefined, {
-            maxAgeMs: 30 * 60 * 1_000,
-        })
-
-        expect(result.restoredCount).toBe(0)
-        expect(result.sessionSnapshotId).toBeNull()
-        expect(addTrack).not.toHaveBeenCalled()
-        // Should NOT delete the stale snapshot (so TTL can still expire it naturally)
-        expect(delMock).not.toHaveBeenCalled()
-    })
-
-    it('accepts snapshot within maxAgeMs window', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const freshSnapshot = {
-            sessionSnapshotId: 'snap-fresh',
-            guildId: 'guild-fresh',
-            savedAt: Date.now() - 5 * 60 * 1_000, // 5 min ago
-            currentTrack: null,
-            upcomingTracks: [
-                {
-                    title: 'Fresh Song',
-                    author: 'Fresh Artist',
-                    url: 'https://example.com/fresh',
-                    duration: '3:00',
-                    source: 'youtube',
-                },
-            ],
-        }
-        getMock.mockResolvedValue(JSON.stringify(freshSnapshot))
-        delMock.mockResolvedValue(1)
-
-        const addTrack = jest.fn()
-        const queue = {
-            guild: { id: 'guild-fresh' },
-            currentTrack: null,
-            tracks: { size: 0 },
-            addTrack,
-            node: {
-                isPlaying: () => false,
-                play: jest.fn().mockResolvedValue(undefined),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            title: 'Fresh Song',
-                            author: 'Fresh Artist',
-                            url: 'https://example.com/fresh',
-                            metadata: null,
-                            setMetadata: jest.fn(function (
-                                this: { metadata: unknown },
-                                m: unknown,
-                            ) {
-                                this.metadata = m
-                            }),
-                        },
-                    ],
-                }),
-            },
-        } as unknown as GuildQueue
-
-        const result = await service.restoreSnapshot(queue, undefined, {
-            maxAgeMs: 30 * 60 * 1_000,
-        })
-
-        expect(result.restoredCount).toBe(1)
-        expect(delMock).toHaveBeenCalledWith('music:session:guild-fresh')
-    })
-
-    it('preserves autoplay metadata when restoring snapshot tracks', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const snapshot = {
-            sessionSnapshotId: 'snap-autoplay',
-            guildId: 'guild-autoplay',
-            savedAt: Date.now(),
-            currentTrack: null,
-            upcomingTracks: [
-                {
-                    title: 'Recommended Song',
-                    author: 'Recommended Artist',
-                    url: 'https://example.com/recommended',
-                    duration: '3:00',
-                    source: 'youtube',
-                    recommendationReason: 'Because you listened to Test Song',
-                    isAutoplay: true,
-                    requestedById: 'user-1',
-                },
-            ],
-        }
-        getMock.mockResolvedValue(JSON.stringify(snapshot))
-        delMock.mockResolvedValue(1)
-
-        const addTrack = jest.fn()
-        const restoredTrack: {
-            title: string
-            author: string
-            url: string
-            metadata: unknown
-            setMetadata: (m: unknown) => void
-        } = {
-            title: 'Recommended Song',
-            author: 'Recommended Artist',
-            url: 'https://example.com/recommended',
-            metadata: null,
-            setMetadata(m) {
-                this.metadata = m
-            },
-        }
-
-        const queue = {
-            guild: { id: 'guild-autoplay' },
-            currentTrack: null,
-            tracks: { size: 0 },
-            addTrack,
-            node: {
-                isPlaying: () => false,
-                play: jest.fn().mockResolvedValue(undefined),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [restoredTrack],
-                }),
-            },
-        } as unknown as GuildQueue
-
-        await service.restoreSnapshot(queue)
-
-        expect(addTrack).toHaveBeenCalledWith(
-            expect.objectContaining({
-                metadata: expect.objectContaining({
-                    isAutoplay: true,
-                    requestedById: 'user-1',
-                    recommendationReason: 'Because you listened to Test Song',
-                }),
-            }),
-        )
-    })
-
-    it('returns early when queue already has tracks', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const queue = {
-            guild: { id: 'guild-busy' },
-            currentTrack: { title: 'Playing Now' },
-            tracks: { size: 2 },
-        } as unknown as GuildQueue
-
-        const result = await service.restoreSnapshot(queue)
-
-        expect(result.restoredCount).toBe(0)
-        expect(getMock).not.toHaveBeenCalled()
-    })
-
-    it('does not delete snapshot when no tracks are restored', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const snapshot = {
-            sessionSnapshotId: 'snap-noresult',
-            guildId: 'guild-noresult',
-            savedAt: Date.now(),
-            currentTrack: null,
-            upcomingTracks: [
-                {
-                    title: 'Ghost Track',
-                    author: 'Ghost',
-                    url: 'https://example.com/ghost',
-                    duration: '3:00',
-                    source: 'youtube',
-                },
-            ],
-        }
-        getMock.mockResolvedValue(JSON.stringify(snapshot))
-
-        const addTrack = jest.fn()
-        const queue = {
-            guild: { id: 'guild-noresult' },
-            currentTrack: null,
-            tracks: { size: 0 },
-            addTrack,
-            node: { isPlaying: () => false, play: jest.fn() },
-            player: {
-                search: jest.fn().mockResolvedValue({ tracks: [] }), // no results
-            },
-        } as unknown as GuildQueue
-
-        const result = await service.restoreSnapshot(queue)
-
-        expect(result.restoredCount).toBe(0)
-        expect(delMock).not.toHaveBeenCalled()
-    })
-})
-
-    it('skips current track when skipCurrentTrack option is true', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const snapshot = {
-            sessionSnapshotId: 'snap-skip-current',
-            guildId: 'guild-skip',
-            savedAt: Date.now(),
-            currentTrack: {
-                title: 'Same Song',
-                author: 'Artist',
-                url: 'https://example.com/same',
-                duration: '3:00',
-                source: 'youtube',
-            },
-            upcomingTracks: [
-                {
-                    title: 'Next Song',
-                    author: 'Next Artist',
-                    url: 'https://example.com/next',
-                    duration: '3:00',
-                    source: 'youtube',
-                },
-            ],
-        }
-        getMock.mockResolvedValue(JSON.stringify(snapshot))
-        delMock.mockResolvedValue(1)
-
-        const addTrack = jest.fn()
-        const queue = {
-            guild: { id: 'guild-skip' },
-            currentTrack: null,
-            tracks: { size: 0 },
-            addTrack,
-            node: {
-                isPlaying: () => false,
-                play: jest.fn().mockResolvedValue(undefined),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
+                tracks: {
+                    toArray: () => [
                         {
                             title: 'Next Song',
                             author: 'Next Artist',
                             url: 'https://example.com/next',
-                            metadata: null,
-                            setMetadata: jest.fn(),
+                            duration: '2:40',
+                            source: 'youtube',
                         },
                     ],
+                },
+                channel: { id: 'channel-1' },
+            } as unknown as GuildQueue
+
+            const result = await service.saveSnapshot(queue)
+
+            expect(result).not.toBeNull()
+            expect(mockDeleteMany).toHaveBeenCalledWith({
+                where: { guildId: 'guild-1' },
+            })
+            expect(mockCreate).toHaveBeenCalledWith({
+                data: expect.objectContaining({
+                    guildId: 'guild-1',
+                    voiceChannelId: 'channel-1',
+                    sessionSnapshotId: expect.any(String),
+                    upcomingTracks: expect.any(Array),
                 }),
-            },
-        } as unknown as GuildQueue
+            })
+        })
 
-        await service.restoreSnapshot(queue, undefined, { skipCurrentTrack: true })
+        it('returns null when queue is empty and does not write', async () => {
+            const service = new MusicSessionSnapshotService()
+            const queue = {
+                guild: { id: 'guild-empty' },
+                currentTrack: null,
+                tracks: { toArray: () => [] },
+            } as unknown as GuildQueue
 
-        expect(addTrack).toHaveBeenCalledTimes(1)
-        expect(addTrack.mock.calls[0]?.[0]).toMatchObject({
-            title: 'Next Song',
+            const result = await service.saveSnapshot(queue)
+
+            expect(result).toBeNull()
+            expect(mockCreate).not.toHaveBeenCalled()
+        })
+
+        it('returns null on create error', async () => {
+            mockCreate.mockRejectedValueOnce(new Error('db down'))
+            const service = new MusicSessionSnapshotService()
+            const queue = {
+                guild: { id: 'guild-err' },
+                currentTrack: {
+                    title: 't',
+                    author: 'a',
+                    url: 'u',
+                    duration: '1',
+                    source: 'youtube',
+                },
+                tracks: { toArray: () => [] },
+            } as unknown as GuildQueue
+
+            expect(await service.saveSnapshot(queue)).toBeNull()
         })
     })
 
-    it('returns null on save error and logs', async () => {
-        setexMock.mockRejectedValue(new Error('redis down'))
-        const service = new MusicSessionSnapshotService(300)
-        const queue = {
-            guild: { id: 'guild-err' },
-            currentTrack: {
-                title: 't',
-                author: 'a',
-                url: 'u',
-                duration: '1',
-                source: 'youtube',
-            },
-            tracks: { toArray: () => [] },
-        } as unknown as GuildQueue
-
-        const result = await service.saveSnapshot(queue)
-        expect(result).toBeNull()
-    })
-
-    it('returns null on getSnapshot redis read error', async () => {
-        getMock.mockRejectedValue(new Error('redis down'))
-        const service = new MusicSessionSnapshotService(300)
-        const result = await service.getSnapshot('g')
-        expect(result).toBeNull()
-    })
-
-    it('returns null on getSnapshot when key missing', async () => {
-        getMock.mockResolvedValue(null)
-        const service = new MusicSessionSnapshotService(300)
-        const result = await service.getSnapshot('g')
-        expect(result).toBeNull()
-    })
-
-    it('swallows deleteSnapshot redis errors', async () => {
-        delMock.mockRejectedValue(new Error('redis down'))
-        const service = new MusicSessionSnapshotService(300)
-        await expect(service.deleteSnapshot('g')).resolves.toBeUndefined()
-    })
-
-    it('clearSnapshotIfStale is no-op when queue has upcoming tracks', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const queue = {
-            guild: { id: 'g' },
-            currentTrack: { title: 't' },
-            tracks: { size: 3 },
-        } as unknown as GuildQueue
-        await service.clearSnapshotIfStale(queue)
-        expect(getMock).not.toHaveBeenCalled()
-    })
-
-    it('clearSnapshotIfStale is no-op when no current track', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const queue = {
-            guild: { id: 'g' },
-            currentTrack: null,
-            tracks: { size: 0 },
-        } as unknown as GuildQueue
-        await service.clearSnapshotIfStale(queue)
-        expect(getMock).not.toHaveBeenCalled()
-    })
-
-    it('clearSnapshotIfStale skips when snapshot has upcoming tracks', async () => {
-        getMock.mockResolvedValue(
-            JSON.stringify({
-                sessionSnapshotId: 's',
-                guildId: 'g',
-                savedAt: Date.now(),
+    describe('getSnapshot', () => {
+        it('maps a fresh row to a snapshot', async () => {
+            mockFindUnique.mockResolvedValueOnce(snapshotRow())
+            const service = new MusicSessionSnapshotService()
+            const snap = await service.getSnapshot('guild-1')
+            expect(snap).toMatchObject({
+                sessionSnapshotId: 'snap-1',
+                guildId: 'guild-1',
                 currentTrack: null,
-                upcomingTracks: [{ title: 'x', author: 'y', url: 'z', duration: '1', source: 's' }],
-            }),
-        )
-        const service = new MusicSessionSnapshotService(300)
-        const queue = {
-            guild: { id: 'g' },
-            currentTrack: { title: 't' },
-            tracks: { size: 0 },
-        } as unknown as GuildQueue
-        await service.clearSnapshotIfStale(queue)
-        expect(delMock).not.toHaveBeenCalled()
+            })
+            expect(snap?.upcomingTracks).toHaveLength(1)
+        })
+
+        it('returns null and prunes a row older than the storage TTL', async () => {
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({ savedAt: new Date(Date.now() - 60 * 60 * 1000) }),
+            )
+            const service = new MusicSessionSnapshotService(1) // 1s TTL
+            const snap = await service.getSnapshot('guild-1')
+            expect(snap).toBeNull()
+            expect(mockDeleteMany).toHaveBeenCalledWith({
+                where: { guildId: 'guild-1' },
+            })
+        })
+
+        it('returns null on read error', async () => {
+            mockFindUnique.mockRejectedValueOnce(new Error('db down'))
+            const service = new MusicSessionSnapshotService()
+            expect(await service.getSnapshot('g')).toBeNull()
+        })
+
+        it('returns null when no row exists', async () => {
+            mockFindUnique.mockResolvedValueOnce(null)
+            const service = new MusicSessionSnapshotService()
+            expect(await service.getSnapshot('g')).toBeNull()
+        })
     })
 
-    it('restoreSnapshot returns 0 when queue already has tracks', async () => {
-        const service = new MusicSessionSnapshotService(300)
-        const queue = {
-            guild: { id: 'g' },
-            currentTrack: { title: 't' },
-            tracks: { size: 5 },
-        } as unknown as GuildQueue
-        const result = await service.restoreSnapshot(queue)
-        expect(result.restoredCount).toBe(0)
-        expect(result.sessionSnapshotId).toBeNull()
-    })
+    describe('restoreSnapshot', () => {
+        it('restores upcoming tracks and clears the snapshot afterward', async () => {
+            mockFindUnique.mockResolvedValueOnce(snapshotRow())
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-2')
 
-    it('clears queue and returns restoredCount 0 when player.search throws mid-restore', async () => {
-        getMock.mockResolvedValue(
-            JSON.stringify({
-                sessionSnapshotId: 'snap-123',
-                guildId: 'g',
-                savedAt: Date.now(),
-                currentTrack: {
-                    title: 'Current Song',
-                    author: 'Artist 1',
-                    url: 'https://youtube.com/watch?v=abc',
-                    duration: '3:45',
-                    source: 'youtube',
-                },
-                upcomingTracks: [
-                    {
-                        title: 'Next Song',
-                        author: 'Artist 2',
-                        url: 'https://youtube.com/watch?v=def',
-                        duration: '4:20',
+            const result = await service.restoreSnapshot(queue)
+
+            expect(result.restoredCount).toBe(1)
+            expect(queue.addTrack).toHaveBeenCalledTimes(1)
+            expect(mockDeleteMany).toHaveBeenCalledWith({
+                where: { guildId: 'guild-2' },
+            })
+        })
+
+        it('prepends the current track to the restore list', async () => {
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({
+                    currentTrack: {
+                        title: 'Was Playing',
+                        author: 'Artist A',
+                        url: 'https://example.com/current',
+                        duration: '3:00',
                         source: 'youtube',
                     },
+                }),
+            )
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-ct', {
+                tracks: [
+                    {
+                        title: 'resolved',
+                        author: 'resolved',
+                        url: 'x',
+                        metadata: null,
+                        setMetadata: jest.fn(),
+                    },
                 ],
-            }),
-        )
+            })
 
-        const service = new MusicSessionSnapshotService(300)
-        const clearMock = jest.fn()
-        const searchMock = jest.fn()
-            .mockResolvedValueOnce({ tracks: [{ title: 'Current Song' }] })
-            .mockRejectedValueOnce(new Error('Search service unavailable'))
+            const result = await service.restoreSnapshot(queue)
+            expect(result.restoredCount).toBe(2)
+            expect(queue.addTrack).toHaveBeenCalledTimes(2)
+        })
 
-        const queue = {
-            guild: { id: 'g' },
-            currentTrack: null,
-            tracks: { size: 0 },
-            player: { search: searchMock },
-            clear: clearMock,
-            addTrack: jest.fn(),
-        } as unknown as GuildQueue
+        it('rejects a snapshot older than maxAgeMs WITHOUT deleting it', async () => {
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({ savedAt: new Date(Date.now() - 60 * 60 * 1000) }),
+            )
+            const service = new MusicSessionSnapshotService(7200) // within storage TTL
+            const queue = restoringQueue('guild-stale')
 
-        const result = await service.restoreSnapshot(queue)
+            const result = await service.restoreSnapshot(queue, undefined, {
+                maxAgeMs: 30 * 60 * 1000,
+            })
 
-        // Should have called clear to rollback the partial queue
-        expect(clearMock).toHaveBeenCalledTimes(1)
-        // Should return 0 restored and null sessionSnapshotId on error
-        expect(result.restoredCount).toBe(0)
-        expect(result.sessionSnapshotId).toBeNull()
+            expect(result.restoredCount).toBe(0)
+            expect(result.sessionSnapshotId).toBeNull()
+            expect(queue.addTrack).not.toHaveBeenCalled()
+            expect(mockDeleteMany).not.toHaveBeenCalled()
+        })
+
+        it('preserves autoplay metadata on restored tracks', async () => {
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({
+                    upcomingTracks: [
+                        {
+                            title: 'Recommended Song',
+                            author: 'Recommended Artist',
+                            url: 'https://example.com/recommended',
+                            duration: '3:00',
+                            source: 'youtube',
+                            recommendationReason: 'Because you listened',
+                            isAutoplay: true,
+                            requestedById: 'user-1',
+                        },
+                    ],
+                }),
+            )
+            const restoredTrack = {
+                title: 'Recommended Song',
+                author: 'Recommended Artist',
+                url: 'https://example.com/recommended',
+                metadata: null as unknown,
+                setMetadata(m: unknown) {
+                    this.metadata = m
+                },
+            }
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-autoplay', {
+                tracks: [restoredTrack],
+            })
+
+            await service.restoreSnapshot(queue)
+
+            expect(queue.addTrack).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    metadata: expect.objectContaining({
+                        isAutoplay: true,
+                        requestedById: 'user-1',
+                        recommendationReason: 'Because you listened',
+                    }),
+                }),
+            )
+        })
+
+        it('returns early when the queue already has tracks (no read)', async () => {
+            const service = new MusicSessionSnapshotService()
+            const queue = {
+                guild: { id: 'guild-busy' },
+                currentTrack: { title: 'Playing Now' },
+                tracks: { size: 2 },
+            } as unknown as GuildQueue
+
+            const result = await service.restoreSnapshot(queue)
+            expect(result.restoredCount).toBe(0)
+            expect(mockFindUnique).not.toHaveBeenCalled()
+        })
+
+        it('does not clear the snapshot when nothing is restored', async () => {
+            mockFindUnique.mockResolvedValueOnce(snapshotRow())
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-noresult', { tracks: [] })
+
+            const result = await service.restoreSnapshot(queue)
+            expect(result.restoredCount).toBe(0)
+            expect(mockDeleteMany).not.toHaveBeenCalled()
+        })
+
+        it('skips the current track when skipCurrentTrack is true', async () => {
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({
+                    currentTrack: {
+                        title: 'Same Song',
+                        author: 'Artist',
+                        url: 'https://example.com/same',
+                        duration: '3:00',
+                        source: 'youtube',
+                    },
+                }),
+            )
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-skip')
+
+            await service.restoreSnapshot(queue, undefined, {
+                skipCurrentTrack: true,
+            })
+            expect(queue.addTrack).toHaveBeenCalledTimes(1)
+        })
+
+        it('rolls back the queue when search throws mid-restore', async () => {
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({
+                    currentTrack: {
+                        title: 'Current Song',
+                        author: 'Artist 1',
+                        url: 'https://example.com/cur',
+                        duration: '3:45',
+                        source: 'youtube',
+                    },
+                }),
+            )
+            const clear = jest.fn()
+            const search = jest
+                .fn<any>()
+                .mockResolvedValueOnce({ tracks: [{ title: 'Current Song' }] })
+                .mockRejectedValueOnce(new Error('search unavailable'))
+            const queue = {
+                guild: { id: 'g' },
+                currentTrack: null,
+                tracks: { size: 0 },
+                player: { search },
+                clear,
+                addTrack: jest.fn(),
+            } as unknown as GuildQueue
+
+            const service = new MusicSessionSnapshotService()
+            const result = await service.restoreSnapshot(queue)
+
+            expect(clear).toHaveBeenCalledTimes(1)
+            expect(result.restoredCount).toBe(0)
+            expect(result.sessionSnapshotId).toBeNull()
+        })
+    })
+
+    describe('deleteSnapshot / clearSnapshotIfStale', () => {
+        it('swallows delete errors', async () => {
+            mockDeleteMany.mockRejectedValueOnce(new Error('db down'))
+            const service = new MusicSessionSnapshotService()
+            await expect(service.deleteSnapshot('g')).resolves.toBeUndefined()
+        })
+
+        it('clearSnapshotIfStale is a no-op when the queue has upcoming tracks', async () => {
+            const service = new MusicSessionSnapshotService()
+            const queue = {
+                guild: { id: 'g' },
+                currentTrack: { title: 't' },
+                tracks: { size: 3 },
+            } as unknown as GuildQueue
+            await service.clearSnapshotIfStale(queue)
+            expect(mockFindUnique).not.toHaveBeenCalled()
+        })
+
+        it('clearSnapshotIfStale skips when the snapshot has upcoming tracks', async () => {
+            mockFindUnique.mockResolvedValueOnce(snapshotRow())
+            const service = new MusicSessionSnapshotService()
+            const queue = {
+                guild: { id: 'guild-1' },
+                currentTrack: { title: 't' },
+                tracks: { size: 0 },
+            } as unknown as GuildQueue
+            await service.clearSnapshotIfStale(queue)
+            expect(mockDeleteMany).not.toHaveBeenCalled()
+        })
     })
 })

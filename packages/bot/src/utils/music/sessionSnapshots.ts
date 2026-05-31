@@ -2,7 +2,8 @@ import type { GuildQueue, Track } from 'discord-player'
 import { QueryType } from 'discord-player'
 import type { User } from 'discord.js'
 import { randomUUID } from 'crypto'
-import { redisClient } from '@lucky/shared/services'
+import { getPrismaClient } from '@lucky/shared/utils'
+import type { Prisma } from '@lucky/shared/utils'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 
@@ -39,6 +40,16 @@ const DEFAULT_MAX_SNAPSHOT_AGE_MS = 30 * 60 * 1_000
 type SearchOptions = {
     requestedBy?: User
     searchEngine: QueryType
+}
+
+/** Row shape this service reads from the `music_session_snapshots` table. */
+interface SnapshotRow {
+    sessionSnapshotId: string
+    guildId: string
+    savedAt: Date
+    currentTrack: unknown
+    upcomingTracks: unknown
+    voiceChannelId: string | null
 }
 
 function toDurationString(duration: unknown): string {
@@ -84,6 +95,13 @@ function applySnapshotMetadata(
     })
 }
 
+/**
+ * Persists the live queue state per guild (one snapshot each) in Postgres, so a
+ * session can be restored after a bot restart. A snapshot is overwritten on each
+ * save and deleted after a successful restore. Two independent staleness bounds
+ * apply: `ttlSeconds` (storage TTL, lazy-expired on read) and `maxSnapshotAgeMs`
+ * (the stricter restore guard — older snapshots are not auto-restored).
+ */
 export class MusicSessionSnapshotService {
     constructor(
         private readonly ttlSeconds = ENVIRONMENT_CONFIG.SESSIONS
@@ -91,8 +109,16 @@ export class MusicSessionSnapshotService {
         private readonly maxSnapshotAgeMs = DEFAULT_MAX_SNAPSHOT_AGE_MS,
     ) {}
 
-    private getKey(guildId: string): string {
-        return `music:session:${guildId}`
+    /** Maps a `music_session_snapshots` row to the public snapshot shape. */
+    private rowToSnapshot(row: SnapshotRow): QueueSessionSnapshot {
+        return {
+            sessionSnapshotId: row.sessionSnapshotId,
+            guildId: row.guildId,
+            savedAt: row.savedAt.getTime(),
+            currentTrack: (row.currentTrack ?? null) as SnapshotTrack | null,
+            upcomingTracks: (row.upcomingTracks ?? []) as SnapshotTrack[],
+            voiceChannelId: row.voiceChannelId ?? undefined,
+        }
     }
 
     async saveSnapshot(
@@ -110,24 +136,39 @@ export class MusicSessionSnapshotService {
                 return null
             }
 
-            const snapshot: QueueSessionSnapshot = {
-                sessionSnapshotId: randomUUID(),
+            const currentSnapshot = currentTrack
+                ? toSnapshotTrack(currentTrack as Track)
+                : null
+            const sessionSnapshotId = randomUUID()
+            const prisma = getPrismaClient()
+
+            // One snapshot per guild: overwrite by replacing the row. (delete +
+            // create avoids the Json-null footgun of clearing currentTrack on update.)
+            await prisma.musicSessionSnapshot.deleteMany({ where: { guildId } })
+            await prisma.musicSessionSnapshot.create({
+                data: {
+                    guildId,
+                    sessionSnapshotId,
+                    voiceChannelId: queue.channel?.id ?? null,
+                    upcomingTracks:
+                        upcomingTracks as unknown as Prisma.InputJsonValue,
+                    ...(currentSnapshot
+                        ? {
+                              currentTrack:
+                                  currentSnapshot as unknown as Prisma.InputJsonValue,
+                          }
+                        : {}),
+                },
+            })
+
+            return {
+                sessionSnapshotId,
                 guildId,
                 savedAt: Date.now(),
-                currentTrack: currentTrack
-                    ? toSnapshotTrack(currentTrack as Track)
-                    : null,
+                currentTrack: currentSnapshot,
                 upcomingTracks,
                 voiceChannelId: queue.channel?.id,
             }
-
-            await redisClient.setex(
-                this.getKey(guildId),
-                this.ttlSeconds,
-                JSON.stringify(snapshot),
-            )
-
-            return snapshot
         } catch (error) {
             errorLog({
                 message: 'Failed to save music session snapshot',
@@ -160,10 +201,19 @@ export class MusicSessionSnapshotService {
 
     async getSnapshot(guildId: string): Promise<QueueSessionSnapshot | null> {
         try {
-            const raw = await redisClient.get(this.getKey(guildId))
-            if (!raw) return null
-            const parsed = JSON.parse(raw) as QueueSessionSnapshot
-            return parsed
+            const prisma = getPrismaClient()
+            const row = await prisma.musicSessionSnapshot.findUnique({
+                where: { guildId },
+            })
+            if (!row) return null
+
+            // Lazy storage-TTL expiry: prune snapshots older than ttlSeconds.
+            if (row.savedAt.getTime() < Date.now() - this.ttlSeconds * 1000) {
+                await this.deleteSnapshot(guildId)
+                return null
+            }
+
+            return this.rowToSnapshot(row)
         } catch (error) {
             errorLog({
                 message: 'Failed to read music session snapshot',
@@ -174,13 +224,14 @@ export class MusicSessionSnapshotService {
     }
 
     /**
-     * Delete the snapshot for a guild from Redis.
+     * Delete the snapshot for a guild.
      * Called after a successful restore so the same snapshot is not re-applied
      * on subsequent connections.
      */
     async deleteSnapshot(guildId: string): Promise<void> {
         try {
-            await redisClient.del(this.getKey(guildId))
+            const prisma = getPrismaClient()
+            await prisma.musicSessionSnapshot.deleteMany({ where: { guildId } })
         } catch (error) {
             errorLog({
                 message: 'Failed to delete music session snapshot',
@@ -239,7 +290,10 @@ export class MusicSessionSnapshotService {
                 for (const entry of tracksToRestore) {
                     const query =
                         entry.url || `${entry.title} ${entry.author}`.trim()
-                    const result = await queue.player.search(query, searchOptions)
+                    const result = await queue.player.search(
+                        query,
+                        searchOptions,
+                    )
                     const track = result.tracks[0]
                     if (!track) continue
 
@@ -257,7 +311,8 @@ export class MusicSessionSnapshotService {
                 // Rollback: clear partial queue state on any search/add failure
                 queue.clear()
                 errorLog({
-                    message: 'Failed to restore track during restore loop; rolling back queue',
+                    message:
+                        'Failed to restore track during restore loop; rolling back queue',
                     error: loopError,
                 })
                 return { restoredCount: 0, sessionSnapshotId: null }
