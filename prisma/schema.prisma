@@ -68,6 +68,7 @@ model Guild {
   commandUsage        CommandUsage[]
   twitchNotifications TwitchNotification[]
   featureToggles      GuildFeatureToggle[]
+  namedQueues         NamedQueue[]
 
   @@map("guilds")
 }
@@ -265,6 +266,28 @@ model GuildSession {
   updatedAt DateTime @updatedAt
 
   @@map("guild_sessions")
+}
+
+// Named saved queues (user-saved music sessions, restorable by name)
+model NamedQueue {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  name           String
+  savedBy        String
+  savedAt        DateTime @default(now())
+  trackCount     Int
+  voiceChannelId String?
+
+  currentTrack   Json? // SnapshotTrack | null
+  upcomingTracks Json // SnapshotTrack[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, name])
+  @@index([guildId])
+  @@map("named_queues")
 }
 
 // Track History & Analytics
