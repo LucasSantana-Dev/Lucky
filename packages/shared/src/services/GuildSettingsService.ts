@@ -1,4 +1,5 @@
 import { redisClient } from './redis'
+import { getPrismaClient } from '../utils/database/prismaClient'
 import { infoLog, errorLog } from '../utils/general/log'
 
 /** Guild-specific music and command settings cached in Redis. */
@@ -33,9 +34,17 @@ export interface AutoplayCounter {
     lastReset: Date
 }
 
-/** Manages guild settings and counters stored in Redis. */
+/**
+ * Manages guild settings (Redis) and per-guild music counters (Postgres).
+ *
+ * Settings remain in Redis. The autoplay/repeat counters are persisted in the
+ * `guild_counters` table so they survive restarts. Rate-limit cooldowns are
+ * ephemeral and held in-process.
+ */
 export class GuildSettingsService {
     private readonly ttl: number
+    /** Ephemeral per-`guild:command` last-use epoch ms for rate limiting. */
+    private readonly rateLimits = new Map<string, number>()
 
     constructor(ttl = 7 * 24 * 60 * 60) {
         this.ttl = ttl
@@ -166,13 +175,16 @@ export class GuildSettingsService {
     /** Gets the autoplay recommendation counter for a guild. */
     async getAutoplayCounter(guildId: string): Promise<AutoplayCounter | null> {
         try {
-            const counterData = await redisClient.get(
-                this.getRedisKey(guildId, 'autoplay_counter'),
-            )
-            if (!counterData) {
-                return null
+            const prisma = getPrismaClient()
+            const row = await prisma.guildCounter.findUnique({
+                where: { guildId },
+            })
+            if (!row) return null
+            return {
+                guildId,
+                count: row.autoplayCount,
+                lastReset: row.autoplayLastReset,
             }
-            return JSON.parse(counterData) as AutoplayCounter
         } catch (error) {
             errorLog({ message: 'Failed to get autoplay counter', error })
             return null
@@ -185,11 +197,19 @@ export class GuildSettingsService {
         counter: AutoplayCounter,
     ): Promise<boolean> {
         try {
-            await redisClient.setex(
-                this.getRedisKey(guildId, 'autoplay_counter'),
-                this.ttl,
-                JSON.stringify(counter),
-            )
+            const prisma = getPrismaClient()
+            await prisma.guildCounter.upsert({
+                where: { guildId },
+                create: {
+                    guildId,
+                    autoplayCount: counter.count,
+                    autoplayLastReset: counter.lastReset,
+                },
+                update: {
+                    autoplayCount: counter.count,
+                    autoplayLastReset: counter.lastReset,
+                },
+            })
             return true
         } catch (error) {
             errorLog({ message: 'Failed to set autoplay counter', error })
@@ -200,16 +220,13 @@ export class GuildSettingsService {
     /** Increments and returns the autoplay counter for a guild. */
     async incrementAutoplayCounter(guildId: string): Promise<number> {
         try {
-            const counter = (await this.getAutoplayCounter(guildId)) || {
-                guildId,
-                count: 0,
-                lastReset: new Date(),
-            }
-
-            counter.count += 1
-            await this.setAutoplayCounter(guildId, counter)
-
-            return counter.count
+            const prisma = getPrismaClient()
+            const row = await prisma.guildCounter.upsert({
+                where: { guildId },
+                create: { guildId, autoplayCount: 1 },
+                update: { autoplayCount: { increment: 1 } },
+            })
+            return row.autoplayCount
         } catch (error) {
             errorLog({ message: 'Failed to increment autoplay counter', error })
             return 0
@@ -219,12 +236,14 @@ export class GuildSettingsService {
     /** Resets the autoplay counter for a guild to zero. */
     async resetAutoplayCounter(guildId: string): Promise<boolean> {
         try {
-            const counter: AutoplayCounter = {
-                guildId,
-                count: 0,
-                lastReset: new Date(),
-            }
-            return await this.setAutoplayCounter(guildId, counter)
+            const prisma = getPrismaClient()
+            const now = new Date()
+            await prisma.guildCounter.upsert({
+                where: { guildId },
+                create: { guildId, autoplayCount: 0, autoplayLastReset: now },
+                update: { autoplayCount: 0, autoplayLastReset: now },
+            })
+            return true
         } catch (error) {
             errorLog({ message: 'Failed to reset autoplay counter', error })
             return false
@@ -234,10 +253,11 @@ export class GuildSettingsService {
     /** Gets the repeat counter for a guild. */
     async getRepeatCount(guildId: string): Promise<number> {
         try {
-            const countData = await redisClient.get(
-                this.getRedisKey(guildId, 'repeat_count'),
-            )
-            return countData ? parseInt(countData, 10) : 0
+            const prisma = getPrismaClient()
+            const row = await prisma.guildCounter.findUnique({
+                where: { guildId },
+            })
+            return row?.repeatCount ?? 0
         } catch (error) {
             errorLog({ message: 'Failed to get repeat count', error })
             return 0
@@ -247,11 +267,12 @@ export class GuildSettingsService {
     /** Sets the repeat counter for a guild. */
     async setRepeatCount(guildId: string, count: number): Promise<boolean> {
         try {
-            await redisClient.setex(
-                this.getRedisKey(guildId, 'repeat_count'),
-                this.ttl,
-                count.toString(),
-            )
+            const prisma = getPrismaClient()
+            await prisma.guildCounter.upsert({
+                where: { guildId },
+                create: { guildId, repeatCount: count },
+                update: { repeatCount: count },
+            })
             return true
         } catch (error) {
             errorLog({ message: 'Failed to set repeat count', error })
@@ -262,10 +283,13 @@ export class GuildSettingsService {
     /** Increments and returns the repeat counter for a guild. */
     async incrementRepeatCount(guildId: string): Promise<number> {
         try {
-            const currentCount = await this.getRepeatCount(guildId)
-            const newCount = currentCount + 1
-            await this.setRepeatCount(guildId, newCount)
-            return newCount
+            const prisma = getPrismaClient()
+            const row = await prisma.guildCounter.upsert({
+                where: { guildId },
+                create: { guildId, repeatCount: 1 },
+                update: { repeatCount: { increment: 1 } },
+            })
+            return row.repeatCount
         } catch (error) {
             errorLog({ message: 'Failed to increment repeat count', error })
             return 0
@@ -296,53 +320,42 @@ export class GuildSettingsService {
         }
     }
 
-    /** Checks if a command is rate-limited for a guild. */
+    /**
+     * Checks if a command is rate-limited for a guild and, if not, records the
+     * current use. Cooldowns are ephemeral (in-memory), so they reset on restart.
+     */
     async isRateLimited(
         guildId: string,
         command: string,
         cooldown: number,
     ): Promise<boolean> {
-        try {
-            const key = this.getRedisKey(guildId, `rate_limit:${command}`)
-            const lastUsed = await redisClient.get(key)
+        const key = `${guildId}:${command}`
+        const lastUsed = this.rateLimits.get(key)
+        const now = Date.now()
 
-            if (!lastUsed) {
-                await redisClient.setex(key, cooldown, Date.now().toString())
-                return false
-            }
-
-            const timeSinceLastUse = Date.now() - parseInt(lastUsed, 10)
-            return timeSinceLastUse < cooldown * 1000
-        } catch (error) {
-            errorLog({ message: 'Failed to check rate limit', error })
-            return false
+        if (lastUsed !== undefined && now - lastUsed < cooldown * 1000) {
+            return true
         }
+        this.rateLimits.set(key, now)
+        return false
     }
 
-    /** Sets the rate limit for a command in a guild. */
+    /** Records the rate-limit timestamp for a command in a guild (in-memory). */
     async setRateLimit(
         guildId: string,
         command: string,
-        cooldown: number,
+        _cooldown: number,
     ): Promise<void> {
-        try {
-            const key = this.getRedisKey(guildId, `rate_limit:${command}`)
-            await redisClient.setex(key, cooldown, Date.now().toString())
-        } catch (error) {
-            errorLog({ message: 'Failed to set rate limit', error })
-        }
+        this.rateLimits.set(`${guildId}:${command}`, Date.now())
     }
 
     /** Clears all autoplay counters across all guilds. */
     async clearAllAutoplayCounters(): Promise<boolean> {
         try {
-            const pattern = 'guild_settings:*:autoplay_counter'
-            const keys = await redisClient.keys(pattern)
-            if (keys.length > 0) {
-                for (const key of keys) {
-                    await redisClient.del(key)
-                }
-            }
+            const prisma = getPrismaClient()
+            await prisma.guildCounter.updateMany({
+                data: { autoplayCount: 0, autoplayLastReset: new Date() },
+            })
             return true
         } catch (error) {
             errorLog({
