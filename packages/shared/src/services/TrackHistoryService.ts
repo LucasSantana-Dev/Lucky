@@ -1,4 +1,4 @@
-import { redisClient } from './redis'
+import { getPrismaClient } from '../utils/database/prismaClient'
 import { infoLog, errorLog } from '../utils/general/log'
 
 /** A track entry in guild playback history. */
@@ -33,21 +33,66 @@ export interface TrackHistoryStats {
     lastUpdated: Date
 }
 
-/** Manages track playback history stored in Redis for guilds. */
+/** Shape of the Prisma row fields this service reads. */
+interface TrackHistoryRow {
+    trackId: string
+    title: string
+    author: string
+    duration: string
+    url: string
+    playedAt: Date
+    guildId: string
+    playedBy: string | null
+    isAutoplay: boolean
+}
+
+/** Infers a coarse source label from a track URL. */
+function inferSource(url: string): string {
+    const u = url.toLowerCase()
+    if (u.includes('youtube') || u.includes('youtu.be')) return 'youtube'
+    if (u.includes('spotify')) return 'spotify'
+    if (u.includes('soundcloud')) return 'soundcloud'
+    return 'unknown'
+}
+
+/**
+ * Manages guild track playback history in Postgres (via Prisma).
+ *
+ * History is capped per guild to the most-recent `maxHistorySize` rows (trimmed
+ * on write) and expires after `ttl` seconds, applied lazily on read (rows older
+ * than the cutoff are filtered out). A `cleanupOldData()` sweep is available for
+ * housekeeping. The short-lived "recently played" marker used for duplicate
+ * detection is kept in-memory (ephemeral — rebuilt after a restart by design).
+ */
 export class TrackHistoryService {
-    private readonly ttl: number
+    private readonly ttlSeconds: number
     private readonly maxHistorySize: number
+    /** Ephemeral per-(guild,url) recently-played markers → expiry epoch ms. */
+    private readonly recentlyPlayed = new Map<string, number>()
 
     constructor(ttl = 7 * 24 * 60 * 60, maxHistorySize = 100) {
-        this.ttl = ttl
+        this.ttlSeconds = ttl
         this.maxHistorySize = maxHistorySize
     }
 
-    /** Generates Redis key for track history storage. */
-    private getRedisKey(guildId: string, trackId?: string): string {
-        return trackId
-            ? `track_history:${guildId}:${trackId}`
-            : `track_history:${guildId}`
+    /** Cutoff `Date` for TTL-based lazy expiry. */
+    private cutoff(): Date {
+        return new Date(Date.now() - this.ttlSeconds * 1000)
+    }
+
+    /** Maps a Prisma row to the public `TrackHistoryEntry` shape. */
+    private rowToEntry(row: TrackHistoryRow): TrackHistoryEntry {
+        return {
+            trackId: row.trackId,
+            title: row.title,
+            author: row.author,
+            duration: row.duration,
+            url: row.url,
+            timestamp: row.playedAt.getTime(),
+            guildId: row.guildId,
+            playedBy: row.playedBy ?? undefined,
+            isAutoplay: row.isAutoplay,
+        }
     }
 
     /** Adds a track to a guild's playback history. */
@@ -57,34 +102,22 @@ export class TrackHistoryService {
         playedBy?: string,
     ): Promise<boolean> {
         try {
-            const entry: TrackHistoryEntry = {
-                trackId: track.id,
-                title: track.title,
-                author: track.author,
-                duration: track.duration,
-                url: track.url,
-                timestamp: Date.now(),
-                guildId,
-                playedBy,
-                isAutoplay: Boolean(track.metadata?.isAutoplay ?? false),
-            }
+            const prisma = getPrismaClient()
+            await prisma.trackHistory.create({
+                data: {
+                    guildId,
+                    trackId: track.id,
+                    title: track.title,
+                    author: track.author,
+                    duration: track.duration,
+                    url: track.url,
+                    source: inferSource(track.url),
+                    playedBy,
+                    isAutoplay: Boolean(track.metadata?.isAutoplay ?? false),
+                },
+            })
 
-            await redisClient.setex(
-                this.getRedisKey(guildId, track.id),
-                this.ttl,
-                JSON.stringify(entry),
-            )
-
-            await redisClient.lpush(
-                this.getRedisKey(guildId),
-                JSON.stringify(entry),
-            )
-            await redisClient.ltrim(
-                this.getRedisKey(guildId),
-                0,
-                this.maxHistorySize - 1,
-            )
-            await redisClient.expire(this.getRedisKey(guildId), this.ttl)
+            await this.trimToMaxSize(guildId)
 
             infoLog({
                 message: `Added track to history: ${track.title} in guild ${guildId}`,
@@ -96,23 +129,37 @@ export class TrackHistoryService {
         }
     }
 
-    /** Retrieves track history for a guild with pagination. */
+    /** Trims a guild's history to the most-recent `maxHistorySize` rows. */
+    private async trimToMaxSize(guildId: string): Promise<void> {
+        const prisma = getPrismaClient()
+        const overflow = await prisma.trackHistory.findMany({
+            where: { guildId },
+            orderBy: { playedAt: 'desc' },
+            skip: this.maxHistorySize,
+            select: { id: true },
+        })
+        if (overflow.length > 0) {
+            await prisma.trackHistory.deleteMany({
+                where: { id: { in: overflow.map((r) => r.id) } },
+            })
+        }
+    }
+
+    /** Retrieves track history for a guild with pagination (most-recent first). */
     async getTrackHistory(
         guildId: string,
         limit = 10,
         offset = 0,
     ): Promise<TrackHistoryEntry[]> {
         try {
-            const start = offset
-            const end = offset + limit - 1
-            const historyData = await redisClient.lrange(
-                this.getRedisKey(guildId),
-                start,
-                end,
-            )
-            return historyData.map(
-                (data) => JSON.parse(data) as TrackHistoryEntry,
-            )
+            const prisma = getPrismaClient()
+            const rows = await prisma.trackHistory.findMany({
+                where: { guildId, playedAt: { gte: this.cutoff() } },
+                orderBy: { playedAt: 'desc' },
+                take: limit,
+                skip: offset,
+            })
+            return rows.map((row) => this.rowToEntry(row))
         } catch (error) {
             errorLog({ message: 'Failed to get track history', error })
             return []
@@ -122,23 +169,25 @@ export class TrackHistoryService {
     /** Retrieves the most recently played track for a guild. */
     async getLastTrack(guildId: string): Promise<TrackHistoryEntry | null> {
         try {
-            const lastTrackData = await redisClient.lindex(
-                this.getRedisKey(guildId),
-                0,
-            )
-            return lastTrackData
-                ? (JSON.parse(lastTrackData) as TrackHistoryEntry)
-                : null
+            const prisma = getPrismaClient()
+            const row = await prisma.trackHistory.findFirst({
+                where: { guildId, playedAt: { gte: this.cutoff() } },
+                orderBy: { playedAt: 'desc' },
+            })
+            return row ? this.rowToEntry(row) : null
         } catch (error) {
             errorLog({ message: 'Failed to get last track', error })
             return null
         }
     }
 
-    /** Gets the total count of tracks in a guild's history. */
+    /** Gets the total count of (non-expired) tracks in a guild's history. */
     async getTrackHistoryCount(guildId: string): Promise<number> {
         try {
-            return await redisClient.llen(this.getRedisKey(guildId))
+            const prisma = getPrismaClient()
+            return await prisma.trackHistory.count({
+                where: { guildId, playedAt: { gte: this.cutoff() } },
+            })
         } catch (error) {
             errorLog({ message: 'Failed to get track history count', error })
             return 0
@@ -148,7 +197,9 @@ export class TrackHistoryService {
     /** Clears all track history for a guild. */
     async clearHistory(guildId: string): Promise<boolean> {
         try {
-            await redisClient.del(this.getRedisKey(guildId))
+            const prisma = getPrismaClient()
+            await prisma.trackHistory.deleteMany({ where: { guildId } })
+            this.clearRecentlyPlayed(guildId)
             infoLog({ message: `Cleared track history for guild ${guildId}` })
             return true
         } catch (error) {
@@ -278,33 +329,47 @@ export class TrackHistoryService {
         return 0
     }
 
-    /** Cleans up expired track history data. */
+    /** Deletes history rows older than the TTL across all guilds; returns count. */
     async cleanupOldData(): Promise<number> {
-        return 0
-    }
-
-    /** Marks a track as played for duplicate detection. */
-    async markTrackAsPlayed(guildId: string, trackUrl: string): Promise<void> {
         try {
-            const key = this.getRedisKey(guildId, `played:${trackUrl}`)
-            await redisClient.setex(key, 300, Date.now().toString())
+            const prisma = getPrismaClient()
+            const result = await prisma.trackHistory.deleteMany({
+                where: { playedAt: { lt: this.cutoff() } },
+            })
+            return result.count
         } catch (error) {
-            errorLog({ message: 'Failed to mark track as played', error })
+            errorLog({ message: 'Failed to clean up old track history', error })
+            return 0
         }
     }
 
-    /** Clears all cached track data for a guild. */
+    /** Marks a track as recently played (ephemeral, in-memory) for dedup. */
+    markTrackAsPlayed(guildId: string, trackUrl: string): Promise<void> {
+        const now = Date.now()
+        this.recentlyPlayed.set(`${guildId}:${trackUrl}`, now + 300_000)
+        // Opportunistically prune expired markers to bound the map.
+        for (const [key, expiry] of this.recentlyPlayed) {
+            if (expiry <= now) this.recentlyPlayed.delete(key)
+        }
+        return Promise.resolve()
+    }
+
+    /** Clears all track data (history rows + ephemeral markers) for a guild. */
     async clearAllGuildCaches(guildId: string): Promise<void> {
         try {
-            const pattern = this.getRedisKey(guildId, '*')
-            const keys = await redisClient.keys(pattern)
-            if (keys.length > 0) {
-                for (const key of keys) {
-                    await redisClient.del(key)
-                }
-            }
+            const prisma = getPrismaClient()
+            await prisma.trackHistory.deleteMany({ where: { guildId } })
+            this.clearRecentlyPlayed(guildId)
         } catch (error) {
             errorLog({ message: 'Failed to clear guild caches', error })
+        }
+    }
+
+    /** Removes ephemeral recently-played markers for a guild. */
+    private clearRecentlyPlayed(guildId: string): void {
+        const prefix = `${guildId}:`
+        for (const key of this.recentlyPlayed.keys()) {
+            if (key.startsWith(prefix)) this.recentlyPlayed.delete(key)
         }
     }
 
