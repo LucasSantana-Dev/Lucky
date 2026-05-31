@@ -1,9 +1,29 @@
 /// <reference types="vitest/config" />
 import path from 'path'
-import { defineConfig } from 'vite'
+import { defineConfig, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 const rootModules = path.resolve(__dirname, '../../node_modules')
+
+// Source-map upload + release creation. Active only when SENTRY_AUTH_TOKEN is set
+// (CI / Vercel build env), so local and dev builds are unaffected.
+const sentryPlugins: PluginOption[] = process.env.SENTRY_AUTH_TOKEN
+  ? [
+      sentryVitePlugin({
+        org: process.env.SENTRY_ORG ?? 'lucas-santana-gm',
+        project: process.env.SENTRY_PROJECT ?? 'lucky',
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        telemetry: false,
+        release: {
+          name:
+            process.env.VITE_SENTRY_RELEASE ?? process.env.VITE_COMMIT_SHA,
+        },
+        // Upload maps for symbolication, then strip them so they are not served.
+        sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
+      }),
+    ]
+  : []
 
 const manualChunkGroups: Array<{ name: string; packages: string[] }> = [
   {
@@ -48,7 +68,7 @@ const manualChunkGroups: Array<{ name: string; packages: string[] }> = [
 
 export default defineConfig({
   base: process.env.NODE_ENV === 'development' ? '/' : process.env.VITE_BASE_PATH || '/',
-  plugins: [react()],
+  plugins: [react(), ...sentryPlugins],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

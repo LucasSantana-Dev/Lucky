@@ -1,6 +1,7 @@
 import { ensureEnvironment } from '@lucky/shared/config'
 import { setupErrorHandlers } from '@lucky/shared/utils'
 import { flushSentry, initializeSentry } from '@lucky/shared/utils'
+import { startHeartbeat, stopHeartbeat } from '@lucky/shared/utils'
 import { initializeBot, shutdown as shutdownBot } from './bot/start'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { dependencyCheckService } from './services/DependencyCheckService'
@@ -15,6 +16,8 @@ async function gracefulShutdown(signal: string): Promise<void> {
 
     isShuttingDown = true
     debugLog({ message: `Received ${signal}, initiating graceful shutdown...` })
+
+    stopHeartbeat()
 
     try {
         await shutdownBot()
@@ -46,6 +49,8 @@ async function main(): Promise<void> {
             runtime: 'discord-bot',
         },
     })
+
+    startHeartbeat({ serviceName: 'bot' })
 
     if (process.env.DEPENDENCY_CHECK_ENABLED === 'true') {
         dependencyCheckService.start()
