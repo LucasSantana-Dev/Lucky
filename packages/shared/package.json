@@ -30,6 +30,10 @@
             "types": "./dist/utils/index.d.ts",
             "default": "./dist/utils/index.js"
         },
+        "./utils/monitoring": {
+            "types": "./dist/utils/monitoring/index.d.ts",
+            "default": "./dist/utils/monitoring/index.js"
+        },
         "./utils/*": {
             "types": "./dist/utils/*.d.ts",
             "default": "./dist/utils/*.js"
