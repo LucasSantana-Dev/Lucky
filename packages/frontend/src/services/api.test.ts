@@ -285,7 +285,6 @@ describe('api service bootstrap', () => {
         await module.api.guilds.updateSettings('guild-1', {
             commandPrefix: '!',
         })
-        await module.api.guilds.applyCriativariaPreset('guild-1')
         await module.api.guilds.getListing('guild-1')
         await module.api.guilds.updateListing('guild-1', {
             listed: true,
@@ -334,9 +333,6 @@ describe('api service bootstrap', () => {
             {
                 commandPrefix: '!',
             },
-        )
-        expect(apiClient.post).toHaveBeenCalledWith(
-            '/guilds/guild-1/automation/presets/criativaria/apply',
         )
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/listing')
         expect(apiClient.post).toHaveBeenCalledWith('/guilds/guild-1/listing', {

@@ -10,7 +10,6 @@ import {
     guildAutomationService,
     validateGuildAutomationManifest,
 } from '@lucky/shared/services'
-import { buildCriativariaPreset } from '../constants/guildAutomationPresets'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
@@ -194,38 +193,6 @@ export function setupGuildAutomationRoutes(app: Express): void {
             })
 
             res.json(result)
-        }),
-    )
-
-    app.post(
-        '/api/guilds/:guildId/automation/presets/criativaria/apply',
-        requireGuildModuleAccess('settings', 'manage'),
-        writeLimiter,
-        validateParams(s.guildIdParam),
-        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const guildId = p(req.params.guildId)
-            const userId = requireUserId(req)
-
-            const preset = buildCriativariaPreset(guildId)
-            const saved = await guildAutomationService.saveManifest(
-                guildId,
-                preset,
-                { createdBy: userId },
-            )
-
-            const run = await guildAutomationService.createApplyRun(guildId, {
-                actualState: preset,
-                initiatedBy: userId,
-                allowProtected: false,
-                runType: 'reconcile',
-            })
-
-            res.json({
-                success: true,
-                preset: 'criativaria',
-                manifestVersion: saved.version,
-                run,
-            })
         }),
     )
 }
