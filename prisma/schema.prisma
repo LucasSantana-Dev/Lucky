@@ -782,12 +782,13 @@ model LevelConfig {
 }
 
 model MemberXP {
-  id        String   @id @default(cuid())
-  guildId   String
-  userId    String
-  xp        Int      @default(0)
-  level     Int      @default(0)
-  lastXpAt  DateTime @default(now())
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  displayName String?
+  xp          Int      @default(0)
+  level       Int      @default(0)
+  lastXpAt    DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
