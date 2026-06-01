@@ -1,12 +1,16 @@
 import { z } from 'zod'
 import {
     type SpotifyArtist,
+    debugLog,
     errorLog,
     getPrismaClient,
     searchSpotifyArtists,
     getSpotifyRelatedArtists,
+    warnLog,
 } from '@lucky/shared/utils'
-import { spotifyLinkService, redisClient } from '@lucky/shared/services'
+import { withTimeout } from '@lucky/shared/utils/async'
+import { TtlCache } from '@lucky/shared/utils/cache'
+import { spotifyLinkService } from '@lucky/shared/services'
 import { POPULAR_ARTISTS } from '../constants/popularArtists'
 import {
     getSpotifyClientToken,
@@ -43,7 +47,17 @@ export class ArtistSuggestionService {
     private fallbackCacheTtlSeconds: number
     private userTopArtistsCacheTtlSeconds: number
     private fallbackCacheKey = 'artist:suggestions:fallback:v2'
-    private userTopArtistsCachePrefix = 'artist:user:top:v1:'
+    // Per-tier deadline. A cache miss used to mean an unbounded synchronous
+    // Spotify fetch with no timeout anywhere, so the Discover tab spun forever.
+    // Each tier (including the Postgres read) is now bounded; on timeout the
+    // tier is skipped and whatever was already collected is returned.
+    private readonly tierTimeoutMs = 5000
+    // Caches moved off Redis (being decommissioned; an unhealthy client meant a
+    // miss on every load) into bounded in-memory TTL caches. Suggestions are
+    // regenerable/ephemeral, so this is the right trade per the Redis-removal
+    // ADRs (single-instance; revisit if Lucky scales out).
+    private readonly userTopArtistsCache: TtlCache<SpotifyArtist[]>
+    private readonly fallbackCache: TtlCache<SpotifyArtist[]>
 
     constructor(config: ArtistSuggestionServiceConfig = {}) {
         const merged = { ...DEFAULT_CONFIG, ...config }
@@ -51,6 +65,14 @@ export class ArtistSuggestionService {
         this.fallbackCacheTtlSeconds = merged.fallbackCacheTtlSeconds
         this.userTopArtistsCacheTtlSeconds =
             merged.userTopArtistsCacheTtlSeconds
+        this.userTopArtistsCache = new TtlCache<SpotifyArtist[]>({
+            ttlMs: this.userTopArtistsCacheTtlSeconds * 1000,
+            maxEntries: 1000,
+        })
+        this.fallbackCache = new TtlCache<SpotifyArtist[]>({
+            ttlMs: this.fallbackCacheTtlSeconds * 1000,
+            maxEntries: 1,
+        })
     }
 
     /**
@@ -68,21 +90,54 @@ export class ArtistSuggestionService {
         const suggestions = new Map<string, ArtistSuggestion>()
 
         // Tier 1: User's saved preferred artists
-        await this.loadPreferredArtists(discordUserId, guildId, suggestions)
+        await this.runTier('preferred', () =>
+            this.loadPreferredArtists(discordUserId, guildId, suggestions),
+        )
         if (suggestions.size >= this.maxSuggestions) {
             return Array.from(suggestions.values())
         }
 
         // Tier 2: User's Spotify top artists
-        await this.loadSpotifyTopArtists(discordUserId, suggestions)
+        await this.runTier('spotify-top', () =>
+            this.loadSpotifyTopArtists(discordUserId, suggestions),
+        )
         if (suggestions.size >= this.maxSuggestions) {
             return Array.from(suggestions.values())
         }
 
         // Tier 3: Popular artists fallback
-        await this.loadPopularArtistsFallback(suggestions)
+        await this.runTier('popular', () =>
+            this.loadPopularArtistsFallback(suggestions),
+        )
 
         return Array.from(suggestions.values()).slice(0, this.maxSuggestions)
+    }
+
+    /**
+     * Run one suggestion tier under a hard deadline. Each `loadX` already
+     * swallows its own errors (mutating the shared suggestions map), so this
+     * wrapper only ever catches a {@link withTimeout} timeout — at which point
+     * the tier is skipped and the request proceeds with whatever was collected,
+     * guaranteeing the endpoint returns rather than hanging.
+     */
+    private async runTier(
+        tier: string,
+        run: () => Promise<void>,
+    ): Promise<void> {
+        const startedAt = Date.now()
+        try {
+            await withTimeout(run(), this.tierTimeoutMs, `suggestions:${tier}`)
+            debugLog({
+                message: 'Suggestion tier completed',
+                data: { tier, ms: Date.now() - startedAt },
+            })
+        } catch (error) {
+            warnLog({
+                message: 'Suggestion tier timed out and was skipped',
+                error,
+                data: { tier, ms: Date.now() - startedAt },
+            })
+        }
     }
 
     /**
@@ -135,18 +190,7 @@ export class ArtistSuggestionService {
                 await spotifyLinkService.getValidAccessToken(discordUserId)
             if (!link) return
 
-            const userCacheKey = `${this.userTopArtistsCachePrefix}${discordUserId}`
-            let cachedTop: SpotifyArtist[] | null = null
-
-            // Try to load from cache
-            try {
-                const cached = await redisClient.get(userCacheKey)
-                if (cached) {
-                    cachedTop = JSON.parse(cached) as SpotifyArtist[]
-                }
-            } catch {
-                // Redis miss/error — fall through to Spotify
-            }
+            const cachedTop = this.userTopArtistsCache.get(discordUserId)
 
             if (cachedTop && cachedTop.length > 0) {
                 for (const artist of cachedTop) {
@@ -163,17 +207,8 @@ export class ArtistSuggestionService {
                     }
                 }
 
-                // Cache the fetched artists
                 if (topArtists.length > 0) {
-                    try {
-                        await redisClient.setex(
-                            userCacheKey,
-                            this.userTopArtistsCacheTtlSeconds,
-                            JSON.stringify(topArtists),
-                        )
-                    } catch {
-                        // Cache write failure is non-fatal
-                    }
+                    this.userTopArtistsCache.set(discordUserId, topArtists)
                 }
             }
         } catch (error) {
@@ -249,30 +284,12 @@ export class ArtistSuggestionService {
         suggestions: Map<string, ArtistSuggestion>,
     ): Promise<void> {
         try {
-            let fallback: SpotifyArtist[] = []
-
-            // Try to load from cache
-            try {
-                const cached = await redisClient.get(this.fallbackCacheKey)
-                if (cached) {
-                    fallback = JSON.parse(cached) as SpotifyArtist[]
-                }
-            } catch {
-                // Redis miss/error — fall through to fetch
-            }
+            let fallback = this.fallbackCache.get(this.fallbackCacheKey) ?? []
 
             if (fallback.length === 0) {
                 fallback = await this.fetchPopularArtists()
                 if (fallback.length > 0) {
-                    try {
-                        await redisClient.setex(
-                            this.fallbackCacheKey,
-                            this.fallbackCacheTtlSeconds,
-                            JSON.stringify(fallback),
-                        )
-                    } catch {
-                        // Cache write failure is non-fatal
-                    }
+                    this.fallbackCache.set(this.fallbackCacheKey, fallback)
                 }
             }
 
@@ -332,40 +349,32 @@ export class ArtistSuggestionService {
      */
     async prewarmCache(): Promise<void> {
         try {
-            // Wait up to 30s for Redis to become healthy
-            const start = Date.now()
-            while (!redisClient.isHealthy() && Date.now() - start < 30_000) {
-                await new Promise((r) => setTimeout(r, 500))
-            }
-
-            if (!redisClient.isHealthy()) {
-                return
-            }
-
             if (!isSpotifyAuthConfigured()) {
                 return
             }
 
-            const cached = await redisClient
-                .get(this.fallbackCacheKey)
-                .catch(() => null)
-            if (cached) {
+            if (this.fallbackCache.get(this.fallbackCacheKey)) {
                 return
             }
 
+            // Populate the in-memory fallback cache at startup so the first
+            // Discover request hits a warm cache instead of the ~20-call
+            // Spotify search (which would otherwise blow the per-tier deadline).
             const artists = await this.fetchPopularArtists()
             if (artists.length === 0) {
                 return
             }
 
-            await redisClient.setex(
-                this.fallbackCacheKey,
-                this.fallbackCacheTtlSeconds,
-                JSON.stringify(artists),
-            )
+            this.fallbackCache.set(this.fallbackCacheKey, artists)
         } catch (error) {
             errorLog({ message: 'Failed to prewarm suggestions cache', error })
         }
+    }
+
+    /** Clear the in-memory caches. Test-only — keeps suites isolated. */
+    resetCachesForTests(): void {
+        this.userTopArtistsCache.clear()
+        this.fallbackCache.clear()
     }
 
     // Route handlers — handle validation and return responses or throw errors
