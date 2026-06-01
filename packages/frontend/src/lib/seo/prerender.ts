@@ -36,20 +36,25 @@ export function setMeta(
     content: string,
 ): string {
     const tag = `<meta ${attr}="${key}" content="${escAttr(content)}" />`
+    // `attr`/`key` are trusted hardcoded literals (not user input) and the pattern
+    // has no nested quantifiers, so this is ReDoS-safe.
+    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
     const re = new RegExp(
         `<meta[^>]*\\b${attr}=["']${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>`,
         'i',
     )
-    if (re.test(html)) return html.replace(re, tag)
-    return html.replace('</head>', `    ${tag}\n  </head>`)
+    // Function replacers: `tag`/content may contain `$` and `replace`'s string form
+    // would treat `$&`, `$$`, `$n` as patterns. A function replacer emits it literally.
+    if (re.test(html)) return html.replace(re, () => tag)
+    return html.replace('</head>', () => `    ${tag}\n  </head>`)
 }
 
 export function setCanonical(html: string, url: string): string {
     const tag = `<link rel="canonical" href="${escAttr(url)}" />`
     if (/<link[^>]*rel=["']canonical["'][^>]*>/i.test(html)) {
-        return html.replace(/<link[^>]*rel=["']canonical["'][^>]*>/i, tag)
+        return html.replace(/<link[^>]*rel=["']canonical["'][^>]*>/i, () => tag)
     }
-    return html.replace('</head>', `    ${tag}\n  </head>`)
+    return html.replace('</head>', () => `    ${tag}\n  </head>`)
 }
 
 /**
@@ -66,7 +71,7 @@ export function renderRouteHtml(template: string, r: RouteMeta): string {
     let html = template
     html = html.replace(
         /<title>[\s\S]*?<\/title>/i,
-        `<title>${escText(r.title)}</title>`,
+        () => `<title>${escText(r.title)}</title>`,
     )
     html = setMeta(html, 'name', 'description', r.description)
     html = setMeta(html, 'property', 'og:title', r.title)

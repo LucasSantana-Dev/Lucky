@@ -34,6 +34,7 @@ function getCanonical(html: string): string | null {
 function getMeta(html: string, attr: string, key: string): string | null {
     return (
         html.match(
+            // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
             new RegExp(`<meta ${attr}="${key}" content="([^"]*)"`),
         )?.[1] ?? null
     )
@@ -94,6 +95,20 @@ describe('renderRouteHtml', () => {
         expect(html).toContain('<title>A &amp; B &lt;x&gt;</title>')
         expect(getMeta(html, 'name', 'description')).toBe(
             'desc &quot;q&quot; &amp; &lt;y&gt;',
+        )
+    })
+
+    it('emits literal $-sequences from metadata (no replacement-pattern corruption)', () => {
+        const route: RouteMeta = {
+            path: '/x',
+            title: 'Pay $1 or $$ now',
+            description: 'Save $$ and $1 today',
+        }
+        const html = renderRouteHtml(TEMPLATE, route)
+        // Without function replacers, `$$` collapses to `$` and `$1` is reinterpreted.
+        expect(html).toContain('<title>Pay $1 or $$ now</title>')
+        expect(getMeta(html, 'name', 'description')).toBe(
+            'Save $$ and $1 today',
         )
     })
 })

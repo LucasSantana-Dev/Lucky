@@ -20,8 +20,10 @@ metadata in its served HTML — `og:image` is a `/favicon.png`, `twitter:card` i
 `summary`.
 
 This makes the marketing/docs pages effectively invisible to anything that doesn't
-execute JavaScript. As of June 2026, **AI answer-engine crawlers (ChatGPT, Claude,
-Perplexity) do not run JS**; only Google/Gemini renders it. Per-route metadata in
+execute JavaScript. As of June 2026 (verified 2026-06-01 via vendor docs + testing
+during the research phase), **AI answer-engine crawlers (ChatGPT, Claude, Perplexity)
+do not run JS**; only Google/Gemini renders it. This is time-sensitive — re-verify if
+revisiting. Per-route metadata in
 the **served** HTML is therefore a requirement, not a nicety (issue #1131). The site
 also lacks `robots.txt`, a `sitemap.xml`, and a real OG image (issue #1132).
 
