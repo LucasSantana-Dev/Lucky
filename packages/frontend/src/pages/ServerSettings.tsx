@@ -20,7 +20,6 @@ import {
     Trash2,
     Shield,
     RotateCcw,
-    WandSparkles,
     X,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
@@ -130,8 +129,6 @@ export default function ServerSettingsPage() {
     const [saving, setSaving] = useState(false)
     const [rbacLoading, setRbacLoading] = useState(false)
     const [rbacSaving, setRbacSaving] = useState(false)
-    const [applyingCriativariaPreset, setApplyingCriativariaPreset] =
-        useState(false)
     const [rbacRolesError, setRbacRolesError] = useState<string | null>(null)
     const [rbacRoles, setRbacRoles] = useState<
         Array<{ id: string; name: string }>
@@ -337,30 +334,6 @@ export default function ServerSettingsPage() {
             toast.error('Failed to save access control policy')
         } finally {
             setRbacSaving(false)
-        }
-    }
-
-    const handleApplyCriativariaPreset = async () => {
-        if (!selectedGuild?.id || !canManageRbac) {
-            return
-        }
-
-        setApplyingCriativariaPreset(true)
-        try {
-            const response = await api.guilds.applyCriativariaPreset(
-                selectedGuild.id,
-            )
-            toast.success(
-                `Criativaria baseline applied (${response.data.run.status})`,
-            )
-        } catch (error) {
-            if (error instanceof ApiError) {
-                toast.error(error.message)
-            } else {
-                toast.error('Failed to apply Criativaria baseline')
-            }
-        } finally {
-            setApplyingCriativariaPreset(false)
         }
     }
 
@@ -868,46 +841,6 @@ export default function ServerSettingsPage() {
                     Save Changes
                 </Button>
             </div>
-
-            <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-            >
-                <Card className='p-5 space-y-4 border-l-4 border-l-lucky-warning'>
-                    <div className='flex items-center justify-between gap-4'>
-                        <div className='flex items-center gap-3'>
-                            <div className='p-2 rounded-lg bg-lucky-warning/15'>
-                                <WandSparkles className='w-5 h-5 text-lucky-warning' />
-                            </div>
-                            <div>
-                                <h2 className='type-title text-lucky-text-primary'>
-                                    Criativaria Baseline
-                                </h2>
-                                <p className='type-body-sm text-lucky-text-tertiary mt-0.5'>
-                                    Apply the migration baseline from legacy
-                                    bots with safe reconcile defaults.
-                                </p>
-                            </div>
-                        </div>
-                        <Button
-                            type='button'
-                            onClick={handleApplyCriativariaPreset}
-                            disabled={
-                                !canManageRbac || applyingCriativariaPreset
-                            }
-                            className='gap-2 shrink-0'
-                        >
-                            {applyingCriativariaPreset ? (
-                                <Loader2 className='w-4 h-4 animate-spin' />
-                            ) : (
-                                <WandSparkles className='w-4 h-4' />
-                            )}
-                            Apply
-                        </Button>
-                    </div>
-                </Card>
-            </motion.div>
 
             <motion.div
                 initial={{ opacity: 0, y: 8 }}

@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import ServerSettingsPage from './ServerSettings'
@@ -55,16 +55,6 @@ const makeManagerRbacPayload = (
     canManageRbac: true,
     ...overrides,
 })
-
-const setupManagerRbac = (overrides: Partial<GuildRbacPayload> = {}) => {
-    mockGuildStoreFn(managerGuild, {
-        canManageRbac: true,
-        effectiveAccess: defaultAccess,
-    })
-    vi.mocked(api.guilds.getRbac).mockResolvedValue({
-        data: makeManagerRbacPayload(overrides),
-    } as GuildRbacResponse)
-}
 
 function mockGuildStoreFn(guild: typeof mockGuild | null, memberContext?: any) {
     vi.mocked(useGuildStore).mockReturnValue({
@@ -509,66 +499,6 @@ describe('ServerSettingsPage', () => {
             expect(toast.error).toHaveBeenCalledWith(
                 'Failed to save access control policy',
             )
-        })
-    })
-
-    test('applies Criativaria baseline and shows success toast', async () => {
-        const user = userEvent.setup()
-        const { toast } = await import('sonner')
-        setupManagerRbac()
-        vi.mocked(api.guilds.applyCriativariaPreset).mockResolvedValue({
-            data: { run: { status: 'completed' } },
-        } as any)
-
-        renderPage()
-
-        const heading = await screen.findByText('Criativaria Baseline')
-        const card =
-            heading.closest('section') ||
-            (heading.closest('div[class*="space-y"]')
-                ?.parentElement as HTMLElement)
-        const applyButton = within(card).getByRole('button', { name: /Apply/i })
-        await user.click(applyButton)
-
-        await waitFor(() => {
-            expect(api.guilds.applyCriativariaPreset).toHaveBeenCalledWith(
-                managerGuild.id,
-            )
-            expect(toast.success).toHaveBeenCalledWith(
-                'Criativaria baseline applied (completed)',
-            )
-        })
-    })
-
-    test.each([
-        {
-            name: 'shows ApiError message when Criativaria baseline apply fails',
-            error: new ApiError(500, 'Preset failed'),
-            expectedToast: 'Preset failed',
-        },
-        {
-            name: 'shows generic message when Criativaria baseline apply fails unexpectedly',
-            error: new Error('Unexpected failure'),
-            expectedToast: 'Failed to apply Criativaria baseline',
-        },
-    ])('$name', async ({ error, expectedToast }) => {
-        const user = userEvent.setup()
-        const { toast } = await import('sonner')
-        setupManagerRbac()
-        vi.mocked(api.guilds.applyCriativariaPreset).mockRejectedValue(error)
-
-        renderPage()
-
-        const heading = await screen.findByText('Criativaria Baseline')
-        const card =
-            heading.closest('section') ||
-            (heading.closest('div[class*="space-y"]')
-                ?.parentElement as HTMLElement)
-        const applyButton = within(card).getByRole('button', { name: /Apply/i })
-        await user.click(applyButton)
-
-        await waitFor(() => {
-            expect(toast.error).toHaveBeenCalledWith(expectedToast)
         })
     })
 

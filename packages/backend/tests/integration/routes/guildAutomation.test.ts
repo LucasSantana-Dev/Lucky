@@ -192,45 +192,6 @@ describe('Guild Automation Routes', () => {
         })
     })
 
-    test('POST criativaria preset applies manifest and reconcile run', async () => {
-        mockedService.saveManifest.mockResolvedValue({
-            guildId: GUILD_ID,
-            version: 1,
-            updatedAt: new Date(),
-        } as any)
-        mockedService.createApplyRun.mockResolvedValue({
-            runId: 'run-3',
-            status: 'completed',
-            blockedByProtected: false,
-            plan: MOCK_PLAN,
-        } as any)
-
-        const response = await authed(app)
-            .post(`${AUTOMATION_BASE}/presets/criativaria/apply`)
-            .expect(200)
-
-        expect(response.body).toEqual({
-            success: true,
-            preset: 'criativaria',
-            manifestVersion: 1,
-            run: {
-                runId: 'run-3',
-                status: 'completed',
-                blockedByProtected: false,
-                plan: MOCK_PLAN,
-            },
-        })
-        expect(mockedService.saveManifest).toHaveBeenCalled()
-        expect(mockedService.createApplyRun).toHaveBeenCalledWith(
-            GUILD_ID,
-            expect.objectContaining({
-                initiatedBy: MOCK_SESSION_DATA.userId,
-                allowProtected: false,
-                runType: 'reconcile',
-            }),
-        )
-    })
-
     test('returns 403 for user without settings:manage on write routes', async () => {
         mockedGuildAccessService.hasAccess.mockReturnValue(false)
         await authed(app)

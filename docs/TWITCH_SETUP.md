@@ -70,16 +70,6 @@ For headless or CLI setups, use the [device code flow](https://dev.twitch.tv/doc
 
 Only users with **Manage Server** can use these commands.
 
-### Notifying for Criativaria
-
-To receive Discord notifications when the **Criativaria** Twitch channel goes live, run in the Discord channel where you want alerts:
-
-```
-/twitch add Criativaria
-```
-
-If you prefer a different channel than the one you run the command in, use the `channel` option to select the target channel.
-
 ## Behaviour
 
 - On bot ready, if Twitch env is set, Lucky connects to `wss://eventsub.wss.twitch.tv/ws`, receives a session id, and creates `stream.online` subscriptions for each distinct Twitch user id stored in the database.
