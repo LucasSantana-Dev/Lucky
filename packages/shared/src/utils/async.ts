@@ -51,3 +51,9 @@ export const withTimeout = <T>(
         }
     }) as Promise<T>
 }
+
+/** Resolve after `ms` milliseconds. Used for backoff between retries. */
+export const delay = (ms: number): Promise<void> =>
+    new Promise((resolve) => {
+        setTimeout(resolve, ms)
+    })
