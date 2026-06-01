@@ -73,8 +73,11 @@ Redis ADR taxonomy):
 
 ### §3 — Observability
 
-Emit per-tier metrics (tier reached, latency, Spotify status incl. 429) so silent
-degradation (always-Tier-1) is visible and the revisit triggers below can fire.
+Emit per-tier observability via **structured logs** — tier reached, latency, and
+Spotify status (incl. 429) in the log `data` — so silent degradation
+(always-Tier-1) is visible and the revisit triggers below can fire. This is
+log-based, not a metrics pipeline; aggregate failure-mode _metrics_ remain
+deferred (see the logging-observability-hardening ADR).
 
 ### §4 — Frontend
 
@@ -104,7 +107,7 @@ service; degradation becomes observable; minimal new infra.
 **Negative / accepted:** in-memory cache is lost on deploy/restart → first Discover load
 re-fetches from Spotify (bounded by the timeout); multi-instance scale-out would make
 per-process caches stale (revisit → Postgres); per-user cache evicts LRU past the cap.
-**Neutral:** a small `TtlMap` util + per-tier metrics enter the codebase.
+**Neutral:** a small `TtlMap` util + per-tier observability logging enter the codebase.
 
 ## Revisit when
 

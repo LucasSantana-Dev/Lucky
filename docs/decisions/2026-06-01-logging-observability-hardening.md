@@ -74,8 +74,11 @@ These fix live user-facing breakage and are isolated/testable:
 
 ### Deferred (unchanged)
 
-Failure-mode **metrics** (429/timeout/slow-query/feature-toggle-health) and OTel stay
-**deferred** per ADR 2026-05-30 (alert-first; revisit 2026-06-15) — do NOT add them now.
+Aggregate failure-mode **metrics** (429/timeout/slow-query/feature-toggle-health
+counters/gauges) and OTel stay **deferred** per ADR 2026-05-30 (alert-first; revisit
+2026-06-15) — do NOT stand up a metrics pipeline now. This does **not** forbid per-tier
+_structured logging_ (tier/latency/429 carried in the log `data`, as shipped for the
+Musical-Taste fix): that is logging, not metrics, and is explicitly in scope.
 
 ## Alternatives considered
 
