@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import changelogMd from '../../../../CHANGELOG.md?raw'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
+import { metaFor } from '@/lib/seo/routeMeta'
 import PublicHeader from '@/components/DocsShell/PublicHeader'
 import { useActiveHeading } from '@/hooks/useActiveHeading'
 
@@ -113,10 +114,7 @@ const sectionStyles: Record<string, string> = {
 }
 
 export default function ChangelogPage() {
-    usePageMetadata({
-        title: 'Changelog · Lucky',
-        description: 'Release notes and version history for Lucky.',
-    })
+    usePageMetadata(metaFor('/changelog'))
 
     const entries = useMemo(() => parseChangelog(changelogMd), [])
     const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -151,7 +149,9 @@ export default function ChangelogPage() {
                                             href={`#v-${e.version}`}
                                             className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors ${active ? 'bg-lucky-surface-panel text-lucky-text-strong shadow-[inset_2px_0_0_var(--color-lucky-brand)]' : 'text-lucky-text-body hover:bg-lucky-surface-panel hover:text-lucky-text-strong'}`}
                                         >
-                                            <span className='font-mono'>{e.version}</span>
+                                            <span className='font-mono'>
+                                                {e.version}
+                                            </span>
                                             {e.date ? (
                                                 <span className='font-mono text-[10px] text-lucky-text-muted'>
                                                     {e.date.slice(0, 7)}
@@ -216,7 +216,8 @@ export default function ChangelogPage() {
                                         </div>
                                         <div className='mt-5 space-y-6'>
                                             {entry.sections.map((section) =>
-                                                section.items.length === 0 ? null : (
+                                                section.items.length ===
+                                                0 ? null : (
                                                     <div key={section.heading}>
                                                         <h3
                                                             className={`mb-2 font-mono text-[11px] uppercase tracking-[0.22em] ${sectionStyles[section.heading] ?? 'text-lucky-text-muted'}`}
@@ -224,12 +225,21 @@ export default function ChangelogPage() {
                                                             {section.heading}
                                                         </h3>
                                                         <ul className='space-y-1.5 text-sm leading-relaxed text-lucky-text-body'>
-                                                            {section.items.map((item, i) => (
-                                                                <li key={i} className='flex gap-2'>
-                                                                    <span className='mt-2 inline-block h-1 w-1 shrink-0 rounded-full bg-lucky-text-muted' />
-                                                                    <span>{renderInlineMd(item)}</span>
-                                                                </li>
-                                                            ))}
+                                                            {section.items.map(
+                                                                (item, i) => (
+                                                                    <li
+                                                                        key={i}
+                                                                        className='flex gap-2'
+                                                                    >
+                                                                        <span className='mt-2 inline-block h-1 w-1 shrink-0 rounded-full bg-lucky-text-muted' />
+                                                                        <span>
+                                                                            {renderInlineMd(
+                                                                                item,
+                                                                            )}
+                                                                        </span>
+                                                                    </li>
+                                                                ),
+                                                            )}
                                                         </ul>
                                                     </div>
                                                 ),
