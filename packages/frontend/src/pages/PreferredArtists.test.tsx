@@ -9,8 +9,21 @@ vi.mock('@/hooks/usePageMetadata', () => ({ usePageMetadata: vi.fn() }))
 vi.mock('framer-motion', async () => {
     const React = await import('react')
     const passthrough = (tag: string) =>
-        React.forwardRef(({ children, layout, initial, animate, exit, transition, whileHover, whileTap, ...props }: any, ref: any) =>
-            React.createElement(tag, { ...props, ref }, children),
+        React.forwardRef(
+            (
+                {
+                    children,
+                    layout,
+                    initial,
+                    animate,
+                    exit,
+                    transition,
+                    whileHover,
+                    whileTap,
+                    ...props
+                }: any,
+                ref: any,
+            ) => React.createElement(tag, { ...props, ref }, children),
         )
     return {
         motion: new Proxy({}, { get: (_t, prop: string) => passthrough(prop) }),
@@ -159,6 +172,39 @@ describe('PreferredArtistsPage', () => {
         await waitFor(() => {
             expect(screen.getByText('Suggested Artist')).toBeInTheDocument()
         })
+    })
+
+    test('hides already-preferred artists from the discover feed', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        // The Beatles is already a saved preference.
+        mockGetPreferences.mockResolvedValue({
+            data: { preferences: [mockPreference] },
+        })
+        // Suggestions include the already-preferred Beatles plus a fresh artist.
+        mockGetSuggestions.mockResolvedValue({
+            data: {
+                artists: [
+                    mockArtist,
+                    {
+                        id: 'artist-2',
+                        name: 'Pink Floyd',
+                        imageUrl: null,
+                        popularity: 75,
+                        genres: ['rock'],
+                    },
+                ],
+            },
+        })
+        renderPage()
+
+        // The not-yet-preferred artist surfaces in discover...
+        await waitFor(() => {
+            expect(screen.getByText('Pink Floyd')).toBeInTheDocument()
+        })
+        // ...while the already-preferred one is filtered out of the feed.
+        expect(screen.queryByText('The Beatles')).not.toBeInTheDocument()
     })
 
     test('displays blocked artists section when blocked artists exist', async () => {
@@ -623,7 +669,10 @@ describe('PreferredArtistsPage', () => {
         })
 
         await waitFor(() => {
-            expect(mockDeletePreference).toHaveBeenCalledWith('thebeatles', 'guild-1')
+            expect(mockDeletePreference).toHaveBeenCalledWith(
+                'thebeatles',
+                'guild-1',
+            )
         })
         await waitFor(() => {
             expect(mockGetPreferences).toHaveBeenCalledTimes(2)
@@ -655,11 +704,13 @@ describe('PreferredArtistsPage', () => {
             genres: ['rock'],
         }
 
-        mockGetRelated.mockResolvedValueOnce({
-            data: { artists: [ledZeppelinArtist] },
-        }).mockResolvedValueOnce({
-            data: { artists: [pinkFloydArtist] },
-        })
+        mockGetRelated
+            .mockResolvedValueOnce({
+                data: { artists: [ledZeppelinArtist] },
+            })
+            .mockResolvedValueOnce({
+                data: { artists: [pinkFloydArtist] },
+            })
 
         renderPage()
         await waitFor(() => {
