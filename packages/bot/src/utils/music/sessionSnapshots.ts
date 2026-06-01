@@ -224,6 +224,29 @@ export class MusicSessionSnapshotService {
     }
 
     /**
+     * Lists guild IDs that currently have a non-expired snapshot. Replaces the
+     * watchdog's old Redis `keys('music:session:*')` scan now that snapshots live
+     * in Postgres. Filters by the storage TTL so callers don't act on stale rows.
+     */
+    async listGuildIds(): Promise<string[]> {
+        try {
+            const prisma = getPrismaClient()
+            const cutoff = new Date(Date.now() - this.ttlSeconds * 1000)
+            const rows = await prisma.musicSessionSnapshot.findMany({
+                where: { savedAt: { gte: cutoff } },
+                select: { guildId: true },
+            })
+            return rows.map((r) => r.guildId)
+        } catch (error) {
+            errorLog({
+                message: 'Failed to list music session snapshot guilds',
+                error,
+            })
+            return []
+        }
+    }
+
+    /**
      * Delete the snapshot for a guild.
      * Called after a successful restore so the same snapshot is not re-applied
      * on subsequent connections.
