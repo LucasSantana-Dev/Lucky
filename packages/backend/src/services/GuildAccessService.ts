@@ -2,12 +2,12 @@ import { createHash } from 'node:crypto'
 import {
     GuildRoleGrantStorageError,
     guildRoleAccessService,
-    redisClient,
     type AccessMode,
     type EffectiveAccessMap,
     type ModuleKey,
 } from '@lucky/shared/services'
-import { errorLog, infoLog } from '@lucky/shared/utils'
+import { errorLog, warnLog } from '@lucky/shared/utils'
+import { TtlCache } from '@lucky/shared/utils/cache'
 import {
     DiscordApiError,
     discordOAuthService,
@@ -36,31 +36,20 @@ export interface AuthorizedGuild extends GuildWithBotStatus {
 
 class GuildAccessService {
     private readonly userGuildCacheTtlSeconds = 30
+    // In-memory cache of the user's Discord guild list. Replaces the former
+    // Redis read-through cache (Redis is being decommissioned; when it was
+    // unhealthy this cache silently no-op'd, so every request hit Discord and
+    // triggered 429 storms that degraded /moderation/cases, /logs, etc.). The
+    // source of truth is the Discord API, not Postgres, so an in-memory TTL
+    // cache is the right home (single-instance; revisit if Lucky scales out).
+    private readonly userGuildCache = new TtlCache<DiscordGuild[]>({
+        ttlMs: this.userGuildCacheTtlSeconds * 1000,
+        maxEntries: 1000,
+    })
     private readonly userGuildsInFlight = new Map<
         string,
         Promise<DiscordGuild[]>
     >()
-
-    private isDiscordGuildArray(value: unknown): value is DiscordGuild[] {
-        return (
-            Array.isArray(value) &&
-            value.every((item) => {
-                if (typeof item !== 'object' || item === null) {
-                    return false
-                }
-
-                const guild = item as {
-                    id?: unknown
-                    name?: unknown
-                }
-
-                return (
-                    typeof guild.id === 'string' &&
-                    typeof guild.name === 'string'
-                )
-            })
-        )
-    }
 
     private getCacheKey(session: SessionData): string {
         const accessTokenFingerprint = createHash('sha256')
@@ -71,56 +60,15 @@ class GuildAccessService {
         return `guild-access:user-guilds:${session.user.id}:${accessTokenFingerprint}`
     }
 
-    private async getCachedGuilds(
-        session: SessionData,
-    ): Promise<DiscordGuild[] | null> {
-        if (!redisClient.isHealthy()) {
-            return null
-        }
-
-        try {
-            const raw = await redisClient.get(this.getCacheKey(session))
-            if (!raw) {
-                return null
-            }
-
-            const parsed: unknown = JSON.parse(raw)
-            if (!this.isDiscordGuildArray(parsed)) {
-                return null
-            }
-
-            return parsed
-        } catch (error) {
-            errorLog({
-                message: 'Failed to read cached Discord guild list',
-                error,
-                data: { userId: session.user.id },
-            })
-            return null
-        }
+    private getCachedGuilds(session: SessionData): DiscordGuild[] | null {
+        return this.userGuildCache.get(this.getCacheKey(session)) ?? null
     }
 
-    private async setCachedGuilds(
+    private setCachedGuilds(
         session: SessionData,
         guilds: DiscordGuild[],
-    ): Promise<void> {
-        if (!redisClient.isHealthy()) {
-            return
-        }
-
-        try {
-            await redisClient.setex(
-                this.getCacheKey(session),
-                this.userGuildCacheTtlSeconds,
-                JSON.stringify(guilds),
-            )
-        } catch (error) {
-            errorLog({
-                message: 'Failed to cache Discord guild list',
-                error,
-                data: { userId: session.user.id, guildCount: guilds.length },
-            })
-        }
+    ): void {
+        this.userGuildCache.set(this.getCacheKey(session), guilds)
     }
 
     private extractStatusCode(error: unknown): number | null {
@@ -151,7 +99,7 @@ class GuildAccessService {
         options?: { allowCachedFallback?: boolean },
     ): Promise<DiscordGuild[]> {
         const allowCachedFallback = options?.allowCachedFallback ?? true
-        const cached = await this.getCachedGuilds(session)
+        const cached = this.getCachedGuilds(session)
         if (cached) {
             return cached
         }
@@ -167,11 +115,11 @@ class GuildAccessService {
                 const guilds = await discordOAuthService.getUserGuilds(
                     session.accessToken,
                 )
-                await this.setCachedGuilds(session, guilds)
+                this.setCachedGuilds(session, guilds)
                 return guilds
             } catch (error) {
                 const statusCode = this.extractStatusCode(error)
-                const cachedGuilds = await this.getCachedGuilds(session)
+                const cachedGuilds = this.getCachedGuilds(session)
 
                 if (
                     allowCachedFallback &&
@@ -179,11 +127,11 @@ class GuildAccessService {
                     (statusCode === 429 ||
                         (statusCode !== null && statusCode >= 500))
                 ) {
-                    // Graceful degradation — Discord 429/5xx is expected
-                    // during rate-limit windows; cache fallback works as
-                    // designed. Log at info level so Sentry doesn't surface
-                    // it as a recurring error.
-                    infoLog({
+                    // Graceful degradation — serve the cached guild list when
+                    // Discord 429/5xx hits. Logged at WARN (not INFO) so a
+                    // sustained rate-limit window is visible in Sentry as the
+                    // signal it is, rather than being silently absorbed.
+                    warnLog({
                         message:
                             'Using cached guild list after Discord guild fetch failure',
                         data: {
@@ -229,6 +177,7 @@ class GuildAccessService {
 
     resetCachesForTests(): void {
         this.userGuildsInFlight.clear()
+        this.userGuildCache.clear()
     }
 
     private async buildContext(

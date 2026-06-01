@@ -1,4 +1,5 @@
-import { errorLog, debugLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
+import { delay, withTimeout } from '@lucky/shared/utils/async'
 
 export interface DiscordUser {
     id: string
@@ -41,6 +42,21 @@ interface TokenResponse {
 
 class DiscordOAuthService {
     private readonly apiBaseUrl = 'https://discord.com/api/v10'
+    private readonly restTimeoutMs = 10_000
+    private readonly maxRateLimitRetries = 1
+
+    /**
+     * Parse a Discord `Retry-After` header (seconds) into a bounded backoff in
+     * milliseconds. Falls back to 1s and is capped at 3s so a request thread is
+     * never blocked for long.
+     */
+    private parseRetryAfterMs(response: Response): number {
+        const header = response.headers.get('retry-after')
+        const seconds = header ? Number.parseFloat(header) : Number.NaN
+        const ms =
+            Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 1000
+        return Math.min(ms, 3000)
+    }
 
     private normalizePermissionValue(value: unknown): string | null {
         if (typeof value === 'string') {
@@ -88,7 +104,10 @@ class DiscordOAuthService {
             }
 
             const guild = rawGuild as Record<string, unknown>
-            if (typeof guild.id !== 'string' || typeof guild.name !== 'string') {
+            if (
+                typeof guild.id !== 'string' ||
+                typeof guild.name !== 'string'
+            ) {
                 continue
             }
 
@@ -206,31 +225,52 @@ class DiscordOAuthService {
     }
 
     async getUserGuilds(accessToken: string): Promise<DiscordGuild[]> {
+        const endpoint = '/users/@me/guilds'
+
         try {
-            const response = await fetch(
-                `${this.apiBaseUrl}/users/@me/guilds`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                    },
-                },
-            )
-
-            if (!response.ok) {
-                const errorText = await response.text()
-                throw new DiscordApiError(
-                    `Failed to fetch user guilds: ${response.status} ${errorText}`,
-                    response.status,
-                    '/users/@me/guilds',
+            for (let attempt = 0; ; attempt++) {
+                // Bound the fetch so a hung Discord connection surfaces as a
+                // logged timeout instead of an invisible pending request.
+                const response = await withTimeout(
+                    fetch(`${this.apiBaseUrl}${endpoint}`, {
+                        headers: { Authorization: `Bearer ${accessToken}` },
+                    }),
+                    this.restTimeoutMs,
+                    `discord ${endpoint}`,
                 )
-            }
 
-            const guilds = this.normalizeGuildPayload(await response.json())
-            debugLog({
-                message: 'Successfully fetched user guilds',
-                data: { count: guilds.length },
-            })
-            return guilds
+                // Honour Discord's Retry-After on 429 with a bounded backoff
+                // before falling through to the error path.
+                if (
+                    response.status === 429 &&
+                    attempt < this.maxRateLimitRetries
+                ) {
+                    const retryAfterMs = this.parseRetryAfterMs(response)
+                    warnLog({
+                        message:
+                            'Discord rate-limited the user guilds fetch; backing off',
+                        data: { endpoint, attempt: attempt + 1, retryAfterMs },
+                    })
+                    await delay(retryAfterMs)
+                    continue
+                }
+
+                if (!response.ok) {
+                    const errorText = await response.text()
+                    throw new DiscordApiError(
+                        `Failed to fetch user guilds: ${response.status} ${errorText}`,
+                        response.status,
+                        endpoint,
+                    )
+                }
+
+                const guilds = this.normalizeGuildPayload(await response.json())
+                debugLog({
+                    message: 'Successfully fetched user guilds',
+                    data: { count: guilds.length },
+                })
+                return guilds
+            }
         } catch (error) {
             errorLog({ message: 'Error fetching user guilds:', error })
             throw error
