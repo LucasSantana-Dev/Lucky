@@ -199,7 +199,8 @@ function Levels() {
                                 >
                                     <div className='flex-1'>
                                         <p className='font-medium text-lucky-text-primary'>
-                                            {member.userId}
+                                            {member.displayName ??
+                                                member.userId}
                                         </p>
                                         <p className='text-sm text-lucky-text-secondary'>
                                             Level {member.level}
