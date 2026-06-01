@@ -1,84 +1,120 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
-import { GuildSettingsService } from '../../services/GuildSettingsService'
-import { redisClient } from '../../services/redis'
 
-jest.mock('../../services/redis', () => ({
-    redisClient: {
-        get: jest.fn(),
-        setex: jest.fn(),
-        del: jest.fn(),
+// Service captures getPrismaClient() lazily per call; mock returns a stable client.
+const mockUpsert = jest.fn<any>()
+const mockFindUnique = jest.fn<any>()
+const mockDeleteMany = jest.fn<any>()
+const mockPrisma = {
+    guildSettings: {
+        upsert: mockUpsert,
+        findUnique: mockFindUnique,
+        deleteMany: mockDeleteMany,
     },
-}))
+}
 
-// Counters now use Prisma; settings tests don't exercise them, but the import
-// must be mocked so the real prismaClient (import.meta) isn't compiled here.
 jest.mock('../../utils/database/prismaClient', () => ({
-    getPrismaClient: jest.fn(),
+    getPrismaClient: () => mockPrisma,
     disconnectPrisma: jest.fn(),
 }))
 
-const mockGet = redisClient.get as jest.MockedFunction<typeof redisClient.get>
-const mockSetex = redisClient.setex as unknown as jest.MockedFunction<
-    (key: string, ttl: number, value: string) => Promise<string>
->
+import { GuildSettingsService } from '../../services/GuildSettingsService'
 
-describe('GuildSettingsService.updateGuildSettings (upsert)', () => {
+describe('GuildSettingsService settings (Postgres source of truth)', () => {
     let service: GuildSettingsService
 
     beforeEach(() => {
         jest.clearAllMocks()
-        service = new GuildSettingsService(60)
+        service = new GuildSettingsService()
     })
 
-    test('seeds defaults and persists when no existing settings', async () => {
-        mockGet.mockResolvedValue(null)
-        mockSetex.mockResolvedValue('OK')
+    test('updateGuildSettings upserts only the provided fields', async () => {
+        mockUpsert.mockResolvedValue({})
 
         const result = await service.updateGuildSettings('guild-1', {
             autoplayGenres: ['rock', 'jazz'],
         })
 
         expect(result).toBe(true)
-        expect(mockSetex).toHaveBeenCalledTimes(1)
-        const call = mockSetex.mock.calls[0]
-        expect(call[0]).toBe('guild_settings:guild-1')
-        expect(call[1]).toBe(60)
-        const persisted = JSON.parse(call[2] as string)
-        expect(persisted.guildId).toBe('guild-1')
-        expect(persisted.autoplayGenres).toEqual(['rock', 'jazz'])
-        expect(persisted.defaultVolume).toBe(50) // from defaults
+        expect(mockUpsert).toHaveBeenCalledTimes(1)
+        const arg = mockUpsert.mock.calls[0][0] as any
+        expect(arg.where).toEqual({ guildId: 'guild-1' })
+        // Only the provided field is in the data — no birthday columns clobbered.
+        expect(arg.update).toEqual({ autoplayGenres: ['rock', 'jazz'] })
+        expect(arg.create).toEqual({
+            guildId: 'guild-1',
+            autoplayGenres: ['rock', 'jazz'],
+        })
     })
 
-    test('merges updates with existing settings', async () => {
-        mockGet.mockResolvedValue(
-            JSON.stringify({
-                guildId: 'guild-1',
-                defaultVolume: 80,
-                autoplayGenres: ['old'],
-                autoPlayEnabled: true,
-            }),
-        )
-        mockSetex.mockResolvedValue('OK')
+    test('setGuildSettings writes the new DJ/idle/voteskip columns', async () => {
+        mockUpsert.mockResolvedValue({})
 
+        await service.setGuildSettings('guild-1', {
+            djRoleId: 'role-9',
+            idleTimeoutMinutes: 15,
+            voteSkipThreshold: 60,
+        })
+
+        const arg = mockUpsert.mock.calls[0][0] as any
+        expect(arg.update).toEqual({
+            djRoleId: 'role-9',
+            idleTimeoutMinutes: 15,
+            voteSkipThreshold: 60,
+        })
+    })
+
+    test('getGuildSettings maps a row, coalescing nullable columns', async () => {
+        mockFindUnique.mockResolvedValue({
+            guildId: 'guild-1',
+            defaultVolume: 80,
+            maxQueueSize: 100,
+            autoPlayEnabled: true,
+            autoplayMode: 'discover',
+            autoplayGenres: ['rock'],
+            repeatMode: 0,
+            shuffleEnabled: false,
+            prefix: null, // -> default '/'
+            embedColor: null, // -> default
+            language: 'en',
+            allowDownloads: true,
+            allowPlaylists: true,
+            allowSpotify: true,
+            commandCooldown: 3,
+            downloadCooldown: 10,
+            djRoleId: null, // -> undefined
+            idleTimeoutMinutes: null, // -> 0
+            voteSkipThreshold: null, // -> 50
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        })
+
+        const s = await service.getGuildSettings('guild-1')
+        expect(s).not.toBeNull()
+        expect(s!.defaultVolume).toBe(80)
+        expect(s!.prefix).toBe('/')
+        expect(s!.djRoleId).toBeUndefined()
+        expect(s!.idleTimeoutMinutes).toBe(0)
+        expect(s!.voteSkipThreshold).toBe(50)
+    })
+
+    test('getGuildSettings returns null when no row exists', async () => {
+        mockFindUnique.mockResolvedValue(null)
+        expect(await service.getGuildSettings('nope')).toBeNull()
+    })
+
+    test('returns false when the DB write throws', async () => {
+        mockUpsert.mockRejectedValue(new Error('db down'))
         const result = await service.updateGuildSettings('guild-1', {
             autoplayGenres: ['rock'],
         })
-
-        expect(result).toBe(true)
-        const persisted = JSON.parse(mockSetex.mock.calls[0][2] as string)
-        expect(persisted.defaultVolume).toBe(80) // preserved from existing
-        expect(persisted.autoplayGenres).toEqual(['rock']) // overwritten
-        expect(persisted.guildId).toBe('guild-1')
-    })
-
-    test('returns false when redis throws', async () => {
-        mockGet.mockResolvedValue(null)
-        mockSetex.mockRejectedValue(new Error('redis down'))
-
-        const result = await service.updateGuildSettings('guild-1', {
-            autoplayGenres: ['rock'],
-        })
-
         expect(result).toBe(false)
+    })
+
+    test('deleteGuildSettings removes the row', async () => {
+        mockDeleteMany.mockResolvedValue({ count: 1 })
+        expect(await service.deleteGuildSettings('guild-1')).toBe(true)
+        expect(mockDeleteMany).toHaveBeenCalledWith({
+            where: { guildId: 'guild-1' },
+        })
     })
 })

@@ -1,4 +1,3 @@
-import { redisClient } from './redis'
 import { getPrismaClient } from '../utils/database/prismaClient'
 import { infoLog, errorLog } from '../utils/general/log'
 
@@ -35,26 +34,16 @@ export interface AutoplayCounter {
 }
 
 /**
- * Manages guild settings (Redis) and per-guild music counters (Postgres).
+ * Manages guild settings + per-guild music counters, all in Postgres.
  *
- * Settings remain in Redis. The autoplay/repeat counters are persisted in the
- * `guild_counters` table so they survive restarts. Rate-limit cooldowns are
- * ephemeral and held in-process.
+ * Settings are the `guild_settings` table (Postgres is the source of truth, read
+ * directly per call — no cache; single-instance + local DB makes that cheap and
+ * always fresh). Autoplay/repeat counters live in `guild_counters`. Rate-limit
+ * cooldowns are ephemeral and held in-process.
  */
 export class GuildSettingsService {
-    private readonly ttl: number
     /** Ephemeral per-`guild:command` last-use epoch ms for rate limiting. */
     private readonly rateLimits = new Map<string, number>()
-
-    constructor(ttl = 7 * 24 * 60 * 60) {
-        this.ttl = ttl
-    }
-
-    private getRedisKey(guildId: string, type?: string): string {
-        return type
-            ? `guild_settings:${guildId}:${type}`
-            : `guild_settings:${guildId}`
-    }
 
     private getDefaultSettings(): GuildSettings {
         return {
@@ -82,44 +71,116 @@ export class GuildSettingsService {
         }
     }
 
-    /** Retrieves guild settings from Redis cache. */
+    /** Maps a `guild_settings` row to the public GuildSettings shape. */
+    private rowToSettings(row: {
+        guildId: string
+        defaultVolume: number
+        maxQueueSize: number
+        autoPlayEnabled: boolean
+        autoplayMode: string
+        autoplayGenres: string[]
+        repeatMode: number
+        shuffleEnabled: boolean
+        prefix: string | null
+        embedColor: string | null
+        language: string
+        allowDownloads: boolean
+        allowPlaylists: boolean
+        allowSpotify: boolean
+        commandCooldown: number
+        downloadCooldown: number
+        djRoleId: string | null
+        idleTimeoutMinutes: number | null
+        voteSkipThreshold: number | null
+        createdAt: Date
+        updatedAt: Date
+    }): GuildSettings {
+        const defaults = this.getDefaultSettings()
+        return {
+            guildId: row.guildId,
+            defaultVolume: row.defaultVolume,
+            maxQueueSize: row.maxQueueSize,
+            autoPlayEnabled: row.autoPlayEnabled,
+            autoplayMode: row.autoplayMode as GuildSettings['autoplayMode'],
+            autoplayGenres: row.autoplayGenres,
+            repeatMode: row.repeatMode,
+            shuffleEnabled: row.shuffleEnabled,
+            prefix: row.prefix ?? defaults.prefix,
+            embedColor: row.embedColor ?? defaults.embedColor,
+            language: row.language,
+            allowDownloads: row.allowDownloads,
+            allowPlaylists: row.allowPlaylists,
+            allowSpotify: row.allowSpotify,
+            commandCooldown: row.commandCooldown,
+            downloadCooldown: row.downloadCooldown,
+            djRoleId: row.djRoleId ?? undefined,
+            idleTimeoutMinutes: row.idleTimeoutMinutes ?? 0,
+            voteSkipThreshold: row.voteSkipThreshold ?? 50,
+            createdAt: row.createdAt,
+            updatedAt: row.updatedAt,
+        }
+    }
+
+    /**
+     * Translates the public settings shape into Prisma column data, omitting
+     * undefined keys (so a partial update only touches the fields provided, and
+     * never clobbers birthday columns this service doesn't own).
+     */
+    private toPrismaData(
+        settings: Partial<GuildSettings>,
+    ): Record<string, unknown> {
+        const data: Record<string, unknown> = {}
+        const copy = <K extends keyof GuildSettings>(k: K) => {
+            if (settings[k] !== undefined) data[k as string] = settings[k]
+        }
+        copy('defaultVolume')
+        copy('maxQueueSize')
+        copy('autoPlayEnabled')
+        copy('autoplayMode')
+        copy('autoplayGenres')
+        copy('repeatMode')
+        copy('shuffleEnabled')
+        copy('prefix')
+        copy('embedColor')
+        copy('language')
+        copy('allowDownloads')
+        copy('allowPlaylists')
+        copy('allowSpotify')
+        copy('commandCooldown')
+        copy('downloadCooldown')
+        copy('djRoleId')
+        copy('idleTimeoutMinutes')
+        copy('voteSkipThreshold')
+        return data
+    }
+
+    /** Retrieves guild settings from Postgres (source of truth). */
     async getGuildSettings(guildId: string): Promise<GuildSettings | null> {
         try {
-            const settingsData = await redisClient.get(
-                this.getRedisKey(guildId),
-            )
-            if (!settingsData) {
-                return null
-            }
-            return JSON.parse(settingsData) as GuildSettings
+            const prisma = getPrismaClient()
+            const row = await prisma.guildSettings.findUnique({
+                where: { guildId },
+            })
+            return row ? this.rowToSettings(row) : null
         } catch (error) {
             errorLog({ message: 'Failed to get guild settings', error })
             return null
         }
     }
 
-    /** Sets guild settings, fully replacing existing values. */
+    /** Upserts guild settings (create with defaults+patch, or update in place). */
     async setGuildSettings(
         guildId: string,
         settings: Partial<GuildSettings>,
     ): Promise<boolean> {
         try {
-            const existingSettings =
-                (await this.getGuildSettings(guildId)) ||
-                this.getDefaultSettings()
-            const updatedSettings: GuildSettings = {
-                ...existingSettings,
-                ...settings,
-                guildId,
-                updatedAt: new Date(),
-            }
-
-            await redisClient.setex(
-                this.getRedisKey(guildId),
-                this.ttl,
-                JSON.stringify(updatedSettings),
-            )
-
+            const prisma = getPrismaClient()
+            const data = this.toPrismaData(settings)
+            await prisma.guildSettings.upsert({
+                where: { guildId },
+                create: { guildId, ...data },
+                update: data,
+            })
             infoLog({ message: `Updated guild settings for ${guildId}` })
             return true
         } catch (error) {
@@ -128,42 +189,23 @@ export class GuildSettingsService {
         }
     }
 
-    /** Updates guild settings, merging with existing values. */
+    /**
+     * Updates guild settings, merging with existing values. Identical to
+     * setGuildSettings now that Postgres upsert handles the merge per-column;
+     * kept as a distinct method for the existing call sites.
+     */
     async updateGuildSettings(
         guildId: string,
         updates: Partial<GuildSettings>,
     ): Promise<boolean> {
-        try {
-            const currentSettings = (await this.getGuildSettings(guildId)) ?? {
-                ...this.getDefaultSettings(),
-                guildId,
-            }
-
-            const updatedSettings = {
-                ...currentSettings,
-                ...updates,
-                guildId,
-                updatedAt: new Date(),
-            }
-
-            await redisClient.setex(
-                this.getRedisKey(guildId),
-                this.ttl,
-                JSON.stringify(updatedSettings),
-            )
-
-            infoLog({ message: `Updated guild settings for ${guildId}` })
-            return true
-        } catch (error) {
-            errorLog({ message: 'Failed to update guild settings', error })
-            return false
-        }
+        return this.setGuildSettings(guildId, updates)
     }
 
-    /** Deletes all guild settings from cache. */
+    /** Deletes a guild's settings row. */
     async deleteGuildSettings(guildId: string): Promise<boolean> {
         try {
-            await redisClient.del(this.getRedisKey(guildId))
+            const prisma = getPrismaClient()
+            await prisma.guildSettings.deleteMany({ where: { guildId } })
             infoLog({ message: `Deleted guild settings for ${guildId}` })
             return true
         } catch (error) {

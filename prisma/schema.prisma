@@ -163,6 +163,11 @@ model GuildSettings {
   commandCooldown  Int @default(3) // seconds
   downloadCooldown Int @default(10) // seconds
 
+  // DJ / moderation
+  djRoleId          String?
+  idleTimeoutMinutes Int?   @default(0) // 0 = no idle disconnect
+  voteSkipThreshold  Int?   @default(50) // percent of listeners required
+
   // Birthday announcement channel — if null, the scheduler skips the guild.
   birthdayChannelId String?
   // Optional role granted for the day. Scheduler reconciles membership each
