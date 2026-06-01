@@ -2,7 +2,6 @@ import type { GuildQueue, Player } from 'discord-player'
 import type { VoiceChannel } from 'discord.js'
 import { ChannelType } from 'discord.js'
 import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
-import { redisClient } from '@lucky/shared/services'
 import { musicSessionSnapshotService } from './sessionSnapshots'
 
 export type RecoveryAction =
@@ -21,8 +20,6 @@ export type WatchdogGuildState = {
     lastRecoveryDetail: string | null
 }
 
-const SNAPSHOT_KEY_PREFIX = 'music:session:'
-const SESSION_KEY_PREFIX = 'music:session:'
 const SNAPSHOT_MAX_AGE_MS = 30 * 60 * 1_000
 
 type MusicWatchdogOptions = {
@@ -241,18 +238,9 @@ export class MusicWatchdogService {
     }
 
     async scanOrphanSessions(player: Player): Promise<void> {
-        if (!redisClient.isHealthy()) return
+        const guildIds = await musicSessionSnapshotService.listGuildIds()
 
-        let sessionKeys: string[]
-        try {
-            sessionKeys = await redisClient.keys(`${SESSION_KEY_PREFIX}*`)
-        } catch (error) {
-            errorLog({ message: 'Watchdog failed to scan session keys', error })
-            return
-        }
-
-        for (const key of sessionKeys) {
-            const guildId = key.slice(SESSION_KEY_PREFIX.length)
+        for (const guildId of guildIds) {
             try {
                 await this.recoverOrphanSession(player, guildId)
             } catch (error) {
@@ -302,8 +290,11 @@ export class MusicWatchdogService {
             await queue.connect(voiceChannel)
         }
 
-        const restoreResult =
-            await musicSessionSnapshotService.restoreSnapshot(queue, undefined, { skipCurrentTrack: true })
+        const restoreResult = await musicSessionSnapshotService.restoreSnapshot(
+            queue,
+            undefined,
+            { skipCurrentTrack: true },
+        )
         if (!restoreResult || restoreResult.restoredCount <= 0) {
             await musicSessionSnapshotService.deleteSnapshot(guildId)
 
@@ -343,9 +334,8 @@ export class MusicWatchdogService {
     ): Promise<string[]> {
         const recovered: string[] = []
         try {
-            const keys = await redisClient.keys(`${SNAPSHOT_KEY_PREFIX}*`)
-            for (const key of keys) {
-                const guildId = key.slice(SNAPSHOT_KEY_PREFIX.length)
+            const guildIds = await musicSessionSnapshotService.listGuildIds()
+            for (const guildId of guildIds) {
                 const queue = getQueue(guildId)
                 if (!queue) continue
                 if (queue.node.isPlaying()) continue

@@ -5,20 +5,12 @@ import { MusicWatchdogService } from './watchdog'
 
 // --- mocks ---
 
-const keysMock = jest.fn()
-const isHealthyMock = jest.fn()
+const listGuildIdsMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
     infoLog: jest.fn(),
-}))
-
-jest.mock('@lucky/shared/services', () => ({
-    redisClient: {
-        isHealthy: (...args: unknown[]) => isHealthyMock(...args),
-        keys: (...args: unknown[]) => keysMock(...args),
-    },
 }))
 
 const getSnapshotMock = jest.fn()
@@ -27,6 +19,7 @@ const deleteSnapshotMock = jest.fn()
 
 jest.mock('./sessionSnapshots', () => ({
     musicSessionSnapshotService: {
+        listGuildIds: (...args: unknown[]) => listGuildIdsMock(...args),
         getSnapshot: (...args: unknown[]) => getSnapshotMock(...args),
         restoreSnapshot: (...args: unknown[]) => restoreSnapshotMock(...args),
         deleteSnapshot: (...args: unknown[]) => deleteSnapshotMock(...args),
@@ -36,7 +29,6 @@ jest.mock('./sessionSnapshots', () => ({
 describe('MusicWatchdogService', () => {
     beforeEach(() => {
         jest.useFakeTimers()
-        isHealthyMock.mockReturnValue(false)
     })
 
     it('attempts recovery when queue is stalled', async () => {
@@ -97,8 +89,7 @@ describe('MusicWatchdogService', () => {
 describe('MusicWatchdogService — orphan session monitor', () => {
     beforeEach(() => {
         jest.useFakeTimers()
-        isHealthyMock.mockReturnValue(true)
-        keysMock.mockResolvedValue([])
+        listGuildIdsMock.mockResolvedValue([])
         getSnapshotMock.mockResolvedValue(null)
         restoreSnapshotMock.mockResolvedValue({
             restoredCount: 1,
@@ -125,9 +116,8 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         service.stopOrphanSessionMonitor()
     })
 
-
     it('scanOrphanSessions skips guild when snapshot is missing', async () => {
-        keysMock.mockResolvedValue(['music:session:guild-99'])
+        listGuildIdsMock.mockResolvedValue(['guild-99'])
         getSnapshotMock.mockResolvedValue(null)
 
         const nodes = { get: jest.fn().mockReturnValue(null) }
@@ -140,7 +130,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
     })
 
     it('scanOrphanSessions skips guild when snapshot is stale (>30 min)', async () => {
-        keysMock.mockResolvedValue(['music:session:guild-stale'])
+        listGuildIdsMock.mockResolvedValue(['guild-stale'])
         getSnapshotMock.mockResolvedValue({
             savedAt: Date.now() - 31 * 60 * 1_000,
             voiceChannelId: 'vc-1',
@@ -157,7 +147,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
     })
 
     it('scanOrphanSessions skips guild when queue is already playing', async () => {
-        keysMock.mockResolvedValue(['music:session:guild-playing'])
+        listGuildIdsMock.mockResolvedValue(['guild-playing'])
         getSnapshotMock.mockResolvedValue({
             savedAt: Date.now() - 60_000,
             voiceChannelId: 'vc-1',
@@ -175,7 +165,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
     })
 
     it('scanOrphanSessions skips guild when voice channel has no non-bot members', async () => {
-        keysMock.mockResolvedValue(['music:session:guild-empty'])
+        listGuildIdsMock.mockResolvedValue(['guild-empty'])
         getSnapshotMock.mockResolvedValue({
             savedAt: Date.now() - 60_000,
             voiceChannelId: 'vc-empty',
@@ -204,7 +194,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
     })
 
     it('scanOrphanSessions recovers orphan session when all conditions met', async () => {
-        keysMock.mockResolvedValue(['music:session:guild-recover'])
+        listGuildIdsMock.mockResolvedValue(['guild-recover'])
         getSnapshotMock.mockResolvedValue({
             savedAt: Date.now() - 60_000,
             voiceChannelId: 'vc-active',
@@ -242,14 +232,16 @@ describe('MusicWatchdogService — orphan session monitor', () => {
 
         expect(nodes.create).toHaveBeenCalledWith(guild)
         expect(queue.connect).toHaveBeenCalledWith(voiceChannel)
-        expect(restoreSnapshotMock).toHaveBeenCalledWith(queue, undefined, { skipCurrentTrack: true })
+        expect(restoreSnapshotMock).toHaveBeenCalledWith(queue, undefined, {
+            skipCurrentTrack: true,
+        })
         expect(service.getGuildState('guild-recover')).toEqual(
             expect.objectContaining({ lastRecoveryAction: 'rejoin' }),
         )
     })
 
     it('reuses existing queue during orphan recovery and avoids creating a new queue', async () => {
-        keysMock.mockResolvedValue(['music:session:guild-existing'])
+        listGuildIdsMock.mockResolvedValue(['guild-existing'])
         getSnapshotMock.mockResolvedValue({
             savedAt: Date.now() - 60_000,
             voiceChannelId: 'vc-existing',
@@ -285,11 +277,15 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         await service.scanOrphanSessions(player)
 
         expect(nodes.create).not.toHaveBeenCalled()
-        expect(restoreSnapshotMock).toHaveBeenCalledWith(existingQueue, undefined, { skipCurrentTrack: true })
+        expect(restoreSnapshotMock).toHaveBeenCalledWith(
+            existingQueue,
+            undefined,
+            { skipCurrentTrack: true },
+        )
     })
 
     it('clears snapshot and marks failed when restore yields no tracks', async () => {
-        keysMock.mockResolvedValue(['music:session:guild-empty-restore'])
+        listGuildIdsMock.mockResolvedValue(['guild-empty-restore'])
         getSnapshotMock.mockResolvedValue({
             savedAt: Date.now() - 60_000,
             voiceChannelId: 'vc-active',
@@ -335,10 +331,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
     })
 
     it('scanOrphanSessions isolates errors per guild', async () => {
-        keysMock.mockResolvedValue([
-            'music:session:guild-err',
-            'music:session:guild-ok',
-        ])
+        listGuildIdsMock.mockResolvedValue(['guild-err', 'guild-ok'])
         getSnapshotMock
             .mockRejectedValueOnce(new Error('Redis read error'))
             .mockResolvedValueOnce(null)
@@ -354,7 +347,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
     })
 
     it('scanOrphanSessions skips guild when channel type is not GuildVoice', async () => {
-        keysMock.mockResolvedValue(['music:session:guild-stage'])
+        listGuildIdsMock.mockResolvedValue(['guild-stage'])
         getSnapshotMock.mockResolvedValue({
             savedAt: Date.now() - 60_000,
             voiceChannelId: 'stage-vc',
@@ -425,7 +418,6 @@ describe('MusicWatchdogService — constructor env var parsing', () => {
 describe('MusicWatchdogService — checkAndRecover edge cases', () => {
     beforeEach(() => {
         jest.useFakeTimers()
-        isHealthyMock.mockReturnValue(false)
     })
 
     it('returns failed when connection is not ready after second rejoin', async () => {
@@ -504,14 +496,11 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
 describe('MusicWatchdogService — startPeriodicScan', () => {
     beforeEach(() => {
         jest.useFakeTimers()
-        isHealthyMock.mockReturnValue(false)
-        keysMock.mockResolvedValue([])
+        listGuildIdsMock.mockResolvedValue([])
     })
 
-
     it('scanOrphanedSessions arms orphaned queues that are not playing', async () => {
-        isHealthyMock.mockReturnValue(true)
-        keysMock.mockResolvedValue(['music:session:guild-orphan'])
+        listGuildIdsMock.mockResolvedValue(['guild-orphan'])
 
         const queue = {
             guild: { id: 'guild-orphan' },

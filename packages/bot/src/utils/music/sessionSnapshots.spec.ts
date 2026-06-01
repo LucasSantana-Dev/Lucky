@@ -21,6 +21,7 @@ jest.mock('discord-player', () => ({
 
 const mockGetPrismaClient = jest.mocked(getPrismaClient)
 const mockFindUnique = jest.fn<any>()
+const mockFindMany = jest.fn<any>()
 const mockDeleteMany = jest.fn<any>()
 const mockCreate = jest.fn<any>()
 
@@ -88,11 +89,13 @@ describe('MusicSessionSnapshotService', () => {
         mockGetPrismaClient.mockReturnValue({
             musicSessionSnapshot: {
                 findUnique: mockFindUnique,
+                findMany: mockFindMany,
                 deleteMany: mockDeleteMany,
                 create: mockCreate,
             },
         } as any)
         mockFindUnique.mockResolvedValue(null)
+        mockFindMany.mockResolvedValue([])
         mockDeleteMany.mockResolvedValue({ count: 1 })
         mockCreate.mockResolvedValue(snapshotRow())
     })
@@ -207,6 +210,29 @@ describe('MusicSessionSnapshotService', () => {
             mockFindUnique.mockResolvedValueOnce(null)
             const service = new MusicSessionSnapshotService()
             expect(await service.getSnapshot('g')).toBeNull()
+        })
+    })
+
+    describe('listGuildIds', () => {
+        it('returns guild ids for non-expired snapshots (TTL-filtered query)', async () => {
+            mockFindMany.mockResolvedValueOnce([
+                { guildId: 'g1' },
+                { guildId: 'g2' },
+            ])
+            const service = new MusicSessionSnapshotService()
+            expect(await service.listGuildIds()).toEqual(['g1', 'g2'])
+            expect(mockFindMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { savedAt: { gte: expect.any(Date) } },
+                    select: { guildId: true },
+                }),
+            )
+        })
+
+        it('returns an empty array on query error', async () => {
+            mockFindMany.mockRejectedValueOnce(new Error('db down'))
+            const service = new MusicSessionSnapshotService()
+            expect(await service.listGuildIds()).toEqual([])
         })
     })
 
