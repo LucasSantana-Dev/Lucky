@@ -5,6 +5,7 @@ import {
     DISALLOWED_PATHS,
     SITE_ORIGIN,
     assertRouteMetaValid,
+    metaFor,
     type RouteMeta,
 } from './routeMeta'
 
@@ -83,5 +84,16 @@ describe('routeMeta', () => {
             { path: '/x', title: 't2', description: 'd2' },
         ]
         expect(() => assertRouteMetaValid(bad)).toThrow(/duplicate path/)
+    })
+
+    it('metaFor returns title+description for a known route', () => {
+        expect(metaFor('/changelog')).toEqual({
+            title: 'Changelog · Lucky',
+            description: 'Release notes and version history for Lucky.',
+        })
+    })
+
+    it('metaFor throws on an unregistered path', () => {
+        expect(() => metaFor('/nope')).toThrow(/no metadata registered/)
     })
 })
