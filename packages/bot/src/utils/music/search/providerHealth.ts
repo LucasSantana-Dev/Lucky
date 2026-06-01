@@ -1,6 +1,4 @@
 import { QueryType } from 'discord-player'
-import { redisClient } from '@lucky/shared/services'
-import { debugLog, errorLog } from '@lucky/shared/utils'
 
 export type MusicProvider = 'youtube' | 'spotify' | 'soundcloud' | 'unknown'
 
@@ -34,12 +32,6 @@ const DEFAULT_OPTIONS = {
     failurePenalty: 0.2,
     successBoost: 0.05,
 } satisfies Required<ProviderHealthOptions>
-
-const REDIS_KEY_PREFIX = 'music:provider_health:'
-
-function redisKey(provider: MusicProvider): string {
-    return `${REDIS_KEY_PREFIX}${provider}`
-}
 
 function createInitialStatus(provider: MusicProvider): ProviderStatus {
     return {
@@ -76,36 +68,6 @@ export class ProviderHealthService {
         return status
     }
 
-    private persistToRedis(status: ProviderStatus): void {
-        if (!redisClient.isHealthy()) return
-        const ttlSeconds = Math.ceil((this.options.cooldownMs * 2) / 1000)
-        redisClient
-            .setex(redisKey(status.provider), ttlSeconds, JSON.stringify(status))
-            .catch((err) => {
-                errorLog({ message: 'Failed to persist provider health', error: err })
-            })
-    }
-
-    async loadFromRedis(): Promise<void> {
-        if (!redisClient.isHealthy()) return
-        for (const provider of DEFAULT_PROVIDERS) {
-            try {
-                const raw = await redisClient.get(redisKey(provider))
-                if (!raw) continue
-                const parsed: ProviderStatus = JSON.parse(raw) as ProviderStatus
-                if (parsed.provider === provider) {
-                    this.statuses.set(provider, parsed)
-                    debugLog({
-                        message: `Restored provider health from Redis: ${provider}`,
-                        data: { score: parsed.score, cooldownUntil: parsed.cooldownUntil },
-                    })
-                }
-            } catch {
-                // leave default in-memory state if Redis data is corrupt
-            }
-        }
-    }
-
     recordFailure(
         provider: MusicProvider,
         now = Date.now(),
@@ -121,8 +83,6 @@ export class ProviderHealthService {
         if (status.consecutiveFailures >= this.options.failureThreshold) {
             status.cooldownUntil = now + this.options.cooldownMs
         }
-
-        this.persistToRedis(status)
     }
 
     recordSuccess(provider: MusicProvider, now = Date.now()): void {
@@ -133,8 +93,6 @@ export class ProviderHealthService {
         status.cooldownUntil = null
         status.lastError = null
         status.score = Math.min(1, status.score + this.options.successBoost)
-
-        this.persistToRedis(status)
     }
 
     isAvailable(provider: MusicProvider, now = Date.now()): boolean {
@@ -180,8 +138,14 @@ export const providerHealthService = new ProviderHealthService({
     ),
 })
 
+/**
+ * Retained as a no-op for the startup sequence: provider health is now purely
+ * in-memory (it resets on restart by design — a short warm-up, not state worth
+ * persisting). Kept so `initializer.ts` needn't change and to give a seam if a
+ * persistence layer is ever wanted again.
+ */
 export async function initProviderHealth(): Promise<void> {
-    await providerHealthService.loadFromRedis()
+    // Intentionally empty — in-memory state starts fresh each process.
 }
 
 export function providerFromQueryType(queryType?: QueryType): MusicProvider {
