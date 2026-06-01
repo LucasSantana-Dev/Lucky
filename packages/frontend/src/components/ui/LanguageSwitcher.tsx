@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next'
-import { Check, Languages } from 'lucide-react'
+import { Languages } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
-    DropdownMenuItem,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
     DropdownMenuTrigger,
 } from './dropdown-menu'
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/lib/i18n'
@@ -39,7 +40,10 @@ export default function LanguageSwitcher({
                 aria-label={`${t('common.language')}: ${activeLabel}`}
                 title={t('common.language')}
             >
-                <Languages className='h-3.5 w-3.5 shrink-0' aria-hidden='true' />
+                <Languages
+                    className='h-3.5 w-3.5 shrink-0'
+                    aria-hidden='true'
+                />
                 {variant === 'header' && (
                     <span className='type-body-sm'>{activeLabel}</span>
                 )}
@@ -48,27 +52,24 @@ export default function LanguageSwitcher({
                 align='end'
                 className='min-w-[160px] bg-lucky-bg-secondary border-lucky-border'
             >
-                {SUPPORTED_LANGUAGES.map((lng) => (
-                    <DropdownMenuItem
-                        key={lng}
-                        role='menuitemradio'
-                        aria-checked={active === lng}
-                        onSelect={() => {
-                            void i18n.changeLanguage(lng)
-                        }}
-                        className='flex items-center justify-between gap-2 text-lucky-text-primary focus:bg-lucky-bg-tertiary'
-                    >
-                        <span className='type-body-sm'>
-                            {t(`languages.${lng}`)}
-                        </span>
-                        {active === lng && (
-                            <Check
-                                className='h-3.5 w-3.5 text-lucky-brand'
-                                aria-hidden='true'
-                            />
-                        )}
-                    </DropdownMenuItem>
-                ))}
+                <DropdownMenuRadioGroup
+                    value={active}
+                    onValueChange={(lng) => {
+                        void i18n.changeLanguage(lng)
+                    }}
+                >
+                    {SUPPORTED_LANGUAGES.map((lng) => (
+                        <DropdownMenuRadioItem
+                            key={lng}
+                            value={lng}
+                            className='flex items-center justify-between gap-2 text-lucky-text-primary focus:bg-lucky-bg-tertiary'
+                        >
+                            <span className='type-body-sm'>
+                                {t(`languages.${lng}`)}
+                            </span>
+                        </DropdownMenuRadioItem>
+                    ))}
+                </DropdownMenuRadioGroup>
             </DropdownMenuContent>
         </DropdownMenu>
     )
