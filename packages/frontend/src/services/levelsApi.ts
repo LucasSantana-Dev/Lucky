@@ -15,6 +15,7 @@ export interface MemberXP {
     id: string
     guildId: string
     userId: string
+    displayName?: string | null
     xp: number
     level: number
     lastXpAt: string
@@ -54,7 +55,10 @@ export function createLevelsApi(client: AxiosInstance) {
             return res.data.config
         },
 
-        async updateConfig(guildId: string, data: UpdateLevelConfigInput): Promise<LevelConfig> {
+        async updateConfig(
+            guildId: string,
+            data: UpdateLevelConfigInput,
+        ): Promise<LevelConfig> {
             const res = await client.patch<{ config: LevelConfig }>(
                 `/guilds/${guildId}/levels/config`,
                 data,
@@ -70,7 +74,10 @@ export function createLevelsApi(client: AxiosInstance) {
             return res.data.leaderboard
         },
 
-        async getRank(guildId: string, userId: string): Promise<{ memberXp: MemberXP; rank: number }> {
+        async getRank(
+            guildId: string,
+            userId: string,
+        ): Promise<{ memberXp: MemberXP; rank: number }> {
             const res = await client.get<{ memberXp: MemberXP; rank: number }>(
                 `/guilds/${guildId}/levels/rank/${userId}`,
             )
@@ -84,7 +91,10 @@ export function createLevelsApi(client: AxiosInstance) {
             return res.data.rewards
         },
 
-        async addReward(guildId: string, data: AddRewardInput): Promise<LevelReward> {
+        async addReward(
+            guildId: string,
+            data: AddRewardInput,
+        ): Promise<LevelReward> {
             const res = await client.post<{ reward: LevelReward }>(
                 `/guilds/${guildId}/levels/rewards`,
                 data,

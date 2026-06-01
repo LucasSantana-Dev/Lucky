@@ -19,6 +19,7 @@ export type MemberXP = {
     id: string
     guildId: string
     userId: string
+    displayName: string | null
     xp: number
     level: number
     lastXpAt: Date
@@ -76,11 +77,24 @@ export class LevelService {
         guildId: string,
         userId: string,
         amount: number,
+        displayName?: string | null,
     ): Promise<{ member: MemberXP; leveledUp: boolean; newLevel: number }> {
         const current = await prisma.memberXP.upsert({
             where: { guildId_userId: { guildId, userId } },
-            create: { guildId, userId, xp: amount, lastXpAt: new Date() },
-            update: { xp: { increment: amount }, lastXpAt: new Date() },
+            create: {
+                guildId,
+                userId,
+                xp: amount,
+                lastXpAt: new Date(),
+                displayName: displayName ?? null,
+            },
+            // Only overwrite the name when a fresh one is supplied, so a missing
+            // value never wipes a previously-captured name.
+            update: {
+                xp: { increment: amount },
+                lastXpAt: new Date(),
+                ...(displayName ? { displayName } : {}),
+            },
         })
 
         let leveledUp = false

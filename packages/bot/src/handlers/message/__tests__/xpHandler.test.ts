@@ -77,6 +77,7 @@ describe('xpHandler', () => {
             const message = {
                 author: { id: 'user1', bot: false },
                 channelId: 'channel1',
+                member: { displayName: 'CoolNick' },
             } as unknown as Message
 
             const context: MessageContext = {
@@ -97,6 +98,7 @@ describe('xpHandler', () => {
             const message = {
                 author: { id: 'user1', bot: false },
                 channelId: 'channel1',
+                member: { displayName: 'CoolNick' },
             } as unknown as Message
 
             const context: MessageContext = {
@@ -123,6 +125,7 @@ describe('xpHandler', () => {
             const message = {
                 author: { id: 'user1', bot: false },
                 channelId: 'channel1',
+                member: { displayName: 'CoolNick' },
             } as unknown as Message
 
             const context: MessageContext = {
@@ -154,6 +157,7 @@ describe('xpHandler', () => {
             const message = {
                 author: { id: 'user1', bot: false },
                 channelId: 'channel1',
+                member: { displayName: 'CoolNick' },
             } as unknown as Message
 
             const context: MessageContext = {
@@ -168,6 +172,7 @@ describe('xpHandler', () => {
                 'guild1',
                 'user1',
                 10,
+                'CoolNick',
             )
         })
 
@@ -287,6 +292,7 @@ describe('xpHandler', () => {
             const message = {
                 author: { id: 'user1', bot: false },
                 channelId: 'channel1',
+                member: { displayName: 'CoolNick' },
             } as unknown as Message
 
             const context: MessageContext = {
@@ -301,6 +307,7 @@ describe('xpHandler', () => {
                 'guild1',
                 'user1',
                 10,
+                'CoolNick',
             )
         })
 
@@ -363,6 +370,7 @@ describe('xpHandler', () => {
             const message = {
                 author: { id: 'user1', bot: false },
                 channelId: 'channel1',
+                member: { displayName: 'CoolNick' },
             } as unknown as Message
 
             const context: MessageContext = {

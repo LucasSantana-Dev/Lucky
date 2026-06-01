@@ -44,6 +44,7 @@ export const xpHandler: MessageHandler = {
                 guildId,
                 userId,
                 config.xpPerMessage,
+                message.member?.displayName ?? message.author.username,
             )
 
             if (result.leveledUp && config.announceChannel) {
