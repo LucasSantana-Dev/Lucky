@@ -5,7 +5,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "tsc && vite build",
+        "build": "tsc && vite build && tsx scripts/prerender-seo.ts",
         "preview": "vite preview",
         "lint": "eslint . --config eslint.config.js --max-warnings 0",
         "type:check": "tsc --noEmit",
@@ -64,6 +64,7 @@
     },
     "devDependencies": {
         "@playwright/test": "^1.60.0",
+        "@resvg/resvg-js": "^2.6.2",
         "@sentry/vite-plugin": "^5.3.0",
         "@tailwindcss/postcss": "^4.3.0",
         "@testing-library/dom": "^10.4.1",

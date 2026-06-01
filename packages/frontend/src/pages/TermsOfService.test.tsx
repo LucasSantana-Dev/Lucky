@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Terms from './TermsOfService'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
+import { metaFor } from '@/lib/seo/routeMeta'
 
 vi.mock('@/hooks/usePageMetadata')
 
@@ -18,8 +19,15 @@ function renderPage() {
 describe('TermsOfService', () => {
     test('renders title and last updated', () => {
         renderPage()
-        expect(screen.getByRole('heading', { level: 1, name: /Terms of Service/i })).toBeInTheDocument()
-        expect(screen.getByText(/last updated: March 18, 2026/i)).toBeInTheDocument()
+        expect(
+            screen.getByRole('heading', {
+                level: 1,
+                name: /Terms of Service/i,
+            }),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByText(/last updated: March 18, 2026/i),
+        ).toBeInTheDocument()
     })
 
     test('renders all section headings', () => {
@@ -48,6 +56,16 @@ describe('TermsOfService', () => {
         const link = screen.getByRole('link', {
             name: /^github\.com\/LucasSantana-Dev\/Lucky\/issues$/i,
         })
-        expect(link).toHaveAttribute('href', 'https://github.com/LucasSantana-Dev/Lucky/issues')
+        expect(link).toHaveAttribute(
+            'href',
+            'https://github.com/LucasSantana-Dev/Lucky/issues',
+        )
+    })
+
+    test('sets page metadata from the route map', () => {
+        renderPage()
+        expect(usePageMetadata).toHaveBeenCalledWith(
+            metaFor('/terms-of-service'),
+        )
     })
 })
