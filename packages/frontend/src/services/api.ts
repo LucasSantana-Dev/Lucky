@@ -193,17 +193,6 @@ export const api = {
                 `/guilds/${id}/settings`,
                 settings,
             ),
-        applyCriativariaPreset: (id: string) =>
-            apiClient.post<{
-                success: boolean
-                preset: string
-                manifestVersion: number
-                run: {
-                    runId: string
-                    status: string
-                    blockedByProtected: boolean
-                }
-            }>(`/guilds/${id}/automation/presets/criativaria/apply`),
         getListing: (id: string) =>
             apiClient.get<{ listing: ServerListing }>(`/guilds/${id}/listing`),
         updateListing: (id: string, listing: Partial<ServerListing>) =>
