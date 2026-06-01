@@ -27,6 +27,12 @@ jobs:
             github.event_name == 'workflow_dispatch' ||
             (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
+        env:
+            # Build/CI secret — when unset, all Sentry release steps below are skipped.
+            SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+            SENTRY_ORG: ${{ vars.SENTRY_ORG || 'lucas-santana-gm' }}
+            SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT || 'lucky' }}
+
         steps:
             - name: Validate secrets
               env:
@@ -162,6 +168,20 @@ jobs:
 
                   echo "::error::Timed out waiting for Docker images after ${max_wait}s"
                   exit 1
+
+            - name: Sentry release — create
+              if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
+              continue-on-error: true
+              run: |
+                  set -euo pipefail
+                  if [ "${{ github.event_name }}" = "workflow_run" ]; then
+                    release="${{ github.event.workflow_run.head_sha }}"
+                  else
+                    release="${{ github.sha }}"
+                  fi
+                  echo "==> Creating Sentry release $release"
+                  npx --yes @sentry/cli@^3 releases new "$release"
+                  npx --yes @sentry/cli@^3 releases set-commits "$release" --local --ignore-missing || true
 
             - name: Trigger deploy webhook
               env:
@@ -352,6 +372,19 @@ jobs:
 
                   echo "::error::Deployed version SHA did not match expected after all attempts"
                   exit 1
+
+            - name: Sentry release — finalize
+              if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
+              continue-on-error: true
+              run: |
+                  set -euo pipefail
+                  if [ "${{ github.event_name }}" = "workflow_run" ]; then
+                    release="${{ github.event.workflow_run.head_sha }}"
+                  else
+                    release="${{ github.sha }}"
+                  fi
+                  echo "==> Finalizing Sentry release $release"
+                  npx --yes @sentry/cli@^3 releases finalize "$release"
 
             - name: Auth config smoke check
               env:

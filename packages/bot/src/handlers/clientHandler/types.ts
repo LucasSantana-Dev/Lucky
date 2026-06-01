@@ -9,10 +9,6 @@ export type StartClientParams = {
     client: CustomClient
 }
 
-export type MapGuildIdsParams = {
-    client: CustomClient
-}
-
 export type CreateClientOptions = {
     intents: number[]
     presence: {

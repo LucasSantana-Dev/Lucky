@@ -1,7 +1,8 @@
 import type { GuildQueue, Track } from 'discord-player'
 import { QueryType } from 'discord-player'
 import type { User } from 'discord.js'
-import { redisClient } from '@lucky/shared/services'
+import { getPrismaClient } from '@lucky/shared/utils'
+import type { Prisma } from '@lucky/shared/utils'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { toSnapshotTrack, type SnapshotTrack } from './sessionSnapshots'
 
@@ -33,6 +34,18 @@ type SearchOptions = {
     searchEngine: QueryType
 }
 
+/** Row shape this service reads from the `named_queues` table. */
+interface NamedQueueRow {
+    name: string
+    guildId: string
+    savedBy: string
+    savedAt: Date
+    trackCount: number
+    voiceChannelId: string | null
+    currentTrack: unknown
+    upcomingTracks: unknown
+}
+
 function applySnapshotMetadata(
     track: Track,
     sessionName: string,
@@ -52,16 +65,27 @@ function applySnapshotMetadata(
 }
 
 export class NamedSessionService {
-    private getSessionKey(guildId: string, name: string): string {
-        return `music:named-session:${guildId}:${name}`
-    }
-
-    private getIndexKey(guildId: string): string {
-        return `music:named-sessions:${guildId}`
-    }
-
     private validateName(name: string): boolean {
         return NAME_REGEX.test(name)
+    }
+
+    /** Cutoff `Date` for TTL-based lazy expiry. */
+    private cutoff(): Date {
+        return new Date(Date.now() - NAMED_SESSION_TTL_SECONDS * 1000)
+    }
+
+    /** Maps a `named_queues` row to the public `NamedSession` shape. */
+    private rowToSession(row: NamedQueueRow): NamedSession {
+        return {
+            name: row.name,
+            guildId: row.guildId,
+            savedBy: row.savedBy,
+            savedAt: row.savedAt.getTime(),
+            trackCount: row.trackCount,
+            currentTrack: (row.currentTrack ?? null) as SnapshotTrack | null,
+            upcomingTracks: (row.upcomingTracks ?? []) as SnapshotTrack[],
+            voiceChannelId: row.voiceChannelId ?? undefined,
+        }
     }
 
     async save(
@@ -79,10 +103,12 @@ export class NamedSessionService {
             }
 
             const guildId = queue.guild.id
-            const indexKey = this.getIndexKey(guildId)
-            const existingNames = await redisClient.smembers(indexKey)
+            const prisma = getPrismaClient()
 
-            if (existingNames.length >= MAX_NAMED_SESSIONS) {
+            const existingCount = await prisma.namedQueue.count({
+                where: { guildId },
+            })
+            if (existingCount >= MAX_NAMED_SESSIONS) {
                 errorLog({
                     message: 'Max named sessions reached',
                     data: { guildId, maxCount: MAX_NAMED_SESSIONS },
@@ -90,10 +116,10 @@ export class NamedSessionService {
                 return null
             }
 
-            const exists = await redisClient.exists(
-                this.getSessionKey(guildId, name),
-            )
-            if (exists) {
+            const existing = await prisma.namedQueue.findUnique({
+                where: { guildId_name: { guildId, name } },
+            })
+            if (existing) {
                 return null
             }
 
@@ -107,28 +133,39 @@ export class NamedSessionService {
                 return null
             }
 
+            const currentSnapshot = currentTrack
+                ? toSnapshotTrack(currentTrack as Track)
+                : null
+            const trackCount = (currentTrack ? 1 : 0) + upcomingTracks.length
+
+            await prisma.namedQueue.create({
+                data: {
+                    guildId,
+                    name,
+                    savedBy: userId,
+                    trackCount,
+                    voiceChannelId: queue.channel?.id ?? null,
+                    upcomingTracks:
+                        upcomingTracks as unknown as Prisma.InputJsonValue,
+                    ...(currentSnapshot
+                        ? {
+                              currentTrack:
+                                  currentSnapshot as unknown as Prisma.InputJsonValue,
+                          }
+                        : {}),
+                },
+            })
+
             const session: NamedSession = {
                 name,
                 guildId,
                 savedBy: userId,
                 savedAt: Date.now(),
-                trackCount: (currentTrack ? 1 : 0) + upcomingTracks.length,
-                currentTrack: currentTrack
-                    ? toSnapshotTrack(currentTrack as Track)
-                    : null,
+                trackCount,
+                currentTrack: currentSnapshot,
                 upcomingTracks,
                 voiceChannelId: queue.channel?.id,
             }
-
-            const sessionKey = this.getSessionKey(guildId, name)
-            await Promise.all([
-                redisClient.setex(
-                    sessionKey,
-                    NAMED_SESSION_TTL_SECONDS,
-                    JSON.stringify(session),
-                ),
-                redisClient.sadd(indexKey, name),
-            ])
 
             debugLog({
                 message: 'Named session saved',
@@ -208,29 +245,18 @@ export class NamedSessionService {
 
     async list(guildId: string): Promise<NamedSessionSummary[]> {
         try {
-            const indexKey = this.getIndexKey(guildId)
-            const names = await redisClient.smembers(indexKey)
+            const prisma = getPrismaClient()
+            const rows = await prisma.namedQueue.findMany({
+                where: { guildId, savedAt: { gte: this.cutoff() } },
+                orderBy: { savedAt: 'desc' },
+            })
 
-            if (names.length === 0) {
-                return []
-            }
-
-            const summaries: NamedSessionSummary[] = []
-            for (const name of names) {
-                const session = await this.get(guildId, name)
-                if (session) {
-                    summaries.push({
-                        name: session.name,
-                        savedBy: session.savedBy,
-                        savedAt: session.savedAt,
-                        trackCount: session.trackCount,
-                    })
-                }
-            }
-
-            return summaries.sort(
-                (a, b) => b.savedAt - a.savedAt,
-            )
+            return rows.map((row) => ({
+                name: row.name,
+                savedBy: row.savedBy,
+                savedAt: row.savedAt.getTime(),
+                trackCount: row.trackCount,
+            }))
         } catch (error) {
             errorLog({
                 message: 'Failed to list named sessions',
@@ -242,13 +268,11 @@ export class NamedSessionService {
 
     async delete(guildId: string, name: string): Promise<boolean> {
         try {
-            const sessionKey = this.getSessionKey(guildId, name)
-            const indexKey = this.getIndexKey(guildId)
-
-            const deleted = await redisClient.del(sessionKey)
-            await redisClient.srem(indexKey, name)
-
-            return deleted
+            const prisma = getPrismaClient()
+            const result = await prisma.namedQueue.deleteMany({
+                where: { guildId, name },
+            })
+            return result.count > 0
         } catch (error) {
             errorLog({
                 message: 'Failed to delete named session',
@@ -260,12 +284,22 @@ export class NamedSessionService {
 
     async get(guildId: string, name: string): Promise<NamedSession | null> {
         try {
-            const sessionKey = this.getSessionKey(guildId, name)
-            const raw = await redisClient.get(sessionKey)
+            const prisma = getPrismaClient()
+            const row = await prisma.namedQueue.findUnique({
+                where: { guildId_name: { guildId, name } },
+            })
 
-            if (!raw) return null
-            const parsed = JSON.parse(raw) as NamedSession
-            return parsed
+            if (!row) return null
+
+            // Lazy TTL expiry: treat stale rows as absent and prune them.
+            if (row.savedAt.getTime() < this.cutoff().getTime()) {
+                await prisma.namedQueue
+                    .deleteMany({ where: { guildId, name } })
+                    .catch(() => undefined)
+                return null
+            }
+
+            return this.rowToSession(row)
         } catch (error) {
             errorLog({
                 message: 'Failed to get named session',
