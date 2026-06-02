@@ -1,342 +1,341 @@
 {
-  "common": {
-    "loading": "Carregando…",
-    "retry": "Tentar novamente",
-    "cancel": "Cancelar",
-    "save": "Salvar",
-    "delete": "Excluir",
-    "edit": "Editar",
-    "close": "Fechar",
-    "closeSidebar": "Fechar barra lateral",
-    "open": "Abrir",
-    "activeServerAriaLabel": "Servidor ativo: {{name}}. Clique para trocar.",
-    "viewAll": "Ver tudo",
-    "selectServer": "Selecione um servidor",
-    "accessDenied": "Acesso negado",
-    "accessDeniedDescription": "Você não tem permissão para visualizar o módulo {{module}} deste servidor.",
-    "logout": "Sair",
-    "language": "Idioma"
-  },
-  "languages": {
-    "en": "English",
-    "pt-BR": "Português (Brasil)"
-  },
-  "modules": {
-    "overview": "visão geral",
-    "settings": "configurações",
-    "moderation": "moderação",
-    "automation": "automação",
-    "music": "música",
-    "integrations": "integrações"
-  },
-  "sidebar": {
-    "activeGuild": "Servidor ativo",
-    "switchServer": "Trocar servidor",
-    "commandCenter": "Central de comando",
-    "status": {
-      "selectServer": "Selecione um servidor",
-      "needsSetup": "Precisa configurar",
-      "ready": "Pronto"
+    "common": {
+        "loading": "Carregando…",
+        "retry": "Tentar novamente",
+        "cancel": "Cancelar",
+        "save": "Salvar",
+        "delete": "Excluir",
+        "edit": "Editar",
+        "close": "Fechar",
+        "closeSidebar": "Fechar barra lateral",
+        "open": "Abrir",
+        "activeServerAriaLabel": "Servidor ativo: {{name}}. Clique para trocar.",
+        "viewAll": "Ver tudo",
+        "selectServer": "Selecione um servidor",
+        "accessDenied": "Acesso negado",
+        "accessDeniedDescription": "Você não tem permissão para visualizar o módulo {{module}} deste servidor.",
+        "logout": "Sair",
+        "language": "Idioma"
     },
-    "subtitle": {
-      "selectServer": "Escolha uma comunidade para desbloquear as ferramentas do servidor.",
-      "needsSetup": "O Lucky ainda não está instalado neste servidor.",
-      "ready": "A central de comando do servidor está pronta para operar."
+    "languages": {
+        "en": "English",
+        "pt-BR": "Português (Brasil)"
     },
-    "sections": {
-      "overview": "Visão geral",
-      "moderation": "Moderação",
-      "automation": "Automação",
-      "community": "Comunidade",
-      "media": "Mídia",
-      "integrations": "Integrações"
+    "modules": {
+        "overview": "visão geral",
+        "settings": "configurações",
+        "moderation": "moderação",
+        "automation": "automação",
+        "music": "música",
+        "integrations": "integrações"
     },
-    "nav": {
-      "dashboard": "Painel",
-      "serverSettings": "Configurações do servidor",
-      "modCases": "Casos de moderação",
-      "autoModeration": "Auto-moderação",
-      "serverLogs": "Logs do servidor",
-      "customCommands": "Comandos personalizados",
-      "autoMessages": "Mensagens automáticas",
-      "embedBuilder": "Construtor de embeds",
-      "reactionRoles": "Cargos por reação",
-      "guildAutomation": "Automação do servidor",
-      "levelSystem": "Sistema de níveis",
-      "starboard": "Starboard",
-      "musicPlayer": "Player de música",
-      "trackHistory": "Histórico de faixas",
-      "lyrics": "Letras",
-      "musicalTaste": "Gosto musical",
-      "lastFm": "Last.fm",
-      "twitch": "Twitch",
-      "features": "Recursos"
+    "sidebar": {
+        "activeGuild": "Servidor ativo",
+        "switchServer": "Trocar servidor",
+        "commandCenter": "Central de comando",
+        "status": {
+            "selectServer": "Selecione um servidor",
+            "needsSetup": "Precisa configurar",
+            "ready": "Pronto"
+        },
+        "subtitle": {
+            "selectServer": "Escolha uma comunidade para desbloquear as ferramentas do servidor.",
+            "needsSetup": "O Lucky ainda não está instalado neste servidor.",
+            "ready": "A central de comando do servidor está pronta para operar."
+        },
+        "sections": {
+            "overview": "Visão geral",
+            "moderation": "Moderação",
+            "automation": "Automação",
+            "community": "Comunidade",
+            "media": "Mídia",
+            "integrations": "Integrações"
+        },
+        "nav": {
+            "dashboard": "Painel",
+            "serverSettings": "Configurações do servidor",
+            "modCases": "Casos de moderação",
+            "autoModeration": "Auto-moderação",
+            "serverLogs": "Logs do servidor",
+            "customCommands": "Comandos personalizados",
+            "autoMessages": "Mensagens automáticas",
+            "embedBuilder": "Construtor de embeds",
+            "reactionRoles": "Cargos por reação",
+            "guildAutomation": "Automação do servidor",
+            "levelSystem": "Sistema de níveis",
+            "starboard": "Starboard",
+            "musicPlayer": "Player de música",
+            "trackHistory": "Histórico de faixas",
+            "lyrics": "Letras",
+            "musicalTaste": "Gosto musical",
+            "lastFm": "Last.fm",
+            "twitch": "Twitch",
+            "features": "Recursos"
+        }
+    },
+    "layout": {
+        "routes": {
+            "dashboard": {
+                "title": "Painel",
+                "subtitle": "Visão operacional e principais indicadores do seu servidor."
+            },
+            "servers": {
+                "title": "Servidores",
+                "subtitle": "Confira o status de instalação e gerencie suas comunidades elegíveis."
+            },
+            "serverSettings": {
+                "title": "Configurações do servidor",
+                "subtitle": "Configure o comportamento do bot, canais, cargos e preferências."
+            },
+            "moderation": {
+                "title": "Casos de moderação",
+                "subtitle": "Revise e gerencie ações de moderação deste servidor."
+            },
+            "autoMod": {
+                "title": "Auto-moderação",
+                "subtitle": "Configure regras automáticas e filtros de aplicação."
+            },
+            "serverLogs": {
+                "title": "Logs do servidor",
+                "subtitle": "Inspecione eventos de auditoria e atividades do bot."
+            },
+            "customCommands": {
+                "title": "Comandos personalizados",
+                "subtitle": "Crie e gerencie comandos de barra personalizados deste servidor."
+            },
+            "autoMessages": {
+                "title": "Mensagens automáticas",
+                "subtitle": "Agende mensagens recorrentes em qualquer canal."
+            },
+            "embedBuilder": {
+                "title": "Construtor de embeds",
+                "subtitle": "Crie e envie embeds avançados do Discord."
+            },
+            "reactionRoles": {
+                "title": "Cargos por reação",
+                "subtitle": "Atribua cargos com base nas reações de emoji dos membros."
+            },
+            "guildAutomation": {
+                "title": "Automação do servidor",
+                "subtitle": "Configure fluxos automatizados de gerenciamento do servidor."
+            },
+            "levels": {
+                "title": "Sistema de níveis",
+                "subtitle": "Configure XP, cargos por nível e rankings."
+            },
+            "starboard": {
+                "title": "Starboard",
+                "subtitle": "Destaque mensagens populares em um canal dedicado."
+            },
+            "lyrics": {
+                "title": "Letras",
+                "subtitle": "Busque e exiba letras de músicas no seu servidor."
+            },
+            "lastFm": {
+                "title": "Last.fm",
+                "subtitle": "Controle a vinculação de contas e a atribuição de scrobbles."
+            },
+            "twitch": {
+                "title": "Notificações da Twitch",
+                "subtitle": "Envie alertas ao vivo quando streamers monitorados ficam online."
+            },
+            "features": {
+                "title": "Recursos",
+                "subtitle": "Ative ou desative módulos de recursos para o seu servidor."
+            },
+            "trackHistory": {
+                "title": "Histórico de faixas",
+                "subtitle": "Inspecione a reprodução recente e a atividade dos solicitantes."
+            },
+            "music": {
+                "title": "Player de música",
+                "subtitle": "Gerencie fila, autoplay e controles de reprodução em tempo real."
+            },
+            "preferredArtists": {
+                "title": "Gosto musical",
+                "subtitle": "Ajuste preferências de autoplay e prioridade de artistas."
+            },
+            "spotify": {
+                "title": "Spotify",
+                "subtitle": "Vincule ou desvincule o Spotify para alimentar o autoplay."
+            },
+            "fallback": {
+                "title": "Painel Lucky",
+                "subtitle": "Configure módulos, moderação e fluxos de engajamento."
+            }
+        }
+    },
+    "landing": {
+        "meta": {
+            "title": "Lucky — Um bot do Discord que você pode hospedar",
+            "description": "Bot do Discord open source com música, moderação, comandos personalizados e painel web. Grátis para sempre. Rode na sua própria máquina."
+        },
+        "hero": {
+            "eyebrow": "Open source · Apache 2.0",
+            "headlineLine1": "Um bot do Discord bem feito.",
+            "headlineLine2": "E você que manda.",
+            "subtitle": "Música, moderação, comandos personalizados e um painel web completo. Use a versão hospedada em dois cliques, ou rode no seu próprio box se preferir.",
+            "ctaPrimary": "Adicionar ao Discord",
+            "ctaSecondary": "Auto-hospedar no GitHub"
+        },
+        "repoCard": {
+            "name": "LucasSantana-Dev / Lucky",
+            "description": "Bot de música do Discord auto-hospedável — Spotify + YouTube + SoundCloud, autoplay com recomendações, painel React, suíte de moderação.",
+            "license": "Apache-2.0",
+            "lang": "TypeScript",
+            "serversLabel": "servidores",
+            "usersLabel": "usuários",
+            "viewOnGithub": "Ver no GitHub",
+            "copyClone": "Copiar URL de clone"
+        },
+        "whySelfHost": {
+            "heading": "Por que auto-hospedar",
+            "items": {
+                "data": {
+                    "title": "Os dados do seu servidor são seus",
+                    "description": "Postgres, Redis, seu hardware. Nada de termos de uso de terceiros sobre a sua comunidade. Exporte e migre quando quiser."
+                },
+                "fork": {
+                    "title": "Fork no código",
+                    "description": "Monorepo TypeScript. Adicione comandos, mude comportamento, troque providers sem esperar por uma roadmap ou pagar por tier de API."
+                },
+                "free": {
+                    "title": "Grátis, sem tier premium",
+                    "description": "Sem paywall, sem Patreon, sem limite de uso por tier. Apache 2.0. A versão hospedada existe pra quem não quer rodar uma máquina."
+                }
+            }
+        },
+        "commands": {
+            "heading": "100+ comandos, com escopo no que você roda",
+            "rows": {
+                "play": {
+                    "name": "/play",
+                    "description": "Adicione um track do Spotify, YouTube ou SoundCloud à fila",
+                    "kbd": "música"
+                },
+                "autoplay": {
+                    "name": "/autoplay",
+                    "description": "Recomendações por gênero, sem trocar de idioma",
+                    "kbd": "música"
+                },
+                "queue": {
+                    "name": "/queue",
+                    "description": "Veja ou reordene a fila atual",
+                    "kbd": "música"
+                },
+                "ban": {
+                    "name": "/mod ban",
+                    "description": "Tempban com motivo, DM automática, audit log",
+                    "kbd": "moderação"
+                },
+                "automod": {
+                    "name": "/automod",
+                    "description": "Spam, caps, links, convites — regras por servidor",
+                    "kbd": "moderação"
+                },
+                "custom": {
+                    "name": "/cc create",
+                    "description": "Comandos customizados com interpolação de variáveis",
+                    "kbd": "custom"
+                }
+            },
+            "more": "+ 100 outros no painel"
+        },
+        "stack": {
+            "heading": "Para desenvolvedores — o que você está rodando",
+            "subheading": "Stack padrão Node + Postgres. Nada exótico. `docker compose up` e você está online. Pule esta seção se está usando a versão hospedada.",
+            "items": {
+                "bot": {
+                    "name": "lucky-bot",
+                    "description": "Cliente discord.js, áudio sem Lavalink via yt-dlp + Opus"
+                },
+                "backend": {
+                    "name": "lucky-backend",
+                    "description": "API Express, OAuth, Prisma com Postgres"
+                },
+                "frontend": {
+                    "name": "lucky-frontend",
+                    "description": "React 19 + Vite + Tailwind, painel com OAuth do Discord"
+                },
+                "postgres": {
+                    "name": "postgres",
+                    "description": "Config de servidor, comandos customizados, log de moderação"
+                },
+                "redis": {
+                    "name": "redis",
+                    "description": "Cache de sessão, rate-limit, estado de autoplay"
+                },
+                "nginx": {
+                    "name": "nginx",
+                    "description": "Reverse proxy, rewrite /webhook → /hooks para deploy"
+                }
+            }
+        },
+        "footerRepo": {
+            "heading": "Open source sob Apache 2.0",
+            "subheading": "Fork, contribua, rode, faça o deploy. O código é a especificação."
+        },
+        "footer": {
+            "tagline": "Bot do Discord open source. Rode você mesmo ou use a versão hospedada.",
+            "links": "Produto",
+            "support": "Comunidade",
+            "supportCopy": "Issues e PRs são bem-vindos no GitHub. Ou entre no servidor de suporte do Discord.",
+            "terms": "Termos",
+            "privacy": "Privacidade",
+            "github": "GitHub",
+            "docs": "Docs",
+            "changelog": "Changelog",
+            "discord": "Servidor de suporte",
+            "copyright": "© 2026 Lucky. Apache 2.0."
+        },
+        "features": {
+            "heading": "O que o Lucky faz",
+            "subheading": "Tudo que a maioria dos servidores precisa, em um bot só. Sem tier premium escondendo o que importa.",
+            "items": {
+                "music": {
+                    "title": "Música com autoplay inteligente",
+                    "description": "Adicione tracks do Spotify, YouTube ou SoundCloud. O autoplay acompanha o mood e não troca de idioma."
+                },
+                "moderation": {
+                    "title": "Moderação que não dorme",
+                    "description": "Auto-mod para spam, caps, links e convites. Tempbans com motivo, registro no audit log e regras por servidor."
+                },
+                "customCommands": {
+                    "title": "Comandos personalizados",
+                    "description": "Crie respostas, toggles de role, embeds e atalhos sem escrever código. Com interpolação de variáveis."
+                },
+                "dashboard": {
+                    "title": "Um painel web de verdade",
+                    "description": "Configure tudo direto do navegador. Login com OAuth do Discord, sem arquivos JSON, sem SSH."
+                },
+                "embeds": {
+                    "title": "Construtor de embeds",
+                    "description": "Monte embeds ricos com prévia ao vivo. Salve templates, envie agendado, edite no lugar."
+                }
+            }
+        }
+    },
+    "login": {
+        "meta": {
+            "title": "Entrar - Lucky",
+            "description": "Entre no painel do Lucky para gerenciar seus servidores do Discord"
+        },
+        "brand": "Painel do Bot do Discord",
+        "headline": "Gerencie seus servidores do Discord",
+        "description": "Configure moderação, comandos personalizados, música e muito mais — tudo em um só lugar.",
+        "modules": "Módulos",
+        "commands": "Comandos",
+        "uptime": "Tempo online",
+        "authentication": "Autenticação",
+        "signInWithDiscord": "Entrar com Discord",
+        "permissionsNote": "Suas permissões de servidor e controles do bot estão vinculados à sua conta do Discord.",
+        "connecting": "Conectando...",
+        "loginButton": "Entrar com Discord",
+        "badges": {
+            "oauthSecured": "Protegido por OAuth",
+            "fastSetup": "Configuração rápida",
+            "liveControls": "Controles em tempo real"
+        },
+        "copyright": "© 2026 Lucky. Todos os direitos reservados."
     }
-  },
-  "layout": {
-    "routes": {
-      "dashboard": {
-        "title": "Painel",
-        "subtitle": "Visão operacional e principais indicadores do seu servidor."
-      },
-      "servers": {
-        "title": "Servidores",
-        "subtitle": "Confira o status de instalação e gerencie suas comunidades elegíveis."
-      },
-      "serverSettings": {
-        "title": "Configurações do servidor",
-        "subtitle": "Configure o comportamento do bot, canais, cargos e preferências."
-      },
-      "moderation": {
-        "title": "Casos de moderação",
-        "subtitle": "Revise e gerencie ações de moderação deste servidor."
-      },
-      "autoMod": {
-        "title": "Auto-moderação",
-        "subtitle": "Configure regras automáticas e filtros de aplicação."
-      },
-      "serverLogs": {
-        "title": "Logs do servidor",
-        "subtitle": "Inspecione eventos de auditoria e atividades do bot."
-      },
-      "customCommands": {
-        "title": "Comandos personalizados",
-        "subtitle": "Crie e gerencie comandos de barra personalizados deste servidor."
-      },
-      "autoMessages": {
-        "title": "Mensagens automáticas",
-        "subtitle": "Agende mensagens recorrentes em qualquer canal."
-      },
-      "embedBuilder": {
-        "title": "Construtor de embeds",
-        "subtitle": "Crie e envie embeds avançados do Discord."
-      },
-      "reactionRoles": {
-        "title": "Cargos por reação",
-        "subtitle": "Atribua cargos com base nas reações de emoji dos membros."
-      },
-      "guildAutomation": {
-        "title": "Automação do servidor",
-        "subtitle": "Configure fluxos automatizados de gerenciamento do servidor."
-      },
-      "levels": {
-        "title": "Sistema de níveis",
-        "subtitle": "Configure XP, cargos por nível e rankings."
-      },
-      "starboard": {
-        "title": "Starboard",
-        "subtitle": "Destaque mensagens populares em um canal dedicado."
-      },
-      "lyrics": {
-        "title": "Letras",
-        "subtitle": "Busque e exiba letras de músicas no seu servidor."
-      },
-      "lastFm": {
-        "title": "Last.fm",
-        "subtitle": "Controle a vinculação de contas e a atribuição de scrobbles."
-      },
-      "twitch": {
-        "title": "Notificações da Twitch",
-        "subtitle": "Envie alertas ao vivo quando streamers monitorados ficam online."
-      },
-      "features": {
-        "title": "Recursos",
-        "subtitle": "Ative ou desative módulos de recursos para o seu servidor."
-      },
-      "trackHistory": {
-        "title": "Histórico de faixas",
-        "subtitle": "Inspecione a reprodução recente e a atividade dos solicitantes."
-      },
-      "music": {
-        "title": "Player de música",
-        "subtitle": "Gerencie fila, autoplay e controles de reprodução em tempo real."
-      },
-      "preferredArtists": {
-        "title": "Gosto musical",
-        "subtitle": "Ajuste preferências de autoplay e prioridade de artistas."
-      },
-      "spotify": {
-        "title": "Spotify",
-        "subtitle": "Vincule ou desvincule o Spotify para alimentar o autoplay."
-      },
-      "fallback": {
-        "title": "Painel Lucky",
-        "subtitle": "Configure módulos, moderação e fluxos de engajamento."
-      }
-    }
-  },
-  "landing": {
-    "meta": {
-      "title": "Lucky — Um bot do Discord que você pode hospedar",
-      "description": "Bot do Discord open source com música, moderação, comandos personalizados e painel web. Grátis para sempre. Rode na sua própria máquina."
-    },
-    "hero": {
-      "eyebrow": "Open source · Apache 2.0",
-      "headlineLine1": "Um bot do Discord bem feito.",
-      "headlineLine2": "E você que manda.",
-      "subtitle": "Música, moderação, comandos personalizados e um painel web completo. Use a versão hospedada em dois cliques, ou rode no seu próprio box se preferir.",
-      "ctaPrimary": "Adicionar ao Discord",
-      "ctaSecondary": "Auto-hospedar no GitHub"
-    },
-    "repoCard": {
-      "name": "LucasSantana-Dev / Lucky",
-      "description": "Bot de música do Discord auto-hospedável — Spotify + YouTube + SoundCloud, autoplay com recomendações, painel React, suíte de moderação.",
-      "license": "Apache-2.0",
-      "lang": "TypeScript",
-      "starsLabel": "estrelas",
-      "forksLabel": "forks",
-      "issuesLabel": "issues abertas",
-      "viewOnGithub": "Ver no GitHub",
-      "copyClone": "Copiar URL de clone"
-    },
-    "whySelfHost": {
-      "heading": "Por que auto-hospedar",
-      "items": {
-        "data": {
-          "title": "Os dados do seu servidor são seus",
-          "description": "Postgres, Redis, seu hardware. Nada de termos de uso de terceiros sobre a sua comunidade. Exporte e migre quando quiser."
-        },
-        "fork": {
-          "title": "Fork no código",
-          "description": "Monorepo TypeScript. Adicione comandos, mude comportamento, troque providers sem esperar por uma roadmap ou pagar por tier de API."
-        },
-        "free": {
-          "title": "Grátis, sem tier premium",
-          "description": "Sem paywall, sem Patreon, sem limite de uso por tier. Apache 2.0. A versão hospedada existe pra quem não quer rodar uma máquina."
-        }
-      }
-    },
-    "commands": {
-      "heading": "100+ comandos, com escopo no que você roda",
-      "rows": {
-        "play": {
-          "name": "/play",
-          "description": "Adicione um track do Spotify, YouTube ou SoundCloud à fila",
-          "kbd": "música"
-        },
-        "autoplay": {
-          "name": "/autoplay",
-          "description": "Recomendações por gênero, sem trocar de idioma",
-          "kbd": "música"
-        },
-        "queue": {
-          "name": "/queue",
-          "description": "Veja ou reordene a fila atual",
-          "kbd": "música"
-        },
-        "ban": {
-          "name": "/mod ban",
-          "description": "Tempban com motivo, DM automática, audit log",
-          "kbd": "moderação"
-        },
-        "automod": {
-          "name": "/automod",
-          "description": "Spam, caps, links, convites — regras por servidor",
-          "kbd": "moderação"
-        },
-        "custom": {
-          "name": "/cc create",
-          "description": "Comandos customizados com interpolação de variáveis",
-          "kbd": "custom"
-        }
-      },
-      "more": "+ 100 outros no painel"
-    },
-    "stack": {
-      "heading": "Para desenvolvedores — o que você está rodando",
-      "subheading": "Stack padrão Node + Postgres. Nada exótico. `docker compose up` e você está online. Pule esta seção se está usando a versão hospedada.",
-      "items": {
-        "bot": {
-          "name": "lucky-bot",
-          "description": "Cliente discord.js, áudio sem Lavalink via yt-dlp + Opus"
-        },
-        "backend": {
-          "name": "lucky-backend",
-          "description": "API Express, OAuth, Prisma com Postgres"
-        },
-        "frontend": {
-          "name": "lucky-frontend",
-          "description": "React 19 + Vite + Tailwind, painel com OAuth do Discord"
-        },
-        "postgres": {
-          "name": "postgres",
-          "description": "Config de servidor, comandos customizados, log de moderação"
-        },
-        "redis": {
-          "name": "redis",
-          "description": "Cache de sessão, rate-limit, estado de autoplay"
-        },
-        "nginx": {
-          "name": "nginx",
-          "description": "Reverse proxy, rewrite /webhook → /hooks para deploy"
-        }
-      }
-    },
-    "footerRepo": {
-      "heading": "Open source sob Apache 2.0",
-      "subheading": "Fork, contribua, rode, faça o deploy. O código é a especificação."
-    },
-    "footer": {
-      "tagline": "Bot do Discord open source. Rode você mesmo ou use a versão hospedada.",
-      "links": "Produto",
-      "support": "Comunidade",
-      "supportCopy": "Issues e PRs são bem-vindos no GitHub. Ou entre no servidor de suporte do Discord.",
-      "terms": "Termos",
-      "privacy": "Privacidade",
-      "github": "GitHub",
-      "docs": "Docs",
-      "changelog": "Changelog",
-      "discord": "Servidor de suporte",
-      "copyright": "© 2026 Lucky. Apache 2.0."
-    },
-    "features": {
-      "heading": "O que o Lucky faz",
-      "subheading": "Tudo que a maioria dos servidores precisa, em um bot só. Sem tier premium escondendo o que importa.",
-      "items": {
-        "music": {
-          "title": "Música com autoplay inteligente",
-          "description": "Adicione tracks do Spotify, YouTube ou SoundCloud. O autoplay acompanha o mood e não troca de idioma."
-        },
-        "moderation": {
-          "title": "Moderação que não dorme",
-          "description": "Auto-mod para spam, caps, links e convites. Tempbans com motivo, registro no audit log e regras por servidor."
-        },
-        "customCommands": {
-          "title": "Comandos personalizados",
-          "description": "Crie respostas, toggles de role, embeds e atalhos sem escrever código. Com interpolação de variáveis."
-        },
-        "dashboard": {
-          "title": "Um painel web de verdade",
-          "description": "Configure tudo direto do navegador. Login com OAuth do Discord, sem arquivos JSON, sem SSH."
-        },
-        "embeds": {
-          "title": "Construtor de embeds",
-          "description": "Monte embeds ricos com prévia ao vivo. Salve templates, envie agendado, edite no lugar."
-        }
-      }
-    }
-  },
-  "login": {
-    "meta": {
-      "title": "Entrar - Lucky",
-      "description": "Entre no painel do Lucky para gerenciar seus servidores do Discord"
-    },
-    "brand": "Painel do Bot do Discord",
-    "headline": "Gerencie seus servidores do Discord",
-    "description": "Configure moderação, comandos personalizados, música e muito mais — tudo em um só lugar.",
-    "modules": "Módulos",
-    "commands": "Comandos",
-    "uptime": "Tempo online",
-    "authentication": "Autenticação",
-    "signInWithDiscord": "Entrar com Discord",
-    "permissionsNote": "Suas permissões de servidor e controles do bot estão vinculados à sua conta do Discord.",
-    "connecting": "Conectando...",
-    "loginButton": "Entrar com Discord",
-    "badges": {
-      "oauthSecured": "Protegido por OAuth",
-      "fastSetup": "Configuração rápida",
-      "liveControls": "Controles em tempo real"
-    },
-    "copyright": "© 2026 Lucky. Todos os direitos reservados."
-  }
 }

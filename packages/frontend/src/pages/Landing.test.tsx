@@ -15,10 +15,7 @@ vi.mock('framer-motion', async () => {
             React.createElement(tag, { ...props, ref }, children),
         )
     return {
-        motion: new Proxy(
-            {},
-            { get: (_t, prop: string) => passthrough(prop) },
-        ),
+        motion: new Proxy({}, { get: (_t, prop: string) => passthrough(prop) }),
         AnimatePresence: ({ children }: any) => children,
         useReducedMotion: vi.fn(() => false),
     }
@@ -27,7 +24,12 @@ vi.mock('@/services/api')
 
 const mockLogin = vi.fn()
 
-type StatsFixture = { totalGuilds: number; totalUsers: number; uptimeSeconds: number; serversOnline: number }
+type StatsFixture = {
+    totalGuilds: number
+    totalUsers: number
+    uptimeSeconds: number
+    serversOnline: number
+}
 
 function setupMocks(overrides?: {
     prefersReducedMotion?: boolean
@@ -36,16 +38,21 @@ function setupMocks(overrides?: {
 }) {
     const {
         prefersReducedMotion = false,
-        statsData = { totalGuilds: 240, totalUsers: 18_400, uptimeSeconds: 86_400, serversOnline: 1 },
+        statsData = {
+            totalGuilds: 240,
+            totalUsers: 18_400,
+            uptimeSeconds: 86_400,
+            serversOnline: 1,
+        },
         statsError,
     } = overrides || {}
 
-    vi.mocked(useAuthStore).mockImplementation(
-        ((selector?: (value: unknown) => unknown) => {
-            const state = { login: mockLogin }
-            return selector ? selector(state) : state
-        }) as typeof useAuthStore
-    )
+    vi.mocked(useAuthStore).mockImplementation(((
+        selector?: (value: unknown) => unknown,
+    ) => {
+        const state = { login: mockLogin }
+        return selector ? selector(state) : state
+    }) as typeof useAuthStore)
 
     vi.mocked(usePageMetadata).mockImplementation(() => undefined)
     vi.mocked(useReducedMotion).mockReturnValue(prefersReducedMotion)
@@ -53,7 +60,7 @@ function setupMocks(overrides?: {
     vi.mocked(api).stats = {
         getPublic: statsError
             ? vi.fn().mockRejectedValue(statsError)
-            : vi.fn().mockResolvedValue({ data: statsData })
+            : vi.fn().mockResolvedValue({ data: statsData }),
     } as any
 }
 
@@ -77,7 +84,10 @@ describe('Landing', () => {
         expect(wordmarks.length).toBeGreaterThanOrEqual(1)
         const githubLinks = screen.getAllByRole('link', { name: /github/i })
         expect(githubLinks.length).toBeGreaterThanOrEqual(1)
-        expect(githubLinks[0]).toHaveAttribute('href', 'https://github.com/LucasSantana-Dev/Lucky')
+        expect(githubLinks[0]).toHaveAttribute(
+            'href',
+            'https://github.com/LucasSantana-Dev/Lucky',
+        )
     })
 
     test('renders hero with cat logo, eyebrow and headline', () => {
@@ -86,16 +96,23 @@ describe('Landing', () => {
         expect(logos.length).toBeGreaterThanOrEqual(2)
         const eyebrows = screen.getAllByText(/Open source/i)
         expect(eyebrows.length).toBeGreaterThanOrEqual(1)
-        expect(screen.getByText(/A Discord bot built right\./i)).toBeInTheDocument()
+        expect(
+            screen.getByText(/A Discord bot built right\./i),
+        ).toBeInTheDocument()
         expect(screen.getByText(/And yours to run\./i)).toBeInTheDocument()
     })
 
     test('renders Add to Discord primary CTA in hero and nav', () => {
         render(<Landing />)
-        const inviteLinks = screen.getAllByRole('link', { name: /Add to Discord/i })
+        const inviteLinks = screen.getAllByRole('link', {
+            name: /Add to Discord/i,
+        })
         expect(inviteLinks.length).toBeGreaterThanOrEqual(2)
         inviteLinks.forEach((link) => {
-            expect(link).toHaveAttribute('href', expect.stringContaining('discord.com/oauth2/authorize'))
+            expect(link).toHaveAttribute(
+                'href',
+                expect.stringContaining('discord.com/oauth2/authorize'),
+            )
             expect(link).toHaveAttribute('target', '_blank')
             expect(link).toHaveAttribute('rel', 'noopener noreferrer')
         })
@@ -103,8 +120,13 @@ describe('Landing', () => {
 
     test('renders Self-host on GitHub secondary CTA in hero', () => {
         render(<Landing />)
-        const selfHost = screen.getByRole('link', { name: /Self-host on GitHub/i })
-        expect(selfHost).toHaveAttribute('href', 'https://github.com/LucasSantana-Dev/Lucky')
+        const selfHost = screen.getByRole('link', {
+            name: /Self-host on GitHub/i,
+        })
+        expect(selfHost).toHaveAttribute(
+            'href',
+            'https://github.com/LucasSantana-Dev/Lucky',
+        )
         expect(selfHost).toHaveAttribute('target', '_blank')
     })
 
@@ -120,9 +142,8 @@ describe('Landing', () => {
         expect(screen.getByText('Apache-2.0')).toBeInTheDocument()
         expect(screen.getByText('TypeScript')).toBeInTheDocument()
         await waitFor(() => {
-            expect(screen.getByText('stars')).toBeInTheDocument()
-            expect(screen.getByText('forks')).toBeInTheDocument()
-            expect(screen.getByText('open issues')).toBeInTheDocument()
+            expect(screen.getByText('servers')).toBeInTheDocument()
+            expect(screen.getByText('users')).toBeInTheDocument()
         })
     })
 
@@ -139,14 +160,20 @@ describe('Landing', () => {
         } as any
         render(<Landing />)
         const ellipses = screen.getAllByText('…')
-        expect(ellipses.length).toBeGreaterThanOrEqual(3)
+        expect(ellipses.length).toBeGreaterThanOrEqual(2)
     })
 
     test('renders features section with five user-facing items', () => {
         render(<Landing />)
-        expect(screen.getByText(/Music with smart autoplay/i)).toBeInTheDocument()
-        expect(screen.getByText(/Moderation that doesn't sleep/i)).toBeInTheDocument()
-        expect(screen.getAllByText(/Custom commands/i).length).toBeGreaterThanOrEqual(1)
+        expect(
+            screen.getByText(/Music with smart autoplay/i),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByText(/Moderation that doesn't sleep/i),
+        ).toBeInTheDocument()
+        expect(
+            screen.getAllByText(/Custom commands/i).length,
+        ).toBeGreaterThanOrEqual(1)
         expect(screen.getByText(/A real web dashboard/i)).toBeInTheDocument()
         expect(screen.getByText(/Embed builder/i)).toBeInTheDocument()
     })
@@ -165,13 +192,15 @@ describe('Landing', () => {
 
         await waitFor(() =>
             expect(writeText).toHaveBeenCalledWith(
-                'git clone https://github.com/LucasSantana-Dev/Lucky.git'
-            )
+                'git clone https://github.com/LucasSantana-Dev/Lucky.git',
+            ),
         )
     })
 
     test('repo card handles clipboard failure gracefully', async () => {
-        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+        const errorSpy = vi
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined)
         const writeText = vi.fn().mockRejectedValue(new Error('denied'))
         Object.defineProperty(navigator, 'clipboard', {
             value: { writeText },
@@ -181,7 +210,9 @@ describe('Landing', () => {
 
         try {
             render(<Landing />)
-            const copyBtn = screen.getByRole('button', { name: /Copy clone URL/i })
+            const copyBtn = screen.getByRole('button', {
+                name: /Copy clone URL/i,
+            })
             fireEvent.click(copyBtn)
             await waitFor(() => expect(errorSpy).toHaveBeenCalled())
         } finally {
@@ -191,9 +222,13 @@ describe('Landing', () => {
 
     test('renders why-self-host section with three reason cards', () => {
         render(<Landing />)
-        expect(screen.getByText('Your guild data stays yours')).toBeInTheDocument()
+        expect(
+            screen.getByText('Your guild data stays yours'),
+        ).toBeInTheDocument()
         expect(screen.getByText('Fork the source')).toBeInTheDocument()
-        expect(screen.getByText('Free, with no premium tier')).toBeInTheDocument()
+        expect(
+            screen.getByText('Free, with no premium tier'),
+        ).toBeInTheDocument()
     })
 
     test('renders command list with all six commands and category tags', () => {
@@ -206,7 +241,9 @@ describe('Landing', () => {
         expect(screen.getByText('/cc create')).toBeInTheDocument()
         expect(screen.getAllByText(/music/i).length).toBeGreaterThanOrEqual(2)
         expect(screen.getAllByText(/mod$/i).length).toBeGreaterThanOrEqual(1)
-        expect(screen.getByText('+ 100 more in the dashboard')).toBeInTheDocument()
+        expect(
+            screen.getByText('+ 100 more in the dashboard'),
+        ).toBeInTheDocument()
     })
 
     test('renders stack list with all six services', () => {
@@ -221,21 +258,35 @@ describe('Landing', () => {
 
     test('renders repo footer banner and footer copyright', () => {
         render(<Landing />)
-        expect(screen.getByText(/Open source under Apache 2.0/i)).toBeInTheDocument()
-        expect(screen.getByText(/© 2026 Lucky\. Apache 2\.0\./)).toBeInTheDocument()
+        expect(
+            screen.getByText(/Open source under Apache 2.0/i),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByText(/© 2026 Lucky\. Apache 2\.0\./),
+        ).toBeInTheDocument()
     })
 
     test('renders footer with Terms, Privacy and Discord support links', () => {
         render(<Landing />)
-        expect(screen.getByRole('link', { name: /Terms/i })).toHaveAttribute('href', '/terms')
-        expect(screen.getByRole('link', { name: /Privacy/i })).toHaveAttribute('href', '/privacy')
-        const supportLink = screen.getByRole('link', { name: /Support server/i })
+        expect(screen.getByRole('link', { name: /Terms/i })).toHaveAttribute(
+            'href',
+            '/terms',
+        )
+        expect(screen.getByRole('link', { name: /Privacy/i })).toHaveAttribute(
+            'href',
+            '/privacy',
+        )
+        const supportLink = screen.getByRole('link', {
+            name: /Support server/i,
+        })
         expect(supportLink).toHaveAttribute('target', '_blank')
         expect(supportLink).toHaveAttribute('rel', 'noreferrer')
     })
 
     test('logs and recovers when stats fetch rejects', async () => {
-        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+        const errorSpy = vi
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined)
         try {
             setupMocks({ statsError: new Error('boom') })
             render(<Landing />)
@@ -248,16 +299,34 @@ describe('Landing', () => {
     test('respects prefers-reduced-motion', () => {
         setupMocks({ prefersReducedMotion: true })
         render(<Landing />)
-        expect(screen.getByText(/A Discord bot built right\./i)).toBeInTheDocument()
+        expect(
+            screen.getByText(/A Discord bot built right\./i),
+        ).toBeInTheDocument()
     })
 
     test('shows zero stats correctly when api returns zeros', async () => {
-        setupMocks({ statsData: { totalGuilds: 0, totalUsers: 0, uptimeSeconds: 0, serversOnline: 0 } })
+        setupMocks({
+            statsData: {
+                totalGuilds: 0,
+                totalUsers: 0,
+                uptimeSeconds: 0,
+                serversOnline: 0,
+            },
+        })
         render(<Landing />)
         await waitFor(() => expect(api.stats.getPublic).toHaveBeenCalled())
         const zeros = await screen.findAllByText('0')
-        // Three stats columns (stars/forks/issues): forks/issues are floored from Math.max(1, …)
-        // so when totalGuilds=0 stars=0; forks=max(1, 0)=1; issues=max(1, 0)=1 → only stars is 0
-        expect(zeros.length).toBeGreaterThanOrEqual(1)
+        // Two honest stat columns (servers/users): both come straight from the
+        // API, so totalGuilds=0 + totalUsers=0 → both render '0'.
+        expect(zeros.length).toBeGreaterThanOrEqual(2)
+    })
+
+    test('repo card shows an em-dash fallback when the stats fetch fails', async () => {
+        setupMocks({ statsError: new Error('stats unavailable') })
+        render(<Landing />)
+        await waitFor(() => expect(api.stats.getPublic).toHaveBeenCalled())
+        // No stale 0 / placeholder — unavailable stats render as '—'.
+        const dashes = await screen.findAllByText('—')
+        expect(dashes.length).toBeGreaterThanOrEqual(2)
     })
 })

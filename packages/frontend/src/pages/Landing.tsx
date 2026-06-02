@@ -6,13 +6,12 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { api } from '@/services/api'
 import {
     Star,
-    GitFork,
-    CircleDot,
     Scale,
     ArrowUpRight,
     Copy,
     Check,
     Server,
+    Users,
     Database,
     Layers,
     Music2,
@@ -23,7 +22,13 @@ import {
     Sparkles,
 } from 'lucide-react'
 
-function GithubMark({ size = 16, className }: { size?: number; className?: string }) {
+function GithubMark({
+    size = 16,
+    className,
+}: {
+    size?: number
+    className?: string
+}) {
     return (
         <svg
             xmlns='http://www.w3.org/2000/svg'
@@ -44,13 +49,23 @@ const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_
 const REPO_URL = 'https://github.com/LucasSantana-Dev/Lucky'
 const CLONE_URL = 'https://github.com/LucasSantana-Dev/Lucky.git'
 
-type RepoStats = { stars: number; forks: number; openIssues: number; loading: boolean }
+type RepoStats = {
+    servers: number
+    users: number
+    error: boolean
+    loading: boolean
+}
 
 export default function Landing() {
     const login = useAuthStore((s) => s.login)
     const prefersReducedMotion = useReducedMotion()
     const { t } = useTranslation()
-    const [repoStats, setRepoStats] = useState<RepoStats>({ stars: 0, forks: 0, openIssues: 0, loading: true })
+    const [repoStats, setRepoStats] = useState<RepoStats>({
+        servers: 0,
+        users: 0,
+        error: false,
+        loading: true,
+    })
 
     useEffect(() => {
         let active = true
@@ -59,15 +74,15 @@ export default function Landing() {
                 const res = await api.stats.getPublic()
                 if (!active) return
                 setRepoStats({
-                    stars: res.data.totalGuilds,
-                    forks: Math.max(1, Math.floor(res.data.totalGuilds / 12)),
-                    openIssues: Math.max(1, Math.floor(res.data.totalUsers / 1000)),
+                    servers: res.data.totalGuilds,
+                    users: res.data.totalUsers,
+                    error: false,
                     loading: false,
                 })
             } catch (error) {
                 if (!active) return
-                console.error('Failed to fetch repo stats:', error)
-                setRepoStats((s) => ({ ...s, loading: false }))
+                console.error('Failed to fetch bot stats:', error)
+                setRepoStats((s) => ({ ...s, error: true, loading: false }))
             }
         }
         fetchStats()
@@ -84,7 +99,10 @@ export default function Landing() {
     return (
         <div className='lucky-shell min-h-screen dark text-white bg-lucky-surface-canvas'>
             <TopNav onOpenDashboard={login} />
-            <Hero stats={repoStats} prefersReducedMotion={prefersReducedMotion ?? false} />
+            <Hero
+                stats={repoStats}
+                prefersReducedMotion={prefersReducedMotion ?? false}
+            />
             <FeatureGrid />
             <CommandList />
             <WhySelfHost />
@@ -103,7 +121,14 @@ function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
                     href='/'
                     className='inline-flex items-center gap-2 text-lucky-text-strong hover:text-lucky-brand transition-colors'
                 >
-                    <img src='/lucky-logo.png' alt='Lucky' width='28' height='28' className='h-7 w-7 rounded-full' loading='eager' />
+                    <img
+                        src='/lucky-logo.png'
+                        alt='Lucky'
+                        width='28'
+                        height='28'
+                        className='h-7 w-7 rounded-full'
+                        loading='eager'
+                    />
                     <span className='font-mono text-sm font-semibold tracking-tight'>
                         lucky<span className='text-lucky-brand'>.</span>
                     </span>
@@ -164,7 +189,11 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
         ? {}
         : {
               animate: { y: [0, -6, 0] },
-              transition: { duration: 4, repeat: Infinity, ease: 'easeInOut' as const },
+              transition: {
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: 'easeInOut' as const,
+              },
           }
 
     return (
@@ -185,12 +214,19 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
                         />
                     </motion.div>
                     <p className='mb-5 inline-flex items-center gap-2 rounded-full border border-lucky-border-soft bg-lucky-surface-panel px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em] text-lucky-text-muted'>
-                        <span className='h-1.5 w-1.5 rounded-full bg-lucky-success' aria-hidden />
+                        <span
+                            className='h-1.5 w-1.5 rounded-full bg-lucky-success'
+                            aria-hidden
+                        />
                         {t('landing.hero.eyebrow')}
                     </p>
                     <h1 className='mb-6 max-w-[16ch] text-[clamp(2.6rem,5.5vw,4.4rem)] font-black leading-[1.02] tracking-[-0.035em] text-lucky-text-strong'>
-                        <span className='block'>{t('landing.hero.headlineLine1')}</span>
-                        <span className='block text-lucky-brand'>{t('landing.hero.headlineLine2')}</span>
+                        <span className='block'>
+                            {t('landing.hero.headlineLine1')}
+                        </span>
+                        <span className='block text-lucky-brand'>
+                            {t('landing.hero.headlineLine2')}
+                        </span>
                     </h1>
                     <p className='mb-8 max-w-[52ch] text-base text-lucky-text-body leading-relaxed md:text-lg'>
                         {t('landing.hero.subtitle')}
@@ -203,7 +239,11 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
                             className='group inline-flex h-11 items-center justify-center gap-2 rounded-md bg-lucky-brand px-5 font-semibold text-white shadow-[0_6px_24px_-8px_rgba(236,72,153,0.55)] hover:bg-lucky-brand-strong transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas active:scale-[0.98]'
                         >
                             {t('landing.hero.ctaPrimary')}
-                            <ArrowUpRight size={15} className='transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5' aria-hidden />
+                            <ArrowUpRight
+                                size={15}
+                                className='transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5'
+                                aria-hidden
+                            />
                         </a>
                         <a
                             href={REPO_URL}
@@ -211,7 +251,8 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
                             rel='noreferrer'
                             className='inline-flex h-11 items-center justify-center gap-2 rounded-md border border-lucky-border-strong bg-transparent px-5 font-semibold text-lucky-text-body hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas active:scale-[0.98]'
                         >
-                            <GithubMark size={14} /> {t('landing.hero.ctaSecondary')}
+                            <GithubMark size={14} />{' '}
+                            {t('landing.hero.ctaSecondary')}
                         </a>
                     </div>
                 </motion.div>
@@ -222,7 +263,11 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
                         : {
                               initial: { opacity: 0, y: 24 },
                               animate: { opacity: 1, y: 0 },
-                              transition: { duration: 0.6, delay: 0.12, ease: [0.16, 1, 0.3, 1] as const },
+                              transition: {
+                                  duration: 0.6,
+                                  delay: 0.12,
+                                  ease: [0.16, 1, 0.3, 1] as const,
+                              },
                           })}
                 >
                     <RepoCard stats={stats} locale={locale} />
@@ -237,7 +282,11 @@ function FeatureGrid() {
     const features = [
         { key: 'music', icon: Music2, span: 'md:col-span-2' },
         { key: 'moderation', icon: Shield, span: 'md:col-span-1' },
-        { key: 'customCommands', icon: SlidersHorizontal, span: 'md:col-span-1' },
+        {
+            key: 'customCommands',
+            icon: SlidersHorizontal,
+            span: 'md:col-span-1',
+        },
         { key: 'dashboard', icon: LayoutDashboard, span: 'md:col-span-2' },
         { key: 'embeds', icon: Sparkles, span: 'md:col-span-3' },
     ] as const
@@ -249,7 +298,9 @@ function FeatureGrid() {
                     <h2 className='mb-3 text-3xl font-semibold tracking-tight text-lucky-text-strong md:text-4xl'>
                         {t('landing.features.heading')}
                     </h2>
-                    <p className='text-base text-lucky-text-body leading-relaxed'>{t('landing.features.subheading')}</p>
+                    <p className='text-base text-lucky-text-body leading-relaxed'>
+                        {t('landing.features.subheading')}
+                    </p>
                 </div>
                 <ul className='grid gap-3 md:grid-cols-3'>
                     {features.map(({ key, icon: Icon, span }) => {
@@ -261,11 +312,17 @@ function FeatureGrid() {
                                         <Icon size={18} aria-hidden />
                                     </span>
                                     <div>
-                                        <h3 className={`mb-2 font-semibold text-lucky-text-strong tracking-tight ${isWide ? 'text-lg md:text-xl' : 'text-base'}`}>
-                                            {t(`landing.features.items.${key}.title`)}
+                                        <h3
+                                            className={`mb-2 font-semibold text-lucky-text-strong tracking-tight ${isWide ? 'text-lg md:text-xl' : 'text-base'}`}
+                                        >
+                                            {t(
+                                                `landing.features.items.${key}.title`,
+                                            )}
                                         </h3>
                                         <p className='text-sm text-lucky-text-body leading-relaxed'>
-                                            {t(`landing.features.items.${key}.description`)}
+                                            {t(
+                                                `landing.features.items.${key}.description`,
+                                            )}
                                         </p>
                                     </div>
                                 </article>
@@ -285,14 +342,18 @@ function BlueprintGrid() {
                 aria-hidden
                 className='pointer-events-none absolute inset-0 opacity-[0.05]'
                 style={{
-                    backgroundImage: 'radial-gradient(circle, #adbac7 1px, transparent 1px)',
+                    backgroundImage:
+                        'radial-gradient(circle, #adbac7 1px, transparent 1px)',
                     backgroundSize: '24px 24px',
                 }}
             />
             <div
                 aria-hidden
                 className='pointer-events-none absolute inset-0'
-                style={{ background: 'radial-gradient(ellipse 80% 65% at 50% 30%, transparent 50%, #0f1117 100%)' }}
+                style={{
+                    background:
+                        'radial-gradient(ellipse 80% 65% at 50% 30%, transparent 50%, #0f1117 100%)',
+                }}
             />
         </>
     )
@@ -323,10 +384,13 @@ function RepoCard({ stats, locale }: { stats: RepoStats; locale: string }) {
             <header className='flex items-center justify-between gap-3 border-b border-lucky-border-soft bg-lucky-surface-elevated px-4 py-3'>
                 <div className='flex items-center gap-2 text-lucky-text-strong'>
                     <GithubMark size={15} />
-                    <span className='font-semibold tracking-tight'>{t('landing.repoCard.name')}</span>
+                    <span className='font-semibold tracking-tight'>
+                        {t('landing.repoCard.name')}
+                    </span>
                 </div>
                 <span className='inline-flex items-center gap-1 rounded-full border border-lucky-border-soft px-2 py-0.5 text-[11px] text-lucky-text-muted'>
-                    <Scale size={11} aria-hidden /> {t('landing.repoCard.license')}
+                    <Scale size={11} aria-hidden />{' '}
+                    {t('landing.repoCard.license')}
                 </span>
             </header>
 
@@ -335,31 +399,62 @@ function RepoCard({ stats, locale }: { stats: RepoStats; locale: string }) {
                     {t('landing.repoCard.description')}
                 </p>
 
-                <dl className='grid grid-cols-3 gap-3 text-[12px]'>
-                    <RepoStat icon={Star} value={loading ? '…' : fmt(stats.stars)} label={t('landing.repoCard.starsLabel')} />
-                    <RepoStat icon={GitFork} value={loading ? '…' : fmt(stats.forks)} label={t('landing.repoCard.forksLabel')} />
-                    <RepoStat icon={CircleDot} value={loading ? '…' : fmt(stats.openIssues)} label={t('landing.repoCard.issuesLabel')} />
+                <dl className='grid grid-cols-2 gap-3 text-[12px]'>
+                    <RepoStat
+                        icon={Server}
+                        value={
+                            loading
+                                ? '…'
+                                : stats.error
+                                  ? '—'
+                                  : fmt(stats.servers)
+                        }
+                        label={t('landing.repoCard.serversLabel')}
+                    />
+                    <RepoStat
+                        icon={Users}
+                        value={
+                            loading ? '…' : stats.error ? '—' : fmt(stats.users)
+                        }
+                        label={t('landing.repoCard.usersLabel')}
+                    />
                 </dl>
 
                 <div className='flex items-center gap-2 text-[11px] text-lucky-text-muted'>
-                    <span className='h-2 w-2 rounded-full bg-[#2b7489]' aria-hidden />
+                    <span
+                        className='h-2 w-2 rounded-full bg-[#2b7489]'
+                        aria-hidden
+                    />
                     {t('landing.repoCard.lang')}
                     <span className='ml-auto inline-flex h-1 flex-1 max-w-[120px] overflow-hidden rounded-full bg-lucky-border-soft'>
-                        <span className='h-full bg-[#2b7489]' style={{ width: '96%' }} />
-                        <span className='h-full bg-lucky-brand' style={{ width: '4%' }} />
+                        <span
+                            className='h-full bg-[#2b7489]'
+                            style={{ width: '96%' }}
+                        />
+                        <span
+                            className='h-full bg-lucky-brand'
+                            style={{ width: '4%' }}
+                        />
                     </span>
                 </div>
 
                 <div className='rounded-md border border-lucky-border-soft bg-lucky-surface-canvas px-3 py-2.5 text-[12px] flex items-center justify-between gap-2 group'>
                     <code className='truncate text-lucky-text-body'>
-                        <span className='text-lucky-text-muted select-none'>$ </span>git clone {CLONE_URL}
+                        <span className='text-lucky-text-muted select-none'>
+                            ${' '}
+                        </span>
+                        git clone {CLONE_URL}
                     </code>
                     <button
                         onClick={handleCopy}
                         aria-label={t('landing.repoCard.copyClone')}
                         className='shrink-0 inline-flex h-7 w-7 items-center justify-center rounded text-lucky-text-muted hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand'
                     >
-                        {copied ? <Check size={13} className='text-lucky-success' /> : <Copy size={13} />}
+                        {copied ? (
+                            <Check size={13} className='text-lucky-success' />
+                        ) : (
+                            <Copy size={13} />
+                        )}
                     </button>
                 </div>
 
@@ -377,11 +472,25 @@ function RepoCard({ stats, locale }: { stats: RepoStats; locale: string }) {
     )
 }
 
-function RepoStat({ icon: Icon, value, label }: { icon: typeof Star; value: string; label: string }) {
+function RepoStat({
+    icon: Icon,
+    value,
+    label,
+}: {
+    icon: typeof Star
+    value: string
+    label: string
+}) {
     return (
         <div className='flex items-baseline gap-1.5'>
-            <Icon size={12} className='translate-y-[1px] text-lucky-text-muted' aria-hidden />
-            <span className='font-semibold tabular-nums text-lucky-text-strong'>{value}</span>
+            <Icon
+                size={12}
+                className='translate-y-[1px] text-lucky-text-muted'
+                aria-hidden
+            />
+            <span className='font-semibold tabular-nums text-lucky-text-strong'>
+                {value}
+            </span>
             <span className='text-lucky-text-muted'>{label}</span>
         </div>
     )
@@ -404,7 +513,9 @@ function WhySelfHost() {
                                 {t(`landing.whySelfHost.items.${key}.title`)}
                             </h3>
                             <p className='text-sm text-lucky-text-body leading-relaxed'>
-                                {t(`landing.whySelfHost.items.${key}.description`)}
+                                {t(
+                                    `landing.whySelfHost.items.${key}.description`,
+                                )}
                             </p>
                         </li>
                     ))}
@@ -416,14 +527,22 @@ function WhySelfHost() {
 
 function CommandList() {
     const { t } = useTranslation()
-    const rows = ['play', 'autoplay', 'queue', 'ban', 'automod', 'custom'] as const
+    const rows = [
+        'play',
+        'autoplay',
+        'queue',
+        'ban',
+        'automod',
+        'custom',
+    ] as const
 
     const kindColor: Record<string, string> = {
         music: 'text-lucky-brand bg-lucky-brand/10 border-lucky-brand/30',
         mod: 'text-lucky-warning bg-lucky-warning/10 border-lucky-warning/30',
         custom: 'text-lucky-success bg-lucky-success/10 border-lucky-success/30',
         música: 'text-lucky-brand bg-lucky-brand/10 border-lucky-brand/30',
-        moderação: 'text-lucky-warning bg-lucky-warning/10 border-lucky-warning/30',
+        moderação:
+            'text-lucky-warning bg-lucky-warning/10 border-lucky-warning/30',
     }
 
     return (
@@ -435,22 +554,29 @@ function CommandList() {
                 <ul className='overflow-hidden rounded-xl border border-lucky-border-soft bg-lucky-surface-canvas'>
                     {rows.map((key, idx) => {
                         const name = t(`landing.commands.rows.${key}.name`)
-                        const desc = t(`landing.commands.rows.${key}.description`)
+                        const desc = t(
+                            `landing.commands.rows.${key}.description`,
+                        )
                         const kbd = t(`landing.commands.rows.${key}.kbd`)
                         return (
                             <li
                                 key={key}
                                 className={`group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-lucky-surface-panel md:px-5 ${
-                                    idx > 0 ? 'border-t border-lucky-border-soft' : ''
+                                    idx > 0
+                                        ? 'border-t border-lucky-border-soft'
+                                        : ''
                                 }`}
                             >
                                 <code className='shrink-0 font-mono text-sm font-semibold text-lucky-text-strong w-[120px] md:w-[140px]'>
                                     {name}
                                 </code>
-                                <p className='flex-1 truncate text-sm text-lucky-text-body'>{desc}</p>
+                                <p className='flex-1 truncate text-sm text-lucky-text-body'>
+                                    {desc}
+                                </p>
                                 <span
                                     className={`shrink-0 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
-                                        kindColor[kbd] ?? 'text-lucky-text-muted bg-lucky-surface-elevated border-lucky-border-soft'
+                                        kindColor[kbd] ??
+                                        'text-lucky-text-muted bg-lucky-surface-elevated border-lucky-border-soft'
                                     }`}
                                 >
                                     {kbd}
@@ -459,7 +585,9 @@ function CommandList() {
                         )
                     })}
                 </ul>
-                <p className='mt-4 font-mono text-xs text-lucky-text-muted'>{t('landing.commands.more')}</p>
+                <p className='mt-4 font-mono text-xs text-lucky-text-muted'>
+                    {t('landing.commands.more')}
+                </p>
             </div>
         </section>
     )
@@ -492,7 +620,10 @@ function StackList() {
                 </div>
                 <ul className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
                     {stack.map(({ key, icon: Icon }) => (
-                        <li key={key} className='surface-panel flex items-start gap-3 rounded-lg p-4'>
+                        <li
+                            key={key}
+                            className='surface-panel flex items-start gap-3 rounded-lg p-4'
+                        >
                             <span className='mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-lucky-surface-elevated text-lucky-brand'>
                                 <Icon size={15} aria-hidden />
                             </span>
@@ -501,7 +632,9 @@ function StackList() {
                                     {t(`landing.stack.items.${key}.name`)}
                                 </p>
                                 <p className='mt-1 text-xs text-lucky-text-body leading-relaxed'>
-                                    {t(`landing.stack.items.${key}.description`)}
+                                    {t(
+                                        `landing.stack.items.${key}.description`,
+                                    )}
                                 </p>
                             </div>
                         </li>
@@ -530,7 +663,8 @@ function RepoFooterBanner() {
                     rel='noreferrer'
                     className='inline-flex h-11 items-center gap-2 rounded-md border border-lucky-border-strong bg-lucky-surface-panel px-5 font-mono text-sm font-semibold text-lucky-text-strong hover:bg-lucky-surface-elevated transition-colors'
                 >
-                    <GithubMark size={15} /> github.com/LucasSantana-Dev/Lucky <ArrowUpRight size={13} aria-hidden />
+                    <GithubMark size={15} /> github.com/LucasSantana-Dev/Lucky{' '}
+                    <ArrowUpRight size={13} aria-hidden />
                 </a>
             </div>
         </section>
@@ -547,28 +681,51 @@ function FooterSection() {
                         <div className='inline-flex items-baseline gap-1.5 font-mono text-sm font-semibold text-lucky-text-strong'>
                             lucky<span className='text-lucky-brand'>.</span>
                         </div>
-                        <p className='max-w-xs text-sm text-lucky-text-muted'>{t('landing.footer.tagline')}</p>
+                        <p className='max-w-xs text-sm text-lucky-text-muted'>
+                            {t('landing.footer.tagline')}
+                        </p>
                     </div>
                     <FooterColumn
                         heading={t('landing.footer.links')}
                         links={[
-                            { href: REPO_URL, label: t('landing.footer.github'), external: true },
+                            {
+                                href: REPO_URL,
+                                label: t('landing.footer.github'),
+                                external: true,
+                            },
                             { href: '/docs', label: t('landing.footer.docs') },
-                            { href: '/changelog', label: t('landing.footer.changelog') },
+                            {
+                                href: '/changelog',
+                                label: t('landing.footer.changelog'),
+                            },
                         ]}
                     />
                     <FooterColumn
                         heading={t('landing.footer.support')}
                         links={[
-                            { href: 'https://discord.gg/lucky', label: t('landing.footer.discord'), external: true },
-                            { href: '/terms', label: t('landing.footer.terms') },
-                            { href: '/privacy', label: t('landing.footer.privacy') },
+                            {
+                                href: 'https://discord.gg/lucky',
+                                label: t('landing.footer.discord'),
+                                external: true,
+                            },
+                            {
+                                href: '/terms',
+                                label: t('landing.footer.terms'),
+                            },
+                            {
+                                href: '/privacy',
+                                label: t('landing.footer.privacy'),
+                            },
                         ]}
                     />
                 </div>
                 <div className='mt-10 flex flex-col items-start justify-between gap-3 border-t border-lucky-border-soft pt-6 md:flex-row md:items-center'>
-                    <p className='font-mono text-xs text-lucky-text-muted'>{t('landing.footer.copyright')}</p>
-                    <p className='text-xs text-lucky-text-muted'>{t('landing.footer.supportCopy')}</p>
+                    <p className='font-mono text-xs text-lucky-text-muted'>
+                        {t('landing.footer.copyright')}
+                    </p>
+                    <p className='text-xs text-lucky-text-muted'>
+                        {t('landing.footer.supportCopy')}
+                    </p>
                 </div>
             </div>
         </footer>
@@ -584,17 +741,23 @@ function FooterColumn({
 }) {
     return (
         <div>
-            <h4 className='mb-4 font-mono text-[11px] uppercase tracking-[0.2em] text-lucky-text-muted'>{heading}</h4>
+            <h4 className='mb-4 font-mono text-[11px] uppercase tracking-[0.2em] text-lucky-text-muted'>
+                {heading}
+            </h4>
             <ul className='space-y-2.5'>
                 {links.map(({ href, label, external }) => (
                     <li key={href}>
                         <a
                             href={href}
-                            {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
+                            {...(external
+                                ? { target: '_blank', rel: 'noreferrer' }
+                                : {})}
                             className='inline-flex items-center gap-1 text-sm text-lucky-text-muted hover:text-lucky-brand transition-colors'
                         >
                             {label}
-                            {external ? <ArrowUpRight size={11} aria-hidden /> : null}
+                            {external ? (
+                                <ArrowUpRight size={11} aria-hidden />
+                            ) : null}
                         </a>
                     </li>
                 ))}
