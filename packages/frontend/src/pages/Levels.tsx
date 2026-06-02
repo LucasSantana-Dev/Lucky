@@ -19,6 +19,7 @@ function Levels() {
     const [leaderboard, setLeaderboard] = useState<MemberXP[]>([])
     const [rewards, setRewards] = useState<LevelReward[]>([])
     const [roles, setRoles] = useState<GuildRoleOption[]>([])
+    const [rolesError, setRolesError] = useState(false)
     const [saving, setSaving] = useState(false)
     const [adding, setAdding] = useState(false)
     const [newLevel, setNewLevel] = useState('')
@@ -40,15 +41,21 @@ function Levels() {
 
         const loadData = async () => {
             setLoading(true)
+            setRolesError(false)
             try {
                 const [configData, leaderboardData, rewardsData, rbacData] =
                     await Promise.all([
                         api.levels.getConfig(selectedGuild.id),
                         api.levels.getLeaderboard(selectedGuild.id, 20),
                         api.levels.getRewards(selectedGuild.id),
-                        api.guilds
-                            .getRbac(selectedGuild.id)
-                            .catch(() => ({ data: { roles: [] } })),
+                        // RBAC failure is isolated so it can't blank the whole
+                        // page, but it must be surfaced (not silently swallowed):
+                        // an empty role list then means "failed to load", which
+                        // rolesError distinguishes from "no roles configured".
+                        api.guilds.getRbac(selectedGuild.id).catch(() => {
+                            if (mounted) setRolesError(true)
+                            return { data: { roles: [] } }
+                        }),
                     ])
 
                 if (!mounted) return
@@ -301,6 +308,13 @@ function Levels() {
                     <h3 className='text-lg font-semibold text-lucky-text-primary mb-4'>
                         Level Rewards
                     </h3>
+
+                    {rolesError && (
+                        <p className='text-sm text-lucky-error mb-4'>
+                            Couldn&apos;t load this server&apos;s roles — reward
+                            role names may show as raw IDs. Refresh to retry.
+                        </p>
+                    )}
 
                     <div className='space-y-3 mb-4'>
                         {rewards.length === 0 ? (

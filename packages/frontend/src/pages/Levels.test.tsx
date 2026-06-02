@@ -174,6 +174,19 @@ describe('Levels', () => {
         expect(rewards[1].textContent).toContain('Lv.10')
     })
 
+    test('surfaces a visible error when the RBAC fetch fails (not silent)', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getRbac).mockRejectedValue(
+            new Error('rbac fetch failed'),
+        )
+        render(<Levels />)
+
+        // The failure is surfaced inline rather than masked as empty roles.
+        expect(
+            await screen.findByText(/load this server.s roles/i),
+        ).toBeInTheDocument()
+    })
+
     test('handles config save successfully', async () => {
         mockGuildStore()
         vi.mocked(api.levels.updateConfig).mockResolvedValue(undefined as never)
