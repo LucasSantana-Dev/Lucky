@@ -139,6 +139,31 @@ describe('GuildAutomation', () => {
         })
     })
 
+    test('shows an error + retry when both fetches reject (not a blank page)', async () => {
+        mockGuildStore()
+        vi.mocked(api.automation.getStatus).mockRejectedValue(
+            new Error('api down'),
+        )
+        vi.mocked(api.automation.getManifest).mockRejectedValue(
+            new Error('api down'),
+        )
+
+        render(
+            <MemoryRouter>
+                <GuildAutomation />
+            </MemoryRouter>,
+        )
+
+        expect(
+            await screen.findByText(
+                /Couldn.t load automation status or manifest/i,
+            ),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByRole('button', { name: /retry/i }),
+        ).toBeInTheDocument()
+    })
+
     test('displays status badge correctly', async () => {
         mockGuildStore()
         vi.mocked(api.automation.getStatus).mockResolvedValue({
