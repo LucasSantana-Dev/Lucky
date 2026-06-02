@@ -5,7 +5,7 @@ import {
     isSpotifyAuthConfigured,
     getSpotifyClientToken,
 } from '../../../src/services/SpotifyAuthService'
-import { spotifyLinkService, redisClient } from '@lucky/shared/services'
+import { spotifyLinkService } from '@lucky/shared/services'
 import { getPrismaClient, errorLog } from '@lucky/shared/utils'
 
 jest.mock('../../../src/services/SpotifyAuthService')
@@ -18,13 +18,14 @@ jest.mock('@lucky/shared/utils', () => {
         searchSpotifyArtists: jest.fn(),
         getSpotifyRelatedArtists: jest.fn(),
         errorLog: jest.fn(),
+        warnLog: jest.fn(),
+        debugLog: jest.fn(),
     }
 })
 
 describe('ArtistSuggestionService', () => {
     let service: ArtistSuggestionService
     let mockPrisma: any
-    let mockRedis: any
 
     const mockSpotifyArtist: SpotifyArtist = {
         id: 'artist_1',
@@ -44,14 +45,7 @@ describe('ArtistSuggestionService', () => {
                 delete: jest.fn(),
             },
         }
-
-        mockRedis = {
-            get: jest.fn(),
-            setex: jest.fn(),
-            isHealthy: jest.fn().mockReturnValue(true),
-        }
         ;(getPrismaClient as jest.Mock).mockReturnValue(mockPrisma)
-        ;(redisClient as any) = mockRedis
         ;(spotifyLinkService as any) = {
             getValidAccessToken: jest.fn(),
         }
@@ -81,7 +75,6 @@ describe('ArtistSuggestionService', () => {
             ;(
                 spotifyLinkService.getValidAccessToken as jest.Mock
             ).mockResolvedValue(null)
-            mockRedis.get.mockResolvedValue(null)
 
             const suggestions = await service.getSuggestions('user_123')
 
@@ -101,22 +94,29 @@ describe('ArtistSuggestionService', () => {
             )
         })
 
-        test('should load from cache when user top artists are cached', async () => {
+        test('should load Spotify top artists when not yet cached', async () => {
             ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
             mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
             ;(
                 spotifyLinkService.getValidAccessToken as jest.Mock
             ).mockResolvedValue('token_123')
 
-            const cachedArtists = JSON.stringify([mockSpotifyArtist])
-            mockRedis.get.mockResolvedValue(cachedArtists)
+            const originalFetch = global.fetch
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    items: [{ id: 'artist_1', name: 'Test Artist' }],
+                }),
+            }) as unknown as typeof fetch
 
-            const suggestions = await service.getSuggestions('user_123')
-
-            expect(mockRedis.get).toHaveBeenCalled()
-            expect(suggestions).toContainEqual(
-                expect.objectContaining({ id: 'artist_1' }),
-            )
+            try {
+                const suggestions = await service.getSuggestions('user_123')
+                expect(suggestions).toContainEqual(
+                    expect.objectContaining({ id: 'artist_1' }),
+                )
+            } finally {
+                global.fetch = originalFetch
+            }
         })
 
         test('should respect maxSuggestions limit', async () => {
@@ -197,7 +197,6 @@ describe('ArtistSuggestionService', () => {
             ;(
                 spotifyLinkService.getValidAccessToken as jest.Mock
             ).mockResolvedValue(null)
-            mockRedis.get.mockResolvedValue(null)
 
             const suggestions = await service.handleGetSuggestions('user_123')
 
@@ -469,14 +468,6 @@ describe('ArtistSuggestionService', () => {
     })
 
     describe('prewarmCache', () => {
-        test('should skip when Redis is not healthy', async () => {
-            mockRedis.isHealthy.mockReturnValueOnce(false)
-
-            await service.prewarmCache()
-
-            expect(mockRedis.isHealthy).toHaveBeenCalled()
-        })
-
         test('should skip when Spotify not configured', async () => {
             ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(false)
 
@@ -485,28 +476,35 @@ describe('ArtistSuggestionService', () => {
             expect(isSpotifyAuthConfigured).toHaveBeenCalled()
         })
 
-        test('should skip when cache is already populated', async () => {
+        test('should not refetch once the in-memory fallback cache is warm', async () => {
             ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            ;(getSpotifyClientToken as jest.Mock).mockResolvedValue('token_123')
 
-            const cachedArtists = JSON.stringify([mockSpotifyArtist])
-            mockRedis.get.mockResolvedValue(cachedArtists)
+            const { searchSpotifyArtists } = await import('@lucky/shared/utils')
+            ;(searchSpotifyArtists as jest.Mock).mockResolvedValue([
+                mockSpotifyArtist,
+            ])
 
             await service.prewarmCache()
+            const callsAfterWarm = (searchSpotifyArtists as jest.Mock).mock
+                .calls.length
+            expect(callsAfterWarm).toBeGreaterThan(0)
 
-            expect(mockRedis.setex).not.toHaveBeenCalled()
+            // Second prewarm finds the cache warm and performs no Spotify search.
+            await service.prewarmCache()
+            expect((searchSpotifyArtists as jest.Mock).mock.calls.length).toBe(
+                callsAfterWarm,
+            )
         })
     })
 
     describe('cache behavior', () => {
-        test('should cache user top artists after fetch', async () => {
+        test('caches user top artists in-memory and skips refetch on repeat calls', async () => {
             ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
             mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
             ;(
                 spotifyLinkService.getValidAccessToken as jest.Mock
             ).mockResolvedValue('token_123')
-
-            mockRedis.get.mockResolvedValue(null)
-            mockRedis.setex.mockResolvedValue('OK')
 
             const originalFetch = global.fetch
             const fetch = jest.fn().mockResolvedValue({
@@ -523,29 +521,23 @@ describe('ArtistSuggestionService', () => {
                     ],
                 }),
             })
+            global.fetch = fetch as unknown as typeof global.fetch
 
-            global.fetch = fetch
+            try {
+                await service.getSuggestions('user_123')
+                // First load fetches the three Spotify time-range pages.
+                const callsAfterFirst = fetch.mock.calls.length
+                expect(callsAfterFirst).toBeGreaterThan(0)
 
-            await service.getSuggestions('user_123')
-
-            expect(mockRedis.setex).toHaveBeenCalled()
-            global.fetch = originalFetch
-        })
-
-        test('should return cached value on subsequent requests', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
-            mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
-            ).mockResolvedValue('token_123')
-
-            const cachedArtists = JSON.stringify([mockSpotifyArtist])
-            mockRedis.get.mockResolvedValue(cachedArtists)
-
-            const suggestions = await service.getSuggestions('user_123')
-
-            expect(suggestions).toContainEqual(mockSpotifyArtist)
-            expect(mockRedis.get).toHaveBeenCalled()
+                // Second load is served from the in-memory cache — no new fetch.
+                const second = await service.getSuggestions('user_123')
+                expect(fetch.mock.calls.length).toBe(callsAfterFirst)
+                expect(second).toContainEqual(
+                    expect.objectContaining({ id: 'artist_1' }),
+                )
+            } finally {
+                global.fetch = originalFetch
+            }
         })
     })
 })

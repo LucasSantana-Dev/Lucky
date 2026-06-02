@@ -1,6 +1,9 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import type { Express } from 'express'
-import { setupArtistsRoutes } from '../../../src/routes/artists'
+import {
+    setupArtistsRoutes,
+    artistSuggestionService,
+} from '../../../src/routes/artists'
 import {
     searchSpotifyArtists,
     getSpotifyRelatedArtists,
@@ -18,6 +21,8 @@ import {
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
+    warnLog: jest.fn(),
+    debugLog: jest.fn(),
     getPrismaClient: jest.fn(),
     searchSpotifyArtists: jest.fn(),
     getSpotifyRelatedArtists: jest.fn(),
@@ -86,6 +91,7 @@ const mockPreference = {
 describe('Artists Routes', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        artistSuggestionService.resetCachesForTests()
         ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
         ;(getSpotifyClientToken as jest.Mock).mockResolvedValue('client-token')
         ;(

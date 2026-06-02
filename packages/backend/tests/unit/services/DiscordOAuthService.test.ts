@@ -149,6 +149,65 @@ describe('DiscordOAuthService', () => {
             )
         })
 
+        test('retries once on a 429 honouring Retry-After, then succeeds', async () => {
+            const rateLimited = {
+                ok: false,
+                status: 429,
+                headers: {
+                    get: (key: string) =>
+                        key.toLowerCase() === 'retry-after' ? '0.01' : null,
+                },
+                text: jest
+                    .fn<() => Promise<string>>()
+                    .mockResolvedValue('rate limited'),
+            } as unknown as Response
+            const success = {
+                ok: true,
+                json: jest
+                    .fn<() => Promise<any>>()
+                    .mockResolvedValue(MOCK_DISCORD_GUILDS),
+                text: jest.fn<() => Promise<string>>(),
+            } as unknown as Response
+
+            const mockFetch = jest.fn<typeof fetch>()
+            mockFetch
+                .mockResolvedValueOnce(rateLimited)
+                .mockResolvedValueOnce(success)
+            global.fetch = mockFetch as typeof fetch
+
+            const result = await discordOAuthService.getUserGuilds(
+                MOCK_TOKEN_RESPONSE.access_token,
+            )
+
+            expect(result).toEqual(MOCK_DISCORD_GUILDS)
+            expect(mockFetch).toHaveBeenCalledTimes(2)
+        })
+
+        test('throws after the 429 retry is exhausted', async () => {
+            const rateLimited = {
+                ok: false,
+                status: 429,
+                headers: {
+                    get: (key: string) =>
+                        key.toLowerCase() === 'retry-after' ? '0.01' : null,
+                },
+                text: jest
+                    .fn<() => Promise<string>>()
+                    .mockResolvedValue('rate limited'),
+            } as unknown as Response
+
+            const mockFetch = jest.fn<typeof fetch>()
+            mockFetch.mockResolvedValue(rateLimited)
+            global.fetch = mockFetch as typeof fetch
+
+            await expect(
+                discordOAuthService.getUserGuilds(
+                    MOCK_TOKEN_RESPONSE.access_token,
+                ),
+            ).rejects.toThrow('429')
+            expect(mockFetch).toHaveBeenCalledTimes(2)
+        })
+
         test('should throw error when guilds fetch fails', async () => {
             const mockResponse = {
                 ok: false,
@@ -248,9 +307,9 @@ describe('DiscordOAuthService', () => {
         })
 
         test('should return false when permission payload is invalid', () => {
-            expect(
-                discordOAuthService.hasAdminPermission('not-a-number'),
-            ).toBe(false)
+            expect(discordOAuthService.hasAdminPermission('not-a-number')).toBe(
+                false,
+            )
         })
     })
 

@@ -31,9 +31,6 @@ const mockHasAccess = jest.fn<
     boolean,
     [Record<string, string>, string, string]
 >()
-const mockRedisIsHealthy = jest.fn<boolean, []>()
-const mockRedisGet = jest.fn<Promise<string | null>, [string]>()
-const mockRedisSetex = jest.fn<Promise<boolean>, [string, number, string]>()
 
 class MockGuildRoleGrantStorageError extends Error {}
 
@@ -66,11 +63,6 @@ jest.mock('@lucky/shared/services', () => ({
             mockHasAnyAccess(...args),
         hasAccess: (...args: [Record<string, string>, string, string]) =>
             mockHasAccess(...args),
-    },
-    redisClient: {
-        isHealthy: (...args: []) => mockRedisIsHealthy(...args),
-        get: (...args: [string]) => mockRedisGet(...args),
-        setex: (...args: [string, number, string]) => mockRedisSetex(...args),
     },
 }))
 
@@ -146,9 +138,6 @@ describe('GuildAccessService', () => {
             }
             return value === 'manage'
         })
-        mockRedisIsHealthy.mockReturnValue(false)
-        mockRedisGet.mockResolvedValue(null)
-        mockRedisSetex.mockResolvedValue(true)
         mockEnrichGuildsWithBotStatus.mockImplementation(
             async (guilds: DiscordGuild[]) =>
                 guilds.map((guild) => ({
@@ -285,38 +274,19 @@ describe('GuildAccessService', () => {
         })
     })
 
-    test('listAuthorizedGuilds ignores malformed cached guild payload on upstream 429', async () => {
-        mockRedisIsHealthy.mockReturnValue(true)
-        mockRedisGet.mockResolvedValue('{"guilds":"invalid"}')
-        mockGetUserGuilds.mockRejectedValue({
-            status: 429,
-            message: 'rate limited',
-        })
-
-        await expect(
-            guildAccessService.listAuthorizedGuilds(SESSION),
-        ).rejects.toMatchObject({
-            statusCode: 502,
-            message: 'Discord API is temporarily unavailable. Please retry.',
-        })
-    })
-
-    test('listAuthorizedGuilds uses cached guilds on upstream 5xx failures', async () => {
+    test('listAuthorizedGuilds serves repeat calls from the in-memory cache without re-hitting Discord', async () => {
         const cachedGuild = makeGuild('515', { owner: true })
-        const adminAccess = MANAGE_ALL_ACCESS
+        mockResolveEffectiveAccess.mockResolvedValue(MANAGE_ALL_ACCESS)
+        mockGetUserGuilds.mockResolvedValue([cachedGuild])
 
-        mockRedisIsHealthy.mockReturnValue(true)
-        mockRedisGet.mockResolvedValue(JSON.stringify([cachedGuild]))
-        mockGetUserGuilds.mockRejectedValue({
-            status: 503,
-            message: 'upstream unavailable',
-        })
-        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
+        const first = await guildAccessService.listAuthorizedGuilds(SESSION)
+        const second = await guildAccessService.listAuthorizedGuilds(SESSION)
 
-        const result = await guildAccessService.listAuthorizedGuilds(SESSION)
-
-        expect(result).toHaveLength(1)
-        expect(result[0]).toMatchObject({
+        // Discord is hit once; the second call is served from the TTL cache,
+        // which is exactly what protects the dashboard from a 429 storm.
+        expect(mockGetUserGuilds).toHaveBeenCalledTimes(1)
+        expect(first[0]).toMatchObject({ id: cachedGuild.id })
+        expect(second[0]).toMatchObject({
             id: cachedGuild.id,
             canManageRbac: true,
         })
@@ -603,64 +573,23 @@ describe('GuildAccessService', () => {
         expect(mockGetGuildMemberContext).not.toHaveBeenCalled()
     })
 
-    test('resolveGuildContext authorizes using cached guilds on upstream 429', async () => {
+    test('resolveGuildContext reuses the cached guild list populated by an earlier call', async () => {
         const guild = makeGuild('919', { owner: true })
-        const adminAccess = MANAGE_ALL_ACCESS
-        const cachedGuilds = JSON.stringify([guild])
+        mockResolveEffectiveAccess.mockResolvedValue(MANAGE_ALL_ACCESS)
 
-        mockRedisIsHealthy.mockReturnValue(true)
-        // First call: cache miss → Discord API populates it
-        mockRedisGet.mockResolvedValueOnce(null)
+        // First call populates the in-memory guild cache.
         mockGetUserGuilds.mockResolvedValueOnce([guild])
-        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
         await guildAccessService.listAuthorizedGuilds(SESSION)
-        expect(mockRedisSetex).toHaveBeenCalledTimes(1)
 
-        // Second call: cache is populated — Discord is never called, no 429 possible
-        mockRedisGet.mockResolvedValue(cachedGuilds)
-
+        // resolveGuildContext is served from the cache — Discord is not hit
+        // again, so no further 429 is possible on the second request.
         await expect(
             guildAccessService.resolveGuildContext(SESSION, guild.id),
         ).resolves.toMatchObject({
             guildId: guild.id,
             isAdmin: true,
         })
-        expect(mockRedisGet).toHaveBeenCalled()
-    })
-
-    test('listAuthorizedGuilds does not store raw access token bytes in redis key', async () => {
-        const guild = makeGuild('920', { owner: true })
-        const adminAccess = MANAGE_ALL_ACCESS
-
-        mockRedisIsHealthy.mockReturnValue(true)
-        mockGetUserGuilds.mockResolvedValue([guild])
-        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
-
-        await guildAccessService.listAuthorizedGuilds(SESSION)
-
-        expect(mockRedisSetex).toHaveBeenCalledTimes(1)
-        const redisKey = mockRedisSetex.mock.calls[0][0]
-        expect(redisKey).toContain(
-            `guild-access:user-guilds:${SESSION.user.id}:`,
-        )
-        expect(redisKey).not.toContain(SESSION.accessToken)
-        expect(redisKey).not.toContain(SESSION.accessToken.slice(0, 24))
-    })
-
-    test('listAuthorizedGuilds keeps serving data when redis cache write fails', async () => {
-        const guild = makeGuild('930', { owner: true })
-        const adminAccess = MANAGE_ALL_ACCESS
-
-        mockRedisIsHealthy.mockReturnValue(true)
-        mockRedisSetex.mockRejectedValue(new Error('redis write failed'))
-        mockGetUserGuilds.mockResolvedValue([guild])
-        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
-
-        const result = await guildAccessService.listAuthorizedGuilds(SESSION)
-
-        expect(result).toHaveLength(1)
-        expect(result[0].id).toBe(guild.id)
-        expect(mockRedisSetex).toHaveBeenCalledTimes(1)
+        expect(mockGetUserGuilds).toHaveBeenCalledTimes(1)
     })
 
     test('hasAccess delegates to guild role access service', () => {

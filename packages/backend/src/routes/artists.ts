@@ -7,6 +7,9 @@ import { ArtistSuggestionService } from '../services/artistSuggestion'
 const svc = new ArtistSuggestionService()
 void svc.prewarmCache()
 
+/** Exported for test isolation (resetting the in-memory suggestion caches). */
+export const artistSuggestionService = svc
+
 const sugg = wrapHandler(
     async (r) => ({ artists: await svc.handleGetSuggestions(r.user?.id) }),
     'Artist suggestions',
