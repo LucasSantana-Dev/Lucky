@@ -213,10 +213,12 @@ export default function GuildAutomation() {
     const [planResult, setPlanResult] = useState<PlanResult | null>(null)
     const [applyResult, setApplyResult] = useState<ApplyResult | null>(null)
     const [manifestExpanded, setManifestExpanded] = useState(false)
+    const [loadError, setLoadError] = useState(false)
 
     const fetchData = useCallback(async () => {
         if (!selectedGuild) return
         setLoading(true)
+        setLoadError(false)
         try {
             const [statusRes, manifestRes] = await Promise.allSettled([
                 api.automation.getStatus(selectedGuild.id),
@@ -230,6 +232,14 @@ export default function GuildAutomation() {
                 const m = manifestRes.value
                 setManifest(m)
                 setManifestJson(m ? JSON.stringify(m, null, 2) : '')
+            }
+            // Both rejected = API down: surface it instead of a blank page.
+            // Partial success still renders whatever did load.
+            if (
+                statusRes.status === 'rejected' &&
+                manifestRes.status === 'rejected'
+            ) {
+                setLoadError(true)
             }
         } finally {
             setLoading(false)
@@ -330,6 +340,22 @@ export default function GuildAutomation() {
                 title='Guild Automation'
                 description='Manage your guild configuration as code — plan, apply, and track changes.'
             />
+
+            {loadError && !loading && (
+                <div className='surface-panel rounded-lg border border-lucky-error/40 p-4 flex items-center justify-between gap-4'>
+                    <p className='text-sm text-lucky-error'>
+                        Couldn&apos;t load automation status or manifest — the
+                        API may be unavailable.
+                    </p>
+                    <Button
+                        variant='secondary'
+                        onClick={() => void fetchData()}
+                        disabled={loading}
+                    >
+                        Retry
+                    </Button>
+                </div>
+            )}
 
             {/* Status + Action Bar (Polaris structured actions) */}
             <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-4'>
