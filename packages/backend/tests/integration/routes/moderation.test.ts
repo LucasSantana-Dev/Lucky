@@ -65,7 +65,9 @@ describe('Moderation Routes Integration', () => {
         const sessionMock = sessionService as jest.Mocked<typeof sessionService>
         sessionMock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
-        const accessMock = guildAccessService as jest.Mocked<typeof guildAccessService>
+        const accessMock = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
         accessMock.resolveGuildContext.mockResolvedValue({
             guildId: GUILD_ID,
             userId: MOCK_SESSION_DATA.userId,
@@ -583,7 +585,7 @@ describe('Moderation Routes Integration', () => {
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
-            expect(response.body).toEqual(mockSettings)
+            expect(response.body).toEqual({ settings: mockSettings })
             expect(mockModerationService.getSettings).toHaveBeenCalledWith(
                 '111111111111111111',
             )
@@ -653,7 +655,7 @@ describe('Moderation Routes Integration', () => {
                 })
                 .expect(200)
 
-            expect(response.body).toEqual(mockSettings)
+            expect(response.body).toEqual({ settings: mockSettings })
             expect(mockModerationService.updateSettings).toHaveBeenCalledWith(
                 '111111111111111111',
                 {

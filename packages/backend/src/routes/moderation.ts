@@ -141,7 +141,7 @@ export function setupModerationRoutes(app: Express): void {
             const settings = await moderationService.getSettings(
                 p(req.params.guildId),
             )
-            res.json(settings)
+            res.json({ settings })
         }),
     )
 
@@ -165,7 +165,7 @@ export function setupModerationRoutes(app: Express): void {
                 { setting: 'moderation', newValue: body },
                 userId,
             )
-            res.json(settings)
+            res.json({ settings })
         }),
     )
 

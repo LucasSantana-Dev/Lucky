@@ -118,7 +118,7 @@ describe('Management Routes Integration', () => {
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
-            expect(response.body).toEqual(mockSettings)
+            expect(response.body).toEqual({ settings: mockSettings })
             expect(mockAutoModService.getSettings).toHaveBeenCalledWith(
                 '111111111111111111',
             )
@@ -148,7 +148,9 @@ describe('Management Routes Integration', () => {
             const mockGuildAccessServiceSvc = guildAccessService as jest.Mocked<
                 typeof guildAccessService
             >
-            mockGuildAccessServiceSvc.resolveGuildContext.mockResolvedValue(null)
+            mockGuildAccessServiceSvc.resolveGuildContext.mockResolvedValue(
+                null,
+            )
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/automod/settings')
@@ -212,7 +214,7 @@ describe('Management Routes Integration', () => {
                 .send(updatedSettings)
                 .expect(200)
 
-            expect(response.body).toEqual(updatedSettings)
+            expect(response.body).toEqual({ settings: updatedSettings })
             expect(mockAutoModService.updateSettings).toHaveBeenCalledWith(
                 '111111111111111111',
                 updatedSettings,
@@ -359,10 +361,11 @@ describe('Management Routes Integration', () => {
                 { id: 'cmd-2', name: 'goodbye' },
             ]
 
-            const mockCustomCommandService = customCommandService as jest.Mocked<
-                typeof customCommandService
-            >
-            mockCustomCommandService.listCommands.mockResolvedValue(mockCommands)
+            const mockCustomCommandService =
+                customCommandService as jest.Mocked<typeof customCommandService>
+            mockCustomCommandService.listCommands.mockResolvedValue(
+                mockCommands,
+            )
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/commands')
@@ -394,10 +397,11 @@ describe('Management Routes Integration', () => {
                 description: 'A greeting command',
             }
 
-            const mockCustomCommandService = customCommandService as jest.Mocked<
-                typeof customCommandService
-            >
-            mockCustomCommandService.createCommand.mockResolvedValue(responseBody)
+            const mockCustomCommandService =
+                customCommandService as jest.Mocked<typeof customCommandService>
+            mockCustomCommandService.createCommand.mockResolvedValue(
+                responseBody,
+            )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
@@ -474,9 +478,8 @@ describe('Management Routes Integration', () => {
                 description: 'Updated description',
             }
 
-            const mockCustomCommandService = customCommandService as jest.Mocked<
-                typeof customCommandService
-            >
+            const mockCustomCommandService =
+                customCommandService as jest.Mocked<typeof customCommandService>
             mockCustomCommandService.updateCommand.mockResolvedValue(
                 responseBody,
             )
@@ -524,9 +527,8 @@ describe('Management Routes Integration', () => {
             >
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
-            const mockCustomCommandService = customCommandService as jest.Mocked<
-                typeof customCommandService
-            >
+            const mockCustomCommandService =
+                customCommandService as jest.Mocked<typeof customCommandService>
             mockCustomCommandService.deleteCommand.mockResolvedValue({
                 success: true,
             })
@@ -714,9 +716,7 @@ describe('Management Routes Integration', () => {
             mockSessionService.getSession.mockResolvedValue(null)
 
             const response = await request(app)
-                .get(
-                    '/api/guilds/111111111111111111/logs/users/user-123',
-                )
+                .get('/api/guilds/111111111111111111/logs/users/user-123')
                 .expect(401)
 
             expect(response.body).toEqual({

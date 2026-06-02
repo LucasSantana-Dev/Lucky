@@ -42,7 +42,7 @@ export function setupManagementRoutes(app: Express): void {
             const settings = await autoModService.getSettings(
                 p(req.params.guildId),
             )
-            res.json(settings)
+            res.json({ settings })
         }),
     )
 
@@ -68,7 +68,7 @@ export function setupManagementRoutes(app: Express): void {
                 },
                 userId,
             )
-            res.json(settings)
+            res.json({ settings })
         }),
     )
 
