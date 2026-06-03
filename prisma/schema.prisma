@@ -335,7 +335,7 @@ model GuildCounter {
 model TrackHistory {
   id      String @id @default(cuid())
   guildId String
-  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guild   Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
 
   // Track data
   trackId   String
