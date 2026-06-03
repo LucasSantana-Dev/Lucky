@@ -224,16 +224,14 @@ describe('setupErrorHandlers', () => {
                 requestedBy: { id: 'user-1' },
             },
             player: {
-                search: jest
-                    .fn()
-                    .mockResolvedValue({
-                        tracks: [
-                            {
-                                url: 'https://www.youtube.com/watch?v=abc123',
-                                title: 'Song A',
-                            },
-                        ],
-                    }),
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            url: 'https://www.youtube.com/watch?v=abc123',
+                            title: 'Song A',
+                        },
+                    ],
+                }),
             },
             insertTrack: jest.fn(),
             node: {
@@ -674,5 +672,75 @@ describe('setupErrorHandlers', () => {
 
         expect(queue.node.skip).toHaveBeenCalled()
         expect(channelSendMock).toHaveBeenCalled()
+    })
+
+    it('skips immediately without searching when currentTrack.title is empty', async () => {
+        const { queueHandlers } = createPlayerWithHandlers()
+        analyzeYouTubeErrorMock.mockReturnValue({ isParserError: false })
+
+        const channelSendMock = jest.fn().mockResolvedValue({})
+        const searchMock = jest.fn()
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            metadata: {
+                requestedBy: { id: 'user-1' },
+                channel: { id: 'ch-1', send: channelSendMock },
+            },
+            currentTrack: {
+                url: 'https://www.youtube.com/watch?v=abc',
+                title: '',
+                requestedBy: { id: 'user-1' },
+            },
+            player: { search: searchMock },
+            insertTrack: jest.fn(),
+            node: { skip: jest.fn() },
+        }
+
+        ;(queueHandlers.playerError as PlayerErrorHandler)(
+            queue as any,
+            new Error('Bridge exhausted: no stream for empty title'),
+        )
+        await flushPromises()
+
+        expect(searchMock).not.toHaveBeenCalled()
+        expect(queue.node.skip).toHaveBeenCalled()
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('no title'),
+            }),
+        )
+    })
+
+    it('uses "this track" in notification embed when trackTitle is empty', async () => {
+        const { queueHandlers } = createPlayerWithHandlers()
+        analyzeYouTubeErrorMock.mockReturnValue({ isParserError: false })
+
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            metadata: {
+                requestedBy: { id: 'user-1' },
+                channel: { id: 'ch-1', send: jest.fn().mockResolvedValue({}) },
+            },
+            currentTrack: {
+                url: 'https://www.youtube.com/watch?v=abc',
+                title: '',
+                requestedBy: { id: 'user-1' },
+            },
+            player: { search: jest.fn() },
+            insertTrack: jest.fn(),
+            node: { skip: jest.fn() },
+        }
+
+        ;(queueHandlers.playerError as PlayerErrorHandler)(
+            queue as any,
+            new Error('Bridge exhausted: no stream for empty title'),
+        )
+        await flushPromises()
+        await flushPromises()
+
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
+            expect.stringContaining('Could not play'),
+            expect.stringContaining('this track'),
+        )
     })
 })

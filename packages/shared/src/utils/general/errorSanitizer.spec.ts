@@ -239,6 +239,25 @@ describe('sanitizeMessage', () => {
         const result = sanitizeMessage('   \t\n  ')
         expect(result).toBe('An unknown error occurred')
     })
+
+    it('strips https URLs before path detection so they do not trigger system config error', () => {
+        const result = sanitizeMessage(
+            'Could not extract stream for https://www.youtube.com/watch?v=abc123',
+        )
+        expect(result).not.toBe(
+            'A system configuration error occurred. Please contact support if this persists.',
+        )
+        expect(result).toContain('[URL]')
+    })
+
+    it('strips http URLs before path detection', () => {
+        const result = sanitizeMessage(
+            'Failed to fetch http://example.com/api/resource',
+        )
+        expect(result).not.toBe(
+            'A system configuration error occurred. Please contact support if this persists.',
+        )
+    })
 })
 
 describe('createUserFriendlyError', () => {
@@ -391,6 +410,32 @@ describe('createUserFriendlyError', () => {
         const result = createUserFriendlyError(error)
         expect(result).toBe(
             'A system configuration error occurred. Please contact support if this persists.',
+        )
+    })
+
+    it('maps "could not extract stream" errors to track unavailable message', () => {
+        const error = new Error(
+            'Could not extract stream for https://www.youtube.com/watch?v=abc',
+        )
+        const result = createUserFriendlyError(error)
+        expect(result).toBe(
+            "Couldn't play this track. The video may be unavailable or restricted. Try searching by name instead.",
+        )
+    })
+
+    it('maps "bridge exhausted" errors to track unavailable message', () => {
+        const error = new Error('Bridge exhausted: no stream for empty title')
+        const result = createUserFriendlyError(error)
+        expect(result).toBe(
+            "Couldn't play this track. The video may be unavailable or restricted. Try searching by name instead.",
+        )
+    })
+
+    it('maps "youtube: track metadata unavailable" to youtube-specific message', () => {
+        const error = new Error('YouTube: track metadata unavailable')
+        const result = createUserFriendlyError(error)
+        expect(result).toBe(
+            "Couldn't retrieve this YouTube video. It may be unavailable, age-restricted, or geo-blocked.",
         )
     })
 
