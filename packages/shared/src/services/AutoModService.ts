@@ -330,7 +330,7 @@ export class AutoModService {
         timestamps.push(now)
 
         // Filter out timestamps older than the window duration
-        timestamps = timestamps.filter((ts) => now - ts < windowMs)
+        timestamps = timestamps.filter((ts) => now - ts <= windowMs)
 
         // Write back to map (only keep up to threshold + 1 for efficiency)
         spamWindows.set(key, timestamps.slice(-settings.spamThreshold - 1))
