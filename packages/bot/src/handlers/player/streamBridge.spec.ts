@@ -194,4 +194,16 @@ describe('createResilientStream', () => {
             createResilientStream(makeTrack({ title: 'Some Song' })),
         ).rejects.toThrow('Bridge exhausted')
     })
+
+    it('throws immediately when cleanedTitle is empty after yt-dlp fails', async () => {
+        mockCleanTitle.mockReturnValue('')
+        mockCleanAuthor.mockReturnValue('')
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.emit('close', 1))
+        await expect(
+            createResilientStream(makeTrack({ title: '' })),
+        ).rejects.toThrow('Bridge exhausted: no stream for empty title')
+        expect(mockStreamViaSoundCloud).not.toHaveBeenCalled()
+    })
 })
