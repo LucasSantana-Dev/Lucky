@@ -6,6 +6,9 @@ const prisma = getPrismaClient()
 const CACHE_TTL = 300
 const CACHE_PREFIX = 'automod:'
 
+// In-memory spam tracking: key = `${guildId}:${userId}`, value = sorted timestamp array
+const spamWindows = new Map<string, number[]>()
+
 /** Auto-moderation settings configuration for a guild. */
 export interface AutoModSettings {
     id: string
@@ -316,22 +319,23 @@ export class AutoModService {
         const settings = await this.getSettings(guildId)
         if (!settings?.spamEnabled) return false
 
-        if (!redisClient.isHealthy()) return false
-
         const now = Date.now()
         const windowMs = settings.spamTimeWindow * 1000
-        const key = `spam:${guildId}:${userId}`
+        const key = `${guildId}:${userId}`
 
-        await redisClient.lpush(key, String(now))
-        await redisClient.ltrim(key, 0, settings.spamThreshold)
-        await redisClient.expire(key, settings.spamTimeWindow + 1)
+        // Get existing timestamps or initialize empty array
+        let timestamps = spamWindows.get(key) || []
 
-        const timestamps = await redisClient.lrange(key, 0, -1)
-        const recentCount = timestamps.filter(
-            (ts) => now - Number(ts) < windowMs,
-        ).length
+        // Add current timestamp
+        timestamps.push(now)
 
-        return recentCount >= settings.spamThreshold
+        // Filter out timestamps older than the window duration
+        timestamps = timestamps.filter((ts) => now - ts <= windowMs)
+
+        // Write back to map (only keep up to threshold + 1 for efficiency)
+        spamWindows.set(key, timestamps.slice(-settings.spamThreshold - 1))
+
+        return timestamps.length >= settings.spamThreshold
     }
 
     /** Checks if message timestamps exceed spam threshold. */
@@ -450,6 +454,11 @@ export class AutoModService {
 
         return false
     }
+}
+
+/** Resets spam windows for testing. */
+export function _resetSpamWindows(): void {
+    spamWindows.clear()
 }
 
 /** Singleton instance of AutoModService. */
