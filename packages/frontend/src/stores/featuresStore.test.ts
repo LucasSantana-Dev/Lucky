@@ -128,6 +128,28 @@ describe('featuresStore', () => {
                 false,
             )
         })
+
+        test('should rollback toggle on API failure', async () => {
+            // Set initial state
+            useFeaturesStore.setState({
+                globalToggles: { AUTOPLAY: true } as never,
+            })
+
+            vi.mocked(api.features.updateGlobalToggle).mockRejectedValue(
+                new ApiError(500, 'Server error'),
+            )
+
+            await expect(
+                useFeaturesStore
+                    .getState()
+                    .updateGlobalToggle('AUTOPLAY', false),
+            ).rejects.toThrow()
+
+            // Should be rolled back to original value
+            expect(useFeaturesStore.getState().globalToggles.AUTOPLAY).toBe(
+                true,
+            )
+        })
     })
 
     describe('clearLoadError', () => {
