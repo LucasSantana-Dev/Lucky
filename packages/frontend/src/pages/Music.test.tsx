@@ -7,9 +7,6 @@ import { useMusicPlayer } from '@/hooks/useMusicPlayer'
 
 vi.mock('@/hooks/useGuildSelection')
 vi.mock('@/hooks/useMusicPlayer')
-vi.mock('@/components/Music/NowPlaying', () => ({
-    default: () => <div data-testid='now-playing'>NowPlaying</div>,
-}))
 vi.mock('@/components/Music/SearchBar', () => ({
     default: () => <div data-testid='search-bar'>SearchBar</div>,
 }))
@@ -73,13 +70,28 @@ describe('MusicPage', () => {
         vi.mocked(useGuildSelection).mockReturnValue({
             selectedGuild: mockGuild,
         } as any)
+        vi.mocked(useMusicPlayer).mockReturnValue({
+            ...mockPlayer,
+            state: {
+                ...mockPlayer.state,
+                tracks: [
+                    {
+                        title: 'Test Track',
+                        author: 'Test Artist',
+                        duration: 180,
+                        thumbnail: null,
+                    },
+                ],
+            },
+        } as any)
         render(
             <MemoryRouter>
                 <MusicPage />
             </MemoryRouter>,
         )
         expect(screen.getByText('Music Player')).toBeInTheDocument()
-        expect(screen.getByTestId('now-playing')).toBeInTheDocument()
+        expect(screen.getByText('Now Playing')).toBeInTheDocument()
+        expect(screen.getByText('Test Track')).toBeInTheDocument()
         expect(screen.getByTestId('search-bar')).toBeInTheDocument()
         expect(screen.getByTestId('import-playlist')).toBeInTheDocument()
         expect(screen.getByTestId('queue-list')).toBeInTheDocument()
