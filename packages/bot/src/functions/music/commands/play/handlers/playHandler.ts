@@ -151,6 +151,9 @@ export async function executePlayHandler({
         const track = (result as any).track
 
         const isPlaylist = !!(result as any).searchResult.playlist
+        if (!isPlaylist && !track.title) {
+            throw new Error('YouTube: track metadata unavailable')
+        }
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 
         if (!isPlaylist && queue) {

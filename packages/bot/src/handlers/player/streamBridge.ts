@@ -43,7 +43,8 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
         return Promise.reject(err)
     }
     return new Promise<Readable>((resolve, reject) => {
-        const proc = spawn( // NOSONAR: S4036 — command is hardcoded, URL is validated by validateYtDlpUrl before this point
+        const proc = spawn(
+            // NOSONAR: S4036 — command is hardcoded, URL is validated by validateYtDlpUrl before this point
             'yt-dlp',
             [
                 '--no-playlist',
@@ -169,6 +170,15 @@ export async function createResilientStream(
                 },
             })
         }
+    }
+
+    if (!cleanedTitle) {
+        errorLog({
+            message:
+                'Bridge: yt-dlp failed and title is empty, cannot fallback',
+            data: { url: track.url },
+        })
+        throw new Error('Bridge exhausted: no stream for empty title')
     }
 
     if (!providerHealthService.isAvailable('soundcloud')) {

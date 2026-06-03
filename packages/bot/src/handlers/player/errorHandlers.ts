@@ -32,7 +32,7 @@ async function notifyChannelStreamFailed(
             embeds: [
                 createErrorEmbed(
                     '⚠️ Could not play track',
-                    `**${trackTitle}** could not be streamed from any source. It may be unavailable in your region or not on SoundCloud. Skipping to next track.`,
+                    `**${trackTitle || 'this track'}** could not be streamed from any source. It may be unavailable in your region or not on SoundCloud. Skipping to next track.`,
                 ),
             ],
         })
@@ -91,7 +91,11 @@ function isSameTrack(
     currentTrack: { title?: string; author?: string; url?: string },
     alternativeTrack: { title?: string; author?: string; url?: string },
 ): boolean {
-    if (currentTrack.url && alternativeTrack.url && currentTrack.url === alternativeTrack.url) {
+    if (
+        currentTrack.url &&
+        alternativeTrack.url &&
+        currentTrack.url === alternativeTrack.url
+    ) {
         return true
     }
     const currentNorm = normalizeText(cleanTitle(currentTrack.title ?? ''))
@@ -249,6 +253,16 @@ async function recoverFromStreamExtractionError(
         warnLog({
             message: 'Stream failed, skipping — no requestedBy to search with',
             data: { title: currentTrack.title, guildId: queue.guild.id },
+        })
+        await notifyChannelStreamFailed(queue, currentTrack.title)
+        queue.node.skip()
+        return
+    }
+
+    if (!currentTrack.title) {
+        warnLog({
+            message: 'Stream failed, track has no title — skipping recovery',
+            data: { guildId: queue.guild.id },
         })
         await notifyChannelStreamFailed(queue, currentTrack.title)
         queue.node.skip()

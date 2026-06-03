@@ -24,8 +24,11 @@ export function sanitizeErrorMessage(error: unknown): string {
 export function sanitizeMessage(message: string): string {
     if (!message) return 'An unknown error occurred'
 
+    // Strip URLs first so the path regex below doesn't treat URL slashes as system paths
+    let sanitized = message.replace(/https?:\/\/[^\s"]*/g, '[URL]')
+
     // Remove system paths (Windows and Unix style)
-    let sanitized = message
+    sanitized = sanitized
         .replace(/[A-Z]:\\[^"]*\\/gi, '[SYSTEM_PATH]\\')
         .replace(/\/[^"]*\//g, '[SYSTEM_PATH]/')
         .replace(/C:\\[^"]*\\/gi, '[SYSTEM_PATH]\\')
@@ -74,6 +77,16 @@ function containsErrorKeywords(message: string, keywords: string[]): boolean {
  */
 function mapTechnicalErrors(sanitized: string): string | null {
     const errorMappings = [
+        {
+            keywords: ['could not extract stream', 'bridge exhausted'],
+            message:
+                "Couldn't play this track. The video may be unavailable or restricted. Try searching by name instead.",
+        },
+        {
+            keywords: ['youtube: track metadata unavailable'],
+            message:
+                "Couldn't retrieve this YouTube video. It may be unavailable, age-restricted, or geo-blocked.",
+        },
         {
             keywords: ['ffmpeg'],
             message:
