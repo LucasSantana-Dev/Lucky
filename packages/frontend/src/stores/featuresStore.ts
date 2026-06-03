@@ -106,7 +106,10 @@ const createDefaultToggles = (): FeatureToggleState => {
         'SPOTIFY_INTEGRATION',
         'WELCOME_MESSAGES',
     ]
-    const disabledByDefault: FeatureToggleName[] = ['LYRICS', 'SPOTIFY_INTEGRATION']
+    const disabledByDefault: FeatureToggleName[] = [
+        'LYRICS',
+        'SPOTIFY_INTEGRATION',
+    ]
     return toggleNames.reduce((acc, name) => {
         acc[name] = !disabledByDefault.includes(name)
         return acc
@@ -168,9 +171,25 @@ export const useFeaturesStore = create<FeaturesState>((set) => ({
     },
 
     updateGlobalToggle: async (name, enabled) => {
-        await api.features.updateGlobalToggle(name, enabled)
+        // Store original value for rollback
+        const previousValue = useFeaturesStore.getState().globalToggles[name]
+
+        // Optimistic update
         set((state) => ({
             globalToggles: { ...state.globalToggles, [name]: enabled },
         }))
+
+        try {
+            await api.features.updateGlobalToggle(name, enabled)
+        } catch (error) {
+            // Rollback on failure
+            set((state) => ({
+                globalToggles: {
+                    ...state.globalToggles,
+                    [name]: previousValue,
+                },
+            }))
+            throw error
+        }
     },
 }))
