@@ -50,7 +50,7 @@ jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
     createUserFriendlyError: jest.fn(),
 }))
 
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, captureException } from '@lucky/shared/utils'
 import { executeCommand } from './commandsHandler'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
 import { reactionRolesService } from '@lucky/shared/services'
@@ -218,6 +218,14 @@ describe('interactionHandler', () => {
                     guildId: 'guild-1',
                 },
             })
+            expect(captureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    context: 'interaction-handling-failure',
+                    commandName: 'role_select',
+                    guildId: 'guild-1',
+                }),
+            )
         })
 
         it('should not send error reply if interaction already replied', async () => {
