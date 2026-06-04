@@ -125,10 +125,37 @@ function getBackendRequiredEnvironmentVariables(): string[] {
 }
 
 /**
- * Check if a value is missing (null, undefined, or empty string)
+ * Check if a value is missing (null, undefined, or empty/whitespace-only string)
  */
 function isMissingVariable(value: unknown): boolean {
-    return value === null || value === undefined || value === ''
+    return (
+        value === null ||
+        value === undefined ||
+        (typeof value === 'string' && value.trim() === '')
+    )
+}
+
+/**
+ * Shared helper to assert environment variables are present
+ * Throws an error with all missing variables listed if any are missing
+ */
+function assertEnvVarsPresent(
+    getter: () => string[],
+    contextLabel: string
+): void {
+    const required = getter()
+    const missingVars: string[] = []
+
+    for (const varName of required) {
+        if (isMissingVariable(process.env[varName])) {
+            missingVars.push(varName)
+        }
+    }
+
+    if (missingVars.length > 0) {
+        const message = `${contextLabel}: ${missingVars.join(', ')}`
+        throw new Error(message)
+    }
 }
 
 /**
@@ -136,19 +163,10 @@ function isMissingVariable(value: unknown): boolean {
  * Throws an error with all missing variables listed if any are missing
  */
 function assertRequiredEnvironmentVariables(): void {
-    const required = getRequiredEnvironmentVariables()
-    const missingVars: string[] = []
-
-    for (const varName of required) {
-        if (isMissingVariable(process.env[varName])) {
-            missingVars.push(varName)
-        }
-    }
-
-    if (missingVars.length > 0) {
-        const message = `Missing required environment variables: ${missingVars.join(', ')}`
-        throw new Error(message)
-    }
+    assertEnvVarsPresent(
+        getRequiredEnvironmentVariables,
+        'Missing required environment variables'
+    )
 }
 
 /**
@@ -156,19 +174,10 @@ function assertRequiredEnvironmentVariables(): void {
  * Throws an error with all missing variables listed if any are missing
  */
 function assertBackendRequiredEnvironmentVariables(): void {
-    const required = getBackendRequiredEnvironmentVariables()
-    const missingVars: string[] = []
-
-    for (const varName of required) {
-        if (isMissingVariable(process.env[varName])) {
-            missingVars.push(varName)
-        }
-    }
-
-    if (missingVars.length > 0) {
-        const message = `Missing required backend environment variables: ${missingVars.join(', ')}`
-        throw new Error(message)
-    }
+    assertEnvVarsPresent(
+        getBackendRequiredEnvironmentVariables,
+        'Missing required backend environment variables'
+    )
 }
 
 /**
@@ -322,10 +331,11 @@ export async function ensureEnvironment(): Promise<NodeJS.ProcessEnv> {
     })
     validateEnvironmentVariables()
     configureLogging()
-    setEnvironmentLoaded()
 
-    // Assert required variables are present
+    // Assert required variables are present before marking environment as loaded
     assertRequiredEnvironmentVariables()
+
+    setEnvironmentLoaded()
 
     return process.env
 }
