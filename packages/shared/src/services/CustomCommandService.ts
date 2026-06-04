@@ -118,9 +118,17 @@ export class CustomCommandService {
             ? {
                   ...command,
                   embedData: command.embedData
-                      ? ((typeof command.embedData === 'string'
-                            ? JSON.parse(command.embedData)
-                            : command.embedData) as EmbedData)
+                      ? (() => {
+                            try {
+                                return (
+                                    typeof command.embedData === 'string'
+                                        ? JSON.parse(command.embedData)
+                                        : command.embedData
+                                ) as EmbedData
+                            } catch {
+                                return null
+                            }
+                        })()
                       : null,
               }
             : null
