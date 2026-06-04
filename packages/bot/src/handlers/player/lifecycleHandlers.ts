@@ -49,14 +49,37 @@ export const setupLifecycleHandlers = (player: {
 
         if (ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED) {
             const metadata = queue.metadata as QueueMetadata | undefined
-            const restoreDeadline = new Promise<void>((resolve) => setTimeout(resolve, 2000))
+            const restoreDeadline = new Promise<never>((_, reject) =>
+                setTimeout(
+                    () =>
+                        reject(
+                            new Error(
+                                `Session restore timed out in ${queue.guild.name}`,
+                            ),
+                        ),
+                    2000,
+                ),
+            )
 
-            await Promise.race([
-                musicSessionSnapshotService.restoreSnapshot(queue, metadata?.requestedBy ?? undefined),
-                restoreDeadline.then(() => {
-                    infoLog({ message: `Snapshot restore timed out in ${queue.guild.name}, continuing with empty queue` })
-                }),
-            ])
+            try {
+                await Promise.race([
+                    musicSessionSnapshotService.restoreSnapshot(
+                        queue,
+                        metadata?.requestedBy ?? undefined,
+                    ),
+                    restoreDeadline,
+                ])
+            } catch (error) {
+                infoLog({
+                    message: `Snapshot restore failed, continuing with empty queue`,
+                    data: {
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
+                    },
+                })
+            }
         }
 
         musicWatchdogService.arm(queue)
