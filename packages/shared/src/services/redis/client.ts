@@ -21,6 +21,7 @@ export class RedisClient implements IRedisClient {
     private hits = 0
     private misses = 0
     private errors = 0
+    private initializationError: Error | null = null
 
     constructor() {
         this.initializeClient()
@@ -33,6 +34,8 @@ export class RedisClient implements IRedisClient {
             this.operations = new RedisOperations(this.client, this.state)
             setupRedisEventHandlers(this.client, this.state)
         } catch (error) {
+            this.initializationError =
+                error instanceof Error ? error : new Error(String(error))
             errorLog({ message: 'Failed to initialize Redis client:', error })
         }
     }
@@ -69,6 +72,14 @@ export class RedisClient implements IRedisClient {
 
     isHealthy(): boolean {
         return this.state.isConnected && this.client !== null
+    }
+
+    isInitialized(): boolean {
+        return this.client !== null && this.initializationError === null
+    }
+
+    getInitializationError(): Error | null {
+        return this.initializationError
     }
 
     getMetrics() {

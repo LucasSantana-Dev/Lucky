@@ -6,6 +6,7 @@ import { setupManagementRoutes } from '../../../src/routes/management'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
+import { ValidationError } from '@lucky/shared/errors/ValidationError'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -458,6 +459,34 @@ describe('Management Routes Integration', () => {
                 .expect(400)
 
             expect(response.body).toHaveProperty('error')
+        })
+
+        test('should return 400 when ValidationError is thrown during command creation', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockCustomCommandService =
+                customCommandService as jest.Mocked<typeof customCommandService>
+            mockCustomCommandService.createCommand.mockRejectedValue(
+                new ValidationError('Invalid embed data', [
+                    { field: 'color', message: 'Invalid hex color code' },
+                ]),
+            )
+
+            const response = await request(app)
+                .post('/api/guilds/111111111111111111/commands')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({
+                    name: 'test',
+                    response: 'Hello',
+                    embedData: { color: 'invalid' },
+                })
+                .expect(400)
+
+            expect(response.body.error).toBe('Invalid embed data')
+            expect(response.body.details).toBeDefined()
         })
     })
 
