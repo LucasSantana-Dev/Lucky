@@ -1,3 +1,5 @@
+import { getSupportUrl } from '../../config/config'
+
 /**
  * Result of building error support context.
  */
@@ -26,7 +28,7 @@ export function buildErrorSupportContext(
         errorCategory?: string
     },
 ): ErrorSupportContextResult {
-    const supportUrl = process.env.SUPPORT_URL?.trim() || undefined
+    const supportUrl = getSupportUrl()
 
     const gracefulAbsent: ErrorSupportContextResult = {
         supportLink: null,
