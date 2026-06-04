@@ -8,7 +8,18 @@ import { startPresenceRotation } from './presence'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 
-let presenceControls: { stop: () => void; pause: () => void; resume: () => void } | null = null
+let presenceControls: {
+    stop: () => void
+    pause: () => void
+    resume: () => void
+} | null = null
+
+export function stopPresenceRotation(): void {
+    if (presenceControls) {
+        presenceControls.stop()
+        presenceControls = null
+    }
+}
 
 export async function createClient(): Promise<CustomClient> {
     try {

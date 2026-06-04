@@ -23,6 +23,7 @@ jest.mock('@lucky/shared/utils', () => ({
 jest.mock('../../handlers/clientHandler', () => ({
     createClient: (...args: unknown[]) => createClientMock(...args),
     startClient: (...args: unknown[]) => startClientMock(...args),
+    stopPresenceRotation: jest.fn(),
 }))
 
 jest.mock('../../handlers/playerHandler', () => ({
