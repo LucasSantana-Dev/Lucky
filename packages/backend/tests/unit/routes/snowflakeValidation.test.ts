@@ -35,10 +35,40 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
+jest.mock('../../../src/services/GuildService', () => ({
+    guildService: {
+        generateBotInviteUrl: jest
+            .fn()
+            .mockReturnValue('https://discord.com/oauth2/authorize'),
+        getGuildTextChannelOptions: jest.fn().mockResolvedValue([]),
+    },
+}))
+
+jest.mock('../../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        listAuthorizedGuilds: jest.fn().mockResolvedValue([]),
+        resolveGuildContext: jest.fn().mockResolvedValue({
+            nickname: 'test',
+            roleIds: [],
+            effectiveAccess: 'owner',
+            canManageRbac: true,
+        }),
+    },
+}))
+
+jest.mock('../../../src/services/SessionService', () => ({
+    sessionService: {
+        getSession: jest.fn().mockResolvedValue({
+            user: { username: 'test', global_name: 'Test User' },
+        }),
+    },
+}))
+
 import express from 'express'
 import request from 'supertest'
 import { setupStarboardRoutes } from '../../../src/routes/starboard'
 import { setupLevelsRoutes } from '../../../src/routes/levels'
+import { setupGuildRoutes } from '../../../src/routes/guilds'
 
 function createApp(setupRoutes: (app: express.Express) => void) {
     const app = express()
@@ -306,6 +336,91 @@ describe('Guild ID Snowflake Validation', () => {
                 const app = createApp(setupLevelsRoutes)
                 const res = await request(app).delete(
                     `/api/guilds/${invalidGuildId}/levels/rewards/1`,
+                )
+                expect(res.status).toBe(400)
+                expect(res.body).toHaveProperty('error')
+            },
+        )
+    })
+
+    describe('Guilds Routes', () => {
+        const validId = '123456789012345678'
+        const validGuildId = '123456789012345678'
+        const invalidIds = [
+            'invalid',
+            '123', // too short
+            'not-a-number',
+            'abc123def456ghi789',
+            '123456789012345678901', // 21 digits (too long)
+            'guild-id',
+        ]
+
+        test('GET /api/guilds/:id with valid id succeeds', async () => {
+            const app = createApp(setupGuildRoutes)
+            const res = await request(app).get(`/api/guilds/${validId}`)
+            expect(res.status).not.toBe(400)
+        })
+
+        test.each(invalidIds)(
+            'GET /api/guilds/:id rejects invalid id: %s',
+            async (invalidId) => {
+                const app = createApp(setupGuildRoutes)
+                const res = await request(app).get(`/api/guilds/${invalidId}`)
+                expect(res.status).toBe(400)
+                expect(res.body).toHaveProperty('error')
+            },
+        )
+
+        test('GET /api/guilds/:id/invite with valid id succeeds', async () => {
+            const app = createApp(setupGuildRoutes)
+            const res = await request(app).get(`/api/guilds/${validId}/invite`)
+            expect(res.status).not.toBe(400)
+        })
+
+        test.each(invalidIds)(
+            'GET /api/guilds/:id/invite rejects invalid id: %s',
+            async (invalidId) => {
+                const app = createApp(setupGuildRoutes)
+                const res = await request(app).get(
+                    `/api/guilds/${invalidId}/invite`,
+                )
+                expect(res.status).toBe(400)
+                expect(res.body).toHaveProperty('error')
+            },
+        )
+
+        test('GET /api/guilds/:id/me with valid id succeeds', async () => {
+            const app = createApp(setupGuildRoutes)
+            const res = await request(app).get(`/api/guilds/${validId}/me`)
+            expect(res.status).not.toBe(400)
+        })
+
+        test.each(invalidIds)(
+            'GET /api/guilds/:id/me rejects invalid id: %s',
+            async (invalidId) => {
+                const app = createApp(setupGuildRoutes)
+                const res = await request(app).get(
+                    `/api/guilds/${invalidId}/me`,
+                )
+                expect(res.status).toBe(400)
+                expect(res.body).toHaveProperty('error')
+            },
+        )
+
+        test('GET /api/guilds/:guildId/channels with valid guildId succeeds', async () => {
+            const app = createApp(setupGuildRoutes)
+            const res = await request(app).get(
+                `/api/guilds/${validGuildId}/channels`,
+            )
+            expect(res.status).not.toBe(400)
+        })
+
+        test.each(invalidIds)(
+            'GET /api/guilds/:guildId/channels rejects invalid guildId: %s',
+            async (invalidId) => {
+                const app = createApp(setupGuildRoutes)
+                const res = await request(app).get(
+                    `/api/guilds/${invalidId}/channels`,
                 )
                 expect(res.status).toBe(400)
                 expect(res.body).toHaveProperty('error')
