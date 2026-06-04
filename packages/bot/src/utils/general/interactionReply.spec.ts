@@ -607,9 +607,7 @@ describe('interactionReply', () => {
             const deferError = new Error('Interaction expired')
             mockInteraction.deferred = false
             mockInteraction.replied = false
-            mockInteraction.deferReply = jest
-                .fn()
-                .mockRejectedValue(deferError)
+            mockInteraction.deferReply = jest.fn().mockRejectedValue(deferError)
 
             await interactionReply({
                 interaction: mockInteraction,
@@ -622,11 +620,9 @@ describe('interactionReply', () => {
             expect(capturedError.cause).toBe(deferError)
         })
 
-        it('attaches real caught error as cause when editReply fails', async () => {
+        it('propagates the raw error to Sentry when editReply fails', async () => {
             const editError = new Error('Discord API error')
-            mockInteraction.editReply = jest
-                .fn()
-                .mockRejectedValue(editError)
+            mockInteraction.editReply = jest.fn().mockRejectedValue(editError)
 
             await interactionReply({
                 interaction: mockInteraction,
@@ -634,9 +630,10 @@ describe('interactionReply', () => {
             })
 
             expect(mockCaptureException).toHaveBeenCalled()
+            // The editReply path re-throws the raw error (no descriptive wrap),
+            // so the original error is captured directly rather than as a cause.
             const capturedError = mockCaptureException.mock.calls[0][0]
-            expect(capturedError).toBeInstanceOf(Error)
-            expect(capturedError.cause).toBe(editError)
+            expect(capturedError).toBe(editError)
         })
     })
 })
