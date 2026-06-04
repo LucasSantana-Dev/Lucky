@@ -1,4 +1,5 @@
 import { lastFmLinkService } from '@lucky/shared/services'
+import { TtlCache } from '@lucky/shared/utils/cache'
 import {
     getTopTracks,
     getRecentTracks,
@@ -17,10 +18,14 @@ type CacheEntry = {
     tracks: { artist: string; title: string }[]
     lovedKeys: Set<string>
     offset: number
-    expiresAt: number
 }
 
-const cache = new Map<string, CacheEntry>()
+// Bounded TTL cache: max 500 users per instance; evicts the oldest-written
+// entry (insertion order, not true LRU) plus TTL expiry when over capacity.
+const cache = new TtlCache<CacheEntry>({
+    ttlMs: CACHE_TTL_MS,
+    maxEntries: 500,
+})
 const consumeLocks = new Map<
     string,
     Promise<{ artist: string; title: string }[]>
@@ -44,7 +49,7 @@ export async function getLastFmSeedTracks(
     discordUserId: string,
 ): Promise<{ artist: string; title: string }[]> {
     const cached = cache.get(discordUserId)
-    if (cached && cached.expiresAt > Date.now()) {
+    if (cached) {
         return cached.tracks
     }
 
@@ -75,7 +80,6 @@ export async function getLastFmSeedTracks(
             tracks: merged,
             lovedKeys,
             offset: 0,
-            expiresAt: Date.now() + CACHE_TTL_MS,
         })
 
         debugLog({
