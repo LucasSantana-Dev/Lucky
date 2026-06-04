@@ -194,7 +194,8 @@ export class CustomCommandService {
         if (
             data.embedData !== undefined &&
             data.embedData !== null &&
-            data.embedData !== Prisma.JsonNull
+            data.embedData !== Prisma.JsonNull &&
+            data.embedData !== Prisma.DbNull
         ) {
             // embedData is being set to a new value
             if (typeof data.embedData === 'object') {

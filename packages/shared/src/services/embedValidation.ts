@@ -54,28 +54,36 @@ export const embedDataSchema = z
         },
     )
 
+/**
+ * Validates EmbedData using the Zod schema.
+ * Returns structured validation result for backwards compatibility.
+ */
 export function validateEmbedData(embedData: Partial<EmbedData>): {
     valid: boolean
     errors: string[]
 } {
-    const errors: string[] = []
-    const hasContent =
-        embedData.title || embedData.description || embedData.fields?.length
+    const result = embedDataSchema.safeParse(embedData)
 
-    if (!hasContent) {
-        errors.push('Embed must have at least a title, description, or fields')
-    }
-    if (embedData.title && embedData.title.length > 256) {
-        errors.push('Title must be 256 characters or less')
-    }
-    if (embedData.description && embedData.description.length > 4096) {
-        errors.push('Description must be 4096 characters or less')
-    }
-    if (embedData.color && !/^#[0-9A-Fa-f]{6}$/.test(embedData.color)) {
-        errors.push('Color must be a valid hex code (e.g. #5865F2)')
+    if (result.success) {
+        return { valid: true, errors: [] }
     }
 
-    return { valid: errors.length === 0, errors }
+    const errors = result.error.issues.map((issue) => {
+        // Convert Zod error messages to human-readable format
+        const field = issue.path.length > 0 ? issue.path.join('.') : 'root'
+        switch (issue.code) {
+            case 'too_big':
+                return `${field === 'root' ? 'Embed' : field} must be ${issue.maximum} characters or less`
+            case 'too_small':
+                return `${field === 'root' ? 'Embed' : field} must have at least ${issue.minimum} characters`
+            case 'invalid_string':
+                return `${field === 'root' ? 'Color' : field} must be a valid hex code (e.g. #5865F2)`
+            default:
+                return issue.message
+        }
+    })
+
+    return { valid: false, errors }
 }
 
 export function hexToDecimal(hex: string): number {

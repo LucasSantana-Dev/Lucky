@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import { errorLog } from '@lucky/shared/utils'
 import { AppError } from '../errors/AppError'
-import { ValidationError } from '@lucky/shared/errors/ValidationError'
+import { ValidationError } from '@lucky/shared/errors'
 
 export function errorHandler(
     err: Error,
