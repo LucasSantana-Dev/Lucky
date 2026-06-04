@@ -228,7 +228,7 @@ describe('eventHandler', () => {
         })
     })
 
-    it('captures failed reply to Sentry when error reply fails', async () => {
+    it('captures command error to Sentry and attempts to reply', async () => {
         const { client, onMock } = createMockClient()
         const originalError = new Error('original command failure')
         client.commands.set('broken', {
@@ -255,25 +255,25 @@ describe('eventHandler', () => {
 
         await flushAsyncHandlers()
 
-        expect(captureExceptionMock).toHaveBeenCalledTimes(2)
-        expect(captureExceptionMock).toHaveBeenNthCalledWith(1, originalError, {
+        // Original command error is captured in handleInteractionError
+        expect(captureExceptionMock).toHaveBeenCalledWith(originalError, {
             command: 'broken',
             guildId: 'guild-123',
             userId: 'user-456',
         })
-        expect(captureExceptionMock).toHaveBeenNthCalledWith(2, replyError, {
-            originalError: 'original command failure',
-            command: 'broken',
-            guildId: 'guild-123',
-            userId: 'user-456',
-            context: 'failed-reply-to-interaction-error',
-        })
-        expect(errorLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'Error sending error message:',
-                error: replyError,
+        // interactionReply is called to send user-friendly error
+        expect(interactionReplyMock).toHaveBeenCalledWith({
+            interaction: expect.objectContaining({
+                commandName: 'broken',
+                guildId: 'guild-123',
             }),
-        )
+            content: {
+                content: 'Friendly error',
+                ephemeral: true,
+            },
+        })
+        // Note: reply failure is now captured inside interactionReply(),
+        // not in the eventHandler
     })
 
     describe('handleAutocomplete', () => {

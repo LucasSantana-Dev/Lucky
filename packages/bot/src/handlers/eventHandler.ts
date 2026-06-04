@@ -114,31 +114,15 @@ async function handleInteractionError(
             userId: interaction.user?.id,
         })
     }
-    try {
-        const userFriendlyError = createUserFriendlyError(error)
-        await interactionReply({
-            interaction,
-            content: {
-                content: userFriendlyError,
-                ephemeral: true,
-            },
-        })
-    } catch (followUpError) {
-        errorLog({
-            message: 'Error sending error message:',
-            error: followUpError,
-        })
-        if (followUpError instanceof Error) {
-            captureException(followUpError, {
-                originalError:
-                    error instanceof Error ? error.message : String(error),
-                command: interaction.commandName,
-                guildId: interaction.guildId ?? undefined,
-                userId: interaction.user?.id,
-                context: 'failed-reply-to-interaction-error',
-            })
-        }
-    }
+
+    const userFriendlyError = createUserFriendlyError(error)
+    await interactionReply({
+        interaction,
+        content: {
+            content: userFriendlyError,
+            ephemeral: true,
+        },
+    })
 }
 
 async function handleAutocomplete(interaction: Interaction): Promise<void> {

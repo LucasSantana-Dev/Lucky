@@ -12,7 +12,7 @@ import type {
     APIEmbed,
     JSONEncodable,
 } from 'discord.js'
-import { errorLog, debugLog } from '@lucky/shared/utils'
+import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
 import { errorEmbed, infoEmbed } from './embeds'
 
 // Type for interactions that support reply methods
@@ -88,7 +88,11 @@ async function handleChatInputCommand(
                 flags: processedContent.ephemeral ? 64 : undefined,
             })
         } catch {
-            return
+            // Defer failure is typically transient (interaction expired);
+            // allow it to propagate to outer handler for Sentry capture
+            throw new Error('Failed to defer interaction reply', {
+                cause: arguments,
+            })
         }
     }
     try {
@@ -97,8 +101,9 @@ async function handleChatInputCommand(
         } else {
             await interaction.editReply(stripFlags(processedContent))
         }
-    } catch {
-        // interaction expired or already cleaned up
+    } catch (error) {
+        // Reply failure (expired interaction) should propagate for Sentry capture
+        throw error
     }
 }
 
@@ -121,7 +126,11 @@ async function handleOtherInteraction(
                 flags: processedContent.ephemeral ? 64 : undefined,
             })
         } catch {
-            return
+            // Defer failure is typically transient (interaction expired);
+            // allow it to propagate to outer handler for Sentry capture
+            throw new Error('Failed to defer interaction reply', {
+                cause: arguments,
+            })
         }
     }
     try {
@@ -130,8 +139,9 @@ async function handleOtherInteraction(
         } else {
             await interaction.editReply(stripFlags(processedContent))
         }
-    } catch {
-        // interaction expired or already cleaned up
+    } catch (error) {
+        // Reply failure (expired interaction) should propagate for Sentry capture
+        throw error
     }
 }
 
@@ -159,6 +169,30 @@ export const interactionReply = async ({
         }
     } catch (error) {
         errorLog({ message: 'Error sending interaction reply:', error })
+
+        // Capture reply failure to Sentry with interaction context
+        const extras: Record<string, unknown> = {
+            context: 'interaction-reply-failure',
+        }
+
+        // Add context from ChatInputCommandInteraction if available
+        if ('commandName' in interaction) {
+            extras.command = interaction.commandName
+        }
+        if ('guildId' in interaction) {
+            extras.guildId = interaction.guildId ?? undefined
+        }
+        if ('user' in interaction && interaction.user) {
+            extras.userId = interaction.user.id
+        }
+
+        // Normalize error for Sentry (ensure it's an Error instance)
+        const sentryError =
+            error instanceof Error
+                ? error
+                : new Error(String(error), { cause: error })
+
+        captureException(sentryError, extras)
     }
 }
 

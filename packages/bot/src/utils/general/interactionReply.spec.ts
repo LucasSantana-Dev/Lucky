@@ -13,10 +13,12 @@ const mockErrorLog = jest.fn()
 const mockDebugLog = jest.fn()
 const mockErrorEmbed = jest.fn()
 const mockInfoEmbed = jest.fn()
+const mockCaptureException = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => mockErrorLog(...args),
     debugLog: (...args: unknown[]) => mockDebugLog(...args),
+    captureException: (...args: unknown[]) => mockCaptureException(...args),
 }))
 
 jest.mock('./embeds', () => ({
@@ -485,6 +487,120 @@ describe('interactionReply', () => {
                     content: { content: 'test' },
                 }),
             ).resolves.toBeUndefined()
+        })
+    })
+
+    describe('Sentry capture on reply failure', () => {
+        let mockInteraction: ChatInputCommandInteraction
+
+        beforeEach(() => {
+            jest.clearAllMocks()
+            mockErrorEmbed.mockReturnValue(createMockEmbed(0xff0000))
+            mockInfoEmbed.mockReturnValue(createMockEmbed(0x0099ff))
+
+            mockInteraction = {
+                isChatInputCommand: jest.fn(() => true),
+                isButton: jest.fn(() => false),
+                isModalSubmit: jest.fn(() => false),
+                isStringSelectMenu: jest.fn(() => false),
+                isUserSelectMenu: jest.fn(() => false),
+                isChannelSelectMenu: jest.fn(() => false),
+                isRoleSelectMenu: jest.fn(() => false),
+                isMentionableSelectMenu: jest.fn(() => false),
+                deferred: false,
+                replied: false,
+                commandName: 'test-command',
+                guildId: 'guild-123',
+                user: { id: 'user-456' },
+                deferReply: jest.fn().mockResolvedValue(undefined),
+                editReply: jest
+                    .fn()
+                    .mockRejectedValue(new Error('Edit failed')),
+                followUp: jest.fn().mockResolvedValue(undefined),
+            } as unknown as ChatInputCommandInteraction
+        })
+
+        it('captures Error instance with interaction context to Sentry', async () => {
+            await interactionReply({
+                interaction: mockInteraction,
+                content: { content: 'test' },
+            })
+
+            expect(mockCaptureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    context: 'interaction-reply-failure',
+                    command: 'test-command',
+                    guildId: 'guild-123',
+                    userId: 'user-456',
+                }),
+            )
+        })
+
+        it('captures non-Error values by wrapping them in Error', async () => {
+            mockInteraction.editReply = jest
+                .fn()
+                .mockRejectedValue('String error')
+
+            await interactionReply({
+                interaction: mockInteraction,
+                content: { content: 'test' },
+            })
+
+            expect(mockCaptureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    context: 'interaction-reply-failure',
+                }),
+            )
+
+            const capturedError = mockCaptureException.mock.calls[0][0]
+            expect(capturedError).toBeInstanceOf(Error)
+        })
+
+        it('handles missing interaction context gracefully', async () => {
+            const minimalMockInteraction = {
+                isChatInputCommand: jest.fn(() => false),
+                isButton: jest.fn(() => true),
+                isModalSubmit: jest.fn(() => false),
+                isStringSelectMenu: jest.fn(() => false),
+                isUserSelectMenu: jest.fn(() => false),
+                isChannelSelectMenu: jest.fn(() => false),
+                isRoleSelectMenu: jest.fn(() => false),
+                isMentionableSelectMenu: jest.fn(() => false),
+                deferred: false,
+                replied: false,
+                deferReply: jest.fn().mockResolvedValue(undefined),
+                editReply: jest.fn().mockRejectedValue(new Error('Failed')),
+                followUp: jest.fn().mockResolvedValue(undefined),
+            } as unknown as Interaction
+
+            await interactionReply({
+                interaction: minimalMockInteraction,
+                content: { content: 'test' },
+            })
+
+            expect(mockCaptureException).toHaveBeenCalled()
+            const extras = mockCaptureException.mock.calls[0][1]
+            expect(extras).toHaveProperty(
+                'context',
+                'interaction-reply-failure',
+            )
+        })
+
+        it('logs error to console and captures to Sentry', async () => {
+            await interactionReply({
+                interaction: mockInteraction,
+                content: { content: 'test' },
+            })
+
+            expect(mockErrorLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Error sending interaction reply:',
+                    error: expect.any(Error),
+                }),
+            )
+            expect(mockCaptureException).toHaveBeenCalled()
         })
     })
 })
