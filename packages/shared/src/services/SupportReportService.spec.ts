@@ -224,6 +224,26 @@ describe('SupportReportService', () => {
             )
         })
 
+        it('omits image bytes and orders with a stable id tiebreaker', async () => {
+            const findMany =
+                jest
+                    .fn<(args: unknown) => Promise<Array<{ id: string }>>>()
+                    .mockResolvedValue([])
+            // @ts-ignore - partial prisma client mock
+            mockGetPrismaClient.mockReturnValue({
+                supportReport: { findMany },
+            })
+
+            await service.list()
+
+            expect(findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    omit: { image: true },
+                    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+                }),
+            )
+        })
+
         it('bounds take to maximum of 100', async () => {
             const findMany =
                 jest.fn<(args: unknown) => Promise<Array<{ id: string }>>>().mockResolvedValue(

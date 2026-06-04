@@ -18,6 +18,11 @@ export type SupportReport = {
 }
 
 /**
+ * A support report summary as returned by list queries — image bytes omitted.
+ */
+export type SupportReportListItem = Omit<SupportReport, 'image'>
+
+/**
  * Input payload for creating a new support report.
  */
 export interface CreateReportInput {
@@ -90,11 +95,13 @@ export class SupportReportService {
 
     /**
      * Lists support reports with optional filtering and pagination.
+     * The image bytes are omitted from list rows (fetch them via {@link get});
+     * imageMimeType is kept so callers can show an attachment indicator.
      *
      * @param filter List options: take (bounded to 100), cursor, status
-     * @returns Promise with array of SupportReport
+     * @returns Promise with array of SupportReport summaries (no image bytes)
      */
-    async list(filter: ListReportsFilter = {}): Promise<SupportReport[]> {
+    async list(filter: ListReportsFilter = {}): Promise<SupportReportListItem[]> {
         const prisma = getPrismaClient()
 
         // Bound take to maximum of 100
@@ -105,7 +112,9 @@ export class SupportReportService {
             take,
             skip: filter.cursor ? 1 : 0,
             cursor: filter.cursor ? { id: filter.cursor } : undefined,
-            orderBy: { createdAt: 'desc' },
+            // createdAt is non-unique; the id tiebreaker keeps cursor pages stable.
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            omit: { image: true },
         })
 
         return reports

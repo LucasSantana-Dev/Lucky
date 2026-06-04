@@ -241,5 +241,6 @@ export type EnvironmentConfig = typeof ENVIRONMENT_CONFIG
  * @returns SUPPORT_URL string or undefined
  */
 export function getSupportUrl(): string | undefined {
-    return process.env.SUPPORT_URL
+    const url = process.env.SUPPORT_URL?.trim()
+    return url ? url : undefined
 }

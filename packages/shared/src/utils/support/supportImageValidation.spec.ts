@@ -97,5 +97,35 @@ describe('supportImageValidation', () => {
             expect(result.valid).toBe(false)
             expect(result.error).toContain('Missing image size or type')
         })
+
+        it('rejects NaN size', () => {
+            const result = validateSupportImage({
+                size: Number.NaN,
+                mimetype: 'image/png',
+            })
+
+            expect(result.valid).toBe(false)
+            expect(result.error).toContain('Invalid image size')
+        })
+
+        it('rejects Infinity size', () => {
+            const result = validateSupportImage({
+                size: Number.POSITIVE_INFINITY,
+                mimetype: 'image/png',
+            })
+
+            expect(result.valid).toBe(false)
+            expect(result.error).toContain('Invalid image size')
+        })
+
+        it('rejects negative size', () => {
+            const result = validateSupportImage({
+                size: -1,
+                mimetype: 'image/png',
+            })
+
+            expect(result.valid).toBe(false)
+            expect(result.error).toContain('Invalid image size')
+        })
     })
 })

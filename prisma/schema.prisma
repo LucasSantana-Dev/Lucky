@@ -903,5 +903,9 @@ model SupportReport {
   @@index([guildId])
   @@index([createdAt])
   @@index([status])
+  // Status-filtered listing sorts by createdAt; composite keeps that ordered.
+  @@index([status, createdAt])
+  // DB CHECK constraints (image <=5MB, image/mimeType pairwise, surface/status
+  // allowed values) are enforced in the migration — Prisma cannot model them.
   @@map("support_reports")
 }

@@ -35,6 +35,13 @@ export function validateSupportImage(input: {
         }
     }
 
+    if (!Number.isFinite(input.size) || input.size < 0) {
+        return {
+            valid: false,
+            error: 'Invalid image size',
+        }
+    }
+
     if (input.size > MAX_IMAGE_SIZE_BYTES) {
         return {
             valid: false,

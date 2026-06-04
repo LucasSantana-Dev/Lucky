@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from '@jest/globals'
+import { describe, expect, it, afterEach } from '@jest/globals'
 import { buildErrorSupportContext } from './errorSupportContext'
 
 describe('errorSupportContext', () => {
@@ -93,6 +93,28 @@ describe('errorSupportContext', () => {
             expect(result.supportLink).toContain('category=timeout-error')
             expect(result.supportLink).not.toContain('guildId=')
             expect(result.supportLink).not.toContain('command=')
+        })
+
+        it('preserves query params already present on SUPPORT_URL', () => {
+            process.env.SUPPORT_URL = 'https://example.com/support?ref=embed'
+            const result = buildErrorSupportContext('abc123xy')
+
+            expect(result.supportLink).toContain('ref=embed')
+            expect(result.supportLink).toContain('cid=abc123xy')
+        })
+
+        it('treats an empty SUPPORT_URL as not configured', () => {
+            process.env.SUPPORT_URL = '   '
+            const result = buildErrorSupportContext('abc123xy')
+
+            expect(result.supportLink).toBeNull()
+        })
+
+        it('degrades gracefully when SUPPORT_URL is malformed', () => {
+            process.env.SUPPORT_URL = 'not a url'
+            const result = buildErrorSupportContext('abc123xy')
+
+            expect(result.supportLink).toBeNull()
         })
     })
 })

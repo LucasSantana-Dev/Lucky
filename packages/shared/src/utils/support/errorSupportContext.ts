@@ -26,32 +26,40 @@ export function buildErrorSupportContext(
         errorCategory?: string
     },
 ): ErrorSupportContextResult {
-    const supportUrl = process.env.SUPPORT_URL ?? undefined
+    const supportUrl = process.env.SUPPORT_URL?.trim() || undefined
+
+    const gracefulAbsent: ErrorSupportContextResult = {
+        supportLink: null,
+        footerText: 'An error occurred. Please try again or contact support.',
+    }
 
     if (!supportUrl) {
         // Graceful absent state: support URL is optional
-        return {
-            supportLink: null,
-            footerText:
-                'An error occurred. Please try again or contact support.',
-        }
+        return gracefulAbsent
     }
 
-    // Build query params: cid (correlation ID) + optional context fields
-    const params = new URLSearchParams()
-    params.set('cid', correlationId)
+    // Use the URL API so query params already present on SUPPORT_URL are
+    // preserved rather than clobbered by a naive `?` concatenation.
+    let url: URL
+    try {
+        url = new URL(supportUrl)
+    } catch {
+        // Malformed SUPPORT_URL: degrade gracefully rather than emit a bad link.
+        return gracefulAbsent
+    }
 
+    url.searchParams.set('cid', correlationId)
     if (context?.guildId) {
-        params.set('guildId', context.guildId)
+        url.searchParams.set('guildId', context.guildId)
     }
     if (context?.command) {
-        params.set('command', context.command)
+        url.searchParams.set('command', context.command)
     }
     if (context?.errorCategory) {
-        params.set('category', context.errorCategory)
+        url.searchParams.set('category', context.errorCategory)
     }
 
-    const supportLink = `${supportUrl}?${params.toString()}`
+    const supportLink = url.toString()
     const footerText = `Error ID: ${correlationId} — [Report this error](${supportLink})`
 
     return {
