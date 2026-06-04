@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import { ValidationError } from '@lucky/shared/errors/ValidationError'
 
 const mockPrisma: any = {
     customCommand: {
@@ -97,6 +98,37 @@ describe('CustomCommandService', () => {
                     }),
                 }),
             )
+        })
+
+        test('should throw ValidationError when embedData is invalid', async () => {
+            const invalidEmbedData = {
+                title: 'x'.repeat(300), // exceeds max 256
+            }
+
+            await expect(
+                service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: invalidEmbedData,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should throw ValidationError with details when embedData fails validation', async () => {
+            const invalidEmbedData = {
+                color: 'invalid-hex', // not a valid hex color
+            }
+
+            try {
+                await service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: invalidEmbedData,
+                })
+                throw new Error('Expected ValidationError to be thrown')
+            } catch (error) {
+                expect(error).toBeInstanceOf(ValidationError)
+                const validationError = error as ValidationError
+                expect(validationError.message).toBe('Invalid embed data')
+                expect(validationError.details).toBeDefined()
+                expect(Array.isArray(validationError.details)).toBe(true)
+            }
         })
     })
 

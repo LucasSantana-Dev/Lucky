@@ -2,6 +2,7 @@ import { getPrismaClient } from '../utils/database/prismaClient.js'
 import { Prisma } from '../generated/prisma/client.js'
 import type { EmbedData } from './embedValidation.js'
 import { embedDataSchema } from './embedValidation.js'
+import { ValidationError } from '../errors/ValidationError.js'
 
 const prisma = getPrismaClient()
 
@@ -9,16 +10,18 @@ const prisma = getPrismaClient()
 export class CustomCommandService {
     /**
      * Validates embedData against the schema.
-     * Throws a validation error if the shape is invalid.
+     * Throws a ValidationError if the shape is invalid.
      */
     private validateEmbedData(embedData: unknown): EmbedData {
-        try {
-            return embedDataSchema.parse(embedData)
-        } catch (error) {
-            const message =
-                error instanceof Error ? error.message : 'Invalid embed data'
-            throw new Error(`Invalid embed data: ${message}`)
+        const result = embedDataSchema.safeParse(embedData)
+        if (!result.success) {
+            const errors = result.error.issues.map((e) => ({
+                field: e.path.join('.') || 'root',
+                message: e.message,
+            }))
+            throw new ValidationError('Invalid embed data', errors)
         }
+        return result.data
     }
 
     /** Creates a new custom command for a guild. */

@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import { errorLog } from '@lucky/shared/utils'
 import { AppError } from '../errors/AppError'
+import { ValidationError } from '@lucky/shared/errors/ValidationError'
 
 export function errorHandler(
     err: Error,
@@ -14,6 +15,15 @@ export function errorHandler(
             body.details = err.details
         }
         res.status(err.statusCode).json(body)
+        return
+    }
+
+    if (err instanceof ValidationError) {
+        const body: Record<string, unknown> = { error: err.message }
+        if (err.details) {
+            body.details = err.details
+        }
+        res.status(400).json(body)
         return
     }
 
