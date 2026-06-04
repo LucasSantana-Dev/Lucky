@@ -59,8 +59,8 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:id',
         requireAuth,
-        requireGuildModuleAccess('overview'),
         validateParams(idParam),
+        requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const id = getGuildId(req)
             const sessionData = await getSessionData(req)
@@ -80,8 +80,8 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:id/invite',
         requireAuth,
-        requireGuildModuleAccess('overview'),
         validateParams(idParam),
+        requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const id = getGuildId(req)
             const inviteUrl = guildService.generateBotInviteUrl(id)

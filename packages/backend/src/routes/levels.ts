@@ -16,6 +16,7 @@ function p(val: string | string[]): string {
 }
 
 const userIdParam = commonUserIdParam
+const rankParams = guildIdParam.merge(commonUserIdParam)
 const levelParam = guildIdParam.extend({
     level: z.coerce.number().int().min(1),
 })
@@ -76,7 +77,7 @@ export function setupLevelsRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/levels/rank/:userId',
         requireAuth,
-        validateParams(userIdParam),
+        validateParams(rankParams),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const userId = p(req.params.userId)

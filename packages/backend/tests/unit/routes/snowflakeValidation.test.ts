@@ -266,7 +266,8 @@ describe('Guild ID Snowflake Validation', () => {
                 const res = await request(app).get(
                     `/api/guilds/${invalidGuildId}/levels/rank/${validUserId}`,
                 )
-                expect([400, 500]).toContain(res.status)
+                expect(res.status).toBe(400)
+                expect(res.body).toHaveProperty('error')
             },
         )
 
