@@ -15,7 +15,6 @@ function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
 }
 
-const userIdParam = commonUserIdParam
 const rankParams = guildIdParam.merge(commonUserIdParam)
 const levelParam = guildIdParam.extend({
     level: z.coerce.number().int().min(1),

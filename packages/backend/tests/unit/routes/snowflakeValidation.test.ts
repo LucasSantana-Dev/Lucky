@@ -1,4 +1,4 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
+import { describe, test, expect, jest } from '@jest/globals'
 import type { Request, Response, NextFunction } from 'express'
 
 jest.mock('../../../src/middleware/auth', () => ({
@@ -83,7 +83,6 @@ function createApp(setupRoutes: (app: express.Express) => void) {
 describe('Guild ID Snowflake Validation', () => {
     describe('Starboard Routes', () => {
         const validGuildId = '123456789012345678'
-        const validGuildId17 = '12345678901234567' // 17 digits - valid per Discord snowflakes
         const invalidGuildIds = [
             'invalid',
             '123', // too short
