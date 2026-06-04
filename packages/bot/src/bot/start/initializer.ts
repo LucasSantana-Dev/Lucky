@@ -167,6 +167,13 @@ export class BotInitializer {
             try {
                 this.client.removeAllListeners()
                 await this.client.destroy()
+                infoLog({ message: 'Bot shutdown completed' })
+            } catch (error) {
+                errorLog({ message: 'Error during bot shutdown:', error })
+            } finally {
+                // Always clear the client + state, even if destroy() threw —
+                // the client is being discarded, so leaving stale state would
+                // block re-initialization.
                 this.client = null
                 this.isInitialized = false
                 this.state = {
@@ -174,9 +181,6 @@ export class BotInitializer {
                     isConnected: false,
                     isReady: false,
                 }
-                infoLog({ message: 'Bot shutdown completed' })
-            } catch (error) {
-                errorLog({ message: 'Error during bot shutdown:', error })
             }
         }
         try {

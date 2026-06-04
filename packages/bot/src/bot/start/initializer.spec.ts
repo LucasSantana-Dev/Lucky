@@ -289,6 +289,23 @@ describe('BotInitializer', () => {
             expect(state.isReady).toBe(false)
         })
 
+        it('still clears client and state when destroy() throws', async () => {
+            const initResult = await initializer.initializeBot()
+            expect(initResult.success).toBe(true)
+
+            const client = initializer.getClient()
+            ;(client?.destroy as jest.Mock).mockRejectedValueOnce(
+                new Error('destroy failed'),
+            )
+
+            await initializer.shutdown()
+
+            // A failed destroy must not leave stale state that blocks re-init.
+            expect(initializer.getClient()).toBeNull()
+            expect(initializer.isBotInitialized()).toBe(false)
+            expect(initializer.getState().isInitialized).toBe(false)
+        })
+
         it('silently succeeds when shutdown called with no client', async () => {
             expect(() => initializer.shutdown()).not.toThrow()
         })
