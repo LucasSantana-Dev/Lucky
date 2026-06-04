@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 export interface EmbedField {
     name: string
     value: string
@@ -14,28 +16,78 @@ export interface EmbedData {
     fields?: EmbedField[]
 }
 
+// Zod schema for validating EmbedData shape and constraints (Discord API limits)
+export const embedDataSchema = z
+    .object({
+        title: z.string().max(256).optional(),
+        description: z.string().max(4096).optional(),
+        color: z
+            .string()
+            .regex(/^#[0-9A-Fa-f]{6}$/)
+            .optional(),
+        footer: z.string().max(2048).optional(),
+        thumbnail: z.string().optional(),
+        image: z.string().optional(),
+        fields: z
+            .array(
+                z.object({
+                    name: z.string().min(1).max(256),
+                    value: z.string().min(1).max(1024),
+                    inline: z.boolean().optional(),
+                }),
+            )
+            .max(25)
+            .optional(),
+    })
+    .refine(
+        (data) => {
+            // Embed must have at least one of title, description, or fields
+            return (
+                data.title ||
+                data.description ||
+                (data.fields && data.fields.length > 0)
+            )
+        },
+        {
+            message: 'Embed must have at least a title, description, or fields',
+            path: ['root'],
+        },
+    )
+
+/**
+ * Validates EmbedData using the Zod schema.
+ * Returns structured validation result for backwards compatibility.
+ */
 export function validateEmbedData(embedData: Partial<EmbedData>): {
     valid: boolean
     errors: string[]
 } {
-    const errors: string[] = []
-    const hasContent =
-        embedData.title || embedData.description || embedData.fields?.length
+    const result = embedDataSchema.safeParse(embedData)
 
-    if (!hasContent) {
-        errors.push('Embed must have at least a title, description, or fields')
-    }
-    if (embedData.title && embedData.title.length > 256) {
-        errors.push('Title must be 256 characters or less')
-    }
-    if (embedData.description && embedData.description.length > 4096) {
-        errors.push('Description must be 4096 characters or less')
-    }
-    if (embedData.color && !/^#[0-9A-Fa-f]{6}$/.test(embedData.color)) {
-        errors.push('Color must be a valid hex code (e.g. #5865F2)')
+    if (result.success) {
+        return { valid: true, errors: [] }
     }
 
-    return { valid: errors.length === 0, errors }
+    const errors = result.error.issues.map((issue) => {
+        // Convert Zod error messages to human-readable format
+        const rawField = issue.path.length > 0 ? issue.path.join('.') : 'root'
+        const label =
+            rawField === 'root'
+                ? 'Embed'
+                : rawField.charAt(0).toUpperCase() + rawField.slice(1)
+        switch (issue.code) {
+            case 'too_big':
+                return `${label} must be ${issue.maximum} characters or less`
+            case 'too_small':
+                return `${label} must have at least ${issue.minimum} characters`
+            case 'invalid_format':
+                return `${label} must be a valid hex code (e.g. #5865F2)`
+            default:
+                return issue.message
+        }
+    })
+
+    return { valid: false, errors }
 }
 
 export function hexToDecimal(hex: string): number {
