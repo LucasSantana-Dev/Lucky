@@ -33,7 +33,9 @@ const { __mocks: dbMocks } = jest.requireMock('@lucky/shared/utils') as {
 
 import { BirthdayScheduler } from './birthdayScheduler'
 
-function makeClient(sentCapture: Array<{ channelId: string; payload: unknown }>) {
+function makeClient(
+    sentCapture: Array<{ channelId: string; payload: unknown }>,
+) {
     const channelSend = (channelId: string) =>
         jest.fn((payload: unknown) => {
             sentCapture.push({ channelId, payload })
@@ -60,7 +62,14 @@ beforeEach(() => {
 
 function makeGuildWithRole(
     roleId: string,
-    currentMembers: Map<string, { rolesCacheHas: (id: string) => boolean; rolesAdd: jest.Mock; rolesRemove: jest.Mock }>,
+    currentMembers: Map<
+        string,
+        {
+            rolesCacheHas: (id: string) => boolean
+            rolesAdd: jest.Mock
+            rolesRemove: jest.Mock
+        }
+    >,
     roleMembers: Map<string, { rolesAdd: jest.Mock; rolesRemove: jest.Mock }>,
 ) {
     return {
@@ -85,7 +94,10 @@ function makeGuildWithRole(
                 if (id !== roleId) return Promise.resolve(null)
                 return Promise.resolve({
                     id: roleId,
-                    members: roleMembers as unknown as Map<string, { roles: { remove: jest.Mock } }>,
+                    members: roleMembers as unknown as Map<
+                        string,
+                        { roles: { remove: jest.Mock } }
+                    >,
                 })
             }),
         },
@@ -181,7 +193,7 @@ describe('BirthdayScheduler.tick', () => {
         expect(sent).toHaveLength(2)
     })
 
-    test('grants birthday role to today\'s celebrators', async () => {
+    test("grants birthday role to today's celebrators", async () => {
         dbMocks.findMany.mockResolvedValue([{ guildId: 'g1', userId: 'u1' }])
         dbMocks.settingsFindUnique.mockResolvedValue({
             birthdayChannelId: 'chan-1',
@@ -196,7 +208,11 @@ describe('BirthdayScheduler.tick', () => {
             rolesRemove,
         }
         const currentMembers = new Map([['u1', member]])
-        const guildWithRole = makeGuildWithRole('role-1', currentMembers, new Map())
+        const guildWithRole = makeGuildWithRole(
+            'role-1',
+            currentMembers,
+            new Map(),
+        )
         const client = {
             ...makeClient(sent),
             guilds: { fetch: jest.fn(() => Promise.resolve(guildWithRole)) },
@@ -316,9 +332,7 @@ describe('BirthdayScheduler.tick', () => {
     })
 
     test('handles missing channel gracefully', async () => {
-        dbMocks.findMany.mockResolvedValue([
-            { guildId: 'g1', userId: 'u1' },
-        ])
+        dbMocks.findMany.mockResolvedValue([{ guildId: 'g1', userId: 'u1' }])
         dbMocks.settingsFindUnique.mockResolvedValue({
             birthdayChannelId: 'chan-missing',
         })
@@ -422,9 +436,7 @@ describe('BirthdayScheduler.tick', () => {
     })
 
     test('handles settings.findUnique returning null gracefully', async () => {
-        dbMocks.findMany.mockResolvedValue([
-            { guildId: 'g1', userId: 'u1' },
-        ])
+        dbMocks.findMany.mockResolvedValue([{ guildId: 'g1', userId: 'u1' }])
         dbMocks.settingsFindUnique.mockResolvedValue(null)
         const sent: Array<{ channelId: string; payload: unknown }> = []
         const client = makeClient(sent) as never
@@ -435,5 +447,81 @@ describe('BirthdayScheduler.tick', () => {
         await scheduler.tick()
         // No channel configured, so no announcement
         expect(sent).toHaveLength(0)
+    })
+
+    test('paginates through guilds with role in batches of 500', async () => {
+        dbMocks.findMany.mockResolvedValue([])
+        // Mock settingsFindMany to return two pages
+        const page1 = Array.from({ length: 500 }, (_, i) => ({
+            guildId: `g${i}`,
+            birthdayRoleId: `role-${i}`,
+        }))
+        const page2 = Array.from({ length: 100 }, (_, i) => ({
+            guildId: `g${500 + i}`,
+            birthdayRoleId: `role-${500 + i}`,
+        }))
+        dbMocks.settingsFindMany
+            .mockResolvedValueOnce(page1)
+            .mockResolvedValueOnce(page2)
+        const client = {
+            channels: { fetch: jest.fn() },
+            guilds: {
+                fetch: jest.fn(() =>
+                    Promise.resolve({
+                        roles: {
+                            fetch: jest.fn(() =>
+                                Promise.resolve({
+                                    id: 'role-1',
+                                    members: new Map(),
+                                }),
+                            ),
+                        },
+                    }),
+                ),
+            },
+        } as never
+        const scheduler = new BirthdayScheduler({
+            clock: () => new Date('2026-04-20T00:00:00Z'),
+        })
+        scheduler['client'] = client
+        await scheduler.tick()
+        expect(dbMocks.settingsFindMany).toHaveBeenCalledTimes(2)
+        // First call should request page 1
+        const call1 = dbMocks.settingsFindMany.mock.calls[0][0]
+        expect(call1.take).toBe(500)
+        expect(call1.orderBy).toEqual({ guildId: 'asc' })
+    })
+
+    test('stops pagination when page size is less than limit', async () => {
+        dbMocks.findMany.mockResolvedValue([])
+        const partialPage = Array.from({ length: 200 }, (_, i) => ({
+            guildId: `g${i}`,
+            birthdayRoleId: `role-${i}`,
+        }))
+        dbMocks.settingsFindMany.mockResolvedValueOnce(partialPage)
+        const client = {
+            channels: { fetch: jest.fn() },
+            guilds: {
+                fetch: jest.fn(() =>
+                    Promise.resolve({
+                        roles: {
+                            fetch: jest.fn(() =>
+                                Promise.resolve({
+                                    id: 'role-1',
+                                    members: new Map(),
+                                }),
+                            ),
+                        },
+                    }),
+                ),
+            },
+        } as never
+        const scheduler = new BirthdayScheduler({
+            clock: () => new Date('2026-04-20T00:00:00Z'),
+        })
+        scheduler['client'] = client
+        await scheduler.tick()
+        // Should only call settingsFindMany once (partial page < 500)
+        expect(dbMocks.settingsFindMany).toHaveBeenCalledTimes(1)
     })
 })
