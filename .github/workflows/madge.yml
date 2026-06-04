@@ -5,6 +5,8 @@ on:
         branches: ['release/**', main]
     pull_request:
         branches: ['release/**', main]
+    merge_group:
+        branches: ['release/**', main]
 
 # Hard gate. Blocks merges if cycle count exceeds baseline.
 # Baseline: COUNT > 1 (permits 1 known residual type-only cycle).
