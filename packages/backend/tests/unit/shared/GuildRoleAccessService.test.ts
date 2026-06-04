@@ -5,13 +5,6 @@ const mockDeleteMany = jest.fn<any>()
 const mockCreateMany = jest.fn<any>()
 const mockTransaction = jest.fn<any>()
 
-const mockRedisIsHealthy = jest.fn<boolean, []>()
-const mockRedisGet = jest.fn<any>()
-const mockRedisSetex = jest.fn<any>()
-const mockRedisDel = jest.fn<any>()
-
-const mockErrorLog = jest.fn<void, [unknown]>()
-
 jest.mock('../../../../shared/src/utils/database/prismaClient.js', () => ({
     getPrismaClient: () => ({
         guildRoleGrant: {
@@ -19,19 +12,6 @@ jest.mock('../../../../shared/src/utils/database/prismaClient.js', () => ({
         },
         $transaction: (...args: any[]) => mockTransaction(...args),
     }),
-}))
-
-jest.mock('../../../../shared/src/services/redis/index.js', () => ({
-    redisClient: {
-        isHealthy: () => mockRedisIsHealthy(),
-        get: (...args: any[]) => mockRedisGet(...args),
-        setex: (...args: any[]) => mockRedisSetex(...args),
-        del: (...args: any[]) => mockRedisDel(...args),
-    },
-}))
-
-jest.mock('../../../../shared/src/utils/general/log.js', () => ({
-    errorLog: (...args: [unknown]) => mockErrorLog(...args),
 }))
 
 import {
@@ -45,10 +25,6 @@ const now = new Date('2026-03-11T00:00:00.000Z')
 describe('GuildRoleAccessService', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        mockRedisIsHealthy.mockReturnValue(true)
-        mockRedisGet.mockResolvedValue(null)
-        mockRedisSetex.mockResolvedValue(undefined)
-        mockRedisDel.mockResolvedValue(undefined)
         mockFindMany.mockResolvedValue([])
         mockDeleteMany.mockResolvedValue(undefined)
         mockCreateMany.mockResolvedValue(undefined)
@@ -62,33 +38,7 @@ describe('GuildRoleAccessService', () => {
         )
     })
 
-    test('listRoleGrants returns cached grants when redis cache exists', async () => {
-        mockRedisGet.mockResolvedValue(
-            JSON.stringify([
-                {
-                    guildId,
-                    roleId: '222222222222222222',
-                    module: 'moderation',
-                    mode: 'view',
-                    createdAt: now.toISOString(),
-                    updatedAt: now.toISOString(),
-                },
-            ]),
-        )
-
-        const grants = await guildRoleAccessService.listRoleGrants(guildId)
-
-        expect(grants).toHaveLength(1)
-        expect(grants[0]).toMatchObject({
-            guildId,
-            roleId: '222222222222222222',
-            module: 'moderation',
-            mode: 'view',
-        })
-        expect(mockFindMany).not.toHaveBeenCalled()
-    })
-
-    test('listRoleGrants falls back to database and caches normalized rows', async () => {
+    test('listRoleGrants reads from database and normalizes rows', async () => {
         mockFindMany.mockResolvedValue([
             {
                 guildId,
@@ -124,14 +74,9 @@ describe('GuildRoleAccessService', () => {
                 updatedAt: now,
             },
         ])
-        expect(mockRedisSetex).toHaveBeenCalledWith(
-            `guild_rbac:${guildId}`,
-            300,
-            JSON.stringify(grants),
-        )
     })
 
-    test('replaceRoleGrants deduplicates by role/module and clears cache', async () => {
+    test('replaceRoleGrants deduplicates by role/module', async () => {
         mockFindMany.mockResolvedValue([
             {
                 guildId,
@@ -186,7 +131,6 @@ describe('GuildRoleAccessService', () => {
                 },
             ],
         })
-        expect(mockRedisDel).toHaveBeenCalledWith(`guild_rbac:${guildId}`)
         expect(updated).toHaveLength(1)
         expect(updated[0].module).toBe('moderation')
     })
@@ -197,9 +141,9 @@ describe('GuildRoleAccessService', () => {
             meta: { table: 'guild_role_grants' },
         })
 
-        await expect(guildRoleAccessService.listRoleGrants(guildId)).rejects.toBeInstanceOf(
-            GuildRoleGrantStorageError,
-        )
+        await expect(
+            guildRoleAccessService.listRoleGrants(guildId),
+        ).rejects.toBeInstanceOf(GuildRoleGrantStorageError)
     })
 
     test('replaceRoleGrants throws typed storage error when RBAC table is missing', async () => {
@@ -214,26 +158,24 @@ describe('GuildRoleAccessService', () => {
     })
 
     test('resolveEffectiveAccess applies manage and view precedence', async () => {
-        mockRedisGet.mockResolvedValue(
-            JSON.stringify([
-                {
-                    guildId,
-                    roleId: 'role-manage',
-                    module: 'settings',
-                    mode: 'manage',
-                    createdAt: now.toISOString(),
-                    updatedAt: now.toISOString(),
-                },
-                {
-                    guildId,
-                    roleId: 'role-view',
-                    module: 'moderation',
-                    mode: 'view',
-                    createdAt: now.toISOString(),
-                    updatedAt: now.toISOString(),
-                },
-            ]),
-        )
+        mockFindMany.mockResolvedValue([
+            {
+                guildId,
+                roleId: 'role-manage',
+                module: 'settings',
+                mode: 'manage',
+                createdAt: now,
+                updatedAt: now,
+            },
+            {
+                guildId,
+                roleId: 'role-view',
+                module: 'moderation',
+                mode: 'view',
+                createdAt: now,
+                updatedAt: now,
+            },
+        ])
 
         const access = await guildRoleAccessService.resolveEffectiveAccess(
             guildId,
@@ -284,17 +226,5 @@ describe('GuildRoleAccessService', () => {
             guildRoleAccessService.hasAccess(map, 'settings', 'manage'),
         ).toBe(true)
         expect(guildRoleAccessService.hasAnyAccess(map)).toBe(true)
-    })
-
-    test('logs and bypasses cache read/write failures', async () => {
-        mockRedisGet.mockRejectedValue(new Error('cache read failed'))
-        mockFindMany.mockResolvedValue([])
-        mockRedisSetex.mockRejectedValue(new Error('cache write failed'))
-        mockRedisDel.mockRejectedValue(new Error('cache del failed'))
-
-        await guildRoleAccessService.listRoleGrants(guildId)
-        await guildRoleAccessService.replaceRoleGrants(guildId, [])
-
-        expect(mockErrorLog).toHaveBeenCalled()
     })
 })
