@@ -36,7 +36,7 @@ jobs:
               with:
                   name: shared-build
                   path: |
-                      .prisma/client
+                      packages/shared/src/generated/prisma
                       packages/shared/dist
                   retention-days: 1
 
@@ -56,6 +56,7 @@ jobs:
               uses: actions/download-artifact@v8
               with:
                   name: shared-build
+                  path: packages/shared
             - name: Lint
               run: |
                   npm run lint --workspace=packages/frontend
@@ -86,6 +87,7 @@ jobs:
               uses: actions/download-artifact@v8
               with:
                   name: shared-build
+                  path: packages/shared
             - name: Run backend tests
               run: npm run test --workspace=packages/backend -- --ci --coverage
             - uses: actions/upload-artifact@v7
@@ -110,6 +112,7 @@ jobs:
               uses: actions/download-artifact@v8
               with:
                   name: shared-build
+                  path: packages/shared
             - name: Run bot tests
               run: npm run test --workspace=packages/bot -- --ci --coverage
             - name: Run music incident regression
@@ -145,6 +148,7 @@ jobs:
               uses: actions/download-artifact@v8
               with:
                   name: shared-build
+                  path: packages/shared
             - name: Run YouTube smoke test
               run: YOUTUBE_SMOKE_TEST=true npm run test --workspace=packages/bot -- --testPathPatterns="youtube.smoke" --ci --coverage
             - uses: actions/upload-artifact@v7
@@ -169,6 +173,7 @@ jobs:
               uses: actions/download-artifact@v8
               with:
                   name: shared-build
+                  path: packages/shared
             - name: Run frontend tests
               run: npm run test --workspace=packages/frontend -- --coverage --coverage.reporter=lcov --coverage.reporter=text
             - uses: actions/upload-artifact@v7
