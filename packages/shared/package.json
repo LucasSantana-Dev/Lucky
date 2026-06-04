@@ -45,6 +45,14 @@
         "./constants": {
             "types": "./dist/constants/index.d.ts",
             "default": "./dist/constants/index.js"
+        },
+        "./errors": {
+            "types": "./dist/errors/index.d.ts",
+            "default": "./dist/errors/index.js"
+        },
+        "./errors/*": {
+            "types": "./dist/errors/*.d.ts",
+            "default": "./dist/errors/*.js"
         }
     },
     "scripts": {
