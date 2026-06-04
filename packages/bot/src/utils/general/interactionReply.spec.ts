@@ -287,6 +287,46 @@ describe('interactionReply', () => {
             })
             expect(mockInteraction.editReply).toHaveBeenCalled()
         })
+
+        it('wraps deferReply failure with the real error as cause', async () => {
+            const deferError = new Error('Interaction expired')
+            mockInteraction.deferReply = jest.fn().mockRejectedValue(deferError)
+
+            await interactionReply({
+                interaction: mockInteraction,
+                content: { content: 'button' },
+            })
+
+            expect(mockCaptureException).toHaveBeenCalled()
+            const capturedError = mockCaptureException.mock.calls[0][0]
+            expect(capturedError.cause).toBe(deferError)
+        })
+
+        it('propagates the raw error when editReply fails', async () => {
+            const editError = new Error('Discord API error')
+            mockInteraction.editReply = jest.fn().mockRejectedValue(editError)
+
+            await interactionReply({
+                interaction: mockInteraction,
+                content: { content: 'button' },
+            })
+
+            expect(mockCaptureException).toHaveBeenCalled()
+            // handleOtherInteraction re-throws raw → captured directly.
+            expect(mockCaptureException.mock.calls[0][0]).toBe(editError)
+        })
+
+        it('uses followUp when the button interaction was already replied', async () => {
+            mockInteraction.replied = true
+
+            await interactionReply({
+                interaction: mockInteraction,
+                content: { content: 'button' },
+            })
+
+            expect(mockInteraction.followUp).toHaveBeenCalled()
+            expect(mockInteraction.editReply).not.toHaveBeenCalled()
+        })
     })
 
     describe('modal submit interactions', () => {
