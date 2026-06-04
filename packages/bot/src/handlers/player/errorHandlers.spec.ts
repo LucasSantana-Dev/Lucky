@@ -17,6 +17,9 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
     captureException: (...args: unknown[]) => captureExceptionMock(...args),
+    sanitizeErrorMessage: (e: unknown) =>
+        e instanceof Error ? e.message : String(e),
+    sanitizeStack: (e: unknown) => (e instanceof Error ? e.stack : undefined),
 }))
 
 jest.mock('../../utils/general/embeds', () => ({

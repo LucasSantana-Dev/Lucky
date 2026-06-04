@@ -5,6 +5,8 @@ import {
     debugLog,
     warnLog,
     captureException,
+    sanitizeErrorMessage,
+    sanitizeStack,
 } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../../utils/general/embeds'
 import {
@@ -58,7 +60,7 @@ function toErrorDetails(error: unknown): {
     if (error instanceof Error) {
         return {
             errorMessage: error.message,
-            errorStack: error.stack,
+            errorStack: sanitizeStack(error) ?? sanitizeErrorMessage(error),
             errorName: error.name,
         }
     }

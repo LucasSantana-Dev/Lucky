@@ -3,7 +3,12 @@ import { setupErrorHandlers } from '@lucky/shared/utils'
 import { flushSentry, initializeSentry } from '@lucky/shared/utils'
 import { startHeartbeat, stopHeartbeat } from '@lucky/shared/utils'
 import { initializeBot, shutdown as shutdownBot } from './bot/start'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import {
+    debugLog,
+    errorLog,
+    sanitizeErrorMessage,
+    sanitizeStack,
+} from '@lucky/shared/utils'
 import { dependencyCheckService } from './services/DependencyCheckService'
 
 let isShuttingDown = false
@@ -71,7 +76,10 @@ main().catch(async (error: unknown) => {
     if (error instanceof Error) {
         errorLog({ message: 'Error name:', data: error.name })
         errorLog({ message: 'Error message:', data: error.message })
-        errorLog({ message: 'Error stack:', data: error.stack })
+        errorLog({
+            message: 'Error stack (sanitized):',
+            data: sanitizeStack(error) ?? sanitizeErrorMessage(error),
+        })
     }
 
     try {

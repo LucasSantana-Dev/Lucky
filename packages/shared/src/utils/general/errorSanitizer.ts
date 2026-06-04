@@ -64,6 +64,39 @@ export function sanitizeMessage(message: string): string {
 }
 
 /**
+ * Sanitize a stack trace for logging: redact absolute file paths to their basename
+ * and strip URLs, while keeping the frame structure so the stack stays debuggable.
+ * Returns `undefined` when there is no stack (so callers can fall back to the message).
+ */
+export function sanitizeStack(error: unknown): string | undefined {
+    if (!(error instanceof Error) || !error.stack) return undefined
+    return error.stack
+        .split('\n')
+        .map((line) =>
+            line
+                .replace(/https?:\/\/\S+/g, '[url]')
+                // Redact an absolute path (Unix `/…` or Windows `C:\…`) to its
+                // basename. Uses a linear, delimiter-anchored pattern (no overlapping
+                // quantifiers) to stay ReDoS-safe; assumes no spaces in path segments,
+                // which holds for this Linux/Docker deployment.
+                .replace(
+                    /(?:file:\/\/)?(?:[A-Za-z]:\\|\/)(?:[^\s():\\/]+[\\/])+([^\s():\\/]+)/g,
+                    '[path]/$1',
+                ),
+        )
+        .join('\n')
+}
+
+/**
+ * Strip control characters (newlines, tabs, etc.) from a value before it is
+ * interpolated into a log message, preventing log forging / injection (CWE-117).
+ */
+export function sanitizeLogInput(value: string): string {
+    // eslint-disable-next-line no-control-regex
+    return value.replace(/[\u0000-\u001f\u007f]/g, '')
+}
+
+/**
  * Check if error message contains specific keywords
  */
 function containsErrorKeywords(message: string, keywords: string[]): boolean {

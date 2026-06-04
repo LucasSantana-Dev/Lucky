@@ -11,6 +11,15 @@ import {
     getSpotifyRelatedArtists,
     type SpotifyArtist,
 } from '../../../../src/utils/spotify/artistApi'
+import { errorLog, warnLog } from '../../../../src/utils/general/log'
+
+jest.mock('../../../../src/utils/general/log', () => ({
+    errorLog: jest.fn(),
+    warnLog: jest.fn(),
+    infoLog: jest.fn(),
+    successLog: jest.fn(),
+    debugLog: jest.fn(),
+}))
 
 describe('Spotify Artist API', () => {
     beforeEach(() => {
@@ -198,13 +207,11 @@ describe('Spotify Artist API', () => {
 
         test('returns [] when LASTFM_API_KEY is not configured', async () => {
             delete process.env.LASTFM_API_KEY
-            const fetchSpy = jest
-                .spyOn(global, 'fetch')
-                .mockResolvedValueOnce(
-                    new Response(JSON.stringify({ name: 'Seed Artist' }), {
-                        status: 200,
-                    }),
-                )
+            const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValueOnce(
+                new Response(JSON.stringify({ name: 'Seed Artist' }), {
+                    status: 200,
+                }),
+            )
 
             const result = await getSpotifyRelatedArtists(
                 'access-token',
@@ -227,6 +234,42 @@ describe('Spotify Artist API', () => {
             )
 
             expect(result).toEqual([])
+            fetchSpy.mockRestore()
+        })
+
+        test('does not leak the raw error path into any log on failure', async () => {
+            const warnSpy = jest
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {})
+            const fetchSpy = jest
+                .spyOn(global, 'fetch')
+                .mockRejectedValueOnce(
+                    new Error('Network error /path/to/file:123:45'),
+                )
+
+            const result = await getSpotifyRelatedArtists(
+                'access-token',
+                'seed-id',
+            )
+
+            expect(result).toEqual([])
+            // Whichever logger fires (warn here, or the structured errorLog catch),
+            // the raw filesystem path from the error must never be logged (#1208).
+            const structured = (fn: typeof errorLog) =>
+                jest
+                    .mocked(fn)
+                    .mock.calls.flatMap((c) => [
+                        c[0]?.message,
+                        JSON.stringify(c[0]?.data),
+                    ])
+            const logged = [
+                ...warnSpy.mock.calls.flat().map(String),
+                ...structured(errorLog),
+                ...structured(warnLog),
+            ].join(' ')
+            expect(logged).not.toContain('/path/to/file')
+
+            warnSpy.mockRestore()
             fetchSpy.mockRestore()
         })
     })
