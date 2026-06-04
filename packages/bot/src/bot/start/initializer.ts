@@ -126,6 +126,23 @@ export class BotInitializer {
             }
         } catch (error) {
             errorLog({ message: 'Bot initialization failed:', error })
+
+            // Tear down any client that may have been created during this call.
+            // Due to the early-return guard at function entry, any non-null
+            // this.client here was necessarily created by this failed call.
+            if (this.client) {
+                try {
+                    musicWatchdogService.stopOrphanSessionMonitor()
+                    await this.shutdown()
+                } catch (shutdownError) {
+                    errorLog({
+                        message:
+                            'Error during cleanup after initialization failure:',
+                        error: shutdownError,
+                    })
+                }
+            }
+
             return {
                 success: false,
                 error: error instanceof Error ? error.message : 'Unknown error',

@@ -14,6 +14,9 @@ const initProviderHealthMock = jest.fn()
 const redisClientConnectMock = jest.fn()
 const redisClientDisconnectMock = jest.fn()
 const musicWatchdogStartMock = jest.fn()
+const musicWatchdogStopMock = jest.fn()
+const startMetricsServerMock = jest.fn()
+const stopMetricsServerMock = jest.fn().mockResolvedValue(undefined)
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
@@ -50,6 +53,8 @@ jest.mock('../../utils/music/watchdog', () => ({
     musicWatchdogService: {
         startOrphanSessionMonitor: (...args: unknown[]) =>
             musicWatchdogStartMock(...args),
+        stopOrphanSessionMonitor: (...args: unknown[]) =>
+            musicWatchdogStopMock(...args),
     },
 }))
 
@@ -58,6 +63,11 @@ jest.mock('@lucky/shared/services', () => ({
         connect: (...args: unknown[]) => redisClientConnectMock(...args),
         disconnect: (...args: unknown[]) => redisClientDisconnectMock(...args),
     },
+}))
+
+jest.mock('../../utils/monitoring/metricsServer', () => ({
+    startMetricsServer: (...args: unknown[]) => startMetricsServerMock(...args),
+    stopMetricsServer: (...args: unknown[]) => stopMetricsServerMock(...args),
 }))
 
 describe('BotInitializer', () => {
@@ -143,6 +153,80 @@ describe('BotInitializer', () => {
 
             expect(result.success).toBe(false)
             expect(result.error).toBeDefined()
+        })
+
+        it('tears down client when initialization fails after client creation', async () => {
+            const mockClientInstance = {
+                removeAllListeners: jest.fn(),
+                destroy: jest.fn().mockResolvedValue(undefined),
+                player: undefined,
+            } as unknown as CustomClient
+            createClientMock.mockResolvedValue(mockClientInstance)
+            setCommandsMock.mockRejectedValue(
+                new Error('Commands setup failed'),
+            )
+
+            const result = await initializer.initializeBot()
+
+            expect(result.success).toBe(false)
+            expect(result.error).toBeDefined()
+
+            // Verify the client was destroyed
+            expect(mockClientInstance.removeAllListeners).toHaveBeenCalled()
+            expect(mockClientInstance.destroy).toHaveBeenCalled()
+
+            // Verify state was reset after shutdown
+            expect(initializer.isBotInitialized()).toBe(false)
+            expect(initializer.getClient()).toBeNull()
+        })
+
+        it('tears down metrics server when initialization fails after client creation', async () => {
+            setCommandsMock.mockRejectedValue(
+                new Error('Commands setup failed'),
+            )
+
+            const result = await initializer.initializeBot()
+
+            expect(result.success).toBe(false)
+
+            // Verify stopMetricsServer was called during cleanup
+            expect(stopMetricsServerMock).toHaveBeenCalled()
+        })
+
+        it('stops music watchdog when initialization fails after client creation', async () => {
+            const mockClientInstance = {
+                removeAllListeners: jest.fn(),
+                destroy: jest.fn().mockResolvedValue(undefined),
+                player: undefined,
+            } as unknown as CustomClient
+            createClientMock.mockResolvedValue(mockClientInstance)
+            setCommandsMock.mockRejectedValue(
+                new Error('Commands setup failed'),
+            )
+
+            const result = await initializer.initializeBot()
+
+            expect(result.success).toBe(false)
+
+            // Verify music watchdog monitor was stopped during cleanup
+            expect(musicWatchdogStopMock).toHaveBeenCalled()
+            // Verify client was destroyed after stopping watchdog
+            expect(mockClientInstance.removeAllListeners).toHaveBeenCalled()
+            expect(mockClientInstance.destroy).toHaveBeenCalled()
+        })
+
+        it('does not tear down if initialization fails before client creation', async () => {
+            initProviderHealthMock.mockRejectedValue(
+                new Error('Provider health failed'),
+            )
+
+            const result = await initializer.initializeBot()
+
+            expect(result.success).toBe(false)
+
+            // Verify client teardown was not called (no client was created yet)
+            expect(createClientMock).not.toHaveBeenCalled()
+            expect(initializer.getClient()).toBeNull()
         })
 
         it('initializes bot state with correct flags', async () => {
