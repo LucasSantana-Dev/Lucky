@@ -17,6 +17,7 @@ import {
     isUnknownInteractionError,
     resolveSearchEngine,
     normalizeSoundCloudUrl,
+    expandSoundCloudShortUrl,
 } from '../queryUtils'
 import {
     resolveQueryWithFallbacks,
@@ -55,7 +56,10 @@ export async function executePlayHandler({
     }
 
     const rawQuery = interaction.options.getString('query', true)
-    const query = normalizeSoundCloudUrl(rawQuery)
+    // Expand SoundCloud short links first (on.soundcloud.com → full URL)
+    const expandedQuery = await expandSoundCloudShortUrl(rawQuery)
+    // Then normalize (strip ?in= params)
+    const query = normalizeSoundCloudUrl(expandedQuery)
     const provider = interaction.options.getString('provider')
     const collaborativeCheck = collaborativePlaylistService.canAddTracks(
         interaction.guildId,

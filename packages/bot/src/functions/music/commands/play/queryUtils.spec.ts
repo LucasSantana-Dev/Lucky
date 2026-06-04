@@ -54,7 +54,24 @@ jest.mock('@lucky/shared/utils', () => ({
     warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
-import { normalizeSoundCloudUrl, isUrl, executePlayAtTop } from './queryUtils'
+// Global fetch mock before any imports
+const fetchMock = jest.fn() as jest.Mock
+
+// Mock global.fetch before importing modules that use it
+Object.defineProperty(global, 'fetch', {
+    writable: true,
+    value: fetchMock,
+})
+
+// Don't mock withTimeout - let it work with the real implementation
+// which will properly await and resolve promises
+
+import {
+    normalizeSoundCloudUrl,
+    isUrl,
+    executePlayAtTop,
+    expandSoundCloudShortUrl,
+} from './queryUtils'
 
 describe('normalizeSoundCloudUrl', () => {
     it('strips ?in= playlist context from SoundCloud track URLs', () => {
@@ -111,6 +128,65 @@ describe('isUrl', () => {
 
     it('returns false for plain text', () => {
         expect(isUrl('some song title')).toBe(false)
+    })
+})
+
+describe('expandSoundCloudShortUrl', () => {
+    beforeEach(() => {
+        fetchMock.mockReset()
+        debugLogMock.mockReset()
+    })
+
+    it('expands on.soundcloud.com short links to full soundcloud.com URLs', async () => {
+        const shortUrl = 'https://on.soundcloud.com/abc123'
+        const fullUrl = 'https://soundcloud.com/artist/track'
+
+        fetchMock.mockResolvedValueOnce({
+            url: fullUrl,
+        })
+
+        const result = await expandSoundCloudShortUrl(shortUrl)
+
+        expect(result).toBe(fullUrl)
+        expect(fetchMock).toHaveBeenCalledWith(shortUrl, {
+            method: 'HEAD',
+            redirect: 'follow',
+        })
+    })
+
+    it('returns original URL if not a short link', async () => {
+        const fullUrl = 'https://soundcloud.com/artist/track'
+        const result = await expandSoundCloudShortUrl(fullUrl)
+        expect(result).toBe(fullUrl)
+        expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('returns original URL if redirect goes to non-soundcloud domain', async () => {
+        const shortUrl = 'https://on.soundcloud.com/abc123'
+        const suspiciousUrl = 'https://attacker.com/malware'
+
+        fetchMock.mockResolvedValueOnce({
+            url: suspiciousUrl,
+        })
+
+        const result = await expandSoundCloudShortUrl(shortUrl)
+
+        expect(result).toBe(shortUrl)
+        expect(debugLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message:
+                    'SoundCloud short URL expansion failed, using original URL',
+            }),
+        )
+    })
+
+    it('handles malformed on.soundcloud.com URLs gracefully', async () => {
+        const malformed = 'on.soundcloud.com/abc123' // No protocol
+
+        const result = await expandSoundCloudShortUrl(malformed)
+
+        expect(result).toBe(malformed)
+        expect(fetchMock).not.toHaveBeenCalled()
     })
 })
 
