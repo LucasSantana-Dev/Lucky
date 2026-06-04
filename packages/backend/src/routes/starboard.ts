@@ -6,12 +6,11 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { z } from 'zod'
 import { starboardService } from '@lucky/shared/services'
+import { guildIdParam } from '../schemas/common'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
 }
-
-const guildIdParam = z.object({ guildId: z.string().min(1) })
 
 const upsertConfigBody = z.object({
     channelId: z.string().min(1).optional(),
