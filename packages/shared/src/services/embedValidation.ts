@@ -70,14 +70,18 @@ export function validateEmbedData(embedData: Partial<EmbedData>): {
 
     const errors = result.error.issues.map((issue) => {
         // Convert Zod error messages to human-readable format
-        const field = issue.path.length > 0 ? issue.path.join('.') : 'root'
+        const rawField = issue.path.length > 0 ? issue.path.join('.') : 'root'
+        const label =
+            rawField === 'root'
+                ? 'Embed'
+                : rawField.charAt(0).toUpperCase() + rawField.slice(1)
         switch (issue.code) {
             case 'too_big':
-                return `${field === 'root' ? 'Embed' : field} must be ${issue.maximum} characters or less`
+                return `${label} must be ${issue.maximum} characters or less`
             case 'too_small':
-                return `${field === 'root' ? 'Embed' : field} must have at least ${issue.minimum} characters`
-            case 'invalid_string':
-                return `${field === 'root' ? 'Color' : field} must be a valid hex code (e.g. #5865F2)`
+                return `${label} must have at least ${issue.minimum} characters`
+            case 'invalid_format':
+                return `${label} must be a valid hex code (e.g. #5865F2)`
             default:
                 return issue.message
         }
