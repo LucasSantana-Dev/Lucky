@@ -276,6 +276,54 @@ describe('eventHandler', () => {
         // not in the eventHandler
     })
 
+    it('does not crash when createUserFriendlyError throws', async () => {
+        const { client, onMock } = createMockClient()
+        const originalError = new Error('original command failure')
+        client.commands.set('broken', {
+            execute: jest.fn().mockRejectedValue(originalError),
+        })
+        // Make createUserFriendlyError throw
+        createUserFriendlyErrorMock.mockImplementation(() => {
+            throw new Error('Failed to sanitize error')
+        })
+
+        handleEvents(client as unknown as never)
+
+        const interactionHandler = getInteractionCreateHandler(onMock)
+        expect(interactionHandler).toBeDefined()
+
+        interactionHandler?.({
+            isAutocomplete: () => false,
+            isButton: () => false,
+            isChatInputCommand: () => true,
+            commandName: 'broken',
+            guildId: 'guild-123',
+            user: { id: 'user-456' },
+            replied: true,
+            deferred: false,
+        } as unknown as ChatInputCommandInteraction)
+
+        await flushAsyncHandlers()
+
+        // Original error is still captured
+        expect(captureExceptionMock).toHaveBeenCalledWith(originalError, {
+            command: 'broken',
+            guildId: 'guild-123',
+            userId: 'user-456',
+        })
+        // Fallback reply is sent despite createUserFriendlyError throwing
+        expect(interactionReplyMock).toHaveBeenCalledWith({
+            interaction: expect.objectContaining({
+                commandName: 'broken',
+                guildId: 'guild-123',
+            }),
+            content: {
+                content: 'An unexpected error occurred. Please try again later.',
+                ephemeral: true,
+            },
+        })
+    })
+
     describe('handleAutocomplete', () => {
         async function dispatchAutocomplete(
             interaction: Interaction,

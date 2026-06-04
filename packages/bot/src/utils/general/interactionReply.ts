@@ -87,11 +87,11 @@ async function handleChatInputCommand(
             await interaction.deferReply({
                 flags: processedContent.ephemeral ? 64 : undefined,
             })
-        } catch {
+        } catch (error) {
             // Defer failure is typically transient (interaction expired);
             // allow it to propagate to outer handler for Sentry capture
             throw new Error('Failed to defer interaction reply', {
-                cause: arguments,
+                cause: error,
             })
         }
     }
@@ -125,11 +125,11 @@ async function handleOtherInteraction(
             await interaction.deferReply({
                 flags: processedContent.ephemeral ? 64 : undefined,
             })
-        } catch {
+        } catch (error) {
             // Defer failure is typically transient (interaction expired);
             // allow it to propagate to outer handler for Sentry capture
             throw new Error('Failed to defer interaction reply', {
-                cause: arguments,
+                cause: error,
             })
         }
     }

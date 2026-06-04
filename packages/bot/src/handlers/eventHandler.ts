@@ -115,7 +115,19 @@ async function handleInteractionError(
         })
     }
 
-    const userFriendlyError = createUserFriendlyError(error)
+    // Safely create user-friendly error; fall back if transformation fails
+    let userFriendlyError: string
+    try {
+        userFriendlyError = createUserFriendlyError(error)
+    } catch (sanitizationError) {
+        errorLog({
+            message: 'Failed to create user-friendly error',
+            error: sanitizationError,
+        })
+        userFriendlyError =
+            'An unexpected error occurred. Please try again later.'
+    }
+
     await interactionReply({
         interaction,
         content: {

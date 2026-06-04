@@ -602,5 +602,41 @@ describe('interactionReply', () => {
             )
             expect(mockCaptureException).toHaveBeenCalled()
         })
+
+        it('attaches real caught error as cause when deferReply fails', async () => {
+            const deferError = new Error('Interaction expired')
+            mockInteraction.deferred = false
+            mockInteraction.replied = false
+            mockInteraction.deferReply = jest
+                .fn()
+                .mockRejectedValue(deferError)
+
+            await interactionReply({
+                interaction: mockInteraction,
+                content: { content: 'test' },
+            })
+
+            expect(mockCaptureException).toHaveBeenCalled()
+            const capturedError = mockCaptureException.mock.calls[0][0]
+            expect(capturedError).toBeInstanceOf(Error)
+            expect(capturedError.cause).toBe(deferError)
+        })
+
+        it('attaches real caught error as cause when editReply fails', async () => {
+            const editError = new Error('Discord API error')
+            mockInteraction.editReply = jest
+                .fn()
+                .mockRejectedValue(editError)
+
+            await interactionReply({
+                interaction: mockInteraction,
+                content: { content: 'test' },
+            })
+
+            expect(mockCaptureException).toHaveBeenCalled()
+            const capturedError = mockCaptureException.mock.calls[0][0]
+            expect(capturedError).toBeInstanceOf(Error)
+            expect(capturedError.cause).toBe(editError)
+        })
     })
 })
