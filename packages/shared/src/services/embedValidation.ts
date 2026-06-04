@@ -16,27 +16,43 @@ export interface EmbedData {
     fields?: EmbedField[]
 }
 
-// Zod schema for validating EmbedData shape and constraints
-export const embedDataSchema = z.object({
-    title: z.string().max(256).optional(),
-    description: z.string().max(4096).optional(),
-    color: z
-        .string()
-        .regex(/^#[0-9A-Fa-f]{6}$/)
-        .optional(),
-    footer: z.string().optional(),
-    thumbnail: z.string().optional(),
-    image: z.string().optional(),
-    fields: z
-        .array(
-            z.object({
-                name: z.string(),
-                value: z.string(),
-                inline: z.boolean().optional(),
-            }),
-        )
-        .optional(),
-})
+// Zod schema for validating EmbedData shape and constraints (Discord API limits)
+export const embedDataSchema = z
+    .object({
+        title: z.string().max(256).optional(),
+        description: z.string().max(4096).optional(),
+        color: z
+            .string()
+            .regex(/^#[0-9A-Fa-f]{6}$/)
+            .optional(),
+        footer: z.string().max(2048).optional(),
+        thumbnail: z.string().optional(),
+        image: z.string().optional(),
+        fields: z
+            .array(
+                z.object({
+                    name: z.string().min(1).max(256),
+                    value: z.string().min(1).max(1024),
+                    inline: z.boolean().optional(),
+                }),
+            )
+            .max(25)
+            .optional(),
+    })
+    .refine(
+        (data) => {
+            // Embed must have at least one of title, description, or fields
+            return (
+                data.title ||
+                data.description ||
+                (data.fields && data.fields.length > 0)
+            )
+        },
+        {
+            message: 'Embed must have at least a title, description, or fields',
+            path: ['root'],
+        },
+    )
 
 export function validateEmbedData(embedData: Partial<EmbedData>): {
     valid: boolean

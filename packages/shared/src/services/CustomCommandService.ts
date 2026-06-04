@@ -38,9 +38,19 @@ export class CustomCommandService {
         },
     ) {
         // Validate embedData if provided
-        const validatedEmbedData = options?.embedData
-            ? this.validateEmbedData(options.embedData)
-            : null
+        let validatedEmbedData: EmbedData | null = null
+        if (options?.embedData !== undefined && options?.embedData !== null) {
+            // Reject primitive embedData
+            if (typeof options.embedData !== 'object') {
+                throw new ValidationError('Invalid embed data', [
+                    {
+                        field: 'embedData',
+                        message: 'embedData must be an object or null',
+                    },
+                ])
+            }
+            validatedEmbedData = this.validateEmbedData(options.embedData)
+        }
 
         const result = await prisma.customCommand.create({
             data: {
@@ -73,9 +83,19 @@ export class CustomCommandService {
         },
     ): Promise<'created' | 'updated'> {
         // Validate embedData if provided
-        const validatedEmbedData = options?.embedData
-            ? this.validateEmbedData(options.embedData)
-            : null
+        let validatedEmbedData: EmbedData | null = null
+        if (options?.embedData !== undefined && options?.embedData !== null) {
+            // Reject primitive embedData
+            if (typeof options.embedData !== 'object') {
+                throw new ValidationError('Invalid embed data', [
+                    {
+                        field: 'embedData',
+                        message: 'embedData must be an object or null',
+                    },
+                ])
+            }
+            validatedEmbedData = this.validateEmbedData(options.embedData)
+        }
 
         const normalizedName = name.toLowerCase()
         const lockKey = `custom-command:${guildId}:${normalizedName}`
@@ -170,19 +190,33 @@ export class CustomCommandService {
         name: string,
         data: Prisma.CustomCommandUpdateInput,
     ) {
-        // Validate embedData if provided in the update
+        // Validate embedData if provided in the update (and not explicitly clearing it)
         if (
-            data.embedData &&
-            typeof data.embedData === 'object' &&
-            data.embedData !== null
+            data.embedData !== undefined &&
+            data.embedData !== null &&
+            data.embedData !== Prisma.JsonNull
         ) {
-            // If embedData is being updated, validate it
-            const validatedEmbedData = this.validateEmbedData(data.embedData)
-            data = {
-                ...data,
-                embedData: JSON.stringify(validatedEmbedData),
+            // embedData is being set to a new value
+            if (typeof data.embedData === 'object') {
+                // Object embedData: validate and stringify
+                const validatedEmbedData = this.validateEmbedData(
+                    data.embedData,
+                )
+                data = {
+                    ...data,
+                    embedData: JSON.stringify(validatedEmbedData),
+                }
+            } else {
+                // Primitive embedData (string, number, etc.) is not allowed
+                throw new ValidationError('Invalid embed data', [
+                    {
+                        field: 'embedData',
+                        message: 'embedData must be an object or null',
+                    },
+                ])
             }
         }
+        // If embedData is null or Prisma.JsonNull, leave it as-is (clearing the embed)
 
         const result = await prisma.customCommand.update({
             where: {
