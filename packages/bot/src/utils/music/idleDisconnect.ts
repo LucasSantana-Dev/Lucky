@@ -48,8 +48,10 @@ async function disconnectIdle(queue: GuildQueue): Promise<void> {
     try {
         const metadata = queue.metadata as QueueMetadata | undefined
         musicWatchdogService.markIntentionalStop(guildId)
-        collaborativePlaylistService.clearGuildState(guildId)
         queue.delete()
+        // Clear collaborative state only after the queue is actually torn
+        // down, so a delete failure doesn't reset state for a live session.
+        collaborativePlaylistService.clearGuildState(guildId)
 
         if (metadata?.channel) {
             await metadata.channel.send(

@@ -20,7 +20,8 @@ type CacheEntry = {
     offset: number
 }
 
-// Bounded TTL cache: max 500 users per instance, auto-evicts LRU when over capacity.
+// Bounded TTL cache: max 500 users per instance; evicts the oldest-written
+// entry (insertion order, not true LRU) plus TTL expiry when over capacity.
 const cache = new TtlCache<CacheEntry>({
     ttlMs: CACHE_TTL_MS,
     maxEntries: 500,

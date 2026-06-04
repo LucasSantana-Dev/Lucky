@@ -245,19 +245,21 @@ async function _replenishQueue(
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
         const artistFrequency = buildArtistFrequency(persistentHistory)
 
-        // Parallelize independent audio features + spotify token fetches
-        const [currentFeatures, spotifyToken] = await Promise.all([
-            requestedBy?.id
-                ? getTrackAudioFeatures(currentTrack, requestedBy.id).catch(
-                      () => null,
-                  )
-                : Promise.resolve(null),
-            requestedBy?.id
-                ? Promise.resolve(
-                      spotifyLinkService.getValidAccessToken(requestedBy.id),
-                  ).catch(() => null)
-                : Promise.resolve(null),
-        ])
+        // Fetch the token FIRST (it may refresh), then audio features —
+        // getTrackAudioFeatures also calls getValidAccessToken(userId)
+        // internally, so running them in parallel would race two concurrent
+        // token refreshes for the same user. Sequential keeps the refresh
+        // single; the second lookup is a cache hit.
+        const spotifyToken = requestedBy?.id
+            ? await Promise.resolve(
+                  spotifyLinkService.getValidAccessToken(requestedBy.id),
+              ).catch(() => null)
+            : null
+        const currentFeatures = requestedBy?.id
+            ? await getTrackAudioFeatures(currentTrack, requestedBy.id).catch(
+                  () => null,
+              )
+            : null
         const replenishCount = replenishCounters.get(guildId) ?? 0
 
         // Tag-driven genre context (Phase 2). One artist-tag cache for the
