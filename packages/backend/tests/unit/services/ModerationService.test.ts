@@ -10,6 +10,11 @@ const mockPrisma: any = {
         update: jest.fn<any>(),
         updateMany: jest.fn<any>(),
     },
+    $transaction: jest.fn<any>(async (txFn: any) => {
+        return txFn({
+            moderationCase: mockPrisma.moderationCase,
+        })
+    }),
 }
 
 const mockModerationSettings = {

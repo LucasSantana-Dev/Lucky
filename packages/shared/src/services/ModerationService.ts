@@ -6,8 +6,6 @@ import {
     getModerationStats,
 } from './moderationSettings.js'
 
-const prisma = getPrismaClient()
-
 /** Represents a moderation case record. */
 export type ModerationCase = {
     id: string
@@ -73,29 +71,34 @@ export interface AppealCaseInput {
 export class ModerationService {
     /** Creates a new moderation case with an auto-incremented case number. */
     async createCase(input: CreateCaseInput): Promise<ModerationCase> {
-        const lastCase = await prisma.moderationCase.findFirst({
-            where: { guildId: input.guildId },
-            orderBy: { caseNumber: 'desc' },
-        })
-        const caseNumber = (lastCase?.caseNumber ?? 0) + 1
+        const prisma = getPrismaClient()
         const expiresAt = input.duration
             ? new Date(Date.now() + input.duration * 1000)
             : null
-        return await prisma.moderationCase.create({
-            data: {
-                caseNumber,
-                guildId: input.guildId,
-                type: input.type,
-                userId: input.userId,
-                username: input.username,
-                moderatorId: input.moderatorId,
-                moderatorName: input.moderatorName,
-                reason: input.reason,
-                duration: input.duration,
-                expiresAt,
-                channelId: input.channelId,
-                evidence: input.evidence ?? [],
-            },
+
+        return await prisma.$transaction(async (tx) => {
+            const lastCase = await tx.moderationCase.findFirst({
+                where: { guildId: input.guildId },
+                orderBy: { caseNumber: 'desc' },
+            })
+            const caseNumber = (lastCase?.caseNumber ?? 0) + 1
+
+            return await tx.moderationCase.create({
+                data: {
+                    caseNumber,
+                    guildId: input.guildId,
+                    type: input.type,
+                    userId: input.userId,
+                    username: input.username,
+                    moderatorId: input.moderatorId,
+                    moderatorName: input.moderatorName,
+                    reason: input.reason,
+                    duration: input.duration,
+                    expiresAt,
+                    channelId: input.channelId,
+                    evidence: input.evidence ?? [],
+                },
+            })
         })
     }
 
@@ -104,6 +107,7 @@ export class ModerationService {
         guildId: string,
         caseNumber: number,
     ): Promise<ModerationCase | null> {
+        const prisma = getPrismaClient()
         return await prisma.moderationCase.findUnique({
             where: { guildId_caseNumber: { guildId, caseNumber } },
         })
@@ -115,6 +119,7 @@ export class ModerationService {
         userId: string,
         activeOnly = false,
     ): Promise<ModerationCase[]> {
+        const prisma = getPrismaClient()
         return await prisma.moderationCase.findMany({
             where: { guildId, userId, ...(activeOnly && { active: true }) },
             orderBy: { createdAt: 'desc' },
@@ -126,6 +131,7 @@ export class ModerationService {
         guildId: string,
         limit = 10,
     ): Promise<ModerationCase[]> {
+        const prisma = getPrismaClient()
         return await prisma.moderationCase.findMany({
             where: { guildId },
             orderBy: { createdAt: 'desc' },
@@ -138,6 +144,7 @@ export class ModerationService {
         guildId: string,
         since: Date,
     ): Promise<ModerationCase[]> {
+        const prisma = getPrismaClient()
         return await prisma.moderationCase.findMany({
             where: { guildId, createdAt: { gte: since } },
             orderBy: { createdAt: 'desc' },
@@ -149,6 +156,7 @@ export class ModerationService {
         guildId: string,
         userId: string,
     ): Promise<number> {
+        const prisma = getPrismaClient()
         return await prisma.moderationCase.count({
             where: { guildId, userId, type: 'warn', active: true },
         })
@@ -156,6 +164,7 @@ export class ModerationService {
 
     /** Deactivates all active warning cases for a user and returns the count cleared. */
     async clearWarnings(guildId: string, userId: string): Promise<number> {
+        const prisma = getPrismaClient()
         const result = await prisma.moderationCase.updateMany({
             where: { guildId, userId, type: 'warn', active: true },
             data: { active: false },
@@ -165,6 +174,7 @@ export class ModerationService {
 
     /** Marks a moderation case as inactive by its ID. */
     async deactivateCase(caseId: string): Promise<ModerationCase> {
+        const prisma = getPrismaClient()
         return await prisma.moderationCase.update({
             where: { id: caseId },
             data: { active: false },
@@ -173,6 +183,7 @@ export class ModerationService {
 
     /** Submits an appeal for a moderation case. */
     async appealCase(input: AppealCaseInput): Promise<ModerationCase> {
+        const prisma = getPrismaClient()
         return await prisma.moderationCase.update({
             where: { id: input.caseId },
             data: {
@@ -188,6 +199,7 @@ export class ModerationService {
         caseId: string,
         approved: boolean,
     ): Promise<ModerationCase> {
+        const prisma = getPrismaClient()
         return await prisma.moderationCase.update({
             where: { id: caseId },
             data: {
@@ -200,6 +212,7 @@ export class ModerationService {
 
     /** Retrieves all active cases whose expiry date has passed. */
     async getExpiredCases(): Promise<ModerationCase[]> {
+        const prisma = getPrismaClient()
         return await prisma.moderationCase.findMany({
             where: { active: true, expiresAt: { lte: new Date() } },
         })
