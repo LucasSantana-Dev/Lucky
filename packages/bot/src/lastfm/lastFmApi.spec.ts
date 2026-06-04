@@ -364,6 +364,15 @@ describe('lastFmApi', () => {
                     fetchMock.mockRejectedValueOnce(new Error('network error'))
                     tracks = await getRecentTracks('username')
                     expect(tracks).toEqual([])
+                    // Test res.ok guard: non-ok response should return empty array
+                    fetchMock.mockResolvedValueOnce({ ok: false })
+                    tracks = await getRecentTracks('username')
+                    expect(tracks).toEqual([])
+                    expect(debugLogMock).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            message: 'lastFmApi: getRecentTracks HTTP error',
+                        }),
+                    )
                 },
             ],
         ])('returns empty array when %s', async (_label, test) => {
@@ -424,6 +433,15 @@ describe('lastFmApi', () => {
                     fetchMock.mockRejectedValueOnce(new Error('network error'))
                     tracks = await getSimilarTracks('Artist', 'Track')
                     expect(tracks).toEqual([])
+                    // Test res.ok guard: non-ok response should return empty array
+                    fetchMock.mockResolvedValueOnce({ ok: false })
+                    tracks = await getSimilarTracks('Artist', 'Track')
+                    expect(tracks).toEqual([])
+                    expect(debugLogMock).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            message: 'lastFmApi: getSimilarTracks HTTP error',
+                        }),
+                    )
                 },
             ],
         ])('returns empty array when %s', async (_label, test) => {
@@ -535,6 +553,11 @@ describe('lastFmApi', () => {
                     fetchMock.mockResolvedValueOnce({ ok: false })
                     tracks = await getTagTopTracks('jazz')
                     expect(tracks).toEqual([])
+                    expect(debugLogMock).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            message: 'lastFmApi: getTagTopTracks HTTP error',
+                        }),
+                    )
                     fetchMock.mockResolvedValueOnce({
                         ok: true,
                         json: async () => ({}),
@@ -685,6 +708,11 @@ describe('lastFmApi', () => {
                     fetchMock.mockResolvedValueOnce({ ok: false })
                     let result = await getLovedTracks('user', 10)
                     expect(result).toEqual([])
+                    expect(debugLogMock).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            message: 'lastFmApi: getLovedTracks HTTP error',
+                        }),
+                    )
                     fetchMock.mockResolvedValueOnce({
                         ok: true,
                         json: async () => ({}),
