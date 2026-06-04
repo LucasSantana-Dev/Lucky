@@ -21,19 +21,24 @@ async function handleMemberAdd(member: GuildMember): Promise<void> {
             if (!role) continue
 
             if (autorole.delayMinutes > 0) {
-                setTimeout(async () => {
-                    try {
-                        await member.roles.add(role)
-                        debugLog({
-                            message: `Auto-assigned role ${role.name} to ${member.user.tag} after ${autorole.delayMinutes}m delay`,
-                        })
-                    } catch (error) {
-                        errorLog({
-                            message: `Failed to assign auto-role ${role.name} to ${member.user.tag}:`,
-                            error,
-                        })
-                    }
-                }, autorole.delayMinutes * 60 * 1000)
+                setTimeout(
+                    () => {
+                        void (async () => {
+                            try {
+                                await member.roles.add(role)
+                                debugLog({
+                                    message: `Auto-assigned role ${role.name} to ${member.user.tag} after ${autorole.delayMinutes}m delay`,
+                                })
+                            } catch (error) {
+                                errorLog({
+                                    message: `Failed to assign auto-role ${role.name} to ${member.user.tag}:`,
+                                    error,
+                                })
+                            }
+                        })()
+                    },
+                    autorole.delayMinutes * 60 * 1000,
+                )
             } else {
                 try {
                     await member.roles.add(role)

@@ -87,9 +87,17 @@ export async function setupWebMusicHandler(
         client.player.events.on(
             'playerFinish',
             async (q: { guild: { id: string } }) => {
-                setTimeout(async () => {
-                    const state = await buildQueueState(client, q.guild.id)
-                    await musicControlService.publishState(state)
+                setTimeout(() => {
+                    void (async () => {
+                        const state = await buildQueueState(client, q.guild.id)
+                        await musicControlService.publishState(state)
+                    })().catch((error) => {
+                        errorLog({
+                            message:
+                                'Error publishing queue state after playerFinish:',
+                            error,
+                        })
+                    })
                 }, 500)
             },
         )
