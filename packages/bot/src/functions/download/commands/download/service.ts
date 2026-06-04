@@ -2,6 +2,7 @@ import { AttachmentBuilder, type ColorResolvable } from 'discord.js'
 import { errorLog } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../../../../utils/download/downloadHelpers'
 import { createEmbed, EMBED_COLORS } from '../../../../utils/general/embeds'
+import { formatDurationClock } from '../../../../utils/general/formatDuration'
 import { DownloadValidator } from './validator'
 import { DownloadProcessor } from './processor'
 import type { DownloadOptions, DownloadResult } from './types'
@@ -24,9 +25,7 @@ function formatDuration(duration: number | undefined): string {
     if (duration === undefined || duration <= 0) {
         return 'Unknown'
     }
-    const minutes = Math.floor(duration / 60)
-    const seconds = duration % 60
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
+    return formatDurationClock(duration)
 }
 
 /**
