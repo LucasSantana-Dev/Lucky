@@ -1,11 +1,29 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 import { Prisma } from '../generated/prisma/client.js'
 import type { EmbedData } from './embedValidation.js'
+import { embedDataSchema } from './embedValidation.js'
+import { ValidationError } from '../errors/ValidationError.js'
 
 const prisma = getPrismaClient()
 
 /** Manages guild-specific custom commands with permissions. */
 export class CustomCommandService {
+    /**
+     * Validates embedData against the schema.
+     * Throws a ValidationError if the shape is invalid.
+     */
+    private validateEmbedData(embedData: unknown): EmbedData {
+        const result = embedDataSchema.safeParse(embedData)
+        if (!result.success) {
+            const errors = result.error.issues.map((e) => ({
+                field: e.path.join('.') || 'root',
+                message: e.message,
+            }))
+            throw new ValidationError('Invalid embed data', errors)
+        }
+        return result.data
+    }
+
     /** Creates a new custom command for a guild. */
     async createCommand(
         guildId: string,
@@ -19,14 +37,29 @@ export class CustomCommandService {
             createdBy?: string
         },
     ) {
+        // Validate embedData if provided
+        let validatedEmbedData: EmbedData | null = null
+        if (options?.embedData !== undefined && options?.embedData !== null) {
+            // Reject primitive embedData
+            if (typeof options.embedData !== 'object') {
+                throw new ValidationError('Invalid embed data', [
+                    {
+                        field: 'embedData',
+                        message: 'embedData must be an object or null',
+                    },
+                ])
+            }
+            validatedEmbedData = this.validateEmbedData(options.embedData)
+        }
+
         const result = await prisma.customCommand.create({
             data: {
                 guildId,
                 name: name.toLowerCase(),
                 description: options?.description,
                 response,
-                embedData: options?.embedData
-                    ? JSON.stringify(options.embedData)
+                embedData: validatedEmbedData
+                    ? JSON.stringify(validatedEmbedData)
                     : Prisma.JsonNull,
                 allowedRoles: options?.allowedRoles || [],
                 allowedChannels: options?.allowedChannels || [],
@@ -49,6 +82,21 @@ export class CustomCommandService {
             createdBy?: string
         },
     ): Promise<'created' | 'updated'> {
+        // Validate embedData if provided
+        let validatedEmbedData: EmbedData | null = null
+        if (options?.embedData !== undefined && options?.embedData !== null) {
+            // Reject primitive embedData
+            if (typeof options.embedData !== 'object') {
+                throw new ValidationError('Invalid embed data', [
+                    {
+                        field: 'embedData',
+                        message: 'embedData must be an object or null',
+                    },
+                ])
+            }
+            validatedEmbedData = this.validateEmbedData(options.embedData)
+        }
+
         const normalizedName = name.toLowerCase()
         const lockKey = `custom-command:${guildId}:${normalizedName}`
 
@@ -73,8 +121,8 @@ export class CustomCommandService {
                         name: normalizedName,
                         description: options?.description,
                         response,
-                        embedData: options?.embedData
-                            ? JSON.stringify(options.embedData)
+                        embedData: validatedEmbedData
+                            ? JSON.stringify(validatedEmbedData)
                             : Prisma.JsonNull,
                         allowedRoles: options?.allowedRoles || [],
                         allowedChannels: options?.allowedChannels || [],
@@ -89,8 +137,8 @@ export class CustomCommandService {
                 data: {
                     description: options?.description ?? null,
                     response,
-                    embedData: options?.embedData
-                        ? JSON.stringify(options.embedData)
+                    embedData: validatedEmbedData
+                        ? JSON.stringify(validatedEmbedData)
                         : Prisma.JsonNull,
                     allowedRoles: options?.allowedRoles || [],
                     allowedChannels: options?.allowedChannels || [],
@@ -142,6 +190,35 @@ export class CustomCommandService {
         name: string,
         data: Prisma.CustomCommandUpdateInput,
     ) {
+        // Validate embedData if provided in the update (and not explicitly clearing it)
+        if (
+            data.embedData !== undefined &&
+            data.embedData !== null &&
+            data.embedData !== Prisma.JsonNull &&
+            data.embedData !== Prisma.DbNull
+        ) {
+            // embedData is being set to a new value
+            if (typeof data.embedData === 'object') {
+                // Object embedData: validate and stringify
+                const validatedEmbedData = this.validateEmbedData(
+                    data.embedData,
+                )
+                data = {
+                    ...data,
+                    embedData: JSON.stringify(validatedEmbedData),
+                }
+            } else {
+                // Primitive embedData (string, number, etc.) is not allowed
+                throw new ValidationError('Invalid embed data', [
+                    {
+                        field: 'embedData',
+                        message: 'embedData must be an object or null',
+                    },
+                ])
+            }
+        }
+        // If embedData is null or Prisma.JsonNull, leave it as-is (clearing the embed)
+
         const result = await prisma.customCommand.update({
             where: {
                 guildId_name: {
