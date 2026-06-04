@@ -38,20 +38,29 @@ describe('formatDurationHuman', () => {
         expect(formatDurationHuman(59)).toBe('59 seconds')
     })
 
-    it('formats minutes', () => {
-        expect(formatDurationHuman(60)).toBe('1 minutes')
-        expect(formatDurationHuman(90)).toBe('1 minutes')
+    it('formats minutes with correct singular/plural', () => {
+        expect(formatDurationHuman(60)).toBe('1 minute')
+        expect(formatDurationHuman(90)).toBe('1 minute')
+        expect(formatDurationHuman(120)).toBe('2 minutes')
         expect(formatDurationHuman(3599)).toBe('59 minutes')
     })
 
-    it('formats hours', () => {
-        expect(formatDurationHuman(3600)).toBe('1 hours')
+    it('formats hours with correct singular/plural', () => {
+        expect(formatDurationHuman(3600)).toBe('1 hour')
         expect(formatDurationHuman(7200)).toBe('2 hours')
         expect(formatDurationHuman(86399)).toBe('23 hours')
     })
 
-    it('formats days', () => {
-        expect(formatDurationHuman(86400)).toBe('1 days')
+    it('formats days with correct singular/plural', () => {
+        expect(formatDurationHuman(86400)).toBe('1 day')
         expect(formatDurationHuman(172800)).toBe('2 days')
+    })
+
+    it('treats non-finite/negative input as zero', () => {
+        expect(formatDurationHuman(NaN)).toBe('0 seconds')
+        expect(formatDurationHuman(Infinity)).toBe('0 seconds')
+        expect(formatDurationHuman(-5)).toBe('0 seconds')
+        expect(formatDurationClock(NaN)).toBe('0:00')
+        expect(formatDurationClock(Infinity)).toBe('0:00')
     })
 })

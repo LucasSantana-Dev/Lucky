@@ -9,9 +9,12 @@
  * formatDurationClock(90)    // "1:30"
  * formatDurationClock(3661)  // "1:01:01"
  * formatDurationClock(-5)    // "0:00"
+ * formatDurationClock(NaN)   // "0:00"
  */
 export function formatDurationClock(totalSeconds: number): string {
-    const s = Math.max(0, Math.floor(totalSeconds))
+    const s = Number.isFinite(totalSeconds)
+        ? Math.max(0, Math.floor(totalSeconds))
+        : 0
     const hours = Math.floor(s / 3600)
     const minutes = Math.floor((s % 3600) / 60)
     const seconds = s % 60
@@ -22,16 +25,21 @@ export function formatDurationClock(totalSeconds: number): string {
 }
 
 /**
- * Human-readable, long form: "N seconds" | "N minutes" | "N hours" | "N days".
+ * Human-readable, long form with correct singular/plural units.
+ * Non-finite or negative input is treated as 0.
  * @example
  * formatDurationHuman(30)    // "30 seconds"
- * formatDurationHuman(90)    // "1 minutes"
- * formatDurationHuman(3600)  // "1 hours"
- * formatDurationHuman(86400) // "1 days"
+ * formatDurationHuman(60)    // "1 minute"
+ * formatDurationHuman(90)    // "1 minute"
+ * formatDurationHuman(3600)  // "1 hour"
+ * formatDurationHuman(86400) // "1 day"
  */
 export function formatDurationHuman(seconds: number): string {
-    if (seconds < 60) return `${seconds} seconds`
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours`
-    return `${Math.floor(seconds / 86400)} days`
+    const s = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0
+    const unit = (n: number, label: string): string =>
+        `${n} ${label}${n === 1 ? '' : 's'}`
+    if (s < 60) return unit(s, 'second')
+    if (s < 3600) return unit(Math.floor(s / 60), 'minute')
+    if (s < 86400) return unit(Math.floor(s / 3600), 'hour')
+    return unit(Math.floor(s / 86400), 'day')
 }
