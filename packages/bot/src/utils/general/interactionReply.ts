@@ -74,43 +74,11 @@ function convertTextToEmbed(content: {
 }
 
 /**
- * Handle chat input command interaction
+ * Handle any replyable interaction (chat-input command, button, modal, select).
+ * Defers if needed, then edits or follows up; defer/reply failures propagate to
+ * the caller for Sentry capture.
  */
-async function handleChatInputCommand(
-    interaction: ChatInputCommandInteraction,
-    content: { content?: string; embeds?: APIEmbed[]; ephemeral?: boolean },
-): Promise<void> {
-    const processedContent = convertTextToEmbed(content)
-
-    if (!interaction.deferred && !interaction.replied) {
-        try {
-            await interaction.deferReply({
-                flags: processedContent.ephemeral ? 64 : undefined,
-            })
-        } catch (error) {
-            // Defer failure is typically transient (interaction expired);
-            // allow it to propagate to outer handler for Sentry capture
-            throw new Error('Failed to defer interaction reply', {
-                cause: error,
-            })
-        }
-    }
-    try {
-        if (interaction.replied) {
-            await interaction.followUp(stripFlags(processedContent))
-        } else {
-            await interaction.editReply(stripFlags(processedContent))
-        }
-    } catch (error) {
-        // Reply failure (expired interaction) should propagate for Sentry capture
-        throw error
-    }
-}
-
-/**
- * Handle other interaction types
- */
-async function handleOtherInteraction(
+async function handleReplyableInteraction(
     interaction: ReplyableInteraction,
     content: {
         content?: string
@@ -158,15 +126,7 @@ export const interactionReply = async ({
         // Convert plain text content to embed if needed
         const processedContent = convertTextToEmbed(content)
 
-        // Handle different interaction types
-        if (
-            'isChatInputCommand' in interaction &&
-            interaction.isChatInputCommand()
-        ) {
-            await handleChatInputCommand(interaction, processedContent)
-        } else {
-            await handleOtherInteraction(interaction, processedContent)
-        }
+        await handleReplyableInteraction(interaction, processedContent)
     } catch (error) {
         errorLog({ message: 'Error sending interaction reply:', error })
 
