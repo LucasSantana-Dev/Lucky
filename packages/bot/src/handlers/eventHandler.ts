@@ -128,6 +128,16 @@ async function handleInteractionError(
             message: 'Error sending error message:',
             error: followUpError,
         })
+        if (followUpError instanceof Error) {
+            captureException(followUpError, {
+                originalError:
+                    error instanceof Error ? error.message : String(error),
+                command: interaction.commandName,
+                guildId: interaction.guildId ?? undefined,
+                userId: interaction.user?.id,
+                context: 'failed-reply-to-interaction-error',
+            })
+        }
     }
 }
 

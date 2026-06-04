@@ -228,6 +228,54 @@ describe('eventHandler', () => {
         })
     })
 
+    it('captures failed reply to Sentry when error reply fails', async () => {
+        const { client, onMock } = createMockClient()
+        const originalError = new Error('original command failure')
+        client.commands.set('broken', {
+            execute: jest.fn().mockRejectedValue(originalError),
+        })
+        const replyError = new Error('Discord API unavailable')
+        interactionReplyMock.mockRejectedValueOnce(replyError)
+
+        handleEvents(client as unknown as never)
+
+        const interactionHandler = getInteractionCreateHandler(onMock)
+        expect(interactionHandler).toBeDefined()
+
+        interactionHandler?.({
+            isAutocomplete: () => false,
+            isButton: () => false,
+            isChatInputCommand: () => true,
+            commandName: 'broken',
+            guildId: 'guild-123',
+            user: { id: 'user-456' },
+            replied: true,
+            deferred: false,
+        } as unknown as ChatInputCommandInteraction)
+
+        await flushAsyncHandlers()
+
+        expect(captureExceptionMock).toHaveBeenCalledTimes(2)
+        expect(captureExceptionMock).toHaveBeenNthCalledWith(1, originalError, {
+            command: 'broken',
+            guildId: 'guild-123',
+            userId: 'user-456',
+        })
+        expect(captureExceptionMock).toHaveBeenNthCalledWith(2, replyError, {
+            originalError: 'original command failure',
+            command: 'broken',
+            guildId: 'guild-123',
+            userId: 'user-456',
+            context: 'failed-reply-to-interaction-error',
+        })
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error sending error message:',
+                error: replyError,
+            }),
+        )
+    })
+
     describe('handleAutocomplete', () => {
         async function dispatchAutocomplete(
             interaction: Interaction,
@@ -386,7 +434,9 @@ describe('eventHandler', () => {
         function getGuildDeleteHandler(
             onMock: jest.Mock,
         ): ((guild: unknown) => Promise<void>) | undefined {
-            const call = onMock.mock.calls.find((args) => args[0] === Events.GuildDelete)
+            const call = onMock.mock.calls.find(
+                (args) => args[0] === Events.GuildDelete,
+            )
             return call?.[1] as ((guild: unknown) => Promise<void>) | undefined
         }
 
@@ -410,7 +460,9 @@ describe('eventHandler', () => {
                 const mockGuild = { id: 'guild-delete-123' }
                 await handler?.(mockGuild)
 
-                expect(cleanupGuildStateMock).toHaveBeenCalledWith('guild-delete-123')
+                expect(cleanupGuildStateMock).toHaveBeenCalledWith(
+                    'guild-delete-123',
+                )
             })
 
             it('handles errors during guild cleanup gracefully', async () => {
@@ -451,7 +503,9 @@ describe('eventHandler', () => {
 
                 handler?.(mockChannel)
 
-                expect(cleanupGuildStateMock).toHaveBeenCalledWith('guild-ch-123')
+                expect(cleanupGuildStateMock).toHaveBeenCalledWith(
+                    'guild-ch-123',
+                )
             })
 
             it('skips cleanup when channel is DM-based', () => {
@@ -475,7 +529,9 @@ describe('eventHandler', () => {
         function getClientReadyHandler(
             onceMock: jest.Mock,
         ): ((client: unknown) => void) | undefined {
-            const call = onceMock.mock.calls.find((args) => args[0] === 'clientReady')
+            const call = onceMock.mock.calls.find(
+                (args) => args[0] === 'clientReady',
+            )
             return call?.[1] as ((client: unknown) => void) | undefined
         }
 
@@ -502,4 +558,3 @@ describe('eventHandler', () => {
         })
     })
 })
-
