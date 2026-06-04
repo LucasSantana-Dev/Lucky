@@ -1,5 +1,16 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 
+// Mock Prisma error class for testing
+class MockPrismaError extends Error {
+    constructor(
+        public message: string,
+        public code: string,
+    ) {
+        super(message)
+        Object.setPrototypeOf(this, MockPrismaError.prototype)
+    }
+}
+
 const mockPrisma: any = {
     moderationCase: {
         create: jest.fn<any>(),
@@ -210,6 +221,114 @@ describe('ModerationService', () => {
                 'screenshot1.png',
                 'screenshot2.png',
             ])
+        })
+
+        test('should retry on P2002 unique constraint violation and return the case on success', async () => {
+            const mockCase = {
+                id: 'case-2',
+                caseNumber: 2,
+                guildId: GUILD_A,
+                type: 'warn',
+                userId: USER_A,
+                username: 'testuser',
+                moderatorId: MOD_A,
+                moderatorName: 'moduser',
+                reason: null,
+                active: true,
+            }
+
+            let callCount = 0
+            const originalTransaction = mockPrisma.$transaction
+            mockPrisma.$transaction = jest.fn(async (txFn: any) => {
+                callCount++
+                if (callCount === 1) {
+                    // First call: throw P2002
+                    const error = new MockPrismaError(
+                        'Unique constraint failed on the fields: (`guildId`,`caseNumber`)',
+                        'P2002',
+                    )
+                    throw error
+                }
+                // Second call: succeed
+                return txFn({
+                    moderationCase: {
+                        ...mockPrisma.moderationCase,
+                        findFirst: jest
+                            .fn()
+                            .mockResolvedValue({ caseNumber: 1 }),
+                        create: jest.fn().mockResolvedValue(mockCase),
+                    },
+                })
+            })
+
+            const result = await service.createCase({
+                guildId: GUILD_A,
+                type: 'warn',
+                userId: USER_A,
+                username: 'testuser',
+                moderatorId: MOD_A,
+                moderatorName: 'moduser',
+            })
+
+            expect(result.caseNumber).toBe(2)
+            expect(mockPrisma.$transaction).toHaveBeenCalledTimes(2)
+
+            // Restore original mock
+            mockPrisma.$transaction = originalTransaction
+        })
+
+        test('should propagate non-P2002 errors immediately without retry', async () => {
+            const mockError = new Error('Database connection lost')
+
+            const originalTransaction = mockPrisma.$transaction
+            mockPrisma.$transaction = jest.fn(async () => {
+                throw mockError
+            })
+
+            await expect(
+                service.createCase({
+                    guildId: GUILD_A,
+                    type: 'warn',
+                    userId: USER_A,
+                    username: 'testuser',
+                    moderatorId: MOD_A,
+                    moderatorName: 'moduser',
+                }),
+            ).rejects.toThrow('Database connection lost')
+
+            // Should only be called once (no retry on non-P2002 error)
+            expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+
+            // Restore original mock
+            mockPrisma.$transaction = originalTransaction
+        })
+
+        test('should re-throw P2002 after exhausting max retries', async () => {
+            const originalTransaction = mockPrisma.$transaction
+            mockPrisma.$transaction = jest.fn(async () => {
+                const error = new MockPrismaError(
+                    'Unique constraint failed on the fields: (`guildId`,`caseNumber`)',
+                    'P2002',
+                )
+                throw error
+            })
+
+            await expect(
+                service.createCase({
+                    guildId: GUILD_A,
+                    type: 'warn',
+                    userId: USER_A,
+                    username: 'testuser',
+                    moderatorId: MOD_A,
+                    moderatorName: 'moduser',
+                }),
+            ).rejects.toThrow()
+
+            // Should be called MAX_RETRIES (5) times
+            expect(mockPrisma.$transaction).toHaveBeenCalledTimes(5)
+
+            // Restore original mock
+            mockPrisma.$transaction = originalTransaction
         })
     })
 

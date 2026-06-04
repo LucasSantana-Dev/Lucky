@@ -69,37 +69,65 @@ export interface AppealCaseInput {
 
 /** Service for managing guild moderation cases and settings. */
 export class ModerationService {
-    /** Creates a new moderation case with an auto-incremented case number. */
+    /** Creates a new moderation case with an auto-incremented case number.
+     *  Retries on unique constraint violation (P2002) up to MAX_RETRIES times.
+     */
     async createCase(input: CreateCaseInput): Promise<ModerationCase> {
         const prisma = getPrismaClient()
+        const MAX_RETRIES = 5
         const expiresAt = input.duration
             ? new Date(Date.now() + input.duration * 1000)
             : null
 
-        return await prisma.$transaction(async (tx) => {
-            const lastCase = await tx.moderationCase.findFirst({
-                where: { guildId: input.guildId },
-                orderBy: { caseNumber: 'desc' },
-            })
-            const caseNumber = (lastCase?.caseNumber ?? 0) + 1
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            try {
+                return await prisma.$transaction(async (tx) => {
+                    const lastCase = await tx.moderationCase.findFirst({
+                        where: { guildId: input.guildId },
+                        orderBy: { caseNumber: 'desc' },
+                    })
+                    const caseNumber = (lastCase?.caseNumber ?? 0) + 1
 
-            return await tx.moderationCase.create({
-                data: {
-                    caseNumber,
-                    guildId: input.guildId,
-                    type: input.type,
-                    userId: input.userId,
-                    username: input.username,
-                    moderatorId: input.moderatorId,
-                    moderatorName: input.moderatorName,
-                    reason: input.reason,
-                    duration: input.duration,
-                    expiresAt,
-                    channelId: input.channelId,
-                    evidence: input.evidence ?? [],
-                },
-            })
-        })
+                    return await tx.moderationCase.create({
+                        data: {
+                            caseNumber,
+                            guildId: input.guildId,
+                            type: input.type,
+                            userId: input.userId,
+                            username: input.username,
+                            moderatorId: input.moderatorId,
+                            moderatorName: input.moderatorName,
+                            reason: input.reason,
+                            duration: input.duration,
+                            expiresAt,
+                            channelId: input.channelId,
+                            evidence: input.evidence ?? [],
+                        },
+                    })
+                })
+            } catch (error) {
+                // Retry only on unique constraint violation for (guildId, caseNumber)
+                // Check for P2002 error code (Prisma unique constraint violation)
+                const isP2002 =
+                    error instanceof Error &&
+                    'code' in error &&
+                    error.code === 'P2002'
+
+                if (isP2002) {
+                    // Last attempt — re-throw
+                    if (attempt === MAX_RETRIES - 1) {
+                        throw error
+                    }
+                    // Otherwise, continue to next attempt
+                    continue
+                }
+                // Non-P2002 errors propagate immediately
+                throw error
+            }
+        }
+
+        // Should never reach here due to the throw in the loop
+        throw new Error('Failed to create case after max retries')
     }
 
     /** Retrieves a moderation case by guild and case number. */
