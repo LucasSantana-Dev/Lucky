@@ -1,11 +1,13 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
+import { validateParams } from '../middleware/validate'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { sessionService } from '../services/SessionService'
 import { guildService } from '../services/GuildService'
 import { guildAccessService } from '../services/GuildAccessService'
+import { idParam, guildIdParam } from '../schemas/common'
 
 function getGuildId(req: AuthenticatedRequest): string {
     const id = req.params.id
@@ -57,6 +59,7 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:id',
         requireAuth,
+        validateParams(idParam),
         requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const id = getGuildId(req)
@@ -77,6 +80,7 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:id/invite',
         requireAuth,
+        validateParams(idParam),
         requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const id = getGuildId(req)
@@ -89,6 +93,7 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:id/me',
         requireAuth,
+        validateParams(idParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const id = getGuildId(req)
             const sessionData = await getSessionData(req)
@@ -115,11 +120,11 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/channels',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = getGuildId(req)
-            const channels = await guildService.getGuildTextChannelOptions(
-                guildId,
-            )
+            const channels =
+                await guildService.getGuildTextChannelOptions(guildId)
             res.json({ channels })
         }),
     )
