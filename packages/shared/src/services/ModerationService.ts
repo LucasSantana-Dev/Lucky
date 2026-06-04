@@ -81,7 +81,7 @@ export class ModerationService {
 
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
-                return await prisma.$transaction(async (tx) => {
+                return await prisma.$transaction(async (tx: any) => {
                     const lastCase = await tx.moderationCase.findFirst({
                         where: { guildId: input.guildId },
                         orderBy: { caseNumber: 'desc' },
