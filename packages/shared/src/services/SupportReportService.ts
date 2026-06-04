@@ -1,0 +1,113 @@
+import { getPrismaClient } from '../utils/database/prismaClient.js'
+
+/**
+ * Represents a support report record.
+ */
+export type SupportReport = {
+    id: string
+    createdAt: Date
+    context: string
+    image: unknown // Prisma Bytes field; can be Uint8Array or Buffer
+    imageMimeType: string | null
+    correlationId: string | null
+    guildId: string | null
+    surface: string
+    errorCategory: string | null
+    status: string
+    rateLimitKey: string | null
+}
+
+/**
+ * Input payload for creating a new support report.
+ */
+export interface CreateReportInput {
+    context: string // required: user-provided context
+    image?: Uint8Array | Buffer | null // optional: image bytes
+    imageMimeType?: string // optional: MIME type if image present
+    correlationId?: string // optional: correlation ID from error
+    guildId?: string // optional: guild that submitted
+    surface: 'bot' | 'web' // required: where the error occurred
+    errorCategory?: string // optional: light categorization hint
+    rateLimitKey?: string // optional: opaque rate-limit key (no raw PII)
+}
+
+/**
+ * List filter options for support reports.
+ */
+export interface ListReportsFilter {
+    take?: number // max records to return (bounded to 100)
+    cursor?: string // pagination cursor (report id)
+    status?: string // optional: filter by status
+}
+
+/**
+ * Service for managing support reports.
+ * Owns the SupportReport Prisma model; handles creation, retrieval, listing.
+ */
+export class SupportReportService {
+    /**
+     * Creates a new support report and persists it.
+     * Returns the created report's id.
+     *
+     * @param input Create input with context, optional image, correlationId, etc.
+     * @returns Promise with { id }
+     */
+    async create(input: CreateReportInput): Promise<{ id: string }> {
+        const prisma = getPrismaClient()
+
+        const report = await prisma.supportReport.create({
+            data: {
+                context: input.context,
+                image: (input.image ?? null) as any,
+                imageMimeType: input.imageMimeType || null,
+                correlationId: input.correlationId || null,
+                guildId: input.guildId || null,
+                surface: input.surface,
+                errorCategory: input.errorCategory || null,
+                status: 'new',
+                rateLimitKey: input.rateLimitKey || null,
+            },
+        })
+
+        return { id: report.id }
+    }
+
+    /**
+     * Retrieves a single support report by id.
+     *
+     * @param id Report id (cuid)
+     * @returns Promise with full SupportReport or null if not found
+     */
+    async get(id: string): Promise<SupportReport | null> {
+        const prisma = getPrismaClient()
+
+        const report = await prisma.supportReport.findUnique({
+            where: { id },
+        })
+
+        return report || null
+    }
+
+    /**
+     * Lists support reports with optional filtering and pagination.
+     *
+     * @param filter List options: take (bounded to 100), cursor, status
+     * @returns Promise with array of SupportReport
+     */
+    async list(filter: ListReportsFilter = {}): Promise<SupportReport[]> {
+        const prisma = getPrismaClient()
+
+        // Bound take to maximum of 100
+        const take = Math.min(filter.take ?? 20, 100)
+
+        const reports = await prisma.supportReport.findMany({
+            where: filter.status ? { status: filter.status } : undefined,
+            take,
+            skip: filter.cursor ? 1 : 0,
+            cursor: filter.cursor ? { id: filter.cursor } : undefined,
+            orderBy: { createdAt: 'desc' },
+        })
+
+        return reports
+    }
+}

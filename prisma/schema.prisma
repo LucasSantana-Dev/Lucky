@@ -881,3 +881,27 @@ model StripeWebhookEvent {
   @@index([type, createdAt])
   @@map("stripe_webhook_events")
 }
+
+// Support Report — user-submitted error reports with optional screenshot.
+// Carries a correlation ID for cross-reference with logs/Sentry.
+// Images are stored as Bytes (capped at validation limit, currently 5 MB).
+// Status tracks triage workflow: new → triaged → promoted (to issue) → dismissed.
+model SupportReport {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  context         String   // free-text user context ("what I was doing")
+  image           Bytes?   // capped image bytes (nullable)
+  imageMimeType   String?  // "image/png" | "image/jpeg" | "image/webp" (nullable)
+  correlationId   String?  // short, URL-safe correlation ID; indexed for cross-reference with logs
+  guildId         String?  // guild that submitted the report (nullable, for web reports)
+  surface         String   // "bot" | "web" — where the error was encountered
+  errorCategory   String?  // light categorization hint ("playback-error", "command-error", etc.)
+  status          String   @default("new") // "new" | "triaged" | "promoted" | "dismissed"
+  rateLimitKey    String?  // opaque key for rate-limiting; never raw IP/PII
+
+  @@index([correlationId])
+  @@index([guildId])
+  @@index([createdAt])
+  @@index([status])
+  @@map("support_reports")
+}

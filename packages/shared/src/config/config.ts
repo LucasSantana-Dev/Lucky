@@ -232,3 +232,14 @@ export const ENVIRONMENT_CONFIG = {
 } as const
 
 export type EnvironmentConfig = typeof ENVIRONMENT_CONFIG
+
+/**
+ * Get the Support URL from environment variables (optional).
+ * Returns the SUPPORT_URL if set, or undefined if not configured.
+ * This allows graceful degradation when support infrastructure is optional.
+ *
+ * @returns SUPPORT_URL string or undefined
+ */
+export function getSupportUrl(): string | undefined {
+    return process.env.SUPPORT_URL
+}
