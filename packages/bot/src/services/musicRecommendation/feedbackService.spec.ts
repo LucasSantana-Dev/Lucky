@@ -525,5 +525,46 @@ describe('implicit feedback', () => {
                 expect(result.size).toBe(1)
             },
         )
+
+        it('bounds getArtistKeysFromDb with take:5000 to prevent unbounded query', async () => {
+            const service = new RecommendationFeedbackService(30)
+            getMock.mockResolvedValue(JSON.stringify({}))
+            // Mock result at the take limit
+            const largeSet = Array.from({ length: 5000 }, (_, i) => ({
+                artistKey: `artist${i}`,
+            }))
+            mockUserArtistPreference.findMany.mockResolvedValue(largeSet)
+
+            const result = await service.getPreferredArtistKeys(
+                'guild-1',
+                'user-1',
+            )
+
+            // Verify take: 5000 was applied
+            expect(mockUserArtistPreference.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({ take: 5000 }),
+            )
+            expect(result.size).toBe(5000)
+        })
+
+        it('bounds blocked artist keys query with take:5000', async () => {
+            const service = new RecommendationFeedbackService(30)
+            getMock.mockResolvedValue(JSON.stringify({}))
+            mockUserArtistPreference.findMany.mockResolvedValue(
+                Array.from({ length: 3000 }, (_, i) => ({
+                    artistKey: `blocked${i}`,
+                })),
+            )
+
+            const result = await service.getBlockedArtistKeys(
+                'guild-1',
+                'user-1',
+            )
+
+            expect(mockUserArtistPreference.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({ take: 5000 }),
+            )
+            expect(result.size).toBe(3000)
+        })
     })
 })
