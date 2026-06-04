@@ -64,7 +64,10 @@ export async function expandSoundCloudShortUrl(url: string): Promise<string> {
 
                     // Security check: ensure resolved URL is a soundcloud domain
                     const finalParsed = new URL(finalUrl)
-                    if (!finalParsed.hostname?.includes('soundcloud.com')) {
+                    if (
+                        finalParsed.hostname !== 'soundcloud.com' &&
+                        !finalParsed.hostname?.endsWith('.soundcloud.com')
+                    ) {
                         // Redirect went somewhere unexpected — reject and fall back
                         throw new Error(
                             `Redirect destination is not a soundcloud.com domain: ${finalUrl}`,

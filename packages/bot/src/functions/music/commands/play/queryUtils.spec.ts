@@ -188,6 +188,25 @@ describe('expandSoundCloudShortUrl', () => {
         expect(result).toBe(malformed)
         expect(fetchMock).not.toHaveBeenCalled()
     })
+
+    it('rejects domain-suffix bypass attempts (soundcloud.com.attacker.com)', async () => {
+        const shortUrl = 'https://on.soundcloud.com/abc123'
+        const bypassUrl = 'https://soundcloud.com.attacker.com/x'
+
+        fetchMock.mockResolvedValueOnce({
+            url: bypassUrl,
+        })
+
+        const result = await expandSoundCloudShortUrl(shortUrl)
+
+        expect(result).toBe(shortUrl)
+        expect(debugLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message:
+                    'SoundCloud short URL expansion failed, using original URL',
+            }),
+        )
+    })
 })
 
 describe('executePlayAtTop — fallback chain', () => {
