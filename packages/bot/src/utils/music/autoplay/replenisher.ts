@@ -244,11 +244,20 @@ async function _replenishQueue(
         })
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
         const artistFrequency = buildArtistFrequency(persistentHistory)
-        const currentFeatures = requestedBy?.id
-            ? await getTrackAudioFeatures(currentTrack, requestedBy.id).catch(
-                  () => null,
-              )
-            : null
+
+        // Parallelize independent audio features + spotify token fetches
+        const [currentFeatures, spotifyToken] = await Promise.all([
+            requestedBy?.id
+                ? getTrackAudioFeatures(currentTrack, requestedBy.id).catch(
+                      () => null,
+                  )
+                : Promise.resolve(null),
+            requestedBy?.id
+                ? Promise.resolve(
+                      spotifyLinkService.getValidAccessToken(requestedBy.id),
+                  ).catch(() => null)
+                : Promise.resolve(null),
+        ])
         const replenishCount = replenishCounters.get(guildId) ?? 0
 
         // Tag-driven genre context (Phase 2). One artist-tag cache for the
@@ -256,21 +265,16 @@ async function _replenishQueue(
         // linked the fetcher falls back to Spotify genre strings so the
         // cross-locale veto can still reject Spanish gospel tracks whose
         // title/author carry no Spanish text markers.
-        const spotifyToken = requestedBy?.id
-            ? await Promise.resolve(
-                  spotifyLinkService.getValidAccessToken(requestedBy.id),
-              ).catch(() => null)
-            : null
         const getArtistTags: ArtistTagFetcher = createArtistTagFetcher(
             spotifyToken
                 ? (artist) => getArtistGenres(spotifyToken, artist)
                 : undefined,
         )
-        const currentTrackTags = await getArtistTags(currentTrack.author)
-        const sessionGenreFamilies = await detectSessionGenreFamilies(
-            historyTracks,
-            getArtistTags,
-        )
+        // Parallelize tag fetching for current track + genre family detection
+        const [currentTrackTags, sessionGenreFamilies] = await Promise.all([
+            getArtistTags(currentTrack.author),
+            detectSessionGenreFamilies(historyTracks, getArtistTags),
+        ])
         const seedIsSertanejo =
             currentTrackTags.length > 0
                 ? hasGenreTag(currentTrackTags, SERTANEJO_TAGS)
