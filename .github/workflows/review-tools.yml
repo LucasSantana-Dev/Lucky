@@ -12,7 +12,7 @@ name: Review Tools
 #
 # Repo-specific behavior lives in:
 #   - dangerfile.ts (rules)
-#   - .coderabbit.yaml (path filters, base branches)
+#   - cubic dashboard (AI review custom rules — see docs/review-tools.md)
 
 on:
   pull_request:
