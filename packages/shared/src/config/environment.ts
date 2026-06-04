@@ -106,6 +106,72 @@ function logMissingEnvironmentVariable(key: string): void {
 }
 
 /**
+ * List of required environment variables for the application
+ */
+function getRequiredEnvironmentVariables(): string[] {
+    return ['DISCORD_TOKEN', 'CLIENT_ID', 'DATABASE_URL']
+}
+
+/**
+ * List of environment variables that are required when running as backend/API
+ */
+function getBackendRequiredEnvironmentVariables(): string[] {
+    return [
+        'REDIS_HOST',
+        'SPOTIFY_CLIENT_ID',
+        'SPOTIFY_CLIENT_SECRET',
+        'WEBAPP_SESSION_SECRET',
+    ]
+}
+
+/**
+ * Check if a value is missing (null, undefined, or empty string)
+ */
+function isMissingVariable(value: unknown): boolean {
+    return value === null || value === undefined || value === ''
+}
+
+/**
+ * Validate that required environment variables are present
+ * Throws an error with all missing variables listed if any are missing
+ */
+function assertRequiredEnvironmentVariables(): void {
+    const required = getRequiredEnvironmentVariables()
+    const missingVars: string[] = []
+
+    for (const varName of required) {
+        if (isMissingVariable(process.env[varName])) {
+            missingVars.push(varName)
+        }
+    }
+
+    if (missingVars.length > 0) {
+        const message = `Missing required environment variables: ${missingVars.join(', ')}`
+        throw new Error(message)
+    }
+}
+
+/**
+ * Validate backend-specific required environment variables
+ * Throws an error with all missing variables listed if any are missing
+ */
+function assertBackendRequiredEnvironmentVariables(): void {
+    const required = getBackendRequiredEnvironmentVariables()
+    const missingVars: string[] = []
+
+    for (const varName of required) {
+        if (isMissingVariable(process.env[varName])) {
+            missingVars.push(varName)
+        }
+    }
+
+    if (missingVars.length > 0) {
+        const message = `Missing required backend environment variables: ${missingVars.join(', ')}`
+        throw new Error(message)
+    }
+}
+
+/**
  * Trim and validate critical environment variables
  */
 function validateEnvironmentVariables(): void {
@@ -241,6 +307,9 @@ export async function loadEnvironmentAsync(): Promise<NodeJS.ProcessEnv> {
 /**
  * Load environment: .env first, then Infisical secrets when INFISICAL_* is set.
  * Use in async entrypoints to support both .env and Infisical.
+ *
+ * Asserts that all required environment variables are present.
+ * Throws an error if any critical variables are missing.
  */
 export async function ensureEnvironment(): Promise<NodeJS.ProcessEnv> {
     const { result, loadedFile } = loadEnvironmentFiles()
@@ -254,5 +323,20 @@ export async function ensureEnvironment(): Promise<NodeJS.ProcessEnv> {
     validateEnvironmentVariables()
     configureLogging()
     setEnvironmentLoaded()
+
+    // Assert required variables are present
+    assertRequiredEnvironmentVariables()
+
     return process.env
+}
+
+/**
+ * Validate all backend-specific required environment variables.
+ * Call this after ensureEnvironment() in backend services to ensure
+ * backend-specific critical vars are present before starting the server.
+ *
+ * Throws an error if any backend-required variables are missing.
+ */
+export function validateBackendEnvironment(): void {
+    assertBackendRequiredEnvironmentVariables()
 }
