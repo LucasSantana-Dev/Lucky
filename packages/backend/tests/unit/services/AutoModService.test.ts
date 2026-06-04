@@ -34,7 +34,10 @@ jest.mock('@lucky/shared/utils/general/log', () => ({
     warnLog: jest.fn(),
 }))
 
-import { AutoModService } from '@lucky/shared/services/AutoModService'
+import {
+    AutoModService,
+    _resetSpamWindows,
+} from '@lucky/shared/services/AutoModService'
 
 const DEFAULT_SETTINGS = {
     id: '1',
@@ -71,10 +74,7 @@ describe('AutoModService', () => {
         mockRedis.get.mockResolvedValue(null)
         mockRedis.setex.mockResolvedValue(true)
         mockRedis.del.mockResolvedValue(true)
-        mockRedis.lpush.mockResolvedValue(1)
-        mockRedis.ltrim.mockResolvedValue(true)
-        mockRedis.expire.mockResolvedValue(true)
-        mockRedis.lrange.mockResolvedValue([])
+        _resetSpamWindows()
         service = new AutoModService()
     })
 
@@ -238,8 +238,7 @@ describe('AutoModService', () => {
             expect(result).toBe(false)
         })
 
-        test('should return false when Redis is not healthy', async () => {
-            mockRedis.isHealthy.mockReturnValue(false)
+        test('should return true when threshold exceeded in memory', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 spamEnabled: true,
@@ -247,54 +246,26 @@ describe('AutoModService', () => {
                 spamTimeWindow: 5,
             })
 
-            const result = await service.trackMessageAndCheckSpam(
+            // Make 3 spam checks - third one should trigger threshold
+            const result1 = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+            const result2 = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+            const result3 = await service.trackMessageAndCheckSpam(
                 GUILD_A,
                 USER_A,
             )
 
-            expect(result).toBe(false)
+            expect(result1).toBe(false)
+            expect(result2).toBe(false)
+            expect(result3).toBe(true)
         })
 
-        test('should return true when threshold exceeded in Redis', async () => {
-            mockRedis.isHealthy.mockReturnValue(true)
-            mockRedis.lpush.mockResolvedValue(3)
-            mockRedis.ltrim.mockResolvedValue(true)
-            mockRedis.expire.mockResolvedValue(true)
-            const now = Date.now()
-            mockRedis.lrange.mockResolvedValue([
-                String(now - 100),
-                String(now - 200),
-                String(now - 300),
-            ])
-            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
-                ...DEFAULT_SETTINGS,
-                spamEnabled: true,
-                spamThreshold: 3,
-                spamTimeWindow: 5,
-            })
-
-            const result = await service.trackMessageAndCheckSpam(
-                GUILD_A,
-                USER_A,
-            )
-
-            expect(result).toBe(true)
-            expect(mockRedis.lpush).toHaveBeenCalledWith(
-                `spam:${GUILD_A}:${USER_A}`,
-                expect.any(String),
-            )
-        })
-
-        test('should return false when below threshold in Redis', async () => {
-            mockRedis.isHealthy.mockReturnValue(true)
-            mockRedis.lpush.mockResolvedValue(2)
-            mockRedis.ltrim.mockResolvedValue(true)
-            mockRedis.expire.mockResolvedValue(true)
-            const now = Date.now()
-            mockRedis.lrange.mockResolvedValue([
-                String(now - 100),
-                String(now - 200),
-            ])
+        test('should return false when below threshold in memory', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 spamEnabled: true,
@@ -302,12 +273,120 @@ describe('AutoModService', () => {
                 spamTimeWindow: 5,
             })
 
-            const result = await service.trackMessageAndCheckSpam(
+            // Make 2 spam checks - should stay below threshold of 5
+            const result1 = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+            const result2 = await service.trackMessageAndCheckSpam(
                 GUILD_A,
                 USER_A,
             )
 
-            expect(result).toBe(false)
+            expect(result1).toBe(false)
+            expect(result2).toBe(false)
+        })
+
+        test('should track different users separately', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                spamEnabled: true,
+                spamThreshold: 2,
+                spamTimeWindow: 5,
+            })
+
+            // User A - 2 messages
+            const userAResult1 = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+            const userAResult2 = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+
+            // User B - 1 message (should not trigger threshold)
+            const userBResult1 = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                'user-b',
+            )
+
+            expect(userAResult1).toBe(false)
+            expect(userAResult2).toBe(true)
+            expect(userBResult1).toBe(false)
+        })
+
+        test('should track different guilds separately', async () => {
+            mockPrisma.autoModSettings.findUnique.mockImplementation(
+                async (query: any) => {
+                    const guildId = query.where.guildId
+                    if (guildId === GUILD_A) {
+                        return {
+                            ...DEFAULT_SETTINGS,
+                            guildId: GUILD_A,
+                            spamEnabled: true,
+                            spamThreshold: 2,
+                            spamTimeWindow: 5,
+                        }
+                    } else if (guildId === GUILD_B) {
+                        return {
+                            ...DEFAULT_SETTINGS,
+                            guildId: GUILD_B,
+                            spamEnabled: true,
+                            spamThreshold: 3,
+                            spamTimeWindow: 5,
+                        }
+                    }
+                    return null
+                },
+            )
+
+            // Guild A - 2 messages (threshold 2)
+            const guildAResult1 = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+            const guildAResult2 = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+
+            // Guild B - 2 messages (threshold 3, should not trigger)
+            const guildBResult1 = await service.trackMessageAndCheckSpam(
+                GUILD_B,
+                USER_A,
+            )
+
+            expect(guildAResult1).toBe(false)
+            expect(guildAResult2).toBe(true)
+            expect(guildBResult1).toBe(false)
+        })
+
+        test('should ignore timestamps older than window duration', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                spamEnabled: true,
+                spamThreshold: 2,
+                spamTimeWindow: 0.01, // 10ms window
+            })
+
+            // First message at time 0
+            const result1 = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+
+            // Wait 20ms to exceed the 10ms window
+            await new Promise((resolve) => setTimeout(resolve, 20))
+
+            // Second message - should not count previous one as it's outside window
+            const result2 = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+
+            expect(result1).toBe(false)
+            expect(result2).toBe(false)
         })
     })
 

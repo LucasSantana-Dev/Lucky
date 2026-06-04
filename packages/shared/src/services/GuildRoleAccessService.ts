@@ -1,10 +1,6 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
-import { redisClient } from './redis/index.js'
-import { errorLog } from '../utils/general/log.js'
 
 const prisma = getPrismaClient()
-const CACHE_TTL_SECONDS = 300
-const CACHE_PREFIX = 'guild_rbac:'
 
 /** List of RBAC module types available for guild permissions. */
 export const RBAC_MODULES = [
@@ -99,10 +95,6 @@ function isRoleGrantInput(input: RoleGrantInput): boolean {
     )
 }
 
-function cacheKey(guildId: string): string {
-    return `${CACHE_PREFIX}${guildId}`
-}
-
 function toRoleGrant(row: {
     guildId: string
     roleId: string
@@ -136,72 +128,8 @@ class GuildRoleAccessService {
         return maybePrismaError.code === 'P2021'
     }
 
-    private async readCached(guildId: string): Promise<RoleGrant[] | null> {
-        if (!redisClient.isHealthy()) {
-            return null
-        }
-
-        try {
-            const value = await redisClient.get(cacheKey(guildId))
-            if (!value) {
-                return null
-            }
-
-            const parsed = JSON.parse(value) as RoleGrant[]
-            return parsed
-        } catch (error) {
-            errorLog({
-                message: 'Failed to read RBAC cache',
-                error,
-            })
-            return null
-        }
-    }
-
-    private async writeCache(
-        guildId: string,
-        grants: RoleGrant[],
-    ): Promise<void> {
-        if (!redisClient.isHealthy()) {
-            return
-        }
-
-        try {
-            await redisClient.setex(
-                cacheKey(guildId),
-                CACHE_TTL_SECONDS,
-                JSON.stringify(grants),
-            )
-        } catch (error) {
-            errorLog({
-                message: 'Failed to write RBAC cache',
-                error,
-            })
-        }
-    }
-
-    private async clearCache(guildId: string): Promise<void> {
-        if (!redisClient.isHealthy()) {
-            return
-        }
-
-        try {
-            await redisClient.del(cacheKey(guildId))
-        } catch (error) {
-            errorLog({
-                message: 'Failed to clear RBAC cache',
-                error,
-            })
-        }
-    }
-
-    /** Lists all role grants for a guild with caching. */
+    /** Lists all role grants for a guild. */
     async listRoleGrants(guildId: string): Promise<RoleGrant[]> {
-        const cached = await this.readCached(guildId)
-        if (cached) {
-            return cached
-        }
-
         let rows: Array<{
             guildId: string
             roleId: string
@@ -218,12 +146,6 @@ class GuildRoleAccessService {
             })
         } catch (error) {
             if (this.isMissingTableError(error)) {
-                errorLog({
-                    message:
-                        'RBAC table missing while reading grants; rejecting request',
-                    error,
-                    data: { guildId },
-                })
                 throw new GuildRoleGrantStorageError(guildId, error)
             }
             throw error
@@ -233,7 +155,6 @@ class GuildRoleAccessService {
             .map(toRoleGrant)
             .filter((grant): grant is RoleGrant => grant !== null)
 
-        await this.writeCache(guildId, grants)
         return grants
     }
 
@@ -274,18 +195,11 @@ class GuildRoleAccessService {
             })
         } catch (error) {
             if (this.isMissingTableError(error)) {
-                errorLog({
-                    message:
-                        'RBAC table missing while replacing grants; rejecting request',
-                    error,
-                    data: { guildId },
-                })
                 throw new GuildRoleGrantStorageError(guildId, error)
             }
             throw error
         }
 
-        await this.clearCache(guildId)
         return this.listRoleGrants(guildId)
     }
 

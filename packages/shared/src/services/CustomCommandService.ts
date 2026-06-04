@@ -1,27 +1,11 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 import { Prisma } from '../generated/prisma/client.js'
-import { redisClient } from './redis/index.js'
-import { errorLog } from '../utils/general/log.js'
 import type { EmbedData } from './embedValidation.js'
 
 const prisma = getPrismaClient()
-const CACHE_TTL = 300
-const CACHE_PREFIX = 'cmd:'
 
-/** Manages guild-specific custom commands with caching and permissions. */
+/** Manages guild-specific custom commands with permissions. */
 export class CustomCommandService {
-    /** Generates cache key for a custom command. */
-    private cacheKey(guildId: string, name: string): string {
-        return `${CACHE_PREFIX}${guildId}:${name.toLowerCase()}`
-    }
-
-    /** Clears cache for a custom command. */
-    private invalidateCommand(guildId: string, name: string): void {
-        if (redisClient.isHealthy()) {
-            redisClient.del(this.cacheKey(guildId, name)).catch(() => {})
-        }
-    }
-
     /** Creates a new custom command for a guild. */
     async createCommand(
         guildId: string,
@@ -49,7 +33,6 @@ export class CustomCommandService {
                 createdBy: options?.createdBy || 'unknown',
             },
         })
-        this.invalidateCommand(guildId, name)
         return result
     }
 
@@ -70,6 +53,7 @@ export class CustomCommandService {
         const lockKey = `custom-command:${guildId}:${normalizedName}`
 
         const state = await prisma.$transaction(async (tx) => {
+            // Transaction lock for consistent read-modify-write semantics, not cache coherence
             await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
 
             const existing = await tx.customCommand.findUnique({
@@ -116,27 +100,11 @@ export class CustomCommandService {
             return 'updated'
         })
 
-        this.invalidateCommand(guildId, normalizedName)
         return state
     }
 
-    /** Retrieves a custom command by name with caching. */
+    /** Retrieves a custom command by name. */
     async getCommand(guildId: string, name: string) {
-        const key = this.cacheKey(guildId, name)
-
-        if (redisClient.isHealthy()) {
-            try {
-                const cached = await redisClient.get(key)
-                if (cached) {
-                    const parsed = JSON.parse(cached)
-                    if (parsed === null) return null
-                    return parsed
-                }
-            } catch (err) {
-                errorLog({ message: 'Command cache read error', error: err })
-            }
-        }
-
         const command = await prisma.customCommand.findUnique({
             where: {
                 guildId_name: {
@@ -156,12 +124,6 @@ export class CustomCommandService {
                       : null,
               }
             : null
-
-        if (redisClient.isHealthy()) {
-            redisClient
-                .setex(key, CACHE_TTL, JSON.stringify(result))
-                .catch(() => {})
-        }
 
         return result
     }
@@ -189,7 +151,6 @@ export class CustomCommandService {
             },
             data,
         })
-        this.invalidateCommand(guildId, name)
         return result
     }
 
@@ -203,7 +164,6 @@ export class CustomCommandService {
                 },
             },
         })
-        this.invalidateCommand(guildId, name)
         return result
     }
 
