@@ -13,8 +13,8 @@ const CHARSET =
  * @returns A 8-character URL-safe correlation ID
  */
 export function mintCorrelationId(): string {
-    // Generate 6 bytes of random data = 48 bits, enough for 8 base62-like chars
-    const bytes = randomBytes(6)
+    // One random byte per output char, mapped into the URL-safe alphabet.
+    const bytes = randomBytes(8)
     let id = ''
     for (let i = 0; i < bytes.length; i++) {
         id += CHARSET[bytes[i] % CHARSET.length]

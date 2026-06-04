@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// @ts-nocheck
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 
 const mockGetPrismaClient = jest.fn()
@@ -21,7 +19,7 @@ describe('SupportReportService', () => {
 
     describe('create', () => {
         it('persists a report and returns the id', async () => {
-            const newReport: any = {
+            const newReport = {
                 id: 'report-1',
                 createdAt: new Date(),
                 context: 'Playback error on /play command',
@@ -35,12 +33,13 @@ describe('SupportReportService', () => {
                 rateLimitKey: 'hash-abc123',
             }
 
+            // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
                 supportReport: {
-                    // @ts-expect-error - jest mock type mismatch
+                    // @ts-ignore - jest mock resolved value type
                     create: jest.fn().mockResolvedValue(newReport),
                 },
-            } as any)
+            })
 
             const result = await service.create({
                 context: 'Playback error on /play command',
@@ -57,7 +56,7 @@ describe('SupportReportService', () => {
 
         it('persists report with image bytes and mimetype', async () => {
             const imageBuffer = Buffer.from('fake-image-bytes')
-            const newReport: any = {
+            const newReport = {
                 id: 'report-2',
                 createdAt: new Date(),
                 context: 'Screenshot attached',
@@ -71,12 +70,13 @@ describe('SupportReportService', () => {
                 rateLimitKey: 'hash-xyz789',
             }
 
+            // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
                 supportReport: {
-                    // @ts-expect-error - jest mock type mismatch
+                    // @ts-ignore - jest mock resolved value type
                     create: jest.fn().mockResolvedValue(newReport),
                 },
-            } as any)
+            })
 
             const result = await service.create({
                 context: 'Screenshot attached',
@@ -92,7 +92,7 @@ describe('SupportReportService', () => {
         })
 
         it('defaults nullable fields to null', async () => {
-            const newReport: any = {
+            const newReport = {
                 id: 'report-3',
                 createdAt: new Date(),
                 context: 'Error occurred',
@@ -106,12 +106,14 @@ describe('SupportReportService', () => {
                 rateLimitKey: null,
             }
 
+            const createMock =
+                jest.fn<(args: unknown) => Promise<{ id: string }>>().mockResolvedValue(
+                    newReport,
+                )
+            // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
-                supportReport: {
-                    // @ts-expect-error - jest mock type mismatch
-                    create: jest.fn().mockResolvedValue(newReport),
-                },
-            } as any)
+                supportReport: { create: createMock },
+            })
 
             const result = await service.create({
                 context: 'Error occurred',
@@ -119,12 +121,26 @@ describe('SupportReportService', () => {
             })
 
             expect(result.id).toBe('report-3')
+            // Optional fields absent from input must be persisted as null.
+            expect(createMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        image: null,
+                        imageMimeType: null,
+                        correlationId: null,
+                        guildId: null,
+                        errorCategory: null,
+                        rateLimitKey: null,
+                        status: 'new',
+                    }),
+                }),
+            )
         })
     })
 
     describe('get', () => {
         it('returns a report when it exists', async () => {
-            const report: any = {
+            const report = {
                 id: 'report-1',
                 createdAt: new Date(),
                 context: 'Test context',
@@ -138,12 +154,13 @@ describe('SupportReportService', () => {
                 rateLimitKey: null,
             }
 
+            // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
                 supportReport: {
-                    // @ts-expect-error - jest mock type mismatch
+                    // @ts-ignore - jest mock resolved value type
                     findUnique: jest.fn().mockResolvedValue(report),
                 },
-            } as any)
+            })
 
             const result = await service.get('report-1')
 
@@ -152,11 +169,13 @@ describe('SupportReportService', () => {
         })
 
         it('returns null when report does not exist', async () => {
+            // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
                 supportReport: {
+                    // @ts-ignore - jest mock resolved value type
                     findUnique: jest.fn().mockResolvedValue(null),
                 },
-            } as any)
+            })
 
             const result = await service.get('nonexistent')
 
@@ -166,54 +185,19 @@ describe('SupportReportService', () => {
 
     describe('list', () => {
         it('returns reports in descending createdAt order', async () => {
-            const reports: any[] = [
-                {
-                    id: 'report-3',
-                    createdAt: new Date('2026-06-04T12:00:00Z'),
-                    context: 'Latest',
-                    image: null,
-                    imageMimeType: null,
-                    correlationId: null,
-                    guildId: null,
-                    surface: 'bot',
-                    errorCategory: null,
-                    status: 'new',
-                    rateLimitKey: null,
-                },
-                {
-                    id: 'report-2',
-                    createdAt: new Date('2026-06-04T11:00:00Z'),
-                    context: 'Middle',
-                    image: null,
-                    imageMimeType: null,
-                    correlationId: null,
-                    guildId: null,
-                    surface: 'bot',
-                    errorCategory: null,
-                    status: 'new',
-                    rateLimitKey: null,
-                },
-                {
-                    id: 'report-1',
-                    createdAt: new Date('2026-06-04T10:00:00Z'),
-                    context: 'Oldest',
-                    image: null,
-                    imageMimeType: null,
-                    correlationId: null,
-                    guildId: null,
-                    surface: 'bot',
-                    errorCategory: null,
-                    status: 'new',
-                    rateLimitKey: null,
-                },
+            const reports = [
+                { id: 'report-3', createdAt: new Date('2026-06-04T12:00:00Z') },
+                { id: 'report-2', createdAt: new Date('2026-06-04T11:00:00Z') },
+                { id: 'report-1', createdAt: new Date('2026-06-04T10:00:00Z') },
             ]
 
+            // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
                 supportReport: {
-                    // @ts-expect-error - jest mock type mismatch
+                    // @ts-ignore - jest mock resolved value type
                     findMany: jest.fn().mockResolvedValue(reports),
                 },
-            } as any)
+            })
 
             const result = await service.list({ take: 20 })
 
@@ -224,52 +208,52 @@ describe('SupportReportService', () => {
         })
 
         it('respects the take parameter', async () => {
+            const findMany =
+                jest.fn<(args: unknown) => Promise<Array<{ id: string }>>>().mockResolvedValue(
+                    [],
+                )
+            // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
-                supportReport: {
-                    // @ts-expect-error - jest mock type mismatch
-                    findMany: jest.fn().mockResolvedValue([]),
-                },
-            } as any)
+                supportReport: { findMany },
+            })
 
             await service.list({ take: 50 })
 
-            // @ts-expect-error - jest mock type
-            const mockClient = mockGetPrismaClient()
-            expect(mockClient.supportReport.findMany).toHaveBeenCalledWith(
+            expect(findMany).toHaveBeenCalledWith(
                 expect.objectContaining({ take: 50 }),
             )
         })
 
         it('bounds take to maximum of 100', async () => {
+            const findMany =
+                jest.fn<(args: unknown) => Promise<Array<{ id: string }>>>().mockResolvedValue(
+                    [],
+                )
+            // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
-                supportReport: {
-                    // @ts-expect-error - jest mock type mismatch
-                    findMany: jest.fn().mockResolvedValue([]),
-                },
-            } as any)
+                supportReport: { findMany },
+            })
 
             await service.list({ take: 200 })
 
-            // @ts-expect-error - jest mock type
-            const mockClient = mockGetPrismaClient()
-            expect(mockClient.supportReport.findMany).toHaveBeenCalledWith(
+            expect(findMany).toHaveBeenCalledWith(
                 expect.objectContaining({ take: 100 }),
             )
         })
 
         it('filters by status when provided', async () => {
+            const findMany =
+                jest.fn<(args: unknown) => Promise<Array<{ id: string }>>>().mockResolvedValue(
+                    [],
+                )
+            // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
-                supportReport: {
-                    // @ts-expect-error - jest mock type mismatch
-                    findMany: jest.fn().mockResolvedValue([]),
-                },
-            } as any)
+                supportReport: { findMany },
+            })
 
             await service.list({ status: 'triaged' })
 
-            // @ts-expect-error - jest mock type
-            const mockClient = mockGetPrismaClient()
-            expect(mockClient.supportReport.findMany).toHaveBeenCalledWith(
+            expect(findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
                     where: { status: 'triaged' },
                 }),
@@ -277,18 +261,18 @@ describe('SupportReportService', () => {
         })
 
         it('applies default take of 20 when not specified', async () => {
+            const findMany =
+                jest.fn<(args: unknown) => Promise<Array<{ id: string }>>>().mockResolvedValue(
+                    [],
+                )
+            // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
-                supportReport: {
-                    // @ts-expect-error - jest mock type mismatch
-                    findMany: jest.fn().mockResolvedValue([]),
-                },
-            } as any)
+                supportReport: { findMany },
+            })
 
             await service.list()
 
-            // @ts-expect-error - jest mock type
-            const mockClient = mockGetPrismaClient()
-            expect(mockClient.supportReport.findMany).toHaveBeenCalledWith(
+            expect(findMany).toHaveBeenCalledWith(
                 expect.objectContaining({ take: 20 }),
             )
         })
