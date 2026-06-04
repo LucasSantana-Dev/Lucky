@@ -6,6 +6,10 @@ export const guildIdParam = z.object({
     guildId: snowflakeId,
 })
 
+export const idParam = z.object({
+    id: snowflakeId,
+})
+
 export const userIdParam = z.object({
     userId: snowflakeId,
 })

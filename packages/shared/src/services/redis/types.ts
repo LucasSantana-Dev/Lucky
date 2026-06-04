@@ -22,6 +22,8 @@ export interface IRedisClient {
     connect(): Promise<boolean>
     disconnect(): Promise<void>
     isHealthy(): boolean
+    isInitialized(): boolean
+    getInitializationError(): Error | null
     get(key: string): Promise<string | null>
     set(key: string, value: string, ttl?: number): Promise<boolean>
     del(key: string): Promise<boolean>

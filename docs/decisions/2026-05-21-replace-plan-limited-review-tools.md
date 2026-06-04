@@ -102,6 +102,26 @@ Rollback: re-install the apps, restore branch-protection check names. ~10 min.
 - **A team forms and code review needs human-style narrative review.** Consider CodeRabbit Team tier or buy Greptile.
 - **GitHub Advanced Security becomes free for private repos** (would absorb most of CodeQL+Trivy+OSV signal natively).
 
+## Update 2026-06-04 — retire CodeRabbit, adopt cubic (free on public repo)
+
+The 2026-05-21 decision said to uninstall CodeRabbit but steps 4-5 were never executed — `.coderabbit.yaml` and the CodeRabbit App stayed live (it is not a required check, so it ran as advisory noise). This update closes that out and revisits the AI-review surface now that **Lucky is a public repository**.
+
+**Context that changed the call:** cubic.dev's full codebase-aware reviewer is **free on public repositories** (its $40/$99 tiers are private-repo only). Its design goals — whole-codebase navigation + low false-positive rate — directly target the bug class that slipped recent sessions (cross-file intent gaps: validated `management.ts` but not `guilds.ts`; FK CUID-vs-snowflake mismatch; stale-test drift) and reduce the merge-thread noise that stalls the auto-merge pipeline.
+
+**Decision:**
+
+- **Retire CodeRabbit** — remove `.coderabbit.yaml` (this PR); uninstall the GitHub App (dashboard action).
+- **Adopt cubic** (free on public repo) via its GitHub App as the codebase-aware AI reviewer.
+- **Keep PR-Agent + claude-review** (both free) as the diff-scoped / narrative angles. Do not run more than is useful — after a 2-week cubic trial, evaluate dropping `claude-review` to avoid three overlapping AI reviewers.
+
+**Why not qodo:** on a public repo, "free qodo" is PR-Agent (its Apache-2 OSS engine), which is already running. cubic is the option that adds a _new_ capability for $0.
+
+**Revisit triggers (added):**
+
+- cubic false-positive rate > 3/week sustained for 2 weeks → tune its plain-English rules or drop it.
+- cubic introduces a paid gate for public repos → fall back to PR-Agent + claude-review only.
+- Lucky goes private → cubic costs $40/dev/mo; re-evaluate vs PR-Agent-only.
+
 ## Related artefacts
 
 - `.github/workflows/pr-agent.yml` (kept as primary AI reviewer)
