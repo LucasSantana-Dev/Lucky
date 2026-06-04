@@ -2,7 +2,6 @@
 
 **Status:** Accepted
 **Issue:** #1196 (downscoped) · cubic finding on PR #1179
-**Related:** [[reference_shared_barrel_tsjest_quirk_2026-06-02]]
 
 ## Context
 
@@ -22,7 +21,7 @@ A cubic review of PR #1179 flagged that `@lucky/shared/errors/ValidationError` c
 
 1. **Add `"./errors"` and `"./errors/*"` to the shared `exports` map.** This is the real, narrow fix — it unblocks #1179's ValidationError value-import. The `./errors` entry lands **with PR #1179** (the PR that introduces the import).
 2. **Add a lightweight CI guard** (#1196, downscoped): a script that greps every non-`import type` import of `@lucky/shared/<subpath>` in `packages/bot/src` + `packages/backend/src` (excluding tests) and fails if the subpath is not under a key/pattern in the shared `exports` map. (The exact check used to verify this ADR — covered prefixes today: `utils`, `services`, `config`, `types`, `constants`, and now `errors`.)
-3. **Do NOT normalize the existing deep imports to barrels.** They resolve correctly, AND barrels reintroduce a known bug: backend ts-jest only resolves the first `export *` of the `/utils` barrel, so new utils must be imported via submodule path (`@lucky/shared/utils/async`, etc.) — see [[reference_shared_barrel_tsjest_quirk_2026-06-02]]. Deep submodule imports are the **recommended** pattern here.
+3. **Do NOT normalize the existing deep imports to barrels.** They resolve correctly, AND barrels reintroduce a known bug: backend ts-jest only resolves the first `export *` of the `/utils` barrel, so new utils must be imported via submodule path (`@lucky/shared/utils/async`, etc.). Deep submodule imports are the **recommended** pattern here.
 4. **Defer `./generated/*`** — the only `generated` import today is type-only (erased). Adding it speculatively would expose internal Prisma models as public API. Add only if a value-import of a generated symbol is ever needed.
 5. **Downscope #1196** from "~25-file crisis" to "add `./errors` to exports (in #1179) + add the CI guard."
 
