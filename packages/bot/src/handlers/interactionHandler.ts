@@ -4,7 +4,7 @@ import {
     type CommandInteractionOptionResolver,
     type Interaction,
 } from 'discord.js'
-import { errorLog, debugLog } from '@lucky/shared/utils'
+import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
 import { executeCommand } from './commandsHandler'
 import type { CustomClient } from '../types'
 import { errorEmbed } from '../utils/general/embeds'
@@ -34,6 +34,10 @@ export const handleInteractions = async ({
         client.on(Events.InteractionCreate, (interaction: Interaction) => {
             handleInteraction(interaction, client).catch((error) => {
                 errorLog({ message: 'Error handling interaction:', error })
+                captureException(
+                    error instanceof Error ? error : new Error(String(error)),
+                    { context: 'interaction-handling-failure' },
+                )
             })
         })
 

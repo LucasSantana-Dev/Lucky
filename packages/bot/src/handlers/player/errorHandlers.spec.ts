@@ -4,6 +4,7 @@ import { setupErrorHandlers } from './errorHandlers'
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const warnLogMock = jest.fn()
+const captureExceptionMock = jest.fn()
 const analyzeYouTubeErrorMock = jest.fn()
 const logYouTubeErrorMock = jest.fn()
 const recordFailureMock = jest.fn()
@@ -15,6 +16,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
+    captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }))
 
 jest.mock('../../utils/general/embeds', () => ({
@@ -358,6 +360,18 @@ describe('setupErrorHandlers', () => {
                     guildId: 'guild-1',
                     errorMessage: 'ECONNRESET test',
                 }),
+            }),
+        )
+        // Both top-level and queue player errors must reach Sentry.
+        expect(captureExceptionMock).toHaveBeenCalledWith(
+            expect.any(Error),
+            expect.objectContaining({ context: 'player-unhandled-error' }),
+        )
+        expect(captureExceptionMock).toHaveBeenCalledWith(
+            expect.any(Error),
+            expect.objectContaining({
+                context: 'player-queue-error',
+                guildId: 'guild-1',
             }),
         )
     })

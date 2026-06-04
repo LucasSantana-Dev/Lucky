@@ -17,6 +17,7 @@ import type { CustomClient } from '../types'
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
+    captureException: jest.fn(),
 }))
 
 jest.mock('./commandsHandler', () => ({
@@ -130,8 +131,7 @@ describe('interactionHandler', () => {
         jest.clearAllMocks()
     })
 
-    describe('handleInteractions', () => {
-    })
+    describe('handleInteractions', () => {})
 
     describe('handleInteraction', () => {
         it('should route chat input command to executeCommand', async () => {
@@ -147,7 +147,6 @@ describe('interactionHandler', () => {
             )
             expect(executeCommand).toHaveBeenCalledWith({ interaction, client })
         })
-
 
         it('should handle interaction without guild', async () => {
             const interaction = createMockChatInteraction({ guild: null })

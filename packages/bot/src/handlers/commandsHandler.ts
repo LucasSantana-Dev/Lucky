@@ -1,5 +1,5 @@
 import { Collection, type ChatInputCommandInteraction } from 'discord.js'
-import { errorLog, debugLog } from '@lucky/shared/utils'
+import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
 import { featureToggleService } from '@lucky/shared/services'
 import type { FeatureToggleName } from '@lucky/shared/types'
 import type { CustomClient } from '../types'
@@ -76,6 +76,15 @@ export const executeCommand = async ({
             message: `Error executing command ${interaction.commandName}:`,
             error,
         })
+        captureException(
+            error instanceof Error ? error : new Error(String(error)),
+            {
+                context: 'command-execution-failure',
+                command: interaction.commandName,
+                guildId: interaction.guild?.id ?? undefined,
+                userId: interaction.user.id,
+            },
+        )
         try {
             const userFriendlyError = createUserFriendlyError(error)
             await interactionReply({

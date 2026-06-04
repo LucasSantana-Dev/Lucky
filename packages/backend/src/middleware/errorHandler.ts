@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, captureException } from '@lucky/shared/utils'
 import { AppError } from '../errors/AppError'
 import { ValidationError } from '@lucky/shared/errors'
 
@@ -30,6 +30,11 @@ export function errorHandler(
     errorLog({
         message: `Unhandled error on ${req.method} ${req.originalUrl}:`,
         error: err,
+    })
+    captureException(err, {
+        context: 'backend-unhandled-route-error',
+        method: req.method,
+        url: req.originalUrl,
     })
     res.status(500).json({ error: 'Internal server error' })
 }
