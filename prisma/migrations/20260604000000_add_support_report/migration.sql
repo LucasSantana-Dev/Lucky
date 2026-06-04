@@ -41,6 +41,11 @@ ALTER TABLE "support_reports"
     ADD CONSTRAINT "support_reports_image_mimetype_pair_check"
     CHECK (("image" IS NULL) = ("imageMimeType" IS NULL));
 
+-- Restrict image MIME type to the supported allowlist.
+ALTER TABLE "support_reports"
+    ADD CONSTRAINT "support_reports_image_mimetype_allowlist_check"
+    CHECK ("imageMimeType" IS NULL OR "imageMimeType" IN ('image/png', 'image/jpeg', 'image/webp'));
+
 -- Constrain the finite state fields to their allowed values.
 ALTER TABLE "support_reports"
     ADD CONSTRAINT "support_reports_surface_check"

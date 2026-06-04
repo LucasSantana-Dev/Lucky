@@ -136,6 +136,17 @@ describe('SupportReportService', () => {
                 }),
             )
         })
+
+        it('rejects an image with a disallowed mime type', async () => {
+            await expect(
+                service.create({
+                    context: 'bad image',
+                    surface: 'web',
+                    image: Buffer.from('data'),
+                    imageMimeType: 'image/gif',
+                }),
+            ).rejects.toThrow('Invalid support image')
+        })
     })
 
     describe('get', () => {
@@ -294,6 +305,32 @@ describe('SupportReportService', () => {
 
             expect(findMany).toHaveBeenCalledWith(
                 expect.objectContaining({ take: 20 }),
+            )
+        })
+
+        it('clamps non-finite or non-positive take to a valid bound', async () => {
+            const findMany =
+                jest
+                    .fn<(args: unknown) => Promise<Array<{ id: string }>>>()
+                    .mockResolvedValue([])
+            // @ts-ignore - partial prisma client mock
+            mockGetPrismaClient.mockReturnValue({
+                supportReport: { findMany },
+            })
+
+            await service.list({ take: Number.NaN })
+            expect(findMany).toHaveBeenLastCalledWith(
+                expect.objectContaining({ take: 20 }),
+            )
+
+            await service.list({ take: 0 })
+            expect(findMany).toHaveBeenLastCalledWith(
+                expect.objectContaining({ take: 1 }),
+            )
+
+            await service.list({ take: -5 })
+            expect(findMany).toHaveBeenLastCalledWith(
+                expect.objectContaining({ take: 1 }),
             )
         })
     })

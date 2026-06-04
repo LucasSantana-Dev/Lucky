@@ -1,4 +1,5 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
+import { validateSupportImage } from '../utils/support/supportImageValidation.js'
 
 /**
  * Represents a support report record.
@@ -58,6 +59,18 @@ export class SupportReportService {
      * @returns Promise with { id }
      */
     async create(input: CreateReportInput): Promise<{ id: string }> {
+        // Defense-in-depth: reject malformed image payloads before persisting,
+        // even though the public route is the primary validation point.
+        if (input.image) {
+            const validation = validateSupportImage({
+                size: input.image.byteLength,
+                mimetype: input.imageMimeType,
+            })
+            if (!validation.valid) {
+                throw new Error(`Invalid support image: ${validation.error}`)
+            }
+        }
+
         const prisma = getPrismaClient()
 
         const report = await prisma.supportReport.create({
@@ -104,8 +117,11 @@ export class SupportReportService {
     async list(filter: ListReportsFilter = {}): Promise<SupportReportListItem[]> {
         const prisma = getPrismaClient()
 
-        // Bound take to maximum of 100
-        const take = Math.min(filter.take ?? 20, 100)
+        // Clamp take to a positive integer in [1, 100]; guard NaN/Infinity/<=0.
+        const requested = Number.isFinite(filter.take)
+            ? Math.floor(filter.take as number)
+            : 20
+        const take = Math.min(Math.max(requested, 1), 100)
 
         const reports = await prisma.supportReport.findMany({
             where: filter.status ? { status: filter.status } : undefined,
