@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 export interface EmbedField {
     name: string
     value: string
@@ -13,6 +15,28 @@ export interface EmbedData {
     image?: string
     fields?: EmbedField[]
 }
+
+// Zod schema for validating EmbedData shape and constraints
+export const embedDataSchema = z.object({
+    title: z.string().max(256).optional(),
+    description: z.string().max(4096).optional(),
+    color: z
+        .string()
+        .regex(/^#[0-9A-Fa-f]{6}$/)
+        .optional(),
+    footer: z.string().optional(),
+    thumbnail: z.string().optional(),
+    image: z.string().optional(),
+    fields: z
+        .array(
+            z.object({
+                name: z.string(),
+                value: z.string(),
+                inline: z.boolean().optional(),
+            }),
+        )
+        .optional(),
+})
 
 export function validateEmbedData(embedData: Partial<EmbedData>): {
     valid: boolean

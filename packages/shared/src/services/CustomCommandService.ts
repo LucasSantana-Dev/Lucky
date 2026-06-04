@@ -1,11 +1,26 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 import { Prisma } from '../generated/prisma/client.js'
 import type { EmbedData } from './embedValidation.js'
+import { embedDataSchema } from './embedValidation.js'
 
 const prisma = getPrismaClient()
 
 /** Manages guild-specific custom commands with permissions. */
 export class CustomCommandService {
+    /**
+     * Validates embedData against the schema.
+     * Throws a validation error if the shape is invalid.
+     */
+    private validateEmbedData(embedData: unknown): EmbedData {
+        try {
+            return embedDataSchema.parse(embedData)
+        } catch (error) {
+            const message =
+                error instanceof Error ? error.message : 'Invalid embed data'
+            throw new Error(`Invalid embed data: ${message}`)
+        }
+    }
+
     /** Creates a new custom command for a guild. */
     async createCommand(
         guildId: string,
@@ -19,14 +34,19 @@ export class CustomCommandService {
             createdBy?: string
         },
     ) {
+        // Validate embedData if provided
+        const validatedEmbedData = options?.embedData
+            ? this.validateEmbedData(options.embedData)
+            : null
+
         const result = await prisma.customCommand.create({
             data: {
                 guildId,
                 name: name.toLowerCase(),
                 description: options?.description,
                 response,
-                embedData: options?.embedData
-                    ? JSON.stringify(options.embedData)
+                embedData: validatedEmbedData
+                    ? JSON.stringify(validatedEmbedData)
                     : Prisma.JsonNull,
                 allowedRoles: options?.allowedRoles || [],
                 allowedChannels: options?.allowedChannels || [],
@@ -49,6 +69,11 @@ export class CustomCommandService {
             createdBy?: string
         },
     ): Promise<'created' | 'updated'> {
+        // Validate embedData if provided
+        const validatedEmbedData = options?.embedData
+            ? this.validateEmbedData(options.embedData)
+            : null
+
         const normalizedName = name.toLowerCase()
         const lockKey = `custom-command:${guildId}:${normalizedName}`
 
@@ -73,8 +98,8 @@ export class CustomCommandService {
                         name: normalizedName,
                         description: options?.description,
                         response,
-                        embedData: options?.embedData
-                            ? JSON.stringify(options.embedData)
+                        embedData: validatedEmbedData
+                            ? JSON.stringify(validatedEmbedData)
                             : Prisma.JsonNull,
                         allowedRoles: options?.allowedRoles || [],
                         allowedChannels: options?.allowedChannels || [],
@@ -89,8 +114,8 @@ export class CustomCommandService {
                 data: {
                     description: options?.description ?? null,
                     response,
-                    embedData: options?.embedData
-                        ? JSON.stringify(options.embedData)
+                    embedData: validatedEmbedData
+                        ? JSON.stringify(validatedEmbedData)
                         : Prisma.JsonNull,
                     allowedRoles: options?.allowedRoles || [],
                     allowedChannels: options?.allowedChannels || [],
@@ -142,6 +167,20 @@ export class CustomCommandService {
         name: string,
         data: Prisma.CustomCommandUpdateInput,
     ) {
+        // Validate embedData if provided in the update
+        if (
+            data.embedData &&
+            typeof data.embedData === 'object' &&
+            data.embedData !== null
+        ) {
+            // If embedData is being updated, validate it
+            const validatedEmbedData = this.validateEmbedData(data.embedData)
+            data = {
+                ...data,
+                embedData: JSON.stringify(validatedEmbedData),
+            }
+        }
+
         const result = await prisma.customCommand.update({
             where: {
                 guildId_name: {
