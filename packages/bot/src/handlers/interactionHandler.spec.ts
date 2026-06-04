@@ -228,6 +228,21 @@ describe('interactionHandler', () => {
             )
         })
 
+        it('wraps a non-Error rejection before capturing it', async () => {
+            ;(executeCommand as jest.Mock).mockRejectedValue('boom')
+            const interaction = createMockChatInteraction()
+            const client = createMockClient()
+
+            await handleInteraction(interaction, client)
+
+            expect(captureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    context: 'interaction-handling-failure',
+                }),
+            )
+        })
+
         it('should not send error reply if interaction already replied', async () => {
             ;(executeCommand as jest.Mock).mockRejectedValue(new Error('Error'))
             const interaction = createMockChatInteraction({ replied: true })

@@ -34,10 +34,6 @@ export const handleInteractions = async ({
         client.on(Events.InteractionCreate, (interaction: Interaction) => {
             handleInteraction(interaction, client).catch((error) => {
                 errorLog({ message: 'Error handling interaction:', error })
-                captureException(
-                    error instanceof Error ? error : new Error(String(error)),
-                    { context: 'interaction-handling-failure' },
-                )
             })
         })
 

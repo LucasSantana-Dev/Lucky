@@ -406,6 +406,22 @@ describe('setupErrorHandlers', () => {
                 message: 'Attempting to recover from connection error',
             }),
         )
+        // Non-Error queue payload is wrapped into an Error before capture.
+        expect(captureExceptionMock).toHaveBeenCalledWith(
+            expect.any(Error),
+            expect.objectContaining({ context: 'player-queue-error' }),
+        )
+    })
+
+    it('wraps a non-Error top-level player payload before capturing it', () => {
+        const { playerHandlers } = createPlayerWithHandlers()
+
+        ;(playerHandlers.error as TopLevelErrorHandler)('raw failure' as any)
+
+        expect(captureExceptionMock).toHaveBeenCalledWith(
+            expect.any(Error),
+            expect.objectContaining({ context: 'player-unhandled-error' }),
+        )
     })
 
     it('skips when stream recovery has no requester, no tracks, no alternative, or no current track', async () => {

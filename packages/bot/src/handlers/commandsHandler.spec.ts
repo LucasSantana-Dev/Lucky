@@ -167,6 +167,23 @@ describe('commandsHandler', () => {
                 error: expect.any(Error),
             })
         })
+
+        it('wraps a non-Error rejection before capturing it', async () => {
+            const command = createMockCommand()
+            ;(command.execute as jest.Mock).mockRejectedValue('boom')
+            const interaction = createMockInteraction()
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({ interaction, client })
+
+            expect(captureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    context: 'command-execution-failure',
+                }),
+            )
+        })
     })
 
     describe('setCommands', () => {
