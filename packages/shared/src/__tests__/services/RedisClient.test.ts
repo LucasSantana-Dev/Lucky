@@ -1,5 +1,12 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 
+// Mock ioredis — controllable per test
+const mockIoredisConstructor = jest.fn<any>()
+
+jest.mock('ioredis', () => {
+    return mockIoredisConstructor
+})
+
 // Mock the dependencies
 const mockRedisOperationsInstance = {
     get: jest.fn<() => Promise<string | null>>(),
@@ -114,5 +121,93 @@ describe('RedisClient initialization error surfacing', () => {
         expect(typeof client.getInitializationError).toBe('function')
         expect(typeof client.get).toBe('function')
         expect(typeof client.set).toBe('function')
+    })
+
+    test('captures constructor errors and marks initialization as failed', () => {
+        const testError = new Error('Redis config invalid')
+        mockIoredisConstructor.mockImplementationOnce(() => {
+            throw testError
+        })
+
+        // Clear the module to force reimport with the new mock
+        delete require.cache[require.resolve('../../services/redis/client')]
+        const { RedisClient } = require('../../services/redis/client')
+
+        const client = new RedisClient()
+
+        // After a constructor error, isInitialized() should be false
+        expect(client.isInitialized()).toBe(false)
+
+        // getInitializationError() should return the captured error
+        const error = client.getInitializationError()
+        expect(error).toBeInstanceOf(Error)
+        expect(error?.message).toBe('Redis config invalid')
+    })
+
+    test('succeeds initialization when ioredis constructor succeeds', () => {
+        const mockRedisInstance = {
+            on: jest.fn(),
+            once: jest.fn(),
+        }
+        mockIoredisConstructor.mockImplementationOnce(() => mockRedisInstance)
+
+        // Clear the module to force reimport with the new mock
+        delete require.cache[require.resolve('../../services/redis/client')]
+        const { RedisClient } = require('../../services/redis/client')
+
+        const client = new RedisClient()
+
+        // After successful initialization, isInitialized() should be true
+        expect(client.isInitialized()).toBe(true)
+
+        // getInitializationError() should return null
+        const error = client.getInitializationError()
+        expect(error).toBeNull()
+    })
+
+    test('converts non-Error thrown values to Error instances', () => {
+        mockIoredisConstructor.mockImplementationOnce(() => {
+            throw 'string error message'
+        })
+
+        // Clear the module to force reimport with the new mock
+        delete require.cache[require.resolve('../../services/redis/client')]
+        const { RedisClient } = require('../../services/redis/client')
+
+        const client = new RedisClient()
+
+        // Should still be marked as failed
+        expect(client.isInitialized()).toBe(false)
+
+        // Error should be converted to Error instance
+        const error = client.getInitializationError()
+        expect(error).toBeInstanceOf(Error)
+        expect(error?.message).toBe('string error message')
+    })
+
+    test('operations fail gracefully when initialization failed', async () => {
+        const testError = new Error('Connection refused')
+        mockIoredisConstructor.mockImplementationOnce(() => {
+            throw testError
+        })
+
+        // Clear the module to force reimport with the new mock
+        delete require.cache[require.resolve('../../services/redis/client')]
+        const { RedisClient } = require('../../services/redis/client')
+
+        const client = new RedisClient()
+
+        // Even though initialization failed, operations should not throw
+        const getResult = await client.get('test-key')
+        expect(getResult).toBeNull()
+
+        const setResult = await client.set('test-key', 'value')
+        expect(setResult).toBe(false)
+
+        const delResult = await client.del('test-key')
+        expect(delResult).toBe(false)
+
+        const existsResult = await client.exists('test-key')
+        expect(existsResult).toBe(false)
     })
 })
