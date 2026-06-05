@@ -23,19 +23,20 @@ async function handleMemberAdd(member: GuildMember): Promise<void> {
             if (autorole.delayMinutes > 0) {
                 setTimeout(
                     () => {
-                        void (async () => {
-                            try {
-                                await member.roles.add(role)
-                                debugLog({
-                                    message: `Auto-assigned role ${role.name} to ${member.user.tag} after ${autorole.delayMinutes}m delay`,
-                                })
-                            } catch (error) {
-                                errorLog({
-                                    message: `Failed to assign auto-role ${role.name} to ${member.user.tag}:`,
-                                    error,
-                                })
-                            }
-                        })()
+                        // Terminal .catch (not `void`) so a rejection — including one
+                        // thrown from the error path itself — can never escape as an
+                        // unhandled promise rejection from this fire-and-forget timer.
+                        ;(async () => {
+                            await member.roles.add(role)
+                            debugLog({
+                                message: `Auto-assigned role ${role.name} to ${member.user.tag} after ${autorole.delayMinutes}m delay`,
+                            })
+                        })().catch((error) => {
+                            errorLog({
+                                message: `Failed to assign auto-role ${role.name} to ${member.user.tag}:`,
+                                error,
+                            })
+                        })
                     },
                     autorole.delayMinutes * 60 * 1000,
                 )
