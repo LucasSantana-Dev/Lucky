@@ -4,9 +4,10 @@ import { AppError } from '../../../src/errors/AppError'
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
+    captureException: jest.fn(),
 }))
 
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, captureException } from '@lucky/shared/utils'
 
 function createReq(method = 'GET', url = '/test') {
     return { method, originalUrl: url } as any
@@ -36,6 +37,8 @@ describe('errorHandler', () => {
             error: 'Invalid input',
         })
         expect(errorLog).not.toHaveBeenCalled()
+        // Expected client errors (4xx) must not pollute Sentry.
+        expect(captureException).not.toHaveBeenCalled()
     })
 
     test('should include details when present on AppError', () => {
@@ -109,6 +112,41 @@ describe('errorHandler', () => {
             message: 'Unhandled error on PUT /api/guilds/123:',
             error: err,
         })
+    })
+
+    test('should capture unknown errors to Sentry with request context', () => {
+        const err = new Error('DB connection failed')
+        const res = createRes()
+
+        errorHandler(err, createReq('PUT', '/api/guilds/123'), res, jest.fn())
+
+        expect(captureException).toHaveBeenCalledWith(err, {
+            context: 'backend-unhandled-route-error',
+            method: 'PUT',
+            url: '/api/guilds/123',
+        })
+    })
+
+    test('strips the query string from logged + captured URL (no secret leak)', () => {
+        const err = new Error('boom')
+        const res = createRes()
+
+        errorHandler(
+            err,
+            createReq('GET', '/api/auth/callback?code=secret&state=xyz'),
+            res,
+            jest.fn(),
+        )
+
+        expect(captureException).toHaveBeenCalledWith(
+            err,
+            expect.objectContaining({ url: '/api/auth/callback' }),
+        )
+        expect(errorLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Unhandled error on GET /api/auth/callback:',
+            }),
+        )
     })
 
     test('should not leak internal error details to client', () => {

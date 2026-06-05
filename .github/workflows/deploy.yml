@@ -8,6 +8,11 @@ on:
                 required: false
                 default: 'false'
                 type: boolean
+            rollback_sha:
+                description: 'Roll back: deploy this exact prior commit SHA (its :<sha> images must still exist in the registry). Leave blank for a normal deploy.'
+                required: false
+                default: ''
+                type: string
     workflow_run:
         workflows: ["Build & Push Docker Images"]
         types: [completed]
@@ -54,8 +59,16 @@ jobs:
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   GH_PAGER: cat
+                  ROLLBACK_SHA: ${{ inputs.rollback_sha }}
               run: |
                   set -euo pipefail
+                  # Rollback deploys an already-published prior image; its build
+                  # finished long ago, so skip the docker-publish wait entirely.
+                  if [ -n "$ROLLBACK_SHA" ]; then
+                    echo "==> Rollback to $ROLLBACK_SHA — skipping docker build wait (image already published)"
+                    echo "docker_rebuilt=false" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
                   if [ "${{ github.event_name }}" = "workflow_run" ]; then
                     commit_sha="${{ github.event.workflow_run.head_sha }}"
                   else
@@ -172,12 +185,21 @@ jobs:
             - name: Sentry release — create
               if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
               continue-on-error: true
+              env:
+                  ROLLBACK_SHA: ${{ inputs.rollback_sha }}
+                  WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+                  PUSH_SHA: ${{ github.sha }}
+                  EVENT_NAME: ${{ github.event_name }}
               run: |
                   set -euo pipefail
-                  if [ "${{ github.event_name }}" = "workflow_run" ]; then
-                    release="${{ github.event.workflow_run.head_sha }}"
+                  # Attribute the Sentry release to the SHA actually deployed
+                  # (the rollback target on a rollback) for runtime traceability.
+                  if [ -n "$ROLLBACK_SHA" ]; then
+                    release="$ROLLBACK_SHA"
+                  elif [ "$EVENT_NAME" = "workflow_run" ]; then
+                    release="$WORKFLOW_RUN_SHA"
                   else
-                    release="${{ github.sha }}"
+                    release="$PUSH_SHA"
                   fi
                   echo "==> Creating Sentry release $release"
                   npx --yes @sentry/cli@^3 releases new "$release"
@@ -187,15 +209,34 @@ jobs:
               env:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
                   WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+                  ROLLBACK_SHA: ${{ inputs.rollback_sha }}
+                  WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+                  PUSH_SHA: ${{ github.sha }}
+                  EVENT_NAME: ${{ github.event_name }}
               run: |
                   set -euo pipefail
                   echo "==> Triggering deploy webhook..."
+
+                  # Resolve the image SHA to deploy: an explicit rollback target
+                  # when given, else the commit that triggered this run. Sent to
+                  # the homelab so it deploys that exact :<sha> image tag.
+                  # All SHA sources are read from env (never inlined) to avoid
+                  # shell injection from the user-supplied rollback input.
+                  if [ -n "$ROLLBACK_SHA" ]; then
+                    DEPLOY_SHA="$ROLLBACK_SHA"
+                    echo "==> Manual rollback to $DEPLOY_SHA"
+                  elif [ "$EVENT_NAME" = "workflow_run" ]; then
+                    DEPLOY_SHA="$WORKFLOW_RUN_SHA"
+                  else
+                    DEPLOY_SHA="$PUSH_SHA"
+                  fi
 
                   call_webhook() {
                     local url="$1"
                     curl -s -w "\n%{http_code}" \
                       -X POST \
                       -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
+                      -H "X-Deploy-SHA: $DEPLOY_SHA" \
                       --connect-timeout 10 \
                       --max-time 30 \
                       "$url"
@@ -286,13 +327,23 @@ jobs:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
                   DOCKER_REBUILT: ${{ steps.docker_wait.outputs.docker_rebuilt }}
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  ROLLBACK_SHA: ${{ inputs.rollback_sha }}
+                  WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+                  PUSH_SHA: ${{ github.sha }}
+                  EVENT_NAME: ${{ github.event_name }}
               run: |
                   set -euo pipefail
                   base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
-                  if [ "${{ github.event_name }}" = "workflow_run" ]; then
-                    expected="${{ github.event.workflow_run.head_sha }}"
+                  # Validate the SHA actually deployed. On a rollback this is the
+                  # rollback target, so we verify the homelab posted a successful
+                  # deploy status for it (deploy.sh posts success only after the
+                  # rollback passes health checks).
+                  if [ -n "$ROLLBACK_SHA" ]; then
+                    expected="$ROLLBACK_SHA"
+                  elif [ "$EVENT_NAME" = "workflow_run" ]; then
+                    expected="$WORKFLOW_RUN_SHA"
                   else
-                    expected="${{ github.sha }}"
+                    expected="$PUSH_SHA"
                   fi
 
                   if [ "${DOCKER_REBUILT:-false}" != "true" ]; then
