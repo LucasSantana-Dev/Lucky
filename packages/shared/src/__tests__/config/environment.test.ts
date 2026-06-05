@@ -1,5 +1,8 @@
 import { describe, expect, it, beforeEach, afterEach } from '@jest/globals'
-import { validateBackendEnvironment, ensureEnvironment } from '../../config/environment'
+import {
+    validateBackendEnvironment,
+    ensureEnvironment,
+} from '../../config/environment'
 
 // These tests verify the cubic findings applied to environment.ts:
 // P2 #1: isMissingVariable treats whitespace-only strings as missing
@@ -29,7 +32,9 @@ describe('environment.ts - cubic findings verification', () => {
 
             expect(() => {
                 validateBackendEnvironment()
-            }).toThrow('Missing required backend environment variables: REDIS_HOST')
+            }).toThrow(
+                'Missing required backend environment variables: REDIS_HOST',
+            )
         })
 
         it('should reject tab-only REDIS_HOST', () => {
@@ -84,7 +89,7 @@ describe('environment.ts - cubic findings verification', () => {
             delete process.env.DATABASE_URL
 
             await expect(ensureEnvironment()).rejects.toThrow(
-                'Missing required environment variables: DATABASE_URL'
+                'Missing required environment variables: DATABASE_URL',
             )
         })
 
@@ -94,7 +99,7 @@ describe('environment.ts - cubic findings verification', () => {
             process.env.DATABASE_URL = 'url'
 
             await expect(ensureEnvironment()).rejects.toThrow(
-                'Missing required environment variables: DISCORD_TOKEN'
+                'Missing required environment variables: DISCORD_TOKEN',
             )
         })
 
@@ -103,14 +108,11 @@ describe('environment.ts - cubic findings verification', () => {
             delete process.env.CLIENT_ID
             delete process.env.DATABASE_URL
 
-            try {
-                await ensureEnvironment()
-                fail('should have thrown')
-            } catch (e: any) {
-                expect(e.message).toContain('DISCORD_TOKEN')
-                expect(e.message).toContain('CLIENT_ID')
-                expect(e.message).toContain('DATABASE_URL')
-            }
+            const error = await ensureEnvironment().catch((e: any) => e)
+            expect(error).toBeInstanceOf(Error)
+            expect(error.message).toContain('DISCORD_TOKEN')
+            expect(error.message).toContain('CLIENT_ID')
+            expect(error.message).toContain('DATABASE_URL')
         })
 
         it('should not throw when all required environment variables are present', async () => {
@@ -129,7 +131,7 @@ describe('environment.ts - cubic findings verification', () => {
             process.env.DATABASE_URL = 'url'
 
             await expect(ensureEnvironment()).rejects.toThrow(
-                expect.stringContaining('Missing required environment variables')
+                'Missing required environment variables',
             )
         })
 
@@ -141,21 +143,13 @@ describe('environment.ts - cubic findings verification', () => {
 
             expect(() => {
                 validateBackendEnvironment()
-            }).toThrow(
-                expect.stringContaining('Missing required backend environment variables')
-            )
+            }).toThrow('Missing required backend environment variables')
         })
 
         it('should include variable names in both assertion types', () => {
             delete process.env.DISCORD_TOKEN
             process.env.CLIENT_ID = 'id'
             process.env.DATABASE_URL = 'url'
-
-            // Test required vars assertion format
-            expect(() => {
-                // We can't directly call the private function, but we test via ensureEnvironment
-                // which internally calls the assertion
-            }).not.toThrow()
 
             delete process.env.REDIS_HOST
             process.env.SPOTIFY_CLIENT_ID = 'id'
@@ -164,7 +158,7 @@ describe('environment.ts - cubic findings verification', () => {
 
             expect(() => {
                 validateBackendEnvironment()
-            }).toThrow(expect.stringContaining('REDIS_HOST'))
+            }).toThrow('REDIS_HOST')
         })
 
         it('should handle multiple missing backend variables', () => {
