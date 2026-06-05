@@ -1,5 +1,5 @@
 -- Named saved queues (user-saved music sessions, restorable by name).
--- Part of the Redis scope-reduction (docs/decisions/2026-05-31-redis-scope-reduction.md):
+-- Part of the Redis scope-reduction (decisions/2026-05-31-redis-scope-reduction.md):
 -- migrates NamedSessionService off Redis onto Postgres. Pre-cutover Redis-only
 -- saved queues are not backfilled (they age out under the prior 30-day TTL anyway).
 

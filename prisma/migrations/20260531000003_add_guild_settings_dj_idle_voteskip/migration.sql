@@ -1,7 +1,7 @@
 -- Add the three guild-settings fields that lived only in the Redis blob
 -- (djRoleId, idleTimeoutMinutes, voteSkipThreshold) to the Postgres
 -- guild_settings table. Part of the Redis scope-reduction
--- (docs/decisions/2026-05-31-guild-settings-postgres-source-of-truth.md):
+-- (decisions/2026-05-31-guild-settings-postgres-source-of-truth.md):
 -- GuildSettingsService becomes Postgres source-of-truth, so every settings
 -- field needs a column. Additive + nullable; existing rows keep defaults.
 

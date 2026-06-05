@@ -1,7 +1,7 @@
 # Lucky — monitoring
 
 Observability remediation, Layers 1–3 (see
-[`docs/decisions/2026-05-30-observability-remediation-strategy.md`](../docs/decisions/2026-05-30-observability-remediation-strategy.md)).
+[`decisions/2026-05-30-observability-remediation-strategy.md`](../decisions/2026-05-30-observability-remediation-strategy.md)).
 
 Everything here is **no-op-by-default**: the code/CI changes activate only when the
 corresponding secrets/URLs are configured, so this PR is safe to merge before any
