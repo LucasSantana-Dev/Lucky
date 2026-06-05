@@ -623,9 +623,14 @@ if run_health_checks; then
         _last_good_sha=$(docker inspect lucky-bot \
             --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
             | sed -n 's/^COMMIT_SHA=//p' | head -1)
-        if [[ -n "$_last_good_sha" ]]; then
-            echo "$_last_good_sha" >"$LAST_GOOD_FILE" 2>/dev/null \
+        # Only persist a well-formed git SHA (7-40 hex). A malformed value would
+        # reintroduce the very bug this guards against — rollback targeting a
+        # :<sha> tag that doesn't exist — so reject it and keep the prior last-good.
+        if [[ "$_last_good_sha" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+            printf '%s\n' "$_last_good_sha" >"$LAST_GOOD_FILE" 2>/dev/null \
                 || log "WARN: could not record last-good SHA to $LAST_GOOD_FILE"
+        elif [[ -n "$_last_good_sha" ]]; then
+            log "WARN: malformed COMMIT_SHA '$_last_good_sha' from lucky-bot; keeping prior last-good"
         else
             log "WARN: could not read COMMIT_SHA from lucky-bot; keeping prior last-good"
         fi
