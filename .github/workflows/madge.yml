@@ -16,7 +16,7 @@ on:
 # refactoring (moving types to shared file) that cascades into command-loader
 # consumers (help.ts). Deferred pending command-loader contract review.
 #
-# See docs/decisions/2026-05-16-next-refactor-target-bot-circular-deps.md.
+# See decisions/2026-05-16-next-refactor-target-bot-circular-deps.md.
 
 permissions:
     contents: read
