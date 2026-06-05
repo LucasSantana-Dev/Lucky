@@ -7,6 +7,8 @@ const errorLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const captureExceptionMock = jest.fn()
 const buildCommandErrorEmbedMock = jest.fn()
+const mintCorrelationIdMock = jest.fn(() => 'DEFAULT123')
+const tagCorrelationIdToSentryMock = jest.fn()
 const interactionReplyMock = jest.fn().mockResolvedValue(undefined)
 const handleButtonInteractionMock = jest.fn()
 
@@ -28,6 +30,12 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     captureException: (...args: unknown[]) => captureExceptionMock(...args),
+}))
+
+jest.mock('@lucky/shared/utils/support', () => ({
+    mintCorrelationId: (...args: unknown[]) => mintCorrelationIdMock(...args),
+    tagCorrelationIdToSentry: (...args: unknown[]) =>
+        tagCorrelationIdToSentryMock(...args),
 }))
 
 jest.mock('../../src/utils/general/errorReportEmbed', () => ({
@@ -93,11 +101,13 @@ describe('handleInteraction', () => {
         executeCommandMock.mockResolvedValue(undefined)
         handleMusicButtonInteractionMock.mockResolvedValue(undefined)
         handleButtonInteractionMock.mockResolvedValue(undefined)
-        // Set default mock return for buildCommandErrorEmbed
+        // buildCommandErrorEmbed now returns the embed directly; the handler
+        // owns the correlation id via the mintCorrelationId mock.
         buildCommandErrorEmbedMock.mockReturnValue({
-            embed: { title: 'Error', description: 'error' },
-            correlationId: 'DEFAULT123',
+            title: 'Error',
+            description: 'error',
         })
+        mintCorrelationIdMock.mockReturnValue('DEFAULT123')
     })
 
     it('calls executeCommand for chat input commands', async () => {
@@ -239,10 +249,7 @@ describe('handleInteraction', () => {
         const err = new Error('queue failed')
         executeCommandMock.mockRejectedValue(err)
         const mockEmbed = { title: 'Error', description: 'Queue failed' }
-        buildCommandErrorEmbedMock.mockReturnValue({
-            embed: mockEmbed,
-            correlationId: 'TEST123',
-        })
+        buildCommandErrorEmbedMock.mockReturnValue(mockEmbed)
 
         await handleInteraction(interaction, client)
 

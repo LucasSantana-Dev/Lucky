@@ -1,10 +1,5 @@
 import { EmbedBuilder } from 'discord.js'
-import {
-    mintCorrelationId,
-    tagCorrelationIdToSentry,
-    buildErrorSupportContext,
-} from '@lucky/shared/utils/support'
-import { errorLog } from '@lucky/shared/utils'
+import { buildErrorSupportContext } from '@lucky/shared/utils/support'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { errorEmbed } from './embeds'
 
@@ -14,37 +9,25 @@ export interface BuildCommandErrorEmbedContext {
     errorCategory?: string
 }
 
-export interface BuildCommandErrorEmbedResult {
-    embed: EmbedBuilder
-    correlationId: string
-}
-
 /**
- * Builds an error embed with a correlation ID, support link, and Sentry tagging.
- * The correlation ID is minted once per call and tagged to Sentry immediately.
- * The support link (if available) is included in the embed description as a markdown link.
- * The footer displays the plain-text Error ID.
+ * Builds a user-facing error embed for an already-minted correlation id: a
+ * sanitized message, a markdown "Report this error" support link in the
+ * description when SUPPORT_URL is configured, and the plain-text Error ID in
+ * the footer (Discord footers do not render markdown links).
+ *
+ * The caller owns minting/tagging/logging the correlation id so it is recorded
+ * for Sentry even when no embed is shown (deferred / already-replied paths).
  *
  * @param error The error to report
- * @param context Optional context for the error (guildId, command, errorCategory)
- * @returns An object with the EmbedBuilder and the minted correlationId
+ * @param correlationId The correlation id to surface and correlate with logs/Sentry
+ * @param context Optional context (guildId, command, errorCategory) for the support link
+ * @returns The error EmbedBuilder
  */
 export function buildCommandErrorEmbed(
     error: unknown,
+    correlationId: string,
     context: BuildCommandErrorEmbedContext = {},
-): BuildCommandErrorEmbedResult {
-    const correlationId = mintCorrelationId()
-    tagCorrelationIdToSentry(correlationId)
-
-    errorLog({
-        message: 'Command error',
-        error,
-        data: {
-            correlationId,
-            ...context,
-        },
-    })
-
+): EmbedBuilder {
     const userMessage = createUserFriendlyError(error)
     const { supportLink } = buildErrorSupportContext(correlationId, context)
 
@@ -55,5 +38,5 @@ export function buildCommandErrorEmbed(
     const embed = errorEmbed('Error', description)
     embed.setFooter({ text: `Error ID: ${correlationId}` })
 
-    return { embed, correlationId }
+    return embed
 }

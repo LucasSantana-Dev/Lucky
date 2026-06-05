@@ -5,6 +5,10 @@ import {
     type Interaction,
 } from 'discord.js'
 import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
+import {
+    mintCorrelationId,
+    tagCorrelationIdToSentry,
+} from '@lucky/shared/utils/support'
 import { executeCommand } from './commandsHandler'
 import type { CustomClient } from '../types'
 import { interactionReply } from '../utils/general/interactionReply'
@@ -114,6 +118,12 @@ export async function handleInteraction(
             : interaction.isButton()
               ? interaction.customId
               : 'unknown'
+        // Mint one correlation id for this failure and tag it to Sentry up
+        // front, so it is recorded for every error path — including deferred
+        // or already-replied commands where no user-facing embed is shown.
+        const correlationId = mintCorrelationId()
+        tagCorrelationIdToSentry(correlationId)
+
         errorLog({
             message: 'Error handling interaction:',
             error,
@@ -121,24 +131,9 @@ export async function handleInteraction(
                 commandName,
                 userId: interaction.user.id,
                 guildId: interaction.guild?.id,
+                correlationId,
             },
         })
-
-        // Build error embed with correlation id for chat input commands
-        let correlationId: string | undefined
-        let errorEmbed
-        if (
-            interaction.isChatInputCommand() &&
-            !interaction.replied &&
-            !interaction.deferred
-        ) {
-            const result = buildCommandErrorEmbed(error, {
-                guildId: interaction.guild?.id,
-                command: commandName,
-            })
-            errorEmbed = result.embed
-            correlationId = result.correlationId
-        }
 
         captureException(
             error instanceof Error ? error : new Error(String(error)),
@@ -157,10 +152,18 @@ export async function handleInteraction(
                 !interaction.replied &&
                 !interaction.deferred
             ) {
+                const errorEmbed = buildCommandErrorEmbed(
+                    error,
+                    correlationId,
+                    {
+                        guildId: interaction.guild?.id,
+                        command: commandName,
+                    },
+                )
                 await interactionReply({
                     interaction,
                     content: {
-                        embeds: [errorEmbed!],
+                        embeds: [errorEmbed],
                         ephemeral: true,
                     },
                 })

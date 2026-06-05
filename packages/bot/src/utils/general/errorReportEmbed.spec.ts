@@ -5,23 +5,13 @@ import {
     type BuildCommandErrorEmbedContext,
 } from './errorReportEmbed'
 
-const mockMintCorrelationId = jest.fn()
-const mockTagCorrelationIdToSentry = jest.fn()
 const mockBuildErrorSupportContext = jest.fn()
-const mockErrorLog = jest.fn()
 const mockCreateUserFriendlyError = jest.fn()
 const mockErrorEmbed = jest.fn()
 
 jest.mock('@lucky/shared/utils/support', () => ({
-    mintCorrelationId: (...args: unknown[]) => mockMintCorrelationId(...args),
-    tagCorrelationIdToSentry: (...args: unknown[]) =>
-        mockTagCorrelationIdToSentry(...args),
     buildErrorSupportContext: (...args: unknown[]) =>
         mockBuildErrorSupportContext(...args),
-}))
-
-jest.mock('@lucky/shared/utils', () => ({
-    errorLog: (...args: unknown[]) => mockErrorLog(...args),
 }))
 
 jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
@@ -33,13 +23,15 @@ jest.mock('./embeds', () => ({
     errorEmbed: (...args: unknown[]) => mockErrorEmbed(...args),
 }))
 
+const CID = 'ABC12345'
+
 const createMockEmbed = (): EmbedBuilder => {
     return {
         setFooter: jest.fn().mockReturnThis(),
         toJSON: jest.fn(() => ({
             title: 'Error',
             description: 'Test error',
-            footer: { text: 'Error ID: ABC123' },
+            footer: { text: `Error ID: ${CID}` },
         })),
     } as unknown as EmbedBuilder
 }
@@ -47,10 +39,8 @@ const createMockEmbed = (): EmbedBuilder => {
 describe('buildCommandErrorEmbed', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        mockMintCorrelationId.mockReturnValue('ABC12345')
         mockErrorEmbed.mockReturnValue(createMockEmbed())
         mockCreateUserFriendlyError.mockReturnValue('Something went wrong')
-        // Set default mock return for buildErrorSupportContext
         mockBuildErrorSupportContext.mockReturnValue({
             supportLink: null,
             footerText:
@@ -58,9 +48,8 @@ describe('buildCommandErrorEmbed', () => {
         })
     })
 
-    describe('with SUPPORT_URL set', () => {
+    describe('with SUPPORT_URL set (supportLink provided)', () => {
         beforeEach(() => {
-            process.env.SUPPORT_URL = 'https://example.com/support'
             mockBuildErrorSupportContext.mockReturnValue({
                 supportLink:
                     'https://example.com/support?cid=ABC12345&command=test',
@@ -68,15 +57,10 @@ describe('buildCommandErrorEmbed', () => {
             })
         })
 
-        it('includes report link in embed description when supportLink is provided', () => {
-            const error = new Error('Test error')
-            const result = buildCommandErrorEmbed(error)
+        it('includes the report link in the embed description', () => {
+            buildCommandErrorEmbed(new Error('Test error'), CID)
 
-            expect(result.embed).toBeDefined()
-            expect(result.correlationId).toBe('ABC12345')
-
-            const callArgs = mockErrorEmbed.mock.calls[0]
-            const description = callArgs[1]
+            const description = mockErrorEmbed.mock.calls[0][1]
             expect(description).toContain('Something went wrong')
             expect(description).toContain('[🛟 Report this error]')
             expect(description).toContain(
@@ -84,116 +68,57 @@ describe('buildCommandErrorEmbed', () => {
             )
         })
 
-        it('sets footer with Error ID only (plain text)', () => {
-            const error = new Error('Test error')
+        it('sets the footer to the plain-text Error ID only', () => {
             const embed = createMockEmbed()
             mockErrorEmbed.mockReturnValue(embed)
 
-            buildCommandErrorEmbed(error)
+            buildCommandErrorEmbed(new Error('Test error'), CID)
 
             expect(embed.setFooter).toHaveBeenCalledWith({
-                text: 'Error ID: ABC12345',
+                text: `Error ID: ${CID}`,
             })
         })
 
-        it('passes context to buildErrorSupportContext', () => {
-            const error = new Error('Test error')
+        it('passes the correlation id and context to buildErrorSupportContext', () => {
             const context: BuildCommandErrorEmbedContext = {
                 guildId: 'guild-123',
                 command: 'test',
                 errorCategory: 'music',
             }
 
-            buildCommandErrorEmbed(error, context)
+            buildCommandErrorEmbed(new Error('Test error'), CID, context)
 
             expect(mockBuildErrorSupportContext).toHaveBeenCalledWith(
-                'ABC12345',
+                CID,
                 context,
             )
         })
     })
 
-    describe('with SUPPORT_URL unset', () => {
-        beforeEach(() => {
-            delete process.env.SUPPORT_URL
-            mockBuildErrorSupportContext.mockReturnValue({
-                supportLink: null,
-                footerText:
-                    'An error occurred. Please try again or contact support.',
-            })
-        })
+    describe('with SUPPORT_URL unset (supportLink null)', () => {
+        it('excludes the report link from the description', () => {
+            buildCommandErrorEmbed(new Error('Test error'), CID)
 
-        it('excludes report link when supportLink is null', () => {
-            const error = new Error('Test error')
-            const result = buildCommandErrorEmbed(error)
-
-            const callArgs = mockErrorEmbed.mock.calls[0]
-            const description = callArgs[1]
+            const description = mockErrorEmbed.mock.calls[0][1]
             expect(description).toBe('Something went wrong')
             expect(description).not.toContain('[🛟 Report this error]')
         })
 
-        it('still sets footer with Error ID', () => {
-            const error = new Error('Test error')
+        it('still sets the footer with the Error ID', () => {
             const embed = createMockEmbed()
             mockErrorEmbed.mockReturnValue(embed)
 
-            buildCommandErrorEmbed(error)
+            buildCommandErrorEmbed(new Error('Test error'), CID)
 
             expect(embed.setFooter).toHaveBeenCalledWith({
-                text: 'Error ID: ABC12345',
-            })
-        })
-    })
-
-    describe('correlation id and sentry tagging', () => {
-        it('mints a fresh correlation id', () => {
-            const error = new Error('Test error')
-            const result = buildCommandErrorEmbed(error)
-
-            expect(mockMintCorrelationId).toHaveBeenCalled()
-            expect(result.correlationId).toBe('ABC12345')
-        })
-
-        it('tags correlation id to sentry', () => {
-            const error = new Error('Test error')
-            buildCommandErrorEmbed(error)
-
-            expect(mockTagCorrelationIdToSentry).toHaveBeenCalledWith(
-                'ABC12345',
-            )
-        })
-
-        it('logs error with correlation id in data', () => {
-            const error = new Error('Test error')
-            const context: BuildCommandErrorEmbedContext = {
-                guildId: 'guild-123',
-                command: 'test',
-            }
-
-            buildCommandErrorEmbed(error, context)
-
-            expect(mockErrorLog).toHaveBeenCalledWith({
-                message: 'Command error',
-                error,
-                data: {
-                    correlationId: 'ABC12345',
-                    guildId: 'guild-123',
-                    command: 'test',
-                },
+                text: `Error ID: ${CID}`,
             })
         })
     })
 
     describe('embed building', () => {
-        it('calls errorEmbed with title and description', () => {
-            const error = new Error('Test error')
-            mockBuildErrorSupportContext.mockReturnValue({
-                supportLink: 'https://example.com/support?cid=ABC12345',
-                footerText: 'Error ID: ABC12345 — [Report](...)',
-            })
-
-            buildCommandErrorEmbed(error)
+        it('calls errorEmbed with the title and description', () => {
+            buildCommandErrorEmbed(new Error('Test error'), CID)
 
             expect(mockErrorEmbed).toHaveBeenCalledWith(
                 'Error',
@@ -201,29 +126,22 @@ describe('buildCommandErrorEmbed', () => {
             )
         })
 
-        it('returns the embed and correlation id', () => {
-            const error = new Error('Test error')
-            const mockEmbed = createMockEmbed()
-            mockErrorEmbed.mockReturnValue(mockEmbed)
+        it('returns the built embed', () => {
+            const embed = createMockEmbed()
+            mockErrorEmbed.mockReturnValue(embed)
 
-            const result = buildCommandErrorEmbed(error)
+            const result = buildCommandErrorEmbed(new Error('Test error'), CID)
 
-            expect(result.embed).toBe(mockEmbed)
-            expect(result.correlationId).toBe('ABC12345')
+            expect(result).toBe(embed)
         })
 
-        it('handles unknown error type', () => {
+        it('sanitizes unknown (non-Error) error types', () => {
             mockCreateUserFriendlyError.mockReturnValue(
                 'An unknown error occurred',
             )
-            mockBuildErrorSupportContext.mockReturnValue({
-                supportLink: null,
-                footerText: 'Error ID: ABC12345',
-            })
 
-            const result = buildCommandErrorEmbed('string error')
+            buildCommandErrorEmbed('string error', CID)
 
-            expect(result.correlationId).toBe('ABC12345')
             expect(mockCreateUserFriendlyError).toHaveBeenCalledWith(
                 'string error',
             )
@@ -231,48 +149,23 @@ describe('buildCommandErrorEmbed', () => {
     })
 
     describe('context handling', () => {
-        beforeEach(() => {
-            process.env.SUPPORT_URL = 'https://example.com/support'
-            mockBuildErrorSupportContext.mockReturnValue({
-                supportLink: 'https://example.com/support?cid=ABC12345',
-                footerText: 'Error ID: ABC12345 — [Report](...)',
-            })
-        })
+        it('defaults to an empty context object when omitted', () => {
+            buildCommandErrorEmbed(new Error('Test error'), CID)
 
-        it('handles empty context object', () => {
-            const error = new Error('Test error')
-            const result = buildCommandErrorEmbed(error, {})
-
-            expect(result.correlationId).toBe('ABC12345')
-            expect(mockBuildErrorSupportContext).toHaveBeenCalledWith(
-                'ABC12345',
-                {},
-            )
-        })
-
-        it('handles undefined context', () => {
-            const error = new Error('Test error')
-            const result = buildCommandErrorEmbed(error)
-
-            expect(result.correlationId).toBe('ABC12345')
-            expect(mockBuildErrorSupportContext).toHaveBeenCalledWith(
-                'ABC12345',
-                {},
-            )
+            expect(mockBuildErrorSupportContext).toHaveBeenCalledWith(CID, {})
         })
 
         it('preserves all context fields', () => {
-            const error = new Error('Test error')
             const context: BuildCommandErrorEmbedContext = {
                 guildId: 'guild-456',
                 command: 'music',
                 errorCategory: 'timeout',
             }
 
-            buildCommandErrorEmbed(error, context)
+            buildCommandErrorEmbed(new Error('Test error'), CID, context)
 
             expect(mockBuildErrorSupportContext).toHaveBeenCalledWith(
-                'ABC12345',
+                CID,
                 expect.objectContaining(context),
             )
         })
