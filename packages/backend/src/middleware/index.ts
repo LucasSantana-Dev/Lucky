@@ -25,18 +25,23 @@ export function setupMiddleware(app: Express): void {
             const parsed = new URL(origin)
             const host = parsed.hostname.toLowerCase()
 
-            if (host === 'localhost' || host === '127.0.0.1') {
+            // Localhost is only trusted off-production (local dev); never allow
+            // it as a credentialed cross-origin in prod.
+            if (
+                !isProduction &&
+                (host === 'localhost' || host === '127.0.0.1')
+            ) {
                 return true
             }
 
+            // Only first-party production hosts. Multi-tenant dev platforms
+            // (replit.dev / repl.co / replit.app) are NOT trusted with
+            // credentials — see ADR 2026-06-05-csrf-posture.
             return (
                 host === 'lucassantana.tech' ||
                 host.endsWith('.lucassantana.tech') ||
                 host === 'luk-homeserver.com.br' ||
-                host.endsWith('.luk-homeserver.com.br') ||
-                host.endsWith('.replit.dev') ||
-                host.endsWith('.repl.co') ||
-                host.endsWith('.replit.app')
+                host.endsWith('.luk-homeserver.com.br')
             )
         } catch {
             return false
