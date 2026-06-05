@@ -105,7 +105,7 @@ cloudflared/config.yml
 worktrees/
 
 # AI-generated docs / generator outputs — see
-# docs/decisions/2026-05-15-no-ai-generated-docs-in-tracked-state.md.
+# decisions/2026-05-15-no-ai-generated-docs-in-tracked-state.md.
 # Exact filenames only (no broad wildcards that would catch human-authored guides).
 .github/copilot-instructions.md
 .context/
@@ -123,3 +123,6 @@ graphify-out/
 
 # Deploy auto-rollback state (must survive `git clean -fd` between deploys)
 .deploy-last-good-sha
+
+# Feature specs are local AI/planning artifacts — kept untracked (mirrored under .claude/specs/).
+docs/specs/

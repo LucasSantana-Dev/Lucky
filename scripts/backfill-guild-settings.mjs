@@ -3,7 +3,7 @@
  *
  * Context: GuildSettingsService moved from Redis (key `guild_settings:{guildId}`,
  * 7-day TTL) to Postgres source-of-truth
- * (docs/decisions/2026-05-31-guild-settings-postgres-source-of-truth.md).
+ * (decisions/2026-05-31-guild-settings-postgres-source-of-truth.md).
  * Run this ONCE, BEFORE deploying the new code, so live settings aren't lost.
  * Idempotent: re-running upserts the same rows. Guilds whose Redis key already
  * expired simply aren't present -> they fall back to model defaults (acceptable).

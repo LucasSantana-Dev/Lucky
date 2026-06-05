@@ -1,5 +1,5 @@
 -- Per-guild music counters (autoplay recommendation count + repeat count).
--- Part of the Redis scope-reduction (docs/decisions/2026-05-31-redis-scope-reduction.md):
+-- Part of the Redis scope-reduction (decisions/2026-05-31-redis-scope-reduction.md):
 -- migrates the autoplay/repeat counters out of the Redis-backed GuildSettingsService
 -- onto Postgres. One row per guild. (Settings + rate-limiting are NOT migrated here:
 -- settings stay on Redis for now; rate-limiting moves to in-memory.)

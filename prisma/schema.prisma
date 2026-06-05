@@ -456,7 +456,7 @@ model UserArtistPreference {
 // (packages/bot/src/utils/music/autoplay/recommendationBasis.ts). `reason`
 // stays as the denormalized human-readable serialization for Discord display.
 //
-// See docs/decisions/2026-05-21-autoplay-recommendation-roadmap.md for the
+// See decisions/2026-05-21-autoplay-recommendation-roadmap.md for the
 // 4-phase roadmap; this table is the substrate for Phases A-C.
 enum RecommendationSource {
   SPOTIFY_REC
