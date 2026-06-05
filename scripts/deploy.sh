@@ -335,7 +335,8 @@ run_health_checks() {
     # real deploy. Lives in /tmp so the deploy's `git clean` can't remove it, and
     # self-deletes after one use. Absent in all normal operation.
     if [[ -f /tmp/lucky-simulate-health-fail ]]; then
-        rm -f /tmp/lucky-simulate-health-fail
+        # Best-effort delete; never let an undeletable sentinel abort the deploy.
+        rm -f /tmp/lucky-simulate-health-fail 2>/dev/null || true
         log "TEST: simulated health-check failure (one-shot sentinel consumed)"
         return 1
     fi
