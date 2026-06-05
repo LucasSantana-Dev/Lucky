@@ -58,6 +58,7 @@ function restoringQueue(guildId: string, searchResult?: unknown) {
         node: {
             isPlaying: () => false,
             play: jest.fn(async () => undefined),
+            remove: jest.fn(),
         },
         player: {
             search: jest.fn(
@@ -249,6 +250,76 @@ describe('MusicSessionSnapshotService', () => {
             expect(mockDeleteMany).toHaveBeenCalledWith({
                 where: { guildId: 'guild-2' },
             })
+        })
+
+        it('bails before enqueuing anything when already aborted (no clear, no remove)', async () => {
+            mockFindUnique.mockResolvedValueOnce(snapshotRow())
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-abort')
+            const controller = new AbortController()
+            controller.abort() // already aborted: loop must bail before enqueuing
+
+            const result = await service.restoreSnapshot(queue, undefined, {
+                signal: controller.signal,
+            })
+
+            expect(result.restoredCount).toBe(0)
+            expect(queue.addTrack).not.toHaveBeenCalled()
+            // Nothing was added, so nothing is removed; the whole queue is never cleared.
+            expect(queue.node.remove).not.toHaveBeenCalled()
+            expect(queue.clear).not.toHaveBeenCalled()
+        })
+
+        it('undoes only its own restored tracks when aborted mid-restore', async () => {
+            // Two-track snapshot; abort fires during the 2nd search (after track 1 added).
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({
+                    upcomingTracks: [
+                        {
+                            title: 'T1',
+                            author: 'A1',
+                            url: 'u1',
+                            duration: '1',
+                            source: 'youtube',
+                        },
+                        {
+                            title: 'T2',
+                            author: 'A2',
+                            url: 'u2',
+                            duration: '1',
+                            source: 'youtube',
+                        },
+                    ],
+                }),
+            )
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-mid-abort')
+            const controller = new AbortController()
+            let searchCalls = 0
+            ;(queue.player.search as jest.Mock).mockImplementation(async () => {
+                searchCalls += 1
+                if (searchCalls === 2) controller.abort()
+                return {
+                    tracks: [
+                        {
+                            title: 'x',
+                            author: 'y',
+                            url: 'z',
+                            setMetadata: jest.fn(),
+                        },
+                    ],
+                }
+            })
+
+            const result = await service.restoreSnapshot(queue, undefined, {
+                signal: controller.signal,
+            })
+
+            // Track 1 was added then undone via node.remove; nothing committed.
+            expect(result.restoredCount).toBe(0)
+            expect(queue.addTrack).toHaveBeenCalledTimes(1)
+            expect(queue.node.remove).toHaveBeenCalledTimes(1)
+            expect(queue.clear).not.toHaveBeenCalled()
         })
 
         it('prepends the current track to the restore list', async () => {
