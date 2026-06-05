@@ -355,7 +355,7 @@ run_health_checks() {
 
     if ! wait_for_http_ready \
         "API health" \
-        "http://nginx/api/health" \
+        "http://nginx:8080/api/health" \
         '"status"[[:space:]]*:[[:space:]]*"ok"'; then
         print_targeted_logs
         log "HEALTH: API health endpoint did not become ready"
@@ -364,7 +364,7 @@ run_health_checks() {
 
     if ! wait_for_http_ready \
         "Auth config health" \
-        "http://nginx/api/health/auth-config" \
+        "http://nginx:8080/api/health/auth-config" \
         '"auth"[[:space:]]*:'; then
         print_targeted_logs
         log "HEALTH: Auth config endpoint did not become ready"
