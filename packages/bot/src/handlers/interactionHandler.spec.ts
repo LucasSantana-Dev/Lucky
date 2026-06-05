@@ -34,8 +34,8 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-jest.mock('../utils/general/embeds', () => ({
-    errorEmbed: jest.fn().mockReturnValue({ title: 'Error' }),
+jest.mock('../utils/general/errorReportEmbed', () => ({
+    buildCommandErrorEmbed: jest.fn(),
 }))
 
 jest.mock('../utils/general/interactionReply', () => ({
@@ -46,18 +46,13 @@ jest.mock('../utils/monitoring', () => ({
     monitorInteractionHandling: jest.fn(),
 }))
 
-jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
-    createUserFriendlyError: jest.fn(),
-}))
-
 import { errorLog, captureException } from '@lucky/shared/utils'
 import { executeCommand } from './commandsHandler'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
 import { reactionRolesService } from '@lucky/shared/services'
-import { errorEmbed } from '../utils/general/embeds'
+import { buildCommandErrorEmbed } from '../utils/general/errorReportEmbed'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorInteractionHandling } from '../utils/monitoring'
-import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 
 function createMockClient(): CustomClient & {
     eventHandlers: Map<string, Function[]>
@@ -129,6 +124,11 @@ function createMockButtonInteraction(
 describe('interactionHandler', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        // Set default mock return for buildCommandErrorEmbed
+        ;(buildCommandErrorEmbed as jest.Mock).mockReturnValue({
+            embed: { title: 'Error' },
+            correlationId: 'DEFAULT123',
+        })
     })
 
     describe('handleInteractions', () => {})
@@ -166,10 +166,11 @@ describe('interactionHandler', () => {
             ;(executeCommand as jest.Mock).mockRejectedValue(
                 new Error('Command error'),
             )
-            ;(createUserFriendlyError as jest.Mock).mockReturnValue(
-                'An error occurred',
-            )
-            ;(errorEmbed as jest.Mock).mockReturnValue({ title: 'Error' })
+            const mockEmbed = { title: 'Error', setFooter: jest.fn() }
+            ;(buildCommandErrorEmbed as jest.Mock).mockReturnValue({
+                embed: mockEmbed,
+                correlationId: 'TEST1234',
+            })
             const interaction = createMockChatInteraction()
             const client = createMockClient()
 
@@ -184,17 +185,17 @@ describe('interactionHandler', () => {
                     guildId: 'guild-1',
                 },
             })
-            expect(createUserFriendlyError).toHaveBeenCalledWith(
+            expect(buildCommandErrorEmbed).toHaveBeenCalledWith(
                 expect.any(Error),
-            )
-            expect(errorEmbed).toHaveBeenCalledWith(
-                'Error',
-                'An error occurred',
+                {
+                    guildId: 'guild-1',
+                    command: 'test',
+                },
             )
             expect(interactionReply).toHaveBeenCalledWith({
                 interaction,
                 content: {
-                    embeds: [{ title: 'Error' }],
+                    embeds: [mockEmbed],
                     ephemeral: true,
                 },
             })
@@ -282,6 +283,11 @@ describe('interactionHandler', () => {
             ;(interactionReply as jest.Mock).mockRejectedValue(
                 new Error('Reply error'),
             )
+            const mockEmbed = { title: 'Error' }
+            ;(buildCommandErrorEmbed as jest.Mock).mockReturnValue({
+                embed: mockEmbed,
+                correlationId: 'TEST1234',
+            })
             const interaction = createMockChatInteraction()
             const client = createMockClient()
 
@@ -323,6 +329,46 @@ describe('interactionHandler', () => {
                     guildId: 'guild-1',
                 },
             })
+        })
+
+        it('should include correlationId in captureException for chat input command errors', async () => {
+            ;(executeCommand as jest.Mock).mockRejectedValue(
+                new Error('Command error'),
+            )
+            const mockEmbed = { title: 'Error' }
+            ;(buildCommandErrorEmbed as jest.Mock).mockReturnValue({
+                embed: mockEmbed,
+                correlationId: 'ABCD1234',
+            })
+            const interaction = createMockChatInteraction()
+            const client = createMockClient()
+
+            await handleInteraction(interaction, client)
+
+            expect(captureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    context: 'interaction-handling-failure',
+                    correlationId: 'ABCD1234',
+                }),
+            )
+        })
+
+        it('should not include correlationId in captureException for non-chat-input errors', async () => {
+            ;(
+                reactionRolesService.handleButtonInteraction as jest.Mock
+            ).mockRejectedValue(new Error('Button error'))
+            const interaction = createMockButtonInteraction('role_select')
+            const client = createMockClient()
+
+            await handleInteraction(interaction, client)
+
+            expect(captureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    correlationId: undefined,
+                }),
+            )
         })
     })
 

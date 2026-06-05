@@ -7,10 +7,9 @@ import {
 import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
 import { executeCommand } from './commandsHandler'
 import type { CustomClient } from '../types'
-import { errorEmbed } from '../utils/general/embeds'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorInteractionHandling } from '../utils/monitoring'
-import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
+import { buildCommandErrorEmbed } from '../utils/general/errorReportEmbed'
 import { reactionRolesService } from '@lucky/shared/services'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
 
@@ -124,6 +123,23 @@ export async function handleInteraction(
                 guildId: interaction.guild?.id,
             },
         })
+
+        // Build error embed with correlation id for chat input commands
+        let correlationId: string | undefined
+        let errorEmbed
+        if (
+            interaction.isChatInputCommand() &&
+            !interaction.replied &&
+            !interaction.deferred
+        ) {
+            const result = buildCommandErrorEmbed(error, {
+                guildId: interaction.guild?.id,
+                command: commandName,
+            })
+            errorEmbed = result.embed
+            correlationId = result.correlationId
+        }
+
         captureException(
             error instanceof Error ? error : new Error(String(error)),
             {
@@ -131,6 +147,7 @@ export async function handleInteraction(
                 commandName,
                 userId: interaction.user.id,
                 guildId: interaction.guild?.id ?? undefined,
+                correlationId,
             },
         )
 
@@ -140,11 +157,10 @@ export async function handleInteraction(
                 !interaction.replied &&
                 !interaction.deferred
             ) {
-                const userFriendlyError = createUserFriendlyError(error)
                 await interactionReply({
                     interaction,
                     content: {
-                        embeds: [errorEmbed('Error', userFriendlyError)],
+                        embeds: [errorEmbed!],
                         ephemeral: true,
                     },
                 })
