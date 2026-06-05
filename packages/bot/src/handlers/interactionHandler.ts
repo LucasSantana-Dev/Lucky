@@ -5,12 +5,15 @@ import {
     type Interaction,
 } from 'discord.js'
 import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
+import {
+    mintCorrelationId,
+    tagCorrelationIdToSentry,
+} from '@lucky/shared/utils/support'
 import { executeCommand } from './commandsHandler'
 import type { CustomClient } from '../types'
-import { errorEmbed } from '../utils/general/embeds'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorInteractionHandling } from '../utils/monitoring'
-import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
+import { buildCommandErrorEmbed } from '../utils/general/errorReportEmbed'
 import { reactionRolesService } from '@lucky/shared/services'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
 
@@ -115,6 +118,12 @@ export async function handleInteraction(
             : interaction.isButton()
               ? interaction.customId
               : 'unknown'
+        // Mint one correlation id for this failure and tag it to Sentry up
+        // front, so it is recorded for every error path — including deferred
+        // or already-replied commands where no user-facing embed is shown.
+        const correlationId = mintCorrelationId()
+        tagCorrelationIdToSentry(correlationId)
+
         errorLog({
             message: 'Error handling interaction:',
             error,
@@ -122,8 +131,10 @@ export async function handleInteraction(
                 commandName,
                 userId: interaction.user.id,
                 guildId: interaction.guild?.id,
+                correlationId,
             },
         })
+
         captureException(
             error instanceof Error ? error : new Error(String(error)),
             {
@@ -131,6 +142,7 @@ export async function handleInteraction(
                 commandName,
                 userId: interaction.user.id,
                 guildId: interaction.guild?.id ?? undefined,
+                correlationId,
             },
         )
 
@@ -140,11 +152,18 @@ export async function handleInteraction(
                 !interaction.replied &&
                 !interaction.deferred
             ) {
-                const userFriendlyError = createUserFriendlyError(error)
+                const errorEmbed = buildCommandErrorEmbed(
+                    error,
+                    correlationId,
+                    {
+                        guildId: interaction.guild?.id,
+                        command: commandName,
+                    },
+                )
                 await interactionReply({
                     interaction,
                     content: {
-                        embeds: [errorEmbed('Error', userFriendlyError)],
+                        embeds: [errorEmbed],
                         ephemeral: true,
                     },
                 })
