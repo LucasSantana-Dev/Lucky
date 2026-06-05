@@ -9,12 +9,12 @@ Single-context repo. ADRs live in **`decisions/`** (not the conventional `docs/a
 ```
 /
 ├── CONTEXT.md                    ← not yet created; proceed silently if absent
-├── docs/
-│   ├── decisions/                ← ADRs live here
-│   │   └── YYYY-MM-DD-<slug>.md
-│   ├── specs/                    ← /adt-specs-spec-new output
-│   ├── plans/                    ← /plan output
-│   └── references/
+├── decisions/                    ← ADRs live here (tracked, repo root)
+│   └── YYYY-MM-DD-<slug>.md
+├── docs/                         ← human-facing project documentation only
+│   ├── agents/                   ← agent conventions (this file, issue-tracker, triage-labels)
+│   └── *.md                      ← ARCHITECTURE, CI_CD, *_SETUP, runbooks, etc.
+├── .claude/                      ← local-only (untracked): specs/ (/adt-specs-spec-new), plans/ (/plan)
 ├── packages/                     ← bot, backend, frontend, shared
 └── ...
 ```

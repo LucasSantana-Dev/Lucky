@@ -158,7 +158,7 @@ const hasRemovalCommit = danger.git.commits.some(
 if (hasRemovalCommit && !hasSweepChecklistInBody) {
     const baseRepo = pr.base.repo.full_name
     const baseRef = pr.base.ref
-    const adrPath = 'decisions/2026-05-19-retire-per-guild-feature-toggles.md'
+    const adrPath = 'decisions/'
     const adrUrl = `https://github.com/${baseRepo}/blob/${baseRef}/${adrPath}`
     warn(
         `This PR appears to remove a feature or route (detected in commit message). ` +

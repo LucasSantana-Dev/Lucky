@@ -72,4 +72,4 @@ branch). Criteria for fast-tracking:
 ## References
 
 - ADR: `decisions/2026-05-28-branch-strategy-main-as-trunk.md` (this model)
-- ADR: `decisions/2026-05-09-branch-strategy-no-stacking.md`
+- ADR: `decisions/2026-05-28-branch-strategy-main-as-trunk.md`

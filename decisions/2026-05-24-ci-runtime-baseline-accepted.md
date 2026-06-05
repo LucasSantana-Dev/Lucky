@@ -81,7 +81,7 @@ becomes a problem later, but the right next step from the current baseline.
 ## Revisit when
 
 - Post-PRD #966, `test-backend` consistently exceeds **4 min** in wall time (currently ~2 min).
-- A new feature phase adds a large test surface (e.g., integration test expansion from
-  `decisions/2026-05-09-autoplay-integration-tests-phase-a.md`).
+- A new feature phase adds a large test surface (e.g., integration test expansion per
+  `decisions/2026-05-14-discord-integration-testing-strategy.md`).
 - Runner count increases (self-hosted runners with >2 vCPU would change the `maxWorkers`
   calculus and make sharding more impactful).
