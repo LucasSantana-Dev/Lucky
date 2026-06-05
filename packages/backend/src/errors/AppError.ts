@@ -24,6 +24,14 @@ export class AppError extends Error {
         return new AppError(404, message)
     }
 
+    static payloadTooLarge(message: string): AppError {
+        return new AppError(413, message)
+    }
+
+    static unsupportedMediaType(message: string): AppError {
+        return new AppError(415, message)
+    }
+
     static serviceUnavailable(message = 'Service unavailable'): AppError {
         return new AppError(503, message)
     }

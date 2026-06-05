@@ -30,6 +30,7 @@ import { setupHealthRoutes } from './health'
 import { setupMetricsRoute } from './metrics'
 import { setupStatsRoutes } from './stats'
 import { setupInviteRoute } from './invite'
+import { setupSupportRoutes } from './support'
 
 type GuildGuardConfig = {
     path: string
@@ -83,6 +84,7 @@ const routeSetups = [
     setupStarboardRoutes,
     setupMusicRoutes,
     setupArtistsRoutes,
+    setupSupportRoutes,
 ]
 
 export function setupRoutes(app: Express): void {
