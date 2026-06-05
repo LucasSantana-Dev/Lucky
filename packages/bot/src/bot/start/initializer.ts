@@ -1,5 +1,9 @@
 import { errorLog, infoLog } from '@lucky/shared/utils'
-import { createClient, startClient } from '../../handlers/clientHandler'
+import {
+    createClient,
+    startClient,
+    stopPresenceRotation,
+} from '../../handlers/clientHandler'
 import { createPlayer } from '../../handlers/playerHandler'
 import { setCommands } from '../../handlers/commandsHandler'
 import { getCommands } from '../../register'
@@ -163,6 +167,8 @@ export class BotInitializer {
     }
 
     async shutdown(): Promise<void> {
+        stopPresenceRotation()
+
         if (this.client) {
             try {
                 this.client.removeAllListeners()
