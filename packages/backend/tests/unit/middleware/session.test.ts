@@ -49,6 +49,23 @@ describe('Session Middleware', () => {
         }
     })
 
+    test('should throw when WEBAPP_SESSION_SECRET is whitespace-only', async () => {
+        const { setupSessionMiddleware } =
+            await import('../../../src/middleware/session')
+        const originalSecret = process.env.WEBAPP_SESSION_SECRET
+        process.env.WEBAPP_SESSION_SECRET = '   '
+
+        expect(() => {
+            setupSessionMiddleware(app)
+        }).toThrow('WEBAPP_SESSION_SECRET environment variable is required')
+
+        if (originalSecret) {
+            process.env.WEBAPP_SESSION_SECRET = originalSecret
+        } else {
+            delete process.env.WEBAPP_SESSION_SECRET
+        }
+    })
+
     test('should configure session with correct settings', async () => {
         const { setupSessionMiddleware } =
             await import('../../../src/middleware/session')
