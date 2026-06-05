@@ -124,4 +124,12 @@ describe('POST /api/internal/notify', () => {
             .send({ channelId: '1', content: 'x' })
         expect(res.status).toBe(500)
     })
+
+    it('rejects whitespace-only x-notify-key header', async () => {
+        const res = await request(buildApp())
+            .post('/api/internal/notify')
+            .set('x-notify-key', '   ')
+            .send({ channelId: '1', content: 'hi' })
+        expect(res.status).toBe(401)
+    })
 })

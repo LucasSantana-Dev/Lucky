@@ -116,6 +116,14 @@ describe('POST /webhooks/topgg-votes', () => {
         expect(res.status).toBe(401)
     })
 
+    it('rejects whitespace-only authorization header', async () => {
+        const res = await request(buildApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', '   ')
+            .send({ user: '1', type: 'upvote' })
+        expect(res.status).toBe(401)
+    })
+
     it('accepts test-type payload and returns { ok, test }', async () => {
         const res = await request(buildApp())
             .post('/webhooks/topgg-votes')
@@ -166,6 +174,13 @@ describe('GET /api/internal/votes/:userId', () => {
         const res = await request(buildApp())
             .get('/api/internal/votes/123456789012345678')
             .set('x-notify-key', 'wrong')
+        expect(res.status).toBe(401)
+    })
+
+    it('rejects GET with whitespace-only x-notify-key', async () => {
+        const res = await request(buildApp())
+            .get('/api/internal/votes/123456789012345678')
+            .set('x-notify-key', '   ')
         expect(res.status).toBe(401)
     })
 
@@ -281,7 +296,6 @@ describe('POST /webhooks/topgg-votes persistence', () => {
         expect(pipelineMock.expire).not.toHaveBeenCalled()
     })
 
-
     it('rejects unsafe non-snowflake user ids before writing to Redis', async () => {
         const res = await request(buildApp())
             .post('/webhooks/topgg-votes')
@@ -290,5 +304,4 @@ describe('POST /webhooks/topgg-votes persistence', () => {
         expect(res.status).toBe(400)
         expect(redisEval).not.toHaveBeenCalled()
     })
-
 })
