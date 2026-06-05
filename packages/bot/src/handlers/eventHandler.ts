@@ -114,21 +114,27 @@ async function handleInteractionError(
             userId: interaction.user?.id,
         })
     }
+
+    // Safely create user-friendly error; fall back if transformation fails
+    let userFriendlyError: string
     try {
-        const userFriendlyError = createUserFriendlyError(error)
-        await interactionReply({
-            interaction,
-            content: {
-                content: userFriendlyError,
-                ephemeral: true,
-            },
-        })
-    } catch (followUpError) {
+        userFriendlyError = createUserFriendlyError(error)
+    } catch (sanitizationError) {
         errorLog({
-            message: 'Error sending error message:',
-            error: followUpError,
+            message: 'Failed to create user-friendly error',
+            error: sanitizationError,
         })
+        userFriendlyError =
+            'An unexpected error occurred. Please try again later.'
     }
+
+    await interactionReply({
+        interaction,
+        content: {
+            content: userFriendlyError,
+            ephemeral: true,
+        },
+    })
 }
 
 async function handleAutocomplete(interaction: Interaction): Promise<void> {

@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import { ValidationError } from '@lucky/shared/errors/ValidationError'
 
 const mockPrisma: any = {
     customCommand: {
@@ -98,6 +99,226 @@ describe('CustomCommandService', () => {
                 }),
             )
         })
+
+        test('should throw ValidationError when embedData is invalid', async () => {
+            const invalidEmbedData = {
+                title: 'x'.repeat(300), // exceeds max 256
+            }
+
+            await expect(
+                service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: invalidEmbedData,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should throw ValidationError with details when embedData fails validation', async () => {
+            const invalidEmbedData = {
+                color: 'invalid-hex', // not a valid hex color
+            }
+
+            try {
+                await service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: invalidEmbedData,
+                })
+                throw new Error('Expected ValidationError to be thrown')
+            } catch (error) {
+                expect(error).toBeInstanceOf(ValidationError)
+                const validationError = error as ValidationError
+                expect(validationError.message).toBe('Invalid embed data')
+                expect(validationError.details).toBeDefined()
+                expect(Array.isArray(validationError.details)).toBe(true)
+            }
+        })
+
+        test('should reject primitive embedData (string)', async () => {
+            await expect(
+                service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: 'not an object' as any,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should reject primitive embedData (number)', async () => {
+            await expect(
+                service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: 123 as any,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should reject empty embed object (no title, description, or fields)', async () => {
+            await expect(
+                service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: {} as any,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should reject title exceeding 256 characters', async () => {
+            await expect(
+                service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: {
+                        title: 'x'.repeat(257),
+                    } as any,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should reject description exceeding 4096 characters', async () => {
+            await expect(
+                service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: {
+                        description: 'x'.repeat(4097),
+                    } as any,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should reject footer exceeding 2048 characters', async () => {
+            await expect(
+                service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: {
+                        title: 'Test',
+                        footer: 'x'.repeat(2049),
+                    } as any,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should reject more than 25 fields', async () => {
+            const fields = Array.from({ length: 26 }, (_, i) => ({
+                name: `Field ${i}`,
+                value: `Value ${i}`,
+            }))
+            await expect(
+                service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: {
+                        title: 'Test',
+                        fields,
+                    } as any,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should reject field with name exceeding 256 characters', async () => {
+            await expect(
+                service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: {
+                        title: 'Test',
+                        fields: [
+                            {
+                                name: 'x'.repeat(257),
+                                value: 'valid',
+                            },
+                        ],
+                    } as any,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should reject field with value exceeding 1024 characters', async () => {
+            await expect(
+                service.createCommand(GUILD_A, 'test', 'response', {
+                    embedData: {
+                        title: 'Test',
+                        fields: [
+                            {
+                                name: 'valid',
+                                value: 'x'.repeat(1025),
+                            },
+                        ],
+                    } as any,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should accept valid embed with title', async () => {
+            mockPrisma.customCommand.create.mockResolvedValue({
+                id: 'cmd-1',
+                guildId: GUILD_A,
+                name: 'test',
+                response: 'response',
+                embedData: '{"title":"Valid Embed"}',
+            })
+
+            const result = await service.createCommand(
+                GUILD_A,
+                'test',
+                'response',
+                {
+                    embedData: { title: 'Valid Embed' } as any,
+                },
+            )
+
+            expect(result.id).toBe('cmd-1')
+            expect(mockPrisma.customCommand.create).toHaveBeenCalled()
+        })
+
+        test('should accept valid embed with description', async () => {
+            mockPrisma.customCommand.create.mockResolvedValue({
+                id: 'cmd-1',
+                guildId: GUILD_A,
+                name: 'test',
+                response: 'response',
+                embedData: '{"description":"Valid Embed"}',
+            })
+
+            const result = await service.createCommand(
+                GUILD_A,
+                'test',
+                'response',
+                {
+                    embedData: { description: 'Valid Embed' } as any,
+                },
+            )
+
+            expect(result.id).toBe('cmd-1')
+        })
+
+        test('should accept valid embed with fields', async () => {
+            mockPrisma.customCommand.create.mockResolvedValue({
+                id: 'cmd-1',
+                guildId: GUILD_A,
+                name: 'test',
+                response: 'response',
+                embedData: '{"fields":[{"name":"Field","value":"Value"}]}',
+            })
+
+            const result = await service.createCommand(
+                GUILD_A,
+                'test',
+                'response',
+                {
+                    embedData: {
+                        fields: [{ name: 'Field', value: 'Value' }],
+                    } as any,
+                },
+            )
+
+            expect(result.id).toBe('cmd-1')
+        })
+
+        test('should accept null embedData (clearing embed)', async () => {
+            mockPrisma.customCommand.create.mockResolvedValue({
+                id: 'cmd-1',
+                guildId: GUILD_A,
+                name: 'test',
+                response: 'response',
+                embedData: null,
+            })
+
+            const result = await service.createCommand(
+                GUILD_A,
+                'test',
+                'response',
+                {
+                    embedData: null,
+                },
+            )
+
+            expect(result.id).toBe('cmd-1')
+        })
     })
 
     describe('getCommand', () => {
@@ -191,6 +412,72 @@ describe('CustomCommandService', () => {
                 },
                 data: { response: 'Updated response' },
             })
+        })
+
+        test('should reject primitive embedData (string) in update', async () => {
+            await expect(
+                service.updateCommand(GUILD_A, 'hello', {
+                    embedData: 'not an object' as any,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should allow clearing embedData with null', async () => {
+            mockPrisma.customCommand.update.mockResolvedValue({
+                id: 'cmd-1',
+                name: 'hello',
+                embedData: null,
+            })
+
+            const result = await service.updateCommand(GUILD_A, 'hello', {
+                embedData: null,
+            })
+
+            expect(result.id).toBe('cmd-1')
+            expect(mockPrisma.customCommand.update).toHaveBeenCalledWith({
+                where: {
+                    guildId_name: { guildId: GUILD_A, name: 'hello' },
+                },
+                data: { embedData: null },
+            })
+        })
+
+        test('should reject primitive embedData (number) in update', async () => {
+            await expect(
+                service.updateCommand(GUILD_A, 'hello', {
+                    embedData: 123 as any,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should validate embedData when updating with valid object', async () => {
+            mockPrisma.customCommand.update.mockResolvedValue({
+                id: 'cmd-1',
+                name: 'hello',
+                embedData: '{"title":"Updated"}',
+            })
+
+            const result = await service.updateCommand(GUILD_A, 'hello', {
+                embedData: { title: 'Updated' } as any,
+            })
+
+            expect(result.id).toBe('cmd-1')
+        })
+
+        test('should reject invalid embedData (empty object) in update', async () => {
+            await expect(
+                service.updateCommand(GUILD_A, 'hello', {
+                    embedData: {} as any,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        test('should reject title exceeding limits in update', async () => {
+            await expect(
+                service.updateCommand(GUILD_A, 'hello', {
+                    embedData: { title: 'x'.repeat(257) } as any,
+                }),
+            ).rejects.toThrow(ValidationError)
         })
     })
 

@@ -1,11 +1,6 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 import type { PrismaClient } from '../generated/prisma/client.js'
-import { redisClient } from './redis/index.js'
-import { errorLog } from '../utils/general/log.js'
 import type { ModerationSettings } from './ModerationService.js'
-
-const CACHE_TTL = 300
-const CACHE_PREFIX = 'modsettings:'
 
 let prismaInstance: PrismaClient | null = null
 
@@ -16,19 +11,10 @@ function prisma(): PrismaClient {
     return prismaInstance
 }
 
-/** Retrieves moderation settings for a guild with caching support. */
+/** Retrieves moderation settings for a guild. */
 export async function getModerationSettings(
     guildId: string,
 ): Promise<ModerationSettings> {
-    if (redisClient.isHealthy()) {
-        try {
-            const cached = await redisClient.get(`${CACHE_PREFIX}${guildId}`)
-            if (cached) return JSON.parse(cached)
-        } catch (err) {
-            errorLog({ message: 'Mod settings cache read error', error: err })
-        }
-    }
-
     let settings = await prisma().moderationSettings.findUnique({
         where: { guildId },
     })
@@ -38,20 +24,10 @@ export async function getModerationSettings(
         })
     }
 
-    if (redisClient.isHealthy()) {
-        redisClient
-            .setex(
-                `${CACHE_PREFIX}${guildId}`,
-                CACHE_TTL,
-                JSON.stringify(settings),
-            )
-            .catch(() => {})
-    }
-
     return settings
 }
 
-/** Updates or creates moderation settings for a guild and invalidates cache. */
+/** Updates or creates moderation settings for a guild. */
 export async function updateModerationSettings(
     guildId: string,
     data: Partial<
@@ -63,10 +39,6 @@ export async function updateModerationSettings(
         create: { guildId, ...data },
         update: data,
     })
-
-    if (redisClient.isHealthy()) {
-        redisClient.del(`${CACHE_PREFIX}${guildId}`).catch(() => {})
-    }
 
     return result
 }

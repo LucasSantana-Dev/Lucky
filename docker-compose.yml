@@ -220,7 +220,7 @@ services:
             dockerfile: Dockerfile
         container_name: lucky-webhook
         command: >
-            -hooks /hooks/hooks.json
+            -hooks /home/luk-server/Lucky/deploy/hooks.json
             -verbose
             -hotreload
         environment:
@@ -228,8 +228,12 @@ services:
             - DISCORD_DEPLOY_WEBHOOK=${DISCORD_DEPLOY_WEBHOOK:-}
             - DEPLOY_DIR=/home/luk-server/Lucky
         volumes:
+            # Read hooks.json from the directory-mounted repo (not a single-file
+            # mount): a single-file bind-mount freezes to the original inode, so
+            # a deploy's `git reset` that REPLACES the file is never seen, leaving
+            # the webhook on a stale hooks.json. The directory mount updates live,
+            # so -hotreload picks up changes (e.g. new pass-arguments entries).
             - .:/home/luk-server/Lucky
-            - ./deploy/hooks.json:/hooks/hooks.json:ro
             - ${CLOUDFLARED_CONFIG_DIR:-/home/luk-server/.cloudflared}:${CLOUDFLARED_CONFIG_DIR:-/home/luk-server/.cloudflared}:ro
             - /var/run/docker.sock:/var/run/docker.sock
         working_dir: /home/luk-server/Lucky

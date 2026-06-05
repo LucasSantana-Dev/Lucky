@@ -93,6 +93,14 @@ class CollaborativePlaylistService {
             (state.contributions[userId] ?? 0) + increment
         state.updatedAt = Date.now()
     }
+
+    /**
+     * Clear session state for a guild. Call this when a music session ends
+     * (e.g., on queue delete or bot leave).
+     */
+    clearGuildState(guildId: string): void {
+        this.states.delete(guildId)
+    }
 }
 
 export const collaborativePlaylistService = new CollaborativePlaylistService()
