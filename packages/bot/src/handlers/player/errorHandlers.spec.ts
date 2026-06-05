@@ -4,6 +4,7 @@ import { setupErrorHandlers } from './errorHandlers'
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const warnLogMock = jest.fn()
+const captureExceptionMock = jest.fn()
 const analyzeYouTubeErrorMock = jest.fn()
 const logYouTubeErrorMock = jest.fn()
 const recordFailureMock = jest.fn()
@@ -15,6 +16,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
+    captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }))
 
 jest.mock('../../utils/general/embeds', () => ({
@@ -360,6 +362,18 @@ describe('setupErrorHandlers', () => {
                 }),
             }),
         )
+        // Both top-level and queue player errors must reach Sentry.
+        expect(captureExceptionMock).toHaveBeenCalledWith(
+            expect.any(Error),
+            expect.objectContaining({ context: 'player-unhandled-error' }),
+        )
+        expect(captureExceptionMock).toHaveBeenCalledWith(
+            expect.any(Error),
+            expect.objectContaining({
+                context: 'player-queue-error',
+                guildId: 'guild-1',
+            }),
+        )
     })
 
     it('normalizes non-error queue payloads and recovers connection when rejoin works', () => {
@@ -391,6 +405,22 @@ describe('setupErrorHandlers', () => {
             expect.objectContaining({
                 message: 'Attempting to recover from connection error',
             }),
+        )
+        // Non-Error queue payload is wrapped into an Error before capture.
+        expect(captureExceptionMock).toHaveBeenCalledWith(
+            expect.any(Error),
+            expect.objectContaining({ context: 'player-queue-error' }),
+        )
+    })
+
+    it('wraps a non-Error top-level player payload before capturing it', () => {
+        const { playerHandlers } = createPlayerWithHandlers()
+
+        ;(playerHandlers.error as TopLevelErrorHandler)('raw failure' as any)
+
+        expect(captureExceptionMock).toHaveBeenCalledWith(
+            expect.any(Error),
+            expect.objectContaining({ context: 'player-unhandled-error' }),
         )
     })
 

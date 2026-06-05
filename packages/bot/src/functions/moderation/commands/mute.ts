@@ -7,6 +7,7 @@ import Command from '../../../models/Command.js'
 import { moderationService } from '@lucky/shared/services'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
+import { formatDurationHuman } from '../../../utils/general/formatDuration'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -90,14 +91,6 @@ export default new Command({
                 channelId: interaction.channelId,
             })
 
-            const formatDuration = (seconds: number): string => {
-                if (seconds < 60) return `${seconds} seconds`
-                if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes`
-                if (seconds < 86400)
-                    return `${Math.floor(seconds / 3600)} hours`
-                return `${Math.floor(seconds / 86400)} days`
-            }
-
             const embed = new EmbedBuilder()
                 .setColor(0xff6b6b)
                 .setTitle(`🔇 User Muted - Case #${moderationCase.caseNumber}`)
@@ -114,7 +107,7 @@ export default new Command({
                     },
                     {
                         name: 'Duration',
-                        value: formatDuration(durationSeconds),
+                        value: formatDurationHuman(durationSeconds),
                         inline: true,
                     },
                     { name: 'Reason', value: reason },
@@ -136,7 +129,7 @@ export default new Command({
                         .addFields(
                             {
                                 name: 'Duration',
-                                value: formatDuration(durationSeconds),
+                                value: formatDurationHuman(durationSeconds),
                             },
                             { name: 'Reason', value: reason },
                             {
@@ -157,7 +150,7 @@ export default new Command({
             }
 
             infoLog({
-                message: `User ${user.tag} muted for ${formatDuration(durationSeconds)} by ${interaction.user.tag} in ${interaction.guild.name}`,
+                message: `User ${user.tag} muted for ${formatDurationHuman(durationSeconds)} by ${interaction.user.tag} in ${interaction.guild.name}`,
             })
         } catch (error) {
             errorLog({

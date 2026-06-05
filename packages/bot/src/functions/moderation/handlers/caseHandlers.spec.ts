@@ -218,7 +218,7 @@ describe('caseHandlers', () => {
                 (f: any) => f.name === 'Duration',
             )
             expect(durationField).toBeDefined()
-            expect(durationField.value).toBe('1 hours')
+            expect(durationField.value).toBe('1 hour')
         })
 
         test('displays expiration date when present', async () => {
