@@ -5,6 +5,7 @@ const handleMusicButtonInteractionMock = jest.fn()
 const monitorInteractionHandlingMock = jest.fn()
 const errorLogMock = jest.fn()
 const debugLogMock = jest.fn()
+const captureExceptionMock = jest.fn()
 const createUserFriendlyErrorMock = jest.fn((err: unknown) =>
     err instanceof Error ? err.message : 'error',
 )
@@ -31,6 +32,7 @@ jest.mock('../../src/utils/monitoring', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
+    captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }))
 
 jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({

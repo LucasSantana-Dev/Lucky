@@ -2,7 +2,12 @@ import type { Client, TextChannel } from 'discord.js'
 import { ChannelType } from 'discord.js'
 import { EmbedBuilder } from '@discordjs/builders'
 import { COLOR } from '@lucky/shared/constants'
-import { getPrismaClient, debugLog, errorLog, infoLog } from '@lucky/shared/utils'
+import {
+    getPrismaClient,
+    debugLog,
+    errorLog,
+    infoLog,
+} from '@lucky/shared/utils'
 
 // Tick every hour by default. The scheduler tracks the last UTC date it
 // announced for each guild (in-memory) so multiple ticks on the same day
@@ -111,7 +116,9 @@ export class BirthdayScheduler {
             await this.reconcileGuildsWithoutMatches(byGuild)
 
             if (rows.length === 0) {
-                debugLog({ message: `birthday tick: no matches for ${todayKey}` })
+                debugLog({
+                    message: `birthday tick: no matches for ${todayKey}`,
+                })
             }
         } catch (error) {
             errorLog({
@@ -129,16 +136,32 @@ export class BirthdayScheduler {
         if (!this.client) return
         // Find guilds that have a role configured but aren't in today's match
         // set — those need role revocation from any stale holders.
+        // Paginate to avoid unbounded query on large deployments.
         const prisma = getPrismaClient()
-        const guildsWithRole = (await prisma.guildSettings.findMany({
-            where: { birthdayRoleId: { not: null } },
-            select: { guildId: true, birthdayRoleId: true },
-        })) as Array<{ guildId: string; birthdayRoleId: string | null }>
+        const PAGE_SIZE = 500
+        let cursor: string | undefined
+        let hasMore = true
 
-        for (const row of guildsWithRole) {
-            if (byGuild.has(row.guildId)) continue // handled above
-            if (!row.birthdayRoleId) continue
-            await this.reconcileBirthdayRole(row.guildId, new Set())
+        while (hasMore) {
+            const guildsWithRole = (await prisma.guildSettings.findMany({
+                where: { birthdayRoleId: { not: null } },
+                select: { guildId: true, birthdayRoleId: true },
+                take: PAGE_SIZE,
+                skip: cursor ? 1 : 0,
+                cursor: cursor ? { guildId: cursor } : undefined,
+                orderBy: { guildId: 'asc' },
+            })) as Array<{ guildId: string; birthdayRoleId: string | null }>
+
+            hasMore = guildsWithRole.length === PAGE_SIZE
+            if (guildsWithRole.length === 0) break
+
+            for (const row of guildsWithRole) {
+                if (byGuild.has(row.guildId)) continue // handled above
+                if (!row.birthdayRoleId) continue
+                await this.reconcileBirthdayRole(row.guildId, new Set())
+            }
+
+            cursor = guildsWithRole[guildsWithRole.length - 1]?.guildId
         }
     }
 

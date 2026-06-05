@@ -7,6 +7,7 @@ Thanks for working on Lucky. This file documents the small repo-specific rules t
 Use the GitHub issue tracker: https://github.com/LucasSantana-Dev/Lucky/issues
 
 Issue templates guide you through the required information:
+
 - **Bug report** — steps to reproduce, expected vs actual behaviour, Lucky version, deployment type
 - **Feature request** — problem statement and proposed solution
 
@@ -36,7 +37,7 @@ Branch protection on `main` requires:
 - `Security` (CI/CD Pipeline — secret scan + audit)
 - `SonarCloud Code Analysis` (Quality Gate, includes ≥ 80% new-code coverage)
 
-Plus the repo *ruleset* (separate from legacy branch protection — visible only via `gh api /repos/.../rules/branches/main`) adds:
+Plus the repo _ruleset_ (separate from legacy branch protection — visible only via `gh api /repos/.../rules/branches/main`) adds:
 
 - `portability` (path-portability check)
 - `SonarCloud Scan`
@@ -95,16 +96,11 @@ Closing and reopening the PR works too but loses any auto-merge arming.
 
 `gh pr merge --auto` does **not** rebase a `BEHIND` branch when `main` advances. When a stacked PR ahead of yours lands, your PR will go BEHIND and stop being a merge candidate even if all checks were previously green. Sweep with `gh pr update-branch` after each `main` advancement, or run a small watcher script that polls and rebases on transition.
 
-## CodeRabbit reviews
+## cubic reviews
 
-CodeRabbit's `@coderabbitai review` trigger is sometimes ignored after a fix push (~10+ min, no fresh review). When that happens, you can dismiss the stale `CHANGES_REQUESTED` review directly:
+cubic is the codebase-aware AI reviewer (replaced CodeRabbit 2026-06-04 — see `docs/review-tools.md`). Trigger a review by commenting `@cubic-dev-ai review` on the PR. cubic also auto-reviews new PRs.
 
-```bash
-gh api -X PUT "/repos/LucasSantana-Dev/Lucky/pulls/<PR>/reviews/<REVIEW_ID>/dismissals" \
-  -f message="Addressed in commit <SHA>: <one-line summary>"
-```
-
-Always pair the dismissal with the **thread-resolution** recipe above — dismissing the review does not auto-resolve the inline threads.
+cubic is low-false-positive by design and does **not** flip PRs to `CHANGES_REQUESTED` on style nits, so there's no stale-review dismissal dance. If cubic posts a high-severity finding you've addressed, push the fix and re-comment `@cubic-dev-ai review` to re-run; resolve any inline threads with the thread-resolution recipe above.
 
 ## Hard rules
 

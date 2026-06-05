@@ -120,3 +120,6 @@ docs/FRONTEND_AI_STUDIO_CONTEXT.md
 # Rebuild with `/graphify --update`; do not track.
 graphify-out/
 
+
+# Deploy auto-rollback state (must survive `git clean -fd` between deploys)
+.deploy-last-good-sha

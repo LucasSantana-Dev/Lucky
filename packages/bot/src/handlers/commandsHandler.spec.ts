@@ -8,6 +8,7 @@ import type Command from '../models/Command'
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
+    captureException: jest.fn(),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -28,7 +29,7 @@ jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
     createUserFriendlyError: jest.fn().mockReturnValue('An error occurred'),
 }))
 
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { errorLog, captureException } from '@lucky/shared/utils'
 import { featureToggleService } from '@lucky/shared/services'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
@@ -85,10 +86,6 @@ describe('commandsHandler', () => {
             })
         })
 
-
-
-
-
         it('should block command when feature toggle is disabled', async () => {
             ;(featureToggleService.isEnabled as jest.Mock).mockResolvedValue(
                 false,
@@ -110,7 +107,6 @@ describe('commandsHandler', () => {
             expect(command.execute).not.toHaveBeenCalled()
         })
 
-
         it('should handle command execution errors', async () => {
             const command = createMockCommand()
             ;(command.execute as jest.Mock).mockRejectedValue(
@@ -129,6 +125,13 @@ describe('commandsHandler', () => {
                 message: 'Error executing command test:',
                 error: expect.any(Error),
             })
+            expect(captureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    context: 'command-execution-failure',
+                    command: 'test',
+                }),
+            )
             expect(createUserFriendlyError).toHaveBeenCalledWith(
                 expect.any(Error),
             )
@@ -163,6 +166,23 @@ describe('commandsHandler', () => {
                 message: 'Error sending error message:',
                 error: expect.any(Error),
             })
+        })
+
+        it('wraps a non-Error rejection before capturing it', async () => {
+            const command = createMockCommand()
+            ;(command.execute as jest.Mock).mockRejectedValue('boom')
+            const interaction = createMockInteraction()
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({ interaction, client })
+
+            expect(captureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    context: 'command-execution-failure',
+                }),
+            )
         })
     })
 

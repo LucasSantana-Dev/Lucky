@@ -6,14 +6,19 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { z } from 'zod'
 import { levelService } from '@lucky/shared/services'
+import {
+    guildIdParam,
+    userIdParam as commonUserIdParam,
+} from '../schemas/common'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
 }
 
-const guildIdParam = z.object({ guildId: z.string().min(1) })
-const userIdParam = z.object({ guildId: z.string().min(1), userId: z.string().min(1) })
-const levelParam = z.object({ guildId: z.string().min(1), level: z.coerce.number().int().min(1) })
+const rankParams = guildIdParam.merge(commonUserIdParam)
+const levelParam = guildIdParam.extend({
+    level: z.coerce.number().int().min(1),
+})
 
 const upsertConfigBody = z.object({
     enabled: z.boolean().optional(),
@@ -60,7 +65,10 @@ export function setupLevelsRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const limit = Number(req.query.limit) || 10
-            const leaderboard = await levelService.getLeaderboard(guildId, Math.min(limit, 50))
+            const leaderboard = await levelService.getLeaderboard(
+                guildId,
+                Math.min(limit, 50),
+            )
             res.json({ leaderboard })
         }),
     )
@@ -68,7 +76,7 @@ export function setupLevelsRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/levels/rank/:userId',
         requireAuth,
-        validateParams(userIdParam),
+        validateParams(rankParams),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const userId = p(req.params.userId)

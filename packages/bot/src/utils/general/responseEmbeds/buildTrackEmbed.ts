@@ -2,6 +2,7 @@ import { EmbedBuilder } from 'discord.js'
 import type { User } from 'discord.js'
 import type { Track } from 'discord-player'
 import { detectSource } from '../../music/nowPlayingEmbed'
+import { formatDurationClock } from '../formatDuration'
 
 export type TrackEmbedKind = 'queued' | 'playing' | 'recommended' | 'history'
 
@@ -74,14 +75,9 @@ export function trackToData(track: Track): TrackData {
         author: track.author,
         url: track.url,
         thumbnail: track.thumbnail,
-        duration: track.durationMS ? formatDuration(track.durationMS) : undefined,
+        duration: track.durationMS
+            ? formatDurationClock(Math.floor(track.durationMS / 1000))
+            : undefined,
         source: track.source ?? null,
     }
-}
-
-function formatDuration(ms: number): string {
-    const totalSeconds = Math.floor(ms / 1000)
-    const minutes = Math.floor(totalSeconds / 60)
-    const seconds = totalSeconds % 60
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }

@@ -4,7 +4,7 @@ import {
     type CommandInteractionOptionResolver,
     type Interaction,
 } from 'discord.js'
-import { errorLog, debugLog } from '@lucky/shared/utils'
+import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
 import { executeCommand } from './commandsHandler'
 import type { CustomClient } from '../types'
 import { errorEmbed } from '../utils/general/embeds'
@@ -124,6 +124,15 @@ export async function handleInteraction(
                 guildId: interaction.guild?.id,
             },
         })
+        captureException(
+            error instanceof Error ? error : new Error(String(error)),
+            {
+                context: 'interaction-handling-failure',
+                commandName,
+                userId: interaction.user.id,
+                guildId: interaction.guild?.id ?? undefined,
+            },
+        )
 
         try {
             if (

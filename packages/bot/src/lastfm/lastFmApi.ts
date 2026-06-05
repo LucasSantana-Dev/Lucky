@@ -185,7 +185,13 @@ export async function getTrackMetadata(
                 `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(lookupArtist)}&track=${encodeURIComponent(trimmedTitle)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
             )
             if (!response.ok) {
-                debugLog({ message: 'lastFmApi: getTrackMetadata HTTP error', data: { status: response.status, statusText: response.statusText } })
+                debugLog({
+                    message: 'lastFmApi: getTrackMetadata HTTP error',
+                    data: {
+                        status: response.status,
+                        statusText: response.statusText,
+                    },
+                })
                 return null
             }
             const data = (await response.json()) as {
@@ -203,9 +209,7 @@ export async function getTrackMetadata(
             const album = t.album?.title || ''
             const albumArtist = t.album?.artist || ''
             const mbid = t.mbid || ''
-            const durationNum = t.duration
-                ? parseInt(t.duration, 10) || 0
-                : 0
+            const durationNum = t.duration ? parseInt(t.duration, 10) || 0 : 0
             const meta: LastFmTrackMetadata = {
                 artist: t.artist.name,
                 title: t.name,
@@ -218,7 +222,10 @@ export async function getTrackMetadata(
                 const oldest = TRACK_METADATA_CACHE.keys().next().value
                 if (oldest) TRACK_METADATA_CACHE.delete(oldest)
             }
-            TRACK_METADATA_CACHE.set(key, { meta, expiresAt: now + TRACK_METADATA_TTL_MS })
+            TRACK_METADATA_CACHE.set(key, {
+                meta,
+                expiresAt: now + TRACK_METADATA_TTL_MS,
+            })
             return meta
         } catch (err) {
             logAndSwallow(err, 'lastfm.getTrackMetadata', {
@@ -367,6 +374,16 @@ export async function getRecentTracks(
         const response = await fetch(
             `${API_BASE}?method=user.getrecenttracks&user=${encodeURIComponent(lastFmUsername)}&limit=${limit}&format=json&api_key=${config.apiKey}`,
         )
+        if (!response.ok) {
+            debugLog({
+                message: 'lastFmApi: getRecentTracks HTTP error',
+                data: {
+                    status: response.status,
+                    statusText: response.statusText,
+                },
+            })
+            return []
+        }
         const data = (await response.json()) as {
             recenttracks?: {
                 track?: Array<{
@@ -477,6 +494,16 @@ export async function getSimilarTracks(
         const response = await fetch(
             `${API_BASE}?method=track.getSimilar&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&limit=${limit}&autocorrect=1&format=json&api_key=${config.apiKey}`,
         )
+        if (!response.ok) {
+            debugLog({
+                message: 'lastFmApi: getSimilarTracks HTTP error',
+                data: {
+                    status: response.status,
+                    statusText: response.statusText,
+                },
+            })
+            return []
+        }
         const data = (await response.json()) as {
             similartracks?: {
                 track?: Array<{
@@ -507,6 +534,16 @@ export async function getTagTopTracks(
         const response = await fetch(
             `${API_BASE}?method=tag.getTopTracks&tag=${encodeURIComponent(tag)}&limit=${limit}&format=json&api_key=${config.apiKey}`,
         )
+        if (!response.ok) {
+            debugLog({
+                message: 'lastFmApi: getTagTopTracks HTTP error',
+                data: {
+                    status: response.status,
+                    statusText: response.statusText,
+                },
+            })
+            return []
+        }
         const data = (await response.json()) as {
             toptracks?: {
                 track?: Array<{
@@ -535,6 +572,16 @@ export async function getLovedTracks(
         const response = await fetch(
             `${API_BASE}?method=user.getlovedtracks&user=${encodeURIComponent(username)}&limit=${limit}&format=json&api_key=${config.apiKey}`,
         )
+        if (!response.ok) {
+            debugLog({
+                message: 'lastFmApi: getLovedTracks HTTP error',
+                data: {
+                    status: response.status,
+                    statusText: response.statusText,
+                },
+            })
+            return []
+        }
         const data = (await response.json()) as {
             lovedtracks?: {
                 track?: Array<{

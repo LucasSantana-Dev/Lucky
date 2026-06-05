@@ -79,41 +79,49 @@ export class LevelService {
         amount: number,
         displayName?: string | null,
     ): Promise<{ member: MemberXP; leveledUp: boolean; newLevel: number }> {
-        const current = await prisma.memberXP.upsert({
-            where: { guildId_userId: { guildId, userId } },
-            create: {
-                guildId,
-                userId,
-                xp: amount,
-                lastXpAt: new Date(),
-                displayName: displayName ?? null,
-            },
-            // Only overwrite the name when a fresh one is supplied, so a missing
-            // value never wipes a previously-captured name.
-            update: {
-                xp: { increment: amount },
-                lastXpAt: new Date(),
-                ...(displayName ? { displayName } : {}),
-            },
+        // Use a transaction to ensure read-modify-write is atomic for concurrent XP additions
+        const result = await prisma.$transaction(async (tx) => {
+            // Upsert with XP increment (returns the updated record with post-increment XP)
+            const current = await tx.memberXP.upsert({
+                where: { guildId_userId: { guildId, userId } },
+                create: {
+                    guildId,
+                    userId,
+                    xp: amount,
+                    lastXpAt: new Date(),
+                    displayName: displayName ?? null,
+                },
+                // Only overwrite the name when a fresh one is supplied, so a missing
+                // value never wipes a previously-captured name.
+                update: {
+                    xp: { increment: amount },
+                    lastXpAt: new Date(),
+                    ...(displayName ? { displayName } : {}),
+                },
+            })
+
+            // Calculate new level based on the post-increment XP
+            let leveledUp = false
+            let newLevel = current.level
+
+            while (current.xp >= xpNeededForLevel(newLevel + 1)) {
+                newLevel++
+                leveledUp = true
+            }
+
+            // Update level in the same transaction to prevent race conditions
+            let finalMember = current
+            if (leveledUp) {
+                finalMember = await tx.memberXP.update({
+                    where: { guildId_userId: { guildId, userId } },
+                    data: { level: newLevel },
+                })
+            }
+
+            return { member: finalMember, leveledUp, newLevel }
         })
 
-        let leveledUp = false
-        let newLevel = current.level
-
-        while (current.xp >= xpNeededForLevel(newLevel + 1)) {
-            newLevel++
-            leveledUp = true
-        }
-
-        if (leveledUp) {
-            await prisma.memberXP.update({
-                where: { guildId_userId: { guildId, userId } },
-                data: { level: newLevel },
-            })
-            current.level = newLevel
-        }
-
-        return { member: current, leveledUp, newLevel }
+        return result
     }
 
     async getLeaderboard(guildId: string, limit = 10): Promise<MemberXP[]> {
