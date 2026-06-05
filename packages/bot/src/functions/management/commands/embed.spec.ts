@@ -47,6 +47,7 @@ function createChatInputInteraction(
 		channel: {
 			id: 'channel-123',
 			send: jest.fn(),
+			isTextBased: jest.fn().mockReturnValue(true),
 		},
 		user: {
 			id: 'user-123',
@@ -201,6 +202,7 @@ describe('embed command', () => {
 			const mockChannel = {
 				id: 'channel-456',
 				send: jest.fn(),
+				isTextBased: jest.fn().mockReturnValue(true),
 			}
 
 			embedBuilderServiceMock.getTemplate.mockResolvedValue({
@@ -339,6 +341,47 @@ describe('embed command', () => {
 
 			await embedCommand.execute({ interaction })
 
+			expect(interactionReplyMock).toHaveBeenCalledWith({
+				interaction,
+				content: {
+					content: '❌ Invalid channel.',
+				},
+			})
+		})
+
+		it('rejects send to non-text-based channel', async () => {
+			embedBuilderServiceMock.getTemplate.mockResolvedValue({
+				id: 'template-1',
+				name: 'test',
+				guildId: 'guild-123',
+				title: 'Test',
+				description: null,
+				color: null,
+				footer: null,
+				thumbnail: null,
+				image: null,
+				fields: null,
+				useCount: 0,
+				createdBy: 'user-123',
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			})
+
+			// Channel with a send method but not text-based (isTextBased() false)
+			const nonTextChannel = {
+				id: 'channel-456',
+				send: jest.fn(),
+				isTextBased: jest.fn().mockReturnValue(false),
+			}
+
+			const interaction = createChatInputInteraction('send', {
+				template: 'test',
+				channel: nonTextChannel,
+			})
+
+			await embedCommand.execute({ interaction })
+
+			expect(nonTextChannel.send).not.toHaveBeenCalled()
 			expect(interactionReplyMock).toHaveBeenCalledWith({
 				interaction,
 				content: {
