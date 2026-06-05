@@ -180,6 +180,18 @@ export default new Command({
                     return
                 }
 
+                const targetChannel =
+                    channel && 'send' in channel && channel.isTextBased()
+                        ? (channel as TextChannel)
+                        : null
+                if (!targetChannel) {
+                    await interactionReply({
+                        interaction,
+                        content: { content: '❌ Invalid channel.' },
+                    })
+                    return
+                }
+
                 const embed = new EmbedBuilder()
                 if (template.title) embed.setTitle(template.title)
                 if (template.description)
@@ -195,31 +207,20 @@ export default new Command({
                     embed.addFields(template.fields as EmbedField[])
                 }
 
-                const targetChannel =
-                    channel && 'send' in channel
-                        ? (channel as TextChannel)
-                        : null
-                if (targetChannel) {
-                    await targetChannel.send({ embeds: [embed] })
-                    await embedBuilderService.incrementUsage(
-                        interaction.guild.id,
-                        templateName,
-                    )
+                await targetChannel.send({ embeds: [embed] })
+                await embedBuilderService.incrementUsage(
+                    interaction.guild.id,
+                    templateName,
+                )
 
-                    await interactionReply({
-                        interaction,
-                        content: { content: `✅ Embed sent to ${channel}` },
-                    })
+                await interactionReply({
+                    interaction,
+                    content: { content: `✅ Embed sent to ${channel}` },
+                })
 
-                    infoLog({
-                        message: `Embed template "${templateName}" sent by ${interaction.user.tag} in ${interaction.guild.name}`,
-                    })
-                } else {
-                    await interactionReply({
-                        interaction,
-                        content: { content: '❌ Invalid channel.' },
-                    })
-                }
+                infoLog({
+                    message: `Embed template "${templateName}" sent by ${interaction.user.tag} in ${interaction.guild.name}`,
+                })
             } else if (subcommand === 'list') {
                 const templates = await embedBuilderService.listTemplates(
                     interaction.guild.id,
