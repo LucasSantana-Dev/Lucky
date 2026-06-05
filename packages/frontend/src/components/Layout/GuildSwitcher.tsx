@@ -116,7 +116,10 @@ export default function GuildSwitcher({ open, onOpenChange }: GuildSwitcherProps
                                     <button
                                         type='button'
                                         onClick={() => {
-                                            Promise.resolve(fetchGuilds(true)).catch(() => {})
+                                            // fetchGuilds resolves even on failure —
+                                            // it sets guildLoadError, which re-renders
+                                            // this error block with the message.
+                                            void fetchGuilds(true)
                                         }}
                                         className='lucky-focus-visible rounded-md border border-lucky-border px-2.5 py-1.5 type-body-sm text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary'
                                     >
