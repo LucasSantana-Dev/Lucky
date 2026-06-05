@@ -15,6 +15,7 @@ import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { interactionReply } from '../../../../utils/general/interactionReply'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
+import { withTimeout } from '@lucky/shared/utils/async'
 
 export const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
 
@@ -29,6 +30,82 @@ export function isUnknownInteractionError(error: unknown): boolean {
 
 export function isUrl(query: string): boolean {
     return query.startsWith('http://') || query.startsWith('https://')
+}
+
+/**
+ * Expands SoundCloud short links (on.soundcloud.com) by following the HTTP redirect.
+ * Returns the expanded URL if successful, or the original URL if expansion fails.
+ * Uses a 5-second timeout to prevent hanging requests.
+ *
+ * Security: only expands on.soundcloud.com hosts and validates the resolved URL
+ * is a soundcloud.com domain before returning it.
+ */
+export async function expandSoundCloudShortUrl(url: string): Promise<string> {
+    // Fast path: not a short link
+    if (!url.includes('on.soundcloud.com')) {
+        return url
+    }
+
+    try {
+        const parsed = new URL(url)
+        if (parsed.hostname !== 'on.soundcloud.com') {
+            return url
+        }
+
+        // Follow redirects with a 5-second timeout, using HEAD first (no body download)
+        const expanded = await withTimeout(
+            (async () => {
+                try {
+                    const response = await (global.fetch as typeof fetch)(url, {
+                        method: 'HEAD',
+                        redirect: 'follow',
+                    })
+                    const finalUrl = response.url
+
+                    // Security check: ensure resolved URL is a soundcloud domain
+                    const finalParsed = new URL(finalUrl)
+                    if (
+                        finalParsed.hostname !== 'soundcloud.com' &&
+                        !finalParsed.hostname?.endsWith('.soundcloud.com')
+                    ) {
+                        // Redirect went somewhere unexpected — reject and fall back
+                        throw new Error(
+                            `Redirect destination is not a soundcloud.com domain: ${finalUrl}`,
+                        )
+                    }
+
+                    debugLog({
+                        message: 'SoundCloud short URL expanded',
+                        data: { originalUrl: url, expandedUrl: finalUrl },
+                    })
+
+                    return finalUrl
+                } catch (innerError) {
+                    debugLog({
+                        message:
+                            'Failed to expand SoundCloud short URL in fetch block',
+                        data: { url, error: String(innerError) },
+                    })
+                    throw innerError
+                }
+            })(),
+            5000,
+            'soundcloud-short-url-expansion',
+        )
+
+        return expanded
+    } catch (error) {
+        // Network error, timeout, or security validation failed — gracefully fall back
+        debugLog({
+            message:
+                'SoundCloud short URL expansion failed, using original URL',
+            data: {
+                originalUrl: url,
+                error: String(error),
+            },
+        })
+        return url
+    }
 }
 
 /**
