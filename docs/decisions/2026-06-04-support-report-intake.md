@@ -16,8 +16,10 @@ that link to it with an id that maps a report back to the logged error.
 Relevant existing state: dashboard uses Discord OAuth; a `DISCORD_INVITE_URL`/`/invite`
 redirect exists; **no object-storage / upload infra** exists; bot has 70 slash commands;
 `captureException` exists but discards the Sentry event id; Sentry is **optional**
-(skipped when `SENTRY_AUTH_TOKEN` is unset). Postgres is the system of record and the
-project trend is minimal external infra (Redis was just dropped).
+(runtime capture skipped when `SENTRY_DSN` is unset or `SENTRY_ENABLED=false` —
+`SENTRY_AUTH_TOKEN` only gates CI release uploads). Postgres is the system of record
+and the project trend is minimal external infra (Redis is being scoped down to music
+pub/sub; KV/cache use is migrating to Postgres + in-memory).
 
 ## Decision
 
