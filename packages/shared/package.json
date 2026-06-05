@@ -14,6 +14,10 @@
             "types": "./dist/config/index.d.ts",
             "default": "./dist/config/index.js"
         },
+        "./config/*": {
+            "types": "./dist/config/*.d.ts",
+            "default": "./dist/config/*.js"
+        },
         "./services": {
             "types": "./dist/services/index.d.ts",
             "default": "./dist/services/index.js"
