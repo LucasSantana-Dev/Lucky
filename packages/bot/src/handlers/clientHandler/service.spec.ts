@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { Client, Collection } from 'discord.js'
-import { createClient, startClient } from './service'
+import { createClient, startClient, stopPresenceRotation } from './service'
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
@@ -22,7 +22,6 @@ jest.mock('./presence', () => ({
         resume: jest.fn(),
     }),
 }))
-
 
 jest.mock('../../utils/moderation/modDigestScheduler', () => ({
     modDigestSchedulerService: {
@@ -241,6 +240,46 @@ describe('service', () => {
             expect(startPresenceRotation).not.toHaveBeenCalled()
         })
 
+        it('stopPresenceRotation stops the active rotation and is a no-op afterward', async () => {
+            const { startPresenceRotation } = await import('./presence')
+            // Clear any presenceControls left set by an earlier test in this module.
+            stopPresenceRotation()
+            // resetMocks wipes the factory's return each test, so set it here. The
+            // ready handler stores exactly this object as presenceControls.
+            const controls = {
+                stop: jest.fn(),
+                pause: jest.fn(),
+                resume: jest.fn(),
+            }
+            ;(startPresenceRotation as jest.Mock).mockReturnValue(controls)
+
+            const mockClient = {
+                login: jest.fn().mockResolvedValue('client'),
+                once: jest.fn((event: string, handler: () => unknown) => {
+                    if (event === 'ready') {
+                        Promise.resolve().then(() => handler())
+                    }
+                }),
+                user: { tag: 'bot#0001' },
+                commands: { map: jest.fn().mockReturnValue([]) },
+                guilds: { cache: { values: jest.fn().mockReturnValue([]) } },
+            }
+
+            const startPromise = startClient({ client: mockClient as any })
+            await new Promise((resolve) => setImmediate(resolve))
+            await startPromise
+
+            // Active rotation -> stop() is invoked and presenceControls cleared.
+            ;(controls.stop as jest.Mock).mockClear()
+            stopPresenceRotation()
+            expect(controls.stop).toHaveBeenCalled()
+
+            // presenceControls now cleared -> a second call is a no-op.
+            ;(controls.stop as jest.Mock).mockClear()
+            stopPresenceRotation()
+            expect(controls.stop).not.toHaveBeenCalled()
+        })
+
         it('should handle errors in ready handler gracefully', async () => {
             const mockClient = {
                 login: jest.fn().mockResolvedValue('client'),
@@ -273,9 +312,8 @@ describe('service', () => {
         })
 
         it('starts the mod digest scheduler in the ready handler', async () => {
-            const { modDigestSchedulerService } = await import(
-                '../../utils/moderation/modDigestScheduler'
-            )
+            const { modDigestSchedulerService } =
+                await import('../../utils/moderation/modDigestScheduler')
             ;(modDigestSchedulerService.start as jest.Mock).mockClear()
 
             const mockClient = {
@@ -306,9 +344,8 @@ describe('service', () => {
         })
 
         it('still starts the scheduler when an upstream ready step fails', async () => {
-            const { modDigestSchedulerService } = await import(
-                '../../utils/moderation/modDigestScheduler'
-            )
+            const { modDigestSchedulerService } =
+                await import('../../utils/moderation/modDigestScheduler')
             ;(modDigestSchedulerService.start as jest.Mock).mockClear()
 
             const mockClient = {
