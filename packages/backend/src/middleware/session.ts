@@ -273,7 +273,7 @@ function createLocalFallbackStore(sessionPath: string): session.Store {
 }
 
 export function setupSessionMiddleware(app: Express): void {
-    const sessionSecret = process.env.WEBAPP_SESSION_SECRET
+    const sessionSecret = process.env.WEBAPP_SESSION_SECRET?.trim()
 
     if (!sessionSecret) {
         throw new Error(

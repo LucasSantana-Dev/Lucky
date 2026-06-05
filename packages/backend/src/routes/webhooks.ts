@@ -80,7 +80,7 @@ function verifyTopggAuth(req: Request): void {
     if (!expected) {
         throw new AppError(503, 'TOPGG_AUTH_TOKEN not configured')
     }
-    const provided = req.header('authorization')
+    const provided = req.header('authorization')?.trim()
     if (!provided || !safeEqualString(provided, expected)) {
         throw AppError.unauthorized('invalid top.gg webhook token')
     }
@@ -88,7 +88,7 @@ function verifyTopggAuth(req: Request): void {
 
 function verifyInternalKey(req: Request): void {
     const expected = process.env.LUCKY_NOTIFY_API_KEY
-    const provided = req.header('x-notify-key')
+    const provided = req.header('x-notify-key')?.trim()
     if (!expected || !provided || !safeEqualString(provided, expected)) {
         throw AppError.unauthorized('invalid internal key')
     }

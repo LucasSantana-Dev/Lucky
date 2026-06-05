@@ -7,7 +7,7 @@ import { errorLog } from '@lucky/shared/utils'
 const DISCORD_API = 'https://discord.com/api/v10'
 
 function requireKey(req: Request): void {
-    const provided = req.header('x-notify-key')
+    const provided = req.header('x-notify-key')?.trim()
     const expected = process.env.LUCKY_NOTIFY_API_KEY
     if (!expected || !provided || provided !== expected) {
         throw AppError.unauthorized('invalid notify key')
@@ -28,9 +28,7 @@ export function setupInternalNotifyRoutes(app: Express): void {
             requireKey(req)
             const body = (req.body ?? {}) as NotifyBody
             if (!body.channelId || (!body.content && !body.embeds)) {
-                throw AppError.badRequest(
-                    'channelId + content|embeds required',
-                )
+                throw AppError.badRequest('channelId + content|embeds required')
             }
             const token = process.env.DISCORD_TOKEN
             if (!token) {
