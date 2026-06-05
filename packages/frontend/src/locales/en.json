@@ -337,5 +337,40 @@
             "liveControls": "Live controls"
         },
         "copyright": "© 2026 Lucky. All rights reserved."
+    },
+    "support": {
+        "title": "Report a problem",
+        "subtitle": "Tell us what happened — add a screenshot if you can.",
+        "referenceId": "Reference ID",
+        "form": {
+            "contextLabel": "What happened?",
+            "contextPlaceholder": "Describe what you were doing and what went wrong…",
+            "imageLabel": "Screenshot (optional)",
+            "imageTypeError": "Unsupported image type. Use PNG, JPEG, or WebP.",
+            "imageSizeError": "Image is too large (max 5 MB).",
+            "submit": "Send report",
+            "genericError": "Failed to submit your report. Please try again."
+        },
+        "success": {
+            "title": "Thanks for the report",
+            "body": "We received it and will look into it."
+        },
+        "admin": {
+            "title": "Support reports",
+            "subtitle": "User-submitted bug reports.",
+            "loadError": "Could not load reports.",
+            "emptyTitle": "No reports",
+            "emptyDescription": "No support reports match this filter.",
+            "selectPrompt": "Select a report to view details.",
+            "hasImage": "Has screenshot",
+            "imageAlt": "Report screenshot",
+            "status": {
+                "all": "All",
+                "new": "New",
+                "triaged": "Triaged",
+                "promoted": "Promoted",
+                "dismissed": "Dismissed"
+            }
+        }
     }
 }

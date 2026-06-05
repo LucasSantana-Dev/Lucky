@@ -27,6 +27,7 @@ import { createAutomationApi } from './automationApi'
 import { createLevelsApi } from './levelsApi'
 import { createStarboardApi } from './starboardApi'
 import { createArtistsApi } from './artistsApi'
+import { createSupportApi } from './supportApi'
 import { inferApiBase } from './apiBase'
 
 const browserLocation =
@@ -429,6 +430,7 @@ export const api = {
     automod: createAutoModApi(apiClient),
     serverLogs: createLogsApi(apiClient),
     artists: createArtistsApi(apiClient),
+    support: createSupportApi(apiClient, NORMALIZED_API_BASE),
 }
 
 export { ApiError } from './ApiError'
