@@ -14,7 +14,7 @@ Single-context repo. ADRs live in **`decisions/`** (not the conventional `docs/a
 ├── docs/                         ← human-facing project documentation only
 │   ├── agents/                   ← agent conventions (this file, issue-tracker, triage-labels)
 │   └── *.md                      ← ARCHITECTURE, CI_CD, *_SETUP, runbooks, etc.
-├── .claude/                      ← local-only (untracked): specs/ (/adt-specs-spec-new), plans/ (/plan)
+├── .claude/                      ← gitignored except dep-sweep-config.json: specs/ (/adt-specs-spec-new), plans/ (/plan)
 ├── packages/                     ← bot, backend, frontend, shared
 └── ...
 ```
