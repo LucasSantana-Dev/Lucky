@@ -6,13 +6,10 @@ const monitorInteractionHandlingMock = jest.fn()
 const errorLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const captureExceptionMock = jest.fn()
-const createUserFriendlyErrorMock = jest.fn((err: unknown) =>
-    err instanceof Error ? err.message : 'error',
-)
+const buildCommandErrorEmbedMock = jest.fn()
+const mintCorrelationIdMock = jest.fn(() => 'DEFAULT123')
+const tagCorrelationIdToSentryMock = jest.fn()
 const interactionReplyMock = jest.fn().mockResolvedValue(undefined)
-const errorEmbedMock = jest.fn((_title: string, desc: string) => ({
-    description: desc,
-}))
 const handleButtonInteractionMock = jest.fn()
 
 jest.mock('../../src/handlers/commandsHandler', () => ({
@@ -35,17 +32,19 @@ jest.mock('@lucky/shared/utils', () => ({
     captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }))
 
-jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
-    createUserFriendlyError: (...args: unknown[]) =>
-        createUserFriendlyErrorMock(...args),
+jest.mock('@lucky/shared/utils/support', () => ({
+    mintCorrelationId: (...args: unknown[]) => mintCorrelationIdMock(...args),
+    tagCorrelationIdToSentry: (...args: unknown[]) =>
+        tagCorrelationIdToSentryMock(...args),
+}))
+
+jest.mock('../../src/utils/general/errorReportEmbed', () => ({
+    buildCommandErrorEmbed: (...args: unknown[]) =>
+        buildCommandErrorEmbedMock(...args),
 }))
 
 jest.mock('../../src/utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
-}))
-
-jest.mock('../../src/utils/general/embeds', () => ({
-    errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -102,6 +101,13 @@ describe('handleInteraction', () => {
         executeCommandMock.mockResolvedValue(undefined)
         handleMusicButtonInteractionMock.mockResolvedValue(undefined)
         handleButtonInteractionMock.mockResolvedValue(undefined)
+        // buildCommandErrorEmbed now returns the embed directly; the handler
+        // owns the correlation id via the mintCorrelationId mock.
+        buildCommandErrorEmbedMock.mockReturnValue({
+            title: 'Error',
+            description: 'error',
+        })
+        mintCorrelationIdMock.mockReturnValue('DEFAULT123')
     })
 
     it('calls executeCommand for chat input commands', async () => {
@@ -242,13 +248,17 @@ describe('handleInteraction', () => {
         const client = createClient()
         const err = new Error('queue failed')
         executeCommandMock.mockRejectedValue(err)
-        createUserFriendlyErrorMock.mockReturnValue('Queue failed')
+        const mockEmbed = { title: 'Error', description: 'Queue failed' }
+        buildCommandErrorEmbedMock.mockReturnValue(mockEmbed)
 
         await handleInteraction(interaction, client)
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                content: expect.objectContaining({ ephemeral: true }),
+                content: expect.objectContaining({
+                    embeds: [mockEmbed],
+                    ephemeral: true,
+                }),
             }),
         )
     })
