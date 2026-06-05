@@ -81,8 +81,52 @@ describe('setupLifecycleHandlers', () => {
         expect(restoreSnapshotMock).toHaveBeenCalledWith(
             queue,
             expect.objectContaining({ id: 'user-1' }),
+            expect.objectContaining({ signal: expect.anything() }),
         )
         expect(watchdogArmMock).toHaveBeenCalledWith(queue)
+    })
+
+    it('aborts the restore and continues with an empty queue when it exceeds the deadline', async () => {
+        jest.useFakeTimers()
+        let capturedSignal: AbortSignal | undefined
+        // Restore never resolves, so the 2s deadline wins the race.
+        restoreSnapshotMock.mockImplementation(
+            (_q: unknown, _rb: unknown, opts: unknown) => {
+                capturedSignal = (opts as { signal?: AbortSignal })?.signal
+                return new Promise<never>(() => {})
+            },
+        )
+
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+        setupLifecycleHandlers(player)
+
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            metadata: { requestedBy: { id: 'user-1' } },
+            connection: { state: { status: 'ready' }, joinConfig: {} },
+        } as unknown as GuildQueue
+
+        const pending = handlers.connection(queue)
+        await jest.advanceTimersByTimeAsync(2000)
+        await pending
+
+        expect(infoLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Snapshot restore failed, continuing with empty queue',
+            }),
+        )
+        // The hung restore was cancelled so it can't enqueue tracks afterward.
+        expect(capturedSignal?.aborted).toBe(true)
+        // Service stays armed despite the failed restore.
+        expect(watchdogArmMock).toHaveBeenCalledWith(queue)
+        jest.useRealTimers()
     })
 
     it('saves snapshot and triggers recovery on disconnect', async () => {
