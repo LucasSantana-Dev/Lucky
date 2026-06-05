@@ -330,6 +330,16 @@ post_deploy_status() {
 # failure (no `exit`, so the caller can decide to roll back). A slow/absent bot
 # gateway after the timeout is a non-fatal WARN, matching prior behavior.
 run_health_checks() {
+    # Test affordance (NOT for normal use): a one-shot sentinel forces a single
+    # health-check failure so the auto-rollback path can be validated against a
+    # real deploy. Lives in /tmp so the deploy's `git clean` can't remove it, and
+    # self-deletes after one use. Absent in all normal operation.
+    if [[ -f /tmp/lucky-simulate-health-fail ]]; then
+        rm -f /tmp/lucky-simulate-health-fail
+        log "TEST: simulated health-check failure (one-shot sentinel consumed)"
+        return 1
+    fi
+
     log "Waiting for health checks..."
     sleep 10
 
