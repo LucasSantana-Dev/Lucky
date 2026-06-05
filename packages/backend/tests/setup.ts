@@ -30,12 +30,22 @@ jest.mock('connect-redis', () => ({
 }))
 
 jest.mock('session-file-store', () =>
-    jest.fn(() =>
-        class MockFileStore {
-            get(_sid: string, cb: (err?: Error | null, sess?: unknown) => void) { cb(null, null) }
-            set(_sid: string, _sess: unknown, cb?: (err?: Error) => void) { cb?.() }
-            destroy(_sid: string, cb?: (err?: Error) => void) { cb?.() }
-        },
+    jest.fn(
+        () =>
+            class MockFileStore {
+                get(
+                    _sid: string,
+                    cb: (err?: Error | null, sess?: unknown) => void,
+                ) {
+                    cb(null, null)
+                }
+                set(_sid: string, _sess: unknown, cb?: (err?: Error) => void) {
+                    cb?.()
+                }
+                destroy(_sid: string, cb?: (err?: Error) => void) {
+                    cb?.()
+                }
+            },
     ),
 )
 
@@ -262,6 +272,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     infoLog: jest.fn(),
     warnLog: jest.fn(),
+    captureException: jest.fn(),
 }))
 
 global.fetch = jest.fn<typeof fetch>() as jest.MockedFunction<typeof fetch>

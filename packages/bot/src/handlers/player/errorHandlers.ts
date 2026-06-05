@@ -1,6 +1,11 @@
 import { QueryType, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
-import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
+import {
+    errorLog,
+    debugLog,
+    warnLog,
+    captureException,
+} from '@lucky/shared/utils'
 import { createErrorEmbed } from '../../utils/general/embeds'
 import {
     analyzeYouTubeError,
@@ -143,6 +148,13 @@ export const setupErrorHandlers = (player: PlayerEvents): void => {
                     ...details,
                 },
             })
+            captureException(
+                toErrorInstance(error) ?? new Error(details.errorMessage),
+                {
+                    context: 'player-queue-error',
+                    guildId: queue?.guild?.id ?? undefined,
+                },
+            )
 
             const isConnectionError =
                 details.errorMessage.includes('ECONNRESET') ||
@@ -191,6 +203,11 @@ export const setupErrorHandlers = (player: PlayerEvents): void => {
                     error: toErrorInstance(error),
                     data: toErrorDetails(error),
                 })
+                captureException(
+                    toErrorInstance(error) ??
+                        new Error(toErrorDetails(error).errorMessage),
+                    { context: 'player-unhandled-error' },
+                )
             })
         })
 
@@ -351,6 +368,12 @@ const handlePlayerError = async (
                 guildName: queue.guild.name,
                 ...toErrorDetails(error),
             },
+        })
+        captureException(toErrorInstance(error) ?? new Error(String(error)), {
+            context: 'player-error',
+            guildId: queue.guild.id,
+            provider: currentTrackProvider,
+            trackUrl: queue.currentTrack?.url,
         })
 
         const isStreamExtractionError =
