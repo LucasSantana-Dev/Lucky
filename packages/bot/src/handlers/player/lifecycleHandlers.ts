@@ -49,6 +49,9 @@ export const setupLifecycleHandlers = (player: {
 
         if (ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED) {
             const metadata = queue.metadata as QueueMetadata | undefined
+            // Abort the restore if the deadline wins the race, so a slow restore
+            // can't keep enqueueing tracks after we've moved on with an empty queue.
+            const restoreController = new AbortController()
             const restoreDeadline = new Promise<never>((_, reject) =>
                 setTimeout(
                     () =>
@@ -66,10 +69,13 @@ export const setupLifecycleHandlers = (player: {
                     musicSessionSnapshotService.restoreSnapshot(
                         queue,
                         metadata?.requestedBy ?? undefined,
+                        { signal: restoreController.signal },
                     ),
                     restoreDeadline,
                 ])
             } catch (error) {
+                // Cancel the still-running restore so it stops before enqueuing more.
+                restoreController.abort()
                 infoLog({
                     message: `Snapshot restore failed, continuing with empty queue`,
                     data: {

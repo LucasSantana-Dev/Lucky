@@ -266,7 +266,11 @@ export class MusicSessionSnapshotService {
     async restoreSnapshot(
         queue: GuildQueue,
         requestedBy?: User,
-        options: { maxAgeMs?: number; skipCurrentTrack?: boolean } = {},
+        options: {
+            maxAgeMs?: number
+            skipCurrentTrack?: boolean
+            signal?: AbortSignal
+        } = {},
     ): Promise<SnapshotRestoreResult> {
         try {
             if (queue.currentTrack || queue.tracks.size > 0) {
@@ -311,6 +315,13 @@ export class MusicSessionSnapshotService {
             let restoredCount = 0
             try {
                 for (const entry of tracksToRestore) {
+                    // Aborted (e.g. the caller's restore deadline elapsed): stop and
+                    // clear any partial state so we never enqueue tracks after the
+                    // caller has already moved on with an empty queue.
+                    if (options.signal?.aborted) {
+                        queue.clear()
+                        return { restoredCount: 0, sessionSnapshotId: null }
+                    }
                     const query =
                         entry.url || `${entry.title} ${entry.author}`.trim()
                     const result = await queue.player.search(

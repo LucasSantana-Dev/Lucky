@@ -251,6 +251,22 @@ describe('MusicSessionSnapshotService', () => {
             })
         })
 
+        it('aborts the restore loop and clears the queue when the signal is aborted', async () => {
+            mockFindUnique.mockResolvedValueOnce(snapshotRow())
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-abort')
+            const controller = new AbortController()
+            controller.abort() // already aborted: loop must bail before enqueuing
+
+            const result = await service.restoreSnapshot(queue, undefined, {
+                signal: controller.signal,
+            })
+
+            expect(result.restoredCount).toBe(0)
+            expect(queue.addTrack).not.toHaveBeenCalled()
+            expect(queue.clear).toHaveBeenCalled()
+        })
+
         it('prepends the current track to the restore list', async () => {
             mockFindUnique.mockResolvedValueOnce(
                 snapshotRow({
