@@ -7,30 +7,48 @@
  * Calculate Levenshtein distance between two strings.
  * Measures the minimum number of single-character edits required to change one string into another.
  *
+ * Uses a two-row rolling buffer over the shorter string, so memory is O(min(n, m))
+ * rather than the O(n·m) of a full matrix.
+ *
  * @param str1 First string
  * @param str2 Second string
  * @returns Levenshtein distance (higher = more different)
  */
 export function levenshteinDistance(str1: string, str2: string): number {
-    const matrix: number[][] = Array(str2.length + 1)
-        .fill(0)
-        .map(() => Array(str1.length + 1).fill(0) as number[])
+    if (str1 === str2) return 0
 
-    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i
-    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j
-
-    for (let j = 1; j <= str2.length; j++) {
-        for (let i = 1; i <= str1.length; i++) {
-            const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1
-            matrix[j][i] = Math.min(
-                matrix[j][i - 1] + 1,
-                matrix[j - 1][i] + 1,
-                matrix[j - 1][i - 1] + indicator,
-            )
-        }
+    // Iterate columns over the shorter string so the buffers stay O(min(n, m)).
+    let a = str1
+    let b = str2
+    if (a.length > b.length) {
+        const tmp = a
+        a = b
+        b = tmp
     }
 
-    return matrix[str2.length][str1.length]
+    const m = a.length
+    const n = b.length
+    if (m === 0) return n
+
+    let prev: number[] = Array.from({ length: m + 1 }, (_, i) => i)
+    let curr: number[] = new Array(m + 1)
+
+    for (let j = 1; j <= n; j++) {
+        curr[0] = j
+        for (let i = 1; i <= m; i++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1
+            curr[i] = Math.min(
+                curr[i - 1] + 1, // insertion
+                prev[i] + 1, // deletion
+                prev[i - 1] + cost, // substitution
+            )
+        }
+        const tmp = prev
+        prev = curr
+        curr = tmp
+    }
+
+    return prev[m]
 }
 
 /**
@@ -54,8 +72,9 @@ export function levenshteinSimilarity(str1: string, str2: string): number {
 
 /**
  * Calculate Jaccard similarity between two strings based on word/token overlap.
- * Treats strings as sets of space-separated tokens.
- * Returns 1.0 for identical token sets, 0.0 for disjoint sets.
+ * Treats strings as sets of space-separated tokens (duplicate tokens within a
+ * string collapse to one). Returns 1.0 for identical token sets, 0.0 for disjoint
+ * sets — always bounded to [0, 1] and symmetric in its arguments.
  *
  * @param strA First string
  * @param strB Second string
@@ -68,37 +87,8 @@ export function jaccardSimilarity(strA: string, strB: string): number {
     if (setA.size === 0 && setB.size === 0) return 1.0
     if (setA.size === 0 || setB.size === 0) return 0.0
 
-    const intersection = new Set([...setA].filter(x => setB.has(x)))
+    const intersection = new Set([...setA].filter((x) => setB.has(x)))
     const union = new Set([...setA, ...setB])
 
     return intersection.size / union.size
-}
-
-/**
- * Calculate token overlap ratio between two strings (custom Jaccard variant).
- * Used by musicRecommendation for its recommendation similarity metric.
- * Returns intersection size divided by union size.
- *
- * @param strA First string
- * @param strB Second string
- * @returns Token overlap ratio between 0 and 1
- */
-export function tokenOverlapRatio(strA: string, strB: string): number {
-    const normalizedA = strA.toLowerCase().trim()
-    const normalizedB = strB.toLowerCase().trim()
-
-    if (normalizedA === normalizedB) {
-        return 1.0
-    }
-
-    const wordsA = normalizedA.split(/\s+/)
-    const wordsB = normalizedB.split(/\s+/)
-    const commonWords = wordsA.filter((word) => wordsB.includes(word))
-
-    if (commonWords.length === 0) {
-        return 0.0
-    }
-
-    const union = new Set([...wordsA, ...wordsB])
-    return commonWords.length / union.size
 }

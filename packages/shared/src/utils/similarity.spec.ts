@@ -1,14 +1,9 @@
-import {
-    describe,
-    it,
-    expect,
-} from '@jest/globals'
+import { describe, it, expect } from '@jest/globals'
 
 import {
     levenshteinDistance,
     levenshteinSimilarity,
     jaccardSimilarity,
-    tokenOverlapRatio,
 } from './similarity'
 
 describe('Similarity Functions', () => {
@@ -80,6 +75,19 @@ describe('Similarity Functions', () => {
     })
 
     describe('jaccardSimilarity', () => {
+        it('stays bounded to [0,1] and symmetric with duplicate tokens', () => {
+            // Regression: the former tokenOverlapRatio counted duplicate tokens
+            // in the numerator but deduped the denominator, returning >1.0 and
+            // being asymmetric. Jaccard (set-based) must not.
+            expect(jaccardSimilarity('the the beatles', 'the beatles')).toBe(
+                1.0,
+            )
+            expect(jaccardSimilarity('the beatles', 'the the beatles')).toBe(
+                1.0,
+            )
+            expect(jaccardSimilarity('a a b', 'a b')).toBeLessThanOrEqual(1.0)
+        })
+
         it('should return 1.0 for identical token sets', () => {
             expect(jaccardSimilarity('hello world', 'hello world')).toBe(1.0)
         })
@@ -89,7 +97,9 @@ describe('Similarity Functions', () => {
         })
 
         it('should return 0.0 for completely disjoint token sets', () => {
-            expect(jaccardSimilarity('hello world', 'goodbye universe')).toBe(0.0)
+            expect(jaccardSimilarity('hello world', 'goodbye universe')).toBe(
+                0.0,
+            )
         })
 
         it('should calculate intersection/union correctly', () => {
@@ -124,63 +134,7 @@ describe('Similarity Functions', () => {
         })
     })
 
-    describe('tokenOverlapRatio', () => {
-        it('should return 1.0 for identical strings', () => {
-            expect(tokenOverlapRatio('hello world', 'hello world')).toBe(1.0)
-        })
-
-        it('should return 1.0 for empty strings', () => {
-            expect(tokenOverlapRatio('', '')).toBe(1.0)
-        })
-
-        it('should return 0.0 for completely disjoint tokens', () => {
-            expect(tokenOverlapRatio('hello world', 'goodbye universe')).toBe(0.0)
-        })
-
-        it('should calculate common tokens correctly', () => {
-            expect(tokenOverlapRatio('a b c', 'b c d')).toBeCloseTo(2 / 4, 5)
-        })
-
-        it('should be case-insensitive', () => {
-            expect(tokenOverlapRatio('Hello World', 'hello world')).toBe(1.0)
-        })
-
-        it('should match musicRecommendation behavior', () => {
-            const result = tokenOverlapRatio('The Beatles Greatest Hits', 'The Beatles Greatest Hits')
-            expect(result).toBe(1.0)
-        })
-
-        it('should handle single token', () => {
-            expect(tokenOverlapRatio('artist', 'artist')).toBe(1.0)
-            expect(tokenOverlapRatio('artist', 'other')).toBe(0.0)
-        })
-
-        it('should handle empty vs non-empty', () => {
-            expect(tokenOverlapRatio('', 'hello')).toBe(0.0)
-            expect(tokenOverlapRatio('hello', '')).toBe(0.0)
-        })
-
-        it('should be identical to Jaccard for token overlap', () => {
-            const str1 = 'iron maiden'
-            const str2 = 'maiden iron maiden'
-            expect(tokenOverlapRatio(str1, str2)).toBe(jaccardSimilarity(str1, str2))
-        })
-    })
-
     describe('Cross-algorithm consistency', () => {
-        it('should have Jaccard and tokenOverlapRatio produce same results', () => {
-            const testCases = [
-                ['hello world', 'hello world'],
-                ['the quick brown fox', 'quick fox'],
-                ['', ''],
-                ['single', 'multiple tokens here'],
-            ]
-
-            testCases.forEach(([str1, str2]) => {
-                expect(tokenOverlapRatio(str1, str2)).toBe(jaccardSimilarity(str1, str2))
-            })
-        })
-
         it('Levenshtein should work differently from token-based', () => {
             const str1 = 'hello'
             const str2 = 'hallo'
@@ -201,12 +155,13 @@ describe('Similarity Functions', () => {
 
         it('should handle whitespace-only strings', () => {
             expect(jaccardSimilarity('   ', '   ')).toBe(1.0)
-            expect(tokenOverlapRatio('   ', '   ')).toBe(1.0)
         })
 
         it('should handle special characters', () => {
             expect(levenshteinDistance('test!@#', 'test!@#')).toBe(0)
-            expect(jaccardSimilarity('hello world!', 'hello world?')).toBeGreaterThan(0)
+            expect(
+                jaccardSimilarity('hello world!', 'hello world?'),
+            ).toBeGreaterThan(0)
         })
     })
 })
