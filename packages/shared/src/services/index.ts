@@ -105,3 +105,9 @@ export {
     type PerSourceRow,
     type Summary,
 } from './recommendationTelemetryReadService'
+export {
+    SupportReportService,
+    type SupportReport,
+    type CreateReportInput,
+    type ListReportsFilter,
+} from './SupportReportService.js'
