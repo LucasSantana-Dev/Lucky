@@ -12,6 +12,9 @@ jest.mock('@lucky/shared/services', () => ({
     featureToggleService: {
         isEnabled: jest.fn().mockResolvedValue(true),
     },
+    autoroleService: {
+        list: jest.fn(),
+    },
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -19,8 +22,11 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
-import { autoMessageService } from '@lucky/shared/services'
-import { featureToggleService } from '@lucky/shared/services'
+import {
+    autoMessageService,
+    featureToggleService,
+    autoroleService,
+} from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 
 // Create mock client
@@ -62,7 +68,6 @@ describe('memberHandler', () => {
         jest.clearAllMocks()
         ;(featureToggleService.isEnabled as jest.Mock).mockResolvedValue(true)
     })
-
 
     describe('GuildMemberAdd event', () => {
         beforeEach(() => {
@@ -288,7 +293,6 @@ describe('memberHandler', () => {
             expect(mockSend).toHaveBeenCalledWith('Hello <@user>')
         })
 
-
         it('should not send when no suitable channel found', async () => {
             ;(
                 autoMessageService.getWelcomeMessage as jest.Mock
@@ -359,6 +363,115 @@ describe('memberHandler', () => {
                 message: 'Error in member add handler:',
                 error: expect.any(Error),
             })
+        })
+
+        it('should assign auto-role with delay and catch errors', async () => {
+            jest.useFakeTimers()
+
+            const rolesAddMock = jest.fn().mockResolvedValue(undefined)
+            const role = { name: 'TestRole', id: 'role-1' }
+
+            const member = {
+                guild: {
+                    id: 'guild-1',
+                    roles: {
+                        cache: new Map([['role-1', role]]),
+                    },
+                },
+                user: {
+                    username: 'TestUser',
+                    tag: 'TestUser#0001',
+                },
+                roles: {
+                    add: rolesAddMock,
+                },
+            } as unknown as GuildMember
+
+            ;(
+                autoMessageService.getWelcomeMessage as jest.Mock
+            ).mockResolvedValue(null)
+            ;(autoroleService.list as jest.Mock).mockResolvedValue([
+                {
+                    roleId: 'role-1',
+                    delayMinutes: 2,
+                },
+            ])
+
+            handleMemberEvents(client as any)
+            await triggerEvent(client, Events.GuildMemberAdd, member)
+
+            // Advance time by 2 minutes
+            jest.advanceTimersByTime(2 * 60 * 1000)
+
+            // Wait for async operations
+            await jest.runAllTimersAsync()
+
+            expect(rolesAddMock).toHaveBeenCalledWith(role)
+            expect(debugLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'Auto-assigned role TestRole to TestUser#0001 after 2m delay',
+                    ),
+                }),
+            )
+
+            jest.useRealTimers()
+        })
+
+        it('should catch errors when assigning delayed auto-role', async () => {
+            jest.useFakeTimers()
+
+            const rolesAddMock = jest
+                .fn()
+                .mockRejectedValue(new Error('Permission denied'))
+            const role = { name: 'TestRole', id: 'role-1' }
+
+            const member = {
+                guild: {
+                    id: 'guild-1',
+                    roles: {
+                        cache: new Map([['role-1', role]]),
+                    },
+                },
+                user: {
+                    username: 'TestUser',
+                    tag: 'TestUser#0001',
+                },
+                roles: {
+                    add: rolesAddMock,
+                },
+            } as unknown as GuildMember
+
+            ;(
+                autoMessageService.getWelcomeMessage as jest.Mock
+            ).mockResolvedValue(null)
+            ;(autoroleService.list as jest.Mock).mockResolvedValue([
+                {
+                    roleId: 'role-1',
+                    delayMinutes: 1,
+                },
+            ])
+
+            handleMemberEvents(client as any)
+            await triggerEvent(client, Events.GuildMemberAdd, member)
+
+            // Advance time by 1 minute
+            jest.advanceTimersByTime(1 * 60 * 1000)
+
+            // Wait for async operations
+            await jest.runAllTimersAsync()
+
+            expect(rolesAddMock).toHaveBeenCalledWith(role)
+            expect(errorLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'Failed to assign auto-role TestRole to TestUser#0001:',
+                    ),
+                    error: expect.any(Error),
+                }),
+            )
+
+            jest.useRealTimers()
         })
     })
 
@@ -499,7 +612,6 @@ describe('memberHandler', () => {
 
             expect(mockSend).toHaveBeenCalledWith('Bye <@user>')
         })
-
 
         it('should not send when no suitable channel found', async () => {
             ;(
