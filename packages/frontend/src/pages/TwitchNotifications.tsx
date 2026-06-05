@@ -133,8 +133,8 @@ export default function TwitchNotificationsPage() {
             return
         }
 
-        loadNotifications(guildId).catch(() => {})
-        loadChannels(guildId).catch(() => {})
+        loadNotifications(guildId)
+        loadChannels(guildId)
     }, [guildId, loadNotifications, loadChannels])
 
     const parseTwitchLogin = (value: string): string | null => {

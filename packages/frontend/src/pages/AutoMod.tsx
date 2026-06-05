@@ -469,6 +469,9 @@ export default function AutoModPage() {
     )
     const [channels, setChannels] = useState<GuildChannelOption[]>([])
     const [roles, setRoles] = useState<GuildRoleOption[]>([])
+    const [templatesError, setTemplatesError] = useState<string | null>(null)
+    const [channelsError, setChannelsError] = useState<string | null>(null)
+    const [rolesError, setRolesError] = useState<string | null>(null)
 
     useEffect(() => {
         if (!selectedGuild?.id) return
@@ -494,23 +497,35 @@ export default function AutoModPage() {
     useEffect(() => {
         if (!selectedGuild?.id) return
         setTemplatesLoading(true)
+        setTemplatesError(null)
         api.automod
             .listTemplates(selectedGuild.id)
             .then((res) => setTemplates(res.data.templates))
-            .catch(() => setTemplates([]))
+            .catch(() => {
+                setTemplatesError('Failed to load templates')
+                setTemplates([])
+            })
             .finally(() => setTemplatesLoading(false))
     }, [selectedGuild?.id])
 
     useEffect(() => {
         if (!selectedGuild?.id) return
+        setChannelsError(null)
+        setRolesError(null)
         api.guilds
             .getChannels(selectedGuild.id)
             .then((res) => setChannels(res.data.channels))
-            .catch(() => setChannels([]))
+            .catch(() => {
+                setChannelsError('Failed to load Discord channels')
+                setChannels([])
+            })
         api.guilds
             .getRbac(selectedGuild.id)
             .then((res) => setRoles(res.data.roles))
-            .catch(() => setRoles([]))
+            .catch(() => {
+                setRolesError('Failed to load Discord roles')
+                setRoles([])
+            })
     }, [selectedGuild?.id])
 
     const update = <K extends keyof AutoModSettings>(
@@ -567,6 +582,14 @@ export default function AutoModPage() {
     }
 
     const renderTemplates = () => {
+        if (templatesError) {
+            return (
+                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-sm'>
+                    {templatesError}
+                </div>
+            )
+        }
+
         if (templatesLoading) {
             return <Skeleton className='h-12 w-full' />
         }
@@ -861,6 +884,11 @@ export default function AutoModPage() {
                                     )
                                 }
                             />
+                            {channelsError && (
+                                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-xs'>
+                                    {channelsError}
+                                </div>
+                            )}
                             {channels.length === 0 && (
                                 <TagList
                                     items={settings.exemptChannels}
@@ -904,6 +932,11 @@ export default function AutoModPage() {
                                     )
                                 }
                             />
+                            {rolesError && (
+                                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-xs'>
+                                    {rolesError}
+                                </div>
+                            )}
                             {roles.length === 0 && (
                                 <TagList
                                     items={settings.exemptRoles}

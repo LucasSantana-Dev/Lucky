@@ -634,4 +634,54 @@ describe('AutoModPage', () => {
             expect(toast.error).toHaveBeenCalledWith(expectedToast)
         })
     })
+
+    test('shows error banner when templates fail to load', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+        vi.mocked(api.automod.listTemplates).mockRejectedValue(
+            new Error('boom'),
+        )
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Failed to load templates'),
+            ).toBeInTheDocument()
+        })
+    })
+
+    test('shows error banner when channels fail to load', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+        vi.mocked(api.guilds.getChannels).mockRejectedValue(new Error('boom'))
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Failed to load Discord channels'),
+            ).toBeInTheDocument()
+        })
+    })
+
+    test('shows error banner when roles fail to load', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+        vi.mocked(api.guilds.getRbac).mockRejectedValue(new Error('boom'))
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Failed to load Discord roles'),
+            ).toBeInTheDocument()
+        })
+    })
 })
