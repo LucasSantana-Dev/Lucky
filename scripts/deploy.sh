@@ -404,7 +404,8 @@ attempt_rollback() {
     post_deploy_status "failure" "Auto-rolled back to ${last_good} after failed health checks"
     notify 16753920 "Auto-rollback" "Deploy of ${DEPLOYED_SHA} failed ($reason); reverting to ${last_good}"
 
-    export IMAGE_TAG="$last_good"
+    # Registry images are tagged with the 7-char short SHA, so pin to that.
+    export IMAGE_TAG="${last_good:0:7}"
     if ! docker_compose pull bot backend frontend nginx; then
         log "ROLLBACK ERROR: could not pull last-good images (${last_good})"
         notify 16711680 "Rollback Failed" "Could not pull ${last_good} images — manual intervention required"
@@ -436,9 +437,12 @@ fi
 
 # SHA-pinned deploy: run the :<sha> image tag the caller asked for. When no SHA
 # is supplied (e.g. a manual call) fall back to :latest for backward compatibility.
+# Registry images are tagged with the 7-char short SHA (docker/metadata-action
+# type=sha), so pin to that — the full 40-char SHA would miss the pull and (per
+# the pull guard below) abort instead of silently shipping rebuilt current code.
 if [[ -n "$DEPLOY_SHA" ]]; then
-    export IMAGE_TAG="$DEPLOY_SHA"
-    log "Deploying pinned image tag: $DEPLOY_SHA"
+    export IMAGE_TAG="${DEPLOY_SHA:0:7}"
+    log "Deploying pinned image tag: $IMAGE_TAG (from $DEPLOY_SHA)"
 fi
 
 incoming_sha=""
@@ -515,6 +519,14 @@ fi
 
 log "Pulling images..."
 if ! docker_compose pull bot backend frontend nginx; then
+    if [[ -n "$DEPLOY_SHA" ]]; then
+        # A pinned/rollback deploy MUST run the requested image. Building from the
+        # current checkout would silently ship different code under the pinned
+        # tag (the exact failure mode that broke the first rollback trial).
+        log "ERROR: pull of pinned tag $IMAGE_TAG failed — refusing to build current source under a pinned tag"
+        notify 16711680 "Deploy Failed" "Pinned image $IMAGE_TAG not found in registry"
+        exit 1
+    fi
     log "WARN: Pull failed, falling back to local build..."
     _build_commit_sha=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || echo "")
     if ! docker_compose build --parallel \
