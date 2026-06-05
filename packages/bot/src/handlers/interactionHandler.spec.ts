@@ -17,6 +17,7 @@ import type { CustomClient } from '../types'
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
+    captureException: jest.fn(),
 }))
 
 jest.mock('./commandsHandler', () => ({
@@ -49,7 +50,7 @@ jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
     createUserFriendlyError: jest.fn(),
 }))
 
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { errorLog, captureException } from '@lucky/shared/utils'
 import { executeCommand } from './commandsHandler'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
 import { reactionRolesService } from '@lucky/shared/services'
@@ -130,8 +131,7 @@ describe('interactionHandler', () => {
         jest.clearAllMocks()
     })
 
-    describe('handleInteractions', () => {
-    })
+    describe('handleInteractions', () => {})
 
     describe('handleInteraction', () => {
         it('should route chat input command to executeCommand', async () => {
@@ -147,7 +147,6 @@ describe('interactionHandler', () => {
             )
             expect(executeCommand).toHaveBeenCalledWith({ interaction, client })
         })
-
 
         it('should handle interaction without guild', async () => {
             const interaction = createMockChatInteraction({ guild: null })
@@ -219,6 +218,29 @@ describe('interactionHandler', () => {
                     guildId: 'guild-1',
                 },
             })
+            expect(captureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    context: 'interaction-handling-failure',
+                    commandName: 'role_select',
+                    guildId: 'guild-1',
+                }),
+            )
+        })
+
+        it('wraps a non-Error rejection before capturing it', async () => {
+            ;(executeCommand as jest.Mock).mockRejectedValue('boom')
+            const interaction = createMockChatInteraction()
+            const client = createMockClient()
+
+            await handleInteraction(interaction, client)
+
+            expect(captureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    context: 'interaction-handling-failure',
+                }),
+            )
         })
 
         it('should not send error reply if interaction already replied', async () => {
