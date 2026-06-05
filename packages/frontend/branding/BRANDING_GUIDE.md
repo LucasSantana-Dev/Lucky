@@ -21,26 +21,27 @@
 
 ## Color System
 
-**Dual accent** (resolved 2026-04-21, see `docs/decisions/2026-04-21-redesign-port-target.md`):
+**Dual accent** (resolved 2026-04-21, see `decisions/2026-04-21-redesign-port-target.md`):
+
 - **Primary** (CTAs, active nav, focus rings): Discord Blurple `#5865f2`, hover `#4752c4`.
 - **Secondary** (live pings, highlights, gradient accents): Neon Pink `#ec4899`.
 
 Removed gold family (`#d4a017`, etc.) and old purple (`#8b5cf6`, etc.) — not part of the brand palette.
 
-| Purpose | Color |
-|---|---|
-| Primary accent / CTAs | `#5865f2` (blurple) |
-| Primary hover | `#4752c4` (blurple-strong) |
-| Secondary accent | `#ec4899` (neon pink) |
-| Landing gradient end | `#fb923c` (neon orange — landing only) |
-| Success | `#23a55a` |
-| Error | `#f23f42` |
-| Warning | `#f0b232` |
-| Page background (canvas) | `#0f1117` |
-| Sidebar | `#161b22` |
-| Panel | `#1c2129` |
-| Elevated | `#222831` |
-| Highlight (active) | `#2a3140` |
+| Purpose                  | Color                                  |
+| ------------------------ | -------------------------------------- |
+| Primary accent / CTAs    | `#5865f2` (blurple)                    |
+| Primary hover            | `#4752c4` (blurple-strong)             |
+| Secondary accent         | `#ec4899` (neon pink)                  |
+| Landing gradient end     | `#fb923c` (neon orange — landing only) |
+| Success                  | `#23a55a`                              |
+| Error                    | `#f23f42`                              |
+| Warning                  | `#f0b232`                              |
+| Page background (canvas) | `#0f1117`                              |
+| Sidebar                  | `#161b22`                              |
+| Panel                    | `#1c2129`                              |
+| Elevated                 | `#222831`                              |
+| Highlight (active)       | `#2a3140`                              |
 
 ## Typography
 

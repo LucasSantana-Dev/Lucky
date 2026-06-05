@@ -8,7 +8,7 @@ import type Command from '../models/Command'
 
 // Extracted from `./index` so consumers can import `CustomClient`
 // without round-tripping through the barrel. See
-// docs/decisions/2026-05-16-next-refactor-target-bot-circular-deps.md.
+// decisions/2026-05-16-next-refactor-target-bot-circular-deps.md.
 // NOTE: a type-only cycle through `models/Command → types/CommandData`
 // persists at the module-graph level (madge cycle 1 of the original
 // list); it is `import type` only and erased by tsc, so it has no

@@ -158,7 +158,7 @@ npm run test:e2e        # Playwright smoke tests
 
 ### Decision Log
 
-Every non-trivial technical choice is documented as an Architecture Decision Record in [`docs/decisions/`](docs/decisions/). 20+ ADRs covering the music engine, CI/CD pipeline, database strategy, security posture, and more — each with context, alternatives considered, and revisit triggers.
+Every non-trivial technical choice is documented as an Architecture Decision Record in [`decisions/`](decisions/). 20+ ADRs covering the music engine, CI/CD pipeline, database strategy, security posture, and more — each with context, alternatives considered, and revisit triggers.
 
 ### Admin Panel
 

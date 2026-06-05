@@ -27,7 +27,7 @@ Per-package quick refs:
 - **Frontend dev** — `pnpm --filter @lucky/frontend dev` (Vite)
 - **Frontend e2e** — `pnpm --filter @lucky/frontend test:e2e` (Playwright)
 
-The active backlog lives at `.claude/plans/backlog-YYYY-MM-DD.md`; the most recent file is canonical. Tracked specs live under `docs/specs/YYYY-MM-DD-*/`.
+The active backlog lives at `.claude/plans/backlog-YYYY-MM-DD.md`; the most recent file is canonical. Feature specs are local-only (untracked) under `.claude/specs/YYYY-MM-DD-*/`. Decisions of record (ADRs) are tracked at the repo root under `decisions/`.
 
 ## Pull request checks
 
