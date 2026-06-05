@@ -27,14 +27,18 @@ export function errorHandler(
         return
     }
 
+    // Strip the query string: it can carry secrets (OAuth code/state, tokens)
+    // that must not leak into logs or Sentry telemetry.
+    const path = req.originalUrl.split('?')[0]
+
     errorLog({
-        message: `Unhandled error on ${req.method} ${req.originalUrl}:`,
+        message: `Unhandled error on ${req.method} ${path}:`,
         error: err,
     })
     captureException(err, {
         context: 'backend-unhandled-route-error',
         method: req.method,
-        url: req.originalUrl,
+        url: path,
     })
     res.status(500).json({ error: 'Internal server error' })
 }

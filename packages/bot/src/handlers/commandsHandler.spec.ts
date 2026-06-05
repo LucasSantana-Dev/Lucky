@@ -29,7 +29,7 @@ jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
     createUserFriendlyError: jest.fn().mockReturnValue('An error occurred'),
 }))
 
-import { debugLog, errorLog, captureException } from '@lucky/shared/utils'
+import { errorLog, captureException } from '@lucky/shared/utils'
 import { featureToggleService } from '@lucky/shared/services'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'

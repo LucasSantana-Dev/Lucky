@@ -127,6 +127,28 @@ describe('errorHandler', () => {
         })
     })
 
+    test('strips the query string from logged + captured URL (no secret leak)', () => {
+        const err = new Error('boom')
+        const res = createRes()
+
+        errorHandler(
+            err,
+            createReq('GET', '/api/auth/callback?code=secret&state=xyz'),
+            res,
+            jest.fn(),
+        )
+
+        expect(captureException).toHaveBeenCalledWith(
+            err,
+            expect.objectContaining({ url: '/api/auth/callback' }),
+        )
+        expect(errorLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Unhandled error on GET /api/auth/callback:',
+            }),
+        )
+    })
+
     test('should not leak internal error details to client', () => {
         const err = new Error('SELECT * FROM users failed: ECONNREFUSED')
         const res = createRes()

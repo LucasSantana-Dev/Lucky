@@ -50,7 +50,7 @@ jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
     createUserFriendlyError: jest.fn(),
 }))
 
-import { debugLog, errorLog, captureException } from '@lucky/shared/utils'
+import { errorLog, captureException } from '@lucky/shared/utils'
 import { executeCommand } from './commandsHandler'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
 import { reactionRolesService } from '@lucky/shared/services'
