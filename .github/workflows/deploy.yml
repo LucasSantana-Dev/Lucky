@@ -8,6 +8,11 @@ on:
                 required: false
                 default: 'false'
                 type: boolean
+            rollback_sha:
+                description: 'Roll back: deploy this exact prior commit SHA (its :<sha> images must still exist in the registry). Leave blank for a normal deploy.'
+                required: false
+                default: ''
+                type: string
     workflow_run:
         workflows: ["Build & Push Docker Images"]
         types: [completed]
@@ -56,6 +61,13 @@ jobs:
                   GH_PAGER: cat
               run: |
                   set -euo pipefail
+                  # Rollback deploys an already-published prior image; its build
+                  # finished long ago, so skip the docker-publish wait entirely.
+                  if [ -n "${{ inputs.rollback_sha }}" ]; then
+                    echo "==> Rollback to ${{ inputs.rollback_sha }} — skipping docker build wait (image already published)"
+                    echo "docker_rebuilt=false" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
                   if [ "${{ github.event_name }}" = "workflow_run" ]; then
                     commit_sha="${{ github.event.workflow_run.head_sha }}"
                   else
@@ -191,11 +203,24 @@ jobs:
                   set -euo pipefail
                   echo "==> Triggering deploy webhook..."
 
+                  # Resolve the image SHA to deploy: an explicit rollback target
+                  # when given, else the commit that triggered this run. Sent to
+                  # the homelab so it deploys that exact :<sha> image tag.
+                  if [ -n "${{ inputs.rollback_sha }}" ]; then
+                    DEPLOY_SHA="${{ inputs.rollback_sha }}"
+                    echo "==> Manual rollback to $DEPLOY_SHA"
+                  elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+                    DEPLOY_SHA="${{ github.event.workflow_run.head_sha }}"
+                  else
+                    DEPLOY_SHA="${{ github.sha }}"
+                  fi
+
                   call_webhook() {
                     local url="$1"
                     curl -s -w "\n%{http_code}" \
                       -X POST \
                       -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
+                      -H "X-Deploy-SHA: $DEPLOY_SHA" \
                       --connect-timeout 10 \
                       --max-time 30 \
                       "$url"
