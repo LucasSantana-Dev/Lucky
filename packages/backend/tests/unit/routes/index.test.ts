@@ -22,6 +22,7 @@ const setupStarboardRoutes = jest.fn()
 const setupMusicRoutes = jest.fn()
 const setupSpotifyRoutes = jest.fn()
 const setupArtistsRoutes = jest.fn()
+const setupSupportRoutes = jest.fn()
 const setupInternalNotifyRoutes = jest.fn()
 const setupWebhookApiRoutes = jest.fn()
 const setupWebhookPublicRoutes = jest.fn()
@@ -118,6 +119,10 @@ jest.mock('../../../src/routes/artists', () => ({
     setupArtistsRoutes,
 }))
 
+jest.mock('../../../src/routes/support', () => ({
+    setupSupportRoutes,
+}))
+
 jest.mock('../../../src/routes/internalNotify', () => ({
     setupInternalNotifyRoutes,
 }))
@@ -192,6 +197,7 @@ describe('setupRoutes', () => {
         )
         expect(setupAdminRoutes).toHaveBeenCalledWith(app)
         expect(setupWebhookApiRoutes).toHaveBeenCalledWith(app)
+        expect(setupSupportRoutes).toHaveBeenCalledWith(app)
 
         expect(requireGuildModuleAccess).toHaveBeenCalledWith('moderation')
         expect(requireGuildModuleAccess).toHaveBeenCalledWith('automation')
