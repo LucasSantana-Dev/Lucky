@@ -313,13 +313,25 @@ export class MusicSessionSnapshotService {
             ]
 
             let restoredCount = 0
+            // Tracks THIS restore added, so an abort can undo exactly those — never
+            // tracks a user may have queued during the (racing) restore window.
+            const restoredTracks: Track[] = []
+            const undoRestoredTracks = () => {
+                for (const t of restoredTracks) {
+                    try {
+                        queue.node.remove(t)
+                    } catch {
+                        // best-effort: track may already have been consumed
+                    }
+                }
+            }
             try {
                 for (const entry of tracksToRestore) {
-                    // Aborted (e.g. the caller's restore deadline elapsed): stop and
-                    // clear any partial state so we never enqueue tracks after the
-                    // caller has already moved on with an empty queue.
+                    // Aborted (caller's restore deadline elapsed): undo what we added
+                    // and bail, so we never leave a partial restore after the caller
+                    // moved on with an empty queue.
                     if (options.signal?.aborted) {
-                        queue.clear()
+                        undoRestoredTracks()
                         return { restoredCount: 0, sessionSnapshotId: null }
                     }
                     const query =
@@ -328,6 +340,12 @@ export class MusicSessionSnapshotService {
                         query,
                         searchOptions,
                     )
+                    // Re-check after the await — the deadline may have elapsed during
+                    // the search, so don't enqueue this track post-abort.
+                    if (options.signal?.aborted) {
+                        undoRestoredTracks()
+                        return { restoredCount: 0, sessionSnapshotId: null }
+                    }
                     const track = result.tracks[0]
                     if (!track) continue
 
@@ -339,6 +357,7 @@ export class MusicSessionSnapshotService {
                         entry.requestedById,
                     )
                     queue.addTrack(track)
+                    restoredTracks.push(track as Track)
                     restoredCount += 1
                 }
             } catch (loopError) {
