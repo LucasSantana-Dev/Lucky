@@ -114,6 +114,9 @@ async function notifyStaffChannel(
                 },
                 body: JSON.stringify({
                     content: content.slice(0, 1900),
+                    // User-submitted context is untrusted: suppress all mentions
+                    // so a report body can't ping @everyone/@here/roles in staff.
+                    allowed_mentions: { parse: [] },
                 }),
             },
         )
@@ -293,11 +296,20 @@ export function setupSupportRoutes(app: Express): void {
                 throw AppError.notFound('Image not found')
             }
 
-            res.set(
+            // Binary image bytes from a validated upload (mime restricted to
+            // png/jpeg/webp at write time). Serve with the stored content-type
+            // and nosniff so the browser can't reinterpret the payload as
+            // anything executable, and stream as a raw Buffer via res.end.
+            const imageBuffer = Buffer.isBuffer(report.image)
+                ? report.image
+                : Buffer.from(report.image as Uint8Array)
+            res.setHeader(
                 'Content-Type',
                 report.imageMimeType || 'application/octet-stream',
             )
-            res.send(report.image)
+            res.setHeader('X-Content-Type-Options', 'nosniff')
+            res.setHeader('Content-Disposition', 'inline')
+            res.end(imageBuffer)
         }),
     )
 }
