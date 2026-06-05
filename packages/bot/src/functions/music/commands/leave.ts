@@ -13,6 +13,7 @@ import {
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { musicWatchdogService } from '../../../utils/music/watchdog'
+import { collaborativePlaylistService } from '../../../utils/music/collaborativePlaylist'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -36,7 +37,10 @@ export default new Command({
                 message: 'Exiting voice channel',
                 data: { guildId: interaction.guildId },
             })
-            if (queue) musicWatchdogService.markIntentionalStop(queue.guild.id)
+            if (queue) {
+                musicWatchdogService.markIntentionalStop(queue.guild.id)
+                collaborativePlaylistService.clearGuildState(queue.guild.id)
+            }
             queue?.delete()
             await interactionReply({
                 interaction,

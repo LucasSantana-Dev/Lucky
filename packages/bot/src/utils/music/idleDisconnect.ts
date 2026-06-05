@@ -2,6 +2,7 @@ import type { GuildQueue } from 'discord-player'
 import { guildSettingsService } from '@lucky/shared/services'
 import { debugLog } from '@lucky/shared/utils'
 import { musicWatchdogService } from './watchdog'
+import { collaborativePlaylistService } from './collaborativePlaylist'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
 const idleTimers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -48,6 +49,9 @@ async function disconnectIdle(queue: GuildQueue): Promise<void> {
         const metadata = queue.metadata as QueueMetadata | undefined
         musicWatchdogService.markIntentionalStop(guildId)
         queue.delete()
+        // Clear collaborative state only after the queue is actually torn
+        // down, so a delete failure doesn't reset state for a live session.
+        collaborativePlaylistService.clearGuildState(guildId)
 
         if (metadata?.channel) {
             await metadata.channel.send(

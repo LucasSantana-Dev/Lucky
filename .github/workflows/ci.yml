@@ -16,8 +16,8 @@ permissions:
     contents: read
 
 jobs:
-    checks:
-        name: Checks
+    build-shared:
+        name: Build — shared
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v6
@@ -29,12 +29,38 @@ jobs:
               run: npm ci --legacy-peer-deps --ignore-scripts
             - name: Generate Prisma client
               run: npx prisma generate
+            - name: Build shared package
+              run: npm run build:shared
+            - name: Upload shared artifact
+              uses: actions/upload-artifact@v7
+              with:
+                  name: shared-build
+                  path: |
+                      packages/shared/src/generated/prisma
+                      packages/shared/dist
+                  retention-days: 1
+
+    checks:
+        name: Checks
+        runs-on: ubuntu-latest
+        needs: build-shared
+        steps:
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: '22'
+                  cache: 'npm'
+            - name: Install dependencies
+              run: npm ci --legacy-peer-deps --ignore-scripts
+            - name: Download shared artifact
+              uses: actions/download-artifact@v8
+              with:
+                  name: shared-build
+                  path: packages/shared
             - name: Lint
               run: |
                   npm run lint --workspace=packages/frontend
                   npm run lint --workspace=packages/backend
-            - name: Build shared package
-              run: npm run build:shared
             - name: Verify shared package exports
               run: npm run verify:shared-exports
               env:
@@ -49,6 +75,7 @@ jobs:
     test-backend:
         name: Test — backend
         runs-on: ubuntu-latest
+        needs: build-shared
         steps:
             - uses: actions/checkout@v6
             - uses: actions/setup-node@v6
@@ -56,7 +83,11 @@ jobs:
                   node-version: '22'
                   cache: 'npm'
             - run: npm ci --legacy-peer-deps --ignore-scripts
-            - run: npx prisma generate && npm run build:shared
+            - name: Download shared artifact
+              uses: actions/download-artifact@v8
+              with:
+                  name: shared-build
+                  path: packages/shared
             - name: Run backend tests
               run: npm run test --workspace=packages/backend -- --ci --coverage
             - uses: actions/upload-artifact@v7
@@ -69,6 +100,7 @@ jobs:
     test-bot:
         name: Test — bot
         runs-on: ubuntu-latest
+        needs: build-shared
         steps:
             - uses: actions/checkout@v6
             - uses: actions/setup-node@v6
@@ -76,7 +108,11 @@ jobs:
                   node-version: '22'
                   cache: 'npm'
             - run: npm ci --legacy-peer-deps --ignore-scripts
-            - run: npx prisma generate && npm run build:shared
+            - name: Download shared artifact
+              uses: actions/download-artifact@v8
+              with:
+                  name: shared-build
+                  path: packages/shared
             - name: Run bot tests
               run: npm run test --workspace=packages/bot -- --ci --coverage
             - name: Run music incident regression
@@ -91,6 +127,7 @@ jobs:
     test-youtube-smoke:
         name: Test — YouTube smoke (dependency guard)
         runs-on: ubuntu-latest
+        needs: build-shared
         # Only runs on dependabot/renovate pull_request events touching YouTube packages.
         if: |
           (github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]') && (
@@ -107,7 +144,11 @@ jobs:
                   node-version: '22'
                   cache: 'npm'
             - run: npm ci --legacy-peer-deps --ignore-scripts
-            - run: npx prisma generate && npm run build:shared
+            - name: Download shared artifact
+              uses: actions/download-artifact@v8
+              with:
+                  name: shared-build
+                  path: packages/shared
             - name: Run YouTube smoke test
               run: YOUTUBE_SMOKE_TEST=true npm run test --workspace=packages/bot -- --testPathPatterns="youtube.smoke" --ci --coverage
             - uses: actions/upload-artifact@v7
@@ -120,6 +161,7 @@ jobs:
     test-frontend:
         name: Test — frontend
         runs-on: ubuntu-latest
+        needs: build-shared
         steps:
             - uses: actions/checkout@v6
             - uses: actions/setup-node@v6
@@ -127,7 +169,11 @@ jobs:
                   node-version: '22'
                   cache: 'npm'
             - run: npm ci --legacy-peer-deps --ignore-scripts
-            - run: npx prisma generate && npm run build:shared
+            - name: Download shared artifact
+              uses: actions/download-artifact@v8
+              with:
+                  name: shared-build
+                  path: packages/shared
             - name: Run frontend tests
               run: npm run test --workspace=packages/frontend -- --coverage --coverage.reporter=lcov --coverage.reporter=text
             - uses: actions/upload-artifact@v7
@@ -183,7 +229,7 @@ jobs:
         # test-youtube-smoke intentionally excluded: advisory-only, runs on YouTube dependency PRs only
         name: Quality Gates
         runs-on: ubuntu-latest
-        needs: [checks, test-backend, test-bot, test-frontend]
+        needs: [build-shared, checks, test-backend, test-bot, test-frontend]
         if: always()
         steps:
             - name: Assert all jobs passed

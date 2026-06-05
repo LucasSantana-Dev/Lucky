@@ -322,9 +322,12 @@ export class RecommendationFeedbackService {
     ): Promise<Set<string>> {
         try {
             const db = getPrismaClient()
+            // Cap at 5000 prefs per user/guild/type to prevent unbounded
+            // query on power users. Typical users have <100 prefs.
             const prefs = await db.userArtistPreference.findMany({
                 where: { discordUserId: userId, guildId, preference },
                 select: { artistKey: true },
+                take: 5000,
             })
             return new Set(prefs.map((p) => p.artistKey))
         } catch {

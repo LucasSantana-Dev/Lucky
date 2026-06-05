@@ -1,23 +1,24 @@
 {
-  "$schema": "https://raw.githubusercontent.com/LucasSantana-Dev/.github/main/schemas/review-tools-config.schema.json",
-  "version": 1,
-  "central_workflow_tag": "v1",
-  "components": {
-    "claude_review": {
-      "action": "anthropics/claude-code-action",
-      "version": "v1",
-      "model": "claude-sonnet-4-6"
+    "$schema": "https://raw.githubusercontent.com/LucasSantana-Dev/.github/main/schemas/review-tools-config.schema.json",
+    "version": 1,
+    "central_workflow_tag": "v1",
+    "components": {
+        "claude_review": {
+            "action": "anthropics/claude-code-action",
+            "version": "v1",
+            "model": "claude-sonnet-4-6"
+        },
+        "danger": {
+            "package": "danger",
+            "version": "^12",
+            "node": "22"
+        },
+        "cubic": {
+            "type": "github-app",
+            "config": "dashboard",
+            "note": "Replaced CodeRabbit 2026-06-04 (ADR 2026-05-21 Update). Rules live in the cubic dashboard, not in-repo; trigger via '@cubic-dev-ai review'. Free on public repos."
+        }
     },
-    "danger": {
-      "package": "danger",
-      "version": "^12",
-      "node": "22"
-    },
-    "coderabbit": {
-      "profile": "chill",
-      "config_path": ".coderabbit.yaml"
-    }
-  },
-  "installed_at": "2026-05-10",
-  "installed_by": "manual (pilot consumer for ADR 2026-05-10-multi-repo-review-tools-rollout)"
+    "installed_at": "2026-05-10",
+    "installed_by": "manual (pilot consumer for ADR 2026-05-10-multi-repo-review-tools-rollout)"
 }
