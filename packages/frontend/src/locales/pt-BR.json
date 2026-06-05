@@ -337,5 +337,40 @@
             "liveControls": "Controles em tempo real"
         },
         "copyright": "© 2026 Lucky. Todos os direitos reservados."
+    },
+    "support": {
+        "title": "Relatar um problema",
+        "subtitle": "Conte o que aconteceu — anexe uma captura de tela se puder.",
+        "referenceId": "ID de referência",
+        "form": {
+            "contextLabel": "O que aconteceu?",
+            "contextPlaceholder": "Descreva o que você estava fazendo e o que deu errado…",
+            "imageLabel": "Captura de tela (opcional)",
+            "imageTypeError": "Tipo de imagem não suportado. Use PNG, JPEG ou WebP.",
+            "imageSizeError": "Imagem muito grande (máx. 5 MB).",
+            "submit": "Enviar relato",
+            "genericError": "Falha ao enviar seu relato. Tente novamente."
+        },
+        "success": {
+            "title": "Obrigado pelo relato",
+            "body": "Recebemos e vamos analisar."
+        },
+        "admin": {
+            "title": "Relatos de suporte",
+            "subtitle": "Relatos de erro enviados por usuários.",
+            "loadError": "Não foi possível carregar os relatos.",
+            "emptyTitle": "Nenhum relato",
+            "emptyDescription": "Nenhum relato de suporte corresponde a este filtro.",
+            "selectPrompt": "Selecione um relato para ver os detalhes.",
+            "hasImage": "Tem captura de tela",
+            "imageAlt": "Captura de tela do relato",
+            "status": {
+                "all": "Todos",
+                "new": "Novo",
+                "triaged": "Triado",
+                "promoted": "Promovido",
+                "dismissed": "Descartado"
+            }
+        }
     }
 }

@@ -50,6 +50,8 @@ const TermsOfServicePage = lazy(() => import('./pages/TermsOfService'))
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicy'))
 const DocsPage = lazy(() => import('./pages/Docs'))
 const ChangelogPage = lazy(() => import('./pages/Changelog'))
+const SupportPage = lazy(() => import('./pages/Support'))
+const AdminSupportPage = lazy(() => import('./pages/AdminSupport'))
 
 const PUBLIC_PATH_PREFIXES = [
     '/terms-of-service',
@@ -58,6 +60,7 @@ const PUBLIC_PATH_PREFIXES = [
     '/privacy',
     '/docs',
     '/changelog',
+    '/support',
 ]
 
 function isPublicPath(pathname: string) {
@@ -136,6 +139,7 @@ function AuthenticatedRoutes() {
                 element={guardedRoute('automation', <FeaturesPage />)}
             />
             <Route path='/admin' element={<AdminPage />} />
+            <Route path='/admin/support' element={<AdminSupportPage />} />
             <Route
                 path='/config'
                 element={guardedRoute('settings', <ConfigPage />)}
@@ -233,6 +237,7 @@ function PublicRoutes() {
             <Route path='/privacy' element={<PrivacyPolicyPage />} />
             <Route path='/docs' element={<DocsPage />} />
             <Route path='/changelog' element={<ChangelogPage />} />
+            <Route path='/support' element={<SupportPage />} />
             <Route
                 path='*'
                 element={<Navigate to='/terms-of-service' replace />}
