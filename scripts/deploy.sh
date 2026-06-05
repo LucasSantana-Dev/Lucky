@@ -2,6 +2,9 @@
 set -e
 
 RECEIVED_SECRET="${1:-}"
+# Optional target image SHA (arg 2). When set, deploy that exact :<sha> image
+# tag instead of :latest, enabling SHA-pinned deploys + rollback to a prior SHA.
+DEPLOY_SHA="${2:-}"
 EXPECTED_SECRET="${DEPLOY_WEBHOOK_SECRET:-}"
 DEPLOY_DIR="${DEPLOY_DIR:-/repo}"
 DISCORD_WEBHOOK="${DISCORD_DEPLOY_WEBHOOK:-}"
@@ -17,6 +20,9 @@ GITHUB_REPO="${GITHUB_REPO:-LucasSantana-Dev/Lucky}"
 DEPLOY_FINAL_STATE="failure"
 DEPLOY_FINAL_DESC="Deploy failed"
 DEPLOYED_SHA=""
+# Records the last SHA that deployed AND passed all health checks. Used as the
+# auto-rollback target when a subsequent deploy fails its health checks.
+LAST_GOOD_FILE="${LAST_GOOD_FILE:-${DEPLOY_DIR}/.deploy-last-good-sha}"
 
 log() { echo "$LOG_PREFIX $(date '+%H:%M:%S') $1"; }
 
@@ -320,6 +326,104 @@ post_deploy_status() {
         -d "{\"state\":\"${1}\",\"description\":\"${2}\",\"context\":\"homelab-deploy\"}" || true
 }
 
+# Runs all post-rollout health checks. Returns 0 if healthy, 1 on the first hard
+# failure (no `exit`, so the caller can decide to roll back). A slow/absent bot
+# gateway after the timeout is a non-fatal WARN, matching prior behavior.
+run_health_checks() {
+    log "Waiting for health checks..."
+    sleep 10
+
+    log "Service status:"
+    docker_compose ps --format "table {{.Name}}\t{{.Status}}"
+
+    if ! require_running_containers; then
+        print_targeted_logs
+        log "HEALTH: required services are not running"
+        return 1
+    fi
+
+    if ! wait_for_http_ready \
+        "API health" \
+        "http://nginx/api/health" \
+        '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+        print_targeted_logs
+        log "HEALTH: API health endpoint did not become ready"
+        return 1
+    fi
+
+    if ! wait_for_http_ready \
+        "Auth config health" \
+        "http://nginx/api/health/auth-config" \
+        '"auth"[[:space:]]*:'; then
+        print_targeted_logs
+        log "HEALTH: Auth config endpoint did not become ready"
+        return 1
+    fi
+
+    log "Waiting for bot gateway health (start-period: 45s, timeout: 90s)..."
+    local bot_deadline bot_health
+    bot_deadline=$(( SECONDS + 90 ))
+    while [[ $SECONDS -lt $bot_deadline ]]; do
+        bot_health=$(docker inspect lucky-bot --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
+        if [[ "$bot_health" == "healthy" ]]; then
+            log "Bot gateway healthy"
+            break
+        fi
+        if [[ "$bot_health" == "unhealthy" ]]; then
+            log "HEALTH: bot container unhealthy (Discord gateway not connected)"
+            docker logs lucky-bot --tail=40 --no-color 2>/dev/null || true
+            return 1
+        fi
+        sleep 5
+    done
+    bot_health=$(docker inspect lucky-bot --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
+    if [[ "$bot_health" != "healthy" ]]; then
+        log "WARN: bot health status '${bot_health}' after 90s (Discord may be slow — proceeding)"
+    fi
+
+    return 0
+}
+
+# Auto-rollback: when a deploy fails its health checks, redeploy the last SHA
+# that was known healthy (recorded in LAST_GOOD_FILE) and re-check. Returns 0 if
+# the rollback target is healthy (DEPLOYED_SHA is then repointed at it), 1 if no
+# usable target exists or the rollback target is also unhealthy.
+attempt_rollback() {
+    local reason="$1"
+    local last_good=""
+    [[ -f "$LAST_GOOD_FILE" ]] && last_good=$(cat "$LAST_GOOD_FILE" 2>/dev/null || true)
+
+    if [[ -z "$last_good" || "$last_good" == "$DEPLOYED_SHA" ]]; then
+        log "ROLLBACK: no distinct last-good SHA available (last_good='${last_good:-none}')"
+        notify 16711680 "Deploy Failed" "$reason (no rollback target available)"
+        return 1
+    fi
+
+    log "AUTO-ROLLBACK: ${DEPLOYED_SHA} failed ($reason); reverting to last-good ${last_good}"
+    # Mark the failed SHA's commit status before repointing DEPLOYED_SHA.
+    post_deploy_status "failure" "Auto-rolled back to ${last_good} after failed health checks"
+    notify 16753920 "Auto-rollback" "Deploy of ${DEPLOYED_SHA} failed ($reason); reverting to ${last_good}"
+
+    export IMAGE_TAG="$last_good"
+    if ! docker_compose pull bot backend frontend nginx; then
+        log "ROLLBACK ERROR: could not pull last-good images (${last_good})"
+        notify 16711680 "Rollback Failed" "Could not pull ${last_good} images — manual intervention required"
+        return 1
+    fi
+    docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx
+
+    if run_health_checks; then
+        log "Rollback to ${last_good} is healthy"
+        notify 65280 "Rolled Back" "Now running last-good ${last_good}"
+        DEPLOYED_SHA="$last_good"
+        return 0
+    fi
+
+    log "ROLLBACK ERROR: last-good ${last_good} is ALSO unhealthy — manual intervention required"
+    notify 16711680 "Rollback Failed" "${last_good} also unhealthy — manual intervention required"
+    return 1
+}
+
 if [[ -z "$EXPECTED_SECRET" ]]; then
     log "ERROR: DEPLOY_WEBHOOK_SECRET not configured"
     exit 1
@@ -328,6 +432,13 @@ fi
 if [[ "$RECEIVED_SECRET" != "$EXPECTED_SECRET" ]]; then
     log "ERROR: invalid webhook secret"
     exit 1
+fi
+
+# SHA-pinned deploy: run the :<sha> image tag the caller asked for. When no SHA
+# is supplied (e.g. a manual call) fall back to :latest for backward compatibility.
+if [[ -n "$DEPLOY_SHA" ]]; then
+    export IMAGE_TAG="$DEPLOY_SHA"
+    log "Deploying pinned image tag: $DEPLOY_SHA"
 fi
 
 incoming_sha=""
@@ -379,7 +490,7 @@ if ! sync_checkout_to_origin_main; then
     exit 1
 fi
 
-DEPLOYED_SHA=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)
+DEPLOYED_SHA="${DEPLOY_SHA:-$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)}"
 post_deploy_status "pending" "Deploy in progress"
 
 # Rebuild webhook early: after git pull lands new hooks.json/Dockerfile but
@@ -475,61 +586,29 @@ else
     log "WARN: Could not restart cloudflared (service unavailable)"
 fi
 
-log "Waiting for health checks..."
-sleep 10
-
-log "Service status:"
-docker_compose ps --format "table {{.Name}}\t{{.Status}}"
-
-if ! require_running_containers; then
-    print_targeted_logs
-    notify 16711680 "Deploy Failed" "Runtime precheck failed (required services)"
-    exit 1
-fi
-
-if ! wait_for_http_ready \
-    "API health" \
-    "http://nginx/api/health" \
-    '"status"[[:space:]]*:[[:space:]]*"ok"'; then
-    print_targeted_logs
-    notify 16711680 "Deploy Failed" "API health endpoint did not become ready"
-    exit 1
-fi
-
-if ! wait_for_http_ready \
-    "Auth config health" \
-    "http://nginx/api/health/auth-config" \
-    '"auth"[[:space:]]*:'; then
-    print_targeted_logs
-    notify 16711680 "Deploy Failed" "Auth config health endpoint did not become ready"
-    exit 1
-fi
-
-log "Waiting for bot gateway health (start-period: 45s, timeout: 90s)..."
-bot_deadline=$(( SECONDS + 90 ))
-while [[ $SECONDS -lt $bot_deadline ]]; do
-    bot_health=$(docker inspect lucky-bot --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
-    if [[ "$bot_health" == "healthy" ]]; then
-        log "Bot gateway healthy"
-        break
+if run_health_checks; then
+    # Record this SHA as the rollback target for future failed deploys.
+    if [[ -n "$DEPLOYED_SHA" ]]; then
+        echo "$DEPLOYED_SHA" >"$LAST_GOOD_FILE" 2>/dev/null \
+            || log "WARN: could not record last-good SHA to $LAST_GOOD_FILE"
     fi
-    if [[ "$bot_health" == "unhealthy" ]]; then
-        log "ERROR: RUNTIME_PRECHECK_FAILED (bot container unhealthy — Discord gateway not connected)"
-        docker logs lucky-bot --tail=40 --no-color 2>/dev/null || true
-        notify 16711680 "Deploy Failed" "Bot gateway not connected"
-        exit 1
-    fi
-    sleep 5
-done
-bot_health=$(docker inspect lucky-bot --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
-if [[ "$bot_health" != "healthy" ]]; then
-    log "WARN: bot health status '${bot_health}' after 90s (Discord may be slow — proceeding)"
+
+    log "Pruning old images..."
+    docker image prune -f --filter "until=24h"
+
+    DEPLOY_FINAL_STATE="success"
+    DEPLOY_FINAL_DESC="All services healthy"
+    log "Deploy complete!"
+    notify 65280 "Deploy Successful" "All services healthy and running"
+elif attempt_rollback "health checks failed"; then
+    # Service restored on the last-good version; the failed SHA already received
+    # a failure status inside attempt_rollback, and DEPLOYED_SHA now points at
+    # the healthy rollback target (the EXIT trap posts success for it).
+    DEPLOY_FINAL_STATE="success"
+    DEPLOY_FINAL_DESC="Auto-rolled back to ${DEPLOYED_SHA} after failed deploy"
+    log "Deploy failed; auto-rollback restored service on ${DEPLOYED_SHA}"
+else
+    DEPLOY_FINAL_STATE="failure"
+    DEPLOY_FINAL_DESC="Deploy failed and rollback unavailable"
+    exit 1
 fi
-
-log "Pruning old images..."
-docker image prune -f --filter "until=24h"
-
-DEPLOY_FINAL_STATE="success"
-DEPLOY_FINAL_DESC="All services healthy"
-log "Deploy complete!"
-notify 65280 "Deploy Successful" "All services healthy and running"
