@@ -280,15 +280,34 @@ jobs:
             - name: Skip Sonar scan for Dependabot without token
               if: env.SONAR_TOKEN_PRESENT != 'true' && github.actor == 'dependabot[bot]'
               run: echo "Skipping SonarCloud scan — no token for Dependabot."
+            # First attempt is allowed to fail: the scanner-engine download from
+            # scanner.sonarcloud.io intermittently 403s (transient CDN/provisioning),
+            # which otherwise fails this required check and blocks merge on a flake.
             - name: SonarCloud Scan (PR — quality gate blocks merge)
+              id: sonar_pr
               if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'pull_request'
+              continue-on-error: true
               uses: SonarSource/sonarqube-scan-action@v8
               with:
                   args: -Dsonar.qualitygate.wait=true
               env:
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            # Retry once only when the first attempt failed. A real quality-gate
+            # failure fails both attempts (so merge stays blocked); a transient
+            # download 403 clears on the retry.
+            - name: SonarCloud Scan (PR) — retry once on transient failure
+              if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'pull_request' && steps.sonar_pr.outcome == 'failure'
+              uses: SonarSource/sonarqube-scan-action@v8
+              with:
+                  args: -Dsonar.qualitygate.wait=true
+              env:
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            # Push-to-main scan is informational only — its failure must never fail
+            # the job (and thereby block the build→deploy chain). continue-on-error
+            # makes "non-blocking" actually true.
             - name: SonarCloud Scan (main — informational, non-blocking)
               if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'push'
+              continue-on-error: true
               uses: SonarSource/sonarqube-scan-action@v8
               with:
                   args: -Dsonar.qualitygate.wait=false
