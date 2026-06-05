@@ -13,6 +13,7 @@ import {
     type AuthenticatedRequest,
 } from '../middleware/auth'
 import { apiLimiter } from '../middleware/rateLimit'
+import { asyncHandler } from '../middleware/asyncHandler'
 import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
 
@@ -59,7 +60,10 @@ function decodeAndVerifyState(state: string, secret: string): string | null {
         .digest('hex')
     const sigBuf = Buffer.from(sig, 'utf8')
     const expectedBuf = Buffer.from(expected, 'utf8')
-    if (sigBuf.length === expectedBuf.length && crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+    if (
+        sigBuf.length === expectedBuf.length &&
+        crypto.timingSafeEqual(sigBuf, expectedBuf)
+    ) {
         return discordId
     }
     return null
@@ -90,52 +94,42 @@ export function setupSpotifyRoutes(app: Express): void {
     app.get(
         '/api/spotify/status',
         requireAuth,
-        async (req: AuthenticatedRequest, res: Response) => {
-            try {
-                const discordId = req.user?.id
-                if (!discordId) {
-                    res.status(401).json({ error: 'Not authenticated' })
-                    return
-                }
-                const link = await spotifyLinkService.getByDiscordId(discordId)
-                const configured = isSpotifyAuthConfigured()
-                res.json({
-                    configured,
-                    linked: !!link,
-                    username: link?.spotifyUsername ?? null,
-                })
-            } catch (error) {
-                errorLog({ message: 'Spotify status error', error })
-                res.status(500).json({ error: 'Failed to check status' })
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const discordId = req.user?.id
+            if (!discordId) {
+                res.status(401).json({ error: 'Not authenticated' })
+                return
             }
-        },
+            const link = await spotifyLinkService.getByDiscordId(discordId)
+            const configured = isSpotifyAuthConfigured()
+            res.json({
+                configured,
+                linked: !!link,
+                username: link?.spotifyUsername ?? null,
+            })
+        }),
     )
 
     app.delete(
         '/api/spotify/unlink',
         requireAuth,
-        async (req: AuthenticatedRequest, res: Response) => {
-            try {
-                const discordId = req.user?.id
-                if (!discordId) {
-                    res.status(401).json({ error: 'Not authenticated' })
-                    return
-                }
-                const ok = await spotifyLinkService.unlink(discordId)
-                if (!ok) {
-                    res.status(404).json({ error: 'No Spotify link found' })
-                    return
-                }
-                debugLog({
-                    message: 'Spotify unlinked via API',
-                    data: { discordId },
-                })
-                res.json({ success: true })
-            } catch (error) {
-                errorLog({ message: 'Spotify unlink error', error })
-                res.status(500).json({ error: 'Failed to unlink' })
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const discordId = req.user?.id
+            if (!discordId) {
+                res.status(401).json({ error: 'Not authenticated' })
+                return
             }
-        },
+            const ok = await spotifyLinkService.unlink(discordId)
+            if (!ok) {
+                res.status(404).json({ error: 'No Spotify link found' })
+                return
+            }
+            debugLog({
+                message: 'Spotify unlinked via API',
+                data: { discordId },
+            })
+            res.json({ success: true })
+        }),
     )
 
     app.get(
@@ -182,7 +176,11 @@ export function setupSpotifyRoutes(app: Express): void {
                 }
                 const backendBaseUrl = resolveBackendBaseUrl(req)
                 const callbackUrl = `${backendBaseUrl}/api/spotify/callback?state=${encodeURIComponent(state)}`
-                const scopes = ['user-top-read', 'user-read-recently-played', 'user-library-read']
+                const scopes = [
+                    'user-top-read',
+                    'user-read-recently-played',
+                    'user-library-read',
+                ]
                 const authUrl = `https://accounts.spotify.com/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=${encodeURIComponent(scopes.join(' '))}`
                 res.redirect(authUrl)
             } catch (error) {
@@ -193,9 +191,11 @@ export function setupSpotifyRoutes(app: Express): void {
         },
     )
 
-    app.get('/api/spotify/callback', apiLimiter, async (req: Request, res: Response) => {
-        const frontendUrl = getFrontendUrl()
-        try {
+    app.get(
+        '/api/spotify/callback',
+        apiLimiter,
+        asyncHandler(async (req: Request, res: Response) => {
+            const frontendUrl = getFrontendUrl()
             const cookies = req.cookies as Record<string, unknown> | undefined
             const stateFromCookie = cookies?.[SPOTIFY_STATE_COOKIE]
             const parsedQuery = spotifyCallbackQuery.safeParse(req.query)
@@ -249,9 +249,6 @@ export function setupSpotifyRoutes(app: Express): void {
                 data: { discordId, username: token.spotifyUsername },
             })
             res.redirect(`${frontendUrl}/?spotify_linked=true`)
-        } catch (error) {
-            errorLog({ message: 'Spotify callback error', error })
-            res.redirect(`${frontendUrl}/?error=spotify_callback_error`)
-        }
-    })
+        }),
+    )
 }

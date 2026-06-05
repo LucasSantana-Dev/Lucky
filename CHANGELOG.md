@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Internal
+- ci: retire CodeRabbit (paid) and adopt cubic (free on public repos) as the codebase-aware AI reviewer; PR-Agent + claude-review remain. Removes `.coderabbit.yaml`. Amends ADR 2026-05-21.
+
 ## [2.16.0] - 2026-05-28
 
 ### Added

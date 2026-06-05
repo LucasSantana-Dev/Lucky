@@ -184,6 +184,20 @@ _Avoid_: Webhook (reserve for inbound HTTP), feed, subscription alone (ambiguous
 One Event Subscription instance: a Guild watches a Twitch streamer (`twitchUserId` + `twitchLogin`) and posts a message to `discordChannelId` when the stream goes live. Owned by `TwitchNotification`.
 _Avoid_: Twitch alert, stream notification (informal; use "Twitch Notification" when discussing the model or feature specifically).
 
+### Support
+
+**Support Report**:
+A user-submitted bug report captured via the public dashboard `/support` web form: free-text context, an optional screenshot image, and a Correlation Id. Persisted as a Prisma model (image stored as a size-capped `Bytes` column). On submit, the bot pings a staff channel; a maintainer triages it in an admin-only dashboard view and may promote it to a GitHub issue.
+_Avoid_: Ticket, feedback, complaint, case (reserve "case" for Moderation Case).
+
+**Correlation Id**:
+A short, self-generated id minted when a user-facing error is produced. It is written to logs, set as a Sentry tag, shown in the error surface (bot embed / web error state), and prefilled into the `/support` form — so a Support Report maps back to the exact logged error. Independent of Sentry (present even when Sentry is disabled).
+_Avoid_: Trace id, request id, event id (the Sentry event id is a distinct, optional value the Correlation Id is tagged alongside).
+
+**Support URL**:
+The single canonical, configurable URL (dashboard base + `/support`) referenced by the shared error surfaces. Carries the Correlation Id (and light context) as query params. Distinct from the existing `DISCORD_INVITE_URL` (`/invite`).
+_Avoid_: Help link, contact link.
+
 ## Example dialogue
 
 > **Dev:** Autoplay broke for Server 12345 — keeps picking the same artist.

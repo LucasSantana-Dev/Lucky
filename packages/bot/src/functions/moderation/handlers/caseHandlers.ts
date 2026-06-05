@@ -6,15 +6,9 @@ import {
 import { moderationService } from '@lucky/shared/services'
 import { getPrismaClient, infoLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
+import { formatDurationHuman } from '../../../utils/general/formatDuration'
 
 const prisma = getPrismaClient()
-
-function formatDuration(seconds: number): string {
-    if (seconds < 60) return `${seconds} seconds`
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours`
-    return `${Math.floor(seconds / 86400)} days`
-}
 
 const typeColors: Record<string, number> = {
     warn: 0xffa500,
@@ -71,7 +65,7 @@ export async function handleCaseView(
     if (moderationCase.duration) {
         embed.addFields({
             name: 'Duration',
-            value: formatDuration(moderationCase.duration),
+            value: formatDurationHuman(moderationCase.duration),
             inline: true,
         })
     }

@@ -1,4 +1,7 @@
-import { ensureEnvironment } from '@lucky/shared/config'
+import {
+    ensureEnvironment,
+    validateBackendEnvironment,
+} from '@lucky/shared/config'
 import { redisClient } from '@lucky/shared/services'
 import {
     initializeSentry,
@@ -11,6 +14,7 @@ import { verifyRequiredDatabaseState } from './startup/verifyRequiredDatabaseSta
 
 export async function bootstrapBackend(): Promise<void> {
     await ensureEnvironment()
+    validateBackendEnvironment()
     setupErrorHandlers()
     initializeSentry({
         appName: 'lucky',
