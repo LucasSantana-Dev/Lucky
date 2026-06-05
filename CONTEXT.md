@@ -37,7 +37,7 @@ The ordered list of Tracks for one Guild's active playback. The first item is th
 _Avoid_: Playlist (reserved for user-saved collections, if/when introduced), list.
 
 **Player**:
-The per-Guild runtime playback state — voice connection, current Track, Queue, volume, repeat mode, paused/playing flag. Lives in memory; persisted snapshots are called **Sessions**. Canonical access path from a `guildId` is `resolveGuildQueue(client, guildId)` in `packages/bot/src/utils/music/queueResolver.ts`; calling `client.player.nodes.get(guildId)` directly is blocked by a guardrail test. See `docs/decisions/2026-05-19-queue-resolver-defensive-fallback-chain.md`.
+The per-Guild runtime playback state — voice connection, current Track, Queue, volume, repeat mode, paused/playing flag. Lives in memory; persisted snapshots are called **Sessions**. Canonical access path from a `guildId` is `resolveGuildQueue(client, guildId)` in `packages/bot/src/utils/music/queueResolver.ts`; calling `client.player.nodes.get(guildId)` directly is blocked by a guardrail test. See `decisions/2026-05-19-queue-resolver-defensive-fallback-chain.md`.
 _Avoid_: Voice client, audio player. Don't reach into `discord-player` APIs directly — use the resolver.
 
 **Session** / **GuildSession**:

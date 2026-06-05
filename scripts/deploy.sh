@@ -618,7 +618,7 @@ if run_health_checks; then
     # always registry-backed. Read via `docker inspect` (daemon metadata), so it
     # resolves even if the container process is unhealthy. Empty read -> keep the
     # prior last-good rather than clobber a valid target.
-    # See docs/decisions/2026-06-05-rollback-last-good-from-image-commit-sha.md
+    # See decisions/2026-06-05-rollback-last-good-from-image-commit-sha.md
     if [[ -n "$DEPLOYED_SHA" ]]; then
         _last_good_sha=$(docker inspect lucky-bot \
             --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \

@@ -45,7 +45,9 @@ async function countSourceAdditions(): Promise<number> {
         if (!d?.added) return sum
         // Danger's TextDiff.added is the raw added content (no `+` prefix).
         // Count non-empty lines instead of filtering by leading `+`.
-        return sum + d.added.split('\n').filter((l) => l.trim().length > 0).length
+        return (
+            sum + d.added.split('\n').filter((l) => l.trim().length > 0).length
+        )
     }, 0)
 }
 
@@ -65,8 +67,15 @@ const userFacingChange = all.some((p) =>
 // Dropped: chore/test/refactor/perf — they often touch user-facing code.
 const TITLE_PREFIX_SKIP =
     /^(chore\(deps(-dev)?\)|ci|build|style|docs)(\([^)]*\))?:\s/
-const hasSkipLabel = pr.labels?.some((l: { name: string }) => l.name === 'skip-changelog') ?? false
-if (userFacingChange && !changelogTouched && !TITLE_PREFIX_SKIP.test(pr.title) && !hasSkipLabel) {
+const hasSkipLabel =
+    pr.labels?.some((l: { name: string }) => l.name === 'skip-changelog') ??
+    false
+if (
+    userFacingChange &&
+    !changelogTouched &&
+    !TITLE_PREFIX_SKIP.test(pr.title) &&
+    !hasSkipLabel
+) {
     warn(
         `User-facing change without a CHANGELOG.md update. ` +
             `Add a line under \`## [Unreleased]\` if this should appear in release notes. ` +
@@ -135,7 +144,6 @@ if (!validPrefixes.test(headRef) && !headRef.startsWith('worktree-')) {
     )
 }
 
-
 // --- 9. Feature-removal sweep guard -----------------------------------------
 // When a commit message indicates feature/route/model removal,
 // flag if the PR body doesn't mention the sweep checklist.
@@ -150,7 +158,7 @@ const hasRemovalCommit = danger.git.commits.some(
 if (hasRemovalCommit && !hasSweepChecklistInBody) {
     const baseRepo = pr.base.repo.full_name
     const baseRef = pr.base.ref
-    const adrPath = 'docs/decisions/2026-05-19-retire-per-guild-feature-toggles.md'
+    const adrPath = 'decisions/2026-05-19-retire-per-guild-feature-toggles.md'
     const adrUrl = `https://github.com/${baseRepo}/blob/${baseRef}/${adrPath}`
     warn(
         `This PR appears to remove a feature or route (detected in commit message). ` +

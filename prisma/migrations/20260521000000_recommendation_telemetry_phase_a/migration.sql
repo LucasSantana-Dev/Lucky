@@ -1,5 +1,5 @@
 -- Phase A of the autoplay recommendation telemetry roadmap.
--- See docs/decisions/2026-05-21-autoplay-recommendation-roadmap.md
+-- See decisions/2026-05-21-autoplay-recommendation-roadmap.md
 --
 -- The `recommendations` table was previously unused scaffolding — no service
 -- writes to it. This migration repurposes the table for autoplay closed-loop

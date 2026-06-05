@@ -15,7 +15,7 @@ long-lived or versioned release branches** — versions are cut directly from
 > to one commit on `main`; individual pre-squash SHAs are **not** preserved. This
 > supersedes the earlier versioned-release-branch model and its inaccurate "merge
 > commit preserves individual PR SHAs" claim — see ADR
-> `docs/decisions/2026-05-28-branch-strategy-main-as-trunk.md`.
+> `decisions/2026-05-28-branch-strategy-main-as-trunk.md`.
 
 ```
 main ──●──●──●──●──●──●──── (tag v2.16.0) ──●──●──●──── (tag v2.17.0)
@@ -71,5 +71,5 @@ branch). Criteria for fast-tracking:
 
 ## References
 
-- ADR: `docs/decisions/2026-05-28-branch-strategy-main-as-trunk.md` (this model)
-- ADR: `docs/decisions/2026-05-09-branch-strategy-no-stacking.md`
+- ADR: `decisions/2026-05-28-branch-strategy-main-as-trunk.md` (this model)
+- ADR: `decisions/2026-05-09-branch-strategy-no-stacking.md`

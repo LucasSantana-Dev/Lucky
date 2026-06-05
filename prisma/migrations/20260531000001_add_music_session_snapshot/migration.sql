@@ -1,5 +1,5 @@
 -- Music session snapshots (one per guild): auto-saved queue state for restore-after-restart.
--- Part of the Redis scope-reduction (docs/decisions/2026-05-31-redis-scope-reduction.md):
+-- Part of the Redis scope-reduction (decisions/2026-05-31-redis-scope-reduction.md):
 -- migrates MusicSessionSnapshotService off Redis onto Postgres. One row per guild,
 -- overwritten on each save (upsert) and deleted after a successful restore.
 

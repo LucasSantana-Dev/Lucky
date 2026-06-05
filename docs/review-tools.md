@@ -48,7 +48,7 @@ Replaced both gaps with:
    `LucasSantana-Dev/.github`; rules are repo-specific by design.
 
 **Why one caller workflow + reusable workflows in `LucasSantana-Dev/.github`?**
-See ADR `ai-dev-toolkit:docs/decisions/2026-05-10-multi-repo-review-tools-rollout.md`.
+See ADR `ai-dev-toolkit:decisions/2026-05-10-multi-repo-review-tools-rollout.md`.
 TL;DR: action SHA bumps and prompt tuning propagate centrally; repo-specific
 dangerfile rules stay local.
 

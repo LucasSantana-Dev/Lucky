@@ -128,7 +128,7 @@
   /* Short-form aliases for the 2026-04-21 redesign port.
      Values match the existing --color-lucky-* tokens. Keep both during
      migration; the --lucky-* aliases will be dropped in a later cleanup PR
-     after every page has been ported. Decision: docs/decisions/2026-04-21-redesign-port-target.md */
+     after every page has been ported. Decision: decisions/2026-04-21-redesign-port-target.md */
   --color-canvas: #0f1117;
   --color-sidebar: #161b22;
   --color-panel: #1c2129;
