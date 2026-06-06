@@ -35,8 +35,14 @@ async function collectSourceFiles(dir) {
     let entries
     try {
         entries = await readdir(dir, { withFileTypes: true })
-    } catch {
-        return [] // package may be absent in some checkouts
+    } catch (error) {
+        // The three consumer roots are this gate's contract. A missing/renamed
+        // src tree must fail loudly — silently returning [] would pass green with
+        // reduced coverage, exactly the blind spot this check exists to close.
+        const message = error instanceof Error ? error.message : String(error)
+        throw new Error(
+            `Unable to scan consumer source dir "${path.relative(repoRoot, dir)}": ${message}`,
+        )
     }
     const nested = await Promise.all(
         entries.map(async (entry) => {
