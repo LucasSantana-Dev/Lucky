@@ -42,6 +42,7 @@ async function collectSourceFiles(dir) {
         const message = error instanceof Error ? error.message : String(error)
         throw new Error(
             `Unable to scan consumer source dir "${path.relative(repoRoot, dir)}": ${message}`,
+            { cause: error },
         )
     }
     const nested = await Promise.all(
