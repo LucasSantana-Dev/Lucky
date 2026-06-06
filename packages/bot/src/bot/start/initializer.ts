@@ -12,11 +12,17 @@ import {
     startMetricsServer,
     stopMetricsServer,
 } from '../../utils/monitoring/metricsServer'
+import { stopWebMusicHandler } from '../../handlers/webMusic'
 import type { CustomClient } from '../../types'
 import { ConfigurationError } from '@lucky/shared/types'
 import { redisClient } from '@lucky/shared/services'
 import { initProviderHealth } from '../../utils/music/search/providerHealth'
 import { musicWatchdogService } from '../../utils/music/watchdog'
+import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
+import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
+import { aiDevToolkitService } from '../../services/AiDevToolkitService'
+import { dependencyCheckService } from '../../services/DependencyCheckService'
+import { stopTwitchService } from '../../twitch'
 import type {
     BotInitializationOptions,
     BotInitializationResult,
@@ -167,7 +173,73 @@ export class BotInitializer {
     }
 
     async shutdown(): Promise<void> {
-        stopPresenceRotation()
+        // Stop presence rotation first (following #1157 pattern)
+        try {
+            stopPresenceRotation()
+        } catch (error) {
+            errorLog({ message: 'Error stopping presence rotation:', error })
+        }
+
+        // Stop all long-lived timers/intervals
+        try {
+            stopWebMusicHandler()
+        } catch (error) {
+            errorLog({ message: 'Error stopping web music handler:', error })
+        }
+
+        try {
+            birthdayScheduler.stop()
+        } catch (error) {
+            errorLog({ message: 'Error stopping birthday scheduler:', error })
+        }
+
+        try {
+            modDigestSchedulerService.stop()
+        } catch (error) {
+            errorLog({ message: 'Error stopping mod digest scheduler:', error })
+        }
+
+        try {
+            aiDevToolkitService.stop()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping AI dev toolkit service:',
+                error,
+            })
+        }
+
+        try {
+            dependencyCheckService.stop()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping dependency check service:',
+                error,
+            })
+        }
+
+        try {
+            stopTwitchService()
+        } catch (error) {
+            errorLog({ message: 'Error stopping Twitch service:', error })
+        }
+
+        try {
+            musicWatchdogService.stopOrphanSessionMonitor()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping watchdog orphan-session monitor:',
+                error,
+            })
+        }
+
+        try {
+            musicWatchdogService.stopPeriodicScan()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping watchdog periodic scan:',
+                error,
+            })
+        }
 
         if (this.client) {
             try {

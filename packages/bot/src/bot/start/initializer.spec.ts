@@ -15,8 +15,15 @@ const redisClientConnectMock = jest.fn()
 const redisClientDisconnectMock = jest.fn()
 const musicWatchdogStartMock = jest.fn()
 const musicWatchdogStopMock = jest.fn()
+const musicWatchdogStopPeriodicScanMock = jest.fn()
 const startMetricsServerMock = jest.fn()
 const stopMetricsServerMock = jest.fn().mockResolvedValue(undefined)
+const stopWebMusicHandlerMock = jest.fn()
+const birthdaySchedulerStopMock = jest.fn()
+const modDigestSchedulerStopMock = jest.fn()
+const aiDevToolkitStopMock = jest.fn()
+const dependencyCheckStopMock = jest.fn()
+const stopTwitchServiceMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
@@ -56,7 +63,42 @@ jest.mock('../../utils/music/watchdog', () => ({
             musicWatchdogStartMock(...args),
         stopOrphanSessionMonitor: (...args: unknown[]) =>
             musicWatchdogStopMock(...args),
+        stopPeriodicScan: (...args: unknown[]) =>
+            musicWatchdogStopPeriodicScanMock(...args),
     },
+}))
+
+jest.mock('../../handlers/webMusic', () => ({
+    stopWebMusicHandler: (...args: unknown[]) =>
+        stopWebMusicHandlerMock(...args),
+}))
+
+jest.mock('../../utils/general/birthdayScheduler', () => ({
+    birthdayScheduler: {
+        stop: (...args: unknown[]) => birthdaySchedulerStopMock(...args),
+    },
+}))
+
+jest.mock('../../utils/moderation/modDigestScheduler', () => ({
+    modDigestSchedulerService: {
+        stop: (...args: unknown[]) => modDigestSchedulerStopMock(...args),
+    },
+}))
+
+jest.mock('../../services/AiDevToolkitService', () => ({
+    aiDevToolkitService: {
+        stop: (...args: unknown[]) => aiDevToolkitStopMock(...args),
+    },
+}))
+
+jest.mock('../../services/DependencyCheckService', () => ({
+    dependencyCheckService: {
+        stop: (...args: unknown[]) => dependencyCheckStopMock(...args),
+    },
+}))
+
+jest.mock('../../twitch', () => ({
+    stopTwitchService: (...args: unknown[]) => stopTwitchServiceMock(...args),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -346,6 +388,74 @@ describe('BotInitializer', () => {
             await initializer.shutdown()
 
             expect(initializer.getClient()).toBeNull()
+        })
+    })
+
+    describe('shutdown — timer & scheduler cleanup', () => {
+        it('stops every long-lived timer and scheduler', async () => {
+            const initResult = await initializer.initializeBot()
+            expect(initResult.success).toBe(true)
+
+            await initializer.shutdown()
+
+            expect(stopWebMusicHandlerMock).toHaveBeenCalled()
+            expect(birthdaySchedulerStopMock).toHaveBeenCalled()
+            expect(modDigestSchedulerStopMock).toHaveBeenCalled()
+            expect(aiDevToolkitStopMock).toHaveBeenCalled()
+            expect(dependencyCheckStopMock).toHaveBeenCalled()
+            expect(stopTwitchServiceMock).toHaveBeenCalled()
+            expect(musicWatchdogStopMock).toHaveBeenCalled()
+            expect(musicWatchdogStopPeriodicScanMock).toHaveBeenCalled()
+            expect(stopMetricsServerMock).toHaveBeenCalled()
+        })
+
+        // Each stop is wrapped in its own try/catch so a single failure can't abort
+        // the rest of teardown. Drive each throw and assert: error is logged AND the
+        // client is still torn down (shutdown ran to completion).
+        const failingStops: Array<[string, jest.Mock]> = [
+            ['stopWebMusicHandler', stopWebMusicHandlerMock],
+            ['birthdayScheduler.stop', birthdaySchedulerStopMock],
+            ['modDigestSchedulerService.stop', modDigestSchedulerStopMock],
+            ['aiDevToolkitService.stop', aiDevToolkitStopMock],
+            ['dependencyCheckService.stop', dependencyCheckStopMock],
+            ['stopTwitchService', stopTwitchServiceMock],
+            ['stopOrphanSessionMonitor', musicWatchdogStopMock],
+            ['stopPeriodicScan', musicWatchdogStopPeriodicScanMock],
+        ]
+
+        it.each(failingStops)(
+            'continues shutdown when %s throws',
+            async (_label, mockFn) => {
+                const initResult = await initializer.initializeBot()
+                expect(initResult.success).toBe(true)
+
+                const client = initializer.getClient()
+                mockFn.mockImplementationOnce(() => {
+                    throw new Error('stop failed')
+                })
+
+                await initializer.shutdown()
+
+                // The failure was caught and logged...
+                expect(errorLogMock).toHaveBeenCalled()
+                // ...and teardown still completed.
+                expect(client?.destroy).toHaveBeenCalled()
+                expect(initializer.getClient()).toBeNull()
+                expect(initializer.isBotInitialized()).toBe(false)
+            },
+        )
+
+        it('still stops metrics server when a scheduler throws', async () => {
+            const initResult = await initializer.initializeBot()
+            expect(initResult.success).toBe(true)
+
+            birthdaySchedulerStopMock.mockImplementationOnce(() => {
+                throw new Error('boom')
+            })
+
+            await initializer.shutdown()
+
+            expect(stopMetricsServerMock).toHaveBeenCalled()
         })
     })
 

@@ -60,6 +60,8 @@ async function handleCommand(
     }
 }
 
+let webMusicPublishInterval: ReturnType<typeof setInterval> | null = null
+
 export async function setupWebMusicHandler(
     client: CustomClient,
 ): Promise<void> {
@@ -110,8 +112,13 @@ export async function setupWebMusicHandler(
             },
         )
 
-        // Periodically publish state for all active queues to keep SSE clients in sync
-        setInterval(async () => {
+        // Periodically publish state for all active queues to keep SSE clients in sync.
+        // Clear any prior handle first — a second setup() call (e.g. reconnect) would
+        // otherwise orphan the previous interval and double-publish forever.
+        if (webMusicPublishInterval) {
+            clearInterval(webMusicPublishInterval)
+        }
+        webMusicPublishInterval = setInterval(async () => {
             try {
                 for (const queue of client.player.nodes.cache.values()) {
                     if (!queue) continue
@@ -137,5 +144,12 @@ export async function setupWebMusicHandler(
         infoLog({ message: 'Web music handler initialized' })
     } catch (error) {
         errorLog({ message: 'Failed to setup web music handler:', error })
+    }
+}
+
+export function stopWebMusicHandler(): void {
+    if (webMusicPublishInterval) {
+        clearInterval(webMusicPublishInterval)
+        webMusicPublishInterval = null
     }
 }
