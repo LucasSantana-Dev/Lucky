@@ -32,7 +32,7 @@ export type FeatureToggleSource = 'environment' | 'redis' | 'default'
 
 export type FeatureToggleScope = 'global' | 'guild'
 
-export type GlobalFeatureToggleProvider = 'vercel' | 'environment' | 'database'
+export type GlobalFeatureToggleProvider = 'environment' | 'database'
 
 export type GlobalFeatureToggleState = {
     enabled: boolean

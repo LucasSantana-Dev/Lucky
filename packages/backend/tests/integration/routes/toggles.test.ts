@@ -80,10 +80,10 @@ describe('Toggles Routes Integration', () => {
 
         const sharedServices = await import('@lucky/shared/services')
         featureToggleService = sharedServices.featureToggleService
-        featureToggleService.getGlobalToggleProvider.mockReturnValue('vercel')
+        featureToggleService.getGlobalToggleProvider.mockReturnValue('database')
         featureToggleService.getGlobalToggleStatus.mockResolvedValue({
             enabled: true,
-            provider: 'vercel',
+            provider: 'database',
             writable: false,
         })
     })
@@ -116,7 +116,7 @@ describe('Toggles Routes Integration', () => {
                 .expect(200)
 
             expect(response.body).toHaveProperty('toggles')
-            expect(response.body).toHaveProperty('provider', 'vercel')
+            expect(response.body).toHaveProperty('provider', 'database')
             expect(response.body).toHaveProperty('writable', true)
             expect(response.body).toHaveProperty('sources')
             expect(mockFeatureToggleService.getAllToggles).toHaveBeenCalled()
@@ -191,7 +191,7 @@ describe('Toggles Routes Integration', () => {
             expect(response.body).toEqual({
                 name: 'DOWNLOAD_VIDEO',
                 enabled: true,
-                provider: 'vercel',
+                provider: 'database',
                 writable: false,
             })
         })
@@ -337,5 +337,4 @@ describe('Toggles Routes Integration', () => {
             })
         })
     })
-
 })

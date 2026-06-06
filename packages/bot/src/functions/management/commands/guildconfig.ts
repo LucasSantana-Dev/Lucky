@@ -261,7 +261,6 @@ export default new Command({
                     message: `Guild Automation ${subcommand} executed`,
                     data: {
                         guildId: guild.id,
-                        userId: interaction.user.id,
                         subcommand,
                         blockedByProtected,
                     },
