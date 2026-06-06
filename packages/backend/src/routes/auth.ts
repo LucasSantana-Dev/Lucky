@@ -107,8 +107,6 @@ export function setupAuthRoutes(app: Express): void {
                 data: {
                     sessionId,
                     hasCookies: !!cookies,
-                    cookieHeader: cookies,
-                    sessionFromReq: req.session,
                 },
             })
 

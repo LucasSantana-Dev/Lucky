@@ -1,3 +1,9 @@
+import { errorLog, warnLog } from '../general/log'
+import {
+    sanitizeErrorMessage,
+    sanitizeLogInput,
+} from '../general/errorSanitizer'
+
 export interface SpotifyArtist {
     id: string
     name: string
@@ -58,9 +64,12 @@ async function fetchSpotifyArtistName(
     artistId: string,
 ): Promise<string | null> {
     try {
-        const res = await fetch(`https://api.spotify.com/v1/artists/${artistId}`, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-        })
+        const res = await fetch(
+            `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}`,
+            {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            },
+        )
         if (!res.ok) return null
         const data = (await res.json().catch(() => null)) as { name?: string }
         return data?.name ?? null
@@ -84,7 +93,9 @@ async function fetchLastFmSimilarArtists(
             limit: String(limit),
             autocorrect: '1',
         })
-        const res = await fetch(`https://ws.audioscrobbler.com/2.0/?${params.toString()}`)
+        const res = await fetch(
+            `https://ws.audioscrobbler.com/2.0/?${params.toString()}`,
+        )
         if (!res.ok) return []
         const data = (await res.json().catch(() => null)) as {
             similarartists?: { artist?: Array<{ name?: string }> }
@@ -109,20 +120,33 @@ export async function getSpotifyRelatedArtists(
     try {
         const seedName = await fetchSpotifyArtistName(accessToken, artistId)
         if (!seedName) {
-            console.warn(`[Spotify] Could not fetch artist name for ${artistId}`)
+            warnLog({
+                message: '[Spotify] could not fetch artist name',
+                data: { artistId: sanitizeLogInput(artistId) },
+            })
             return []
         }
         const lastFmLimit = Math.min(limit, 50)
-        const similarNames = await fetchLastFmSimilarArtists(seedName, lastFmLimit)
+        const similarNames = await fetchLastFmSimilarArtists(
+            seedName,
+            lastFmLimit,
+        )
         if (similarNames.length === 0) {
-            console.warn(`[Spotify] Last.fm returned no similar artists for "${seedName}"`)
+            warnLog({
+                message: '[Spotify] Last.fm returned no similar artists',
+                data: { seedName: sanitizeLogInput(seedName) },
+            })
             return []
         }
         const lookupCount = Math.max(limit, 30)
         const lookups = await Promise.all(
-            similarNames.slice(0, lookupCount).map((name) =>
-                searchSpotifyArtists(accessToken, name, 1).then((r) => r[0] ?? null),
-            ),
+            similarNames
+                .slice(0, lookupCount)
+                .map((name) =>
+                    searchSpotifyArtists(accessToken, name, 1).then(
+                        (r) => r[0] ?? null,
+                    ),
+                ),
         )
         const seenIds = new Set<string>()
         const artists: SpotifyArtist[] = []
@@ -134,7 +158,10 @@ export async function getSpotifyRelatedArtists(
         }
         return artists
     } catch (error) {
-        console.error(`[Spotify] getSpotifyRelatedArtists error for ${artistId}:`, error)
+        errorLog({
+            message: `[Spotify] getSpotifyRelatedArtists error: ${sanitizeErrorMessage(error)}`,
+            data: { artistId: sanitizeLogInput(artistId) },
+        })
         return []
     }
 }

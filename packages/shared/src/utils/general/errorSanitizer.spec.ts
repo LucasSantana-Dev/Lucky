@@ -2,6 +2,8 @@ import { describe, it, expect } from '@jest/globals'
 import {
     sanitizeErrorMessage,
     sanitizeMessage,
+    sanitizeStack,
+    sanitizeLogInput,
     createUserFriendlyError,
 } from './errorSanitizer.js'
 
@@ -503,6 +505,50 @@ describe('integration scenarios', () => {
         const result = createUserFriendlyError(error)
         expect(result).toBe(
             'Audio processing is currently unavailable. Please try again later.',
+        )
+    })
+})
+
+describe('sanitizeStack', () => {
+    it('returns undefined for non-Error / missing stack', () => {
+        expect(sanitizeStack('not an error')).toBeUndefined()
+        expect(sanitizeStack(null)).toBeUndefined()
+    })
+
+    it('redacts absolute file paths to basenames, keeping frame structure', () => {
+        const err = new Error('boom')
+        err.stack =
+            'Error: boom\n    at fn (/Users/secret/app/packages/bot/src/index.ts:12:3)\n    at run (/var/task/dist/main.js:1:1)'
+        const out = sanitizeStack(err) as string
+        expect(out).toContain('Error: boom')
+        expect(out).toContain('[path]/index.ts:12:3')
+        expect(out).not.toContain('/Users/secret')
+        expect(out).not.toContain('/var/task')
+        expect(out.split('\n').length).toBeGreaterThan(1)
+    })
+
+    it('strips URLs from stack frames', () => {
+        const err = new Error('boom')
+        err.stack =
+            'Error: boom\n    at https://evil.example.com/leak?token=abc'
+        const out = sanitizeStack(err) as string
+        expect(out).toContain('[url]')
+        expect(out).not.toContain('evil.example.com')
+    })
+})
+
+describe('sanitizeLogInput', () => {
+    it('strips newlines and control chars (prevents log forging)', () => {
+        const forged = 'seed-id\n[ADMIN] fake log entry\r\nmore'
+        const out = sanitizeLogInput(forged)
+        expect(out).not.toContain('\n')
+        expect(out).not.toContain('\r')
+        expect(out).toBe('seed-id[ADMIN] fake log entrymore')
+    })
+
+    it('leaves a clean value untouched', () => {
+        expect(sanitizeLogInput('4tZwfgckVyPFmNkEnHHIax')).toBe(
+            '4tZwfgckVyPFmNkEnHHIax',
         )
     })
 })

@@ -26,18 +26,23 @@ export async function handleOAuthCallback(
         }
 
         if (!state || typeof state !== 'string') {
-            errorLog({ message: 'OAuth state validation failed: missing state' })
-            res.redirect(`${frontendUrl}/?error=auth_failed&message=invalid_state`)
+            errorLog({
+                message: 'OAuth state validation failed: missing state',
+            })
+            res.redirect(
+                `${frontendUrl}/?error=auth_failed&message=invalid_state`,
+            )
             return
         }
 
         const sessionState = req.session.oauthState
         if (!sessionState) {
             errorLog({
-                message:
-                    'OAuth state validation failed: no state in session',
+                message: 'OAuth state validation failed: no state in session',
             })
-            res.redirect(`${frontendUrl}/?error=auth_failed&message=invalid_state`)
+            res.redirect(
+                `${frontendUrl}/?error=auth_failed&message=invalid_state`,
+            )
             return
         }
 
@@ -115,7 +120,7 @@ export async function handleOAuthCallback(
             data: {
                 userId: userInfo.id,
                 sessionId,
-                sessionCookie: req.session.cookie,
+                hasCookie: !!req.session.cookie,
             },
         })
 
@@ -142,7 +147,7 @@ export async function handleOAuthCallback(
             data: {
                 frontendUrl,
                 sessionId,
-                cookieHeader: res.getHeader('Set-Cookie'),
+                cookieSet: !!res.getHeader('Set-Cookie'),
             },
         })
 
