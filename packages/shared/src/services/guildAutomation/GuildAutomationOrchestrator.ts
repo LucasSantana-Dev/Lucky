@@ -177,7 +177,7 @@ export class GuildAutomationOrchestrator {
 
             const status: AutomationRunStatus = blockedByProtected
                 ? 'blocked'
-                : 'completed'
+                : 'pending'
 
             const run = await this.repository.updateRunStatus(
                 planResult.runId,
@@ -185,11 +185,8 @@ export class GuildAutomationOrchestrator {
                 {
                     allowProtected: options?.allowProtected ?? false,
                     blockedByProtected,
-                    autoAppliedOperations: blockedByProtected
-                        ? []
-                        : planResult.plan.operations.filter(
-                              (operation) => !operation.protected,
-                          ),
+                    planRecorded: true,
+                    autoAppliedOperations: [],
                 },
             )
 

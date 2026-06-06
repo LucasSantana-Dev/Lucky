@@ -6,6 +6,14 @@ import { z } from 'zod'
 // preserves caller-side inference exactly.
 type Schema<TOutput> = z.ZodType<TOutput, unknown>
 
+function stripUnknownFields(data: object, allowedKeys: Set<string>): void {
+    for (const key of Object.keys(data)) {
+        if (!allowedKeys.has(key)) {
+            delete (data as Record<string, unknown>)[key]
+        }
+    }
+}
+
 export function validateBody<TOutput>(schema: Schema<TOutput>) {
     return (req: Request, res: Response, next: NextFunction) => {
         const result = schema.safeParse(req.body as unknown)
@@ -33,14 +41,11 @@ export function validateQuery<TOutput>(schema: Schema<TOutput>) {
             return res.status(400).json({ error: 'Validation failed', errors })
         }
 
-        // Strip unknown fields by reconstructing query with only schema keys
-        const dataKeys = new Set(Object.keys(result.data as object))
-        for (const key of Object.keys(req.query)) {
-            if (!dataKeys.has(key)) {
-                delete req.query[key]
-            }
-        }
-        // Assign validated data back (which includes transformations like coercion)
+        // Strip unknown fields and assign validated data back (which includes transformations like coercion)
+        stripUnknownFields(
+            req.query,
+            new Set(Object.keys(result.data as object)),
+        )
         Object.assign(req.query, result.data as object)
         next()
     }
@@ -57,14 +62,11 @@ export function validateParams<TOutput>(schema: Schema<TOutput>) {
             return res.status(400).json({ error: 'Validation failed', errors })
         }
 
-        // Strip unknown fields by reconstructing params with only schema keys
-        const dataKeys = new Set(Object.keys(result.data as object))
-        for (const key of Object.keys(req.params)) {
-            if (!dataKeys.has(key)) {
-                delete req.params[key]
-            }
-        }
-        // Assign validated data back (which includes transformations like coercion)
+        // Strip unknown fields and assign validated data back (which includes transformations like coercion)
+        stripUnknownFields(
+            req.params,
+            new Set(Object.keys(result.data as object)),
+        )
         Object.assign(req.params, result.data as object)
         next()
     }

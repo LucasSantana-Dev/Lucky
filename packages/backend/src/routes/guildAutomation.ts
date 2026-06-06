@@ -10,6 +10,8 @@ import {
     guildAutomationService,
     validateGuildAutomationManifest,
 } from '@lucky/shared/services'
+import { guildAutomationUsageTotal } from '../utils/prometheus'
+import { infoLog } from '@lucky/shared/utils'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
@@ -104,6 +106,12 @@ export function setupGuildAutomationRoutes(app: Express): void {
                 runType: 'plan',
             })
 
+            guildAutomationUsageTotal.inc({ operation: 'plan' })
+            infoLog({
+                message: 'Guild Automation plan recorded',
+                data: { guildId, userId },
+            })
+
             res.json(plan)
         }),
     )
@@ -131,6 +139,16 @@ export function setupGuildAutomationRoutes(app: Express): void {
                 },
             )
 
+            guildAutomationUsageTotal.inc({ operation: 'apply' })
+            infoLog({
+                message: 'Guild Automation apply plan recorded',
+                data: {
+                    guildId,
+                    userId,
+                    blockedByProtected: result.blockedByProtected,
+                },
+            })
+
             res.json(result)
         }),
     )
@@ -157,6 +175,16 @@ export function setupGuildAutomationRoutes(app: Express): void {
                     runType: 'reconcile',
                 },
             )
+
+            guildAutomationUsageTotal.inc({ operation: 'reconcile' })
+            infoLog({
+                message: 'Guild Automation reconcile plan recorded',
+                data: {
+                    guildId,
+                    userId,
+                    blockedByProtected: result.blockedByProtected,
+                },
+            })
 
             res.json(result)
         }),

@@ -1,17 +1,12 @@
-import {
-    getVercelFlagsClient,
-    isVercelFlagsConfigured,
-} from '../config/vercelFlags'
 import type {
     FeatureToggleName,
     GlobalFeatureToggleProvider,
     GlobalFeatureToggleState,
 } from '../types/featureToggle'
 import { getFeatureToggleConfig } from '../config/featureToggles'
-import { debugLog } from '../utils/general/log'
 import { getPrismaClient } from '../utils/database/prismaClient'
 
-/** Manages feature toggles with multi-layer provider support (database, Vercel, environment). */
+/** Manages feature toggles with multi-layer provider support (database, environment). */
 class FeatureToggleService {
     private fallbackToggles: Map<FeatureToggleName, boolean> = new Map()
 
@@ -61,44 +56,9 @@ class FeatureToggleService {
         })
     }
 
-    private async getVercelValue(
-        name: FeatureToggleName,
-        fallbackValue: boolean,
-    ): Promise<boolean | null> {
-        const client = getVercelFlagsClient()
-
-        if (client === null) {
-            return null
-        }
-
-        try {
-            const result = await client.evaluate<boolean>(name, fallbackValue)
-            if (result.reason === 'error') {
-                debugLog({
-                    message: `Vercel flag ${name} unavailable, using fallback`,
-                    error: result.errorMessage,
-                })
-                return null
-            }
-            if (typeof result.value !== 'boolean') {
-                debugLog({
-                    message: `Vercel flag ${name} returned a non-boolean value`,
-                })
-                return null
-            }
-            return result.value
-        } catch (error) {
-            debugLog({
-                message: `Error checking Vercel flag ${name}, using fallback`,
-                error,
-            })
-            return null
-        }
-    }
-
-    /** Gets the current toggle provider (Vercel or database). */
+    /** Gets the current toggle provider (database). */
     getGlobalToggleProvider(): GlobalFeatureToggleProvider {
-        return isVercelFlagsConfigured() ? 'vercel' : 'database'
+        return 'database'
     }
 
     /** Gets the global toggle status with provider information. */
@@ -113,15 +73,6 @@ class FeatureToggleService {
                 enabled: dbOverride,
                 provider: 'database',
                 writable: true,
-            }
-        }
-
-        const vercelValue = await this.getVercelValue(name, fallbackValue)
-        if (vercelValue !== null) {
-            return {
-                enabled: vercelValue,
-                provider: 'vercel',
-                writable: false,
             }
         }
 
