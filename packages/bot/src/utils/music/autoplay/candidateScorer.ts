@@ -42,6 +42,13 @@ const GENRE_PENALTY_STRONG = -0.6
 const GENRE_PENALTY_WEAK = -0.3
 const GENRE_PENALTY_UNKNOWN = -0.1
 const SCORE_SPOTIFY_PREFERRED = 0.4
+// On an unknown-genre candidate the spotify-preferred boost is halved rather
+// than dropped, so the pool isn't starved when tags are missing.
+const SPOTIFY_PREFERRED_UNKNOWN_MULTIPLIER = 0.5
+// Genre families dense/cohesive enough that a cross-family jump reads as drift.
+// Used both for the cross-family penalty and the untagged-candidate fail-closed
+// guard. Kept deliberately narrow (pop/soul are too broad to fail closed on).
+const STRONG_GENRE_FAMILIES = ['rap_hiphop', 'rock_metal', 'latin']
 const DISLIKE_WEIGHT_THRESHOLD = 0.5
 const POPULAR_TRACK_THRESHOLD = 50
 
@@ -145,9 +152,8 @@ export function calculateGenreFamilyPenalty(
         }
     }
 
-    const strongGenres = ['rap_hiphop', 'rock_metal', 'latin']
     const isStrongGenre = Array.from(currentFamilies).some((f) =>
-        strongGenres.includes(f),
+        STRONG_GENRE_FAMILIES.includes(f),
     )
 
     return isStrongGenre ? GENRE_PENALTY_STRONG : GENRE_PENALTY_WEAK
@@ -200,6 +206,17 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     const currentTrackTags = genreContext.currentTrackTags ?? []
     const sessionGenreFamilies =
         genreContext.sessionGenreFamilies ?? new Set<string>()
+    // Reference families for the session: prefer the history-derived session
+    // families (present even when the current track is untagged), else fall
+    // back to the current track's own tags. Drives both the genre-conditional
+    // spotify boost and the untagged fail-closed guard below.
+    const referenceFamilies =
+        sessionGenreFamilies.size > 0
+            ? sessionGenreFamilies
+            : getGenreFamilies(currentTrackTags)
+    const sessionHasStrongFamily = Array.from(referenceFamilies).some((f) =>
+        STRONG_GENRE_FAMILIES.includes(f),
+    )
     const currentArtist = currentTrack.author.toLowerCase()
     const candidateArtist = candidate.author.toLowerCase()
     const candidateArtistKey = normalizeText(cleanAuthor(candidate.author))
@@ -266,6 +283,18 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
                 return { score: -Infinity, signals: [] }
             }
         }
+    }
+
+    // Fail-closed for strong-family sessions when the candidate is UNTAGGED.
+    // The tagged cross-genre veto above can't judge a candidate with no Last.fm
+    // tags, so on a rap/rock/latin session an unknown mainstream track would
+    // otherwise slip through (fail-open — the core of the Prince→Drake drift).
+    // Treat untagged candidates as assumed cross-genre and demote them, but
+    // keep them in the pool (penalty, not hard reject) so the queue never
+    // stalls; relaxed during skip storms so the pool can broaden.
+    if (!inSkipStorm && candidateTags.length === 0 && sessionHasStrongFamily) {
+        score += GENRE_PENALTY_STRONG
+        signals.push('genre family drift')
     }
 
     if (preferredArtistKeys.has(candidateArtistKey)) {
@@ -409,8 +438,34 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     }
 
     if (candidate.source === 'spotify') {
-        score += SCORE_SPOTIFY_PREFERRED
-        signals.push('spotify preferred')
+        // Genre-condition the spotify-preferred boost — the single largest,
+        // previously genre-blind term that let mainstream Spotify tracks (e.g.
+        // Drake on a Prince session) outrank seed-similar candidates. Full
+        // boost only when the candidate overlaps the session's families; half
+        // when its genre is unknown (don't starve the pool); none on a known
+        // cross-family candidate.
+        const candidateFamilies =
+            candidateTags.length > 0
+                ? getGenreFamilies(candidateTags)
+                : new Set<string>()
+        let spotifyBoost: number
+        if (referenceFamilies.size === 0 || candidateFamilies.size === 0) {
+            spotifyBoost =
+                SCORE_SPOTIFY_PREFERRED * SPOTIFY_PREFERRED_UNKNOWN_MULTIPLIER
+        } else {
+            let overlaps = false
+            for (const family of candidateFamilies) {
+                if (referenceFamilies.has(family)) {
+                    overlaps = true
+                    break
+                }
+            }
+            spotifyBoost = overlaps ? SCORE_SPOTIFY_PREFERRED : 0
+        }
+        if (spotifyBoost > 0) {
+            score += spotifyBoost
+            signals.push('spotify preferred')
+        }
     }
 
     // Soft genre-family penalty (formerly inside enrichWithAudioFeatures via
