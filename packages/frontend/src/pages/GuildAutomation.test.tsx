@@ -199,7 +199,7 @@ describe('GuildAutomation', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Plan')).toBeInTheDocument()
-            expect(screen.getByText('Apply')).toBeInTheDocument()
+            expect(screen.getByText('Record Plan')).toBeInTheDocument()
             expect(screen.getByText('Reconcile')).toBeInTheDocument()
         })
     })
@@ -278,14 +278,16 @@ describe('GuildAutomation', () => {
             </MemoryRouter>,
         )
 
-        await waitFor(() => screen.getByText('Apply'))
+        await waitFor(() => screen.getByText('Record Plan'))
 
-        const applyButton = screen.getByText('Apply')
+        const applyButton = screen.getByText('Record Plan')
         await user.click(applyButton)
 
         await waitFor(() => {
             expect(api.automation.apply).toHaveBeenCalledWith('456')
-            expect(toast.success).toHaveBeenCalledWith('Changes applied.')
+            expect(toast.success).toHaveBeenCalledWith(
+                'Plan recorded. Apply changes using /guildconfig apply in Discord.',
+            )
         })
     })
 
@@ -305,13 +307,13 @@ describe('GuildAutomation', () => {
             </MemoryRouter>,
         )
 
-        await waitFor(() => screen.getByText('Apply'))
+        await waitFor(() => screen.getByText('Record Plan'))
 
-        const applyButton = screen.getByText('Apply')
+        const applyButton = screen.getByText('Record Plan')
         await user.click(applyButton)
 
         await waitFor(() => {
-            expect(screen.getByText('Apply Result')).toBeInTheDocument()
+            expect(screen.getByText('Plan Record')).toBeInTheDocument()
             expect(screen.getByText('2 applied')).toBeInTheDocument()
             expect(
                 screen.getByText('Applied 2 changes successfully'),
@@ -343,7 +345,7 @@ describe('GuildAutomation', () => {
         await waitFor(() => {
             expect(api.automation.reconcile).toHaveBeenCalledWith('456')
             expect(toast.success).toHaveBeenCalledWith(
-                'Reconciliation complete.',
+                'Drift reconciliation recorded. Apply changes using /guildconfig reconcile in Discord.',
             )
         })
     })
@@ -682,7 +684,7 @@ describe('GuildAutomation', () => {
         const planButton = screen.getByText('Plan')
         await user.click(planButton)
 
-        const applyButton = screen.getByText('Apply')
+        const applyButton = screen.getByText('Record Plan')
         const reconcileButton = screen.getByText('Reconcile')
 
         expect(planButton).toBeDisabled()

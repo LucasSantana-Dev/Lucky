@@ -16,7 +16,7 @@ type AuthState = {
 
 type FeaturesState = {
     globalToggles: Record<string, boolean>
-    globalToggleProvider: 'vercel' | 'environment'
+    globalToggleProvider: 'database' | 'environment'
     globalTogglesWritable: boolean
     isLoading: boolean
     loadError: {
@@ -54,7 +54,7 @@ describe('useFeatures', () => {
         }
         featuresState = {
             globalToggles: { DOWNLOAD_VIDEO: true },
-            globalToggleProvider: 'vercel',
+            globalToggleProvider: 'database',
             globalTogglesWritable: false,
             isLoading: false,
             loadError: null,

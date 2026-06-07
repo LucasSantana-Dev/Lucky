@@ -50,6 +50,17 @@ export const httpServerErrorsTotal = new Counter<'method' | 'route'>({
     registers: [registry],
 })
 
+/**
+ * Counter: Guild Automation usage (plan/apply attempts), labelled by operation type and guild.
+ * Cardinality is bounded: we label by operation type (plan|apply|reconcile) and count total attempts.
+ */
+export const guildAutomationUsageTotal = new Counter<'operation'>({
+    name: 'lucky_guild_automation_usage_total',
+    help: 'Count of Guild Automation plan/apply/reconcile attempts, labelled by operation type.',
+    labelNames: ['operation'],
+    registers: [registry],
+})
+
 export async function renderMetrics(): Promise<string> {
     return registry.metrics()
 }

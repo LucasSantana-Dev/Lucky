@@ -10,7 +10,8 @@ import { guildAutomationService } from '@lucky/shared/services'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { captureGuildAutomationState } from '../../../utils/guildAutomation/captureGuildState'
 import { applyAutomationModules } from '../../../utils/guildAutomation/applyPlan'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, infoLog } from '@lucky/shared/utils'
+import { guildAutomationUsageTotal } from '../../../utils/monitoring/prometheus'
 
 function summaryEmbed(params: {
     title: string
@@ -111,7 +112,10 @@ export default new Command({
         if (!interaction.guild) {
             await interactionReply({
                 interaction,
-                content: { content: '❌ This command can only be used in a server.', ephemeral: true },
+                content: {
+                    content: '❌ This command can only be used in a server.',
+                    ephemeral: true,
+                },
             })
             return
         }
@@ -158,6 +162,7 @@ export default new Command({
             }
 
             if (subcommand === 'plan') {
+                guildAutomationUsageTotal.inc({ operation: 'plan' })
                 const current = await captureGuildAutomationState(
                     guild,
                     interaction.client.user?.id,
@@ -188,7 +193,8 @@ export default new Command({
                                     {
                                         name: 'Protected Ops',
                                         value: String(
-                                            result.plan.protectedOperations.length,
+                                            result.plan.protectedOperations
+                                                .length,
                                         ),
                                         inline: true,
                                     },
@@ -201,6 +207,7 @@ export default new Command({
             }
 
             if (subcommand === 'apply' || subcommand === 'reconcile') {
+                guildAutomationUsageTotal.inc({ operation: subcommand })
                 const allowProtected =
                     interaction.options.getBoolean('allow_protected') ?? false
                 const current = await captureGuildAutomationState(
@@ -253,6 +260,15 @@ export default new Command({
                     })
                 }
 
+                infoLog({
+                    message: `Guild Automation ${subcommand} executed`,
+                    data: {
+                        guildId: guild.id,
+                        subcommand,
+                        blockedByProtected,
+                    },
+                })
+
                 await interactionReply({
                     interaction,
                     content: {
@@ -278,7 +294,9 @@ export default new Command({
                                         inline: true,
                                     },
                                 ],
-                                color: blockedByProtected ? 0xf59e0b : COLOR.INFO_GREEN,
+                                color: blockedByProtected
+                                    ? 0xf59e0b
+                                    : COLOR.INFO_GREEN,
                             }),
                         ],
                     },

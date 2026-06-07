@@ -10,6 +10,8 @@ import {
     guildAutomationService,
     validateGuildAutomationManifest,
 } from '@lucky/shared/services'
+import { guildAutomationUsageTotal } from '../utils/prometheus'
+import { infoLog } from '@lucky/shared/utils'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
@@ -21,6 +23,23 @@ function requireUserId(req: AuthenticatedRequest): string {
     }
 
     return req.userId
+}
+
+/**
+ * Records a Guild Automation usage attempt (per-guild, non-PII): increments the
+ * Prometheus counter and logs operation + guildId only. Called right after auth,
+ * before body validation, so attempts that later fail validation are still counted
+ * (unauthenticated 401s are not — those aren't real demand). Usage demand is the
+ * input the freeze-gate decision needs. The bot's `/guildconfig` command increments
+ * a matching counter (packages/bot/.../monitoring/prometheus.ts) so the demand
+ * signal spans both surfaces; sum the two at decision time.
+ */
+function recordAutomationUsage(
+    operation: 'plan' | 'apply' | 'reconcile',
+    guildId: string,
+): void {
+    guildAutomationUsageTotal.inc({ operation })
+    infoLog({ message: 'Guild Automation usage', data: { operation, guildId } })
 }
 
 export function setupGuildAutomationRoutes(app: Express): void {
@@ -94,6 +113,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
+            recordAutomationUsage('plan', guildId)
             const body = s.guildAutomationRunBody.parse(req.body)
             const actualState = body.actualState
                 ? validateGuildAutomationManifest(body.actualState)
@@ -117,6 +137,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
+            recordAutomationUsage('apply', guildId)
             const body = s.guildAutomationRunBody.parse(req.body)
             const actualState = body.actualState
                 ? validateGuildAutomationManifest(body.actualState)
@@ -144,6 +165,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
+            recordAutomationUsage('reconcile', guildId)
             const body = s.guildAutomationRunBody.parse(req.body)
             const actualState = body.actualState
                 ? validateGuildAutomationManifest(body.actualState)

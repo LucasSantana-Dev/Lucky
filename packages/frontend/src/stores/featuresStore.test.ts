@@ -66,7 +66,7 @@ describe('featuresStore', () => {
             vi.mocked(api.features.getGlobalToggles).mockResolvedValue({
                 data: {
                     toggles,
-                    provider: 'vercel',
+                    provider: 'database',
                     writable: false,
                 },
             } as never)
@@ -75,7 +75,7 @@ describe('featuresStore', () => {
 
             expect(useFeaturesStore.getState().globalToggles).toEqual(toggles)
             expect(useFeaturesStore.getState().globalToggleProvider).toBe(
-                'vercel',
+                'database',
             )
             expect(useFeaturesStore.getState().globalTogglesWritable).toBe(
                 false,
