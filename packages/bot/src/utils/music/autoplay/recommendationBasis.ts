@@ -4,44 +4,45 @@
  */
 
 export type RecommendationSource =
-	| 'spotify-rec'
-	| 'spotify-taste'
-	| 'lastfm-loved'
-	| 'lastfm-similar'
-	| 'lastfm-genre-fallback'
-	| 'artist-fallback'
-	| 'genre-tag'
+    | 'spotify-rec'
+    | 'spotify-taste'
+    | 'seed-similar'
+    | 'lastfm-loved'
+    | 'lastfm-similar'
+    | 'lastfm-genre-fallback'
+    | 'artist-fallback'
+    | 'genre-tag'
 
 export type RecommendationSignal =
-	| 'preferred artist'
-	| 'favourite artist'
-	| 'liked artist'
-	| 'known artist'
-	| 'liked track'
-	| 'old dislike'
-	| 'skipped before'
-	| 'completed before'
-	| 'album match'
-	| 'deep-dive artist'
-	| 'session novelty'
-	| 'source variety'
-	| 'similar title mood'
-	| 'similar energy'
-	| 'long track penalty'
-	| 'deep dive'
-	| 'long track match'
-	| 'quick hit match'
-	| 'restless discovery'
-	| 'spotify preferred'
-	| 'genre family drift'
-	| 'version variant'
-	| 'low quality upload'
-	| 'discovery boost'
-	| 'energy match'
+    | 'preferred artist'
+    | 'favourite artist'
+    | 'liked artist'
+    | 'known artist'
+    | 'liked track'
+    | 'old dislike'
+    | 'skipped before'
+    | 'completed before'
+    | 'album match'
+    | 'deep-dive artist'
+    | 'session novelty'
+    | 'source variety'
+    | 'similar title mood'
+    | 'similar energy'
+    | 'long track penalty'
+    | 'deep dive'
+    | 'long track match'
+    | 'quick hit match'
+    | 'restless discovery'
+    | 'spotify preferred'
+    | 'genre family drift'
+    | 'version variant'
+    | 'low quality upload'
+    | 'discovery boost'
+    | 'energy match'
 
 export interface RecommendationBasis {
-	source: RecommendationSource
-	signals: RecommendationSignal[]
+    source: RecommendationSource
+    signals: RecommendationSignal[]
 }
 
 /**
@@ -55,28 +56,29 @@ export interface RecommendationBasis {
  * @returns Formatted string suitable for Discord display
  */
 export function serializeBasis(basis: RecommendationBasis): string {
-	// Map sources to human-readable labels
-	const sourceLabels: Record<RecommendationSource, string> = {
-		'spotify-rec': 'spotify rec',
-		'spotify-taste': 'spotify taste',
-		'lastfm-loved': 'last.fm loved',
-		'lastfm-similar': 'last.fm similar',
-		'lastfm-genre-fallback': 'last.fm genre',
-		'artist-fallback': 'artist fallback',
-		'genre-tag': 'genre tag',
-	}
+    // Map sources to human-readable labels
+    const sourceLabels: Record<RecommendationSource, string> = {
+        'spotify-rec': 'spotify rec',
+        'spotify-taste': 'spotify taste',
+        'seed-similar': 'seed similar',
+        'lastfm-loved': 'last.fm loved',
+        'lastfm-similar': 'last.fm similar',
+        'lastfm-genre-fallback': 'last.fm genre',
+        'artist-fallback': 'artist fallback',
+        'genre-tag': 'genre tag',
+    }
 
-	const sourceLabel = sourceLabels[basis.source]
+    const sourceLabel = sourceLabels[basis.source]
 
-	// Remove duplicate signals while preserving order
-	const uniqueSignals = Array.from(new Set(basis.signals))
+    // Remove duplicate signals while preserving order
+    const uniqueSignals = Array.from(new Set(basis.signals))
 
-	// Combine source with all unique signals
-	if (uniqueSignals.length === 0) {
-		return sourceLabel
-	}
+    // Combine source with all unique signals
+    if (uniqueSignals.length === 0) {
+        return sourceLabel
+    }
 
-	// Join signals with " • " separator
-	const signalsFormatted = uniqueSignals.join(' • ')
-	return `${sourceLabel} • ${signalsFormatted}`
+    // Join signals with " • " separator
+    const signalsFormatted = uniqueSignals.join(' • ')
+    return `${sourceLabel} • ${signalsFormatted}`
 }

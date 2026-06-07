@@ -1,0 +1,11 @@
+-- Add the SEED_SIMILAR value to the RecommendationSource enum.
+--
+-- Backs the new Last.fm seed-similarity spine collector
+-- (packages/bot/src/utils/music/autoplay/seedSimilarityCollector.ts). Kept as a
+-- distinct value (not folded into LASTFM_SIMILAR) so per-source acceptance
+-- telemetry can measure the spine separately — see
+-- decisions/2026-06-07-autoplay-seed-similarity-spine.md ("Revisit when").
+--
+-- Positioned before LASTFM_LOVED to mirror the in-code union order in
+-- packages/bot/src/utils/music/autoplay/recommendationBasis.ts.
+ALTER TYPE "RecommendationSource" ADD VALUE IF NOT EXISTS 'SEED_SIMILAR' BEFORE 'LASTFM_LOVED';

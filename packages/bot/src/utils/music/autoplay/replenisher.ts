@@ -33,6 +33,7 @@ import {
     purgeDuplicatesOfCurrentTrack,
 } from './diversitySelector'
 import { collectLastFmCandidates } from './lastFmSeeder'
+import { collectSeedSimilarCandidates } from './seedSimilarityCollector'
 import { serializeBasis } from './recommendationBasis'
 import { cleanAuthor } from '../searchQueryCleaner'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
@@ -97,6 +98,7 @@ async function _replenishQueue(
     let candidatePoolSize = 0
     const sourcesCounts = {
         recommendation: 0,
+        seedSimilar: 0,
         lastfm: 0,
         fallback: 0,
         genre: 0,
@@ -330,6 +332,29 @@ async function _replenishQueue(
             message: 'Autoplay: recommendation candidates',
             data: { guildId, count: candidates.size, source: 'recommendation' },
         })
+
+        // Seed-similarity spine: grounds autoplay on the current track's Last.fm
+        // similars regardless of whether the user linked Last.fm. Runs before the
+        // user-linked Last.fm collector so the pool is anchored to the seed even
+        // for unlinked sessions (the common case the drift fix targets).
+        if (requestedBy) {
+            const beforeSeedSimilar = candidates.size
+            await collectSeedSimilarCandidates(
+                autoplayContext,
+                requestedBy,
+                candidates,
+            )
+            sourcesCounts.seedSimilar = candidates.size - beforeSeedSimilar
+            debugLog({
+                message: 'Autoplay: seed-similar candidates',
+                data: {
+                    guildId,
+                    added: candidates.size - beforeSeedSimilar,
+                    total: candidates.size,
+                    source: 'seed-similar',
+                },
+            })
+        }
 
         if (requestedBy?.id) {
             const beforeLastFm = candidates.size
