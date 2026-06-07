@@ -27,8 +27,12 @@ function requireUserId(req: AuthenticatedRequest): string {
 
 /**
  * Records a Guild Automation usage attempt (per-guild, non-PII): increments the
- * Prometheus counter and logs operation + guildId only. Called on ENTRY so failed
- * attempts are counted too — usage demand is the input the freeze-gate decision needs.
+ * Prometheus counter and logs operation + guildId only. Called right after auth,
+ * before body validation, so attempts that later fail validation are still counted
+ * (unauthenticated 401s are not — those aren't real demand). Usage demand is the
+ * input the freeze-gate decision needs. The bot's `/guildconfig` command increments
+ * a matching counter (packages/bot/.../monitoring/prometheus.ts) so the demand
+ * signal spans both surfaces; sum the two at decision time.
  */
 function recordAutomationUsage(
     operation: 'plan' | 'apply' | 'reconcile',

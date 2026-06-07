@@ -11,6 +11,7 @@ import { interactionReply } from '../../../utils/general/interactionReply'
 import { captureGuildAutomationState } from '../../../utils/guildAutomation/captureGuildState'
 import { applyAutomationModules } from '../../../utils/guildAutomation/applyPlan'
 import { errorLog, infoLog } from '@lucky/shared/utils'
+import { guildAutomationUsageTotal } from '../../../utils/monitoring/prometheus'
 
 function summaryEmbed(params: {
     title: string
@@ -161,6 +162,7 @@ export default new Command({
             }
 
             if (subcommand === 'plan') {
+                guildAutomationUsageTotal.inc({ operation: 'plan' })
                 const current = await captureGuildAutomationState(
                     guild,
                     interaction.client.user?.id,
@@ -205,6 +207,7 @@ export default new Command({
             }
 
             if (subcommand === 'apply' || subcommand === 'reconcile') {
+                guildAutomationUsageTotal.inc({ operation: subcommand })
                 const allowProtected =
                     interaction.options.getBoolean('allow_protected') ?? false
                 const current = await captureGuildAutomationState(
