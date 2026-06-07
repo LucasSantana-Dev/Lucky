@@ -24,7 +24,6 @@ const MAX_SEED_SIMILAR = 10
 // Hard ceiling on the Last.fm similar fetch so a slow/hanging request never
 // stalls the replenish pass; on timeout we fall through to the other sources.
 const SEED_SIMILAR_TIMEOUT_MS = 2000
-const AUTOPLAY_BUFFER_SIZE = 8
 const SIMILAR_CACHE_TTL_MS = 60 * 60 * 1000
 const SIMILAR_CACHE_MAX = 200
 
@@ -106,8 +105,12 @@ export async function collectSeedSimilarCandidates(
     const sessionGenreFamilies =
         ctx.genreContext.sessionGenreFamilies ?? new Set<string>()
 
+    // No early-out on pool size: this is the seed-similarity SPINE, so the
+    // current-track anchor must always land — even when collectRecommendation-
+    // Candidates already filled the pool from (possibly drifted) history seeds.
+    // The loop is bounded by MAX_SEED_SIMILAR; the larger pool only widens the
+    // diverse-selection choice downstream.
     for (const s of similar.slice(0, MAX_SEED_SIMILAR)) {
-        if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
         const query = cleanSearchQuery(s.title, s.artist)
         const tracks = await searchLastFmQuery(ctx.queue, query, requestedBy)
         for (const track of tracks) {

@@ -75,6 +75,10 @@ jest.mock('./lastFmSeeder', () => ({
     collectLastFmCandidates: jest.fn(),
 }))
 
+jest.mock('./seedSimilarityCollector', () => ({
+    collectSeedSimilarCandidates: jest.fn(),
+}))
+
 function createTrack(overrides: Partial<Track> = {}): Track {
     return {
         title: 'Test Song',
@@ -177,6 +181,11 @@ describe('replenishQueue', () => {
 
         const { createArtistTagFetcher } = require('./artistTagCache')
         createArtistTagFetcher.mockReturnValue(jest.fn().mockResolvedValue([]))
+
+        const {
+            collectSeedSimilarCandidates,
+        } = require('./seedSimilarityCollector')
+        collectSeedSimilarCandidates.mockResolvedValue(undefined)
     })
 
     it('should be exported and callable', async () => {
@@ -364,6 +373,35 @@ describe('replenishQueue', () => {
         expect(createArtistTagFetcher).toHaveBeenCalledWith(
             expect.any(Function),
         )
+    })
+
+    it('runs the seed-similarity spine when a requester is known', async () => {
+        const queue = createGuildQueue({
+            currentTrack: createTrack({
+                requestedBy: { id: 'user-123' } as import('discord.js').User,
+            }),
+        })
+        const {
+            collectSeedSimilarCandidates,
+        } = require('./seedSimilarityCollector')
+
+        await replenishQueue(queue)
+
+        expect(collectSeedSimilarCandidates).toHaveBeenCalled()
+    })
+
+    it('skips the seed-similarity spine when no requester is resolvable', async () => {
+        const queue = createGuildQueue({
+            currentTrack: createTrack({ requestedBy: null }),
+            metadata: {},
+        })
+        const {
+            collectSeedSimilarCandidates,
+        } = require('./seedSimilarityCollector')
+
+        await replenishQueue(queue)
+
+        expect(collectSeedSimilarCandidates).not.toHaveBeenCalled()
     })
 })
 
