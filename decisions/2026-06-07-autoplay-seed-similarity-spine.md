@@ -32,10 +32,13 @@ just Spotify-search-on-seed + genre-top-tracks fallback, with genre guards disab
 foundation; B stops the fail-open + genre-blind boost; the critic confirmed A alone is
 insufficient because B is what blocks drift when A's pool is thin.
 
-**A — Seed-similarity spine (foundation).** Wire Last.fm `artist.getSimilar` (no user link;
-`LASTFM_API_KEY` is set) on the **currently-playing seed artist** into the candidate collector
-as a backbone source, boosted as "seed-similar". Demote the deprecated Spotify-recs source to a
-best-effort extra (leave as a no-op-tolerant call; do not remove yet).
+**A — Seed-similarity spine (foundation).** Wire Last.fm `track.getSimilar` (via
+`getSimilarTracks`, `lastFmApi.ts:486`; no user link, `LASTFM_API_KEY` is set) on the
+**currently-playing seed track** into the candidate collector as a backbone source, boosted as
+"seed-similar". (Implementation refined the original `artist.getSimilar` plan to
+`track.getSimilar` — it returns playable track candidates directly and reuses existing bot
+infra, avoiding a shared-package ESM-exports change.) Demote the deprecated Spotify-recs source
+to a best-effort extra (leave as a no-op-tolerant call; do not remove yet).
 
 - Guardrails: wrap in a 2s timeout + per-artist cache (reuse/extend `artistTagCache`, ~1h TTL)
     - 429 backoff. Cap to ~10 similar artists, one search each, to bound Last.fm calls (~5 req/s
@@ -53,7 +56,7 @@ best-effort extra (leave as a no-op-tolerant call; do not remove yet).
   pool); no boost on a known cross-family candidate.
 
 **C — Fast-follow (only if A+B leave residual drift).** Replace the fallback's
-`getTagTopTracks` with seed-artist-similar tracks (same `artist.getSimilar`) so even the last
+`getTagTopTracks` with seed-similar tracks (same `track.getSimilar` as A) so even the last
 resort stays on-genre.
 
 **Non-negotiable guardrail across all:** autoplay must never stall. Keep the skip-storm

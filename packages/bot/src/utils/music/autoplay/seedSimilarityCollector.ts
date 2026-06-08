@@ -61,6 +61,11 @@ async function fetchSeedSimilar(
         })
 
     if (tracks.length > 0) {
+        // Drop any existing (expired) entry for this key first so the size
+        // check reflects live capacity — Map.set updates in place without
+        // reordering, which would otherwise leave the cache under capacity
+        // when refreshing a non-oldest expired entry.
+        similarCache.delete(key)
         if (similarCache.size >= SIMILAR_CACHE_MAX) {
             const oldest = similarCache.keys().next().value
             if (oldest) similarCache.delete(oldest)
@@ -108,9 +113,9 @@ export async function collectSeedSimilarCandidates(
     // No early-out on pool size: this is the seed-similarity SPINE, so the
     // current-track anchor must always land — even when collectRecommendation-
     // Candidates already filled the pool from (possibly drifted) history seeds.
-    // The loop is bounded by MAX_SEED_SIMILAR; the larger pool only widens the
-    // diverse-selection choice downstream.
-    for (const s of similar.slice(0, MAX_SEED_SIMILAR)) {
+    // `similar` is already capped at MAX_SEED_SIMILAR by the fetch; the larger
+    // pool only widens the diverse-selection choice downstream.
+    for (const s of similar) {
         const query = cleanSearchQuery(s.title, s.artist)
         const tracks = await searchLastFmQuery(ctx.queue, query, requestedBy)
         for (const track of tracks) {
@@ -147,8 +152,9 @@ export async function collectSeedSimilarCandidates(
                 },
             })
             // Last.fm returns `match` on a 0..1 scale. Weight by it but keep
-            // seed-similar competitive — never crush below 0.5× even on a weak
-            // match, so the spine still grounds a thin pool.
+            // seed-similar competitive — the weight is clamped to [0.5, 1.0]
+            // (never weighted below 0.5 even on a weak match), so the spine
+            // still grounds a thin pool.
             const matchWeight = 0.5 + 0.5 * Math.min(Math.max(s.match, 0), 1)
             upsertScoredCandidate(
                 candidates,
