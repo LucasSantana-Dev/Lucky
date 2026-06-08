@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(deploy): webhook mount, short-tag pinning, last-good persistence + rollback sha, and nginx health port; export missing `@lucky/shared` subpaths for prod ESM resolution (#1105 #1231 #1232 #1234 #1235 #1236 #1248 #1250)
 - fix(shared): data integrity — wrap `ModerationService.createCase` in a transaction, make `LevelService.addXP` atomic, and Zod-validate embed data before persistence (#1167 #1168 #1178 #1179)
 - fix(backend): assert required env vars at startup, enforce Discord-snowflake validation on guild routes, restrict the CORS allowlist to first-party hosts, and wrap Spotify routes in `asyncHandler` (#1169 #1172 #1219 #1247)
-- fix(web): web-audit batch — settings response envelope, Levels RBAC + swallowed-fetch surfacing, GuildAutomation dual-reject error state, RepoCard real stats, YouTube unavailability, dead featuresStore code, language dropdown (#1142 #1143 #1144 #1145 #1146 #1147 #1254)
+- fix(web): web-audit batch — settings response envelope, Levels RBAC + swallowed-fetch surfacing, Guild Automation dual-reject error state, RepoCard real stats, YouTube unavailability, dead featuresStore code, language dropdown (#1142 #1143 #1144 #1145 #1146 #1147 #1254)
 - fix(bot): startup restore + watchdog scan Postgres (not Redis); expand SoundCloud short links and validate text channels before send (#1118 #1119 #1177 #1253)
 
 ### Security
