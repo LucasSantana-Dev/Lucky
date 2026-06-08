@@ -399,14 +399,12 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     } else if (candidate.source && candidate.source !== currentTrack.source) {
         signals.push('source variety')
     }
-    const tokenScore = sharedTitleTokenScore(
-        candidate.title,
-        currentTrack.title,
-    )
-    score += tokenScore
-    if (tokenScore > 0) {
-        signals.push('similar title mood')
-    }
+    // NOTE: the cross-artist title-token bonus ("similar title mood") was
+    // removed — rewarding shared title words across different artists is name
+    // similarity, not musical similarity, and it pulled in near-identically
+    // named tracks (often variants of the same song → duplicate-ish entries).
+    // Same-artist album coherence is still captured by the 'album match' signal
+    // above; musical similarity comes from Last.fm match + genre families.
     if (
         currentTrack.durationMS &&
         candidate.durationMS &&

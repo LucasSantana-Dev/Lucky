@@ -55,6 +55,30 @@ const AUTOPLAY_BUFFER_SIZE_PREMIUM = 16
 const HISTORY_SEED_LIMIT = 3
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
+// 'similar' mode popularity re-rank: a mild gradient (popularity/100 × weight)
+// applied POST-selection to the genre-safe candidates, so well-known songs are
+// favoured over obscure name-matches without pulling in new (off-genre) tracks.
+const SIMILAR_POPULARITY_WEIGHT = 0.12
+const POPULARITY_RERANK_HEAD = 5
+// Flat boost for the discover/popular mode thresholds.
+const POPULARITY_MODE_BOOST = 0.12
+
+/**
+ * Post-selection popularity boost for a candidate, by autoplay mode. Applied to
+ * already-selected (genre-safe, de-duped) candidates only, so it reorders
+ * vetted tracks without introducing new (off-genre) ones.
+ * - popular:  flat boost for high-popularity (≥70) artists
+ * - discover: flat boost for low-popularity (≤40) artists
+ * - similar:  mild gradient favouring well-known artists (tie-breaker)
+ */
+export function popularityBoost(
+    mode: 'similar' | 'discover' | 'popular',
+    popularity: number,
+): number {
+    if (mode === 'popular') return popularity >= 70 ? POPULARITY_MODE_BOOST : 0
+    if (mode === 'discover') return popularity <= 40 ? POPULARITY_MODE_BOOST : 0
+    return (popularity / 100) * SIMILAR_POPULARITY_WEIGHT
+}
 
 // Concurrency lock: prevents duplicate queue insertions when playerStart and
 // playerFinish events fire within milliseconds (playerStart + playerFinish) cannot both read
@@ -464,29 +488,26 @@ async function _replenishQueue(
             currentTrack.author,
         )
 
-        if (
-            (autoplayMode === 'discover' || autoplayMode === 'popular') &&
-            requestedBy?.id
-        ) {
+        if (requestedBy?.id) {
             const token = await Promise.resolve(
                 spotifyLinkService.getValidAccessToken(requestedBy.id),
             ).catch(() => null)
             if (token) {
+                // Re-rank a bounded head of the already-selected (genre-safe,
+                // de-duped) candidates by artist popularity. Post-selection
+                // only: it reorders vetted candidates and never introduces new
+                // ones, so popularity weighting can't reintroduce off-genre
+                // mainstream drift.
+                const rerankHead =
+                    autoplayMode === 'similar' ? POPULARITY_RERANK_HEAD : 3
                 await Promise.all(
-                    enriched.slice(0, 3).map(async (track) => {
+                    enriched.slice(0, rerankHead).map(async (track) => {
                         const popularity = await getArtistPopularity(
                             token,
                             track.track.author,
                         ).catch(() => null)
                         if (popularity === null) return
-                        if (autoplayMode === 'popular' && popularity >= 70) {
-                            track.score += 0.12
-                        } else if (
-                            autoplayMode === 'discover' &&
-                            popularity <= 40
-                        ) {
-                            track.score += 0.12
-                        }
+                        track.score += popularityBoost(autoplayMode, popularity)
                     }),
                 )
                 enriched.sort((a, b) => b.score - a.score)
