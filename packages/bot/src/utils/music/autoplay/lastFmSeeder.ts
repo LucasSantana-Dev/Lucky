@@ -114,6 +114,7 @@ export async function collectLastFmCandidates(
                 dislikedWeights: ctx.dislikedWeights,
                 sessionMood: ctx.sessionMood,
                 skipNoveltyBoost: true,
+                seedDerived: true,
                 genreContext: {
                     candidateTags: tags,
                     currentTrackTags,
@@ -174,6 +175,7 @@ export async function collectLastFmCandidates(
                     dislikedWeights: ctx.dislikedWeights,
                     sessionMood: ctx.sessionMood,
                     skipNoveltyBoost: true,
+                    seedDerived: true,
                     genreContext: {
                         candidateTags: tags,
                         currentTrackTags,

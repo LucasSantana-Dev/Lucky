@@ -145,6 +145,9 @@ export async function collectSeedSimilarCandidates(
                 dislikedWeights: ctx.dislikedWeights,
                 sessionMood: ctx.sessionMood,
                 skipNoveltyBoost: true,
+                // Seed-derived: relax the genre guards to the safe radius around
+                // the seed so related-but-different artists aren't scored out.
+                seedDerived: true,
                 genreContext: {
                     candidateTags: tags,
                     currentTrackTags,

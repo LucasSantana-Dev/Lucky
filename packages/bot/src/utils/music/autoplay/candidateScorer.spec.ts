@@ -303,6 +303,78 @@ describe('candidateScorer', () => {
             })
             expect(result.signals).not.toContain('genre family drift')
         })
+
+        describe('safe radius — seedDerived relaxation (2026-06-08 addendum)', () => {
+            it('demotes (not rejects) a seed-derived cross-family candidate', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        author: 'Adjacent Genre',
+                        source: 'youtube',
+                    }),
+                    currentTrack: createTrack({ author: 'Rapper' }),
+                    recentArtists: new Set(),
+                    seedDerived: true,
+                    genreContext: {
+                        candidateTags: ['soul'],
+                        currentTrackTags: ['hip hop'],
+                        sessionGenreFamilies: new Set(['rap_hiphop']),
+                    },
+                })
+                // vetted-related → allowed into the radius, demoted not vetoed
+                expect(result.score).toBeGreaterThan(-Infinity)
+                expect(result.signals).toContain('genre family drift')
+            })
+
+            it('still hard-rejects an UN-vetted cross-family candidate (drift guard intact)', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        author: 'Mainstream',
+                        source: 'youtube',
+                    }),
+                    currentTrack: createTrack({ author: 'Rapper' }),
+                    recentArtists: new Set(),
+                    // seedDerived omitted → un-vetted
+                    genreContext: {
+                        candidateTags: ['soul'],
+                        currentTrackTags: ['hip hop'],
+                        sessionGenreFamilies: new Set(['rap_hiphop']),
+                    },
+                })
+                expect(result.score).toBe(-Infinity)
+            })
+
+            it('applies only a mild penalty to a seed-derived UNTAGGED candidate in a strong session', () => {
+                const seed = calculateRecommendationScore({
+                    candidate: createTrack({
+                        author: 'Untagged Related',
+                        source: 'youtube',
+                    }),
+                    currentTrack: createTrack({ author: 'Rapper' }),
+                    recentArtists: new Set(),
+                    seedDerived: true,
+                    genreContext: {
+                        candidateTags: [],
+                        currentTrackTags: ['hip hop'],
+                        sessionGenreFamilies: new Set(['rap_hiphop']),
+                    },
+                })
+                const unvetted = calculateRecommendationScore({
+                    candidate: createTrack({
+                        author: 'Untagged Mainstream',
+                        source: 'youtube',
+                    }),
+                    currentTrack: createTrack({ author: 'Rapper' }),
+                    recentArtists: new Set(),
+                    genreContext: {
+                        candidateTags: [],
+                        currentTrackTags: ['hip hop'],
+                        sessionGenreFamilies: new Set(['rap_hiphop']),
+                    },
+                })
+                // seed-derived: -0.1 (GENRE_PENALTY_UNKNOWN); un-vetted: -0.6 → 0.5 gap
+                expect(seed.score - unvetted.score).toBeCloseTo(0.5, 5)
+            })
+        })
     })
 
     describe('calculateGenreFamilyPenalty', () => {

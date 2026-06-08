@@ -94,3 +94,44 @@ relaxation; enforce a minimum-pool floor — if A+B reject everything, fall thro
   the seed-similar fetch fully async (pre-warm next seed's similars).
 - **Over-filtering surfaces** (empty-queue warnings rise) → relax B's strong-family list / raise
   the half-boost / widen skip-storm relaxation.
+
+---
+
+## Addendum 2026-06-08 — over-narrowing fix (provenance-aware genre guards)
+
+**Context.** After A+B shipped (v2.17.0), the reported symptom flipped: autoplay now loops the
+**same seed artist** instead of drifting. Root cause (verified in code): the candidate pool DOES
+contain related-but-different artists (Last.fm `track.getSimilar` is track-to-track, returns mixed
+artists), but approach-B's genre guards score them out — untagged related artists hit the
+fail-closed `−0.6` (`GENRE_PENALTY_STRONG`), and tagged adjacent-family related artists hit the
+hard cross-family **veto** (`−Infinity`). The seed artist survives (same family, known), so it
+wins every pass despite the `MAX_TRACKS_PER_ARTIST=2` cap. It is a **scoring** over-correction,
+not a sourcing gap.
+
+**Decision (via `/research-and-decide`; critic flipped the lead from "new source" to "tune
+guards").** Make the genre guards **provenance-aware**: candidates from Last.fm-similarity-vetted
+sources (`seed-similar`, `lastfm-similar`, `lastfm-loved`) define the *safe radius* and get a
+**relaxed** guard — the untagged fail-closed becomes a mild penalty (`GENRE_PENALTY_UNKNOWN`
+−0.1), and the cross-family veto becomes a **demotion** (`GENRE_PENALTY_WEAK` −0.3) rather than a
+hard `−Infinity` reject, so adjacent families are allowed-but-ranked-lower. **Un-vetted** sources
+(broad fallback, genre-tag, generic Spotify search) keep the **strict** guard (veto + −0.6), so
+the original mainstream drift — which came from those un-vetted sources + the genre-blind boost —
+stays blocked. The cross-locale (Spanish) veto stays unconditional for all sources. The existing
+same-artist penalty (−0.35) + per-artist cap then diversify naturally once alternatives survive.
+Mechanism: a `seedDerived` flag on the scorer context, set true by the vetted collectors.
+
+**Why not the alternatives.**
+- *New `artist.getSimilar` neighborhood source* — **deferred** (not rejected): adds 7-9 Last.fm
+  calls to an already ~10-call fan-out (hits the ~5 req/s limit; 2s timeout becomes a cliff), and
+  a blanket exemption for "similar artists of a mainstream seed" is a genuine drift hole (critic).
+  Revisit only if the provenance-aware tuning proves the pool truly lacks related artists.
+- *Blanket-soften the fail-closed `−0.6` for everyone* — rejected: re-admits the un-vetted
+  mainstream drift the guard was built to stop.
+- *Same-artist saturation penalty across cycles* — unnecessary once vetted alternatives survive;
+  the existing −0.35 + per-artist cap suffice. Hold in reserve.
+
+**Revisit when.** Post-deploy, if autoplay STILL loops the seed artist → `track.getSimilar` is too
+same-artist and the pool genuinely lacks related artists → implement the deferred
+`artist.getSimilar` neighborhood source (with a high match-threshold + tight radius, NOT a blanket
+guard exemption). If mainstream drift RE-APPEARS → the provenance trust is too loose; tighten the
+relaxed veto back toward reject for `seed-similar` or add a match-score floor.

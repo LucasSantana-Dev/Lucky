@@ -175,6 +175,16 @@ export interface ScoringContext {
     dislikedWeights?: Map<string, number>
     sessionMood?: SessionMood | null
     skipNoveltyBoost?: boolean
+    /**
+     * True when the candidate came from a Last.fm-similarity-vetted source
+     * (seed-similar / lastfm-similar / lastfm-loved) — i.e. inside the "safe
+     * radius" around the seed. Such candidates get RELAXED genre guards: the
+     * cross-family veto becomes a demotion (adjacent families allowed) and the
+     * untagged fail-closed becomes a mild penalty. Un-vetted sources (broad
+     * fallback, genre-tag, generic search) keep the strict guards that block
+     * mainstream drift. See ADR 2026-06-07 addendum 2026-06-08.
+     */
+    seedDerived?: boolean
     genreContext?: {
         candidateTags?: string[]
         currentTrackTags?: string[]
@@ -200,6 +210,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         dislikedWeights = new Map(),
         sessionMood = null,
         skipNoveltyBoost = false,
+        seedDerived = false,
         genreContext = {},
     } = ctx
     const candidateTags = genreContext.candidateTags ?? []
@@ -280,7 +291,16 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
                 }
             }
             if (!intersects) {
-                return { score: -Infinity, signals: [] }
+                // Un-vetted cross-family candidate → hard reject (drift guard).
+                // Seed-derived (Last.fm-similarity-vetted) candidate → it's
+                // inside the safe radius, so allow an adjacent family but demote
+                // it rather than reject, keeping the seed neighborhood explorable.
+                if (seedDerived) {
+                    score += GENRE_PENALTY_WEAK
+                    signals.push('genre family drift')
+                } else {
+                    return { score: -Infinity, signals: [] }
+                }
             }
         }
     }
@@ -293,7 +313,10 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     // keep them in the pool (penalty, not hard reject) so the queue never
     // stalls; relaxed during skip storms so the pool can broaden.
     if (!inSkipStorm && candidateTags.length === 0 && sessionHasStrongFamily) {
-        score += GENRE_PENALTY_STRONG
+        // Seed-derived untagged candidates are vetted-related to the seed, so a
+        // mild penalty (don't assume cross-genre); un-vetted untagged candidates
+        // keep the strong fail-closed penalty that blocks mainstream drift.
+        score += seedDerived ? GENRE_PENALTY_UNKNOWN : GENRE_PENALTY_STRONG
         signals.push('genre family drift')
     }
 
