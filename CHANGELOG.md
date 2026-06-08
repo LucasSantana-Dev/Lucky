@@ -7,8 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.17.0] - 2026-06-08
+
+### Added
+- feat(shared/bot/backend/web): support-report intake — `/support` flow with image + context, surfaced from command error embeds with a correlation id, backed by intake + admin routes with staff notification and an admin report view (#1228 #1240 #1241 #1245)
+- feat(autoplay): ground autoplay on Last.fm seed-similarity + genre-conditioned scoring to stop drift to mainstream/unrelated music (#1268)
+- feat(deploy): SHA-pinned deploys with automatic rollback on post-deploy health failure (#1230)
+- feat(observability): deploy markers, heartbeat, and burn-rate alerts (Layers 1-3); capture escaping errors to Sentry at chokepoints (#1103 #1229)
+- feat(web): per-route SEO metadata + sitemap, robots, and og-image (build-time, meta-only) (#1131 #1132)
+- feat(levels): show member display names on the leaderboard instead of raw Discord ids
+- feat(autoplay): quick-wins batch — mood-cache clear, provider telemetry, accept-rate; queueResolver telemetry pilot (#1100 #1102)
+
+### Changed
+- refactor(shared/bot): decommission Redis as source of truth — move track history, named queues, music session snapshots, guild counters, guild settings, and provider-health to Postgres/in-memory; drop the moderation, role-access, custom-command, and AutoMod-spam Redis caches (#1112 #1113 #1114 #1115 #1116 #1117 #1149 #1150 #1151)
+- refactor: overengineering cleanup — remove dead code (legacy GuildAutomation execution service, vercel flags, unused hooks), honest web GA apply (records plan, no fabricated results), and usage telemetry (#1263)
+- perf(bot): bound autoplay Maps and parallelize replenisher awaits; bound previously-unbounded `findMany` queries (#1214 #1215)
+- refactor(shared/bot): consolidate `formatDuration`, remove dead interaction-reply utils, and drop a buggy token-overlap similarity util (#1212 #1216 #1246)
+
+### Fixed
+- fix(autoplay): lastfm-similar scores were crushed ~100× by a `match/100` bug; music guild FK P2003 prod write failures (snapshots + counters) re-targeted to `guilds.discordId` (#1269 #1270)
+- fix(bot): lifecycle hardening — stop schedulers/timers and clear the presence interval on shutdown, reject (not resolve-null) the session-restore race, tear down the Discord client on init-step failure, and catch floating `setTimeout` promises (#1170 #1171 #1180 #1205 #1218)
+- fix: resilience — bound external calls behind timeouts (Discord-429 storm + Musical-Taste hang), guard unsafe external API responses, and surface Redis init errors instead of swallowing them (#1141 #1176 #1217)
+- fix(deploy): webhook mount, short-tag pinning, last-good persistence + rollback sha, and nginx health port; export missing `@lucky/shared` subpaths for prod ESM resolution (#1105 #1231 #1232 #1234 #1235 #1236 #1248 #1250)
+- fix(shared): data integrity — wrap `ModerationService.createCase` in a transaction, make `LevelService.addXP` atomic, and Zod-validate embed data before persistence (#1167 #1168 #1178 #1179)
+- fix(backend): assert required env vars at startup, enforce Discord-snowflake validation on guild routes, restrict the CORS allowlist to first-party hosts, and wrap Spotify routes in `asyncHandler` (#1169 #1172 #1219 #1247)
+- fix(web): web-audit batch — settings response envelope, Levels RBAC + swallowed-fetch surfacing, Guild Automation dual-reject error state, RepoCard real stats, YouTube unavailability, dead featuresStore code, language dropdown (#1142 #1143 #1144 #1145 #1146 #1147 #1254)
+- fix(bot): startup restore + watchdog scan Postgres (not Redis); expand SoundCloud short links and validate text channels before send (#1118 #1119 #1177 #1253)
+
+### Security
+- fix(security): redact secrets/PII from logs (#1220)
+- security(backend): trim auth tokens/secrets before empty-checks (#1252)
+
 ### Internal
 - ci: retire CodeRabbit (paid) and adopt cubic (free on public repos) as the codebase-aware AI reviewer; PR-Agent + claude-review remain. Removes `.coderabbit.yaml`. Amends ADR 2026-05-21.
+- chore/ci/docs/test: assorted CI, dependency, documentation, and test-suite maintenance across the cycle.
 
 ## [2.16.0] - 2026-05-28
 
