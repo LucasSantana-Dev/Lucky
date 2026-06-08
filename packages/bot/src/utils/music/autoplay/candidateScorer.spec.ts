@@ -195,6 +195,114 @@ describe('candidateScorer', () => {
             })
             expect(result.score).toBeGreaterThan(1)
         })
+
+        describe('genre-conditional spotify-preferred boost (approach B)', () => {
+            const session = new Set(['rnb_soul', 'rock_metal'])
+
+            it('gives the full boost when the candidate overlaps the session family', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        author: 'In Genre',
+                        source: 'spotify',
+                    }),
+                    currentTrack: createTrack({ author: 'Seed' }),
+                    recentArtists: new Set(),
+                    genreContext: {
+                        candidateTags: ['soul'],
+                        currentTrackTags: ['rock'],
+                        sessionGenreFamilies: session,
+                    },
+                })
+                expect(result.signals).toContain('spotify preferred')
+            })
+
+            it('drops the boost entirely for a known cross-family candidate (Drake on a Prince session)', () => {
+                const withBoost = calculateRecommendationScore({
+                    candidate: createTrack({
+                        author: 'Drake',
+                        source: 'spotify',
+                    }),
+                    currentTrack: createTrack({ author: 'Prince' }),
+                    recentArtists: new Set(),
+                    genreContext: {
+                        candidateTags: ['hip hop'],
+                        currentTrackTags: ['soul'],
+                        sessionGenreFamilies: session,
+                    },
+                })
+                expect(withBoost.signals).not.toContain('spotify preferred')
+            })
+
+            it('halves (not drops) the boost when the candidate genre is unknown', () => {
+                // Non-strong session so the untagged candidate isn't also hit
+                // by the strong-family fail-closed guard — isolates the boost.
+                const softSession = new Set(['rnb_soul', 'pop'])
+                const onGenre = calculateRecommendationScore({
+                    candidate: createTrack({
+                        author: 'In Genre',
+                        source: 'spotify',
+                    }),
+                    currentTrack: createTrack({ author: 'Seed' }),
+                    recentArtists: new Set(),
+                    genreContext: {
+                        candidateTags: ['soul'],
+                        currentTrackTags: ['soul'],
+                        sessionGenreFamilies: softSession,
+                    },
+                })
+                const unknown = calculateRecommendationScore({
+                    candidate: createTrack({
+                        author: 'Unknown Genre',
+                        source: 'spotify',
+                    }),
+                    currentTrack: createTrack({ author: 'Seed' }),
+                    recentArtists: new Set(),
+                    genreContext: {
+                        candidateTags: [],
+                        currentTrackTags: ['soul'],
+                        sessionGenreFamilies: softSession,
+                    },
+                })
+                // Same author/title, so only the spotify-boost term differs:
+                // full (0.4) vs half (0.2) → a 0.2 gap, and the signal stays.
+                expect(unknown.signals).toContain('spotify preferred')
+                expect(onGenre.score - unknown.score).toBeCloseTo(0.2, 5)
+            })
+        })
+
+        it('fails closed on an untagged candidate in a strong-family session (approach B)', () => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack({
+                    author: 'Untagged Mainstream',
+                    source: 'youtube',
+                }),
+                currentTrack: createTrack({ author: 'Rapper' }),
+                recentArtists: new Set(),
+                genreContext: {
+                    candidateTags: [],
+                    currentTrackTags: ['hip hop'],
+                    sessionGenreFamilies: new Set(['rap_hiphop']),
+                },
+            })
+            expect(result.signals).toContain('genre family drift')
+        })
+
+        it('does not fail closed for untagged candidates on a non-strong session', () => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack({
+                    author: 'Untagged',
+                    source: 'youtube',
+                }),
+                currentTrack: createTrack({ author: 'Popstar' }),
+                recentArtists: new Set(),
+                genreContext: {
+                    candidateTags: [],
+                    currentTrackTags: ['pop'],
+                    sessionGenreFamilies: new Set(['pop']),
+                },
+            })
+            expect(result.signals).not.toContain('genre family drift')
+        })
     })
 
     describe('calculateGenreFamilyPenalty', () => {

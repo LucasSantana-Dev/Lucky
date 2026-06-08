@@ -461,6 +461,7 @@ model UserArtistPreference {
 enum RecommendationSource {
   SPOTIFY_REC
   SPOTIFY_TASTE
+  SEED_SIMILAR
   LASTFM_LOVED
   LASTFM_SIMILAR
   LASTFM_GENRE_FALLBACK
