@@ -279,7 +279,7 @@ model GuildSession {
 model NamedQueue {
   id      String @id @default(cuid())
   guildId String
-  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guild   Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
 
   name           String
   savedBy        String
@@ -301,7 +301,7 @@ model NamedQueue {
 model MusicSessionSnapshot {
   id      String @id @default(cuid())
   guildId String @unique
-  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guild   Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
 
   sessionSnapshotId String
   savedAt           DateTime @default(now())
@@ -319,7 +319,7 @@ model MusicSessionSnapshot {
 model GuildCounter {
   id      String @id @default(cuid())
   guildId String @unique
-  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guild   Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
 
   autoplayCount     Int      @default(0)
   autoplayLastReset DateTime @default(now())

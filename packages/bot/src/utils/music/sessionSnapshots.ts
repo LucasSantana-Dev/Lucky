@@ -7,6 +7,20 @@ import type { Prisma } from '@lucky/shared/utils'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 
+/**
+ * Extracts the structured Prisma error fields (`code` + `meta`) for logging.
+ * Prisma's `KnownRequestError.message` is truncated ("Invalid `…create()`
+ * invocation:") and hides the offending field; the code (e.g. P2003) + meta
+ * carry the real cause. Returns undefined for non-Prisma errors.
+ */
+function prismaErrorMeta(error: unknown): Record<string, unknown> | undefined {
+    if (error && typeof error === 'object' && 'code' in error) {
+        const e = error as { code?: unknown; meta?: unknown }
+        return { prismaCode: e.code, prismaMeta: e.meta }
+    }
+    return undefined
+}
+
 export type SnapshotTrack = {
     title: string
     author: string
@@ -173,6 +187,7 @@ export class MusicSessionSnapshotService {
             errorLog({
                 message: 'Failed to save music session snapshot',
                 error,
+                data: prismaErrorMeta(error),
             })
             return null
         }
