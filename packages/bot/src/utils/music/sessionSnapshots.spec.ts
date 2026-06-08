@@ -174,6 +174,40 @@ describe('MusicSessionSnapshotService', () => {
 
             expect(await service.saveSnapshot(queue)).toBeNull()
         })
+
+        it('surfaces the Prisma error code + meta when the create fails', async () => {
+            mockCreate.mockRejectedValueOnce({
+                name: 'PrismaClientKnownRequestError',
+                code: 'P2003',
+                meta: { field_name: 'guildId' },
+                message: 'Invalid `prisma.musicSessionSnapshot.create()` invocation:',
+            })
+            const service = new MusicSessionSnapshotService()
+            const queue = {
+                guild: { id: 'guild-err' },
+                currentTrack: {
+                    title: 't',
+                    author: 'a',
+                    url: 'u',
+                    duration: '1',
+                    source: 'youtube',
+                },
+                tracks: { toArray: () => [] },
+            } as unknown as GuildQueue
+
+            expect(await service.saveSnapshot(queue)).toBeNull()
+
+            const { errorLog } = require('@lucky/shared/utils')
+            expect(errorLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Failed to save music session snapshot',
+                    data: {
+                        prismaCode: 'P2003',
+                        prismaMeta: { field_name: 'guildId' },
+                    },
+                }),
+            )
+        })
     })
 
     describe('getSnapshot', () => {

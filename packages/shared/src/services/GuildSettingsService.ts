@@ -1,6 +1,20 @@
 import { getPrismaClient } from '../utils/database/prismaClient'
 import { infoLog, errorLog } from '../utils/general/log'
 
+/**
+ * Extracts structured Prisma error fields (`code` + `meta`) for logging.
+ * `KnownRequestError.message` is truncated and hides the offending field; the
+ * code (e.g. P2003 FK violation) + meta carry the real cause. Returns undefined
+ * for non-Prisma errors.
+ */
+function prismaErrorMeta(error: unknown): Record<string, unknown> | undefined {
+    if (error && typeof error === 'object' && 'code' in error) {
+        const e = error as { code?: unknown; meta?: unknown }
+        return { prismaCode: e.code, prismaMeta: e.meta }
+    }
+    return undefined
+}
+
 /** Guild-specific music and command settings cached in Redis. */
 export interface GuildSettings {
     guildId: string
@@ -287,7 +301,11 @@ export class GuildSettingsService {
             })
             return true
         } catch (error) {
-            errorLog({ message: 'Failed to reset autoplay counter', error })
+            errorLog({
+                message: 'Failed to reset autoplay counter',
+                error,
+                data: prismaErrorMeta(error),
+            })
             return false
         }
     }

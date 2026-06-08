@@ -82,6 +82,21 @@ describe('GuildSettingsService — counters (Postgres) + rate limit (in-memory)'
             mockUpsert.mockRejectedValueOnce(new Error('db down'))
             expect(await service.incrementAutoplayCounter(GUILD)).toBe(0)
         })
+
+        it('returns false when reset fails with a Prisma error (code + meta)', async () => {
+            mockUpsert.mockRejectedValueOnce({
+                name: 'PrismaClientKnownRequestError',
+                code: 'P2003',
+                meta: { field_name: 'guildId' },
+                message: 'Invalid invocation',
+            })
+            expect(await service.resetAutoplayCounter(GUILD)).toBe(false)
+        })
+
+        it('returns false when reset fails with a non-Prisma error', async () => {
+            mockUpsert.mockRejectedValueOnce(new Error('db down'))
+            expect(await service.resetAutoplayCounter(GUILD)).toBe(false)
+        })
     })
 
     describe('repeat counter', () => {
