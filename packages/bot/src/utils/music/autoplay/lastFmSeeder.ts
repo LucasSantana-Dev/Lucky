@@ -185,7 +185,8 @@ export async function collectLastFmCandidates(
                     track,
                     {
                         score:
-                            (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),
+                            (rec.score + LASTFM_SCORE_BOOST) *
+                            (0.5 + 0.5 * Math.min(Math.max(s.match, 0), 1)),
                         source: 'lastfm-similar',
                         signals: rec.signals,
                     },

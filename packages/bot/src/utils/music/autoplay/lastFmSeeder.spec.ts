@@ -299,7 +299,7 @@ describe('collectLastFmCandidates', () => {
             { title: 'T1', artist: 'A1' },
         ])
         getSimilarTracksMock.mockResolvedValue([
-            { title: 'Similar', artist: 'SimilarArtist', match: 80 },
+            { title: 'Similar', artist: 'SimilarArtist', match: 0.8 },
         ])
         const track = createTrack()
         const queue = createQueue({ tracks: [track] })
@@ -314,6 +314,10 @@ describe('collectLastFmCandidates', () => {
         const similarCall = upsertScoredCandidateMock.mock.calls[1]
         const source = (similarCall?.[2] as { source: string })?.source
         expect(source).toBe('lastfm-similar')
+        // Verify corrected match weighting: (rec.score + LASTFM_SCORE_BOOST) * (0.5 + 0.5*match)
+        // = (0.5 + 0.2) * (0.5 + 0.5*0.8) = 0.7 * 0.9 = 0.63
+        const scoreArg = (similarCall?.[2] as { score: number })?.score
+        expect(scoreArg).toBeCloseTo(0.63, 5)
     })
 
     it('skips excluded tracks in similar-tracks loop (line 155 continue)', async () => {
@@ -321,7 +325,7 @@ describe('collectLastFmCandidates', () => {
             { title: 'T1', artist: 'A1' },
         ])
         getSimilarTracksMock.mockResolvedValue([
-            { title: 'Similar', artist: 'SimilarArtist', match: 80 },
+            { title: 'Similar', artist: 'SimilarArtist', match: 0.8 },
         ])
         // seed: include, similar: exclude
         shouldIncludeCandidateMock
@@ -343,7 +347,7 @@ describe('collectLastFmCandidates', () => {
             { title: 'T1', artist: 'A1' },
         ])
         getSimilarTracksMock.mockResolvedValue([
-            { title: 'Similar', artist: 'SimilarArtist', match: 80 },
+            { title: 'Similar', artist: 'SimilarArtist', match: 0.8 },
         ])
         normalizeTrackKeyMock
             .mockReturnValueOnce('seed-key')
