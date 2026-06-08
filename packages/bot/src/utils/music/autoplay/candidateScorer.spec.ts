@@ -182,6 +182,22 @@ describe('candidateScorer', () => {
             expect(result.signals).toContain(signal)
         })
 
+        it('does not reward cross-artist title-word overlap (name similarity removed)', () => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack({
+                    title: 'Purple Rain Forever',
+                    author: 'Different Artist',
+                    source: 'youtube',
+                }),
+                currentTrack: createTrack({
+                    title: 'Purple Rain',
+                    author: 'Prince',
+                }),
+                recentArtists: new Set(),
+            })
+            expect(result.signals).not.toContain('similar title mood')
+        })
+
         it('boosts popular mode based on liked weight', () => {
             const result = calculateRecommendationScore({
                 candidate: createTrack({
