@@ -7,7 +7,12 @@ import type { FeatureToggleName, FeatureToggleState } from '@/types'
 
 vi.mock('@/stores/featuresStore')
 vi.mock('@/components/Features/FeatureCard', () => ({
-    default: ({ feature, enabled, onToggle, readOnly }: {
+    default: ({
+        feature,
+        enabled,
+        onToggle,
+        readOnly,
+    }: {
         feature: { name: string }
         enabled: boolean
         onToggle: (v: boolean) => void
@@ -56,7 +61,6 @@ describe('GlobalTogglesSection', () => {
     })
 
     test.each([
-        ['vercel', 'Vercel'],
         ['database', 'Database'],
         ['environment', 'Environment'],
     ] as const)('displays %s provider label as "%s"', (provider, label) => {
@@ -87,8 +91,16 @@ describe('GlobalTogglesSection', () => {
 
     test('renders a FeatureCard per feature in store', () => {
         mockStore([
-            { name: 'AUTOPLAY' as FeatureToggleName, description: 'A', isGlobal: true },
-            { name: 'LYRICS' as FeatureToggleName, description: 'B', isGlobal: true },
+            {
+                name: 'AUTOPLAY' as FeatureToggleName,
+                description: 'A',
+                isGlobal: true,
+            },
+            {
+                name: 'LYRICS' as FeatureToggleName,
+                description: 'B',
+                isGlobal: true,
+            },
         ])
         render(<GlobalTogglesSection {...baseProps} />)
         expect(screen.getByTestId('feature-card-AUTOPLAY')).toBeInTheDocument()
@@ -96,38 +108,88 @@ describe('GlobalTogglesSection', () => {
     })
 
     test('passes correct enabled state from toggles map', () => {
-        mockStore([{ name: 'AUTOPLAY' as FeatureToggleName, description: 'A', isGlobal: true }])
+        mockStore([
+            {
+                name: 'AUTOPLAY' as FeatureToggleName,
+                description: 'A',
+                isGlobal: true,
+            },
+        ])
         render(
             <GlobalTogglesSection
                 {...baseProps}
                 toggles={{ AUTOPLAY: true } as unknown as FeatureToggleState}
             />,
         )
-        expect(screen.getByTestId('feature-card-AUTOPLAY')).toHaveAttribute('data-enabled', 'true')
+        expect(screen.getByTestId('feature-card-AUTOPLAY')).toHaveAttribute(
+            'data-enabled',
+            'true',
+        )
     })
 
     test('defaults missing toggle to false', () => {
-        mockStore([{ name: 'AUTOPLAY' as FeatureToggleName, description: 'A', isGlobal: true }])
-        render(<GlobalTogglesSection {...baseProps} toggles={{} as unknown as FeatureToggleState} />)
-        expect(screen.getByTestId('feature-card-AUTOPLAY')).toHaveAttribute('data-enabled', 'false')
+        mockStore([
+            {
+                name: 'AUTOPLAY' as FeatureToggleName,
+                description: 'A',
+                isGlobal: true,
+            },
+        ])
+        render(
+            <GlobalTogglesSection
+                {...baseProps}
+                toggles={{} as unknown as FeatureToggleState}
+            />,
+        )
+        expect(screen.getByTestId('feature-card-AUTOPLAY')).toHaveAttribute(
+            'data-enabled',
+            'false',
+        )
     })
 
     test('passes readOnly=true when writable=false', () => {
-        mockStore([{ name: 'AUTOPLAY' as FeatureToggleName, description: 'A', isGlobal: true }])
+        mockStore([
+            {
+                name: 'AUTOPLAY' as FeatureToggleName,
+                description: 'A',
+                isGlobal: true,
+            },
+        ])
         render(<GlobalTogglesSection {...baseProps} writable={false} />)
-        expect(screen.getByTestId('feature-card-AUTOPLAY')).toHaveAttribute('data-readonly', 'true')
+        expect(screen.getByTestId('feature-card-AUTOPLAY')).toHaveAttribute(
+            'data-readonly',
+            'true',
+        )
     })
 
     test('passes readOnly=false when writable=true', () => {
-        mockStore([{ name: 'AUTOPLAY' as FeatureToggleName, description: 'A', isGlobal: true }])
+        mockStore([
+            {
+                name: 'AUTOPLAY' as FeatureToggleName,
+                description: 'A',
+                isGlobal: true,
+            },
+        ])
         render(<GlobalTogglesSection {...baseProps} writable={true} />)
-        expect(screen.getByTestId('feature-card-AUTOPLAY')).toHaveAttribute('data-readonly', 'false')
+        expect(screen.getByTestId('feature-card-AUTOPLAY')).toHaveAttribute(
+            'data-readonly',
+            'false',
+        )
     })
 
     test('fires onToggle with feature name and new state when card clicked', async () => {
         const user = userEvent.setup()
-        const onToggle = vi.fn() as (name: FeatureToggleName, enabled: boolean) => void
-        mockStore([{ name: 'AUTOPLAY' as FeatureToggleName, description: 'A', isGlobal: true }])
+        const onToggle = vi.fn() as (
+            name: FeatureToggleName,
+            enabled: boolean,
+        ) => void
+        mockStore([
+            {
+                name: 'AUTOPLAY' as FeatureToggleName,
+                description: 'A',
+                isGlobal: true,
+            },
+        ])
         render(
             <GlobalTogglesSection
                 {...baseProps}

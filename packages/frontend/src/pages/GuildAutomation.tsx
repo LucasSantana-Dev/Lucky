@@ -298,10 +298,12 @@ export default function GuildAutomation() {
         try {
             const result = await api.automation.apply(selectedGuild.id)
             setApplyResult(result)
-            toast.success('Changes applied.')
+            toast.success(
+                'Plan recorded. Apply changes using /guildconfig apply in Discord.',
+            )
             await fetchData()
         } catch {
-            toast.error('Failed to apply changes.')
+            toast.error('Failed to record plan.')
         } finally {
             setActionLoading(null)
         }
@@ -315,10 +317,12 @@ export default function GuildAutomation() {
         try {
             const result = await api.automation.reconcile(selectedGuild.id)
             setApplyResult(result)
-            toast.success('Reconciliation complete.')
+            toast.success(
+                'Drift reconciliation recorded. Apply changes using /guildconfig reconcile in Discord.',
+            )
             await fetchData()
         } catch {
-            toast.error('Failed to reconcile.')
+            toast.error('Failed to record reconciliation.')
         } finally {
             setActionLoading(null)
         }
@@ -415,7 +419,7 @@ export default function GuildAutomation() {
                         ) : (
                             <Play className='h-3 w-3' />
                         )}
-                        Apply
+                        Record Plan
                     </Button>
                     <Button
                         variant='secondary'
@@ -433,7 +437,7 @@ export default function GuildAutomation() {
                 </div>
             </div>
 
-            {/* Plan / Apply Results (surface-panel groups) */}
+            {/* Plan / Plan Records (surface-panel groups) */}
             {planResult && (
                 <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-3'>
                     <div className='flex items-center gap-2'>
@@ -451,7 +455,7 @@ export default function GuildAutomation() {
                     <div className='flex items-center gap-2'>
                         <Zap className='h-4 w-4 text-lucky-accent' />
                         <h2 className='text-sm font-semibold text-lucky-text-strong'>
-                            Apply Result
+                            Plan Record
                         </h2>
                     </div>
                     <div className='border-t border-lucky-border' />

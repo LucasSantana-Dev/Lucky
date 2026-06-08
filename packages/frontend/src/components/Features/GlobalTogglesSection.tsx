@@ -16,7 +16,6 @@ interface GlobalTogglesSectionProps {
 }
 
 const providerLabel: Record<GlobalFeatureToggleProvider, string> = {
-    vercel: 'Vercel',
     database: 'Database',
     environment: 'Environment',
 }

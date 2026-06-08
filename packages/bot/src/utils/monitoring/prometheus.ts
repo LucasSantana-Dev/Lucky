@@ -1,6 +1,7 @@
 import {
     Registry,
     collectDefaultMetrics,
+    Counter,
     Gauge,
     type CollectFunction,
 } from 'prom-client'
@@ -45,6 +46,21 @@ export const guildsGauge = new Gauge<'state'>({
     labelNames: ['state'],
     registers: [registry],
     collect: guildsGaugeCollect,
+})
+
+/**
+ * Counter: Guild Automation usage from the Discord `/guildconfig` command,
+ * labelled by operation type (plan|apply|reconcile). Mirrors the backend's
+ * `lucky_guild_automation_usage_total` so the migration-freeze demand signal
+ * captures BOTH surfaces (web/API + Discord command), not just the web. The
+ * two counters are summed at decision time. Cardinality is bounded by the
+ * operation label; guild id stays in logs, not labels.
+ */
+export const guildAutomationUsageTotal = new Counter<'operation'>({
+    name: 'lucky_guild_automation_usage_total',
+    help: 'Count of Guild Automation plan/apply/reconcile attempts via the Discord /guildconfig command, labelled by operation type.',
+    labelNames: ['operation'],
+    registers: [registry],
 })
 
 /**
