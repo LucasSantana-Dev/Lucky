@@ -1,6 +1,6 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
-import { replenishQueue } from './replenisher'
+import { replenishQueue, popularityBoost } from './replenisher'
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
@@ -424,5 +424,23 @@ describe('clearSessionMoodCache', () => {
 
         // The cache should be cleared (we verify by checking the function exists and is callable)
         expect(typeof clearSessionMoodCache).toBe('function')
+    })
+})
+
+describe('popularityBoost', () => {
+    it('boosts high-popularity artists in popular mode, nothing below the threshold', () => {
+        expect(popularityBoost('popular', 80)).toBeCloseTo(0.12, 5)
+        expect(popularityBoost('popular', 50)).toBe(0)
+    })
+
+    it('boosts low-popularity artists in discover mode, nothing above the threshold', () => {
+        expect(popularityBoost('discover', 30)).toBeCloseTo(0.12, 5)
+        expect(popularityBoost('discover', 60)).toBe(0)
+    })
+
+    it('applies a mild popularity gradient in similar mode', () => {
+        expect(popularityBoost('similar', 100)).toBeCloseTo(0.12, 5)
+        expect(popularityBoost('similar', 50)).toBeCloseTo(0.06, 5)
+        expect(popularityBoost('similar', 0)).toBe(0)
     })
 })

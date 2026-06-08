@@ -60,6 +60,25 @@ const MAX_TRACKS_PER_SOURCE = 3
 // favoured over obscure name-matches without pulling in new (off-genre) tracks.
 const SIMILAR_POPULARITY_WEIGHT = 0.12
 const POPULARITY_RERANK_HEAD = 5
+// Flat boost for the discover/popular mode thresholds.
+const POPULARITY_MODE_BOOST = 0.12
+
+/**
+ * Post-selection popularity boost for a candidate, by autoplay mode. Applied to
+ * already-selected (genre-safe, de-duped) candidates only, so it reorders
+ * vetted tracks without introducing new (off-genre) ones.
+ * - popular:  flat boost for high-popularity (≥70) artists
+ * - discover: flat boost for low-popularity (≤40) artists
+ * - similar:  mild gradient favouring well-known artists (tie-breaker)
+ */
+export function popularityBoost(
+    mode: 'similar' | 'discover' | 'popular',
+    popularity: number,
+): number {
+    if (mode === 'popular') return popularity >= 70 ? POPULARITY_MODE_BOOST : 0
+    if (mode === 'discover') return popularity <= 40 ? POPULARITY_MODE_BOOST : 0
+    return (popularity / 100) * SIMILAR_POPULARITY_WEIGHT
+}
 
 // Concurrency lock: prevents duplicate queue insertions when playerStart and
 // playerFinish events fire within milliseconds (playerStart + playerFinish) cannot both read
@@ -488,20 +507,7 @@ async function _replenishQueue(
                             track.track.author,
                         ).catch(() => null)
                         if (popularity === null) return
-                        if (autoplayMode === 'popular' && popularity >= 70) {
-                            track.score += 0.12
-                        } else if (
-                            autoplayMode === 'discover' &&
-                            popularity <= 40
-                        ) {
-                            track.score += 0.12
-                        } else if (autoplayMode === 'similar') {
-                            // Mild gradient — favour well-known songs/artists
-                            // among related candidates (tie-breaker, not an
-                            // override).
-                            track.score +=
-                                (popularity / 100) * SIMILAR_POPULARITY_WEIGHT
-                        }
+                        track.score += popularityBoost(autoplayMode, popularity)
                     }),
                 )
                 enriched.sort((a, b) => b.score - a.score)
