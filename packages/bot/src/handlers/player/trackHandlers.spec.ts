@@ -204,18 +204,6 @@ describe('trackHandlers autoplay replenishment', () => {
         jest.useRealTimers()
     })
 
-
-
-
-
-
-
-
-
-
-
-
-
     it('evicts old track entries when playerStart runs beyond the per-guild cap', async () => {
         for (let index = 0; index < 501; index += 1) {
             lastPlayedTracks.set(
@@ -255,12 +243,6 @@ describe('trackHandlers autoplay replenishment', () => {
         expect(recentlyPlayedTracks.has('history-guild-0')).toBe(false)
         expect(recentlyPlayedTracks.get('guild-1')).toHaveLength(500)
     })
-
-
-
-
-
-
 
     it('does not record feedback on playerFinish when track played < 80%', async () => {
         jest.useFakeTimers()
@@ -518,6 +500,29 @@ describe('trackHandlers autoplay replenishment', () => {
             expect(recordRecommendationOutcomeMock).toHaveBeenCalledWith({
                 guildId: 'guild-1',
                 trackId: 'autoplay-track-finish-reject',
+                outcome: 'rejected',
+            })
+        })
+
+        it('records outcomes for short (≤20s) autoplay tracks too — consistent across paths', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const playerStart = handlers.playerStart
+            const playerSkip = handlers.playerSkip
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const shortTrack = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'autoplay-short-1',
+                durationMS: 15000, // ≤20s — previously suppressed on the skip path
+            } as unknown as Track
+
+            await playerStart(queue, shortTrack)
+            jest.advanceTimersByTime(2000) // ~13% in
+            await playerSkip(queue, shortTrack)
+
+            expect(recordRecommendationOutcomeMock).toHaveBeenCalledWith({
+                guildId: 'guild-1',
+                trackId: 'autoplay-short-1',
                 outcome: 'rejected',
             })
         })

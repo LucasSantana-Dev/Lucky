@@ -35,7 +35,7 @@ const TRACK_STATE_TTL_MS = 30 * 60 * 1000
 // Autoplay recommendation outcome threshold: a track played past this fraction
 // is "accepted"; ended/skipped before it is "rejected" (symmetric across the
 // playerFinish + playerSkip paths). Tune via Phase C data.
-export const OUTCOME_ACCEPT_PLAY_RATIO = 0.30
+export const OUTCOME_ACCEPT_PLAY_RATIO = 0.3
 
 export const lastPlayedTracks = new LRUCache<string, Track>({
     max: MAX_GUILD_ENTRIES,
@@ -318,10 +318,12 @@ const handlePlayerFinish = async (
                     await recordRecommendationOutcome({
                         guildId: queue.guild.id,
                         trackId: track.id,
+                        // < threshold = rejected (same condition as the skip
+                        // path, so the 30% boundary classifies identically).
                         outcome:
-                            completionRatio > OUTCOME_ACCEPT_PLAY_RATIO
-                                ? 'accepted'
-                                : 'rejected',
+                            completionRatio < OUTCOME_ACCEPT_PLAY_RATIO
+                                ? 'rejected'
+                                : 'accepted',
                     })
                 }
             }
@@ -358,15 +360,21 @@ const handlePlayerSkip = async (
 
         if (track) {
             const startTime = guildTrackStartTimes.get(queue.guild.id)
-            if (startTime && track.durationMS && track.durationMS > 20_000) {
+            if (startTime && track.durationMS) {
                 const skipRatio = (Date.now() - startTime) / track.durationMS
-                if (skipRatio < OUTCOME_ACCEPT_PLAY_RATIO) {
+                // Implicit-dislike noise filter: only for tracks long enough that
+                // an early-skip ratio is meaningful (>20s).
+                if (
+                    track.durationMS > 20_000 &&
+                    skipRatio < OUTCOME_ACCEPT_PLAY_RATIO
+                ) {
                     await recordImplicitTrackFeedback(track, 'implicit_dislike')
                     const current =
                         guildRecentSkipCounts.get(queue.guild.id) ?? 0
                     guildRecentSkipCounts.set(queue.guild.id, current + 1)
                 }
-                // Record autoplay recommendation outcome on skip: a skip before
+                // Record the autoplay recommendation outcome on skip — duration-
+                // agnostic, consistent with the playerFinish path: a skip before
                 // 30% played is a rejection (mirror of the accept threshold).
                 // Skips after 30% are ambiguous (a meaningful chunk was heard)
                 // and left unrecorded. Previously only sub-5s skips counted, so
