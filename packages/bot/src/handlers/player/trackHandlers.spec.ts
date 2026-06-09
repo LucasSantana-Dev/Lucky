@@ -457,7 +457,7 @@ describe('trackHandlers autoplay replenishment', () => {
             })
         })
 
-        it('does not record outcome for ambiguous mid-play skip (after 5s but before 30%)', async () => {
+        it('records rejected outcome on playerSkip when autoplay track skipped before 30% (the prior dead zone)', async () => {
             jest.useFakeTimers()
             const handlers = setupHandlers()
             const playerStart = handlers.playerStart
@@ -470,10 +470,56 @@ describe('trackHandlers autoplay replenishment', () => {
             } as unknown as Track
 
             await playerStart(queue, autoplayTrack)
-            jest.advanceTimersByTime(15000) // 15% through (after 5s, before 30%)
+            jest.advanceTimersByTime(15000) // 15% — was the lost "ambiguous" band
+            await playerSkip(queue, autoplayTrack)
+
+            expect(recordRecommendationOutcomeMock).toHaveBeenCalledWith({
+                guildId: 'guild-1',
+                trackId: 'autoplay-track-3',
+                outcome: 'rejected',
+            })
+        })
+
+        it('does not record outcome for an ambiguous skip after 30%', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const playerStart = handlers.playerStart
+            const playerSkip = handlers.playerSkip
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const autoplayTrack = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'autoplay-track-3b',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await playerStart(queue, autoplayTrack)
+            jest.advanceTimersByTime(55000) // 55% — meaningful listen, ambiguous
             await playerSkip(queue, autoplayTrack)
 
             expect(recordRecommendationOutcomeMock).not.toHaveBeenCalled()
+        })
+
+        it('records rejected outcome on playerFinish when an autoplay track ends at or below 30% (skip routed through finish)', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const playerStart = handlers.playerStart
+            const playerFinish = handlers.playerFinish
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const autoplayTrack = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'autoplay-track-finish-reject',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await playerStart(queue, autoplayTrack)
+            jest.advanceTimersByTime(12000) // 12% — early end / skip via finish
+            await playerFinish(queue, autoplayTrack)
+
+            expect(recordRecommendationOutcomeMock).toHaveBeenCalledWith({
+                guildId: 'guild-1',
+                trackId: 'autoplay-track-finish-reject',
+                outcome: 'rejected',
+            })
         })
 
         it('does not record outcome for non-autoplay tracks on playerFinish', async () => {
