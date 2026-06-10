@@ -72,6 +72,28 @@ jobs:
             - name: Build project
               run: npm run build
 
+    test-shared:
+        name: Test — shared
+        runs-on: ubuntu-latest
+        needs: build-shared
+        steps:
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: '22'
+                  cache: 'npm'
+            - run: npm ci --legacy-peer-deps --ignore-scripts
+            - name: Download shared artifact
+              uses: actions/download-artifact@v8
+              with:
+                  name: shared-build
+                  path: packages/shared
+            - name: Run shared tests
+              run: npm run test --workspace=packages/shared -- --ci --coverage
+              env:
+                  # Some shared service modules eagerly init Prisma at import time (#1249)
+                  DATABASE_URL: postgresql://localhost:5432/test
+
     test-backend:
         name: Test — backend
         runs-on: ubuntu-latest
@@ -229,17 +251,18 @@ jobs:
         # test-youtube-smoke intentionally excluded: advisory-only, runs on YouTube dependency PRs only
         name: Quality Gates
         runs-on: ubuntu-latest
-        needs: [build-shared, checks, test-backend, test-bot, test-frontend]
+        needs: [build-shared, checks, test-shared, test-backend, test-bot, test-frontend]
         if: always()
         steps:
             - name: Assert all jobs passed
               run: |
                   checks="${{ needs.checks.result }}"
+                  shared="${{ needs.test-shared.result }}"
                   backend="${{ needs.test-backend.result }}"
                   bot="${{ needs.test-bot.result }}"
                   frontend="${{ needs.test-frontend.result }}"
-                  if [[ "$checks" != "success" || "$backend" != "success" || "$bot" != "success" || "$frontend" != "success" ]]; then
-                      echo "Job results: checks=$checks  test-backend=$backend  test-bot=$bot  test-frontend=$frontend"
+                  if [[ "$checks" != "success" || "$shared" != "success" || "$backend" != "success" || "$bot" != "success" || "$frontend" != "success" ]]; then
+                      echo "Job results: checks=$checks  test-shared=$shared  test-backend=$backend  test-bot=$bot  test-frontend=$frontend"
                       exit 1
                   fi
 
