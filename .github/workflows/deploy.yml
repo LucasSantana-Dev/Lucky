@@ -21,6 +21,12 @@ on:
 permissions:
     contents: read
 
+# Overlapping deploys race on migrations + service rollout (#1182).
+# Queue them instead: never cancel an in-flight production deploy.
+concurrency:
+    group: deployment-production
+    cancel-in-progress: false
+
 jobs:
     deploy:
         runs-on: ubuntu-latest
