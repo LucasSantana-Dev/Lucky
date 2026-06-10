@@ -1,6 +1,8 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../../middleware/auth'
 import { asyncHandler } from '../../middleware/asyncHandler'
+import { validateParams } from '../../middleware/validate'
+import { guildIdParam } from '../../schemas/common'
 import { guildSettingsService } from '@lucky/shared/services'
 import { param } from './helpers'
 
@@ -9,9 +11,11 @@ export function setupAutoplayRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/autoplay/genres',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
-            const settings = await guildSettingsService.getGuildSettings(guildId)
+            const settings =
+                await guildSettingsService.getGuildSettings(guildId)
             const genres = settings?.autoplayGenres ?? []
             res.json({ genres })
         }),
@@ -21,6 +25,7 @@ export function setupAutoplayRoutes(app: Express): void {
     app.put(
         '/api/guilds/:guildId/autoplay/genres',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const { genres } = req.body as Record<string, unknown>
@@ -43,11 +48,16 @@ export function setupAutoplayRoutes(app: Express): void {
             }
 
             // Normalize and deduplicate
-            const normalized = [...new Set(genres.map(g => String(g).toLowerCase().trim()))].filter(Boolean)
+            const normalized = [
+                ...new Set(genres.map((g) => String(g).toLowerCase().trim())),
+            ].filter(Boolean)
 
-            const updated = await guildSettingsService.updateGuildSettings(guildId, {
-                autoplayGenres: normalized,
-            })
+            const updated = await guildSettingsService.updateGuildSettings(
+                guildId,
+                {
+                    autoplayGenres: normalized,
+                },
+            )
 
             if (!updated) {
                 res.status(500).json({

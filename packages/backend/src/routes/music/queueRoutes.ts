@@ -2,6 +2,8 @@ import type { Express, Response } from 'express'
 import { z } from 'zod'
 import { requireAuth, type AuthenticatedRequest } from '../../middleware/auth'
 import { asyncHandler } from '../../middleware/asyncHandler'
+import { validateParams } from '../../middleware/validate'
+import { guildIdParam } from '../../schemas/common'
 import { AppError } from '../../errors/AppError'
 import { musicControlService } from '@lucky/shared/services'
 import { param, buildCommand } from './helpers'
@@ -32,6 +34,7 @@ export function setupQueueRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/music/queue',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const state = await musicControlService.getState(guildId)
@@ -46,6 +49,7 @@ export function setupQueueRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/queue/move',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)
@@ -66,6 +70,7 @@ export function setupQueueRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/queue/remove',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)
@@ -85,6 +90,7 @@ export function setupQueueRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/queue/clear',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)
@@ -99,6 +105,7 @@ export function setupQueueRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/import',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)

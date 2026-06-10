@@ -33,6 +33,16 @@ jest.mock('@lucky/shared/services', () => ({
         addReward: jest.fn().mockResolvedValue({}),
         removeReward: jest.fn().mockResolvedValue({}),
     },
+    musicControlService: {
+        getState: jest.fn().mockResolvedValue(null),
+        sendCommand: jest.fn().mockResolvedValue({ success: true }),
+    },
+    guildSettingsService: {
+        getGuildSettings: jest.fn().mockResolvedValue(null),
+        updateGuildSettings: jest.fn().mockResolvedValue({
+            autoplayGenres: [],
+        }),
+    },
 }))
 
 jest.mock('../../../src/services/GuildService', () => ({
@@ -69,6 +79,10 @@ import request from 'supertest'
 import { setupStarboardRoutes } from '../../../src/routes/starboard'
 import { setupLevelsRoutes } from '../../../src/routes/levels'
 import { setupGuildRoutes } from '../../../src/routes/guilds'
+import { setupAutoplayRoutes } from '../../../src/routes/music/autoplayRoutes'
+import { setupStateRoutes } from '../../../src/routes/music/stateRoutes'
+import { setupPlaybackRoutes } from '../../../src/routes/music/playbackRoutes'
+import { setupQueueRoutes } from '../../../src/routes/music/queueRoutes'
 
 function createApp(setupRoutes: (app: express.Express) => void) {
     const app = express()
@@ -341,6 +355,170 @@ describe('Guild ID Snowflake Validation', () => {
                 expect(res.body).toHaveProperty('error')
             },
         )
+    })
+
+    describe('Music Routes (#1200)', () => {
+        const validGuildId = '123456789012345678'
+        const invalidGuildId = 'not-a-snowflake'
+
+        type MusicRoute = {
+            name: string
+            setup: (app: express.Express) => void
+            method: 'get' | 'post' | 'put'
+            path: (guildId: string) => string
+            body?: Record<string, unknown>
+        }
+
+        const routes: MusicRoute[] = [
+            {
+                name: 'GET autoplay/genres',
+                setup: setupAutoplayRoutes,
+                method: 'get',
+                path: (g) => `/api/guilds/${g}/autoplay/genres`,
+            },
+            {
+                name: 'PUT autoplay/genres',
+                setup: setupAutoplayRoutes,
+                method: 'put',
+                path: (g) => `/api/guilds/${g}/autoplay/genres`,
+                body: { genres: ['rock'] },
+            },
+            {
+                name: 'GET music/state',
+                setup: setupStateRoutes,
+                method: 'get',
+                path: (g) => `/api/guilds/${g}/music/state`,
+            },
+            {
+                name: 'POST music/play',
+                setup: setupPlaybackRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/play`,
+                body: { query: 'song' },
+            },
+            {
+                name: 'POST music/pause',
+                setup: setupPlaybackRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/pause`,
+            },
+            {
+                name: 'POST music/resume',
+                setup: setupPlaybackRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/resume`,
+            },
+            {
+                name: 'POST music/skip',
+                setup: setupPlaybackRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/skip`,
+            },
+            {
+                name: 'POST music/stop',
+                setup: setupPlaybackRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/stop`,
+            },
+            {
+                name: 'POST music/volume',
+                setup: setupPlaybackRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/volume`,
+                body: { volume: 50 },
+            },
+            {
+                name: 'POST music/shuffle',
+                setup: setupPlaybackRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/shuffle`,
+            },
+            {
+                name: 'POST music/repeat',
+                setup: setupPlaybackRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/repeat`,
+                body: { mode: 'off' },
+            },
+            {
+                name: 'POST music/seek',
+                setup: setupPlaybackRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/seek`,
+                body: { position: 0 },
+            },
+            {
+                name: 'GET music/queue',
+                setup: setupQueueRoutes,
+                method: 'get',
+                path: (g) => `/api/guilds/${g}/music/queue`,
+            },
+            {
+                name: 'POST music/queue/move',
+                setup: setupQueueRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/queue/move`,
+                body: { from: 0, to: 1 },
+            },
+            {
+                name: 'POST music/queue/remove',
+                setup: setupQueueRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/queue/remove`,
+                body: { index: 0 },
+            },
+            {
+                name: 'POST music/queue/clear',
+                setup: setupQueueRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/queue/clear`,
+            },
+            {
+                name: 'POST music/import',
+                setup: setupQueueRoutes,
+                method: 'post',
+                path: (g) => `/api/guilds/${g}/music/import`,
+                body: { url: 'https://example.com/playlist' },
+            },
+        ]
+
+        test.each(routes)(
+            '$name rejects invalid guildId with 400',
+            async ({ setup, method, path, body }) => {
+                const app = createApp(setup)
+                let req = request(app)[method](path(invalidGuildId))
+                if (body) {
+                    req = req.send(body)
+                }
+                const res = await req
+                expect(res.status).toBe(400)
+                expect(res.body).toHaveProperty('error')
+            },
+        )
+
+        test.each(routes)(
+            '$name accepts a valid guildId',
+            async ({ setup, method, path, body }) => {
+                const app = createApp(setup)
+                let req = request(app)[method](path(validGuildId))
+                if (body) {
+                    req = req.send(body)
+                }
+                const res = await req
+                expect(res.status).not.toBe(400)
+            },
+        )
+
+        // GET music/stream is SSE — a valid request never terminates, so only
+        // the rejection path is testable here.
+        test('GET music/stream rejects invalid guildId with 400', async () => {
+            const app = createApp(setupStateRoutes)
+            const res = await request(app).get(
+                `/api/guilds/${invalidGuildId}/music/stream`,
+            )
+            expect(res.status).toBe(400)
+            expect(res.body).toHaveProperty('error')
+        })
     })
 
     describe('Guilds Routes', () => {

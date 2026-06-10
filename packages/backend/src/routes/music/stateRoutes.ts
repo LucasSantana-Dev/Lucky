@@ -1,6 +1,8 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../../middleware/auth'
 import { asyncHandler } from '../../middleware/asyncHandler'
+import { validateParams } from '../../middleware/validate'
+import { guildIdParam } from '../../schemas/common'
 import { musicControlService, type QueueState } from '@lucky/shared/services'
 import { param, sseClients } from './helpers'
 
@@ -8,6 +10,7 @@ export function setupStateRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/music/stream',
         requireAuth,
+        validateParams(guildIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
 
@@ -40,7 +43,11 @@ export function setupStateRoutes(app: Express): void {
 
             try {
                 heartbeat = setInterval(() => {
-                    if (controller.signal.aborted || res.writableEnded || res.destroyed) {
+                    if (
+                        controller.signal.aborted ||
+                        res.writableEnded ||
+                        res.destroyed
+                    ) {
                         return
                     }
                     try {
@@ -69,6 +76,7 @@ export function setupStateRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/music/state',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const state = await musicControlService.getState(guildId)
