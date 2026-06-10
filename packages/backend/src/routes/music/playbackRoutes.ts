@@ -56,65 +56,31 @@ export function setupPlaybackRoutes(app: Express): void {
         }),
     )
 
-    app.post(
-        '/api/guilds/:guildId/music/pause',
-        requireAuth,
-        validateParams(guildIdParam),
-        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const guildId = param(req.params.guildId)
-            const userId = requireUserId(req)
-            res.json(
-                await musicControlService.sendCommand(
-                    buildCommand(guildId, userId, 'pause'),
-                ),
-            )
-        }),
-    )
-
-    app.post(
-        '/api/guilds/:guildId/music/resume',
-        requireAuth,
-        validateParams(guildIdParam),
-        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const guildId = param(req.params.guildId)
-            const userId = requireUserId(req)
-            res.json(
-                await musicControlService.sendCommand(
-                    buildCommand(guildId, userId, 'resume'),
-                ),
-            )
-        }),
-    )
-
-    app.post(
-        '/api/guilds/:guildId/music/skip',
-        requireAuth,
-        validateParams(guildIdParam),
-        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const guildId = param(req.params.guildId)
-            const userId = requireUserId(req)
-            res.json(
-                await musicControlService.sendCommand(
-                    buildCommand(guildId, userId, 'skip'),
-                ),
-            )
-        }),
-    )
-
-    app.post(
-        '/api/guilds/:guildId/music/stop',
-        requireAuth,
-        validateParams(guildIdParam),
-        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const guildId = param(req.params.guildId)
-            const userId = requireUserId(req)
-            res.json(
-                await musicControlService.sendCommand(
-                    buildCommand(guildId, userId, 'stop'),
-                ),
-            )
-        }),
-    )
+    // pause/resume/skip/stop/shuffle share one shape: no body, fire the
+    // command named by the path segment.
+    const simpleCommands = [
+        'pause',
+        'resume',
+        'skip',
+        'stop',
+        'shuffle',
+    ] as const
+    for (const command of simpleCommands) {
+        app.post(
+            `/api/guilds/:guildId/music/${command}`,
+            requireAuth,
+            validateParams(guildIdParam),
+            asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+                const guildId = param(req.params.guildId)
+                const userId = requireUserId(req)
+                res.json(
+                    await musicControlService.sendCommand(
+                        buildCommand(guildId, userId, command),
+                    ),
+                )
+            }),
+        )
+    }
 
     app.post(
         '/api/guilds/:guildId/music/volume',
@@ -134,21 +100,6 @@ export function setupPlaybackRoutes(app: Express): void {
                     buildCommand(guildId, userId, 'volume', {
                         volume: body.data.volume,
                     }),
-                ),
-            )
-        }),
-    )
-
-    app.post(
-        '/api/guilds/:guildId/music/shuffle',
-        requireAuth,
-        validateParams(guildIdParam),
-        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const guildId = param(req.params.guildId)
-            const userId = requireUserId(req)
-            res.json(
-                await musicControlService.sendCommand(
-                    buildCommand(guildId, userId, 'shuffle'),
                 ),
             )
         }),
