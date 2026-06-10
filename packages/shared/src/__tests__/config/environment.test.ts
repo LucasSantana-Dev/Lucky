@@ -1,4 +1,19 @@
-import { describe, expect, it, beforeEach, afterEach } from '@jest/globals'
+import {
+    describe,
+    expect,
+    it,
+    beforeEach,
+    afterEach,
+    jest,
+} from '@jest/globals'
+
+// Mock dotenv so loadEnvironmentFiles() cannot re-populate process.env from
+// the repo's real .env — without this, deleting a required var in a test is
+// undone by the loader and the missing-vars branch never executes (#1262).
+jest.mock('dotenv', () => ({
+    config: jest.fn(() => ({ parsed: {} })),
+}))
+
 import {
     validateBackendEnvironment,
     ensureEnvironment,
@@ -10,13 +25,14 @@ import {
 // P3 #3: shared helper for assertion logic
 
 describe('environment.ts - cubic findings verification', () => {
-    const originalEnv = { ...process.env }
+    const originalEnv = process.env
 
     beforeEach(() => {
-        // Reset to a clean state for each test
-        process.env = {
-            ...originalEnv,
-        }
+        // Minimal fixture env, never a copy of the real one: keeps the
+        // missing-vars branch deterministic regardless of ambient env, and
+        // guarantees a failing assertion can only ever print fixture values,
+        // not real secrets (#1262).
+        process.env = { NODE_ENV: 'test' } as NodeJS.ProcessEnv
     })
 
     afterEach(() => {
