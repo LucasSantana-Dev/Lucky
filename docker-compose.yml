@@ -248,7 +248,7 @@ services:
     # Cloudflare Tunnel — exposes nginx to lucky.lucassantana.tech
     cloudflared:
         <<: *small-svc
-        image: cloudflare/cloudflared:latest
+        image: cloudflare/cloudflared:2026.6.0
         container_name: lucky-tunnel
         command: tunnel --config /etc/cloudflared/config-lucky.yml run
         volumes:

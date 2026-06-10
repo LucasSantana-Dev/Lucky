@@ -208,8 +208,8 @@ jobs:
                     release="$PUSH_SHA"
                   fi
                   echo "==> Creating Sentry release $release"
-                  npx --yes @sentry/cli@^3 releases new "$release"
-                  npx --yes @sentry/cli@^3 releases set-commits "$release" --local --ignore-missing || true
+                  npx --yes @sentry/cli@3.5.0 releases new "$release"
+                  npx --yes @sentry/cli@3.5.0 releases set-commits "$release" --local --ignore-missing || true
 
             - name: Trigger deploy webhook
               env:
@@ -441,7 +441,7 @@ jobs:
                     release="${{ github.sha }}"
                   fi
                   echo "==> Finalizing Sentry release $release"
-                  npx --yes @sentry/cli@^3 releases finalize "$release"
+                  npx --yes @sentry/cli@3.5.0 releases finalize "$release"
 
             - name: Auth config smoke check
               env:
