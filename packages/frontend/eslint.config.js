@@ -37,6 +37,9 @@ export default [
             'no-undef': 'off', // Typescript handles global and type symbols
             'no-unused-vars': 'off',
             'no-empty': 'off',
+            // Bare console.error hides errors from Sentry — use
+            // reportError() from '@/lib/sentry' instead (#1278)
+            'no-console': ['error', { allow: ['warn'] }],
             'react-hooks/rules-of-hooks': 'error',
             'react-hooks/exhaustive-deps': 'off',
         },
@@ -45,6 +48,13 @@ export default [
         files: ['tests/e2e/**/*.ts'],
         rules: {
             'react-hooks/rules-of-hooks': 'off',
+        },
+    },
+    {
+        // Node build/CLI scripts — console output is their interface
+        files: ['scripts/**/*.ts'],
+        rules: {
+            'no-console': 'off',
         },
     },
 ]

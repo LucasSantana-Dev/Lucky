@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/sentry'
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -74,7 +75,10 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
                 form.reset(response.data.settings as ModerationConfigValues)
             }
         } catch (error) {
-            console.error('Failed to load moderation settings:', error)
+            reportError('Failed to load moderation settings:', error, {
+                component: 'ModerationConfig',
+                action: 'load',
+            })
         }
     }
 
@@ -85,7 +89,10 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
             toast.success('Moderation configuration saved successfully!')
         } catch (error) {
             toast.error('Failed to save moderation configuration')
-            console.error('Error saving moderation config:', error)
+            reportError('Error saving moderation config:', error, {
+                component: 'ModerationConfig',
+                action: 'save',
+            })
         } finally {
             setIsLoading(false)
         }

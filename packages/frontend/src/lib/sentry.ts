@@ -72,3 +72,19 @@ export function captureFrontendException(
 ): void {
     Sentry.captureException(error, context ? { extra: context } : undefined)
 }
+
+/**
+ * Report a handled error: forward it to Sentry and echo it to the console
+ * for local visibility (capture is a no-op without a DSN, e.g. in dev).
+ * Use instead of bare console.error in catch blocks — the frontend
+ * `no-console` lint rule enforces this.
+ */
+export function reportError(
+    message: string,
+    error: unknown,
+    context?: Record<string, unknown>,
+): void {
+    captureFrontendException(error, { message, ...context })
+    // eslint-disable-next-line no-console -- the one sanctioned console echo
+    console.error(message, error)
+}

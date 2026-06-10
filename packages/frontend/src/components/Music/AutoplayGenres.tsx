@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/sentry'
 import { useState, useEffect } from 'react'
 import { Music2, Plus, X, AlertCircle } from 'lucide-react'
 import Card from '@/components/ui/Card'
@@ -10,7 +11,9 @@ import { inferApiBase } from '@/services/apiBase'
 
 const API_BASE = inferApiBase(
     import.meta.env.VITE_API_BASE_URL,
-    typeof globalThis !== 'undefined' && 'window' in globalThis ? globalThis.window.location : undefined,
+    typeof globalThis !== 'undefined' && 'window' in globalThis
+        ? globalThis.window.location
+        : undefined,
 )
 
 const apiClient = axios.create({
@@ -55,7 +58,10 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
             )
             setGenres(response.data.genres || [])
         } catch (err) {
-            console.error('Failed to load genres:', err)
+            reportError('Failed to load genres:', err, {
+                component: 'AutoplayGenres',
+                action: 'loadGenres',
+            })
             setError('Failed to load autoplay genres')
         }
     }
@@ -98,7 +104,10 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
             setGenres(updatedGenres)
             toast.success('Autoplay genres updated')
         } catch (err) {
-            console.error('Failed to update genres:', err)
+            reportError('Failed to update genres:', err, {
+                component: 'AutoplayGenres',
+                action: 'updateGenres',
+            })
             setError('Failed to update autoplay genres')
             toast.error('Failed to update autoplay genres')
         } finally {
@@ -115,8 +124,8 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
                 </h3>
             </div>
             <p className='text-lucky-text-secondary mb-6'>
-                Select genres to focus your autoplay recommendations on specific music styles.
-                Leave empty for no genre filtering.
+                Select genres to focus your autoplay recommendations on specific
+                music styles. Leave empty for no genre filtering.
             </p>
 
             {error && (
@@ -190,20 +199,20 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
                         Suggested Genres
                     </Label>
                     <div className='flex flex-wrap gap-2 mt-3'>
-                        {SUGGESTED_GENRES
-                            .filter((g) => !genres.includes(g))
-                            .map((genre) => (
-                                <button
-                                    key={genre}
-                                    onClick={() => {
-                                        setNewGenre(genre)
-                                    }}
-                                    disabled={isLoading}
-                                    className='px-3 py-1 bg-lucky-border rounded-full text-lucky-text-secondary hover:bg-lucky-border/80 transition-colors disabled:opacity-50'
-                                >
-                                    {genre}
-                                </button>
-                            ))}
+                        {SUGGESTED_GENRES.filter(
+                            (g) => !genres.includes(g),
+                        ).map((genre) => (
+                            <button
+                                key={genre}
+                                onClick={() => {
+                                    setNewGenre(genre)
+                                }}
+                                disabled={isLoading}
+                                className='px-3 py-1 bg-lucky-border rounded-full text-lucky-text-secondary hover:bg-lucky-border/80 transition-colors disabled:opacity-50'
+                            >
+                                {genre}
+                            </button>
+                        ))}
                     </div>
                 </div>
             )}

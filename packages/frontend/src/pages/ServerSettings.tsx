@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/sentry'
 import {
     useState,
     useEffect,
@@ -162,7 +163,10 @@ export default function ServerSettingsPage() {
                 )
             }
         } catch (error) {
-            console.error(error)
+            reportError('Failed to load server roles:', error, {
+                component: 'ServerSettings',
+                action: 'loadRbacRoles',
+            })
             if (requestId !== rbacRequestIdRef.current) {
                 return
             }

@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/sentry'
 import { useState, useEffect } from 'react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -78,7 +79,10 @@ function Levels() {
             } catch (error) {
                 if (!mounted) return
                 if (error instanceof ApiError) {
-                    console.error(error)
+                    reportError('Failed to load levels data:', error, {
+                        component: 'Levels',
+                        action: 'loadData',
+                    })
                     toast.error('Failed to load level settings')
                 }
             } finally {
@@ -105,7 +109,10 @@ function Levels() {
             })
             toast.success('Level settings saved')
         } catch (error) {
-            console.error(error)
+            reportError('Failed to save level settings:', error, {
+                component: 'Levels',
+                action: 'saveSettings',
+            })
             toast.error('Failed to save settings')
         } finally {
             setSaving(false)
@@ -129,7 +136,10 @@ function Levels() {
             setNewRoleId('')
             toast.success(`Reward added for level ${levelNum}`)
         } catch (error) {
-            console.error(error)
+            reportError('Failed to add level reward:', error, {
+                component: 'Levels',
+                action: 'addReward',
+            })
             toast.error('Failed to add reward')
         } finally {
             setAdding(false)
@@ -144,7 +154,10 @@ function Levels() {
             setRewards(rewards.filter((r) => r.level !== level))
             toast.success('Reward removed')
         } catch (error) {
-            console.error(error)
+            reportError('Failed to remove level reward:', error, {
+                component: 'Levels',
+                action: 'removeReward',
+            })
             toast.error('Failed to remove reward')
         }
     }
