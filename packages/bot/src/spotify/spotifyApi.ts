@@ -22,6 +22,23 @@ async function sleep(ms: number): Promise<void> {
 
 const DEFAULT_RETRY_AFTER_MS = 1000
 const MAX_RETRY_AFTER_MS = 60 * 1000
+const SPOTIFY_FETCH_TIMEOUT_MS = 8000
+
+/**
+ * fetch with a bounded deadline (#1279) — a hung Spotify response otherwise
+ * blocks the caller indefinitely. AbortSignal.timeout rejects with a
+ * TimeoutError, which is not a 429 Response, so withSpotifyRetry passes it
+ * through to each caller's existing error handling instead of retrying.
+ */
+function spotifyFetch(
+    url: string | URL,
+    init?: RequestInit,
+): Promise<Response> {
+    return fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(SPOTIFY_FETCH_TIMEOUT_MS),
+    })
+}
 
 /**
  * Parse a Retry-After header value into a millisecond delay.
@@ -60,7 +77,10 @@ function throwIfRetryable(res: Response): void {
     if (res.status === 429) throw res
 }
 
-async function withSpotifyRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
+async function withSpotifyRetry<T>(
+    fn: () => Promise<T>,
+    maxRetries = 2,
+): Promise<T> {
     let attempt = 0
     while (true) {
         try {
@@ -181,7 +201,7 @@ export async function getSpotifyRecommendations(
                     )
                 }
             }
-            const res = await fetch(
+            const res = await spotifyFetch(
                 `https://api.spotify.com/v1/recommendations?${params.toString()}`,
                 { headers: { Authorization: `Bearer ${accessToken}` } },
             )
@@ -200,13 +220,17 @@ export async function getSpotifyRecommendations(
                 .map((t) => ({
                     id: t.id!,
                     name: t.name!,
-                    artists: (t.artists ?? []).map((a) => ({ name: a.name ?? '' })),
+                    artists: (t.artists ?? []).map((a) => ({
+                        name: a.name ?? '',
+                    })),
                     duration_ms: t.duration_ms ?? 0,
                 }))
         })
         return result
     } catch (err) {
-        logAndSwallow(err, 'spotify.getRecommendations', { seedTrackIds: seedTrackIds.length })
+        logAndSwallow(err, 'spotify.getRecommendations', {
+            seedTrackIds: seedTrackIds.length,
+        })
         return []
     }
 }
@@ -245,7 +269,7 @@ export async function getAudioFeatures(
 ): Promise<SpotifyAudioFeatures | null> {
     try {
         const data = await withSpotifyRetry(async () => {
-            const res = await fetch(
+            const res = await spotifyFetch(
                 `https://api.spotify.com/v1/audio-features/${spotifyTrackId}`,
                 {
                     method: 'GET',
@@ -295,7 +319,7 @@ export async function getBatchAudioFeatures(
     try {
         const result = await withSpotifyRetry(async () => {
             const ids = spotifyIds.slice(0, 100).join(',')
-            const res = await fetch(
+            const res = await spotifyFetch(
                 `https://api.spotify.com/v1/audio-features?ids=${ids}`,
                 {
                     method: 'GET',
@@ -343,7 +367,9 @@ export async function getBatchAudioFeatures(
 
         return resultMap
     } catch (err) {
-        logAndSwallow(err, 'spotify.getBatchAudioFeatures', { count: spotifyIds.length })
+        logAndSwallow(err, 'spotify.getBatchAudioFeatures', {
+            count: spotifyIds.length,
+        })
         return new Map()
     }
 }
@@ -374,7 +400,7 @@ export async function getArtistPopularity(
                 limit: '1',
             })
 
-            const res = await fetch(
+            const res = await spotifyFetch(
                 `https://api.spotify.com/v1/search?${params.toString()}`,
                 {
                     method: 'GET',
@@ -430,7 +456,7 @@ export async function getArtistGenres(
                 limit: '1',
             })
 
-            const res = await fetch(
+            const res = await spotifyFetch(
                 `https://api.spotify.com/v1/search?${params.toString()}`,
                 {
                     method: 'GET',
@@ -474,7 +500,7 @@ export async function searchSpotifyTrack(
         })
 
         return await withSpotifyRetry(async () => {
-            const res = await fetch(
+            const res = await spotifyFetch(
                 `https://api.spotify.com/v1/search?${params.toString()}`,
                 {
                     method: 'GET',
@@ -519,7 +545,7 @@ export async function getUserTopArtistsAndTracks(
         const headers = { Authorization: `Bearer ${accessToken}` }
         const [topArtistsRes, topTracksRes] = await Promise.all([
             withSpotifyRetry(async () => {
-                const r = await fetch(
+                const r = await spotifyFetch(
                     'https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term',
                     { method: 'GET', headers },
                 )
@@ -527,7 +553,7 @@ export async function getUserTopArtistsAndTracks(
                 return r
             }),
             withSpotifyRetry(async () => {
-                const r = await fetch(
+                const r = await spotifyFetch(
                     'https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term',
                     { method: 'GET', headers },
                 )
@@ -544,7 +570,11 @@ export async function getUserTopArtistsAndTracks(
             items?: Array<{ id?: string; name?: string; genres?: string[] }>
         }
         const tracksData = (await topTracksRes.json().catch(() => null)) as {
-            items?: Array<{ id?: string; name?: string; artists?: Array<{ name?: string }> }>
+            items?: Array<{
+                id?: string
+                name?: string
+                artists?: Array<{ name?: string }>
+            }>
         }
 
         if (!artistsData?.items || !tracksData?.items) {
@@ -590,7 +620,7 @@ export async function getUserSavedTracks(
                 offset: String(offset),
             })
             const res = await withSpotifyRetry(async () => {
-                const r = await fetch(
+                const r = await spotifyFetch(
                     `https://api.spotify.com/v1/me/tracks?${params.toString()}`,
                     {
                         method: 'GET',
@@ -613,12 +643,17 @@ export async function getUserSavedTracks(
                 break
             }
 
-            type SavedTracksPage = { items: Array<{ track?: { id?: string } }>; total?: number }
+            type SavedTracksPage = {
+                items: Array<{ track?: { id?: string } }>
+                total?: number
+            }
             let data: SavedTracksPage | null = null
             try {
                 data = (await res.json()) as SavedTracksPage
             } catch (parseErr) {
-                logAndSwallow(parseErr, 'spotify.getUserSavedTracks.parse', { offset })
+                logAndSwallow(parseErr, 'spotify.getUserSavedTracks.parse', {
+                    offset,
+                })
                 break
             }
 
@@ -632,8 +667,13 @@ export async function getUserSavedTracks(
                 }
             }
 
-            const allFetched = data.total !== undefined && savedTrackIds.length >= data.total
-            if (savedTrackIds.length >= maxTracks || !data.items.length || allFetched) {
+            const allFetched =
+                data.total !== undefined && savedTrackIds.length >= data.total
+            if (
+                savedTrackIds.length >= maxTracks ||
+                !data.items.length ||
+                allFetched
+            ) {
                 break
             }
 

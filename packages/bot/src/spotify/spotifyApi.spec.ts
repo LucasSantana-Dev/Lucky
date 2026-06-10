@@ -44,6 +44,26 @@ describe('spotifyApi', () => {
         global.fetch = originalFetch
     })
 
+    describe('request timeout (#1279)', () => {
+        it('passes an AbortSignal deadline to the Spotify fetch', async () => {
+            fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) })
+            await getAudioFeatures('test-token', 'track-1')
+            expect(fetchMock).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
+            )
+        })
+
+        it('surfaces a timeout as the normal error fallback without a 429 retry', async () => {
+            fetchMock.mockRejectedValue(
+                new DOMException('The operation timed out', 'TimeoutError'),
+            )
+            const result = await getAudioFeatures('test-token', 'track-1')
+            expect(result).toBeNull()
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+        })
+    })
+
     describe('getAudioFeatures', () => {
         it.each([
             [
