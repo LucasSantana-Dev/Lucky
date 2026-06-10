@@ -2,6 +2,8 @@ import type { Express, Response } from 'express'
 import { z } from 'zod'
 import { requireAuth, type AuthenticatedRequest } from '../../middleware/auth'
 import { asyncHandler } from '../../middleware/asyncHandler'
+import { validateParams } from '../../middleware/validate'
+import { guildIdParam } from '../../schemas/common'
 import { AppError } from '../../errors/AppError'
 import { musicControlService } from '@lucky/shared/services'
 import { param, buildCommand } from './helpers'
@@ -35,6 +37,7 @@ export function setupPlaybackRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/play',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)
@@ -56,6 +59,7 @@ export function setupPlaybackRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/pause',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)
@@ -70,6 +74,7 @@ export function setupPlaybackRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/resume',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)
@@ -84,6 +89,7 @@ export function setupPlaybackRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/skip',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)
@@ -98,6 +104,7 @@ export function setupPlaybackRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/stop',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)
@@ -112,6 +119,7 @@ export function setupPlaybackRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/volume',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)
@@ -134,6 +142,7 @@ export function setupPlaybackRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/shuffle',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)
@@ -148,6 +157,7 @@ export function setupPlaybackRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/repeat',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)
@@ -172,6 +182,7 @@ export function setupPlaybackRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/seek',
         requireAuth,
+        validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const userId = requireUserId(req)

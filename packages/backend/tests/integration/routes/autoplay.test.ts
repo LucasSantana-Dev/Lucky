@@ -19,8 +19,17 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 jest.mock('../../../src/middleware/auth', () => ({
-    requireAuth: (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
-        req.user = { id: 'test-discord-id', username: 'test', discriminator: '0000', avatar: null }
+    requireAuth: (
+        req: AuthenticatedRequest,
+        _res: Response,
+        next: NextFunction,
+    ) => {
+        req.user = {
+            id: 'test-discord-id',
+            username: 'test',
+            discriminator: '0000',
+            avatar: null,
+        }
         next()
     },
 }))
@@ -47,7 +56,7 @@ describe('Autoplay Routes', () => {
             mockGuildSettingsService.getGuildSettings.mockResolvedValue(null)
 
             const res = await request(app).get(
-                '/api/guilds/guild-123/autoplay/genres',
+                '/api/guilds/123456789012345678/autoplay/genres',
             )
 
             expect(res.status).toBe(200)
@@ -60,7 +69,7 @@ describe('Autoplay Routes', () => {
             })
 
             const res = await request(app).get(
-                '/api/guilds/guild-123/autoplay/genres',
+                '/api/guilds/123456789012345678/autoplay/genres',
             )
 
             expect(res.status).toBe(200)
@@ -75,21 +84,21 @@ describe('Autoplay Routes', () => {
             mockGuildSettingsService.updateGuildSettings.mockResolvedValue(true)
 
             const res = await request(app)
-                .put('/api/guilds/guild-123/autoplay/genres')
+                .put('/api/guilds/123456789012345678/autoplay/genres')
                 .send({ genres: ['rock', 'pop'] })
 
             expect(res.status).toBe(200)
             expect(res.body).toEqual({ genres: ['rock', 'pop'] })
             expect(
                 mockGuildSettingsService.updateGuildSettings,
-            ).toHaveBeenCalledWith('guild-123', {
+            ).toHaveBeenCalledWith('123456789012345678', {
                 autoplayGenres: ['rock', 'pop'],
             })
         })
 
         it('rejects when genres is not an array', async () => {
             const res = await request(app)
-                .put('/api/guilds/guild-123/autoplay/genres')
+                .put('/api/guilds/123456789012345678/autoplay/genres')
                 .send({ genres: 'rock' })
 
             expect(res.status).toBe(400)
@@ -98,9 +107,16 @@ describe('Autoplay Routes', () => {
 
         it('rejects when more than 5 genres', async () => {
             const res = await request(app)
-                .put('/api/guilds/guild-123/autoplay/genres')
+                .put('/api/guilds/123456789012345678/autoplay/genres')
                 .send({
-                    genres: ['rock', 'pop', 'indie', 'jazz', 'metal', 'electronic'],
+                    genres: [
+                        'rock',
+                        'pop',
+                        'indie',
+                        'jazz',
+                        'metal',
+                        'electronic',
+                    ],
                 })
 
             expect(res.status).toBe(400)
@@ -111,7 +127,7 @@ describe('Autoplay Routes', () => {
             mockGuildSettingsService.updateGuildSettings.mockResolvedValue(true)
 
             const res = await request(app)
-                .put('/api/guilds/guild-123/autoplay/genres')
+                .put('/api/guilds/123456789012345678/autoplay/genres')
                 .send({ genres: ['Rock', 'ROCK', '  rock  ', 'pop'] })
 
             expect(res.status).toBe(200)
@@ -119,10 +135,12 @@ describe('Autoplay Routes', () => {
         })
 
         it('handles update failure', async () => {
-            mockGuildSettingsService.updateGuildSettings.mockResolvedValue(false)
+            mockGuildSettingsService.updateGuildSettings.mockResolvedValue(
+                false,
+            )
 
             const res = await request(app)
-                .put('/api/guilds/guild-123/autoplay/genres')
+                .put('/api/guilds/123456789012345678/autoplay/genres')
                 .send({ genres: ['rock'] })
 
             expect(res.status).toBe(500)
