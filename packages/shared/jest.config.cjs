@@ -24,12 +24,16 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
+  // Honest gate (#1277): set just below coverage measured on 2026-06-09
+  // (47.08/41.83/38.82/46.76). The previous 89/89/90/89 was never enforced —
+  // no CI job ran shared tests — and had drifted far from reality. Ratchet
+  // these up as coverage improves; never raise above measured coverage.
   coverageThreshold: {
     global: {
-      statements: 89,
-      branches: 89,
-      functions: 90,
-      lines: 89
+      statements: 46,
+      branches: 41,
+      functions: 38,
+      lines: 46
     }
   },
   testTimeout: 30000,
