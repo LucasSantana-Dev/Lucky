@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/sentry'
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -186,7 +187,10 @@ export default function ServerLogsPage() {
             setLogs(allLogs.slice((page - 1) * limit, page * limit))
             setTotal(res.data.total)
         } catch (error) {
-            console.error('Failed to load logs:', error)
+            reportError('Failed to load logs:', error, {
+                component: 'ServerLogs',
+                action: 'loadLogs',
+            })
             toast.error('Failed to load logs. Please try again.')
             setLogs([])
             setTotal(0)

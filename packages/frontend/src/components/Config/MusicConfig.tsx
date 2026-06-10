@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/sentry'
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -67,7 +68,10 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
                 })
             }
         } catch (error) {
-            console.error('Failed to load music settings:', error)
+            reportError('Failed to load music settings:', error, {
+                component: 'MusicConfig',
+                action: 'load',
+            })
         }
     }
 
@@ -79,7 +83,10 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
             toast.success('Music configuration saved successfully!')
         } catch (error) {
             toast.error('Failed to save music configuration')
-            console.error('Error saving music config:', error)
+            reportError('Error saving music config:', error, {
+                component: 'MusicConfig',
+                action: 'save',
+            })
         } finally {
             setIsLoading(false)
         }

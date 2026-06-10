@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/sentry'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/authStore'
@@ -81,7 +82,10 @@ export default function Landing() {
                 })
             } catch (error) {
                 if (!active) return
-                console.error('Failed to fetch bot stats:', error)
+                reportError('Failed to fetch bot stats:', error, {
+                    component: 'Landing',
+                    action: 'fetchBotStats',
+                })
                 setRepoStats((s) => ({ ...s, error: true, loading: false }))
             }
         }
@@ -369,7 +373,10 @@ function RepoCard({ stats, locale }: { stats: RepoStats; locale: string }) {
             setCopied(true)
             setTimeout(() => setCopied(false), 1800)
         } catch (error) {
-            console.error('Clipboard write failed:', error)
+            reportError('Clipboard write failed:', error, {
+                component: 'Landing',
+                action: 'copy',
+            })
         }
     }
 

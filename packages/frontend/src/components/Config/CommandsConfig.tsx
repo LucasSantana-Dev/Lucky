@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/sentry'
 import { useState, useEffect, useMemo } from 'react'
 import { Terminal, Search, Filter } from 'lucide-react'
 import Card from '@/components/ui/Card'
@@ -33,7 +34,10 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
             const response = await api.commands.list(guildId)
             setCommands(response.data.commands)
         } catch (error) {
-            console.error('Failed to load commands:', error)
+            reportError('Failed to load commands:', error, {
+                component: 'CommandsConfig',
+                action: 'loadCommands',
+            })
             toast.error('Failed to load commands')
         }
     }
@@ -67,7 +71,10 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
             toast.success(`Command ${enabled ? 'enabled' : 'disabled'}`)
         } catch (error) {
             toast.error('Failed to update command')
-            console.error('Error toggling command:', error)
+            reportError('Error toggling command:', error, {
+                component: 'CommandsConfig',
+                action: 'toggleCommand',
+            })
         }
     }
 

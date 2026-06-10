@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/sentry'
 import { useState, useEffect } from 'react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -59,7 +60,10 @@ function Starboard() {
             } catch (error) {
                 if (!mounted) return
                 if (error instanceof ApiError) {
-                    console.error(error)
+                    reportError('Failed to load starboard data:', error, {
+                        component: 'Starboard',
+                        action: 'loadData',
+                    })
                     toast.error('Failed to load starboard settings')
                 }
             } finally {
@@ -88,7 +92,10 @@ function Starboard() {
             })
             toast.success('Starboard settings saved')
         } catch (error) {
-            console.error(error)
+            reportError('Failed to save starboard settings:', error, {
+                component: 'Starboard',
+                action: 'saveSettings',
+            })
             toast.error('Failed to save settings')
         } finally {
             setSaving(false)
@@ -108,7 +115,10 @@ function Starboard() {
             setSelfStar(false)
             toast.success('Starboard disabled')
         } catch (error) {
-            console.error(error)
+            reportError('Failed to disable starboard:', error, {
+                component: 'Starboard',
+                action: 'disable',
+            })
             toast.error('Failed to delete starboard config')
         } finally {
             setSaving(false)

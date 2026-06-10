@@ -38,6 +38,7 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+        // eslint-disable-next-line no-console -- keep errorInfo visible locally; Sentry capture follows
         console.error('ErrorBoundary caught an error:', error, errorInfo)
         captureFrontendException(error, {
             correlationId: this.state.correlationId,
