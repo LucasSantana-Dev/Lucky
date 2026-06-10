@@ -357,6 +357,50 @@ describe('Guild ID Snowflake Validation', () => {
         )
     })
 
+    describe('Pagination limit bounds (#1183)', () => {
+        const validGuildId = '123456789012345678'
+
+        test.each([
+            ['9999', 400],
+            ['0', 400],
+            ['-5', 400],
+            ['abc', 400],
+            ['25', 200],
+        ])(
+            'GET levels/leaderboard with limit=%s returns %s-class',
+            async (limit, expected) => {
+                const app = createApp(setupLevelsRoutes)
+                const res = await request(app).get(
+                    `/api/guilds/${validGuildId}/levels/leaderboard?limit=${limit}`,
+                )
+                if (expected === 400) {
+                    expect(res.status).toBe(400)
+                } else {
+                    expect(res.status).not.toBe(400)
+                }
+            },
+        )
+
+        test.each([
+            ['9999', 400],
+            ['0', 400],
+            ['25', 200],
+        ])(
+            'GET starboard/entries with limit=%s returns %s-class',
+            async (limit, expected) => {
+                const app = createApp(setupStarboardRoutes)
+                const res = await request(app).get(
+                    `/api/guilds/${validGuildId}/starboard/entries?limit=${limit}`,
+                )
+                if (expected === 400) {
+                    expect(res.status).toBe(400)
+                } else {
+                    expect(res.status).not.toBe(400)
+                }
+            },
+        )
+    })
+
     describe('Music Routes (#1200)', () => {
         const validGuildId = '123456789012345678'
         const invalidGuildId = 'not-a-snowflake'
