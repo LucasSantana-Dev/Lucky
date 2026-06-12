@@ -11,16 +11,11 @@ jest.mock('../monitoring', () => ({
     addBreadcrumb: jest.fn(),
 }))
 
-// Mock uuid
-jest.doMock('uuid', () => ({
-    v4: jest.fn(() => 'mock-uuid-12345'),
-}))
-
 import {
     createCorrelationId,
     wrapError,
     createUserErrorMessage,
-    logError
+    logError,
 } from './errorWrapper'
 import { MusicError } from '../../types/errors/music'
 import { VALIDATION_ERROR_CODES } from '../../types/errors/validation'
@@ -41,16 +36,20 @@ describe('Error Wrapper', () => {
             expect(id.length).toBeGreaterThan(0)
         })
 
-        it('should call uuid.v4', () => {
-            const { v4 } = require('uuid')
-            createCorrelationId()
-            expect(v4).toHaveBeenCalled()
+        it('should generate a v4 uuid shape', () => {
+            const id = createCorrelationId()
+            expect(id).toMatch(
+                /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+            )
         })
     })
 
     describe('wrapError', () => {
         it('should return MusicError as-is', () => {
-            const error = new MusicError('Test error', 'ERR_MUSIC_TRACK_NOT_FOUND')
+            const error = new MusicError(
+                'Test error',
+                'ERR_MUSIC_TRACK_NOT_FOUND',
+            )
             const result = wrapError(error)
 
             expect(result).toBe(error)
@@ -88,7 +87,7 @@ describe('Error Wrapper', () => {
                 guildId: 'guild456',
                 commandName: 'play',
                 correlationId: 'test-correlation-123',
-                additionalInfo: { extra: 'data' }
+                additionalInfo: { extra: 'data' },
             }
 
             const result = wrapError(error, undefined, context)
@@ -139,28 +138,36 @@ describe('Error Wrapper', () => {
             const error = new Error('network connection failed')
             const result = createUserErrorMessage(error)
 
-            expect(result).toBe('Network error occurred. Please check your connection.')
+            expect(result).toBe(
+                'Network error occurred. Please check your connection.',
+            )
         })
 
         it('should map permission errors to user-friendly message', () => {
             const error = new Error('permission denied')
             const result = createUserErrorMessage(error)
 
-            expect(result).toBe("You don't have permission to perform this action.")
+            expect(result).toBe(
+                "You don't have permission to perform this action.",
+            )
         })
 
         it('should return generic message for unknown errors', () => {
             const error = new Error('Unknown error')
             const result = createUserErrorMessage(error)
 
-            expect(result).toBe('An unexpected error occurred. Please try again.')
+            expect(result).toBe(
+                'An unexpected error occurred. Please try again.',
+            )
         })
 
         it('should handle non-Error objects', () => {
             const error = 'String error'
             const result = createUserErrorMessage(error)
 
-            expect(result).toBe('An unexpected error occurred. Please try again.')
+            expect(result).toBe(
+                'An unexpected error occurred. Please try again.',
+            )
         })
     })
 
@@ -181,7 +188,7 @@ describe('Error Wrapper', () => {
                 {
                     correlationId: expect.any(String),
                     context,
-                }
+                },
             )
         })
 
@@ -224,7 +231,10 @@ describe('Error Wrapper', () => {
         })
 
         it('should handle MusicError without wrapping', () => {
-            const error = new MusicError('Music error', 'ERR_MUSIC_TRACK_NOT_FOUND')
+            const error = new MusicError(
+                'Music error',
+                'ERR_MUSIC_TRACK_NOT_FOUND',
+            )
             const context = { userId: 'user123' }
 
             const wrappedError = wrapError(error, undefined, context)
