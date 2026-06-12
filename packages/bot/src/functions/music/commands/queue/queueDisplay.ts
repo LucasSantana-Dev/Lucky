@@ -121,22 +121,24 @@ export async function findSimilarTracksInQueue(
 export function createQueueSummary(
     totalTracks: number,
     totalDuration: string,
-    currentPosition: number,
+    currentPositionMs: number,
 ): string {
     const summary = []
 
     summary.push(`**Total Tracks:** ${totalTracks}`)
     summary.push(`**Total Duration:** ${totalDuration}`)
 
-    if (currentPosition > 0) {
-        summary.push(`**Current Position:** ${formatTime(currentPosition)}`)
+    if (currentPositionMs > 0) {
+        summary.push(`**Current Position:** ${formatTime(currentPositionMs)}`)
     }
 
     return summary.join(' \u2022 ')
 }
 
-function formatTime(seconds: number): string {
-    const minutes = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
+// getTimestamp().current.value upstream reports milliseconds (#1202)
+function formatTime(milliseconds: number): string {
+    const totalSeconds = Math.floor(milliseconds / 1000)
+    const minutes = Math.floor(totalSeconds / 60)
+    const secs = totalSeconds % 60
     return `${minutes}:${secs.toString().padStart(2, '0')}`
 }
