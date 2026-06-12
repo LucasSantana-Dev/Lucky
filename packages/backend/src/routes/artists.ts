@@ -1,5 +1,5 @@
 import type { Express, Response } from 'express'
-import { requireAuth } from '../middleware/auth'
+import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { apiLimiter, writeLimiter } from '../middleware/rateLimit'
 import {
     validateBody,
