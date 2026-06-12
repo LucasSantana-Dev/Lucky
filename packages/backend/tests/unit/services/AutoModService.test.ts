@@ -37,6 +37,7 @@ jest.mock('@lucky/shared/utils/general/log', () => ({
 import {
     AutoModService,
     _resetSpamWindows,
+    _resetSettingsCache,
 } from '@lucky/shared/services/AutoModService'
 
 const DEFAULT_SETTINGS = {
@@ -75,6 +76,7 @@ describe('AutoModService', () => {
         mockRedis.setex.mockResolvedValue(true)
         mockRedis.del.mockResolvedValue(true)
         _resetSpamWindows()
+        _resetSettingsCache()
         service = new AutoModService()
     })
 

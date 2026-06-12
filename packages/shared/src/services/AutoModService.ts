@@ -1,13 +1,7 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
-import { redisClient } from './redis/index.js'
-import { errorLog } from '../utils/general/log.js'
 
 const prisma = getPrismaClient()
-const CACHE_TTL = 300
-const CACHE_PREFIX = 'automod:'
-
-// In-memory spam tracking: key = `${guildId}:${userId}`, value = sorted timestamp array
-const spamWindows = new Map<string, number[]>()
+const CACHE_TTL = 300 // seconds
 
 /** Auto-moderation settings configuration for a guild. */
 export interface AutoModSettings {
@@ -30,6 +24,15 @@ export interface AutoModSettings {
     createdAt: Date
     updatedAt: Date
 }
+
+// In-memory settings cache: key = guildId, value = { data, expiresAt (timestamp) }
+const settingsCache = new Map<
+    string,
+    { data: AutoModSettings; expiresAt: number }
+>()
+
+// In-memory spam tracking: key = `${guildId}:${userId}`, value = sorted timestamp array
+const spamWindows = new Map<string, number[]>()
 
 /** Mutable subset of AutoModSettings excluding metadata fields. */
 type AutoModMutableSettings = Omit<
@@ -209,29 +212,28 @@ const extractHostname = (rawUrl: string): string | null => {
 export class AutoModService {
     /** Retrieves auto-mod settings for a guild with caching. */
     async getSettings(guildId: string): Promise<AutoModSettings | null> {
-        if (redisClient.isHealthy()) {
-            try {
-                const cached = await redisClient.get(
-                    `${CACHE_PREFIX}${guildId}`,
-                )
-                if (cached) return JSON.parse(cached)
-            } catch (err) {
-                errorLog({ message: 'AutoMod cache read error', error: err })
-            }
+        // Check in-memory cache
+        const cached = settingsCache.get(guildId)
+        if (cached && cached.expiresAt > Date.now()) {
+            return cached.data
         }
 
+        // Cache miss or expired; remove stale entry
+        if (cached) {
+            settingsCache.delete(guildId)
+        }
+
+        // Fetch from database
         const settings = await prisma.autoModSettings.findUnique({
             where: { guildId },
         })
 
-        if (settings && redisClient.isHealthy()) {
-            redisClient
-                .setex(
-                    `${CACHE_PREFIX}${guildId}`,
-                    CACHE_TTL,
-                    JSON.stringify(settings),
-                )
-                .catch(() => {})
+        // Cache the result if found
+        if (settings) {
+            settingsCache.set(guildId, {
+                data: settings,
+                expiresAt: Date.now() + CACHE_TTL * 1000,
+            })
         }
 
         return settings
@@ -239,9 +241,7 @@ export class AutoModService {
 
     /** Clears cached settings for a guild. */
     private invalidateCache(guildId: string): void {
-        if (redisClient.isHealthy()) {
-            redisClient.del(`${CACHE_PREFIX}${guildId}`).catch(() => {})
-        }
+        settingsCache.delete(guildId)
     }
 
     /** Creates default auto-mod settings for a guild. */
@@ -458,6 +458,11 @@ export class AutoModService {
 /** Resets spam windows for testing. */
 export function _resetSpamWindows(): void {
     spamWindows.clear()
+}
+
+/** Resets settings cache for testing. */
+export function _resetSettingsCache(): void {
+    settingsCache.clear()
 }
 
 /** Singleton instance of AutoModService. */

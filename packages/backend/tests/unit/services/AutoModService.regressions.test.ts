@@ -38,7 +38,7 @@ jest.mock('@lucky/shared/utils/general/log', () => ({
     warnLog: jest.fn(),
 }))
 
-import { AutoModService } from '@lucky/shared/services/AutoModService'
+import { AutoModService, _resetSettingsCache } from '@lucky/shared/services/AutoModService'
 
 const DEFAULT_SETTINGS = {
     id: '1',
@@ -65,6 +65,7 @@ describe('AutoModService regressions', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
+        _resetSettingsCache()
         service = new AutoModService()
     })
 
