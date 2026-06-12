@@ -65,7 +65,8 @@ export function setupToggleRoutes(app: Express): void {
         validateBody(s.toggleEnabledBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const toggleName = req.params.name
-            const { enabled } = req.body
+            // validateBody(s.toggleEnabledBody) already parsed req.body
+            const { enabled } = req.body as { enabled: boolean }
 
             if (
                 !featureToggleService

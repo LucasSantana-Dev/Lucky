@@ -1,7 +1,7 @@
 import type { Express } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { apiLimiter, writeLimiter } from '../middleware/rateLimit'
-import { validateBody, validateQuery, validateParams } from '../middleware/validate'
+import { validateBody, validateQuery } from '../middleware/validate'
 import { wrapHandler } from '../utils/routeUtils'
 import { ArtistSuggestionService } from '../services/artistSuggestion'
 import { artistsSchemas as s } from '../schemas/artists'
