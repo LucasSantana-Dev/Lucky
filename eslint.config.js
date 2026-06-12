@@ -124,6 +124,11 @@ export default [
             "@typescript-eslint": pluginTs,
         },
         rules: {
+            // Core-rule handling at repo-root lint: the cwd-relative TS block
+            // (files: ["src/**/*.ts"]) doesn't match from the root, so without
+            // these the @eslint/js recommended core rules fire as errors (#1364)
+            "no-unused-vars": "off",
+            "no-empty": ["warn", { allowEmptyCatch: false }],
             "@typescript-eslint/no-non-null-assertion": "warn",
             "@typescript-eslint/no-unsafe-assignment": "warn",
             "@typescript-eslint/no-unsafe-call": "warn",
