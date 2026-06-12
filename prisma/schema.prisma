@@ -21,8 +21,9 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  preferences  UserPreferences?
-  commandUsage CommandUsage[]
+  preferences   UserPreferences?
+  commandUsage  CommandUsage[]
+  trackFeedback UserTrackFeedback[]
 
   @@map("users")
 }
@@ -71,6 +72,7 @@ model Guild {
   namedQueues         NamedQueue[]
   sessionSnapshot     MusicSessionSnapshot?
   counter             GuildCounter?
+  trackFeedback       UserTrackFeedback[]
 
   @@map("guilds")
 }
@@ -444,6 +446,29 @@ model UserArtistPreference {
   @@unique([discordUserId, guildId, artistKey])
   @@index([discordUserId, guildId])
   @@map("user_artist_preferences")
+}
+
+// Track Feedback — explicit per-track 👍/👎 feedback with 30-day TTL.
+// Lazy-prune on read (deleteMany expired); decay computed at read time.
+// Per-user/guild/track; dupes upsert on (discordUserId, guildId, trackKey).
+model UserTrackFeedback {
+  id            String   @id @default(cuid())
+  discordUserId String
+  guildId       String
+  trackKey      String // normalized: lowercase alphanumeric (title::author)
+  feedback      String // "like" | "dislike"
+  updatedAt     DateTime @updatedAt
+  expiresAt     DateTime // when this feedback expires (TTL)
+  createdAt     DateTime @default(now())
+
+  // Relations
+  user  User   @relation(fields: [discordUserId], references: [discordId], onDelete: Cascade)
+  guild Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+
+  @@unique([discordUserId, guildId, trackKey])
+  @@index([discordUserId, guildId])
+  @@index([expiresAt]) // for lazy-prune query
+  @@map("user_track_feedbacks")
 }
 
 // Music Recommendations

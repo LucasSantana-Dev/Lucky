@@ -163,6 +163,7 @@ export async function handleAutoplayArtist(
             case 'list': {
                 const summary =
                     await recommendationFeedbackService.getArtistFeedbackSummary(
+                        guildId,
                         userId,
                     )
 
