@@ -1,4 +1,5 @@
 import { errorLog, debugLog } from '../utils/general/log'
+import { parseIntEnv } from '../utils/env'
 
 let environmentLoaded = false
 
@@ -103,33 +104,37 @@ export const clearConfigCache = (): void => {
 export const constants = {
     VOLUME: 50,
     MAX_AUTOPLAY_TRACKS: 50,
-    MUSIC_WATCHDOG_TIMEOUT_MS: parseInt(
-        process.env.MUSIC_WATCHDOG_TIMEOUT_MS ?? '25000',
+    MUSIC_WATCHDOG_TIMEOUT_MS: parseIntEnv(
+        'MUSIC_WATCHDOG_TIMEOUT_MS',
+        25000,
     ),
-    MUSIC_PROVIDER_COOLDOWN_MS: parseInt(
-        process.env.MUSIC_PROVIDER_COOLDOWN_MS ?? '120000',
+    MUSIC_PROVIDER_COOLDOWN_MS: parseIntEnv(
+        'MUSIC_PROVIDER_COOLDOWN_MS',
+        120000,
     ),
     MUSIC_SESSION_RESTORE_ENABLED:
         process.env.MUSIC_SESSION_RESTORE_ENABLED !== 'false',
-    AUTOPLAY_DISLIKE_TTL_HOURS: parseInt(
-        process.env.AUTOPLAY_DISLIKE_TTL_HOURS ?? '24',
+    AUTOPLAY_DISLIKE_TTL_HOURS: parseIntEnv(
+        'AUTOPLAY_DISLIKE_TTL_HOURS',
+        24,
     ),
 }
 
 export const ENVIRONMENT_CONFIG = {
     DATABASE: {
         URL: process.env.DATABASE_URL,
-        MAX_CONNECTIONS: parseInt(process.env.DATABASE_MAX_CONNECTIONS ?? '10'),
-        CONNECTION_TIMEOUT: parseInt(
-            process.env.DATABASE_CONNECTION_TIMEOUT ?? '30000',
+        MAX_CONNECTIONS: parseIntEnv('DATABASE_MAX_CONNECTIONS', 10),
+        CONNECTION_TIMEOUT: parseIntEnv(
+            'DATABASE_CONNECTION_TIMEOUT',
+            30000,
         ),
-        QUERY_TIMEOUT: parseInt(process.env.DATABASE_QUERY_TIMEOUT ?? '10000'),
+        QUERY_TIMEOUT: parseIntEnv('DATABASE_QUERY_TIMEOUT', 10000),
     },
     REDIS: {
         HOST: process.env.REDIS_HOST ?? 'localhost',
-        PORT: parseInt(process.env.REDIS_PORT ?? '6379'),
+        PORT: parseIntEnv('REDIS_PORT', 6379),
         PASSWORD: process.env.REDIS_PASSWORD,
-        DB: parseInt(process.env.REDIS_DB ?? '0'),
+        DB: parseIntEnv('REDIS_DB', 0),
     },
     TIKTOK: {
         API_HOSTNAME:
@@ -137,92 +142,109 @@ export const ENVIRONMENT_CONFIG = {
             'api16-normal-c-useast1a.tiktokv.com',
         REFERER_URL:
             process.env.TIKTOK_REFERER_URL ?? 'https://www.tiktok.com/',
-        EXTRACTOR_RETRIES: parseInt(
-            process.env.TIKTOK_EXTRACTOR_RETRIES ?? '3',
+        EXTRACTOR_RETRIES: parseIntEnv(
+            'TIKTOK_EXTRACTOR_RETRIES',
+            3,
         ),
-        FRAGMENT_RETRIES: parseInt(process.env.TIKTOK_FRAGMENT_RETRIES ?? '3'),
-        SLEEP_INTERVAL: parseInt(process.env.TIKTOK_SLEEP_INTERVAL ?? '1'),
-        MAX_SLEEP_INTERVAL: parseInt(
-            process.env.TIKTOK_MAX_SLEEP_INTERVAL ?? '3',
+        FRAGMENT_RETRIES: parseIntEnv('TIKTOK_FRAGMENT_RETRIES', 3),
+        SLEEP_INTERVAL: parseIntEnv('TIKTOK_SLEEP_INTERVAL', 1),
+        MAX_SLEEP_INTERVAL: parseIntEnv(
+            'TIKTOK_MAX_SLEEP_INTERVAL',
+            3,
         ),
     },
     YOUTUBE: {
-        CONNECTION_TIMEOUT: parseInt(
-            process.env.YOUTUBE_CONNECTION_TIMEOUT ?? '120000',
+        CONNECTION_TIMEOUT: parseIntEnv(
+            'YOUTUBE_CONNECTION_TIMEOUT',
+            120000,
         ),
-        MAX_RETRIES: parseInt(process.env.YOUTUBE_MAX_RETRIES ?? '3'),
-        RETRY_DELAY: parseInt(process.env.YOUTUBE_RETRY_DELAY ?? '1000'),
-        MAX_EXTRACTORS: parseInt(process.env.YOUTUBE_MAX_EXTRACTORS ?? '5'),
+        MAX_RETRIES: parseIntEnv('YOUTUBE_MAX_RETRIES', 3),
+        RETRY_DELAY: parseIntEnv('YOUTUBE_RETRY_DELAY', 1000),
+        MAX_EXTRACTORS: parseIntEnv('YOUTUBE_MAX_EXTRACTORS', 5),
         USER_AGENT:
             process.env.YOUTUBE_USER_AGENT ??
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     },
     DOWNLOAD: {
-        TIMEOUT: parseInt(process.env.DOWNLOAD_TIMEOUT ?? '10000'),
-        MAX_RETRIES: parseInt(process.env.DOWNLOAD_MAX_RETRIES ?? '3'),
-        RETRY_DELAY: parseInt(process.env.DOWNLOAD_RETRY_DELAY ?? '1000'),
+        TIMEOUT: parseIntEnv('DOWNLOAD_TIMEOUT', 10000),
+        MAX_RETRIES: parseIntEnv('DOWNLOAD_MAX_RETRIES', 3),
+        RETRY_DELAY: parseIntEnv('DOWNLOAD_RETRY_DELAY', 1000),
     },
     RATE_LIMITS: {
-        COMMAND_WINDOW_MS: parseInt(
-            process.env.RATE_LIMIT_COMMAND_WINDOW_MS ?? '60000',
+        COMMAND_WINDOW_MS: parseIntEnv(
+            'RATE_LIMIT_COMMAND_WINDOW_MS',
+            60000,
         ),
-        COMMAND_MAX_REQUESTS: parseInt(
-            process.env.RATE_LIMIT_COMMAND_MAX_REQUESTS ?? '5',
+        COMMAND_MAX_REQUESTS: parseIntEnv(
+            'RATE_LIMIT_COMMAND_MAX_REQUESTS',
+            5,
         ),
-        MUSIC_COMMAND_WINDOW_MS: parseInt(
-            process.env.RATE_LIMIT_MUSIC_COMMAND_WINDOW_MS ?? '30000',
+        MUSIC_COMMAND_WINDOW_MS: parseIntEnv(
+            'RATE_LIMIT_MUSIC_COMMAND_WINDOW_MS',
+            30000,
         ),
-        MUSIC_COMMAND_MAX_REQUESTS: parseInt(
-            process.env.RATE_LIMIT_MUSIC_COMMAND_MAX_REQUESTS ?? '3',
+        MUSIC_COMMAND_MAX_REQUESTS: parseIntEnv(
+            'RATE_LIMIT_MUSIC_COMMAND_MAX_REQUESTS',
+            3,
         ),
-        DOWNLOAD_WINDOW_MS: parseInt(
-            process.env.RATE_LIMIT_DOWNLOAD_WINDOW_MS ?? '300000',
+        DOWNLOAD_WINDOW_MS: parseIntEnv(
+            'RATE_LIMIT_DOWNLOAD_WINDOW_MS',
+            300000,
         ),
-        DOWNLOAD_MAX_REQUESTS: parseInt(
-            process.env.RATE_LIMIT_DOWNLOAD_MAX_REQUESTS ?? '2',
+        DOWNLOAD_MAX_REQUESTS: parseIntEnv(
+            'RATE_LIMIT_DOWNLOAD_MAX_REQUESTS',
+            2,
         ),
     },
     SESSIONS: {
-        USER_SESSION_TTL: parseInt(process.env.USER_SESSION_TTL ?? '86400'),
-        QUEUE_SESSION_TTL: parseInt(process.env.QUEUE_SESSION_TTL ?? '7200'),
-        COMMAND_HISTORY_LIMIT: parseInt(
-            process.env.COMMAND_HISTORY_LIMIT ?? '10',
+        USER_SESSION_TTL: parseIntEnv('USER_SESSION_TTL', 86400),
+        QUEUE_SESSION_TTL: parseIntEnv('QUEUE_SESSION_TTL', 7200),
+        COMMAND_HISTORY_LIMIT: parseIntEnv(
+            'COMMAND_HISTORY_LIMIT',
+            10,
         ),
     },
     CACHE: {
-        TRACK_INFO_SIZE: parseInt(process.env.CACHE_TRACK_INFO_SIZE ?? '2000'),
-        ARTIST_TITLE_SIZE: parseInt(
-            process.env.CACHE_ARTIST_TITLE_SIZE ?? '2000',
+        TRACK_INFO_SIZE: parseIntEnv('CACHE_TRACK_INFO_SIZE', 2000),
+        ARTIST_TITLE_SIZE: parseIntEnv(
+            'CACHE_ARTIST_TITLE_SIZE',
+            2000,
         ),
-        MEMO_SIZE: parseInt(process.env.CACHE_MEMO_SIZE ?? '5000'),
-        TTL_HOURS: parseInt(process.env.CACHE_TTL_HOURS ?? '1'),
+        MEMO_SIZE: parseIntEnv('CACHE_MEMO_SIZE', 5000),
+        TTL_HOURS: parseIntEnv('CACHE_TTL_HOURS', 1),
     },
     PLAYER: {
-        LEAVE_ON_EMPTY_COOLDOWN: parseInt(
-            process.env.PLAYER_LEAVE_ON_EMPTY_COOLDOWN ?? '300000',
+        LEAVE_ON_EMPTY_COOLDOWN: parseIntEnv(
+            'PLAYER_LEAVE_ON_EMPTY_COOLDOWN',
+            300000,
         ),
-        LEAVE_ON_END_COOLDOWN: parseInt(
-            process.env.PLAYER_LEAVE_ON_END_COOLDOWN ?? '300000',
+        LEAVE_ON_END_COOLDOWN: parseIntEnv(
+            'PLAYER_LEAVE_ON_END_COOLDOWN',
+            300000,
         ),
-        CONNECTION_TIMEOUT: parseInt(
-            process.env.PLAYER_CONNECTION_TIMEOUT ?? '15000',
+        CONNECTION_TIMEOUT: parseIntEnv(
+            'PLAYER_CONNECTION_TIMEOUT',
+            15000,
         ),
     },
     SEARCH: {
-        TIMEOUT: parseInt(process.env.SEARCH_TIMEOUT ?? '15000'),
-        RETRY_DELAY: parseInt(process.env.SEARCH_RETRY_DELAY ?? '5000'),
+        TIMEOUT: parseIntEnv('SEARCH_TIMEOUT', 15000),
+        RETRY_DELAY: parseIntEnv('SEARCH_RETRY_DELAY', 5000),
     },
     MUSIC: {
-        WATCHDOG_TIMEOUT_MS: parseInt(
-            process.env.MUSIC_WATCHDOG_TIMEOUT_MS ?? '25000',
+        WATCHDOG_TIMEOUT_MS: parseIntEnv(
+            'MUSIC_WATCHDOG_TIMEOUT_MS',
+            25000,
         ),
-        PROVIDER_COOLDOWN_MS: parseInt(
-            process.env.MUSIC_PROVIDER_COOLDOWN_MS ?? '120000',
+        PROVIDER_COOLDOWN_MS: parseIntEnv(
+            'MUSIC_PROVIDER_COOLDOWN_MS',
+            120000,
         ),
         SESSION_RESTORE_ENABLED:
             process.env.MUSIC_SESSION_RESTORE_ENABLED !== 'false',
-        AUTOPLAY_DISLIKE_TTL_HOURS: parseInt(
-            process.env.AUTOPLAY_DISLIKE_TTL_HOURS ?? '24',
+        AUTOPLAY_DISLIKE_TTL_HOURS: parseIntEnv(
+            'AUTOPLAY_DISLIKE_TTL_HOURS',
+            24,
         ),
     },
     SPOTIFY: {
