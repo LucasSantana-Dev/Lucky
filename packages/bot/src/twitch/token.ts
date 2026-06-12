@@ -64,6 +64,7 @@ async function refreshTwitchToken(
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
+      signal: AbortSignal.timeout(10_000),
     })
     if (!res.ok) {
       return null
