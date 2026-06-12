@@ -144,6 +144,7 @@ describe('BotInitializer', () => {
 
             expect(result.success).toBe(true)
             expect(result.client).toBeDefined()
+            expect(setupWebMusicHandlerMock).toHaveBeenCalledWith(result.client)
             expect(infoLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: 'Bot initialization completed successfully',
