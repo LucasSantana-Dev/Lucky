@@ -53,12 +53,26 @@ export class MusicControlService {
         }
     }
 
+    /**
+     * True when both pub/sub connections are established and ready. False
+     * before connect(), after a failed connect, or while ioredis is
+     * reconnecting after Redis went away.
+     */
+    isHealthy(): boolean {
+        return (
+            this.publisher?.status === 'ready' &&
+            this.subscriber?.status === 'ready'
+        )
+    }
+
     async sendCommand(
         cmd: MusicCommand,
         timeoutMs = 10000,
     ): Promise<MusicCommandResult> {
-        if (!this.publisher) {
-            return this.failResult(cmd, 'Not connected')
+        if (!this.isHealthy()) {
+            // Fail fast instead of letting the command sit in ioredis's
+            // offline queue until the response timeout fires (#1280).
+            return this.failResult(cmd, 'Music service unavailable')
         }
         return new Promise((resolve) => {
             const timeout = setTimeout(() => {
