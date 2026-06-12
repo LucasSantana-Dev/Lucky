@@ -10,7 +10,8 @@ import express from 'express'
 import request from 'supertest'
 
 // --- Service mock ------------------------------------------------------------
-const createMock = jest.fn<(input: unknown) => Promise<{ id: string }>>()
+const createMock =
+    jest.fn<(input: unknown) => Promise<{ id: string; deduped?: boolean }>>()
 const getMock = jest.fn<(id: string) => Promise<unknown>>()
 const listMock = jest.fn<(filter: unknown) => Promise<unknown[]>>()
 
@@ -267,6 +268,43 @@ describe('POST /api/support — staff notification', () => {
             .post('/api/support')
             .field('context', 'ctx')
         expect(res.status).toBe(201)
+    })
+
+    it('forwards sid as the submissionKey (#1319)', async () => {
+        const res = await request(app)
+            .post('/api/support')
+            .field('context', 'ctx')
+            .field('sid', 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+
+        expect(res.status).toBe(201)
+        expect(createMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                submissionKey: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+            }),
+        )
+    })
+
+    it('returns 200 without a second staff ping on a replayed sid (#1319)', async () => {
+        createMock.mockResolvedValue({ id: 'rep_123', deduped: true })
+
+        const res = await request(app)
+            .post('/api/support')
+            .field('context', 'ctx')
+            .field('sid', 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+
+        expect(res.status).toBe(200)
+        expect(res.body).toEqual({ id: 'rep_123' })
+        expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('rejects a malformed sid with 400', async () => {
+        const res = await request(app)
+            .post('/api/support')
+            .field('context', 'ctx')
+            .field('sid', 'no spaces!')
+
+        expect(res.status).toBe(400)
+        expect(createMock).not.toHaveBeenCalled()
     })
 })
 

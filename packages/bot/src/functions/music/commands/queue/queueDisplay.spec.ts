@@ -247,12 +247,19 @@ describe('queueDisplay', () => {
             expect(result).not.toContain('Current Position')
         })
 
-        it('includes current position formatted as M:SS when currentPosition is greater than 0', () => {
-            const result = createQueueSummary(5, '20:00', 90)
+        it('formats the position from milliseconds, not seconds (#1202)', () => {
+            // 90_000 ms = 1:30; getTimestamp().current.value is in ms
+            const result = createQueueSummary(5, '20:00', 90_000)
 
             expect(result).toContain('**Total Tracks:** 5')
             expect(result).toContain('**Total Duration:** 20:00')
             expect(result).toContain('**Current Position:** 1:30')
+        })
+
+        it('pads sub-10-second positions to M:0S', () => {
+            const result = createQueueSummary(1, '3:00', 65_000)
+
+            expect(result).toContain('**Current Position:** 1:05')
         })
     })
 })
