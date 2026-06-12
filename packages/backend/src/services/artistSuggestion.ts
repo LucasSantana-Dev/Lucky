@@ -234,6 +234,7 @@ export class ArtistSuggestionService {
                         headers: {
                             Authorization: `Bearer ${accessToken}`,
                         },
+                        signal: AbortSignal.timeout(8_000),
                     },
                 ),
             )
