@@ -239,4 +239,5 @@ describe('previous command', () => {
             }),
         )
     })
+
 })

@@ -62,8 +62,12 @@ async function playPreviousTrack(
 
     setTimeout(() => {
         void (async () => {
-            if (!queue.isPlaying() && queue.tracks.size > 0) {
-                await queue.node.play()
+            if (!queue.isPlaying()) {
+                if (queue.tracks.size > 0) {
+                    await queue.node.play()
+                } else if (queue.currentTrack) {
+                    await queue.node.play(queue.currentTrack, { queue: false })
+                }
             }
         })().catch((error: unknown) => {
             errorLog({
