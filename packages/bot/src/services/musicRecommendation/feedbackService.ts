@@ -98,6 +98,7 @@ export class RecommendationFeedbackService {
     }
 
     private async getTrackKeysByFeedback(
+        guildId: string,
         userId: string | undefined,
         type: RecommendationFeedback,
         now = Date.now(),
@@ -112,6 +113,7 @@ export class RecommendationFeedbackService {
             await db.userTrackFeedback.deleteMany({
                 where: {
                     discordUserId: userId,
+                    guildId,
                     expiresAt: { lte: nowDate },
                 },
             })
@@ -120,6 +122,7 @@ export class RecommendationFeedbackService {
             const entries = await db.userTrackFeedback.findMany({
                 where: {
                     discordUserId: userId,
+                    guildId,
                     feedback: type,
                     expiresAt: { gt: nowDate },
                 },
@@ -131,7 +134,7 @@ export class RecommendationFeedbackService {
             errorLog({
                 message: 'Failed to load feedback track keys',
                 error,
-                data: { userId, type },
+                data: { guildId, userId, type },
             })
             return new Set<string>()
         }
@@ -142,7 +145,7 @@ export class RecommendationFeedbackService {
         userId: string | undefined,
         now = Date.now(),
     ): Promise<Set<string>> {
-        return this.getTrackKeysByFeedback(userId, 'dislike', now)
+        return this.getTrackKeysByFeedback(guildId, userId, 'dislike', now)
     }
 
     async getLikedTrackKeys(
@@ -150,10 +153,11 @@ export class RecommendationFeedbackService {
         userId: string | undefined,
         now = Date.now(),
     ): Promise<Set<string>> {
-        return this.getTrackKeysByFeedback(userId, 'like', now)
+        return this.getTrackKeysByFeedback(guildId, userId, 'like', now)
     }
 
     private async getTrackWeightsByFeedback(
+        guildId: string,
         userId: string,
         type: RecommendationFeedback,
         now: number,
@@ -168,6 +172,7 @@ export class RecommendationFeedbackService {
             await db.userTrackFeedback.deleteMany({
                 where: {
                     discordUserId: userId,
+                    guildId,
                     expiresAt: { lte: nowDate },
                 },
             })
@@ -176,6 +181,7 @@ export class RecommendationFeedbackService {
             const entries = await db.userTrackFeedback.findMany({
                 where: {
                     discordUserId: userId,
+                    guildId,
                     feedback: type,
                     expiresAt: { gt: nowDate },
                 },
@@ -189,7 +195,7 @@ export class RecommendationFeedbackService {
             errorLog({
                 message: 'Failed to load feedback track weights',
                 error,
-                data: { userId, type },
+                data: { guildId, userId, type },
             })
         }
 
@@ -197,19 +203,21 @@ export class RecommendationFeedbackService {
     }
 
     async getLikedTrackWeights(
+        guildId: string,
         userId: string,
         now = Date.now(),
     ): Promise<Map<string, number>> {
         if (!userId) return new Map<string, number>()
-        return this.getTrackWeightsByFeedback(userId, 'like', now)
+        return this.getTrackWeightsByFeedback(guildId, userId, 'like', now)
     }
 
     async getDislikedTrackWeights(
+        guildId: string,
         userId: string,
         now = Date.now(),
     ): Promise<Map<string, number>> {
         if (!userId) return new Map<string, number>()
-        return this.getTrackWeightsByFeedback(userId, 'dislike', now)
+        return this.getTrackWeightsByFeedback(guildId, userId, 'dislike', now)
     }
 
     async getFeedbackCounts(
@@ -264,6 +272,31 @@ export class RecommendationFeedbackService {
             .toLowerCase()
             .replaceAll(/[^a-z0-9]+/g, '')
             .trim()
+    }
+
+    private async getArtistPreferencesByType(
+        guildId: string,
+        userId: string | undefined,
+        preference: ArtistFeedback,
+    ): Promise<Set<string>> {
+        if (!userId) return new Set<string>()
+
+        try {
+            const db = getPrismaClient()
+            const prefs = await db.userArtistPreference.findMany({
+                where: { discordUserId: userId, guildId, preference },
+                select: { artistKey: true },
+                take: 5000,
+            })
+            return new Set(prefs.map((p) => p.artistKey))
+        } catch (error) {
+            errorLog({
+                message: `Failed to load ${preference} artist keys`,
+                error,
+                data: { guildId, userId },
+            })
+            return new Set<string>()
+        }
     }
 
     async setArtistFeedback(
@@ -336,53 +369,18 @@ export class RecommendationFeedbackService {
         guildId: string,
         userId: string | undefined,
     ): Promise<Set<string>> {
-        if (!userId) return new Set<string>()
-
-        try {
-            const db = getPrismaClient()
-            // Cap at 5000 prefs per user/guild/type to prevent unbounded
-            // query on power users. Typical users have <100 prefs.
-            const prefs = await db.userArtistPreference.findMany({
-                where: { discordUserId: userId, guildId, preference: 'prefer' },
-                select: { artistKey: true },
-                take: 5000,
-            })
-            return new Set(prefs.map((p) => p.artistKey))
-        } catch (error) {
-            errorLog({
-                message: 'Failed to load preferred artist keys',
-                error,
-                data: { guildId, userId },
-            })
-            return new Set<string>()
-        }
+        return this.getArtistPreferencesByType(guildId, userId, 'prefer')
     }
 
     async getBlockedArtistKeys(
         guildId: string,
         userId: string | undefined,
     ): Promise<Set<string>> {
-        if (!userId) return new Set<string>()
-
-        try {
-            const db = getPrismaClient()
-            const prefs = await db.userArtistPreference.findMany({
-                where: { discordUserId: userId, guildId, preference: 'block' },
-                select: { artistKey: true },
-                take: 5000,
-            })
-            return new Set(prefs.map((p) => p.artistKey))
-        } catch (error) {
-            errorLog({
-                message: 'Failed to load blocked artist keys',
-                error,
-                data: { guildId, userId },
-            })
-            return new Set<string>()
-        }
+        return this.getArtistPreferencesByType(guildId, userId, 'block')
     }
 
     async getArtistFeedbackSummary(
+        guildId: string,
         userId: string | undefined,
     ): Promise<{ preferred: string[]; blocked: string[] }> {
         if (!userId) return { preferred: [], blocked: [] }
@@ -390,7 +388,7 @@ export class RecommendationFeedbackService {
         try {
             const db = getPrismaClient()
             const prefs = await db.userArtistPreference.findMany({
-                where: { discordUserId: userId },
+                where: { discordUserId: userId, guildId },
                 select: { artistKey: true, preference: true },
             })
 
@@ -407,7 +405,7 @@ export class RecommendationFeedbackService {
             errorLog({
                 message: 'Failed to load artist feedback summary',
                 error,
-                data: { userId },
+                data: { guildId, userId },
             })
             return { preferred: [], blocked: [] }
         }
@@ -466,13 +464,24 @@ export class RecommendationFeedbackService {
         const map = this.getImplicitFeedbackForUser(userId)
         const now = Date.now()
 
+        // Prune expired entries from cache (delete-on-read)
+        for (const [trackKey, entry] of Object.entries(map)) {
+            const age = now - entry.updatedAt
+            if (age >= this.implicitCacheTTL) {
+                delete map[trackKey]
+            }
+        }
+
+        // Update cache if entries were deleted
+        if (Object.keys(map).length > 0) {
+            this.implicitFeedbackCache.set(userId, map)
+        } else {
+            this.implicitFeedbackCache.delete(userId)
+        }
+
         return new Set(
             Object.entries(map)
-                .filter(([, entry]) => {
-                    // Filter out expired entries (14-day TTL)
-                    const age = now - entry.updatedAt
-                    return age < this.implicitCacheTTL && entry.type === type
-                })
+                .filter(([, entry]) => entry.type === type)
                 .map(([trackKey]) => trackKey),
         )
     }

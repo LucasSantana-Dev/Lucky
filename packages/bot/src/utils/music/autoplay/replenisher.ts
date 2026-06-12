@@ -198,9 +198,11 @@ async function _replenishQueue(
             allBlockedSets,
         ] = await Promise.all([
             recommendationFeedbackService.getLikedTrackWeights(
+                queue.guild.id,
                 requestedBy?.id ?? '',
             ),
             recommendationFeedbackService.getDislikedTrackWeights(
+                queue.guild.id,
                 requestedBy?.id ?? '',
             ),
             trackHistoryService.getTrackHistory(queue.guild.id, 150),

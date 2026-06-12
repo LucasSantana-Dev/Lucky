@@ -205,7 +205,7 @@ describe('RecommendationFeedbackService', () => {
             { artistKey: 'badartist', preference: 'block' },
         ])
 
-        const summary = await service.getArtistFeedbackSummary('user-1')
+        const summary = await service.getArtistFeedbackSummary('guild-1', 'user-1')
 
         expect(summary.preferred).toContain('artistone')
         expect(summary.preferred).toContain('artisttwo')
@@ -217,7 +217,7 @@ describe('RecommendationFeedbackService', () => {
     it('getArtistFeedbackSummary returns empty lists for undefined userId', async () => {
         const service = new RecommendationFeedbackService(30)
 
-        const summary = await service.getArtistFeedbackSummary(undefined)
+        const summary = await service.getArtistFeedbackSummary('guild-1', undefined)
 
         expect(summary.preferred).toEqual([])
         expect(summary.blocked).toEqual([])
@@ -247,7 +247,7 @@ describe('RecommendationFeedbackService', () => {
 
             const weights = await (
                 service[getter as keyof typeof service] as any
-            )('user-1', now)
+            )('guild-1', 'user-1', now)
 
             expect(weights.has(key)).toBe(true)
             const weight = weights.get(key)
@@ -263,6 +263,7 @@ describe('RecommendationFeedbackService', () => {
         const service = new RecommendationFeedbackService(30)
 
         const weights = await (service[getter as keyof typeof service] as any)(
+            'guild-1',
             '',
         )
 
@@ -286,10 +287,26 @@ describe('RecommendationFeedbackService', () => {
             },
         ])
 
-        const weights = await service.getLikedTrackWeights('user-1', baseTime)
+        const weights = await service.getLikedTrackWeights('guild-1', 'user-1', baseTime)
 
         const weight = weights.get(key)
         expect(weight).toBeCloseTo(0.15, 1)
+    })
+
+    it('clearFeedback deletes all explicit feedback for user', async () => {
+        const service = new RecommendationFeedbackService(30)
+
+        mockUserTrackFeedback.deleteMany.mockResolvedValueOnce({
+            count: 5,
+        })
+
+        await service.clearFeedback('user-1')
+
+        expect(mockUserTrackFeedback.deleteMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { discordUserId: 'user-1' },
+            }),
+        )
     })
 })
 
@@ -399,35 +416,46 @@ describe('implicit feedback', () => {
     it('getImplicitDislikeKeys filters by TTL (14 days)', async () => {
         const service = new RecommendationFeedbackService(30)
 
-        // Record feedback with modified timestamp
+        // Record feedback
         await service.recordImplicitFeedback(
             'user-1',
-            'oldtrack::artist',
+            'recenttrack::artist',
             'implicit_dislike',
         )
 
-        // Manually age the entry beyond TTL (this is a bit hacky for testing,
-        // but reflects the TTL logic in the service)
-        const keys = await service.getImplicitDislikeKeys('user-1')
+        // Verify recent entry is included
+        const recentKeys = await service.getImplicitDislikeKeys('user-1')
+        expect(recentKeys.size).toBe(1)
+        expect(recentKeys.has('recenttrack::artist')).toBe(true)
 
-        // With current timestamp, recent entries should be included
-        expect(keys.size).toBe(1)
-    })
+        // Manually age an entry beyond TTL by modifying the cache directly
+        // This simulates an entry that was recorded 15+ days ago
+        const cache = service['implicitFeedbackCache']
+        if (cache.has('user-1')) {
+            const userMap = cache.get('user-1')!
+            if (userMap['oldtrack::artist']) {
+                userMap['oldtrack::artist'].updatedAt =
+                    Date.now() - 15 * 24 * 60 * 60 * 1000
+            }
+        }
 
-    it('clearFeedback deletes all explicit feedback for user', async () => {
-        const service = new RecommendationFeedbackService(30)
+        // Add an aged entry directly to cache
+        const userMap = cache.get('user-1') || {}
+        userMap['oldtrack::artist'] = {
+            type: 'implicit_dislike',
+            updatedAt: Date.now() - 15 * 24 * 60 * 60 * 1000,
+        }
+        cache.set('user-1', userMap)
 
-        mockUserTrackFeedback.deleteMany.mockResolvedValueOnce({
-            count: 5,
-        })
+        // Read keys again; aged entry should be pruned from cache
+        const expiredKeys = await service.getImplicitDislikeKeys('user-1')
+        expect(expiredKeys.size).toBe(1)
+        expect(expiredKeys.has('recenttrack::artist')).toBe(true)
+        expect(expiredKeys.has('oldtrack::artist')).toBe(false)
 
-        await service.clearFeedback('user-1')
-
-        expect(mockUserTrackFeedback.deleteMany).toHaveBeenCalledWith(
-            expect.objectContaining({
-                where: { discordUserId: 'user-1' },
-            }),
-        )
+        // Verify aged entry was deleted from cache
+        const cacheAfterPrune = cache.get('user-1')
+        expect(cacheAfterPrune?.['oldtrack::artist']).toBeUndefined()
     })
 
     describe('Artist feedback Postgres integration', () => {
