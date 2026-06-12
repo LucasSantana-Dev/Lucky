@@ -1,6 +1,7 @@
 import { config } from 'dotenv'
 import { setLogLevel, debugLog } from '../utils/general/log'
 import { setEnvironmentLoaded } from './config'
+import { parseIntEnv } from '../utils/env'
 import path from 'path'
 import fs from 'fs'
 
@@ -194,10 +195,7 @@ function validateEnvironmentVariables(): void {
  * Configure logging level
  */
 function configureLogging(): void {
-    const logLevel =
-        process.env.LOG_LEVEL !== undefined && process.env.LOG_LEVEL !== ''
-            ? parseInt(process.env.LOG_LEVEL)
-            : 2
+    const logLevel = parseIntEnv('LOG_LEVEL', 2)
     setLogLevel(logLevel as 0 | 1 | 2 | 3 | 4)
 }
 

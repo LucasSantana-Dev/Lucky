@@ -2,6 +2,7 @@ import type { GuildQueue, Player } from 'discord-player'
 import type { VoiceChannel } from 'discord.js'
 import { ChannelType } from 'discord.js'
 import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
+import { parseIntEnv } from '@lucky/shared/utils/env'
 import { musicSessionSnapshotService } from './sessionSnapshots'
 
 export type RecoveryAction =
@@ -43,16 +44,16 @@ export class MusicWatchdogService {
     constructor(options: MusicWatchdogOptions = {}) {
         this.timeoutMs =
             options.timeoutMs ??
-            parseInt(process.env.MUSIC_WATCHDOG_TIMEOUT_MS ?? '25000', 10)
+            parseIntEnv('MUSIC_WATCHDOG_TIMEOUT_MS', 25000)
         this.recoveryWaitTimeoutMs =
             options.recoveryWaitTimeoutMs ??
-            parseInt(process.env.MUSIC_WATCHDOG_RECOVERY_WAIT_MS ?? '5000', 10)
+            parseIntEnv('MUSIC_WATCHDOG_RECOVERY_WAIT_MS', 5000)
         this.recoveryPollIntervalMs =
             options.recoveryPollIntervalMs ??
-            parseInt(process.env.MUSIC_WATCHDOG_RECOVERY_POLL_MS ?? '100', 10)
+            parseIntEnv('MUSIC_WATCHDOG_RECOVERY_POLL_MS', 100)
         this.scanIntervalMs =
             options.scanIntervalMs ??
-            parseInt(process.env.MUSIC_WATCHDOG_SCAN_INTERVAL_MS ?? '60000', 10)
+            parseIntEnv('MUSIC_WATCHDOG_SCAN_INTERVAL_MS', 60000)
     }
 
     private ensureState(guildId: string): WatchdogGuildState {

@@ -1,6 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import type { Client } from 'discord.js'
 import { infoLog, errorLog } from '@lucky/shared/utils'
+import { parseIntEnv } from '@lucky/shared/utils/env'
 import {
     metricsContentType,
     renderMetrics,
@@ -31,7 +32,7 @@ export function startMetricsServer(client: Client): Server | null {
         return server
     }
 
-    const port = Number(process.env.METRICS_PORT ?? DEFAULT_PORT)
+    const port = parseIntEnv('METRICS_PORT', DEFAULT_PORT)
 
     server = createServer((req, res) => {
         const url = req.url ?? '/'
