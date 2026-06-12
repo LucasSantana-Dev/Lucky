@@ -21,9 +21,10 @@ vi.mock('@/services/api', () => ({
 }))
 
 vi.mock('zustand/middleware', async () => {
-    const actual = await vi.importActual<typeof import('zustand/middleware')>(
-        'zustand/middleware',
-    )
+    const actual =
+        await vi.importActual<typeof import('zustand/middleware')>(
+            'zustand/middleware',
+        )
 
     return {
         ...actual,
@@ -49,7 +50,10 @@ describe('authStore', () => {
     })
 
     afterEach(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 120))
+        // Let any in-flight checkAuth promise settle so state doesn't leak
+        // across tests. (The former 120ms sleep existed only to outwait the
+        // timer-based promise clearing removed in #1186.)
+        await Promise.resolve()
     })
 
     test('sets developer state from auth status response and avoids global toggle probe', async () => {
@@ -125,9 +129,7 @@ describe('authStore', () => {
             data: { authenticated: true; user: User }
         }
 
-        let resolveCheck:
-            | ((value: AuthSuccessPayload) => void)
-            | undefined
+        let resolveCheck: ((value: AuthSuccessPayload) => void) | undefined
         const pending = new Promise<AuthSuccessPayload>((resolve) => {
             resolveCheck = resolve
         })
@@ -155,5 +157,32 @@ describe('authStore', () => {
 
         await expect(first).resolves.toBe(true)
         await expect(second).resolves.toBe(true)
+    })
+
+    test('performs a fresh check immediately after the previous one settles', async () => {
+        // Regression for #1186: the old timer-based clearing held the settled
+        // promise for 100ms, serving a stale result to callers in that window
+        // (e.g. checkAuth right after login returned the pre-login state).
+        vi.mocked(api.auth.checkStatus).mockResolvedValueOnce({
+            data: { authenticated: false, user: null },
+        } as never)
+
+        await expect(useAuthStore.getState().checkAuth()).resolves.toBe(false)
+
+        vi.mocked(api.auth.checkStatus).mockResolvedValueOnce({
+            data: {
+                authenticated: true,
+                user: {
+                    id: 'user-3',
+                    username: 'luk',
+                    avatar: null,
+                    isDeveloper: false,
+                },
+            },
+        } as never)
+
+        await expect(useAuthStore.getState().checkAuth()).resolves.toBe(true)
+        expect(api.auth.checkStatus).toHaveBeenCalledTimes(2)
+        expect(useAuthStore.getState().isAuthenticated).toBe(true)
     })
 })
