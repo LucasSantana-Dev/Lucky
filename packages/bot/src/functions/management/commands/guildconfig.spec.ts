@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import guildconfigCommand from './guildconfig'
+import { guildAutomationUsageTotal } from '../../../utils/monitoring/prometheus'
 
 const captureGuildAutomationStateMock = jest.fn()
 const createPlanMock = jest.fn()
@@ -40,6 +41,12 @@ jest.mock('@lucky/shared/utils', () => ({
 
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
+}))
+
+jest.mock('../../../utils/monitoring/prometheus', () => ({
+    guildAutomationUsageTotal: {
+        inc: jest.fn(),
+    },
 }))
 
 function createInteraction(
@@ -378,5 +385,39 @@ describe('guildconfig command', () => {
                 }),
             }),
         )
+    })
+
+    it('records usage counter on plan subcommand', async () => {
+        const interaction = createInteraction('plan')
+
+        await guildconfigCommand.execute({ interaction } as any)
+
+        expect(guildAutomationUsageTotal.inc).toHaveBeenCalledWith({
+            operation: 'plan',
+        })
+    })
+
+    it('records usage counter on apply subcommand', async () => {
+        const interaction = createInteraction('apply', {
+            allow_protected: false,
+        })
+
+        await guildconfigCommand.execute({ interaction } as any)
+
+        expect(guildAutomationUsageTotal.inc).toHaveBeenCalledWith({
+            operation: 'apply',
+        })
+    })
+
+    it('records usage counter on reconcile subcommand', async () => {
+        const interaction = createInteraction('reconcile', {
+            allow_protected: false,
+        })
+
+        await guildconfigCommand.execute({ interaction } as any)
+
+        expect(guildAutomationUsageTotal.inc).toHaveBeenCalledWith({
+            operation: 'reconcile',
+        })
     })
 })
