@@ -15,14 +15,11 @@ function prisma(): PrismaClient {
 export async function getModerationSettings(
     guildId: string,
 ): Promise<ModerationSettings> {
-    let settings = await prisma().moderationSettings.findUnique({
+    const settings = await prisma().moderationSettings.upsert({
         where: { guildId },
+        create: { guildId },
+        update: {},
     })
-    if (!settings) {
-        settings = await prisma().moderationSettings.create({
-            data: { guildId },
-        })
-    }
 
     return settings
 }
