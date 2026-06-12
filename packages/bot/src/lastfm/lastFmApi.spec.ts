@@ -879,39 +879,56 @@ describe('lastFmApi', () => {
         })
 
         it('re-fetches when cached entry has expired TTL', async () => {
-            jest.useFakeTimers()
-            const now = 1000000
+            // lru-cache reads TTL from the performance object it captured at
+            // import, so spy on performance.now directly instead of using
+            // jest fake timers (which swap the global object).
+            const perfNowSpy = jest.spyOn(globalThis.performance, 'now')
+            try {
+                perfNowSpy.mockReturnValue(1_000_000)
 
-            fetchMock.mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({
-                    track: {
-                        name: 'First Version',
-                        artist: { name: 'Artist A' },
-                    },
-                }),
-            })
+                fetchMock.mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({
+                        track: {
+                            name: 'First Version',
+                            artist: { name: 'Artist A' },
+                        },
+                    }),
+                })
 
-            jest.setSystemTime(now)
-            const first = await getTrackMetadata('Artist A', 'First Version')
-            expect(first!.title).toBe('First Version')
-            expect(fetchMock).toHaveBeenCalledTimes(1)
+                const first = await getTrackMetadata(
+                    'Artist A',
+                    'First Version',
+                )
+                expect(first!.title).toBe('First Version')
+                expect(fetchMock).toHaveBeenCalledTimes(1)
 
-            jest.setSystemTime(now + 86400001)
+                // lru-cache debounces perf.now() reads for 1ms via setTimeout;
+                // yield to the macrotask queue so the cached timestamp resets
+                await new Promise((resolve) => setTimeout(resolve, 5))
 
-            fetchMock.mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({
-                    track: {
-                        name: 'Second Version',
-                        artist: { name: 'Artist A' },
-                    },
-                }),
-            })
+                // Jump past the 24h TTL
+                perfNowSpy.mockReturnValue(1_000_000 + 86_400_001)
 
-            const second = await getTrackMetadata('Artist A', 'First Version')
-            expect(second!.title).toBe('Second Version')
-            expect(fetchMock).toHaveBeenCalledTimes(2)
+                fetchMock.mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({
+                        track: {
+                            name: 'Second Version',
+                            artist: { name: 'Artist A' },
+                        },
+                    }),
+                })
+
+                const second = await getTrackMetadata(
+                    'Artist A',
+                    'First Version',
+                )
+                expect(second!.title).toBe('Second Version')
+                expect(fetchMock).toHaveBeenCalledTimes(2)
+            } finally {
+                perfNowSpy.mockRestore()
+            }
         })
 
         it.each([
