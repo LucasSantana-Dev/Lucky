@@ -225,10 +225,6 @@ jest.mock('chalk', () => ({
     },
 }))
 
-jest.mock('uuid', () => ({
-    v4: jest.fn(() => 'mock-uuid-v4'),
-}))
-
 const passthrough = (_req: any, _res: any, next: any) => next()
 jest.mock('../src/middleware/rateLimit', () => ({
     apiLimiter: passthrough,
