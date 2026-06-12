@@ -539,5 +539,74 @@ describe('ArtistSuggestionService', () => {
                 global.fetch = originalFetch
             }
         })
+
+        test('returns partial results when one time_range times out', async () => {
+            const mockArtist = {
+                id: 'artist_1',
+                name: 'Test Artist',
+                images: [{ url: 'https://example.com/image.jpg' }],
+                popularity: 75,
+                genres: ['pop'],
+            }
+
+            const originalFetch = global.fetch
+            const fetch = jest.fn()
+            const timeoutError = new DOMException('Timeout', 'AbortError')
+            Object.defineProperty(timeoutError, 'name', {
+                value: 'TimeoutError',
+                writable: false,
+            })
+
+            // First call (short_term): success
+            // Second call (medium_term): timeout
+            // Third call (long_term): success
+            let callCount = 0
+            fetch.mockImplementation(async () => {
+                callCount++
+                if (callCount === 1) {
+                    // short_term success
+                    return {
+                        ok: true,
+                        json: async () => ({ items: [mockArtist] }),
+                    }
+                } else if (callCount === 2) {
+                    // medium_term timeout
+                    throw timeoutError
+                } else {
+                    // long_term success
+                    return {
+                        ok: true,
+                        json: async () => ({
+                            items: [{ ...mockArtist, id: 'artist_2', name: 'Another Artist' }],
+                        }),
+                    }
+                }
+            })
+            global.fetch = fetch as unknown as typeof global.fetch
+
+            try {
+                ;(spotifyLinkService as any).getValidAccessToken = jest.fn().mockResolvedValue('test-token')
+                const suggestions = await service.getSuggestions('user_123')
+
+                // Should have results from short_term and long_term, skipping the timed-out medium_term
+                expect(suggestions.length).toBe(2)
+                expect(suggestions).toContainEqual(
+                    expect.objectContaining({ id: 'artist_1' }),
+                )
+                expect(suggestions).toContainEqual(
+                    expect.objectContaining({ id: 'artist_2' }),
+                )
+
+                // warnLog should be called for the timeout
+                const { warnLog } = await import('@lucky/shared/utils')
+                expect(warnLog).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        message: expect.stringContaining('timed out'),
+                    }),
+                )
+            } finally {
+                global.fetch = originalFetch
+            }
+        })
     })
 })
