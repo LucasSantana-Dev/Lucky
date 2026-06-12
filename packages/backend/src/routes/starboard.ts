@@ -1,6 +1,10 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
-import { validateBody, validateParams } from '../middleware/validate'
+import {
+    validateBody,
+    validateParams,
+    validateQuery,
+} from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
@@ -17,6 +21,10 @@ const upsertConfigBody = z.object({
     emoji: z.string().min(1).max(10).optional(),
     threshold: z.number().int().min(1).max(100).optional(),
     selfStar: z.boolean().optional(),
+})
+
+const entriesQuery = z.object({
+    limit: z.coerce.number().int().min(1).max(50).optional(),
 })
 
 export function setupStarboardRoutes(app: Express): void {
@@ -77,6 +85,7 @@ export function setupStarboardRoutes(app: Express): void {
         '/api/guilds/:guildId/starboard/entries',
         requireAuth,
         validateParams(guildIdParam),
+        validateQuery(entriesQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const limit = Number(req.query.limit) || 10

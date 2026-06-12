@@ -1,6 +1,10 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
-import { validateBody, validateParams } from '../middleware/validate'
+import {
+    validateBody,
+    validateParams,
+    validateQuery,
+} from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
@@ -14,6 +18,10 @@ import {
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
 }
+
+const leaderboardQuery = z.object({
+    limit: z.coerce.number().int().min(1).max(50).optional(),
+})
 
 const rankParams = guildIdParam.merge(commonUserIdParam)
 const levelParam = guildIdParam.extend({
@@ -62,6 +70,7 @@ export function setupLevelsRoutes(app: Express): void {
         '/api/guilds/:guildId/levels/leaderboard',
         requireAuth,
         validateParams(guildIdParam),
+        validateQuery(leaderboardQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const limit = Number(req.query.limit) || 10
