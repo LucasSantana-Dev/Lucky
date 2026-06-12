@@ -6,6 +6,7 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { debugLog, errorLog } from '@lucky/shared/utils'
+import { parseIntEnv } from '@lucky/shared/utils/env'
 import {
     TOP_GG_VOTE_TIERS,
     TOP_GG_VOTE_URL,
@@ -39,7 +40,7 @@ function getRedis(): Redis {
     }
     redisClient = new Redis({
         host,
-        port: Number(process.env.REDIS_PORT ?? 6379),
+        port: parseIntEnv('REDIS_PORT', 6379),
         password: process.env.REDIS_PASSWORD || undefined,
         lazyConnect: true,
         maxRetriesPerRequest: 1,

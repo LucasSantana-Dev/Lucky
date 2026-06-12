@@ -1,5 +1,6 @@
 import { redisClient } from '@lucky/shared/services'
 import { errorLog, getPrismaClient } from '@lucky/shared/utils'
+import { parseIntEnv } from '@lucky/shared/utils/env'
 import { cleanAuthor } from '../../utils/music/searchQueryCleaner'
 
 export type RecommendationFeedback = 'like' | 'dislike'
@@ -476,5 +477,5 @@ export class RecommendationFeedbackService {
 }
 
 export const recommendationFeedbackService = new RecommendationFeedbackService(
-    parseInt(process.env.AUTOPLAY_FEEDBACK_TTL_DAYS ?? '30', 10),
+    parseIntEnv('AUTOPLAY_FEEDBACK_TTL_DAYS', 30),
 )

@@ -11,8 +11,9 @@ import {
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { smartShuffle } from '../../../utils/music/queue/smartShuffle'
+import { parseIntEnv } from '@lucky/shared/utils/env'
 
-const STREAK_LIMIT = parseInt(process.env.SMART_SHUFFLE_STREAK_LIMIT ?? '2', 10)
+const STREAK_LIMIT = parseIntEnv('SMART_SHUFFLE_STREAK_LIMIT', 2)
 
 export default new Command({
     data: new SlashCommandBuilder()

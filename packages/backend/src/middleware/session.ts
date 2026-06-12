@@ -5,6 +5,7 @@ import { RedisStore } from 'connect-redis'
 import Redis from 'ioredis'
 import sessionFileStoreFactory from 'session-file-store'
 import { debugLog, errorLog } from '@lucky/shared/utils'
+import { parseIntEnv } from '@lucky/shared/utils/env'
 import type { Express } from 'express'
 
 type RedisExpiration = {
@@ -207,7 +208,7 @@ export class ResilientSessionStore extends session.Store {
 
 function createRedisStore(): session.Store | undefined {
     const host = process.env.REDIS_HOST || 'localhost'
-    const port = Number(process.env.REDIS_PORT) || 6379
+    const port = parseIntEnv('REDIS_PORT', 6379)
     const password = process.env.REDIS_PASSWORD || undefined
 
     try {
