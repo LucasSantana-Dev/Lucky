@@ -146,6 +146,13 @@ const createSupportSchema = z.object({
     cid: z.string().optional(), // correlationId
     guildId: snowflakeId.optional(),
     category: z.string().optional(), // errorCategory
+    // Client-generated dedup key (#1319): same key → same report, one ping.
+    sid: z
+        .string()
+        .min(8)
+        .max(64)
+        .regex(/^[\w-]+$/)
+        .optional(),
 })
 
 // Zod schema for query params on GET list
@@ -178,7 +185,7 @@ export function setupSupportRoutes(app: Express): void {
                 throw AppError.badRequest('context is required')
             }
 
-            const { context, cid, guildId, category } = parseResult.data
+            const { context, cid, guildId, category, sid } = parseResult.data
 
             // Validate image if present
             if (req.file) {
@@ -216,7 +223,15 @@ export function setupSupportRoutes(app: Express): void {
                 surface: 'web',
                 errorCategory: category,
                 rateLimitKey,
+                submissionKey: sid,
             })
+
+            // Replayed submission (#1319): the original report already
+            // pinged staff — return its id without a second notification.
+            if (result.deduped) {
+                res.json({ id: result.id })
+                return
+            }
 
             // Attempt staff notification (best-effort, never fails the request)
             notifyStaffChannel(result.id, context).catch(() => {

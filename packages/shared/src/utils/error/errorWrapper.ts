@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'node:crypto'
 import { errorLog } from '../general/log'
 import { MusicError, type MusicErrorCode } from '../../types/errors/music'
 import { captureException } from '../monitoring'
@@ -8,7 +8,7 @@ import type { ErrorContext } from './types'
  * Creates a correlation ID for error tracking
  */
 export function createCorrelationId(): string {
-    return uuidv4()
+    return randomUUID()
 }
 
 /**
