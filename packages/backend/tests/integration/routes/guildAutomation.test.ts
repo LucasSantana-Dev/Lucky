@@ -8,6 +8,7 @@ import { requireGuildModuleAccess } from '../../../src/middleware/guildAccess'
 import { sessionService } from '../../../src/services/SessionService'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import { guildAutomationUsageTotal } from '../../../src/utils/prometheus'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: { getSession: jest.fn() },
@@ -32,6 +33,12 @@ jest.mock('@lucky/shared/services', () => ({
         runCutover: jest.fn(),
     },
     validateGuildAutomationManifest: jest.fn((input: unknown) => input),
+}))
+
+jest.mock('../../../src/utils/prometheus', () => ({
+    guildAutomationUsageTotal: {
+        inc: jest.fn(),
+    },
 }))
 
 import {
@@ -249,5 +256,62 @@ describe('Guild Automation Routes', () => {
             'settings',
             'view',
         )
+    })
+
+    test('POST plan records usage counter', async () => {
+        mockedService.createPlan.mockResolvedValue({
+            runId: 'run-1',
+            desired: { version: 1, guild: { id: GUILD_ID } },
+            actual: { version: 1, guild: { id: GUILD_ID } },
+            plan: MOCK_PLAN,
+        } as any)
+
+        jest.clearAllMocks()
+        await authed(app).post(`${AUTOMATION_BASE}/plan`).send({}).expect(200)
+
+        const mockedCounter = guildAutomationUsageTotal as jest.Mocked<
+            typeof guildAutomationUsageTotal
+        >
+        expect(mockedCounter.inc).toHaveBeenCalledWith({ operation: 'plan' })
+    })
+
+    test('POST apply records usage counter', async () => {
+        mockedService.createApplyRun.mockResolvedValue({
+            runId: 'run-2',
+            status: 'completed',
+            blockedByProtected: false,
+            plan: MOCK_PLAN,
+        } as any)
+
+        jest.clearAllMocks()
+        await authed(app)
+            .post(`${AUTOMATION_BASE}/apply`)
+            .send({ allowProtected: true })
+            .expect(200)
+
+        const mockedCounter = guildAutomationUsageTotal as jest.Mocked<
+            typeof guildAutomationUsageTotal
+        >
+        expect(mockedCounter.inc).toHaveBeenCalledWith({ operation: 'apply' })
+    })
+
+    test('POST reconcile records usage counter', async () => {
+        mockedService.createApplyRun.mockResolvedValue({
+            runId: 'run-3',
+            status: 'completed',
+            blockedByProtected: false,
+            plan: MOCK_PLAN,
+        } as any)
+
+        jest.clearAllMocks()
+        await authed(app)
+            .post(`${AUTOMATION_BASE}/reconcile`)
+            .send({})
+            .expect(200)
+
+        const mockedCounter = guildAutomationUsageTotal as jest.Mocked<
+            typeof guildAutomationUsageTotal
+        >
+        expect(mockedCounter.inc).toHaveBeenCalledWith({ operation: 'reconcile' })
     })
 })
