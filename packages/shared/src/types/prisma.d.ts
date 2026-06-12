@@ -18,10 +18,6 @@ declare module '@prisma/client' {
             groupBy(args: unknown): Promise<unknown[]>
             deleteMany(args: unknown): Promise<{ count: number }>
         }
-        commandUsage: {
-            create(args: unknown): Promise<unknown>
-            deleteMany(args: unknown): Promise<{ count: number }>
-        }
         rateLimit: {
             findUnique(args: unknown): Promise<unknown | null>
             upsert(args: unknown): Promise<unknown>
