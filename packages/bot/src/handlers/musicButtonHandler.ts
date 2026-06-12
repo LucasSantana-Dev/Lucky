@@ -129,6 +129,15 @@ async function handlePrevious(
     interaction: ButtonInteraction,
     queue: NonNullQueue,
 ): Promise<void> {
+    // history.back() throws on an empty history — tell the user what
+    // happened instead of falling through to the generic error (#1191)
+    if (!queue.history.previousTrack) {
+        await interaction.followUp({
+            content: '⏮️ No previous track in history',
+            ephemeral: true,
+        })
+        return
+    }
     await queue.history.back()
     debugLog({ message: 'Previous track via button' })
 }
