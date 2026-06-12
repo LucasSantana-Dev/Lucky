@@ -181,4 +181,33 @@ describe('GET /api/twitch/users', () => {
         const res = await request(app).get('/api/twitch/users?login=testuser')
         expect(res.status).toBe(503)
     })
+
+    test('returns 504 when twitch API request times out', async () => {
+        process.env.TWITCH_CLIENT_ID = 'test-client-id'
+        process.env.TWITCH_ACCESS_TOKEN = 'test-token'
+        const timeoutError = new DOMException('The operation was aborted', 'AbortError')
+        Object.defineProperty(timeoutError, 'name', { value: 'TimeoutError', writable: false })
+        ;(global.fetch as jest.MockedFunction<typeof fetch>).mockRejectedValue(
+            timeoutError,
+        )
+        const app = createApp()
+        const res = await request(app).get('/api/twitch/users?login=testuser')
+        expect(res.status).toBe(504)
+        expect(res.body.error).toMatch(/timed out/)
+    })
+
+    test('returns 504 when token exchange fetch times out', async () => {
+        process.env.TWITCH_CLIENT_ID = 'test-client-id'
+        process.env.TWITCH_CLIENT_SECRET = 'test-secret'
+        delete process.env.TWITCH_ACCESS_TOKEN
+        const timeoutError = new DOMException('The operation was aborted', 'AbortError')
+        Object.defineProperty(timeoutError, 'name', { value: 'TimeoutError', writable: false })
+        ;(global.fetch as jest.MockedFunction<typeof fetch>).mockRejectedValue(
+            timeoutError,
+        )
+        const app = createApp()
+        const res = await request(app).get('/api/twitch/users?login=testuser')
+        expect(res.status).toBe(504)
+        expect(res.body.error).toMatch(/timed out/)
+    })
 })

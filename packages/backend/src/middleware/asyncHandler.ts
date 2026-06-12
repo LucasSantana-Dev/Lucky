@@ -11,7 +11,7 @@ export function asyncHandler(fn: AsyncRouteHandler) {
         try {
             const result = fn(req, res, next)
             if (result instanceof Promise) {
-                result.catch(next)
+                return result.catch(next)
             }
         } catch (err) {
             next(err)

@@ -5,6 +5,7 @@ import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
 import { twitchNotificationService } from '@lucky/shared/services'
+import { warnLog } from '@lucky/shared/utils'
 import { AppError } from '../errors/AppError'
 import { z } from 'zod'
 
@@ -59,7 +60,14 @@ async function getAppAccessToken(
             expiresAt: Date.now() + data.expires_in * 1000,
         }
         return data.access_token
-    } catch {
+    } catch (error) {
+        if (error instanceof DOMException && error.name === 'TimeoutError') {
+            warnLog({
+                message: 'Twitch token exchange timed out',
+                error,
+            })
+            throw error
+        }
         return null
     }
 }
@@ -125,22 +133,31 @@ export function setupTwitchRoutes(app: Express): void {
             if (typeof login !== 'string' || login.length < 1) {
                 throw AppError.badRequest('login query parameter required')
             }
-            const { user, configured } = await lookupTwitchUser(
-                login.toLowerCase(),
-            )
-            if (!configured) {
-                throw AppError.serviceUnavailable(
-                    'Twitch is not configured on this server',
+            try {
+                const { user, configured } = await lookupTwitchUser(
+                    login.toLowerCase(),
                 )
+                if (!configured) {
+                    throw AppError.serviceUnavailable(
+                        'Twitch is not configured on this server',
+                    )
+                }
+                if (!user) {
+                    throw AppError.notFound('Twitch user not found')
+                }
+                res.json({
+                    id: user.id,
+                    login: user.login,
+                    displayName: user.display_name,
+                })
+            } catch (error) {
+                if (error instanceof DOMException && error.name === 'TimeoutError') {
+                    throw AppError.gatewayTimeout(
+                        'Twitch API request timed out, please try again',
+                    )
+                }
+                throw error
             }
-            if (!user) {
-                throw AppError.notFound('Twitch user not found')
-            }
-            res.json({
-                id: user.id,
-                login: user.login,
-                displayName: user.display_name,
-            })
         }),
     )
 
