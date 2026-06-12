@@ -7,7 +7,6 @@ import {
     validateParams,
 } from '../middleware/validate'
 import { asyncHandler } from '../middleware/asyncHandler'
-import type { AuthenticatedRequest } from '../middleware/auth'
 import { ArtistSuggestionService } from '../services/artistSuggestion'
 import { artistsSchemas as s } from '../schemas/artists'
 
