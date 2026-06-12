@@ -5,7 +5,6 @@
 import type { CustomClient } from '../../types'
 
 export type BotInitializationOptions = {
-    skipRedis?: boolean
     skipCommands?: boolean
     skipPlayer?: boolean
     skipEvents?: boolean

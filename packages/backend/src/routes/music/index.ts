@@ -1,4 +1,4 @@
-import type { Express } from 'express'
+import type { Express, NextFunction, Request, Response } from 'express'
 import { musicControlService } from '@lucky/shared/services'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { setupPlaybackRoutes } from './playbackRoutes'
@@ -7,7 +7,25 @@ import { setupStateRoutes } from './stateRoutes'
 import { setupAutoplayRoutes } from './autoplayRoutes'
 import { sseClients } from './helpers'
 
+/**
+ * Degrade music CONTROLS to 503 while the Redis pub/sub bridge is down
+ * (#1280). GET state reads pass through — getState() already returns null
+ * on an unhealthy bridge, which the frontend renders as "no active session".
+ */
+function requireMusicService(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+): void {
+    if (req.method === 'GET' || musicControlService.isHealthy()) {
+        next()
+        return
+    }
+    res.status(503).json({ error: 'Music service unavailable' })
+}
+
 export function setupMusicRoutes(app: Express): void {
+    app.use('/api/guilds/:guildId/music', requireMusicService)
     setupPlaybackRoutes(app)
     setupQueueRoutes(app)
     setupStateRoutes(app)
