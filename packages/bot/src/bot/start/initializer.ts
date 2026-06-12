@@ -1,4 +1,4 @@
-import { errorLog, infoLog } from '@lucky/shared/utils'
+import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import {
     createClient,
     startClient,
@@ -41,16 +41,17 @@ export class BotInitializer {
         isReady: false,
     }
 
-    private async initializeRedisServices(
-        options: BotInitializationOptions,
-    ): Promise<void> {
-        if (options.skipRedis !== true) {
-            const connected = await redisClient.connect()
-            if (!connected) {
-                throw new ConfigurationError(
-                    'Failed to initialize Redis services',
-                )
-            }
+    private async initializeRedisServices(): Promise<void> {
+        // Redis only backs music pub/sub plus legacy KV stores that already
+        // degrade to fallbacks (ADR 2026-05-31-redis-scope-reduction). A dead
+        // Redis must not stop the bot: MusicControlService reports unhealthy
+        // and web music controls degrade instead (#1280).
+        const connected = await redisClient.connect()
+        if (!connected) {
+            warnLog({
+                message:
+                    'Redis unavailable at startup — continuing in degraded mode (music pub/sub disabled, non-music features unaffected)',
+            })
         }
     }
 
@@ -114,7 +115,7 @@ export class BotInitializer {
         try {
             infoLog({ message: 'Starting bot initialization...' })
 
-            await this.initializeRedisServices(options)
+            await this.initializeRedisServices()
             await initProviderHealth()
             await this.createDiscordClient()
             await this.initializePlayer(options)

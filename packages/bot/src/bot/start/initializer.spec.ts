@@ -4,6 +4,7 @@ import type { CustomClient } from '../../types'
 
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
+const warnLogMock = jest.fn()
 const createClientMock = jest.fn()
 const startClientMock = jest.fn()
 const createPlayerMock = jest.fn()
@@ -28,6 +29,7 @@ const stopTwitchServiceMock = jest.fn()
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 jest.mock('../../handlers/clientHandler', () => ({
@@ -162,16 +164,23 @@ describe('BotInitializer', () => {
             )
         })
 
-        it('returns error result when redis connection fails', async () => {
+        it('continues startup in degraded mode when redis connection fails', async () => {
             redisClientConnectMock.mockResolvedValue(false)
 
             const result = await initializer.initializeBot()
 
-            expect(result.success).toBe(false)
-            expect(result.error).toBeDefined()
-            expect(errorLogMock).toHaveBeenCalledWith(
+            expect(result.success).toBe(true)
+            expect(result.client).toBeDefined()
+            expect(warnLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    message: expect.stringContaining('initialization failed'),
+                    message: expect.stringContaining(
+                        'Redis unavailable at startup',
+                    ),
+                }),
+            )
+            expect(infoLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Bot initialization completed successfully',
                 }),
             )
         })
