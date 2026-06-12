@@ -33,6 +33,15 @@ export function parseIntEnv(
         return fallback
     }
 
+    // Reject anything that isn't a plain base-10 integer — parseInt alone
+    // would silently accept trailing garbage ("80abc" → 80) and mask typos
+    if (!/^[+-]?\d+$/.test(value.trim())) {
+        warnLog({
+            message: `Invalid numeric env var: ${name}="${value}" is not an integer, using fallback ${fallback}`,
+        })
+        return fallback
+    }
+
     const parsed = parseInt(value, 10)
 
     // Check for NaN or non-finite

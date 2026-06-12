@@ -43,10 +43,28 @@ describe('parseIntEnv', () => {
         expect(result).toBe(5000)
     })
 
-    it('returns fallback for zero when not explicitly allowed', () => {
+    it('accepts zero as a valid parsed value', () => {
         process.env.TEST_ZERO = '0'
         const result = parseIntEnv('TEST_ZERO', 5000)
         expect(result).toBe(0) // Zero IS a valid number
+    })
+
+    it('rejects trailing non-numeric garbage and uses the fallback', () => {
+        process.env.TEST_GARBAGE = '80abc'
+        const result = parseIntEnv('TEST_GARBAGE', 5000)
+        expect(result).toBe(5000)
+    })
+
+    it('rejects decimal values and uses the fallback', () => {
+        process.env.TEST_DECIMAL = '12.5'
+        const result = parseIntEnv('TEST_DECIMAL', 5000)
+        expect(result).toBe(5000)
+    })
+
+    it('accepts an explicitly signed integer', () => {
+        process.env.TEST_SIGNED = '-7'
+        const result = parseIntEnv('TEST_SIGNED', 5000)
+        expect(result).toBe(-7)
     })
 
     it('returns fallback for negative values when allowed', () => {
@@ -100,7 +118,8 @@ describe('parseIntEnv', () => {
     it('returns fallback for scientific notation strings', () => {
         process.env.TEST_SCIENTIFIC = '1e3'
         const result = parseIntEnv('TEST_SCIENTIFIC', 5000)
-        // parseInt('1e3', 10) = 1, not 1000, so it depends on intent
-        expect(result).toBe(1) // parseInt stops at 'e'
+        // strict integer guard: '1e3' is not a plain base-10 integer, so the
+        // old silent truncation (parseInt -> 1) is rejected in favor of the fallback
+        expect(result).toBe(5000)
     })
 })
