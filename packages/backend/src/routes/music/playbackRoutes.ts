@@ -56,12 +56,13 @@ export function setupPlaybackRoutes(app: Express): void {
         }),
     )
 
-    // pause/resume/skip/stop/shuffle share one shape: no body, fire the
+    // pause/resume/skip/previous/stop/shuffle share one shape: no body, fire the
     // command named by the path segment.
     const simpleCommands = [
         'pause',
         'resume',
         'skip',
+        'previous',
         'stop',
         'shuffle',
     ] as const

@@ -172,3 +172,13 @@ export async function handleSeek(
     await queue.node.seek(cmd.data?.position as number)
     return publishAndOk(client, cmd)
 }
+
+export async function handlePrevious(
+    client: CustomClient,
+    cmd: MusicCommand,
+): Promise<Result> {
+    const queue = getQueue(client, cmd.guildId)
+    if (!queue) return fail(cmd.id, cmd.guildId, 'No active queue')
+    await queue.history.previous(true)
+    return publishAndOk(client, cmd)
+}

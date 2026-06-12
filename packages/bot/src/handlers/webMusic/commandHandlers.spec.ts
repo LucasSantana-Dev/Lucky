@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { handlePause, handleStop, handleSkip } from './commandHandlers'
+import { handlePause, handleStop, handleSkip, handlePrevious } from './commandHandlers'
 
 const publishStateMock = jest.fn()
 const buildQueueStateMock = jest.fn()
@@ -171,5 +171,43 @@ describe('webMusic commandHandlers queue resolution', () => {
         expect(result.success).toBe(false)
         expect(result.error).toBe('No active queue')
         expect(publishStateMock).not.toHaveBeenCalled()
+    })
+})
+
+describe('handlePrevious', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        buildQueueStateMock.mockResolvedValue({ guildId: 'guild-1' })
+    })
+
+    it('awaits queue.history.previous() before publishing state', async () => {
+        const previousAsync = jest.fn().mockResolvedValue(undefined)
+        resolveGuildQueueMock.mockReturnValue({
+            queue: { history: { previous: previousAsync } },
+        })
+
+        const publishPromise = Promise.resolve()
+        publishStateMock.mockReturnValue(publishPromise)
+
+        const result = await handlePrevious(
+            {} as any,
+            { id: 'cmd-1', guildId: 'guild-1', data: {} } as any,
+        )
+
+        expect(previousAsync).toHaveBeenCalledWith(true)
+        expect(publishStateMock).toHaveBeenCalled()
+        expect(result.success).toBe(true)
+    })
+
+    it('returns failure when no queue', async () => {
+        resolveGuildQueueMock.mockReturnValue({ queue: null })
+
+        const result = await handlePrevious(
+            {} as any,
+            { id: 'cmd-2', guildId: 'guild-1', data: {} } as any,
+        )
+
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('No active queue')
     })
 })
