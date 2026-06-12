@@ -1,4 +1,4 @@
-import type { Express } from 'express'
+import type { Express, Response } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { apiLimiter, writeLimiter } from '../middleware/rateLimit'
 import {
@@ -6,7 +6,8 @@ import {
     validateQuery,
     validateParams,
 } from '../middleware/validate'
-import { wrapHandler } from '../utils/routeUtils'
+import { asyncHandler } from '../middleware/asyncHandler'
+import type { AuthenticatedRequest } from '../middleware/auth'
 import { ArtistSuggestionService } from '../services/artistSuggestion'
 import { artistsSchemas as s } from '../schemas/artists'
 
@@ -16,71 +17,49 @@ void svc.prewarmCache()
 /** Exported for test isolation (resetting the in-memory suggestion caches). */
 export const artistSuggestionService = svc
 
-const sugg = wrapHandler(
-    async (r) => ({ artists: await svc.handleGetSuggestions(r.user?.id) }),
-    'Artist suggestions',
-    'Failed to get suggestions',
-)
+const sugg = asyncHandler(async (r: AuthenticatedRequest, res: Response) => {
+    res.json({ artists: await svc.handleGetSuggestions(r.user?.id) })
+})
 
-const search = wrapHandler(
-    async (r) => {
-        return { artists: await svc.handleSearchArtists(r.query.q) }
-    },
-    'Artist search',
-    'Failed to search artists',
-)
+const search = asyncHandler(async (r: AuthenticatedRequest, res: Response) => {
+    res.json({ artists: await svc.handleSearchArtists(r.query.q) })
+})
 
-const related = wrapHandler(
-    async (r) => {
-        const artistId =
-            typeof r.params.artistId === 'string' ? r.params.artistId : ''
-        return { artists: await svc.handleGetRelatedArtists(artistId) }
-    },
-    'Related artists',
-    'Failed to get related artists',
-)
+const related = asyncHandler(async (r: AuthenticatedRequest, res: Response) => {
+    const artistId =
+        typeof r.params.artistId === 'string' ? r.params.artistId : ''
+    res.json({ artists: await svc.handleGetRelatedArtists(artistId) })
+})
 
-const prefs = wrapHandler(
-    async (r) => {
-        return {
-            preferences: await svc.handleGetPreferredArtists(
-                r.user?.id,
-                r.query.guildId,
-            ),
-        }
-    },
-    'Get preferred artists',
-    'Failed to get preferences',
-)
-
-const save = wrapHandler(
-    async (r) => ({
-        preference: await svc.handleSavePreferredArtist(r.user?.id, r.body),
-    }),
-    'Save preferred artist',
-    'Failed to save preference',
-)
-
-const batch = wrapHandler(
-    async (r) => ({
-        preferences: await svc.handleBatchSavePreferences(r.user?.id, r.body),
-    }),
-    'Batch save preferences',
-    'Failed to save preferences',
-)
-
-const delPref = wrapHandler(
-    async (r) => {
-        await svc.handleDeletePreferredArtist(
+const prefs = asyncHandler(async (r: AuthenticatedRequest, res: Response) => {
+    res.json({
+        preferences: await svc.handleGetPreferredArtists(
             r.user?.id,
-            r.params.artistKey as string,
-            r.query.guildId as string,
-        )
-        return { success: true }
-    },
-    'Delete preferred artist',
-    'Failed to delete preference',
-)
+            r.query.guildId,
+        ),
+    })
+})
+
+const save = asyncHandler(async (r: AuthenticatedRequest, res: Response) => {
+    res.json({
+        preference: await svc.handleSavePreferredArtist(r.user?.id, r.body),
+    })
+})
+
+const batch = asyncHandler(async (r: AuthenticatedRequest, res: Response) => {
+    res.json({
+        preferences: await svc.handleBatchSavePreferences(r.user?.id, r.body),
+    })
+})
+
+const delPref = asyncHandler(async (r: AuthenticatedRequest, res: Response) => {
+    await svc.handleDeletePreferredArtist(
+        r.user?.id,
+        r.params.artistKey as string,
+        r.query.guildId as string,
+    )
+    res.json({ success: true })
+})
 
 export function setupArtistsRoutes(app: Express): void {
     app.get('/api/artists/suggestions', apiLimiter, requireAuth, sugg)
