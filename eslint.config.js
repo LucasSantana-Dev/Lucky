@@ -79,6 +79,20 @@ export default [
         },
     },
     {
+        // Ratchet for packages/bot and packages/shared: downgrade to warn
+        // until type-safety family and complexity issues are resolved (#1357)
+        files: ["packages/bot/src/**/*.ts", "packages/shared/src/**/*.ts"],
+        rules: {
+            "@typescript-eslint/no-non-null-assertion": "warn",
+            "@typescript-eslint/no-unsafe-assignment": "warn",
+            "@typescript-eslint/no-unsafe-call": "warn",
+            "@typescript-eslint/no-unsafe-member-access": "warn",
+            "@typescript-eslint/no-unsafe-return": "warn",
+            "@typescript-eslint/no-unsafe-argument": "warn",
+            "complexity": "warn",
+        },
+    },
+    {
         files: ["**/*.js"],
         rules: {
             "no-unused-vars": [
@@ -97,6 +111,20 @@ export default [
             globals: {
                 ...globals.browser,
             },
+        },
+    },
+    {
+        // Ratchet for packages/bot and packages/shared: downgrade to warn
+        // until type-safety family and complexity issues are resolved (#1357)
+        files: ["packages/{bot,shared}/src/**/*.ts"],
+        rules: {
+            "@typescript-eslint/no-non-null-assertion": "warn",
+            "@typescript-eslint/no-unsafe-assignment": "warn",
+            "@typescript-eslint/no-unsafe-call": "warn",
+            "@typescript-eslint/no-unsafe-member-access": "warn",
+            "@typescript-eslint/no-unsafe-return": "warn",
+            "@typescript-eslint/no-unsafe-argument": "warn",
+            "complexity": "warn",
         },
     },
 ]

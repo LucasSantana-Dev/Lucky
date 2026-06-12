@@ -6,7 +6,7 @@ let _require: NodeRequire
 try {
     _require = createRequire(import.meta.url)
 } catch {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     _require = require
 }
 

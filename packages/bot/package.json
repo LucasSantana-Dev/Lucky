@@ -13,7 +13,9 @@
         "start": "node dist/index.js",
         "type:check": "npm run preflight && tsc --noEmit",
         "test": "jest",
-        "test:coverage": "jest --coverage"
+        "test:coverage": "jest --coverage",
+        "lint": "eslint . -c eslint.config.js",
+        "lint:fix": "npm run lint -- --fix"
     },
     "dependencies": {
         "@discord-player/extractor": "^7.2.0",

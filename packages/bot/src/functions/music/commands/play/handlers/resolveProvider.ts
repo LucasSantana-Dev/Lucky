@@ -29,7 +29,7 @@ export async function resolveQueryWithFallbacks(
     playOptions: any,
 ): Promise<{ result: any; telemetry: ResolutionTelemetry }> {
     const startTime = Date.now()
-    let telemetry: ResolutionTelemetry = {
+    const telemetry: ResolutionTelemetry = {
         resolvedVia: 'primary',
         latencyMs: 0,
         requestedProvider,

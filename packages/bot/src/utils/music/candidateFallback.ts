@@ -142,7 +142,7 @@ export async function collectBroadFallbackCandidates(
                 const dislikedWeight = ctx.dislikedWeights.get(key)
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
-                let candidateTags = await getArtistTags(track.author).catch(
+                const candidateTags = await getArtistTags(track.author).catch(
                     (err: unknown) => {
                         logAndSwallow(err, 'candidateFallback.getArtistTags', {
                             author: track.author,

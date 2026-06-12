@@ -61,6 +61,8 @@ jobs:
               run: |
                   npm run lint --workspace=packages/frontend
                   npm run lint --workspace=packages/backend
+                  npm run lint --workspace=packages/bot
+                  npm run lint --workspace=packages/shared
             - name: Verify shared package exports
               run: npm run verify:shared-exports
               env:
