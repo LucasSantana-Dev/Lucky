@@ -9,7 +9,7 @@ import { authLimiter } from '../middleware/rateLimit'
 import { handleOAuthCallback } from './authCallback'
 import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
-import { isDeveloperUser } from '../utils/developerAccess'
+import { isDeveloperUser } from '../middleware/requireAdmin'
 
 const getFrontendUrl = (): string => {
     return getPrimaryFrontendUrl()

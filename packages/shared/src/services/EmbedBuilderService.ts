@@ -117,8 +117,9 @@ export class EmbedBuilderService {
         guildId: string,
         name: string,
     ): Promise<EmbedTemplate | null> {
+        const normalizedName = name.toLowerCase()
         return await prisma.embedTemplate.findFirst({
-            where: { guildId, name },
+            where: { guildId, name: normalizedName },
         })
     }
 

@@ -1,6 +1,23 @@
 import type { Response, NextFunction } from 'express'
 import type { AuthenticatedRequest } from './auth'
-import { isDeveloperUser } from '../utils/developerAccess'
+
+function getDeveloperUserIds(): Set<string> {
+    const raw = process.env.DEVELOPER_USER_IDS ?? ''
+    return new Set(
+        raw
+            .split(',')
+            .map((id) => id.trim())
+            .filter((id) => id.length > 0),
+    )
+}
+
+export function isDeveloperUser(userId?: string): boolean {
+    if (!userId) {
+        return false
+    }
+
+    return getDeveloperUserIds().has(userId)
+}
 
 export function requireAdmin(
     req: AuthenticatedRequest,
