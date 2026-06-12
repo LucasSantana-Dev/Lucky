@@ -264,6 +264,29 @@ sync_checkout_to_origin_main() {
     return 0
 }
 
+wait_for_postgres_ready() {
+    local label="$1"
+    local attempt max_attempts
+    max_attempts=30
+
+    for attempt in $(seq 1 "$max_attempts"); do
+        # pg_isready exits 0 only when postgres is accepting connections.
+        # Run inside the postgres container since the database host is only
+        # resolvable from within the compose network.
+        if docker_compose exec -T postgres pg_isready \
+            -U postgres >/dev/null 2>&1; then
+            log "$label ready"
+            return 0
+        fi
+
+        log "$label not ready - attempt $attempt/$max_attempts"
+        sleep 2
+    done
+
+    log "ERROR: timed out waiting for $label readiness (pg_isready failed after $max_attempts attempts)"
+    return 1
+}
+
 wait_for_http_ready() {
     local label="$1"
     local url="$2"
@@ -550,6 +573,13 @@ fi
 
 log "Starting database services..."
 docker_compose up -d postgres redis
+
+log "Waiting for PostgreSQL to accept connections..."
+if ! wait_for_postgres_ready "PostgreSQL"; then
+    log "ERROR: DATABASE_NOT_READY (postgres failed to become ready)"
+    notify 16711680 "Deploy Failed" "PostgreSQL did not become ready before migration timeout"
+    exit 1
+fi
 
 log "Running database migrations..."
 if ! docker_compose run --rm --no-deps backend \
