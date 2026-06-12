@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto'
+import { randomUUID } from 'node:crypto'
 import { errorLog } from '../general/log'
 import { MusicError, type MusicErrorCode } from '../../types/errors/music'
 import { captureException } from '../monitoring'
