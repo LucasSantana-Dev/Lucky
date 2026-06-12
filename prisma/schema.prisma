@@ -509,6 +509,7 @@ model Recommendation {
   @@index([guildId, createdAt])
   @@index([guildId, source, createdAt])
   @@index([guildId, mode, createdAt])
+  @@index([guildId, discordUserId, trackId])
   @@map("recommendations")
 }
 

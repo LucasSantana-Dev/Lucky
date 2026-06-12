@@ -35,4 +35,8 @@ export class AppError extends Error {
     static serviceUnavailable(message = 'Service unavailable'): AppError {
         return new AppError(503, message)
     }
+
+    static gatewayTimeout(message = 'Gateway timeout'): AppError {
+        return new AppError(504, message)
+    }
 }
