@@ -221,8 +221,30 @@ jobs:
                     - {service: nginx, file: Dockerfile.nginx, target: ''}
         steps:
             - uses: actions/checkout@v6
-            - uses: docker/setup-buildx-action@v4
+            - name: Set up Docker Buildx
+              id: buildx
+              uses: docker/setup-buildx-action@v4
+              continue-on-error: true
+            - name: Set up Docker Buildx — retry once on transient failure
+              if: steps.buildx.outcome == 'failure'
+              uses: docker/setup-buildx-action@v4
             - name: Build ${{ matrix.service }}
+              id: build
+              uses: docker/build-push-action@v7
+              continue-on-error: true
+              with:
+                  context: .
+                  file: ${{ matrix.file }}
+                  target: ${{ matrix.target }}
+                  push: false
+                  load: false
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+                  build-args: |
+                      COMMIT_SHA=${{ github.sha }}
+                      NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
+            - name: Build ${{ matrix.service }} — retry once on transient failure
+              if: steps.build.outcome == 'failure'
               uses: docker/build-push-action@v7
               with:
                   context: .

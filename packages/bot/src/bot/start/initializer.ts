@@ -12,7 +12,7 @@ import {
     startMetricsServer,
     stopMetricsServer,
 } from '../../utils/monitoring/metricsServer'
-import { stopWebMusicHandler } from '../../handlers/webMusic'
+import { setupWebMusicHandler, stopWebMusicHandler } from '../../handlers/webMusic'
 import type { CustomClient } from '../../types'
 import { ConfigurationError } from '@lucky/shared/types'
 import { redisClient } from '@lucky/shared/services'
@@ -124,6 +124,7 @@ export class BotInitializer {
             if (this.client) {
                 await startClient({ client: this.client })
                 startMetricsServer(this.client)
+                await setupWebMusicHandler(this.client)
             }
             this.setInitializationState()
 
