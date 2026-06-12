@@ -19,6 +19,7 @@ import {
 } from '@lucky/shared/services'
 import { setupEmbedRoutes } from './managementEmbeds'
 import { setupAutoMessageRoutes } from './managementAutoMessages'
+import { isUniqueViolation } from '../utils/prismaErrors'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
@@ -149,12 +150,31 @@ export function setupManagementRoutes(app: Express): void {
             const userId = requireUserId(req)
             const body = s.createCommandBody.parse(req.body)
             const { name, response, description } = body
-            const command = await customCommandService.createCommand(
-                guildId,
-                name,
-                response,
-                { description, createdBy: userId },
-            )
+            let command
+            try {
+                command = await customCommandService.createCommand(
+                    guildId,
+                    name,
+                    response,
+                    { description, createdBy: userId },
+                )
+            } catch (error) {
+                if (!isUniqueViolation(error)) {
+                    throw error
+                }
+                // P2002 on the (guildId, name) natural key is idempotent
+                // success, not a failure: return the existing command (#1320).
+                // Divergent payloads also land here — edit via PATCH.
+                const existing = await customCommandService.getCommand(
+                    guildId,
+                    name,
+                )
+                if (!existing) {
+                    throw error
+                }
+                res.json(existing)
+                return
+            }
             await serverLogService.logCustomCommandChange(
                 guildId,
                 'created',
