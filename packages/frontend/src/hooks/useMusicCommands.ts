@@ -43,6 +43,11 @@ export function useMusicCommands(
         return sendCommand(() => api.music.skip(guildId))
     }, [guildId, sendCommand])
 
+    const previous = useCallback(() => {
+        if (!guildId) return
+        return sendCommand(() => api.music.previous(guildId))
+    }, [guildId, sendCommand])
+
     const stop = useCallback(() => {
         if (!guildId) return
         return sendCommand(() => api.music.stop(guildId), {
@@ -126,6 +131,7 @@ export function useMusicCommands(
         pause,
         resume,
         skip,
+        previous,
         stop,
         setVolume,
         shuffle,

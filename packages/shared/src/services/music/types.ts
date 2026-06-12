@@ -4,6 +4,7 @@ export type MusicCommandType =
     | 'pause'
     | 'resume'
     | 'skip'
+    | 'previous'
     | 'stop'
     | 'volume'
     | 'shuffle'
