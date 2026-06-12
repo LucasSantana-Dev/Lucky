@@ -8,6 +8,8 @@
   `2026-05-30-observability-remediation-strategy` (alert-first; OTel/metrics deferred) +
   the Redis-removal ADRs. Subsumes the Discord-429 finding + converges with the
   Musical-Taste perf ADR's `withTimeout` work.
+- **Tracking:** per-track delivery status lives in umbrella issue
+  [#1286](https://github.com/LucasSantana-Dev/Lucky/issues/1286).
 
 ## Context
 
