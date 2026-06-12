@@ -5,6 +5,7 @@
  */
 
 import crypto from 'node:crypto'
+import { LRUCache } from 'lru-cache'
 import { lastFmLinkService } from '@lucky/shared/services'
 import { logAndSwallow, logAndWarn } from '@lucky/shared/utils/error'
 import { debugLog } from '@lucky/shared/utils/general/log'
@@ -145,12 +146,10 @@ export function parseArtists(raw: string): {
     return { primary: parts[0] ?? normalized, featured: parts.slice(1) }
 }
 
-const TRACK_METADATA_CACHE = new Map<
-    string,
-    { meta: LastFmTrackMetadata; expiresAt: number }
->()
-const TRACK_METADATA_TTL_MS = 24 * 60 * 60 * 1000
-const TRACK_METADATA_CACHE_MAX = 5000
+const TRACK_METADATA_CACHE = new LRUCache<string, LastFmTrackMetadata>({
+    max: 5000,
+    ttl: 24 * 60 * 60 * 1000,
+})
 const TRACK_METADATA_IN_FLIGHT = new Map<
     string,
     Promise<LastFmTrackMetadata | null>
@@ -169,8 +168,7 @@ export async function getTrackMetadata(
     if (!trimmedArtist || !trimmedTitle) return null
     const key = `${trimmedArtist.toLowerCase()}::${trimmedTitle.toLowerCase()}`
     const cached = TRACK_METADATA_CACHE.get(key)
-    const now = Date.now()
-    if (cached && cached.expiresAt > now) return cached.meta
+    if (cached) return cached
 
     // Deduplicate concurrent fetches
     const inFlight = TRACK_METADATA_IN_FLIGHT.get(key)
@@ -220,14 +218,7 @@ export async function getTrackMetadata(
                 mbid,
                 duration: durationNum,
             }
-            if (TRACK_METADATA_CACHE.size >= TRACK_METADATA_CACHE_MAX) {
-                const oldest = TRACK_METADATA_CACHE.keys().next().value
-                if (oldest) TRACK_METADATA_CACHE.delete(oldest)
-            }
-            TRACK_METADATA_CACHE.set(key, {
-                meta,
-                expiresAt: now + TRACK_METADATA_TTL_MS,
-            })
+            TRACK_METADATA_CACHE.set(key, meta)
             return meta
         } catch (err) {
             logAndSwallow(err, 'lastfm.getTrackMetadata', {
@@ -415,12 +406,10 @@ export async function getRecentTracks(
     }
 }
 
-const ARTIST_TAG_CACHE = new Map<
-    string,
-    { tags: string[]; expiresAt: number }
->()
-const ARTIST_TAG_TTL_MS = 24 * 60 * 60 * 1000
-const ARTIST_TAG_CACHE_MAX = 5000
+const ARTIST_TAG_CACHE = new LRUCache<string, string[]>({
+    max: 5000,
+    ttl: 24 * 60 * 60 * 1000,
+})
 const ARTIST_TAG_IN_FLIGHT = new Map<string, Promise<string[]>>()
 
 export async function getArtistTopTags(
@@ -434,9 +423,8 @@ export async function getArtistTopTags(
 
     const cacheKey = `${trimmed.toLowerCase()}::${limit}`
     const cached = ARTIST_TAG_CACHE.get(cacheKey)
-    const now = Date.now()
-    if (cached && cached.expiresAt > now) {
-        return cached.tags
+    if (cached) {
+        return cached
     }
 
     // Deduplicate concurrent fetches
@@ -463,14 +451,7 @@ export async function getArtistTopTags(
                 .map((t) => t.name?.toLowerCase().trim())
                 .filter((name): name is string => !!name)
 
-            if (ARTIST_TAG_CACHE.size >= ARTIST_TAG_CACHE_MAX) {
-                const oldest = ARTIST_TAG_CACHE.keys().next().value
-                if (oldest) ARTIST_TAG_CACHE.delete(oldest)
-            }
-            ARTIST_TAG_CACHE.set(cacheKey, {
-                tags,
-                expiresAt: now + ARTIST_TAG_TTL_MS,
-            })
+            ARTIST_TAG_CACHE.set(cacheKey, tags)
 
             return tags
         } catch (err) {
