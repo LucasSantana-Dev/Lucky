@@ -106,10 +106,9 @@ describe('SupportReportService', () => {
                 rateLimitKey: null,
             }
 
-            const createMock =
-                jest.fn<(args: unknown) => Promise<{ id: string }>>().mockResolvedValue(
-                    newReport,
-                )
+            const createMock = jest
+                .fn<(args: unknown) => Promise<{ id: string }>>()
+                .mockResolvedValue(newReport)
             // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
                 supportReport: { create: createMock },
@@ -146,6 +145,80 @@ describe('SupportReportService', () => {
                     imageMimeType: 'image/gif',
                 }),
             ).rejects.toThrow('Invalid support image')
+        })
+
+        it('returns the original id with deduped on a replayed submissionKey (#1319)', async () => {
+            const p2002 = Object.assign(new Error('Unique constraint failed'), {
+                code: 'P2002',
+            })
+            const createMock = jest
+                .fn<(args: unknown) => Promise<{ id: string }>>()
+                .mockRejectedValue(p2002)
+            const findUniqueMock = jest
+                .fn<(args: unknown) => Promise<{ id: string } | null>>()
+                .mockResolvedValue({ id: 'report-original' })
+            // @ts-ignore - partial prisma client mock
+            mockGetPrismaClient.mockReturnValue({
+                supportReport: {
+                    create: createMock,
+                    findUnique: findUniqueMock,
+                },
+            })
+
+            const result = await service.create({
+                context: 'Error occurred',
+                surface: 'web',
+                submissionKey: 'sub-key-123',
+            })
+
+            expect(result).toEqual({ id: 'report-original', deduped: true })
+            expect(findUniqueMock).toHaveBeenCalledWith({
+                where: { submissionKey: 'sub-key-123' },
+                select: { id: true },
+            })
+        })
+
+        it('rethrows P2002 when no submissionKey was provided', async () => {
+            const p2002 = Object.assign(new Error('Unique constraint failed'), {
+                code: 'P2002',
+            })
+            // @ts-ignore - partial prisma client mock
+            mockGetPrismaClient.mockReturnValue({
+                supportReport: {
+                    create: jest
+                        .fn<(args: unknown) => Promise<{ id: string }>>()
+                        .mockRejectedValue(p2002),
+                },
+            })
+
+            await expect(
+                service.create({ context: 'Error occurred', surface: 'web' }),
+            ).rejects.toThrow('Unique constraint failed')
+        })
+
+        it('rethrows P2002 when the original row vanished before lookup', async () => {
+            const p2002 = Object.assign(new Error('Unique constraint failed'), {
+                code: 'P2002',
+            })
+            // @ts-ignore - partial prisma client mock
+            mockGetPrismaClient.mockReturnValue({
+                supportReport: {
+                    create: jest
+                        .fn<(args: unknown) => Promise<{ id: string }>>()
+                        .mockRejectedValue(p2002),
+                    findUnique: jest
+                        .fn<(args: unknown) => Promise<null>>()
+                        .mockResolvedValue(null),
+                },
+            })
+
+            await expect(
+                service.create({
+                    context: 'Error occurred',
+                    surface: 'web',
+                    submissionKey: 'sub-key-123',
+                }),
+            ).rejects.toThrow('Unique constraint failed')
         })
     })
 
@@ -219,10 +292,9 @@ describe('SupportReportService', () => {
         })
 
         it('respects the take parameter', async () => {
-            const findMany =
-                jest.fn<(args: unknown) => Promise<Array<{ id: string }>>>().mockResolvedValue(
-                    [],
-                )
+            const findMany = jest
+                .fn<(args: unknown) => Promise<Array<{ id: string }>>>()
+                .mockResolvedValue([])
             // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
                 supportReport: { findMany },
@@ -236,10 +308,9 @@ describe('SupportReportService', () => {
         })
 
         it('omits image bytes and orders with a stable id tiebreaker', async () => {
-            const findMany =
-                jest
-                    .fn<(args: unknown) => Promise<Array<{ id: string }>>>()
-                    .mockResolvedValue([])
+            const findMany = jest
+                .fn<(args: unknown) => Promise<Array<{ id: string }>>>()
+                .mockResolvedValue([])
             // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
                 supportReport: { findMany },
@@ -256,10 +327,9 @@ describe('SupportReportService', () => {
         })
 
         it('bounds take to maximum of 100', async () => {
-            const findMany =
-                jest.fn<(args: unknown) => Promise<Array<{ id: string }>>>().mockResolvedValue(
-                    [],
-                )
+            const findMany = jest
+                .fn<(args: unknown) => Promise<Array<{ id: string }>>>()
+                .mockResolvedValue([])
             // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
                 supportReport: { findMany },
@@ -273,10 +343,9 @@ describe('SupportReportService', () => {
         })
 
         it('filters by status when provided', async () => {
-            const findMany =
-                jest.fn<(args: unknown) => Promise<Array<{ id: string }>>>().mockResolvedValue(
-                    [],
-                )
+            const findMany = jest
+                .fn<(args: unknown) => Promise<Array<{ id: string }>>>()
+                .mockResolvedValue([])
             // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
                 supportReport: { findMany },
@@ -292,10 +361,9 @@ describe('SupportReportService', () => {
         })
 
         it('applies default take of 20 when not specified', async () => {
-            const findMany =
-                jest.fn<(args: unknown) => Promise<Array<{ id: string }>>>().mockResolvedValue(
-                    [],
-                )
+            const findMany = jest
+                .fn<(args: unknown) => Promise<Array<{ id: string }>>>()
+                .mockResolvedValue([])
             // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
                 supportReport: { findMany },
@@ -309,10 +377,9 @@ describe('SupportReportService', () => {
         })
 
         it('clamps non-finite or non-positive take to a valid bound', async () => {
-            const findMany =
-                jest
-                    .fn<(args: unknown) => Promise<Array<{ id: string }>>>()
-                    .mockResolvedValue([])
+            const findMany = jest
+                .fn<(args: unknown) => Promise<Array<{ id: string }>>>()
+                .mockResolvedValue([])
             // @ts-ignore - partial prisma client mock
             mockGetPrismaClient.mockReturnValue({
                 supportReport: { findMany },
