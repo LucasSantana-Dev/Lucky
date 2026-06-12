@@ -4,8 +4,6 @@ export {
     incrementAutoplayCount,
     resetAutoplayCount,
     clearAllAutoplayCounters,
-    getAutoplayRecommendations,
-    getRecommendationConfig,
     getAutoplayStats,
     shouldEnableAutoplay,
 } from './autoplay/index'
