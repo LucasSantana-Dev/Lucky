@@ -5,16 +5,18 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 // concrete tuple shape.
 const initMock = vi.fn<(...args: unknown[]) => unknown>()
 const captureExceptionMock = vi.fn<(...args: unknown[]) => unknown>()
-const reactRouterV7IntegrationMock = vi.fn(
-    (..._args: unknown[]) => ({ name: 'react-router-v7' }),
-)
-const replayIntegrationMock = vi.fn(
-    (..._args: unknown[]) => ({ name: 'replay' }),
-)
+const captureMessageMock = vi.fn<(...args: unknown[]) => unknown>()
+const reactRouterV7IntegrationMock = vi.fn((..._args: unknown[]) => ({
+    name: 'react-router-v7',
+}))
+const replayIntegrationMock = vi.fn((..._args: unknown[]) => ({
+    name: 'replay',
+}))
 
 vi.mock('@sentry/react', () => ({
     init: (...args: unknown[]) => initMock(...args),
     captureException: (...args: unknown[]) => captureExceptionMock(...args),
+    captureMessage: (...args: unknown[]) => captureMessageMock(...args),
     reactRouterV7BrowserTracingIntegration: (...args: unknown[]) =>
         reactRouterV7IntegrationMock(...args),
     replayIntegration: (...args: unknown[]) => replayIntegrationMock(...args),
@@ -118,6 +120,54 @@ describe('initSentry', () => {
         expect(config.tracesSampleRate).toBeCloseTo(0.1)
         expect(config.replaysSessionSampleRate).toBeCloseTo(0.1)
         expect(config.replaysOnErrorSampleRate).toBeCloseTo(1.0)
+    })
+})
+
+describe('CSP violation reporting (#1283)', () => {
+    function dispatchViolation(directive: string, blockedURI: string) {
+        const event = new Event('securitypolicyviolation')
+        Object.assign(event, {
+            violatedDirective: directive,
+            blockedURI,
+            documentURI: 'http://localhost/',
+            sourceFile: 'http://localhost/app.js',
+            lineNumber: 1,
+            disposition: 'report',
+        })
+        window.dispatchEvent(event)
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        setEnv({ VITE_SENTRY_DSN: 'https://abc@sentry.io/123' })
+        initSentry()
+    })
+
+    test('forwards a CSP violation to Sentry as a warning', () => {
+        dispatchViolation('img-src', 'https://blocked.example/a.png')
+
+        expect(captureMessageMock).toHaveBeenCalledTimes(1)
+        expect(captureMessageMock).toHaveBeenCalledWith(
+            'CSP report: img-src blocked https://blocked.example/a.png',
+            expect.objectContaining({
+                level: 'warning',
+                tags: { cspDirective: 'img-src' },
+            }),
+        )
+    })
+
+    test('dedupes repeated violations of the same directive+URI pair', () => {
+        dispatchViolation('connect-src', 'https://blocked.example/api')
+        dispatchViolation('connect-src', 'https://blocked.example/api')
+
+        expect(captureMessageMock).toHaveBeenCalledTimes(1)
+    })
+
+    test('reports distinct directive+URI pairs separately', () => {
+        dispatchViolation('style-src', 'https://blocked.example/a.css')
+        dispatchViolation('style-src', 'https://blocked.example/b.css')
+
+        expect(captureMessageMock).toHaveBeenCalledTimes(2)
     })
 })
 

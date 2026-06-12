@@ -1,6 +1,7 @@
 import express, { type Express } from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
+import helmet from 'helmet'
 import { existsSync } from 'node:fs'
 import path from 'path'
 import { setupSessionMiddleware } from './session'
@@ -15,6 +16,60 @@ export function setupMiddleware(app: Express): void {
     if (isProduction) {
         app.set('trust proxy', 1)
     }
+
+    app.use(
+        helmet({
+            // Same Report-Only CSP as the serving edges (vercel.json /
+            // nginx) — the backend serves the SPA index.html fallback in
+            // production (server.ts), so it must carry the same policy.
+            // Flips to enforce with PR 2 of #1283 after the measurement
+            // window. See decisions/2026-06-11-security-headers-placement.md
+            contentSecurityPolicy: {
+                useDefaults: false,
+                reportOnly: true,
+                directives: {
+                    'default-src': ["'self'"],
+                    'script-src': ["'self'"],
+                    'style-src': [
+                        "'self'",
+                        "'unsafe-inline'",
+                        'https://fonts.googleapis.com',
+                    ],
+                    'font-src': [
+                        "'self'",
+                        'data:',
+                        'https://fonts.gstatic.com',
+                    ],
+                    'img-src': [
+                        "'self'",
+                        'data:',
+                        'blob:',
+                        'https://cdn.discordapp.com',
+                        'https://cdn.discord.com',
+                    ],
+                    'connect-src': [
+                        "'self'",
+                        'https://lucky-api.lucassantana.tech',
+                        'https://api.luk-homeserver.com.br',
+                        'https://*.sentry.io',
+                    ],
+                    'worker-src': ["'self'", 'blob:'],
+                    'frame-ancestors': ["'none'"],
+                    'base-uri': ["'self'"],
+                    'form-action': ["'self'"],
+                    'object-src': ["'none'"],
+                },
+            },
+            // TLS terminates at the Cloudflare Tunnel, which owns HSTS;
+            // this app only ever sees plain HTTP behind the proxy
+            hsts: false,
+            frameguard: { action: 'deny' },
+            referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+            // API images (e.g. support-report attachments) are embedded by
+            // the web origin; same-origin CORP would block those loads
+            crossOriginResourcePolicy: { policy: 'cross-origin' },
+        }),
+    )
 
     const isAllowedOrigin = (origin: string): boolean => {
         if (configuredOrigins.includes(origin)) {
