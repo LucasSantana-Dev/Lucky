@@ -23,8 +23,9 @@ jest.mock('../../../src/services/GuildService', () => ({
     },
 }))
 
-jest.mock('../../../src/utils/developerAccess', () => ({
+jest.mock('../../../src/middleware/requireAdmin', () => ({
     isDeveloperUser: (userId?: string) => userId === '123456789',
+    requireAdmin: jest.requireActual('../../../src/middleware/requireAdmin').requireAdmin,
 }))
 
 const ADMIN_SESSION = { ...MOCK_SESSION_DATA, userId: '123456789' }
