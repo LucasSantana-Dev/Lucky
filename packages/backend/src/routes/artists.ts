@@ -1,8 +1,14 @@
 import type { Express } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { apiLimiter, writeLimiter } from '../middleware/rateLimit'
+import {
+    validateBody,
+    validateQuery,
+    validateParams,
+} from '../middleware/validate'
 import { wrapHandler } from '../utils/routeUtils'
 import { ArtistSuggestionService } from '../services/artistSuggestion'
+import { artistsSchemas as s } from '../schemas/artists'
 
 const svc = new ArtistSuggestionService()
 void svc.prewarmCache()
@@ -18,8 +24,7 @@ const sugg = wrapHandler(
 
 const search = wrapHandler(
     async (r) => {
-        const q = typeof r.query.q === 'string' ? r.query.q : ''
-        return { artists: await svc.handleSearchArtists(q) }
+        return { artists: await svc.handleSearchArtists(r.query.q) }
     },
     'Artist search',
     'Failed to search artists',
@@ -37,12 +42,10 @@ const related = wrapHandler(
 
 const prefs = wrapHandler(
     async (r) => {
-        const guildId =
-            typeof r.query.guildId === 'string' ? r.query.guildId : ''
         return {
             preferences: await svc.handleGetPreferredArtists(
                 r.user?.id,
-                guildId,
+                r.query.guildId,
             ),
         }
     },
@@ -68,11 +71,11 @@ const batch = wrapHandler(
 
 const delPref = wrapHandler(
     async (r) => {
-        const artistKey =
-            typeof r.params.artistKey === 'string' ? r.params.artistKey : ''
-        const guildId =
-            typeof r.query.guildId === 'string' ? r.query.guildId : ''
-        await svc.handleDeletePreferredArtist(r.user?.id, artistKey, guildId)
+        await svc.handleDeletePreferredArtist(
+            r.user?.id,
+            r.params.artistKey as string,
+            r.query.guildId as string,
+        )
         return { success: true }
     },
     'Delete preferred artist',
@@ -81,15 +84,41 @@ const delPref = wrapHandler(
 
 export function setupArtistsRoutes(app: Express): void {
     app.get('/api/artists/suggestions', apiLimiter, requireAuth, sugg)
-    app.get('/api/artists/search', apiLimiter, requireAuth, search)
+    app.get(
+        '/api/artists/search',
+        apiLimiter,
+        requireAuth,
+        validateQuery(s.searchQuery),
+        search,
+    )
     app.get('/api/artists/:artistId/related', apiLimiter, requireAuth, related)
-    app.get('/api/users/me/preferred-artists', apiLimiter, requireAuth, prefs)
-    app.post('/api/users/me/preferred-artists', writeLimiter, requireAuth, save)
-    app.put('/api/artists/preferences/batch', writeLimiter, requireAuth, batch)
+    app.get(
+        '/api/users/me/preferred-artists',
+        apiLimiter,
+        requireAuth,
+        validateQuery(s.preferredArtistsQuery),
+        prefs,
+    )
+    app.post(
+        '/api/users/me/preferred-artists',
+        writeLimiter,
+        requireAuth,
+        validateBody(s.savePreferenceBody),
+        save,
+    )
+    app.put(
+        '/api/artists/preferences/batch',
+        writeLimiter,
+        requireAuth,
+        validateBody(s.batchSavePreferencesBody),
+        batch,
+    )
     app.delete(
         '/api/users/me/preferred-artists/:artistKey',
         writeLimiter,
         requireAuth,
+        validateParams(s.deletePreferenceParams),
+        validateQuery(s.deletePreferenceQuery),
         delPref,
     )
 }
