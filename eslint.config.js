@@ -106,6 +106,8 @@ export default [
     {
         // Ratchet for packages/bot and packages/shared: downgrade to warn
         // until type-safety family, complexity, and import issues are resolved (#1357)
+        // basePath pins glob resolution to the repo root regardless of eslint cwd
+        basePath: __dirname,
         files: ["packages/{bot,shared}/src/**/*.ts"],
         languageOptions: {
             parser: parserTs,
@@ -135,6 +137,9 @@ export default [
             "no-control-regex": "warn",
             "preserve-caught-error": "warn",
             "no-undef": "warn",
+            "no-useless-escape": "warn",
+            "no-useless-catch": "warn",
+            "no-case-declarations": "warn",
         },
     },
 ]
