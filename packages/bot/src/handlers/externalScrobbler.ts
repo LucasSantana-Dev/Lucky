@@ -4,6 +4,7 @@ import {
     type Message,
     type VoiceChannel,
 } from 'discord.js'
+import { LRUCache } from 'lru-cache'
 import { infoLog, errorLog, debugLog } from '@lucky/shared/utils'
 import { lastFmLinkService } from '@lucky/shared/services'
 import {
@@ -19,10 +20,13 @@ const KNOWN_MUSIC_BOT_NAMES = ['rythm', 'groovy', 'fredboat', 'hydra', 'jockie']
 const NOW_PLAYING_PREFIX = 'Now playing:'
 const NOW_PLAYING_SEPARATORS = [' – ', ' — ', ' - ']
 
-const lastExternalTrack = new Map<
+// Bounded per-guild cache: external bots that go silent would otherwise
+// leave their last track here forever (#1282). A track older than the TTL
+// is no longer scrobble-worthy anyway.
+const lastExternalTrack = new LRUCache<
     string,
     { title: string; artist: string; timestamp: number }
->()
+>({ max: 10_000, ttl: 10 * 60 * 1000 })
 
 function isMusicBot(message: Message): boolean {
     if (!message.author.bot) return false
