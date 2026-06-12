@@ -181,3 +181,10 @@ DELETE FROM "guild_subscriptions"
 ALTER TABLE "guild_subscriptions" ADD CONSTRAINT "guild_subscriptions_guildId_fkey"
     FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId")
     ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- ReactionRoleMessage
+DELETE FROM "reaction_role_messages"
+    WHERE "guildId" NOT IN (SELECT "discordId" FROM "guilds");
+ALTER TABLE "reaction_role_messages" ADD CONSTRAINT "reaction_role_messages_guildId_fkey"
+    FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId")
+    ON DELETE CASCADE ON UPDATE CASCADE;

@@ -63,36 +63,37 @@ model Guild {
   updatedAt DateTime  @updatedAt
 
   // Relations
-  settings            GuildSettings?
-  sessions            GuildSession[]
-  trackHistory        TrackHistory[]
-  commandUsage        CommandUsage[]
-  twitchNotifications TwitchNotification[]
-  featureToggles      GuildFeatureToggle[]
-  namedQueues         NamedQueue[]
-  sessionSnapshot     MusicSessionSnapshot?
-  counter             GuildCounter?
-  trackFeedback       UserTrackFeedback[]
-  roleGrants          GuildRoleGrant[]
-  automationManifest  GuildAutomationManifest?
-  automationRuns      GuildAutomationRun[]
-  automationDrifts    GuildAutomationDrift[]
-  downloads           Download[]
-  roleExclusions      RoleExclusion[]
-  moderationCases     ModerationCase[]
-  moderationSettings  ModerationSettings?
-  autoModSettings     AutoModSettings?
-  embedTemplates      EmbedTemplate[]
-  autoMessages        AutoMessage[]
-  customCommands      CustomCommand[]
-  serverLogs          ServerLog[]
-  starboardEntries    StarboardEntry[]
-  levelConfig         LevelConfig?
-  memberXPs           MemberXP[]
-  levelRewards        LevelReward[]
-  autoRoles           AutoRole[]
-  memberBirthdays     MemberBirthday[]
-  subscription        GuildSubscription?
+  settings             GuildSettings?
+  sessions             GuildSession[]
+  trackHistory         TrackHistory[]
+  commandUsage         CommandUsage[]
+  twitchNotifications  TwitchNotification[]
+  featureToggles       GuildFeatureToggle[]
+  namedQueues          NamedQueue[]
+  sessionSnapshot      MusicSessionSnapshot?
+  counter              GuildCounter?
+  trackFeedback        UserTrackFeedback[]
+  roleGrants           GuildRoleGrant[]
+  automationManifest   GuildAutomationManifest?
+  automationRuns       GuildAutomationRun[]
+  automationDrifts     GuildAutomationDrift[]
+  downloads            Download[]
+  roleExclusions       RoleExclusion[]
+  moderationCases      ModerationCase[]
+  moderationSettings   ModerationSettings?
+  autoModSettings      AutoModSettings?
+  embedTemplates       EmbedTemplate[]
+  autoMessages         AutoMessage[]
+  customCommands       CustomCommand[]
+  serverLogs           ServerLog[]
+  starboardEntries     StarboardEntry[]
+  levelConfig          LevelConfig?
+  memberXPs            MemberXP[]
+  levelRewards         LevelReward[]
+  autoRoles            AutoRole[]
+  memberBirthdays      MemberBirthday[]
+  subscription         GuildSubscription?
+  reactionRoleMessages ReactionRoleMessage[]
 
   @@map("guilds")
 }
@@ -569,6 +570,7 @@ model ReactionRoleMessage {
   messageId String   @unique
   channelId String
   guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
