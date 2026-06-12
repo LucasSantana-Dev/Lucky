@@ -1,6 +1,11 @@
 -- Group A: Retarget 5 FKs from guilds(id) to guilds(discordId)
+-- NOTE: Existing FK enforces CUIDs; writers send snowflakes. Remap legacy CUID-keyed rows
+-- to snowflakes before DELETE to preserve data; DELETE then removes only genuine orphans.
 
--- GuildFeatureToggle
+-- GuildFeatureToggle: remap CUID-keyed → snowflake, then delete orphans
+UPDATE "guild_feature_toggles" SET "guildId" = g."discordId"
+    FROM "guilds" g
+    WHERE "guild_feature_toggles"."guildId" = g."id";
 DELETE FROM "guild_feature_toggles"
     WHERE "guildId" NOT IN (SELECT "discordId" FROM "guilds");
 ALTER TABLE "guild_feature_toggles" DROP CONSTRAINT "guild_feature_toggles_guildId_fkey";
@@ -8,7 +13,10 @@ ALTER TABLE "guild_feature_toggles" ADD CONSTRAINT "guild_feature_toggles_guildI
     FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId")
     ON DELETE CASCADE ON UPDATE CASCADE;
 
--- TwitchNotification
+-- TwitchNotification: remap CUID-keyed → snowflake, then delete orphans
+UPDATE "twitch_notifications" SET "guildId" = g."discordId"
+    FROM "guilds" g
+    WHERE "twitch_notifications"."guildId" = g."id";
 DELETE FROM "twitch_notifications"
     WHERE "guildId" NOT IN (SELECT "discordId" FROM "guilds");
 ALTER TABLE "twitch_notifications" DROP CONSTRAINT "twitch_notifications_guildId_fkey";
@@ -16,7 +24,19 @@ ALTER TABLE "twitch_notifications" ADD CONSTRAINT "twitch_notifications_guildId_
     FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId")
     ON DELETE CASCADE ON UPDATE CASCADE;
 
--- GuildSettings
+-- GuildSettings: @unique(guildId) means conflicting CUID/snowflake rows would violate on remap.
+-- Delete CUID-keyed rows whose guild already has a snowflake-keyed row BEFORE remap.
+DELETE FROM "guild_settings" gs1
+    WHERE gs1."guildId" IN (
+        SELECT g."id" FROM "guilds" g
+        WHERE EXISTS (
+            SELECT 1 FROM "guild_settings" gs2
+            WHERE gs2."guildId" = g."discordId"
+        )
+    );
+UPDATE "guild_settings" SET "guildId" = g."discordId"
+    FROM "guilds" g
+    WHERE "guild_settings"."guildId" = g."id";
 DELETE FROM "guild_settings"
     WHERE "guildId" NOT IN (SELECT "discordId" FROM "guilds");
 ALTER TABLE "guild_settings" DROP CONSTRAINT "guild_settings_guildId_fkey";
@@ -24,7 +44,10 @@ ALTER TABLE "guild_settings" ADD CONSTRAINT "guild_settings_guildId_fkey"
     FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId")
     ON DELETE CASCADE ON UPDATE CASCADE;
 
--- GuildSession
+-- GuildSession: remap CUID-keyed → snowflake, then delete orphans
+UPDATE "guild_sessions" SET "guildId" = g."discordId"
+    FROM "guilds" g
+    WHERE "guild_sessions"."guildId" = g."id";
 DELETE FROM "guild_sessions"
     WHERE "guildId" NOT IN (SELECT "discordId" FROM "guilds");
 ALTER TABLE "guild_sessions" DROP CONSTRAINT "guild_sessions_guildId_fkey";
@@ -32,7 +55,10 @@ ALTER TABLE "guild_sessions" ADD CONSTRAINT "guild_sessions_guildId_fkey"
     FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId")
     ON DELETE CASCADE ON UPDATE CASCADE;
 
--- CommandUsage (nullable, use SetNull)
+-- CommandUsage (nullable, use SetNull): remap CUID-keyed → snowflake first
+UPDATE "command_usage" SET "guildId" = g."discordId"
+    FROM "guilds" g
+    WHERE "command_usage"."guildId" = g."id";
 UPDATE "command_usage" SET "guildId" = NULL
     WHERE "guildId" IS NOT NULL AND "guildId" NOT IN (SELECT "discordId" FROM "guilds");
 ALTER TABLE "command_usage" DROP CONSTRAINT "command_usage_guildId_fkey";
@@ -188,3 +214,7 @@ DELETE FROM "reaction_role_messages"
 ALTER TABLE "reaction_role_messages" ADD CONSTRAINT "reaction_role_messages_guildId_fkey"
     FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId")
     ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Add indexes for FK columns used in cascade deletes (newly constrained)
+CREATE INDEX "downloads_guildId_idx" ON "downloads"("guildId");
+CREATE INDEX "guild_sessions_guildId_idx" ON "guild_sessions"("guildId");

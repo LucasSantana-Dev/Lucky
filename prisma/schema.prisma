@@ -299,6 +299,7 @@ model GuildSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([guildId])
   @@map("guild_sessions")
 }
 
@@ -453,6 +454,7 @@ model Download {
 
   @@index([userId, createdAt])
   @@index([status])
+  @@index([guildId])
   @@map("downloads")
 }
 
