@@ -60,6 +60,37 @@ export function initSentry(): void {
             /^https:\/\/luk-homeserver\.com\.br\//,
         ],
     })
+
+    watchCspViolations()
+}
+
+/**
+ * Forward CSP violation reports to Sentry so the Report-Only measurement
+ * window (#1283) has data without a dedicated report-uri endpoint. Each
+ * distinct directive+URI pair is reported once per page load.
+ */
+function watchCspViolations(): void {
+    const seen = new Set<string>()
+    window.addEventListener('securitypolicyviolation', (event) => {
+        const key = `${event.violatedDirective}|${event.blockedURI}`
+        if (seen.has(key)) return
+        seen.add(key)
+
+        Sentry.captureMessage(
+            `CSP ${event.disposition}: ${event.violatedDirective} blocked ${event.blockedURI}`,
+            {
+                level: 'warning',
+                tags: { cspDirective: event.violatedDirective },
+                extra: {
+                    blockedURI: event.blockedURI,
+                    documentURI: event.documentURI,
+                    sourceFile: event.sourceFile,
+                    lineNumber: event.lineNumber,
+                    disposition: event.disposition,
+                },
+            },
+        )
+    })
 }
 
 /**

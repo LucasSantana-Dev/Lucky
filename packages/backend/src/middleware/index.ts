@@ -1,6 +1,7 @@
 import express, { type Express } from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
+import helmet from 'helmet'
 import { existsSync } from 'node:fs'
 import path from 'path'
 import { setupSessionMiddleware } from './session'
@@ -15,6 +16,22 @@ export function setupMiddleware(app: Express): void {
     if (isProduction) {
         app.set('trust proxy', 1)
     }
+
+    app.use(
+        helmet({
+            // SPA CSP is set at the serving edges (vercel.json / nginx) —
+            // see decisions/2026-06-11-security-headers-placement.md
+            contentSecurityPolicy: false,
+            // TLS terminates at the Cloudflare Tunnel, which owns HSTS;
+            // this app only ever sees plain HTTP behind the proxy
+            hsts: false,
+            frameguard: { action: 'deny' },
+            referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+            // API images (e.g. support-report attachments) are embedded by
+            // the web origin; same-origin CORP would block those loads
+            crossOriginResourcePolicy: { policy: 'cross-origin' },
+        }),
+    )
 
     const isAllowedOrigin = (origin: string): boolean => {
         if (configuredOrigins.includes(origin)) {
