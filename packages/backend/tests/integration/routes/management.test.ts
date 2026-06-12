@@ -39,6 +39,7 @@ jest.mock('@lucky/shared/services', () => ({
     customCommandService: {
         listCommands: jest.fn(),
         createCommand: jest.fn(),
+        getCommand: jest.fn(),
         updateCommand: jest.fn(),
         deleteCommand: jest.fn(),
     },
@@ -428,6 +429,65 @@ describe('Management Routes Integration', () => {
             expect(
                 mockServerLogService.logCustomCommandChange,
             ).toHaveBeenCalled()
+        })
+
+        test('returns the existing command on a replayed create (P2002 → idempotent success, #1320)', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const existing = {
+                name: 'newcmd',
+                response: 'Hello there!',
+                description: 'A greeting command',
+            }
+
+            const mockCustomCommandService =
+                customCommandService as jest.Mocked<typeof customCommandService>
+            mockCustomCommandService.createCommand.mockRejectedValue(
+                Object.assign(new Error('Unique constraint failed'), {
+                    code: 'P2002',
+                }),
+            )
+            mockCustomCommandService.getCommand.mockResolvedValue(existing)
+
+            const mockServerLogService = serverLogService as jest.Mocked<
+                typeof serverLogService
+            >
+
+            const response = await request(app)
+                .post('/api/guilds/111111111111111111/commands')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ name: 'newcmd', response: 'Hello there!' })
+                .expect(200)
+
+            expect(response.body).toEqual(existing)
+            expect(
+                mockServerLogService.logCustomCommandChange,
+            ).not.toHaveBeenCalled()
+        })
+
+        test('rethrows P2002 when the existing command vanished (no silent 200)', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockCustomCommandService =
+                customCommandService as jest.Mocked<typeof customCommandService>
+            mockCustomCommandService.createCommand.mockRejectedValue(
+                Object.assign(new Error('Unique constraint failed'), {
+                    code: 'P2002',
+                }),
+            )
+            mockCustomCommandService.getCommand.mockResolvedValue(null)
+
+            await request(app)
+                .post('/api/guilds/111111111111111111/commands')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ name: 'newcmd', response: 'Hello there!' })
+                .expect(500)
         })
 
         test('should return 401 when not authenticated', async () => {
