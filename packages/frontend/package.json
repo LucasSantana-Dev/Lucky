@@ -8,6 +8,7 @@
         "build": "tsc && vite build && tsx scripts/prerender-seo.ts",
         "preview": "vite preview",
         "lint": "eslint . --config eslint.config.js --max-warnings 0",
+        "lint:fix": "eslint . --config eslint.config.js --max-warnings 0 --fix",
         "type:check": "tsc --noEmit",
         "test": "vitest run",
         "test:watch": "vitest",
