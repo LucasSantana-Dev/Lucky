@@ -36,6 +36,7 @@ module.exports = {
   resolver: '<rootDir>/jest-resolver.cjs',
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 30000,
+  // Limit parallelism for stability with large test suite
   maxWorkers: '50%',
   moduleNameMapper: {
     '^@lucky/shared$': '<rootDir>/../shared/src/index',
