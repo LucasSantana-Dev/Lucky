@@ -446,6 +446,25 @@ model UserArtistPreference {
   @@map("user_artist_preferences")
 }
 
+// Track Feedback — explicit per-track 👍/👎 feedback with 30-day TTL.
+// Lazy-prune on read (deleteMany expired); decay computed at read time.
+// Per-user/guild/track; dupes upsert on (discordUserId, guildId, trackKey).
+model UserTrackFeedback {
+  id            String   @id @default(cuid())
+  discordUserId String
+  guildId       String
+  trackKey      String // normalized: lowercase alphanumeric (title::author)
+  feedback      String // "like" | "dislike"
+  updatedAt     DateTime @updatedAt
+  expiresAt     DateTime // when this feedback expires (TTL)
+  createdAt     DateTime @default(now())
+
+  @@unique([discordUserId, guildId, trackKey])
+  @@index([discordUserId, guildId])
+  @@index([expiresAt]) // for lazy-prune query
+  @@map("user_track_feedbacks")
+}
+
 // Music Recommendations
 //
 // Closed-loop telemetry for the autoplay engine: each track the engine picks is

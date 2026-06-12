@@ -1,4 +1,3 @@
-import { redisClient } from '@lucky/shared/services'
 import { errorLog, getPrismaClient } from '@lucky/shared/utils'
 import { parseIntEnv } from '@lucky/shared/utils/env'
 import { cleanAuthor } from '../../utils/music/searchQueryCleaner'
@@ -11,14 +10,6 @@ function decayWeight(updatedAt: number): number {
     return Math.max(0.15, 1.0 - (daysSince / 30) * 0.85)
 }
 
-type FeedbackEntry = {
-    feedback: RecommendationFeedback
-    updatedAt: number
-    expiresAt: number
-}
-
-type FeedbackMap = Record<string, FeedbackEntry>
-
 type ImplicitFeedbackEntry = {
     type: 'implicit_dislike' | 'implicit_like'
     updatedAt: number
@@ -27,37 +18,13 @@ type ImplicitFeedbackEntry = {
 type ImplicitFeedbackMap = Record<string, ImplicitFeedbackEntry>
 
 export class RecommendationFeedbackService {
+    // In-memory cache for implicit feedback (behavioral signals).
+    // REVISIT: multi-instance deployments will lose entries on restart.
+    // Consider moving to Postgres if signal persistence becomes critical.
+    private implicitFeedbackCache = new Map<string, ImplicitFeedbackMap>()
+    private implicitCacheTTL = 14 * 24 * 60 * 60 * 1000 // 14 days in ms
+
     constructor(private readonly ttlDays = 30) {}
-
-    private getRedisKey(userId: string): string {
-        return `music:feedback:${userId}`
-    }
-
-    private async getFeedbackMap(userId: string): Promise<FeedbackMap> {
-        const key = this.getRedisKey(userId)
-        try {
-            const value = await redisClient.get(key)
-            if (!value) return {}
-            const parsed = JSON.parse(value) as FeedbackMap
-            return parsed && typeof parsed === 'object' ? parsed : {}
-        } catch (error) {
-            errorLog({
-                message: 'Failed to load recommendation feedback map',
-                error,
-            })
-            return {}
-        }
-    }
-
-    private async saveFeedbackMap(
-        userId: string,
-        map: FeedbackMap,
-    ): Promise<void> {
-        const key = this.getRedisKey(userId)
-        const ttlSeconds = this.ttlDays * 24 * 60 * 60
-
-        await redisClient.setex(key, ttlSeconds, JSON.stringify(map))
-    }
 
     buildTrackKey(title: string, author: string): string {
         const normalizedTitle = title
@@ -80,13 +47,32 @@ export class RecommendationFeedbackService {
         now = Date.now(),
     ): Promise<void> {
         try {
-            const map = await this.getFeedbackMap(userId)
-            map[trackKey] = {
-                feedback,
-                updatedAt: now,
-                expiresAt: now + this.ttlDays * 24 * 60 * 60 * 1000,
-            }
-            await this.saveFeedbackMap(userId, map)
+            const db = getPrismaClient()
+            const expiresAt = new Date(now + this.ttlDays * 24 * 60 * 60 * 1000)
+            const updatedAt = new Date(now)
+
+            await db.userTrackFeedback.upsert({
+                where: {
+                    discordUserId_guildId_trackKey: {
+                        discordUserId: userId,
+                        guildId,
+                        trackKey,
+                    },
+                },
+                update: {
+                    feedback,
+                    updatedAt,
+                    expiresAt,
+                },
+                create: {
+                    discordUserId: userId,
+                    guildId,
+                    trackKey,
+                    feedback,
+                    updatedAt,
+                    expiresAt,
+                },
+            })
         } catch (error) {
             errorLog({
                 message: 'Failed to store recommendation feedback',
@@ -98,8 +84,10 @@ export class RecommendationFeedbackService {
 
     async clearFeedback(userId: string): Promise<void> {
         try {
-            const key = this.getRedisKey(userId)
-            await redisClient.del(key)
+            const db = getPrismaClient()
+            await db.userTrackFeedback.deleteMany({
+                where: { discordUserId: userId },
+            })
         } catch (error) {
             errorLog({
                 message: 'Failed to clear recommendation feedback',
@@ -109,51 +97,44 @@ export class RecommendationFeedbackService {
         }
     }
 
-    private pruneExpired(
-        map: FeedbackMap,
-        now: number,
-    ): {
-        map: FeedbackMap
-        changed: boolean
-    } {
-        const next: FeedbackMap = {}
-        let changed = false
-
-        for (const [trackKey, entry] of Object.entries(map)) {
-            if (entry.expiresAt <= now) {
-                changed = true
-                continue
-            }
-            next[trackKey] = entry
-        }
-
-        return { map: next, changed }
-    }
-
-    private async getValidFeedbackMap(
-        userId: string,
-        now: number,
-    ): Promise<FeedbackMap> {
-        const map = await this.getFeedbackMap(userId)
-        const { map: validMap, changed } = this.pruneExpired(map, now)
-        if (changed) {
-            await this.saveFeedbackMap(userId, validMap)
-        }
-        return validMap
-    }
-
     private async getTrackKeysByFeedback(
         userId: string | undefined,
         type: RecommendationFeedback,
         now = Date.now(),
     ): Promise<Set<string>> {
         if (!userId) return new Set<string>()
-        const validMap = await this.getValidFeedbackMap(userId, now)
-        return new Set(
-            Object.entries(validMap)
-                .filter(([, entry]) => entry.feedback === type)
-                .map(([trackKey]) => trackKey),
-        )
+
+        try {
+            const db = getPrismaClient()
+            const nowDate = new Date(now)
+
+            // Lazy prune: delete expired entries opportunistically on read
+            await db.userTrackFeedback.deleteMany({
+                where: {
+                    discordUserId: userId,
+                    expiresAt: { lte: nowDate },
+                },
+            })
+
+            // Fetch non-expired feedback of the requested type
+            const entries = await db.userTrackFeedback.findMany({
+                where: {
+                    discordUserId: userId,
+                    feedback: type,
+                    expiresAt: { gt: nowDate },
+                },
+                select: { trackKey: true },
+            })
+
+            return new Set(entries.map((e) => e.trackKey))
+        } catch (error) {
+            errorLog({
+                message: 'Failed to load feedback track keys',
+                error,
+                data: { userId, type },
+            })
+            return new Set<string>()
+        }
     }
 
     async getDislikedTrackKeys(
@@ -177,13 +158,41 @@ export class RecommendationFeedbackService {
         type: RecommendationFeedback,
         now: number,
     ): Promise<Map<string, number>> {
-        const validMap = await this.getValidFeedbackMap(userId, now)
         const weights = new Map<string, number>()
-        for (const [trackKey, entry] of Object.entries(validMap)) {
-            if (entry.feedback === type) {
-                weights.set(trackKey, decayWeight(entry.updatedAt))
+
+        try {
+            const db = getPrismaClient()
+            const nowDate = new Date(now)
+
+            // Lazy prune: delete expired entries opportunistically on read
+            await db.userTrackFeedback.deleteMany({
+                where: {
+                    discordUserId: userId,
+                    expiresAt: { lte: nowDate },
+                },
+            })
+
+            // Fetch non-expired feedback with decay weights
+            const entries = await db.userTrackFeedback.findMany({
+                where: {
+                    discordUserId: userId,
+                    feedback: type,
+                    expiresAt: { gt: nowDate },
+                },
+                select: { trackKey: true, updatedAt: true },
+            })
+
+            for (const entry of entries) {
+                weights.set(entry.trackKey, decayWeight(entry.updatedAt.getTime()))
             }
+        } catch (error) {
+            errorLog({
+                message: 'Failed to load feedback track weights',
+                error,
+                data: { userId, type },
+            })
         }
+
         return weights
     }
 
@@ -209,49 +218,44 @@ export class RecommendationFeedbackService {
     ): Promise<{ liked: number; disliked: number }> {
         if (!userId) return { liked: 0, disliked: 0 }
 
-        const map = await this.getFeedbackMap(userId)
-        const { map: validMap } = this.pruneExpired(map, now)
-
-        let liked = 0
-        let disliked = 0
-        for (const entry of Object.values(validMap)) {
-            if (entry.feedback === 'like') liked++
-            else if (entry.feedback === 'dislike') disliked++
-        }
-
-        return { liked, disliked }
-    }
-
-    private getArtistFeedbackRedisKey(userId: string): string {
-        return `music:artist_feedback:${userId}`
-    }
-
-    private async getArtistFeedbackMap(
-        userId: string,
-    ): Promise<Record<string, ArtistFeedback>> {
-        const key = this.getArtistFeedbackRedisKey(userId)
         try {
-            const value = await redisClient.get(key)
-            if (!value) return {}
-            const parsed = JSON.parse(value) as Record<string, ArtistFeedback>
-            return parsed && typeof parsed === 'object' ? parsed : {}
+            const db = getPrismaClient()
+            const nowDate = new Date(now)
+
+            // Lazy prune: delete expired entries opportunistically on read
+            await db.userTrackFeedback.deleteMany({
+                where: {
+                    discordUserId: userId,
+                    expiresAt: { lte: nowDate },
+                },
+            })
+
+            const [liked, disliked] = await Promise.all([
+                db.userTrackFeedback.count({
+                    where: {
+                        discordUserId: userId,
+                        feedback: 'like',
+                        expiresAt: { gt: nowDate },
+                    },
+                }),
+                db.userTrackFeedback.count({
+                    where: {
+                        discordUserId: userId,
+                        feedback: 'dislike',
+                        expiresAt: { gt: nowDate },
+                    },
+                }),
+            ])
+
+            return { liked, disliked }
         } catch (error) {
             errorLog({
-                message: 'Failed to load artist feedback map',
+                message: 'Failed to load feedback counts',
                 error,
+                data: { userId },
             })
-            return {}
+            return { liked: 0, disliked: 0 }
         }
-    }
-
-    private async saveArtistFeedbackMap(
-        userId: string,
-        map: Record<string, ArtistFeedback>,
-    ): Promise<void> {
-        const key = this.getArtistFeedbackRedisKey(userId)
-        const ttlSeconds = this.ttlDays * 24 * 60 * 60
-
-        await redisClient.setex(key, ttlSeconds, JSON.stringify(map))
     }
 
     private normalizeArtistKey(artistName: string): string {
@@ -272,9 +276,26 @@ export class RecommendationFeedbackService {
             const artistKey = this.normalizeArtistKey(artistName)
             if (!artistKey) return
 
-            const map = await this.getArtistFeedbackMap(userId)
-            map[artistKey] = feedback
-            await this.saveArtistFeedbackMap(userId, map)
+            const db = getPrismaClient()
+
+            // Upsert into userArtistPreference (unified Postgres store)
+            await db.userArtistPreference.upsert({
+                where: {
+                    discordUserId_guildId_artistKey: {
+                        discordUserId: userId,
+                        guildId,
+                        artistKey,
+                    },
+                },
+                update: { preference: feedback },
+                create: {
+                    discordUserId: userId,
+                    guildId,
+                    artistKey,
+                    artistName,
+                    preference: feedback,
+                },
+            })
         } catch (error) {
             errorLog({
                 message: 'Failed to store artist feedback',
@@ -293,9 +314,15 @@ export class RecommendationFeedbackService {
             const artistKey = this.normalizeArtistKey(artistName)
             if (!artistKey) return
 
-            const map = await this.getArtistFeedbackMap(userId)
-            delete map[artistKey]
-            await this.saveArtistFeedbackMap(userId, map)
+            const db = getPrismaClient()
+
+            await db.userArtistPreference.deleteMany({
+                where: {
+                    discordUserId: userId,
+                    guildId,
+                    artistKey,
+                },
+            })
         } catch (error) {
             errorLog({
                 message: 'Failed to remove artist feedback',
@@ -305,59 +332,30 @@ export class RecommendationFeedbackService {
         }
     }
 
-    private async getPreferredKeysFromRedis(
-        userId: string,
-    ): Promise<Set<string>> {
-        const map = await this.getArtistFeedbackMap(userId)
-        return new Set(
-            Object.entries(map)
-                .filter(([, feedback]) => feedback === 'prefer')
-                .map(([artistKey]) => artistKey),
-        )
-    }
-
-    private async getArtistKeysFromDb(
-        guildId: string,
-        userId: string,
-        preference: 'prefer' | 'block',
-    ): Promise<Set<string>> {
-        try {
-            const db = getPrismaClient()
-            // Cap at 5000 prefs per user/guild/type to prevent unbounded
-            // query on power users. Typical users have <100 prefs.
-            const prefs = await db.userArtistPreference.findMany({
-                where: { discordUserId: userId, guildId, preference },
-                select: { artistKey: true },
-                take: 5000,
-            })
-            return new Set(prefs.map((p) => p.artistKey))
-        } catch {
-            return new Set<string>()
-        }
-    }
-
     async getPreferredArtistKeys(
         guildId: string,
         userId: string | undefined,
     ): Promise<Set<string>> {
         if (!userId) return new Set<string>()
 
-        const [redisKeys, dbKeys] = await Promise.all([
-            this.getPreferredKeysFromRedis(userId),
-            this.getArtistKeysFromDb(guildId, userId, 'prefer'),
-        ])
-        return new Set([...redisKeys, ...dbKeys])
-    }
-
-    private async getBlockedKeysFromRedis(
-        userId: string,
-    ): Promise<Set<string>> {
-        const map = await this.getArtistFeedbackMap(userId)
-        return new Set(
-            Object.entries(map)
-                .filter(([, feedback]) => feedback === 'block')
-                .map(([artistKey]) => artistKey),
-        )
+        try {
+            const db = getPrismaClient()
+            // Cap at 5000 prefs per user/guild/type to prevent unbounded
+            // query on power users. Typical users have <100 prefs.
+            const prefs = await db.userArtistPreference.findMany({
+                where: { discordUserId: userId, guildId, preference: 'prefer' },
+                select: { artistKey: true },
+                take: 5000,
+            })
+            return new Set(prefs.map((p) => p.artistKey))
+        } catch (error) {
+            errorLog({
+                message: 'Failed to load preferred artist keys',
+                error,
+                data: { guildId, userId },
+            })
+            return new Set<string>()
+        }
     }
 
     async getBlockedArtistKeys(
@@ -366,11 +364,22 @@ export class RecommendationFeedbackService {
     ): Promise<Set<string>> {
         if (!userId) return new Set<string>()
 
-        const [redisKeys, dbKeys] = await Promise.all([
-            this.getBlockedKeysFromRedis(userId),
-            this.getArtistKeysFromDb(guildId, userId, 'block'),
-        ])
-        return new Set([...redisKeys, ...dbKeys])
+        try {
+            const db = getPrismaClient()
+            const prefs = await db.userArtistPreference.findMany({
+                where: { discordUserId: userId, guildId, preference: 'block' },
+                select: { artistKey: true },
+                take: 5000,
+            })
+            return new Set(prefs.map((p) => p.artistKey))
+        } catch (error) {
+            errorLog({
+                message: 'Failed to load blocked artist keys',
+                error,
+                data: { guildId, userId },
+            })
+            return new Set<string>()
+        }
     }
 
     async getArtistFeedbackSummary(
@@ -378,48 +387,38 @@ export class RecommendationFeedbackService {
     ): Promise<{ preferred: string[]; blocked: string[] }> {
         if (!userId) return { preferred: [], blocked: [] }
 
-        const map = await this.getArtistFeedbackMap(userId)
-        const preferred: string[] = []
-        const blocked: string[] = []
-
-        for (const [artistKey, feedback] of Object.entries(map)) {
-            if (feedback === 'prefer') preferred.push(artistKey)
-            else if (feedback === 'block') blocked.push(artistKey)
-        }
-
-        return { preferred, blocked }
-    }
-
-    private getImplicitFeedbackRedisKey(userId: string): string {
-        return `music:implicit_feedback:${userId}`
-    }
-
-    private async getImplicitFeedbackMap(
-        userId: string,
-    ): Promise<ImplicitFeedbackMap> {
-        const key = this.getImplicitFeedbackRedisKey(userId)
         try {
-            const value = await redisClient.get(key)
-            if (!value) return {}
-            const parsed = JSON.parse(value) as ImplicitFeedbackMap
-            return parsed && typeof parsed === 'object' ? parsed : {}
+            const db = getPrismaClient()
+            const prefs = await db.userArtistPreference.findMany({
+                where: { discordUserId: userId },
+                select: { artistKey: true, preference: true },
+            })
+
+            const preferred: string[] = []
+            const blocked: string[] = []
+
+            for (const pref of prefs) {
+                if (pref.preference === 'prefer') preferred.push(pref.artistKey)
+                else if (pref.preference === 'block') blocked.push(pref.artistKey)
+            }
+
+            return { preferred, blocked }
         } catch (error) {
             errorLog({
-                message: 'Failed to load implicit feedback map',
+                message: 'Failed to load artist feedback summary',
                 error,
+                data: { userId },
             })
-            return {}
+            return { preferred: [], blocked: [] }
         }
     }
 
-    private async saveImplicitFeedbackMap(
-        userId: string,
-        map: ImplicitFeedbackMap,
-    ): Promise<void> {
-        const key = this.getImplicitFeedbackRedisKey(userId)
-        const ttlSeconds = 14 * 24 * 60 * 60
-
-        await redisClient.setex(key, ttlSeconds, JSON.stringify(map))
+    private getImplicitFeedbackForUser(userId: string): ImplicitFeedbackMap {
+        // Initialize empty map for this user if not present
+        if (!this.implicitFeedbackCache.has(userId)) {
+            this.implicitFeedbackCache.set(userId, {})
+        }
+        return this.implicitFeedbackCache.get(userId)!
     }
 
     async recordImplicitFeedback(
@@ -428,23 +427,23 @@ export class RecommendationFeedbackService {
         type: 'implicit_dislike' | 'implicit_like',
     ): Promise<void> {
         try {
-            const map = await this.getImplicitFeedbackMap(userId)
+            const map = this.getImplicitFeedbackForUser(userId)
             const now = Date.now()
 
             map[trackKey] = { type, updatedAt: now }
 
+            // Cap implicit feedback at 200 most recent entries per user
             const entries = Object.entries(map).sort(
                 (a, b) => a[1].updatedAt - b[1].updatedAt,
             )
 
             if (entries.length > 200) {
+                // Keep only the last 200 (most recent)
                 const trimmed: ImplicitFeedbackMap = {}
                 for (const [key, entry] of entries.slice(-200)) {
                     trimmed[key] = entry
                 }
-                await this.saveImplicitFeedbackMap(userId, trimmed)
-            } else {
-                await this.saveImplicitFeedbackMap(userId, map)
+                this.implicitFeedbackCache.set(userId, trimmed)
             }
         } catch (error) {
             errorLog({
@@ -459,10 +458,16 @@ export class RecommendationFeedbackService {
         userId: string,
         type: 'implicit_dislike' | 'implicit_like',
     ): Promise<Set<string>> {
-        const map = await this.getImplicitFeedbackMap(userId)
+        const map = this.getImplicitFeedbackForUser(userId)
+        const now = Date.now()
+
         return new Set(
             Object.entries(map)
-                .filter(([, entry]) => entry.type === type)
+                .filter(([, entry]) => {
+                    // Filter out expired entries (14-day TTL)
+                    const age = now - entry.updatedAt
+                    return age < this.implicitCacheTTL && entry.type === type
+                })
                 .map(([trackKey]) => trackKey),
         )
     }
