@@ -59,6 +59,8 @@ describe('SupportPage', () => {
         expect(fd.get('cid')).toBe('ABC12345')
         expect(fd.get('category')).toBe('web-error')
         expect(fd.get('guildId')).toBe('123')
+        // dedup key (#1319): present and uuid-shaped
+        expect(String(fd.get('sid'))).toMatch(/^[0-9a-f-]{36}$/)
     })
 
     test('surfaces the server error message on failure', async () => {
@@ -75,6 +77,31 @@ describe('SupportPage', () => {
         expect(
             screen.queryByText('Thanks for the report'),
         ).not.toBeInTheDocument()
+    })
+
+    test('retries reuse the same dedup key so the server can dedup (#1319)', async () => {
+        submitMock.mockRejectedValueOnce(new Error('network flake'))
+        submitMock.mockResolvedValueOnce({ id: 'rep_1' })
+        renderAt('/support')
+        fireEvent.change(screen.getByLabelText('What happened?'), {
+            target: { value: 'broken' },
+        })
+        fireEvent.click(screen.getByRole('button', { name: /Send report/i }))
+        await waitFor(() =>
+            expect(screen.getByText('network flake')).toBeInTheDocument(),
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: /Send report/i }))
+        await waitFor(() =>
+            expect(
+                screen.getByText('Thanks for the report'),
+            ).toBeInTheDocument(),
+        )
+
+        expect(submitMock).toHaveBeenCalledTimes(2)
+        const first = submitMock.mock.calls[0][0] as FormData
+        const second = submitMock.mock.calls[1][0] as FormData
+        expect(first.get('sid')).toBe(second.get('sid'))
     })
 
     test('rejects an unsupported image type', () => {
