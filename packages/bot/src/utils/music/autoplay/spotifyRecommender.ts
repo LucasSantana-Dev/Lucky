@@ -160,7 +160,7 @@ export async function collectSpotifyRecommendationCandidates(
         })
         let score = rec.score + 0.3
         let source: 'spotify-rec' | 'spotify-taste' = 'spotify-rec'
-        let signals = rec.signals
+        const signals = rec.signals
 
         if (userSpotifySeeds !== null) {
             const trackArtistLower = track.author.toLowerCase()
