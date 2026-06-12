@@ -66,6 +66,7 @@ async function createSubscription(
                 condition: { broadcaster_user_id: broadcasterUserId },
                 transport: { method: 'websocket', session_id: sessionId },
             }),
+            signal: AbortSignal.timeout(10_000),
         })
         if (!res.ok) {
             const text = await res.text()

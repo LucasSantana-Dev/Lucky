@@ -35,6 +35,7 @@ export async function exchangeTokenForSession(token: string): Promise<LastFmSess
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
+    signal: AbortSignal.timeout(15_000),
   })
   if (!res.ok) return null
   const data = (await res.json().catch(() => null)) as {

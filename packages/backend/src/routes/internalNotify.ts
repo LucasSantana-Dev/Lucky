@@ -47,6 +47,7 @@ export function setupInternalNotifyRoutes(app: Express): void {
                         content: body.content?.slice(0, 1900),
                         embeds: body.embeds,
                     }),
+                    signal: AbortSignal.timeout(10_000),
                 },
             )
 
