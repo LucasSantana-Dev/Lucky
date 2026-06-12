@@ -16,6 +16,7 @@ export type SupportReport = {
     errorCategory: string | null
     status: string
     rateLimitKey: string | null
+    submissionKey: string | null
 }
 
 /**
@@ -35,6 +36,7 @@ export interface CreateReportInput {
     surface: 'bot' | 'web' // required: where the error occurred
     errorCategory?: string // optional: light categorization hint
     rateLimitKey?: string // optional: opaque rate-limit key (no raw PII)
+    submissionKey?: string // optional: client-generated dedup key (#1319)
 }
 
 /**
@@ -55,10 +57,16 @@ export class SupportReportService {
      * Creates a new support report and persists it.
      * Returns the created report's id.
      *
+     * When the input carries a submissionKey that already exists (replayed
+     * submit), the original report's id is returned with deduped: true and
+     * no new row is written (#1319).
+     *
      * @param input Create input with context, optional image, correlationId, etc.
-     * @returns Promise with { id }
+     * @returns Promise with { id, deduped? }
      */
-    async create(input: CreateReportInput): Promise<{ id: string }> {
+    async create(
+        input: CreateReportInput,
+    ): Promise<{ id: string; deduped?: boolean }> {
         // Defense-in-depth: reject malformed image payloads before persisting,
         // even though the public route is the primary validation point.
         if (input.image) {
@@ -73,21 +81,44 @@ export class SupportReportService {
 
         const prisma = getPrismaClient()
 
-        const report = await prisma.supportReport.create({
-            data: {
-                context: input.context,
-                image: (input.image ?? null) as any,
-                imageMimeType: input.imageMimeType || null,
-                correlationId: input.correlationId || null,
-                guildId: input.guildId || null,
-                surface: input.surface,
-                errorCategory: input.errorCategory || null,
-                status: 'new',
-                rateLimitKey: input.rateLimitKey || null,
-            },
-        })
+        try {
+            const report = await prisma.supportReport.create({
+                data: {
+                    context: input.context,
+                    image: (input.image ?? null) as any,
+                    imageMimeType: input.imageMimeType || null,
+                    correlationId: input.correlationId || null,
+                    guildId: input.guildId || null,
+                    surface: input.surface,
+                    errorCategory: input.errorCategory || null,
+                    status: 'new',
+                    rateLimitKey: input.rateLimitKey || null,
+                    submissionKey: input.submissionKey || null,
+                },
+            })
 
-        return { id: report.id }
+            return { id: report.id }
+        } catch (error) {
+            // P2002 on submissionKey = the same logical submission already
+            // landed (retry-after-flake, double-click): idempotent success.
+            const isUniqueViolation =
+                error instanceof Error &&
+                'code' in error &&
+                error.code === 'P2002'
+            if (!isUniqueViolation || !input.submissionKey) {
+                throw error
+            }
+
+            const existing = await prisma.supportReport.findUnique({
+                where: { submissionKey: input.submissionKey },
+                select: { id: true },
+            })
+            if (!existing) {
+                throw error
+            }
+
+            return { id: existing.id, deduped: true }
+        }
     }
 
     /**
@@ -114,7 +145,9 @@ export class SupportReportService {
      * @param filter List options: take (bounded to 100), cursor, status
      * @returns Promise with array of SupportReport summaries (no image bytes)
      */
-    async list(filter: ListReportsFilter = {}): Promise<SupportReportListItem[]> {
+    async list(
+        filter: ListReportsFilter = {},
+    ): Promise<SupportReportListItem[]> {
         const prisma = getPrismaClient()
 
         // Clamp take to a positive integer in [1, 100]; guard NaN/Infinity/<=0.
