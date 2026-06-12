@@ -113,3 +113,7 @@ escalation); the ESLint rule needs a tuning period; incremental sweep spans seve
   required, warn allowed for whitelisted best-effort).
 - Lucky scales to multiple instances → in-memory caches (guild-context, suggestions) move to
   Postgres.
+
+## Tracking
+
+Status and per-track delivery tracked in umbrella issue [#1286](https://github.com/LucasSantana-Dev/Lucky/issues/1286).
