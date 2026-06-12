@@ -6,11 +6,6 @@ export {
     clearAllAutoplayCounters,
 } from './counters'
 
-export {
-    getAutoplayRecommendations,
-    getRecommendationConfig,
-} from './recommendations'
-
 export { getAutoplayStats, shouldEnableAutoplay } from './stats'
 
 export {
