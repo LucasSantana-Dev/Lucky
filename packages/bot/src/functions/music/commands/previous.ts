@@ -39,10 +39,11 @@ async function handleNotPlaying(
 async function playPreviousTrack(
     queue: GuildQueue,
     guildId: string,
-): Promise<void> {
+): Promise<boolean> {
     // discord-player's history.previous() throws NoResultError when history is empty
     // Per #1239: when no previous track, restart current track from beginning
-    if (queue.history.isEmpty()) {
+    const historyWasEmpty = queue.history.isEmpty()
+    if (historyWasEmpty) {
         const currentTrack = queue.currentTrack
         if (currentTrack) {
             await queue.node.seek(0)
@@ -66,11 +67,14 @@ async function playPreviousTrack(
             }
         })()
     }, 500)
+
+    return historyWasEmpty
 }
 
 async function sendPreviousSuccess(
     interaction: ChatInputCommandInteraction,
     queue: GuildQueue,
+    historyWasEmpty: boolean,
 ): Promise<void> {
     const currentTrack = queue.currentTrack
 
@@ -89,9 +93,12 @@ async function sendPreviousSuccess(
         return
     }
 
+    const title = historyWasEmpty
+        ? '⏮️ Restarting track'
+        : '⏮️ Playing previous track'
     const trackEmbed = buildCommandTrackEmbed(
         currentTrack,
-        '⏮️ Playing previous track',
+        title,
         interaction.user,
     )
     await interactionReply({ interaction, content: { embeds: [trackEmbed] } })
@@ -136,8 +143,8 @@ export default new Command({
         }
 
         try {
-            await playPreviousTrack(queue, interaction.guildId ?? '')
-            await sendPreviousSuccess(interaction, queue)
+            const historyWasEmpty = await playPreviousTrack(queue, interaction.guildId ?? '')
+            await sendPreviousSuccess(interaction, queue, historyWasEmpty)
         } catch (error) {
             await handlePreviousError(error, interaction)
         }
