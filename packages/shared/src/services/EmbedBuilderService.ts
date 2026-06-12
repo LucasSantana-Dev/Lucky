@@ -136,15 +136,11 @@ export class EmbedBuilderService {
         name: string,
         updates: Partial<EmbedData & { description: string }>,
     ): Promise<EmbedTemplate> {
-        const existing = await prisma.embedTemplate.findFirst({
-            where: { guildId, name },
-        })
-        if (!existing) {
-            throw new Error(`Template "${name}" not found in guild ${guildId}`)
-        }
+        const normalizedName = name.toLowerCase()
         const { fields, ...rest } = updates
-        return await prisma.embedTemplate.update({
-            where: { id: existing.id },
+
+        const result = await prisma.embedTemplate.updateMany({
+            where: { guildId, name: normalizedName },
             data: {
                 ...rest,
                 ...(fields && {
@@ -152,29 +148,44 @@ export class EmbedBuilderService {
                 }),
             },
         })
+
+        if (result.count === 0) {
+            throw new Error(`Template "${name}" not found in guild ${guildId}`)
+        }
+
+        // Fetch and return the updated template
+        const updated = await prisma.embedTemplate.findUnique({
+            where: {
+                guildId_name: {
+                    guildId,
+                    name: normalizedName,
+                },
+            },
+        })
+
+        if (!updated) {
+            throw new Error(`Template "${name}" not found in guild ${guildId}`)
+        }
+
+        return updated
     }
 
     /** Deletes an embed template from the database. */
     async deleteTemplate(guildId: string, name: string): Promise<void> {
-        const existing = await prisma.embedTemplate.findFirst({
-            where: { guildId, name },
+        const normalizedName = name.toLowerCase()
+        const result = await prisma.embedTemplate.deleteMany({
+            where: { guildId, name: normalizedName },
         })
-        if (!existing) {
+        if (result.count === 0) {
             throw new Error(`Template "${name}" not found in guild ${guildId}`)
         }
-        await prisma.embedTemplate.delete({
-            where: { id: existing.id },
-        })
     }
 
     /** Increments the usage count of an embed template. */
     async incrementUsage(guildId: string, name: string): Promise<void> {
-        const existing = await prisma.embedTemplate.findFirst({
-            where: { guildId, name },
-        })
-        if (!existing) return
-        await prisma.embedTemplate.update({
-            where: { id: existing.id },
+        const normalizedName = name.toLowerCase()
+        await prisma.embedTemplate.updateMany({
+            where: { guildId, name: normalizedName },
             data: { useCount: { increment: 1 } },
         })
     }
