@@ -118,6 +118,7 @@ async function notifyStaffChannel(
                     // so a report body can't ping @everyone/@here/roles in staff.
                     allowed_mentions: { parse: [] },
                 }),
+                signal: AbortSignal.timeout(10_000),
             },
         )
 

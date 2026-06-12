@@ -84,6 +84,7 @@ async function signedPost(
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: form,
+        signal: AbortSignal.timeout(15_000),
     })
     if (!res.ok) {
         const text = await res.text()
@@ -183,6 +184,7 @@ export async function getTrackMetadata(
         try {
             const response = await fetch(
                 `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(lookupArtist)}&track=${encodeURIComponent(trimmedTitle)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
+                { signal: AbortSignal.timeout(15_000) },
             )
             if (!response.ok) {
                 debugLog({
@@ -277,7 +279,9 @@ export async function getTopTracks(
         format: 'json',
     })
     try {
-        const res = await fetch(`${API_BASE}?${params.toString()}`)
+        const res = await fetch(`${API_BASE}?${params.toString()}`, {
+            signal: AbortSignal.timeout(15_000),
+        })
         if (!res.ok) return []
         const data = (await res.json()) as {
             toptracks?: {
@@ -373,6 +377,7 @@ export async function getRecentTracks(
     try {
         const response = await fetch(
             `${API_BASE}?method=user.getrecenttracks&user=${encodeURIComponent(lastFmUsername)}&limit=${limit}&format=json&api_key=${config.apiKey}`,
+            { signal: AbortSignal.timeout(15_000) },
         )
         if (!response.ok) {
             debugLog({
@@ -442,6 +447,7 @@ export async function getArtistTopTags(
         try {
             const response = await fetch(
                 `${API_BASE}?method=artist.gettoptags&artist=${encodeURIComponent(trimmed)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
+                { signal: AbortSignal.timeout(15_000) },
             )
             if (!response.ok) return []
             const data = (await response.json()) as {
@@ -493,6 +499,7 @@ export async function getSimilarTracks(
     try {
         const response = await fetch(
             `${API_BASE}?method=track.getSimilar&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&limit=${limit}&autocorrect=1&format=json&api_key=${config.apiKey}`,
+            { signal: AbortSignal.timeout(15_000) },
         )
         if (!response.ok) {
             debugLog({
@@ -533,6 +540,7 @@ export async function getTagTopTracks(
     try {
         const response = await fetch(
             `${API_BASE}?method=tag.getTopTracks&tag=${encodeURIComponent(tag)}&limit=${limit}&format=json&api_key=${config.apiKey}`,
+            { signal: AbortSignal.timeout(15_000) },
         )
         if (!response.ok) {
             debugLog({
@@ -571,6 +579,7 @@ export async function getLovedTracks(
     try {
         const response = await fetch(
             `${API_BASE}?method=user.getlovedtracks&user=${encodeURIComponent(username)}&limit=${limit}&format=json&api_key=${config.apiKey}`,
+            { signal: AbortSignal.timeout(15_000) },
         )
         if (!response.ok) {
             debugLog({
