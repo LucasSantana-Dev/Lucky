@@ -73,6 +73,26 @@ model Guild {
   sessionSnapshot     MusicSessionSnapshot?
   counter             GuildCounter?
   trackFeedback       UserTrackFeedback[]
+  roleGrants          GuildRoleGrant[]
+  automationManifest  GuildAutomationManifest?
+  automationRuns      GuildAutomationRun[]
+  automationDrifts    GuildAutomationDrift[]
+  downloads           Download[]
+  roleExclusions      RoleExclusion[]
+  moderationCases     ModerationCase[]
+  moderationSettings  ModerationSettings?
+  autoModSettings     AutoModSettings?
+  embedTemplates      EmbedTemplate[]
+  autoMessages        AutoMessage[]
+  customCommands      CustomCommand[]
+  serverLogs          ServerLog[]
+  starboardEntries    StarboardEntry[]
+  levelConfig         LevelConfig?
+  memberXPs           MemberXP[]
+  levelRewards        LevelReward[]
+  autoRoles           AutoRole[]
+  memberBirthdays     MemberBirthday[]
+  subscription        GuildSubscription?
 
   @@map("guilds")
 }
@@ -100,7 +120,7 @@ model GuildMembershipEvent {
 model GuildFeatureToggle {
   id      String  @id @default(cuid())
   guildId String
-  guild   Guild   @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guild   Guild   @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   name    String
   enabled Boolean
 
@@ -120,7 +140,7 @@ model GlobalFeatureToggle {
 model TwitchNotification {
   id               String   @id @default(cuid())
   guildId          String
-  guild            Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guild            Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   twitchUserId     String
   twitchLogin      String
   discordChannelId String
@@ -140,7 +160,7 @@ enum AutoplayMode {
 model GuildSettings {
   id      String @id @default(cuid())
   guildId String @unique
-  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guild   Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
 
   // Music settings
   defaultVolume   Int          @default(50)
@@ -166,9 +186,9 @@ model GuildSettings {
   downloadCooldown Int @default(10) // seconds
 
   // DJ / moderation
-  djRoleId          String?
-  idleTimeoutMinutes Int?   @default(0) // 0 = no idle disconnect
-  voteSkipThreshold  Int?   @default(50) // percent of listeners required
+  djRoleId           String?
+  idleTimeoutMinutes Int?    @default(0) // 0 = no idle disconnect
+  voteSkipThreshold  Int?    @default(50) // percent of listeners required
 
   // Birthday announcement channel — if null, the scheduler skips the guild.
   birthdayChannelId String?
@@ -186,6 +206,7 @@ model GuildSettings {
 model GuildRoleGrant {
   id      String @id @default(cuid())
   guildId String
+  guild   Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   roleId  String
   module  String
   mode    String
@@ -201,6 +222,7 @@ model GuildRoleGrant {
 model GuildAutomationManifest {
   id                String    @id @default(cuid())
   guildId           String    @unique
+  guild             Guild     @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   version           Int       @default(1)
   manifest          Json
   moduleOwnership   Json?
@@ -217,6 +239,7 @@ model GuildAutomationManifest {
 model GuildAutomationRun {
   id                  String    @id @default(cuid())
   guildId             String
+  guild               Guild     @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   manifestId          String?
   type                String
   status              String
@@ -238,6 +261,7 @@ model GuildAutomationRun {
 model GuildAutomationDrift {
   id        String   @id @default(cuid())
   guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   module    String
   drift     Json
   severity  String   @default("none")
@@ -256,7 +280,7 @@ model GuildAutomationDrift {
 model GuildSession {
   id      String @id @default(cuid())
   guildId String
-  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guild   Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
 
   // Queue session data
   currentTrack   Json? // Current playing track
@@ -372,7 +396,7 @@ model CommandUsage {
   userId  String?
   guildId String?
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-  guild   Guild?  @relation(fields: [guildId], references: [id], onDelete: SetNull)
+  guild   Guild?  @relation(fields: [guildId], references: [discordId], onDelete: SetNull)
 
   command   String
   category  String
@@ -405,6 +429,7 @@ model Download {
   id      String @id @default(cuid())
   userId  String
   guildId String
+  guild   Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
 
   // Download data
   url     String
@@ -462,8 +487,8 @@ model UserTrackFeedback {
   createdAt     DateTime @default(now())
 
   // Relations
-  user  User   @relation(fields: [discordUserId], references: [discordId], onDelete: Cascade)
-  guild Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  user  User  @relation(fields: [discordUserId], references: [discordId], onDelete: Cascade)
+  guild Guild @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
 
   @@unique([discordUserId, guildId, trackKey])
   @@index([discordUserId, guildId])
@@ -601,6 +626,7 @@ model SpotifyLink {
 model RoleExclusion {
   id             String   @id @default(cuid())
   guildId        String
+  guild          Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   roleId         String // Role that triggers exclusion
   excludedRoleId String // Role to be removed
   createdAt      DateTime @default(now())
@@ -616,6 +642,7 @@ model ModerationCase {
   id             String    @id @default(cuid())
   caseNumber     Int
   guildId        String
+  guild          Guild     @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   userId         String
   username       String    @default("Unknown")
   moderatorId    String
@@ -646,6 +673,7 @@ model ModerationCase {
 model ModerationSettings {
   id              String   @id @default(cuid())
   guildId         String   @unique
+  guild           Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   modLogChannelId String?
   muteRoleId      String?
   modRoleIds      String[] @default([])
@@ -664,6 +692,7 @@ model ModerationSettings {
 model AutoModSettings {
   id                 String   @id @default(cuid())
   guildId            String   @unique
+  guild              Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   enabled            Boolean  @default(false)
   spamEnabled        Boolean  @default(false)
   spamThreshold      Int      @default(5)
@@ -687,6 +716,7 @@ model AutoModSettings {
 model EmbedTemplate {
   id          String   @id @default(cuid())
   guildId     String
+  guild       Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   name        String
   title       String?
   description String?
@@ -708,6 +738,7 @@ model EmbedTemplate {
 model AutoMessage {
   id           String    @id @default(cuid())
   guildId      String
+  guild        Guild     @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   type         String // "welcome", "leave", "auto_response", "scheduled"
   channelId    String?
   message      String?
@@ -729,6 +760,7 @@ model AutoMessage {
 model CustomCommand {
   id              String    @id @default(cuid())
   guildId         String
+  guild           Guild     @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   name            String
   description     String?
   response        String?
@@ -751,6 +783,7 @@ model CustomCommand {
 model ServerLog {
   id          String   @id @default(cuid())
   guildId     String
+  guild       Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   type        String // "member_join", "member_leave", "message_delete", etc.
   action      String?
   userId      String?
@@ -781,6 +814,7 @@ model StarboardConfig {
 model StarboardEntry {
   id             String   @id @default(cuid())
   guildId        String
+  guild          Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   messageId      String
   channelId      String
   authorId       String
@@ -798,6 +832,7 @@ model StarboardEntry {
 model LevelConfig {
   id              String   @id @default(cuid())
   guildId         String   @unique
+  guild           Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   enabled         Boolean  @default(true)
   xpPerMessage    Int      @default(15)
   xpCooldownMs    Int      @default(60000)
@@ -811,13 +846,14 @@ model LevelConfig {
 model MemberXP {
   id          String   @id @default(cuid())
   guildId     String
+  guild       Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   userId      String
   displayName String?
   xp          Int      @default(0)
   level       Int      @default(0)
   lastXpAt    DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([guildId, userId])
   @@index([guildId])
@@ -827,6 +863,7 @@ model MemberXP {
 model LevelReward {
   id      String @id @default(cuid())
   guildId String
+  guild   Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   level   Int
   roleId  String
 
@@ -850,6 +887,7 @@ model LiveBoard {
 model AutoRole {
   id           String   @id @default(cuid())
   guildId      String
+  guild        Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   roleId       String
   delayMinutes Int      @default(0)
   createdAt    DateTime @default(now())
@@ -865,6 +903,7 @@ model AutoRole {
 model MemberBirthday {
   id        String   @id @default(cuid())
   guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   userId    String
   month     Int // 1-12
   day       Int // 1-31
@@ -882,6 +921,7 @@ model MemberBirthday {
 model GuildSubscription {
   id                   String    @id @default(cuid())
   guildId              String    @unique
+  guild                Guild     @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   stripeCustomerId     String?
   stripeSubscriptionId String?   @unique
   status               String
@@ -914,18 +954,18 @@ model StripeWebhookEvent {
 // Images are stored as Bytes (capped at validation limit, currently 5 MB).
 // Status tracks triage workflow: new → triaged → promoted (to issue) → dismissed.
 model SupportReport {
-  id              String   @id @default(cuid())
-  createdAt       DateTime @default(now())
-  context         String   // free-text user context ("what I was doing")
-  image           Bytes?   // capped image bytes (nullable)
-  imageMimeType   String?  // "image/png" | "image/jpeg" | "image/webp" (nullable)
-  correlationId   String?  // short, URL-safe correlation ID; indexed for cross-reference with logs
-  guildId         String?  // guild that submitted the report (nullable, for web reports)
-  surface         String   // "bot" | "web" — where the error was encountered
-  errorCategory   String?  // light categorization hint ("playback-error", "command-error", etc.)
-  status          String   @default("new") // "new" | "triaged" | "promoted" | "dismissed"
-  rateLimitKey    String?  // opaque key for rate-limiting; never raw IP/PII
-  submissionKey   String?  @unique // client-generated dedup key; replayed submits return the original report (#1319)
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  context       String // free-text user context ("what I was doing")
+  image         Bytes? // capped image bytes (nullable)
+  imageMimeType String? // "image/png" | "image/jpeg" | "image/webp" (nullable)
+  correlationId String? // short, URL-safe correlation ID; indexed for cross-reference with logs
+  guildId       String? // guild that submitted the report (nullable, for web reports)
+  surface       String // "bot" | "web" — where the error was encountered
+  errorCategory String? // light categorization hint ("playback-error", "command-error", etc.)
+  status        String   @default("new") // "new" | "triaged" | "promoted" | "dismissed"
+  rateLimitKey  String? // opaque key for rate-limiting; never raw IP/PII
+  submissionKey String?  @unique // client-generated dedup key; replayed submits return the original report (#1319)
 
   @@index([correlationId])
   @@index([guildId])
