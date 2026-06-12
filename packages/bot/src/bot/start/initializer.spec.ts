@@ -19,6 +19,7 @@ const musicWatchdogStopMock = jest.fn()
 const musicWatchdogStopPeriodicScanMock = jest.fn()
 const startMetricsServerMock = jest.fn()
 const stopMetricsServerMock = jest.fn().mockResolvedValue(undefined)
+const setupWebMusicHandlerMock = jest.fn().mockResolvedValue(undefined)
 const stopWebMusicHandlerMock = jest.fn()
 const birthdaySchedulerStopMock = jest.fn()
 const modDigestSchedulerStopMock = jest.fn()
@@ -71,6 +72,8 @@ jest.mock('../../utils/music/watchdog', () => ({
 }))
 
 jest.mock('../../handlers/webMusic', () => ({
+    setupWebMusicHandler: (...args: unknown[]) =>
+        setupWebMusicHandlerMock(...args),
     stopWebMusicHandler: (...args: unknown[]) =>
         stopWebMusicHandlerMock(...args),
 }))
