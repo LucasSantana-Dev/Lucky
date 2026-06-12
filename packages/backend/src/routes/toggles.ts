@@ -5,6 +5,8 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { getFeatureToggleConfig } from '@lucky/shared/config'
 import type { FeatureToggleName } from '@lucky/shared/types'
+import { validateBody, validateParams } from '../middleware/validate'
+import { togglesSchemas as s } from '../schemas/toggles'
 
 export function setupToggleRoutes(app: Express): void {
     // All /api/toggles/global routes are pre-guarded by requireAdmin in index.ts
@@ -32,14 +34,11 @@ export function setupToggleRoutes(app: Express): void {
 
     app.get(
         '/api/toggles/global/:name',
+        validateParams(s.toggleNameParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const toggleName =
-                typeof req.params.name === 'string'
-                    ? req.params.name
-                    : req.params.name[0]
+            const toggleName = req.params.name
 
             if (
-                !toggleName ||
                 !featureToggleService
                     .getAllToggles()
                     .has(toggleName as FeatureToggleName)
@@ -62,19 +61,13 @@ export function setupToggleRoutes(app: Express): void {
 
     app.post(
         '/api/toggles/global/:name',
+        validateParams(s.toggleNameParam),
+        validateBody(s.toggleEnabledBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const toggleName =
-                typeof req.params.name === 'string'
-                    ? req.params.name
-                    : req.params.name[0]
-            const { enabled } = req.body as { enabled?: unknown }
-
-            if (typeof enabled !== 'boolean') {
-                throw AppError.badRequest('Enabled must be a boolean')
-            }
+            const toggleName = req.params.name
+            const { enabled } = req.body
 
             if (
-                !toggleName ||
                 !featureToggleService
                     .getAllToggles()
                     .has(toggleName as FeatureToggleName)

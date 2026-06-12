@@ -48,6 +48,12 @@ jest.mock('../../../src/middleware/rateLimit', () => ({
     writeLimiter: (_req: any, _res: any, next: any) => next?.(),
 }))
 
+jest.mock('../../../src/middleware/validate', () => ({
+    validateBody: (schema: any) => (_req: any, _res: any, next: any) => next?.(),
+    validateQuery: (schema: any) => (_req: any, _res: any, next: any) => next?.(),
+    validateParams: (schema: any) => (_req: any, _res: any, next: any) => next?.(),
+}))
+
 jest.mock('../../../src/middleware/auth', () => ({
     requireAuth: (_req: any, _res: any, next: any) => next?.(),
 }))
