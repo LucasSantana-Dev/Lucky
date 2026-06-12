@@ -899,6 +899,7 @@ model SupportReport {
   errorCategory   String?  // light categorization hint ("playback-error", "command-error", etc.)
   status          String   @default("new") // "new" | "triaged" | "promoted" | "dismissed"
   rateLimitKey    String?  // opaque key for rate-limiting; never raw IP/PII
+  submissionKey   String?  @unique // client-generated dedup key; replayed submits return the original report (#1319)
 
   @@index([correlationId])
   @@index([guildId])
