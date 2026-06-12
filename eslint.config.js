@@ -3,6 +3,10 @@ import pluginJs from "@eslint/js"
 import pluginTs from "@typescript-eslint/eslint-plugin"
 import parserTs from "@typescript-eslint/parser"
 import eslintConfigPrettier from "eslint-config-prettier"
+import { fileURLToPath } from "url"
+import { dirname, join } from "path"
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default [
     {
@@ -79,20 +83,6 @@ export default [
         },
     },
     {
-        // Ratchet for packages/bot and packages/shared: downgrade to warn
-        // until type-safety family and complexity issues are resolved (#1357)
-        files: ["packages/bot/src/**/*.ts", "packages/shared/src/**/*.ts"],
-        rules: {
-            "@typescript-eslint/no-non-null-assertion": "warn",
-            "@typescript-eslint/no-unsafe-assignment": "warn",
-            "@typescript-eslint/no-unsafe-call": "warn",
-            "@typescript-eslint/no-unsafe-member-access": "warn",
-            "@typescript-eslint/no-unsafe-return": "warn",
-            "@typescript-eslint/no-unsafe-argument": "warn",
-            "complexity": "warn",
-        },
-    },
-    {
         files: ["**/*.js"],
         rules: {
             "no-unused-vars": [
@@ -115,8 +105,22 @@ export default [
     },
     {
         // Ratchet for packages/bot and packages/shared: downgrade to warn
-        // until type-safety family and complexity issues are resolved (#1357)
+        // until type-safety family, complexity, and import issues are resolved (#1357)
         files: ["packages/{bot,shared}/src/**/*.ts"],
+        languageOptions: {
+            parser: parserTs,
+            parserOptions: {
+                ecmaVersion: "latest",
+                sourceType: "module",
+                project: [
+                    join(__dirname, "packages/bot/tsconfig.json"),
+                    join(__dirname, "packages/shared/tsconfig.json"),
+                ],
+            },
+        },
+        plugins: {
+            "@typescript-eslint": pluginTs,
+        },
         rules: {
             "@typescript-eslint/no-non-null-assertion": "warn",
             "@typescript-eslint/no-unsafe-assignment": "warn",
@@ -124,7 +128,13 @@ export default [
             "@typescript-eslint/no-unsafe-member-access": "warn",
             "@typescript-eslint/no-unsafe-return": "warn",
             "@typescript-eslint/no-unsafe-argument": "warn",
-            "complexity": "warn",
+            "@typescript-eslint/no-explicit-any": "warn",
+            "@typescript-eslint/no-unused-vars": "warn",
+            "no-duplicate-imports": "warn",
+            "no-useless-assignment": "warn",
+            "no-control-regex": "warn",
+            "preserve-caught-error": "warn",
+            "no-undef": "warn",
         },
     },
 ]

@@ -70,7 +70,7 @@
         "test": "jest",
         "test:ci": "jest --ci",
         "docs:check": "node check-docs-coverage.mjs",
-        "lint": "eslint . -c eslint.config.js",
+        "lint": "eslint . -c ../../eslint.config.js",
         "lint:fix": "npm run lint -- --fix"
     },
     "dependencies": {

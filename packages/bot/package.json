@@ -14,7 +14,7 @@
         "type:check": "npm run preflight && tsc --noEmit",
         "test": "jest",
         "test:coverage": "jest --coverage",
-        "lint": "eslint . -c eslint.config.js",
+        "lint": "eslint . -c ../../eslint.config.js",
         "lint:fix": "npm run lint -- --fix"
     },
     "dependencies": {
