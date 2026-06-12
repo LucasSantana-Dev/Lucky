@@ -40,14 +40,24 @@ async function playPreviousTrack(
     queue: GuildQueue,
     guildId: string,
 ): Promise<void> {
-    // discord-player's history.previous() restarts current track if no previous
-    // (preserveCurrent=true by default), which is the desired behavior
-    await queue.history.previous(true)
-    clearSessionMoodCache(guildId)
+    // discord-player's history.previous() throws NoResultError when history is empty
+    // Per #1239: when no previous track, restart current track from beginning
+    if (queue.history.isEmpty()) {
+        const currentTrack = queue.currentTrack
+        if (currentTrack) {
+            await queue.node.seek(0)
+            debugLog({
+                message: `Restarted current track in guild ${guildId}`,
+            })
+        }
+    } else {
+        await queue.history.previous(true)
+        debugLog({
+            message: `Played previous track in guild ${guildId}`,
+        })
+    }
 
-    debugLog({
-        message: `Played previous track in guild ${guildId}`,
-    })
+    clearSessionMoodCache(guildId)
 
     setTimeout(() => {
         void (async () => {
