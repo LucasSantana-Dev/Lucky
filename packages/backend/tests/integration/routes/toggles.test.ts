@@ -16,8 +16,9 @@ jest.mock('../../../src/services/SessionService', () => ({
     },
 }))
 
-jest.mock('../../../src/utils/developerAccess', () => ({
+jest.mock('../../../src/middleware/requireAdmin', () => ({
     isDeveloperUser: (userId?: string) => userId === '123456789',
+    requireAdmin: jest.requireActual('../../../src/middleware/requireAdmin').requireAdmin,
 }))
 
 const mockSetGuildFeatureToggle = jest.fn<any>().mockResolvedValue(undefined)
