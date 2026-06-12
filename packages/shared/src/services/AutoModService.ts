@@ -284,9 +284,8 @@ export class AutoModService {
             throw new AutoModTemplateNotFoundError(templateId)
         }
 
-        const current =
-            (await this.getSettings(guildId)) ??
-            (await this.createSettings(guildId))
+        // Get or create settings atomically via upsert
+        const current = await this.updateSettings(guildId, {})
         const mergedAllowedDomains = [
             ...new Set([
                 ...current.allowedDomains,
