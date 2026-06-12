@@ -1,19 +1,23 @@
-const replenishSuppressedUntil = new Map<string, number>()
+import { LRUCache } from 'lru-cache'
+
+// Store suppression state with TTL. Max 10k guilds to prevent unbounded growth.
+// Suppression duration varies (typically 5-30 min), use 1 hour TTL as upper bound.
+const replenishSuppressedUntil = new LRUCache<string, boolean>({
+    max: 10_000,
+    ttl: 60 * 60 * 1000, // 1 hour
+})
 
 export function setReplenishSuppressed(guildId: string, ms: number): void {
     if (ms <= 0) {
         replenishSuppressedUntil.delete(guildId)
     } else {
-        replenishSuppressedUntil.set(guildId, Date.now() + ms)
+        // Store a boolean flag; lru-cache handles TTL automatically.
+        // We set a per-entry TTL to match the suppression duration.
+        replenishSuppressedUntil.set(guildId, true, { ttl: ms })
     }
 }
 
 export function isReplenishSuppressed(guildId: string): boolean {
-    const suppressedUntil = replenishSuppressedUntil.get(guildId)
-    if (!suppressedUntil) return false
-    if (Date.now() >= suppressedUntil) {
-        replenishSuppressedUntil.delete(guildId)
-        return false
-    }
-    return true
+    // lru-cache automatically expires and deletes entries; .has() respects expiry.
+    return replenishSuppressedUntil.has(guildId)
 }
