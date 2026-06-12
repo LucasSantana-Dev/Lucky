@@ -21,8 +21,9 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  preferences  UserPreferences?
-  commandUsage CommandUsage[]
+  preferences   UserPreferences?
+  commandUsage  CommandUsage[]
+  trackFeedback UserTrackFeedback[]
 
   @@map("users")
 }
@@ -71,6 +72,7 @@ model Guild {
   namedQueues         NamedQueue[]
   sessionSnapshot     MusicSessionSnapshot?
   counter             GuildCounter?
+  trackFeedback       UserTrackFeedback[]
 
   @@map("guilds")
 }
@@ -458,6 +460,10 @@ model UserTrackFeedback {
   updatedAt     DateTime @updatedAt
   expiresAt     DateTime // when this feedback expires (TTL)
   createdAt     DateTime @default(now())
+
+  // Relations
+  user  User   @relation(fields: [discordUserId], references: [discordId], onDelete: Cascade)
+  guild Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
 
   @@unique([discordUserId, guildId, trackKey])
   @@index([discordUserId, guildId])
