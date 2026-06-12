@@ -3,6 +3,23 @@
     "outputDirectory": "packages/frontend/dist",
     "installCommand": "YOUTUBE_DL_SKIP_DOWNLOAD=true npm ci",
     "framework": "vite",
+    "headers": [
+        {
+            "source": "/(.*)",
+            "headers": [
+                { "key": "X-Frame-Options", "value": "DENY" },
+                { "key": "X-Content-Type-Options", "value": "nosniff" },
+                {
+                    "key": "Referrer-Policy",
+                    "value": "strict-origin-when-cross-origin"
+                },
+                {
+                    "key": "Content-Security-Policy-Report-Only",
+                    "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://cdn.discordapp.com https://cdn.discord.com; connect-src 'self' https://lucky-api.lucassantana.tech https://api.luk-homeserver.com.br https://*.sentry.io; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+                }
+            ]
+        }
+    ],
     "rewrites": [
         {
             "source": "/api/:path*",
