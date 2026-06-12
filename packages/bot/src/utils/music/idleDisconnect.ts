@@ -1,6 +1,6 @@
 import type { GuildQueue } from 'discord-player'
 import { guildSettingsService } from '@lucky/shared/services'
-import { debugLog } from '@lucky/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 import { musicWatchdogService } from './watchdog'
 import { collaborativePlaylistService } from './collaborativePlaylist'
 import type { QueueMetadata } from '../../types/QueueMetadata'
@@ -30,7 +30,12 @@ export function scheduleIdleDisconnect(queue: GuildQueue): void {
         )
 
         idleTimers.set(guildId, timer)
-    })()
+    })().catch((error: unknown) => {
+        errorLog({
+            message: `Failed to schedule idle disconnect in guild ${guildId}`,
+            error,
+        })
+    })
 }
 
 export function clearIdleTimer(guildId: string): void {
