@@ -2,13 +2,11 @@ import type {
     DatabaseUser,
     DatabaseGuild,
     DatabaseTrackHistory,
-    DatabaseCommandUsage,
 } from './types'
 import type {
     UserModel,
     GuildModel,
     TrackHistoryModel,
-    CommandUsageModel,
 } from './models'
 
 export function toUser(user: UserModel): DatabaseUser {
@@ -75,23 +73,6 @@ export function toTrackHistory(track: TrackHistoryModel): DatabaseTrackHistory {
     }
 }
 
-export function toCommandUsage(usage: CommandUsageModel): DatabaseCommandUsage {
-    return {
-        id: String(usage.id),
-        userId: usage.userId ? String(usage.userId) : null,
-        guildId: usage.guildId ? String(usage.guildId) : null,
-        command: String(usage.command),
-        category: String(usage.category),
-        success: Boolean(usage.success),
-        errorCode: usage.errorCode ? String(usage.errorCode) : null,
-        duration: usage.duration ? Number(usage.duration) : null,
-        createdAt:
-            usage.createdAt instanceof Date
-                ? usage.createdAt
-                : new Date(usage.createdAt),
-    }
-}
-
 export const EMPTY_USER: DatabaseUser = {
     id: '',
     discordId: '',
@@ -129,16 +110,4 @@ export const EMPTY_TRACK_HISTORY: DatabaseTrackHistory = {
     playDuration: null,
     skipped: false,
     isPlaylist: false,
-}
-
-export const EMPTY_COMMAND_USAGE: DatabaseCommandUsage = {
-    id: '',
-    userId: null,
-    guildId: null,
-    command: '',
-    category: '',
-    success: false,
-    errorCode: null,
-    duration: null,
-    createdAt: new Date(),
 }

@@ -39,17 +39,6 @@ export type TrackHistoryModel = {
     isPlaylist: boolean | null
 }
 
-export type CommandUsageModel = {
-    id: string
-    userId: string | null
-    guildId: string | null
-    command: string
-    category: string
-    success: boolean
-    errorCode: string | null
-    duration: number | null
-    createdAt: Date
-}
 
 function assertIsUserModel(value: unknown): asserts value is UserModel {
     if (
@@ -86,18 +75,6 @@ function assertIsTrackHistoryModel(
     }
 }
 
-function assertIsCommandUsageModel(
-    value: unknown,
-): asserts value is CommandUsageModel {
-    if (
-        !value ||
-        typeof value !== 'object' ||
-        !('id' in value) ||
-        !('command' in value)
-    ) {
-        throw new Error('Invalid CommandUsageModel')
-    }
-}
 
 export function assertIsArray<T>(value: unknown): asserts value is T[] {
     if (!Array.isArray(value)) {
@@ -178,14 +155,6 @@ export async function typedTrackHistoryFindMany(
     return result
 }
 
-export async function typedCommandUsageCreate(
-    prisma: PrismaClient,
-    params: Parameters<PrismaClient['commandUsage']['create']>[0],
-): Promise<CommandUsageModel> {
-    const result: unknown = await prisma.commandUsage.create(params)
-    assertIsCommandUsageModel(result)
-    return result
-}
 
 export async function typedRateLimitFindUnique(
     prisma: PrismaClient,

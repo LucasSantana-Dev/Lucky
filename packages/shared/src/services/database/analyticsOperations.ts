@@ -58,16 +58,3 @@ export async function queryTopArtists(
     )
 }
 
-export async function cleanupOldRecords(prisma: PrismaClient): Promise<number> {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    const [tracks, usage, rateLimits] = await Promise.all([
-        prisma.trackHistory.deleteMany({
-            where: { playedAt: { lt: thirtyDaysAgo } },
-        }),
-        prisma.commandUsage.deleteMany({
-            where: { createdAt: { lt: thirtyDaysAgo } },
-        }),
-        prisma.rateLimit.deleteMany({ where: { resetAt: { lt: new Date() } } }),
-    ])
-    return tracks.count + usage.count + rateLimits.count
-}
