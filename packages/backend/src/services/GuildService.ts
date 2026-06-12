@@ -334,16 +334,18 @@ class GuildService {
                 await Promise.all([
                     fetch(
                         `${DISCORD_API_BASE_URL}/guilds/${guildId}?with_counts=true`,
-                        { headers },
+                        { headers, signal: AbortSignal.timeout(10_000) },
                     ),
                     fetch(
                         `${DISCORD_API_BASE_URL}/guilds/${guildId}/channels`,
                         {
                             headers,
+                            signal: AbortSignal.timeout(10_000),
                         },
                     ),
                     fetch(`${DISCORD_API_BASE_URL}/guilds/${guildId}/roles`, {
                         headers,
+                        signal: AbortSignal.timeout(10_000),
                     }),
                 ])
 
@@ -450,6 +452,7 @@ class GuildService {
                     headers: {
                         Authorization: `Bot ${token}`,
                     },
+                    signal: AbortSignal.timeout(10_000),
                 },
             )
 
@@ -513,6 +516,7 @@ class GuildService {
                     headers: {
                         Authorization: `Bot ${token}`,
                     },
+                    signal: AbortSignal.timeout(10_000),
                 },
             )
 

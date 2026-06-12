@@ -32,6 +32,7 @@ export async function sendDependencyWebhook(
                     },
                 ],
             }),
+            signal: AbortSignal.timeout(10_000),
         })
 
         if (!response.ok) {

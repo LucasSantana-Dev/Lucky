@@ -20,6 +20,7 @@ export async function getTwitchUserByLogin(login: string): Promise<TwitchUser | 
         Authorization: `Bearer ${token}`,
         'Client-Id': clientId,
       },
+      signal: AbortSignal.timeout(10_000),
     })
     if (!res.ok) return null
     const json = (await res.json()) as { data: Array<{ id: string; login: string; display_name: string }> }

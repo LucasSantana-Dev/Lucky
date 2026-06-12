@@ -175,6 +175,7 @@ class DiscordOAuthService {
                     code,
                     redirect_uri: redirectUri ?? this.getRedirectUri(),
                 }),
+                signal: AbortSignal.timeout(10_000),
             })
 
             if (!response.ok) {
@@ -201,6 +202,7 @@ class DiscordOAuthService {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
                 },
+                signal: AbortSignal.timeout(10_000),
             })
 
             if (!response.ok) {
@@ -234,6 +236,7 @@ class DiscordOAuthService {
                 const response = await withTimeout(
                     fetch(`${this.apiBaseUrl}${endpoint}`, {
                         headers: { Authorization: `Bearer ${accessToken}` },
+                        signal: AbortSignal.timeout(10_000),
                     }),
                     this.restTimeoutMs,
                     `discord ${endpoint}`,
@@ -319,6 +322,7 @@ class DiscordOAuthService {
                     grant_type: 'refresh_token',
                     refresh_token: refreshToken,
                 }),
+                signal: AbortSignal.timeout(10_000),
             })
 
             if (!response.ok) {

@@ -47,6 +47,7 @@ async function getAppAccessToken(
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: body.toString(),
+            signal: AbortSignal.timeout(10_000),
         })
         if (!res.ok) return null
         const data = (await res.json()) as {
@@ -71,6 +72,7 @@ async function fetchTwitchUser(
     const url = `https://api.twitch.tv/helix/users?login=${encodeURIComponent(login)}`
     const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}`, 'Client-Id': clientId },
+        signal: AbortSignal.timeout(10_000),
     })
     if (!res.ok) return { user: null, status: res.status }
     const json = (await res.json()) as { data: TwitchUser[] }

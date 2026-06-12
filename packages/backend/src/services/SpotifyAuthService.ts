@@ -10,7 +10,10 @@ async function fetchJson<T>(
     url: string,
     init: Parameters<typeof fetch>[1],
 ): Promise<T | null> {
-    const res = await fetch(url, init)
+    const res = await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(10_000),
+    })
     if (!res.ok) return null
     return res.json().catch(() => null) as Promise<T | null>
 }
