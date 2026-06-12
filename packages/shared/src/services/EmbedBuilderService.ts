@@ -139,35 +139,36 @@ export class EmbedBuilderService {
         const normalizedName = name.toLowerCase()
         const { fields, ...rest } = updates
 
-        const result = await prisma.embedTemplate.updateMany({
-            where: { guildId, name: normalizedName },
-            data: {
-                ...rest,
-                ...(fields && {
-                    fields: fields as unknown as Prisma.InputJsonValue,
-                }),
-            },
-        })
-
-        if (result.count === 0) {
-            throw new Error(`Template "${name}" not found in guild ${guildId}`)
-        }
-
-        // Fetch and return the updated template
-        const updated = await prisma.embedTemplate.findUnique({
-            where: {
-                guildId_name: {
-                    guildId,
-                    name: normalizedName,
+        try {
+            // Single atomic update on the compound unique key: returns the
+            // updated row without a separate read-back that could observe a
+            // concurrent write or deletion.
+            return await prisma.embedTemplate.update({
+                where: { guildId_name: { guildId, name: normalizedName } },
+                data: {
+                    ...rest,
+                    ...(fields && {
+                        fields: fields as unknown as Prisma.InputJsonValue,
+                    }),
                 },
-            },
-        })
+            })
+        } catch (error) {
+            const code =
+                typeof error === 'object' &&
+                error !== null &&
+                'code' in error &&
+                typeof (error as { code?: unknown }).code === 'string'
+                    ? (error as { code: string }).code
+                    : null
 
-        if (!updated) {
-            throw new Error(`Template "${name}" not found in guild ${guildId}`)
+            // Prisma P2025 = record not found
+            if (code === 'P2025') {
+                throw new Error(
+                    `Template "${name}" not found in guild ${guildId}`,
+                )
+            }
+            throw error
         }
-
-        return updated
     }
 
     /** Deletes an embed template from the database. */
