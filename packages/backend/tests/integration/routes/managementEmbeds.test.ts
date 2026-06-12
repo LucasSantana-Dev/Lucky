@@ -24,6 +24,7 @@ jest.mock('@lucky/shared/services', () => ({
     embedBuilderService: {
         listTemplates: jest.fn(),
         createTemplate: jest.fn(),
+        getTemplate: jest.fn(),
         updateTemplate: jest.fn(),
         deleteTemplate: jest.fn(),
         validateEmbedData: jest.fn(),
@@ -113,7 +114,9 @@ describe('Embed Management Routes Integration', () => {
             const mockGuildAccessServiceSvc = guildAccessService as jest.Mocked<
                 typeof guildAccessService
             >
-            mockGuildAccessServiceSvc.resolveGuildContext.mockResolvedValue(null)
+            mockGuildAccessServiceSvc.resolveGuildContext.mockResolvedValue(
+                null,
+            )
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/embeds')
@@ -172,6 +175,49 @@ describe('Embed Management Routes Integration', () => {
             expect(
                 mockServerLogService.logEmbedTemplateChange,
             ).toHaveBeenCalled()
+        })
+
+        test('returns the existing template on a replayed create (P2002 → idempotent success, #1320)', async () => {
+            const existing = {
+                name: 'welcome',
+                description: 'Welcome template',
+                embedData: { title: 'Welcome Embed', color: '#341503' },
+            }
+
+            const mockEmbedService = embedBuilderService as jest.Mocked<
+                typeof embedBuilderService
+            >
+            mockEmbedService.validateEmbedData.mockReturnValue({ valid: true })
+            mockEmbedService.createTemplate.mockRejectedValue(
+                Object.assign(new Error('Unique constraint failed'), {
+                    code: 'P2002',
+                }),
+            )
+            mockEmbedService.getTemplate.mockResolvedValue(existing)
+
+            const mockServerLogService = serverLogService as jest.Mocked<
+                typeof serverLogService
+            >
+
+            const response = await request(app)
+                .post('/api/guilds/111111111111111111/embeds')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({
+                    name: 'Welcome',
+                    description: 'Welcome template',
+                    embedData: { title: 'Welcome Embed', color: '#341503' },
+                })
+                .expect(200)
+
+            expect(response.body).toEqual(existing)
+            // lookup uses the stored (lowercased) name
+            expect(mockEmbedService.getTemplate).toHaveBeenCalledWith(
+                '111111111111111111',
+                'welcome',
+            )
+            expect(
+                mockServerLogService.logEmbedTemplateChange,
+            ).not.toHaveBeenCalled()
         })
 
         test('should return 401 when not authenticated', async () => {

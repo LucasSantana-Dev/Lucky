@@ -11,6 +11,7 @@ import {
     serverLogService,
     type EmbedData,
 } from '@lucky/shared/services'
+import { isUniqueViolation } from '../utils/prismaErrors'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
@@ -58,13 +59,34 @@ export function setupEmbedRoutes(app: Express): void {
                     validation.errors,
                 )
             }
-            const template = await embedBuilderService.createTemplate(
-                guildId,
-                name,
-                embedData,
-                description,
-                userId,
-            )
+            let template
+            try {
+                template = await embedBuilderService.createTemplate(
+                    guildId,
+                    name,
+                    embedData,
+                    description,
+                    userId,
+                )
+            } catch (error) {
+                if (!isUniqueViolation(error)) {
+                    throw error
+                }
+                // P2002 on the (guildId, name) natural key is idempotent
+                // success, not a failure: return the existing template
+                // (#1320). Divergent payloads also land here — edit via
+                // PATCH. createTemplate stores the name lowercased;
+                // getTemplate matches the stored value verbatim.
+                const existing = await embedBuilderService.getTemplate(
+                    guildId,
+                    name.toLowerCase(),
+                )
+                if (!existing) {
+                    throw error
+                }
+                res.json(existing)
+                return
+            }
             await serverLogService.logEmbedTemplateChange(
                 guildId,
                 'created',
