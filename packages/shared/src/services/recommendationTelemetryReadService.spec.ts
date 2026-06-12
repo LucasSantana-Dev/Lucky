@@ -45,26 +45,28 @@ describe('recommendationTelemetryReadService', () => {
         })
 
         it('returns single row for single source with mixed outcomes', async () => {
-            const mockGroupResult = [
+            // One groupBy over [source, isAccepted, isRejected] — one bucket
+            // per outcome combination (#1187)
+            mockGroupBy.mockResolvedValue([
                 {
                     source: RecommendationSource.SPOTIFY_REC,
-                    _count: {
-                        id: 10,
-                    },
+                    isAccepted: true,
+                    isRejected: null,
+                    _count: { id: 7 },
                 },
-            ]
-            mockGroupBy.mockResolvedValue(mockGroupResult)
-
-            // Mock count calls for accepted, rejected, pending
-            const countCalls = [
-                { count: 7 }, // accepted
-                { count: 2 }, // rejected
-                { count: 1 }, // pending
-            ]
-            mockCount
-                .mockResolvedValueOnce(countCalls[0])
-                .mockResolvedValueOnce(countCalls[1])
-                .mockResolvedValueOnce(countCalls[2])
+                {
+                    source: RecommendationSource.SPOTIFY_REC,
+                    isAccepted: null,
+                    isRejected: true,
+                    _count: { id: 2 },
+                },
+                {
+                    source: RecommendationSource.SPOTIFY_REC,
+                    isAccepted: null,
+                    isRejected: null,
+                    _count: { id: 1 },
+                },
+            ])
 
             const result = await getPerSourceAcceptance('guild-123')
 
@@ -77,38 +79,65 @@ describe('recommendationTelemetryReadService', () => {
                 pendingCount: 1,
                 acceptanceRate: 7 / 9, // 7 / (7 + 2)
             })
+            // The N+1 per-source count loop is gone: exactly one query total
+            expect(mockGroupBy).toHaveBeenCalledTimes(1)
+            expect(mockCount).not.toHaveBeenCalled()
         })
 
         it('returns multiple rows for multiple sources', async () => {
-            const mockGroupResult = [
+            mockGroupBy.mockResolvedValue([
+                // Spotify: 7 accepted, 2 rejected, 1 pending
                 {
                     source: RecommendationSource.SPOTIFY_REC,
-                    _count: { id: 10 },
+                    isAccepted: true,
+                    isRejected: null,
+                    _count: { id: 7 },
+                },
+                {
+                    source: RecommendationSource.SPOTIFY_REC,
+                    isAccepted: null,
+                    isRejected: true,
+                    _count: { id: 2 },
+                },
+                {
+                    source: RecommendationSource.SPOTIFY_REC,
+                    isAccepted: null,
+                    isRejected: null,
+                    _count: { id: 1 },
+                },
+                // LastFM: 3 accepted, 1 rejected, 1 pending
+                {
+                    source: RecommendationSource.LASTFM_LOVED,
+                    isAccepted: true,
+                    isRejected: null,
+                    _count: { id: 3 },
                 },
                 {
                     source: RecommendationSource.LASTFM_LOVED,
-                    _count: { id: 5 },
+                    isAccepted: null,
+                    isRejected: true,
+                    _count: { id: 1 },
+                },
+                {
+                    source: RecommendationSource.LASTFM_LOVED,
+                    isAccepted: null,
+                    isRejected: null,
+                    _count: { id: 1 },
+                },
+                // Artist: 2 accepted, 1 rejected, 0 pending
+                {
+                    source: RecommendationSource.ARTIST_FALLBACK,
+                    isAccepted: true,
+                    isRejected: null,
+                    _count: { id: 2 },
                 },
                 {
                     source: RecommendationSource.ARTIST_FALLBACK,
-                    _count: { id: 3 },
+                    isAccepted: null,
+                    isRejected: true,
+                    _count: { id: 1 },
                 },
-            ]
-            mockGroupBy.mockResolvedValue(mockGroupResult)
-
-            // Spotify: 7 accepted, 2 rejected, 1 pending
-            mockCount
-                .mockResolvedValueOnce({ count: 7 })
-                .mockResolvedValueOnce({ count: 2 })
-                .mockResolvedValueOnce({ count: 1 })
-                // LastFM: 3 accepted, 1 rejected, 1 pending
-                .mockResolvedValueOnce({ count: 3 })
-                .mockResolvedValueOnce({ count: 1 })
-                .mockResolvedValueOnce({ count: 1 })
-                // Artist: 2 accepted, 1 rejected, 0 pending
-                .mockResolvedValueOnce({ count: 2 })
-                .mockResolvedValueOnce({ count: 1 })
-                .mockResolvedValueOnce({ count: 0 })
+            ])
 
             const result = await getPerSourceAcceptance('guild-123')
 
@@ -137,22 +166,19 @@ describe('recommendationTelemetryReadService', () => {
                 pendingCount: 0,
                 acceptanceRate: 2 / 3,
             })
+            expect(mockGroupBy).toHaveBeenCalledTimes(1)
+            expect(mockCount).not.toHaveBeenCalled()
         })
 
         it('returns null acceptanceRate when denominator is zero (all pending)', async () => {
-            const mockGroupResult = [
+            mockGroupBy.mockResolvedValue([
                 {
                     source: RecommendationSource.SPOTIFY_REC,
+                    isAccepted: null,
+                    isRejected: null,
                     _count: { id: 5 },
                 },
-            ]
-            mockGroupBy.mockResolvedValue(mockGroupResult)
-
-            // All pending
-            mockCount
-                .mockResolvedValueOnce({ count: 0 }) // accepted
-                .mockResolvedValueOnce({ count: 0 }) // rejected
-                .mockResolvedValueOnce({ count: 5 }) // pending
+            ])
 
             const result = await getPerSourceAcceptance('guild-123')
 
@@ -160,25 +186,32 @@ describe('recommendationTelemetryReadService', () => {
         })
 
         it('handles null source value (legacy/fallback)', async () => {
-            const mockGroupResult = [
+            mockGroupBy.mockResolvedValue([
                 {
                     source: null,
+                    isAccepted: true,
+                    isRejected: null,
+                    _count: { id: 1 },
+                },
+                {
+                    source: null,
+                    isAccepted: null,
+                    isRejected: true,
+                    _count: { id: 1 },
+                },
+                {
+                    source: RecommendationSource.SPOTIFY_REC,
+                    isAccepted: true,
+                    isRejected: null,
                     _count: { id: 2 },
                 },
                 {
                     source: RecommendationSource.SPOTIFY_REC,
-                    _count: { id: 3 },
+                    isAccepted: null,
+                    isRejected: true,
+                    _count: { id: 1 },
                 },
-            ]
-            mockGroupBy.mockResolvedValue(mockGroupResult)
-
-            mockCount
-                .mockResolvedValueOnce({ count: 1 }) // null: accepted
-                .mockResolvedValueOnce({ count: 1 }) // null: rejected
-                .mockResolvedValueOnce({ count: 0 }) // null: pending
-                .mockResolvedValueOnce({ count: 2 }) // spotify: accepted
-                .mockResolvedValueOnce({ count: 1 }) // spotify: rejected
-                .mockResolvedValueOnce({ count: 0 }) // spotify: pending
+            ])
 
             const result = await getPerSourceAcceptance('guild-123')
 
@@ -244,26 +277,65 @@ describe('recommendationTelemetryReadService', () => {
         })
 
         it('returns rows for all three modes', async () => {
-            const mockGroupResult = [
-                { mode: 'similar', _count: { id: 10 } },
-                { mode: 'discover', _count: { id: 8 } },
-                { mode: 'popular', _count: { id: 6 } },
-            ]
-            mockGroupBy.mockResolvedValue(mockGroupResult)
-
-            // similar: 7 accepted, 2 rejected, 1 pending
-            mockCount
-                .mockResolvedValueOnce({ count: 7 })
-                .mockResolvedValueOnce({ count: 2 })
-                .mockResolvedValueOnce({ count: 1 })
+            mockGroupBy.mockResolvedValue([
+                // similar: 7 accepted, 2 rejected, 1 pending
+                {
+                    mode: 'similar',
+                    isAccepted: true,
+                    isRejected: null,
+                    _count: { id: 7 },
+                },
+                {
+                    mode: 'similar',
+                    isAccepted: null,
+                    isRejected: true,
+                    _count: { id: 2 },
+                },
+                {
+                    mode: 'similar',
+                    isAccepted: null,
+                    isRejected: null,
+                    _count: { id: 1 },
+                },
                 // discover: 5 accepted, 2 rejected, 1 pending
-                .mockResolvedValueOnce({ count: 5 })
-                .mockResolvedValueOnce({ count: 2 })
-                .mockResolvedValueOnce({ count: 1 })
+                {
+                    mode: 'discover',
+                    isAccepted: true,
+                    isRejected: null,
+                    _count: { id: 5 },
+                },
+                {
+                    mode: 'discover',
+                    isAccepted: null,
+                    isRejected: true,
+                    _count: { id: 2 },
+                },
+                {
+                    mode: 'discover',
+                    isAccepted: null,
+                    isRejected: null,
+                    _count: { id: 1 },
+                },
                 // popular: 4 accepted, 1 rejected, 1 pending
-                .mockResolvedValueOnce({ count: 4 })
-                .mockResolvedValueOnce({ count: 1 })
-                .mockResolvedValueOnce({ count: 1 })
+                {
+                    mode: 'popular',
+                    isAccepted: true,
+                    isRejected: null,
+                    _count: { id: 4 },
+                },
+                {
+                    mode: 'popular',
+                    isAccepted: null,
+                    isRejected: true,
+                    _count: { id: 1 },
+                },
+                {
+                    mode: 'popular',
+                    isAccepted: null,
+                    isRejected: null,
+                    _count: { id: 1 },
+                },
+            ])
 
             const result = await getPerModeAcceptance('guild-123')
 
@@ -292,22 +364,37 @@ describe('recommendationTelemetryReadService', () => {
                 pendingCount: 1,
                 acceptanceRate: 4 / 5,
             })
+            expect(mockGroupBy).toHaveBeenCalledTimes(1)
+            expect(mockCount).not.toHaveBeenCalled()
         })
 
         it('handles null mode value (pre-migration rows)', async () => {
-            const mockGroupResult = [
-                { mode: null, _count: { id: 2 } },
-                { mode: 'similar', _count: { id: 5 } },
-            ]
-            mockGroupBy.mockResolvedValue(mockGroupResult)
-
-            mockCount
-                .mockResolvedValueOnce({ count: 1 }) // null: accepted
-                .mockResolvedValueOnce({ count: 1 }) // null: rejected
-                .mockResolvedValueOnce({ count: 0 }) // null: pending
-                .mockResolvedValueOnce({ count: 4 }) // similar: accepted
-                .mockResolvedValueOnce({ count: 1 }) // similar: rejected
-                .mockResolvedValueOnce({ count: 0 }) // similar: pending
+            mockGroupBy.mockResolvedValue([
+                {
+                    mode: null,
+                    isAccepted: true,
+                    isRejected: null,
+                    _count: { id: 1 },
+                },
+                {
+                    mode: null,
+                    isAccepted: null,
+                    isRejected: true,
+                    _count: { id: 1 },
+                },
+                {
+                    mode: 'similar',
+                    isAccepted: true,
+                    isRejected: null,
+                    _count: { id: 4 },
+                },
+                {
+                    mode: 'similar',
+                    isAccepted: null,
+                    isRejected: true,
+                    _count: { id: 1 },
+                },
+            ])
 
             const result = await getPerModeAcceptance('guild-123')
 
@@ -318,13 +405,14 @@ describe('recommendationTelemetryReadService', () => {
         })
 
         it('returns null acceptanceRate when all pending', async () => {
-            const mockGroupResult = [{ mode: 'similar', _count: { id: 5 } }]
-            mockGroupBy.mockResolvedValue(mockGroupResult)
-
-            mockCount
-                .mockResolvedValueOnce({ count: 0 }) // accepted
-                .mockResolvedValueOnce({ count: 0 }) // rejected
-                .mockResolvedValueOnce({ count: 5 }) // pending
+            mockGroupBy.mockResolvedValue([
+                {
+                    mode: 'similar',
+                    isAccepted: null,
+                    isRejected: null,
+                    _count: { id: 5 },
+                },
+            ])
 
             const result = await getPerModeAcceptance('guild-123')
 
