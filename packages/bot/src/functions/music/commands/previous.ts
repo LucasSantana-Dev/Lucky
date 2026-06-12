@@ -65,7 +65,12 @@ async function playPreviousTrack(
             if (!queue.isPlaying() && queue.tracks.size > 0) {
                 await queue.node.play()
             }
-        })()
+        })().catch((error: unknown) => {
+            errorLog({
+                message: `Failed to resume playback after previous in guild ${guildId}`,
+                error,
+            })
+        })
     }, 500)
 
     return historyWasEmpty
