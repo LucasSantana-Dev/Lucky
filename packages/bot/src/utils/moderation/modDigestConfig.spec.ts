@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { modDigestConfigService, ModDigestConfigService } from './modDigestConfig'
+import { ModDigestConfigService } from './modDigestConfig'
 
 jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
     getPrismaClient: jest.fn(),
