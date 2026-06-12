@@ -226,23 +226,45 @@ export class ArtistSuggestionService {
         const seen = new Set<string>()
         const timeRanges = ['short_term', 'medium_term', 'long_term'] as const
 
-        try {
-            const promises = timeRanges.map((range) =>
-                fetch(
-                    `https://api.spotify.com/v1/me/top/artists?limit=50&time_range=${range}`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`,
-                        },
-                        signal: AbortSignal.timeout(8_000),
+        const promises = timeRanges.map((range) =>
+            fetch(
+                `https://api.spotify.com/v1/me/top/artists?limit=50&time_range=${range}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
                     },
-                ),
-            )
-            const responses = await Promise.all(promises)
+                    signal: AbortSignal.timeout(8_000),
+                },
+            ),
+        )
+        const results = await Promise.allSettled(promises)
 
-            for (const res of responses) {
-                if (!res.ok) continue
+        for (let i = 0; i < results.length; i++) {
+            const result = results[i]
+            const timeRange = timeRanges[i]
 
+            if (result.status === 'rejected') {
+                if (
+                    result.reason instanceof DOMException &&
+                    result.reason.name === 'TimeoutError'
+                ) {
+                    warnLog({
+                        message: `Spotify top artists fetch timed out for time_range=${timeRange}`,
+                        error: result.reason,
+                    })
+                } else {
+                    errorLog({
+                        message: `Failed to fetch Spotify top artists for time_range=${timeRange}`,
+                        error: result.reason,
+                    })
+                }
+                continue
+            }
+
+            const res = result.value
+            if (!res.ok) continue
+
+            try {
                 const data = (await res.json()) as {
                     items?: unknown[]
                 }
@@ -270,9 +292,12 @@ export class ArtistSuggestionService {
                         }
                     }
                 }
+            } catch (error) {
+                errorLog({
+                    message: `Failed to parse Spotify response for time_range=${timeRange}`,
+                    error,
+                })
             }
-        } catch (error) {
-            errorLog({ message: 'Failed to fetch Spotify top artists', error })
         }
 
         return collected
