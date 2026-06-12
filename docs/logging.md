@@ -24,7 +24,7 @@ type LogParams = {
 
 ## The footgun: errorLog without the error object
 
-Calling `errorLog({ message: "..." })` with only a message (omitting the `error` property) **silently degrades to an info-level event in Sentry**, losing the error context and stack trace.
+Calling `errorLog({ message: "..." })` with only a message (omitting the `error` property) **silently sends a message event instead of an exception event** — the severity stays `error`, but the exception object and stack trace are lost.
 
 The service checks whether `params.error` exists (line 106 in `service.ts`):
 
