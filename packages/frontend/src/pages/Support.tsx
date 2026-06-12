@@ -26,6 +26,10 @@ export default function SupportPage() {
     const [fileError, setFileError] = useState<string | null>(null)
     const [state, setState] = useState<SubmitState>('idle')
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
+    // One dedup key per form instance: a retry after a flaky response maps
+    // to the same server-side report instead of a duplicate + second staff
+    // ping (#1319). A fresh mount is a new submission.
+    const [submissionId] = useState(() => crypto.randomUUID())
 
     const canSubmit = useMemo(
         () => context.trim().length > 0 && !fileError && state !== 'submitting',
@@ -66,6 +70,7 @@ export default function SupportPage() {
         if (cid) formData.append('cid', cid)
         if (guildId) formData.append('guildId', guildId)
         if (category) formData.append('category', category)
+        formData.append('sid', submissionId)
 
         try {
             await api.support.submit(formData)
