@@ -335,8 +335,12 @@ export class ArtistSuggestionService {
                         out.push(artist)
                     }
                 }
-            } catch {
-                // continue to next query
+            } catch (error) {
+                // continue to next query — but leave a trace (#1285)
+                debugLog({
+                    message: 'Spotify popular-artist search failed',
+                    data: { query, error: String(error) },
+                })
             }
         }
 
