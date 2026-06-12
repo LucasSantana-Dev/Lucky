@@ -45,20 +45,28 @@ function getCreatedAtCutoff(days?: number): Date {
     return new Date(Date.now() - clampedDays * 86_400_000)
 }
 
+type AcceptanceCounts = {
+    count: number
+    acceptedCount: number
+    rejectedCount: number
+    pendingCount: number
+}
+
 /**
- * Returns one row per distinct source value seen in the Recommendation table
- * for this guild within the window. Null source is its own row.
+ * Single groupBy over [key, isAccepted, isRejected] folded into per-key
+ * acceptance counts — replaces the former per-group count loop, which issued
+ * three extra queries per distinct key (#1187).
  */
-export async function getPerSourceAcceptance(
+async function getAcceptanceByKey(
+    key: 'source' | 'mode',
     guildId: string,
     days?: number,
-): Promise<PerSourceRow[]> {
+): Promise<Map<string | null, AcceptanceCounts>> {
     const prisma = getPrismaClient()
     const createdAtGte = getCreatedAtCutoff(days)
 
-    // Group by source to get distinct sources and total count per source
-    const groupByResult = await prisma.recommendation.groupBy({
-        by: ['source'],
+    const groups = (await prisma.recommendation.groupBy({
+        by: [key, 'isAccepted', 'isRejected'],
         where: {
             guildId,
             createdAt: {
@@ -68,72 +76,62 @@ export async function getPerSourceAcceptance(
         _count: {
             id: true,
         },
-    })
+    })) as unknown as Array<{
+        source?: string | null
+        mode?: string | null
+        isAccepted: boolean | null
+        isRejected: boolean | null
+        _count: { id: number }
+    }>
 
-    // For each source, fetch accepted, rejected, and pending counts
-    const rows: PerSourceRow[] = []
-    for (const group of groupByResult) {
-        const source = group.source
-        const count = group._count.id
-
-        const getCountValue = (result: any): number =>
-            typeof result === 'number' ? result : result.count
-
-        const acceptedCount = getCountValue(
-            await prisma.recommendation.count({
-                where: {
-                    guildId,
-                    source,
-                    isAccepted: true,
-                    createdAt: {
-                        gte: createdAtGte,
-                    },
-                },
-            }),
-        )
-
-        const rejectedCount = getCountValue(
-            await prisma.recommendation.count({
-                where: {
-                    guildId,
-                    source,
-                    isRejected: true,
-                    createdAt: {
-                        gte: createdAtGte,
-                    },
-                },
-            }),
-        )
-
-        const pendingCount = getCountValue(
-            await prisma.recommendation.count({
-                where: {
-                    guildId,
-                    source,
-                    isAccepted: null,
-                    isRejected: null,
-                    createdAt: {
-                        gte: createdAtGte,
-                    },
-                },
-            }),
-        )
-
-        const denominator = acceptedCount + rejectedCount
-        const acceptanceRate =
-            denominator === 0 ? null : acceptedCount / denominator
-
-        rows.push({
-            source,
-            count,
-            acceptedCount,
-            rejectedCount,
-            pendingCount,
-            acceptanceRate,
-        })
+    const byKey = new Map<string | null, AcceptanceCounts>()
+    for (const group of groups) {
+        const groupKey = (key === 'source' ? group.source : group.mode) ?? null
+        const n = group._count.id
+        let acc = byKey.get(groupKey)
+        if (!acc) {
+            acc = {
+                count: 0,
+                acceptedCount: 0,
+                rejectedCount: 0,
+                pendingCount: 0,
+            }
+            byKey.set(groupKey, acc)
+        }
+        acc.count += n
+        if (group.isAccepted) {
+            acc.acceptedCount += n
+        } else if (group.isRejected) {
+            acc.rejectedCount += n
+        } else {
+            acc.pendingCount += n
+        }
     }
+    return byKey
+}
 
-    return rows
+function toAcceptanceRate(
+    acceptedCount: number,
+    rejectedCount: number,
+): number | null {
+    const denominator = acceptedCount + rejectedCount
+    return denominator === 0 ? null : acceptedCount / denominator
+}
+
+/**
+ * Returns one row per distinct source value seen in the Recommendation table
+ * for this guild within the window. Null source is its own row.
+ */
+export async function getPerSourceAcceptance(
+    guildId: string,
+    days?: number,
+): Promise<PerSourceRow[]> {
+    const byKey = await getAcceptanceByKey('source', guildId, days)
+    return [...byKey.entries()].map(([source, acc]) => ({
+        source: source as RecommendationSource | null,
+        ...acc,
+        acceptanceRate: toAcceptanceRate(acc.acceptedCount, acc.rejectedCount),
+    }))
 }
 
 /**
@@ -144,87 +142,12 @@ export async function getPerModeAcceptance(
     guildId: string,
     days?: number,
 ): Promise<PerModeRow[]> {
-    const prisma = getPrismaClient()
-    const createdAtGte = getCreatedAtCutoff(days)
-
-    // Group by mode to get distinct modes and total count per mode
-    const groupByResult = await prisma.recommendation.groupBy({
-        by: ['mode'],
-        where: {
-            guildId,
-            createdAt: {
-                gte: createdAtGte,
-            },
-        },
-        _count: {
-            id: true,
-        },
-    })
-
-    // For each mode, fetch accepted, rejected, and pending counts
-    const rows: PerModeRow[] = []
-    for (const group of groupByResult) {
-        const mode = group.mode
-        const count = group._count.id
-
-        const getCountValue = (result: any): number =>
-            typeof result === 'number' ? result : result.count
-
-        const acceptedCount = getCountValue(
-            await prisma.recommendation.count({
-                where: {
-                    guildId,
-                    mode,
-                    isAccepted: true,
-                    createdAt: {
-                        gte: createdAtGte,
-                    },
-                },
-            }),
-        )
-
-        const rejectedCount = getCountValue(
-            await prisma.recommendation.count({
-                where: {
-                    guildId,
-                    mode,
-                    isRejected: true,
-                    createdAt: {
-                        gte: createdAtGte,
-                    },
-                },
-            }),
-        )
-
-        const pendingCount = getCountValue(
-            await prisma.recommendation.count({
-                where: {
-                    guildId,
-                    mode,
-                    isAccepted: null,
-                    isRejected: null,
-                    createdAt: {
-                        gte: createdAtGte,
-                    },
-                },
-            }),
-        )
-
-        const denominator = acceptedCount + rejectedCount
-        const acceptanceRate =
-            denominator === 0 ? null : acceptedCount / denominator
-
-        rows.push({
-            mode,
-            count,
-            acceptedCount,
-            rejectedCount,
-            pendingCount,
-            acceptanceRate,
-        })
-    }
-
-    return rows
+    const byKey = await getAcceptanceByKey('mode', guildId, days)
+    return [...byKey.entries()].map(([mode, acc]) => ({
+        mode,
+        ...acc,
+        acceptanceRate: toAcceptanceRate(acc.acceptedCount, acc.rejectedCount),
+    }))
 }
 
 /**
