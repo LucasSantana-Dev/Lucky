@@ -172,3 +172,23 @@ export async function handleSeek(
     await queue.node.seek(cmd.data?.position as number)
     return publishAndOk(client, cmd)
 }
+
+export async function handlePrevious(
+    client: CustomClient,
+    cmd: MusicCommand,
+): Promise<Result> {
+    const queue = getQueue(client, cmd.guildId)
+    if (!queue) return fail(cmd.id, cmd.guildId, 'No active queue')
+
+    // Per #1239: when no previous track, restart current track from beginning
+    if (queue.history.isEmpty()) {
+        const currentTrack = queue.currentTrack
+        if (currentTrack) {
+            await queue.node.seek(0)
+        }
+    } else {
+        await queue.history.previous(true)
+    }
+
+    return publishAndOk(client, cmd)
+}

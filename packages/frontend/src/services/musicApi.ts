@@ -20,6 +20,8 @@ export function createMusicApi(apiClient: AxiosInstance) {
             ),
         skip: (guildId: string) =>
             apiClient.post<MusicCommandResult>(`/guilds/${guildId}/music/skip`),
+        previous: (guildId: string) =>
+            apiClient.post<MusicCommandResult>(`/guilds/${guildId}/music/previous`),
         stop: (guildId: string) =>
             apiClient.post<MusicCommandResult>(`/guilds/${guildId}/music/stop`),
         volume: (guildId: string, volume: number) =>

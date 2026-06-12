@@ -5,6 +5,7 @@ import {
     WifiOff,
     Play,
     Pause,
+    SkipBack,
     SkipForward,
     Shuffle,
     Repeat,
@@ -88,6 +89,7 @@ export default function MusicPage() {
             <NowPlayingHero
                 state={player.state}
                 onPlayPause={handlePlayPause}
+                onPrevious={() => player.previous()}
                 onSkip={() => player.skip()}
                 onShuffle={() => player.shuffle()}
                 onRepeatCycle={handleRepeatCycle}
@@ -136,6 +138,7 @@ export default function MusicPage() {
 function NowPlayingHero({
     state,
     onPlayPause,
+    onPrevious,
     onSkip,
     onShuffle,
     onRepeatCycle,
@@ -143,6 +146,7 @@ function NowPlayingHero({
 }: {
     state: QueueState
     onPlayPause: () => void
+    onPrevious: () => void
     onSkip: () => void
     onShuffle: () => void
     onRepeatCycle: () => void
@@ -246,6 +250,11 @@ function NowPlayingHero({
                             onClick={onShuffle}
                             active={state.shuffled}
                             aria-label='Shuffle'
+                        />
+                        <ControlButton
+                            icon={<SkipBack className='h-5 w-5' />}
+                            onClick={onPrevious}
+                            aria-label='Previous track'
                         />
                         <button
                             onClick={onPlayPause}

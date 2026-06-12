@@ -18,6 +18,7 @@ describe('createMusicApi', () => {
         api.pause('g1')
         api.resume('g1')
         api.skip('g1')
+        api.previous('g1')
         api.stop('g1')
         api.volume('g1', 80)
         api.shuffle('g1')
@@ -37,6 +38,7 @@ describe('createMusicApi', () => {
         expect(post).toHaveBeenCalledWith('/guilds/g1/music/pause')
         expect(post).toHaveBeenCalledWith('/guilds/g1/music/resume')
         expect(post).toHaveBeenCalledWith('/guilds/g1/music/skip')
+        expect(post).toHaveBeenCalledWith('/guilds/g1/music/previous')
         expect(post).toHaveBeenCalledWith('/guilds/g1/music/stop')
         expect(post).toHaveBeenCalledWith('/guilds/g1/music/volume', {
             volume: 80,

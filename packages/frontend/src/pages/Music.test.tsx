@@ -55,6 +55,7 @@ const mockPlayer = {
     pause: vi.fn(),
     resume: vi.fn(),
     skip: vi.fn(),
+    previous: vi.fn(),
     stop: vi.fn(),
     shuffle: vi.fn(),
     seek: vi.fn(),
@@ -303,6 +304,25 @@ describe('MusicPage', () => {
         )
         fireEvent.click(screen.getByRole('button', { name: 'Pause' }))
         expect(mockPause).toHaveBeenCalledOnce()
+    })
+
+    test('calls previous when previous track button clicked', () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        const mockPrevious = vi.fn()
+        vi.mocked(useMusicPlayer).mockReturnValue({
+            ...mockPlayer,
+            state: { ...mockPlayer.state, tracks: [mockTrack] },
+            previous: mockPrevious,
+        } as any)
+        render(
+            <MemoryRouter>
+                <MusicPage />
+            </MemoryRouter>,
+        )
+        fireEvent.click(screen.getByRole('button', { name: 'Previous track' }))
+        expect(mockPrevious).toHaveBeenCalledOnce()
     })
 
     test('calls skip when next track button clicked', () => {

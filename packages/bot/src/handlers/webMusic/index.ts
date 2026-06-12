@@ -18,6 +18,7 @@ const commandMap: Record<
     pause: playback.handlePause,
     resume: playback.handleResume,
     skip: playback.handleSkip,
+    previous: playback.handlePrevious,
     stop: playback.handleStop,
     volume: playback.handleVolume,
     shuffle: playback.handleShuffle,

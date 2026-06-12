@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { handlePause, handleStop, handleSkip } from './commandHandlers'
+import { handlePause, handleStop, handleSkip, handlePrevious } from './commandHandlers'
 
 const publishStateMock = jest.fn()
 const buildQueueStateMock = jest.fn()
@@ -171,5 +171,92 @@ describe('webMusic commandHandlers queue resolution', () => {
         expect(result.success).toBe(false)
         expect(result.error).toBe('No active queue')
         expect(publishStateMock).not.toHaveBeenCalled()
+    })
+})
+
+describe('handlePrevious', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        buildQueueStateMock.mockResolvedValue({ guildId: 'guild-1' })
+    })
+
+    it('calls queue.history.previous() when history is not empty', async () => {
+        const previousAsync = jest.fn().mockResolvedValue(undefined)
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                currentTrack: { title: 'Track' },
+                history: { isEmpty: jest.fn().mockReturnValue(false), previous: previousAsync },
+            },
+        })
+
+        const publishPromise = Promise.resolve()
+        publishStateMock.mockReturnValue(publishPromise)
+
+        const result = await handlePrevious(
+            {} as any,
+            { id: 'cmd-1', guildId: 'guild-1', data: {} } as any,
+        )
+
+        expect(previousAsync).toHaveBeenCalledWith(true)
+        expect(publishStateMock).toHaveBeenCalled()
+        expect(result.success).toBe(true)
+    })
+
+    it('calls queue.node.seek(0) when history is empty', async () => {
+        const seekAsync = jest.fn().mockResolvedValue(undefined)
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                currentTrack: { title: 'Track' },
+                history: { isEmpty: jest.fn().mockReturnValue(true), previous: jest.fn() },
+                node: { seek: seekAsync },
+            },
+        })
+
+        const publishPromise = Promise.resolve()
+        publishStateMock.mockReturnValue(publishPromise)
+
+        const result = await handlePrevious(
+            {} as any,
+            { id: 'cmd-3', guildId: 'guild-1', data: {} } as any,
+        )
+
+        expect(seekAsync).toHaveBeenCalledWith(0)
+        expect(publishStateMock).toHaveBeenCalled()
+        expect(result.success).toBe(true)
+    })
+
+    it('does not seek when history is empty and no current track', async () => {
+        const seekAsync = jest.fn().mockResolvedValue(undefined)
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                currentTrack: null,
+                history: { isEmpty: jest.fn().mockReturnValue(true), previous: jest.fn() },
+                node: { seek: seekAsync },
+            },
+        })
+
+        const publishPromise = Promise.resolve()
+        publishStateMock.mockReturnValue(publishPromise)
+
+        const result = await handlePrevious(
+            {} as any,
+            { id: 'cmd-4', guildId: 'guild-1', data: {} } as any,
+        )
+
+        expect(seekAsync).not.toHaveBeenCalled()
+        expect(publishStateMock).toHaveBeenCalled()
+        expect(result.success).toBe(true)
+    })
+
+    it('returns failure when no queue', async () => {
+        resolveGuildQueueMock.mockReturnValue({ queue: null })
+
+        const result = await handlePrevious(
+            {} as any,
+            { id: 'cmd-2', guildId: 'guild-1', data: {} } as any,
+        )
+
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('No active queue')
     })
 })
