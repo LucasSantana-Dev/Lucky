@@ -21,7 +21,6 @@ jest.mock('@lucky/shared/utils', () => ({
     }),
 }))
 
-import { getPrismaClient } from '@lucky/shared/utils'
 import { RecommendationFeedbackService } from './feedbackService'
 
 describe('RecommendationFeedbackService', () => {
@@ -42,8 +41,8 @@ describe('RecommendationFeedbackService', () => {
     ])(
         'stores $feedback feedback and returns keys via Postgres',
         async ({ feedback, getter }) => {
-            const now = 10_000
             const service = new RecommendationFeedbackService(30)
+            const now = 10_000
             const key = service.buildTrackKey('Song', 'Artist')
 
             // upsert: setFeedback's upsert (no prune in setFeedback)
@@ -61,23 +60,18 @@ describe('RecommendationFeedbackService', () => {
             ])
 
             await service.setFeedback('guild-1', 'user-1', key, feedback, now)
-            console.log('upsert called:', mockUserTrackFeedback.upsert.mock.calls.length)
             const keys = await (service[getter as keyof typeof service] as any)(
                 'guild-1',
                 'user-1',
                 now + 100,
             )
 
-            console.log('keys:', keys, 'has key:', keys.has(key))
-            console.log('deleteMany called:', mockUserTrackFeedback.deleteMany.mock.calls.length)
-            console.log('findMany called:', mockUserTrackFeedback.findMany.mock.calls.length)
             expect(keys.has(key)).toBe(true)
             expect(mockUserTrackFeedback.upsert).toHaveBeenCalled()
         },
     )
 
     it('getFeedbackCounts returns correct liked/disliked counts', async () => {
-        const now = 10_000
         const service = new RecommendationFeedbackService(30)
 
         // deleteMany: lazy prune before counting
@@ -88,7 +82,7 @@ describe('RecommendationFeedbackService', () => {
         mockUserTrackFeedback.count.mockResolvedValueOnce(2) // liked count
         mockUserTrackFeedback.count.mockResolvedValueOnce(1) // disliked count
 
-        const counts = await service.getFeedbackCounts('user-1', now)
+        const counts = await service.getFeedbackCounts('user-1', Date.now())
 
         expect(counts.liked).toBe(2)
         expect(counts.disliked).toBe(1)
@@ -379,10 +373,31 @@ describe('implicit feedback', () => {
         ).resolves.toBeUndefined()
     })
 
+    it('reading implicit feedback for unknown user does not grow the map', async () => {
+        const service = new RecommendationFeedbackService(30)
+
+        // Read for unknown user
+        const keys1 = await service.getImplicitLikeKeys('unknown-user-1')
+        expect(keys1.size).toBe(0)
+
+        // Read again for a different unknown user
+        const keys2 = await service.getImplicitLikeKeys('unknown-user-2')
+        expect(keys2.size).toBe(0)
+
+        // Record feedback for a real user to ensure writes still work
+        await service.recordImplicitFeedback(
+            'real-user',
+            'track1::artist',
+            'implicit_like',
+        )
+
+        // Verify the real user's data is present
+        const realKeys = await service.getImplicitLikeKeys('real-user')
+        expect(realKeys.has('track1::artist')).toBe(true)
+    })
+
     it('getImplicitDislikeKeys filters by TTL (14 days)', async () => {
         const service = new RecommendationFeedbackService(30)
-        const now = Date.now()
-        const fourteenDaysInMs = 14 * 24 * 60 * 60 * 1000
 
         // Record feedback with modified timestamp
         await service.recordImplicitFeedback(

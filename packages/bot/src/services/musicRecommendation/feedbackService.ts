@@ -414,7 +414,12 @@ export class RecommendationFeedbackService {
     }
 
     private getImplicitFeedbackForUser(userId: string): ImplicitFeedbackMap {
-        // Initialize empty map for this user if not present
+        // Get existing map without initializing (to prevent unbounded growth on reads)
+        return this.implicitFeedbackCache.get(userId) ?? {}
+    }
+
+    private initializeImplicitFeedbackForUser(userId: string): ImplicitFeedbackMap {
+        // Initialize empty map for this user if not present (write-only path)
         if (!this.implicitFeedbackCache.has(userId)) {
             this.implicitFeedbackCache.set(userId, {})
         }
@@ -427,7 +432,7 @@ export class RecommendationFeedbackService {
         type: 'implicit_dislike' | 'implicit_like',
     ): Promise<void> {
         try {
-            const map = this.getImplicitFeedbackForUser(userId)
+            const map = this.initializeImplicitFeedbackForUser(userId)
             const now = Date.now()
 
             map[trackKey] = { type, updatedAt: now }
