@@ -475,7 +475,11 @@ describe('blendAutoplayTracks', () => {
             }
             const queue = createQueue([auto1, auto2, auto3])
 
-            // Make node.remove fail on the second call
+            // Make node.remove fail on the second call, delegating successful
+            // calls to the stub's real implementation (mutates the live array)
+            const originalRemove = (
+                queue.node.remove as jest.Mock
+            ).getMockImplementation() as (track: Track) => void
             const removeCallCount = { count: 0 }
             ;(queue.node.remove as jest.Mock).mockImplementation(
                 (track: Track) => {
@@ -483,26 +487,17 @@ describe('blendAutoplayTracks', () => {
                     if (removeCallCount.count === 2) {
                         throw new Error('simulated removal failure')
                     }
-                    // Still remove from the internal array
-                    const idx = queue.tracks
-                        .toArray()
-                        .findIndex(
-                            (t) => t.url === track.url && t.title === track.title,
-                        )
-                    if (idx >= 0) {
-                        const tracks = queue.tracks.toArray()
-                        tracks.splice(idx, 1)
-                    }
+                    originalRemove(track)
                 },
             )
 
             // Should not throw despite the failure
             await blendAutoplayTracks(queue, seedTrack, 0.33)
 
-            // keepCount = ceil(3 * 0.33) = 1, so 2 tracks should be removed
-            // Second removal fails (mocked), so the queue still contains all 3
-            // (the implementation's try-catch prevents crashing)
-            expect(queue.tracks.size).toBe(3)
+            // keepCount = ceil(3 * 0.33) = 1, so 2 removals are attempted:
+            // the first succeeds (queue drops to 2), the second throws and is
+            // swallowed by the per-track try-catch — leaving 2 tracks
+            expect(queue.tracks.size).toBe(2)
             expect(replenishQueueMock).toHaveBeenCalledWith(queue)
         })
     })
