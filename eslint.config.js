@@ -72,6 +72,7 @@ export default [
             "no-alert": "error",
             "no-debugger": "error",
             "no-console": "warn",
+            "no-empty": ["warn", { allowEmptyCatch: false }],
             "complexity": ["warn", 15],
             "max-depth": ["warn", 6],
             "max-params": ["warn", 6],
