@@ -32,10 +32,15 @@ const batchSavePreferencesBody = z.object({
 
 const deletePreferenceQuery = guildIdParam
 
+const deletePreferenceParams = z.object({
+    artistKey: z.string().min(1, 'Artist key is required').max(200),
+})
+
 export const artistsSchemas = {
     searchQuery,
     preferredArtistsQuery,
     savePreferenceBody,
     batchSavePreferencesBody,
     deletePreferenceQuery,
+    deletePreferenceParams,
 }
