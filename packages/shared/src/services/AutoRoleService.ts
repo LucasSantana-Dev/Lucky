@@ -40,11 +40,6 @@ export class AutoRoleService {
             orderBy: { createdAt: 'asc' },
         })
     }
-
-    /** Alias for list(); gets all automatic roles for a guild. */
-    async getAllForGuild(guildId: string): Promise<AutoRoleEntry[]> {
-        return await this.list(guildId)
-    }
 }
 
 /** Singleton instance of AutoRoleService. */

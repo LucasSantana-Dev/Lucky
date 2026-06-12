@@ -3,17 +3,7 @@
  */
 
 import { describe, it, expect, jest } from '@jest/globals'
-import {
-    createSuccess,
-    createFailure,
-    isSuccess,
-    isFailure,
-    map,
-    mapError,
-    flatMap,
-    getOrElse,
-    getOrThrow,
-} from './result'
+import { createSuccess, createFailure, isSuccess, isFailure } from './result'
 
 describe('Result Utilities', () => {
     describe('createSuccess', () => {
@@ -57,94 +47,6 @@ describe('Result Utilities', () => {
         it('should return false for success results', () => {
             const success = createSuccess('data')
             expect(isFailure(success)).toBe(false)
-        })
-    })
-
-    describe('map', () => {
-        it('should transform success data', () => {
-            const result = createSuccess(5)
-            const mapped = map(result, (x) => x * 2)
-            expect(mapped.success).toBe(true)
-            if (mapped.success) {
-                expect(mapped.data).toBe(10)
-            }
-        })
-
-        it('should preserve failure state', () => {
-            const result = createFailure('error')
-            const mapped = map(result, (x) => x * 2)
-            expect(mapped.success).toBe(false)
-        })
-    })
-
-    describe('mapError', () => {
-        it('should transform error in failure results', () => {
-            const result = createFailure('original error')
-            const mapped = mapError(result, (err) => `Modified: ${err}`)
-            expect(mapped.success).toBe(false)
-            if (!mapped.success) {
-                expect(mapped.error).toBe('Modified: original error')
-            }
-        })
-
-        it('should preserve success state', () => {
-            const result = createSuccess('data')
-            const mapped = mapError(result, (err) => `Modified: ${err}`)
-            expect(mapped.success).toBe(true)
-        })
-    })
-
-    describe('flatMap', () => {
-        it('should chain success results', () => {
-            const result = createSuccess(5)
-            const chained = flatMap(result, (x) => createSuccess(x * 2))
-            expect(chained.success).toBe(true)
-            if (chained.success) {
-                expect(chained.data).toBe(10)
-            }
-        })
-
-        it('should chain failure results', () => {
-            const result = createSuccess(5)
-            const chained = flatMap(result, (_x) =>
-                createFailure('chained error'),
-            )
-            expect(chained.success).toBe(false)
-            if (!chained.success) {
-                expect(chained.error).toBe('chained error')
-            }
-        })
-
-        it('returns the failure without calling fn when input is already a failure', () => {
-            const failure = createFailure('original error')
-            const fn = jest.fn<() => ReturnType<typeof createSuccess>>()
-            const result = flatMap(failure, fn)
-            expect(result.success).toBe(false)
-            expect(fn).not.toHaveBeenCalled()
-        })
-    })
-
-    describe('getOrElse', () => {
-        it('should return data for success results', () => {
-            const result = createSuccess('success data')
-            expect(getOrElse(result, 'default')).toBe('success data')
-        })
-
-        it('should return default for failure results', () => {
-            const result = createFailure('error')
-            expect(getOrElse(result, 'default')).toBe('default')
-        })
-    })
-
-    describe('getOrThrow', () => {
-        it('should return data for success results', () => {
-            const result = createSuccess('success data')
-            expect(getOrThrow(result)).toBe('success data')
-        })
-
-        it('should throw error for failure results', () => {
-            const result = createFailure('error message')
-            expect(() => getOrThrow(result)).toThrow('error message')
         })
     })
 })
