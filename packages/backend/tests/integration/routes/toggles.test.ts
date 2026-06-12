@@ -303,7 +303,13 @@ describe('Toggles Routes Integration', () => {
                 .expect(400)
 
             expect(response.body).toEqual({
-                error: 'Enabled must be a boolean',
+                error: 'Validation failed',
+                errors: [
+                    {
+                        field: 'enabled',
+                        message: expect.stringContaining('boolean'),
+                    },
+                ],
             })
         })
     })
