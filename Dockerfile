@@ -91,7 +91,12 @@ RUN npm run build --workspace=packages/frontend
 FROM node:${NODE_VERSION} AS deps-production
 ARG NPM_CACHE_KEY
 
-RUN apk add --no-cache python3 && rm -rf /var/cache/apk/*
+# build-base + python3-dev + opus-dev: @discordjs/opus falls back to a source
+# build whenever its musl prebuilt is missing for the current base image
+# (alpine/musl bumps rename the prebuilt — 404'd 2026-06-12, #1309). Same
+# toolchain the build stage carries (L50) and the same failure class the
+# frontend stage comment below documents from PR #846.
+RUN apk add --no-cache build-base python3 python3-dev opus-dev && rm -rf /var/cache/apk/*
 
 WORKDIR /app
 
