@@ -5,7 +5,7 @@ import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
 import { twitchNotificationService } from '@lucky/shared/services'
-import { errorLog, warnLog } from '@lucky/shared/utils'
+import { warnLog } from '@lucky/shared/utils'
 import { AppError } from '../errors/AppError'
 import { z } from 'zod'
 
