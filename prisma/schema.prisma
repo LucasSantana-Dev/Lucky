@@ -22,7 +22,6 @@ model User {
 
   // Relations
   preferences   UserPreferences?
-  commandUsage  CommandUsage[]
   trackFeedback UserTrackFeedback[]
 
   @@map("users")
@@ -66,7 +65,6 @@ model Guild {
   settings             GuildSettings?
   sessions             GuildSession[]
   trackHistory         TrackHistory[]
-  commandUsage         CommandUsage[]
   twitchNotifications  TwitchNotification[]
   featureToggles       GuildFeatureToggle[]
   namedQueues          NamedQueue[]
@@ -390,27 +388,6 @@ model TrackHistory {
   @@index([guildId, playedAt])
   @@index([trackId])
   @@map("track_history")
-}
-
-// Command Usage Analytics
-model CommandUsage {
-  id      String  @id @default(cuid())
-  userId  String?
-  guildId String?
-  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-  guild   Guild?  @relation(fields: [guildId], references: [discordId], onDelete: SetNull)
-
-  command   String
-  category  String
-  success   Boolean
-  errorCode String?
-  duration  Int? // Execution time in milliseconds
-
-  createdAt DateTime @default(now())
-
-  @@index([command, createdAt])
-  @@index([guildId, createdAt])
-  @@map("command_usage")
 }
 
 // Rate Limiting

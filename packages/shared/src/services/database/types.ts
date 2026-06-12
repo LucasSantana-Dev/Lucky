@@ -41,18 +41,6 @@ export interface DatabaseTrackHistory {
   isPlaylist: boolean | null
 }
 
-export interface DatabaseCommandUsage {
-  id: string
-  userId: string | null
-  guildId: string | null
-  command: string
-  category: string
-  success: boolean
-  errorCode: string | null
-  duration: number | null
-  createdAt: Date
-}
-
 export interface DatabaseRateLimit {
   id: string
   key: string

@@ -10,7 +10,6 @@ import type {
     DatabaseUser,
     DatabaseGuild,
     DatabaseTrackHistory,
-    DatabaseCommandUsage,
     DatabaseAnalytics,
     DatabaseArtistStats,
 } from './types'
@@ -54,18 +53,6 @@ type TrackHistoryModel = {
     isPlaylist: boolean | null
 }
 
-type CommandUsageModel = {
-    id: string
-    userId: string | null
-    guildId: string | null
-    command: string
-    category: string
-    success: boolean
-    errorCode: string | null
-    duration: number | null
-    createdAt: Date
-}
-
 function assertIsUserModel(value: unknown): asserts value is UserModel {
     if (
         !value ||
@@ -98,19 +85,6 @@ function assertIsTrackHistoryModel(
         !('trackId' in value)
     ) {
         throw new Error('Invalid TrackHistoryModel')
-    }
-}
-
-function assertIsCommandUsageModel(
-    value: unknown,
-): asserts value is CommandUsageModel {
-    if (
-        !value ||
-        typeof value !== 'object' ||
-        !('id' in value) ||
-        !('command' in value)
-    ) {
-        throw new Error('Invalid CommandUsageModel')
     }
 }
 
@@ -190,15 +164,6 @@ async function typedTrackHistoryFindMany(
 ): Promise<TrackHistoryModel[]> {
     const result: unknown = await prisma.trackHistory.findMany(params)
     assertIsArray<TrackHistoryModel>(result)
-    return result
-}
-
-async function typedCommandUsageCreate(
-    prisma: PrismaClient,
-    params: Parameters<PrismaClient['commandUsage']['create']>[0],
-): Promise<CommandUsageModel> {
-    const result: unknown = await prisma.commandUsage.create(params)
-    assertIsCommandUsageModel(result)
     return result
 }
 
@@ -604,65 +569,6 @@ export class DatabaseService {
         )
     }
 
-    // Command usage analytics
-    /** Records a bot command invocation for analytics. */
-    async recordCommandUsage(data: {
-        userId?: string
-        guildId?: string
-        command: string
-        category: string
-        success: boolean
-        errorCode?: string
-        duration?: number
-    }): Promise<Result<DatabaseCommandUsage>> {
-        return this.executeWithFallback(
-            async () => {
-                const usage = await typedCommandUsageCreate(this.prisma, {
-                    data: {
-                        user: data.userId
-                            ? { connect: { discordId: data.userId } }
-                            : undefined,
-                        guild: data.guildId
-                            ? { connect: { discordId: data.guildId } }
-                            : undefined,
-                        command: data.command,
-                        category: data.category,
-                        success: data.success,
-                        errorCode: data.errorCode,
-                        duration: data.duration,
-                    },
-                })
-                const result: DatabaseCommandUsage = {
-                    id: String(usage.id),
-                    userId: usage.userId ? String(usage.userId) : null,
-                    guildId: usage.guildId ? String(usage.guildId) : null,
-                    command: String(usage.command),
-                    category: String(usage.category),
-                    success: Boolean(usage.success),
-                    errorCode: usage.errorCode ? String(usage.errorCode) : null,
-                    duration: usage.duration ? Number(usage.duration) : null,
-                    createdAt:
-                        usage.createdAt instanceof Date
-                            ? usage.createdAt
-                            : new Date(usage.createdAt),
-                }
-                return result
-            },
-            {
-                id: '',
-                userId: null,
-                guildId: null,
-                command: '',
-                category: '',
-                success: false,
-                errorCode: null,
-                duration: null,
-                createdAt: new Date(),
-            } as DatabaseCommandUsage,
-            'record_command_usage',
-        )
-    }
-
     // Rate limiting
     /** Checks whether the given key is within the allowed rate limit window. */
     async checkRateLimit(
@@ -812,7 +718,7 @@ export class DatabaseService {
     }
 
     // Cleanup operations
-    /** Deletes track history, command usage, and expired rate limit records older than 30 days. */
+    /** Deletes track history and expired rate limit records older than 30 days. */
     async cleanupOldData(): Promise<Result<number>> {
         return this.executeWithFallback(
             async () => {
@@ -820,19 +726,16 @@ export class DatabaseService {
                     Date.now() - 30 * 24 * 60 * 60 * 1000,
                 )
 
-                const [tracks, usage, rateLimits] = await Promise.all([
+                const [tracks, rateLimits] = await Promise.all([
                     this.prisma.trackHistory.deleteMany({
                         where: { playedAt: { lt: thirtyDaysAgo } },
-                    }),
-                    this.prisma.commandUsage.deleteMany({
-                        where: { createdAt: { lt: thirtyDaysAgo } },
                     }),
                     this.prisma.rateLimit.deleteMany({
                         where: { resetAt: { lt: new Date() } },
                     }),
                 ])
 
-                return tracks.count + usage.count + rateLimits.count
+                return tracks.count + rateLimits.count
             },
             0,
             'cleanup_old_data',
