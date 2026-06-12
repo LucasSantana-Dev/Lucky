@@ -52,7 +52,12 @@ async function skipCurrentSong(
             if (!queue.isPlaying() && queue.tracks.size > 0) {
                 await queue.node.play()
             }
-        })()
+        })().catch((error: unknown) => {
+            errorLog({
+                message: `Failed to resume playback after skip in guild ${guildId}`,
+                error,
+            })
+        })
     }, 500)
 }
 
