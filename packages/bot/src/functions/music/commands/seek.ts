@@ -1,16 +1,19 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
-import { interactionReply } from "../../../utils/general/interactionReply"
-import type { CommandExecuteParams } from "../../../types/CommandData"
+import { interactionReply } from '../../../utils/general/interactionReply'
+import type { CommandExecuteParams } from '../../../types/CommandData'
 import {
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
     requireVoiceChannel,
-} from "../../../utils/command/commandValidations"
-import { requireDJRole } from '../../../utils/command/commandValidations'
+    requireDJRole,
+} from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
-import { createSuccessEmbed, createErrorEmbed } from '../../../utils/general/embeds'
+import {
+    createSuccessEmbed,
+    createErrorEmbed,
+} from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
 
 function parseTimeToMs(timeStr: string): number | null {
@@ -24,7 +27,11 @@ function parseTimeToMs(timeStr: string): number | null {
     if (parts.length === 2) {
         const minutes = parseInt(parts[0], 10)
         const seconds = parseInt(parts[1], 10)
-        return !isNaN(minutes) && !isNaN(seconds) && minutes >= 0 && seconds >= 0 && seconds < 60
+        return !isNaN(minutes) &&
+            !isNaN(seconds) &&
+            minutes >= 0 &&
+            seconds >= 0 &&
+            seconds < 60
             ? (minutes * 60 + seconds) * 1000
             : null
     }
@@ -115,7 +122,14 @@ export default new Command({
         queue?.node.seek(targetMs)
 
         const formattedTime = formatMs(targetMs)
-        const trackEmbed = buildCommandTrackEmbed(currentTrack, `⏩ Seeked to ${formattedTime}`, interaction.user)
-        await interactionReply({ interaction, content: { embeds: [trackEmbed] } })
+        const trackEmbed = buildCommandTrackEmbed(
+            currentTrack,
+            `⏩ Seeked to ${formattedTime}`,
+            interaction.user,
+        )
+        await interactionReply({
+            interaction,
+            content: { embeds: [trackEmbed] },
+        })
     },
 })

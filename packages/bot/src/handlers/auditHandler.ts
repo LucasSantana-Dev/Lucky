@@ -12,8 +12,7 @@ import {
     type NonThreadGuildBasedChannel,
     AuditLogEvent,
 } from 'discord.js'
-import { serverLogService } from '@lucky/shared/services'
-import { featureToggleService } from '@lucky/shared/services'
+import { serverLogService, featureToggleService } from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 
 async function isServerLogsEnabled(guildId: string): Promise<boolean> {

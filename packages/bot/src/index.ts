@@ -1,14 +1,16 @@
 import { ensureEnvironment } from '@lucky/shared/config'
-import { setupErrorHandlers } from '@lucky/shared/utils'
-import { flushSentry, initializeSentry } from '@lucky/shared/utils'
-import { startHeartbeat, stopHeartbeat } from '@lucky/shared/utils'
-import { initializeBot, shutdown as shutdownBot } from './bot/start'
 import {
+    setupErrorHandlers,
+    flushSentry,
+    initializeSentry,
+    startHeartbeat,
+    stopHeartbeat,
     debugLog,
     errorLog,
     sanitizeErrorMessage,
     sanitizeStack,
 } from '@lucky/shared/utils'
+import { initializeBot, shutdown as shutdownBot } from './bot/start'
 import { dependencyCheckService } from './services/DependencyCheckService'
 
 let isShuttingDown = false

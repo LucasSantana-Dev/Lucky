@@ -2,6 +2,7 @@ import globals from "globals"
 import pluginJs from "@eslint/js"
 import pluginTs from "@typescript-eslint/eslint-plugin"
 import parserTs from "@typescript-eslint/parser"
+import pluginImport from "eslint-plugin-import"
 import eslintConfigPrettier from "eslint-config-prettier"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
@@ -122,6 +123,7 @@ export default [
         },
         plugins: {
             "@typescript-eslint": pluginTs,
+            import: pluginImport,
         },
         rules: {
             // Core-rule handling at repo-root lint: the cwd-relative TS block
@@ -137,7 +139,11 @@ export default [
             "@typescript-eslint/no-unsafe-argument": "warn",
             "@typescript-eslint/no-explicit-any": "warn",
             "@typescript-eslint/no-unused-vars": "warn",
-            "no-duplicate-imports": "warn",
+            // Superseded by import/no-duplicates (autofixable + type-aware).
+            // Promoted to error: the inventory is cleaned, so this is now a
+            // regression guard rather than a ratchet warning (#1378).
+            "no-duplicate-imports": "off",
+            "import/no-duplicates": "error",
             "no-useless-assignment": "warn",
             "no-control-regex": "warn",
             "preserve-caught-error": "warn",
