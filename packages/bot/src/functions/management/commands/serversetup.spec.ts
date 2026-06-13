@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import serversetupCommand from './serversetup'
 import { interactionReply } from '../../../utils/general/interactionReply'
+import { infoLog } from '@lucky/shared/utils'
+import { guildAutomationUsageTotal } from '../../../utils/monitoring/prometheus'
 import {
     formatCriativariaSummary,
     resolveSetupMode,
@@ -14,6 +16,12 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
     errorLog: jest.fn(),
+}))
+
+jest.mock('../../../utils/monitoring/prometheus', () => ({
+    guildAutomationUsageTotal: {
+        inc: jest.fn(),
+    },
 }))
 
 jest.mock('./helpers/serversetupCriativaria', () => ({
@@ -35,6 +43,9 @@ function createInteraction(options: {
                       id: '895505900016631839',
                       name: 'Criativaria',
                   },
+        user: {
+            id: '123456789',
+        },
         options: {
             getString: jest.fn((name: string, required?: boolean) => {
                 if (name === 'template') {
@@ -108,6 +119,22 @@ describe('serversetup command', () => {
         expect(formatCriativariaSummary).toHaveBeenCalled()
         expect(interaction.editReply).toHaveBeenCalledWith('summary output')
         expect(interactionReply).not.toHaveBeenCalled()
+
+        // Guards the demand-measurement telemetry (#1288): if the instrumentation
+        // is removed, these assertions fail rather than passing silently.
+        expect(guildAutomationUsageTotal.inc).toHaveBeenCalledWith({
+            operation: 'criativaria',
+        })
+        expect(infoLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'serversetup: criativaria invoked',
+                data: expect.objectContaining({
+                    guildId: '895505900016631839',
+                    userId: '123456789',
+                    mode: 'dry-run',
+                }),
+            }),
+        )
     })
 
     it('returns terminal error reply when criativaria setup fails after defer', async () => {
