@@ -7,7 +7,6 @@ const PRUNE_INTERVAL_MS = 60 * 60 * 1000
 const PRISMA_RECORD_NOT_FOUND = 'P2025'
 
 type PrismaClientLike = ReturnType<typeof getPrismaClient>
-type SessionCallback = (error?: unknown, data?: unknown) => void
 
 function isRecordNotFound(error: unknown): boolean {
     return (
@@ -141,7 +140,3 @@ export class PrismaSessionStore extends session.Store {
         clearInterval(this.pruneTimer)
     }
 }
-
-// Exported for symmetry/testing; SessionCallback mirrors express-session's
-// loosely-typed store callbacks.
-export type { SessionCallback }
