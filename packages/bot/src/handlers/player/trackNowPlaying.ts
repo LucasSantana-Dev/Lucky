@@ -251,6 +251,15 @@ export async function sendNowPlayingEmbed(
                     // Silently ignore if reaction fails (e.g., bot permissions)
                 })
             }
+            // Refresh the cached trackUrl — the message is reused but now points
+            // at a new track, so skip-reason reactions must resolve to it, not
+            // the previous track's recommendation.
+            registerNowPlayingMessage(
+                queue.guild.id,
+                previousMessage.messageId,
+                metadata.channel.id,
+                track.url,
+            )
             debugLog({
                 message: 'Updated now playing message in channel',
                 data: {
