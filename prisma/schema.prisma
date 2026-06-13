@@ -975,3 +975,15 @@ model SupportReport {
   // allowed values) are enforced in the migration — Prisma cannot model them.
   @@map("support_reports")
 }
+
+// Top.gg vote tracking: dedup (12h TTL) + streak counter (36h reset).
+// One row per Discord user who has ever voted; no FK to users table.
+model TopggVote {
+  id        String   @id @default(cuid())
+  userId    String   @unique // Discord user snowflake
+  lastVoteAt DateTime
+  streak    Int      @default(1)
+  updatedAt DateTime @updatedAt
+
+  @@map("topgg_votes")
+}
