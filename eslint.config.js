@@ -132,7 +132,7 @@ export default [
             "no-unused-vars": "off",
             "no-empty": ["warn", { allowEmptyCatch: false }],
             "@typescript-eslint/no-non-null-assertion": "warn",
-            // NOTE: the no-unsafe-* inventory is cleaned to 0 (#1378), but these
+            // NOTE: the no-unsafe-* inventory is cleaned to 0 (#1382/#1384/#1385), but these
             // stay at `warn` until the CI `quality / Lint` job is type-aware.
             // That job runs `eslint .` without `db:generate` / `build:shared`,
             // so these type-aware rules report ~4200 phantom "type could not be
