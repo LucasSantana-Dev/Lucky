@@ -15,6 +15,7 @@ import {
     getArtistGenres,
     getUserTopArtistsAndTracks,
     getUserSavedTracks,
+    _resetPopularityCache,
 } from './spotifyApi'
 
 type MockFetchResponse = {
@@ -305,12 +306,57 @@ describe('spotifyApi', () => {
                     expect(result.size).toBe(0)
                 },
             ],
+            [
+                'batches multiple track IDs into one fetch call',
+                async () => {
+                    fetchMock.mockResolvedValue({
+                        ok: true,
+                        json: async () => ({
+                            audio_features: [
+                                { id: 'track1', energy: 0.8, valence: 0.7 },
+                                { id: 'track2', energy: 0.6, valence: 0.5 },
+                                {
+                                    id: 'track3',
+                                    energy: 0.9,
+                                    valence: 0.85,
+                                },
+                                {
+                                    id: 'track4',
+                                    energy: 0.4,
+                                    valence: 0.3,
+                                },
+                                {
+                                    id: 'track5',
+                                    energy: 0.7,
+                                    valence: 0.65,
+                                },
+                            ],
+                        }),
+                    })
+                    const trackIds = [
+                        'track1',
+                        'track2',
+                        'track3',
+                        'track4',
+                        'track5',
+                    ]
+                    const result = await getBatchAudioFeatures('token', trackIds)
+                    expect(result.size).toBe(5)
+                    expect(fetchMock).toHaveBeenCalledTimes(1)
+                    const callUrl = String(fetchMock.mock.calls[0]![0])
+                    expect(callUrl).toContain('ids=track1,track2,track3,track4,track5')
+                },
+            ],
         ])('%s', async (_label, test) => {
             await test()
         })
     })
 
     describe('getArtistPopularity', () => {
+        beforeEach(() => {
+            _resetPopularityCache()
+        })
+
         it.each([
             [
                 'success',
@@ -354,6 +400,30 @@ describe('spotifyApi', () => {
                     })
                     result = await getArtistPopularity('token', 'Some Artist')
                     expect(result).toBeNull()
+                },
+            ],
+            [
+                'cache hit/miss behavior avoids duplicate fetches',
+                async () => {
+                    fetchMock.mockResolvedValue({
+                        ok: true,
+                        json: async () => ({
+                            artists: { items: [{ popularity: 82 }] },
+                        }),
+                    })
+                    const firstCall = await getArtistPopularity(
+                        'token',
+                        'Adele',
+                    )
+                    expect(firstCall).toBe(82)
+                    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+                    const secondCall = await getArtistPopularity(
+                        'token',
+                        'Adele',
+                    )
+                    expect(secondCall).toBe(82)
+                    expect(fetchMock).toHaveBeenCalledTimes(1)
                 },
             ],
         ])('%s', async (_label, test) => {
