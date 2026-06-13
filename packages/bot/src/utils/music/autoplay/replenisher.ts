@@ -326,7 +326,8 @@ async function _replenishQueue(
                 : false
         // Block sertanejo candidates unless the seed itself is sertanejo — fail-open
         // when tags are absent (Last.fm unlinked) to avoid over-filtering.
-        const blockSertanejo = !seedIsSertanejo
+        // Allow guild to opt-out via blockSertanejo setting (defaults to true).
+        const blockSertanejo = guildSettings?.blockSertanejo !== false && !seedIsSertanejo
 
         const candidateGenreContext = {
             getArtistTags,

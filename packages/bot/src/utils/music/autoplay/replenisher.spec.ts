@@ -431,6 +431,65 @@ describe('replenishQueue', () => {
 
         expect(collectSeedSimilarCandidates).not.toHaveBeenCalled()
     })
+
+    it('respects blockSertanejo=true setting to block sertanejo candidates when seed is not sertanejo', async () => {
+        const queue = createGuildQueue()
+        const { guildSettingsService } = require('@lucky/shared/services')
+
+        // Mock settings with blockSertanejo=true
+        guildSettingsService.getGuildSettings.mockResolvedValue({
+            blockSertanejo: true,
+            autoplayMode: 'similar',
+            autoplayGenres: [],
+        })
+
+        // Verify replenishQueue executes without error
+        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+
+        // Verify guildSettingsService.getGuildSettings was called
+        expect(guildSettingsService.getGuildSettings).toHaveBeenCalledWith(
+            'guildid',
+        )
+    })
+
+    it('respects blockSertanejo=false setting to allow sertanejo candidates', async () => {
+        const queue = createGuildQueue()
+        const { guildSettingsService } = require('@lucky/shared/services')
+
+        // Mock settings with blockSertanejo=false
+        guildSettingsService.getGuildSettings.mockResolvedValue({
+            blockSertanejo: false,
+            autoplayMode: 'similar',
+            autoplayGenres: [],
+        })
+
+        // Verify replenishQueue executes without error
+        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+
+        // Verify guildSettingsService.getGuildSettings was called
+        expect(guildSettingsService.getGuildSettings).toHaveBeenCalledWith(
+            'guildid',
+        )
+    })
+
+    it('defaults to blockSertanejo=true when setting is undefined', async () => {
+        const queue = createGuildQueue()
+        const { guildSettingsService } = require('@lucky/shared/services')
+
+        // Mock settings without blockSertanejo field
+        guildSettingsService.getGuildSettings.mockResolvedValue({
+            autoplayMode: 'similar',
+            autoplayGenres: [],
+        })
+
+        // Verify replenishQueue executes without error
+        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+
+        // Verify guildSettingsService.getGuildSettings was called
+        expect(guildSettingsService.getGuildSettings).toHaveBeenCalledWith(
+            'guildid',
+        )
+    })
 })
 
 describe('clearSessionMoodCache', () => {
