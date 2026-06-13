@@ -17,6 +17,7 @@ jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: jest.fn(),
+        getReplayFrequentTracks: jest.fn(),
     },
     guildSettingsService: {
         getGuildSettings: jest.fn(),
@@ -131,6 +132,10 @@ describe('replenishQueue', () => {
             premiumService,
         } = require('@lucky/shared/services')
         trackHistoryService.getTrackHistory.mockResolvedValue([])
+        trackHistoryService.getReplayFrequentTracks.mockResolvedValue({
+            trackIds: new Set(),
+            artists: new Set(),
+        })
         guildSettingsService.getGuildSettings.mockResolvedValue(null)
         spotifyLinkService.getValidAccessToken.mockResolvedValue(null)
         premiumService.isPremium.mockResolvedValue(false)

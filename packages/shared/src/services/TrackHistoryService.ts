@@ -373,6 +373,64 @@ export class TrackHistoryService {
         }
     }
 
+    /**
+     * Retrieves tracks and artists that have been replayed frequently (replayCount > 2)
+     * within the last 30 days, for autoplay replay-boost candidate filtering.
+     *
+     * Returns two sets: track IDs and artist names for efficient matching in scoring.
+     * Fails open (returns empty sets) on error to prevent pool starvation.
+     */
+    async getReplayFrequentTracks(
+        guildId: string,
+    ): Promise<{ trackIds: Set<string>; artists: Set<string> }> {
+        try {
+            const prisma = getPrismaClient()
+            const thirtyDaysAgo = new Date(
+                Date.now() - 30 * 24 * 60 * 60 * 1000,
+            )
+
+            const rows = await prisma.trackHistory.findMany({
+                where: {
+                    guildId,
+                    playedAt: { gte: thirtyDaysAgo },
+                },
+                select: { trackId: true, author: true },
+            })
+
+            // Count occurrences and filter to replayCount > 2.
+            const trackCounts = new Map<string, number>()
+            const artistCounts = new Map<string, number>()
+
+            for (const row of rows) {
+                trackCounts.set(
+                    row.trackId,
+                    (trackCounts.get(row.trackId) ?? 0) + 1,
+                )
+                artistCounts.set(row.author, (artistCounts.get(row.author) ?? 0) + 1)
+            }
+
+            const trackIds = new Set<string>()
+            const artists = new Set<string>()
+
+            for (const [trackId, count] of trackCounts.entries()) {
+                if (count > 2) trackIds.add(trackId)
+            }
+
+            for (const [artist, count] of artistCounts.entries()) {
+                if (count > 2) artists.add(artist)
+            }
+
+            return { trackIds, artists }
+        } catch (error) {
+            errorLog({
+                message: 'Failed to get replay-frequent tracks',
+                error,
+            })
+            // Fail open: return empty sets so autoplay continues without boost.
+            return { trackIds: new Set(), artists: new Set() }
+        }
+    }
+
     /** Generates statistics on autoplay recommendations for a guild. */
     async getAutoplayStats(
         guildId: string,

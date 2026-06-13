@@ -196,6 +196,7 @@ async function _replenishQueue(
             implicitLikeKeys,
             allPreferredSets,
             allBlockedSets,
+            replayFrequency,
         ] = await Promise.all([
             recommendationFeedbackService.getLikedTrackWeights(
                 queue.guild.id,
@@ -229,6 +230,7 @@ async function _replenishQueue(
                     ),
                 ),
             ),
+            trackHistoryService.getReplayFrequentTracks(queue.guild.id),
         ])
 
         const preferredArtistKeys = new Set(
@@ -343,6 +345,8 @@ async function _replenishQueue(
             implicitLikeKeys,
             sessionMood,
             genreContext: candidateGenreContext,
+            replayFrequentTrackIds: replayFrequency.trackIds,
+            replayFrequentArtists: replayFrequency.artists,
         }
         const candidates = await collectRecommendationCandidates(
             autoplayContext,
