@@ -220,21 +220,21 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         candidate,
         currentTrack,
         recentArtists,
-        likedWeights = new Map(),
+        likedWeights = new Map<string, number>(),
         preferredArtistKeys = new Set(),
         blockedArtistKeys = new Set(),
         autoplayMode = 'similar',
-        artistFrequency = new Map(),
+        artistFrequency = new Map<string, number>(),
         implicitDislikeKeys = new Set(),
         implicitLikeKeys = new Set(),
-        dislikedWeights = new Map(),
+        dislikedWeights = new Map<string, number>(),
         sessionMood = null,
         skipNoveltyBoost = false,
         seedDerived = false,
         genreContext = {},
         replayFrequentTrackIds = new Set(),
         replayFrequentArtists = new Set(),
-        recentArtistIndices = new Map(),
+        recentArtistIndices = new Map<string, number>(),
     } = ctx
     const candidateTags = genreContext.candidateTags ?? []
     const currentTrackTags = genreContext.currentTrackTags ?? []
@@ -662,7 +662,7 @@ export async function enrichWithAudioFeatures(
     if (spotifyIds.length === 0) return tracks
 
     const features = await getBatchAudioFeatures(token, spotifyIds).catch(
-        () => new Map(),
+        () => new Map<string, SpotifyAudioFeatures>(),
     )
 
     // Genre-family scoring moved to in-pass `calculateRecommendationScore`

@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto'
 import { getPrismaClient, debugLog, errorLog } from '@lucky/shared/utils'
 import type { Prisma } from '@lucky/shared/utils'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
+import { trackSource } from './trackFields'
 
 /**
  * Extracts the structured Prisma error fields (`code` + `meta`) for logging.
@@ -83,7 +84,7 @@ export function toSnapshotTrack(track: Track): SnapshotTrack {
         author: track.author,
         url: track.url,
         duration: toDurationString(track.duration),
-        source: track.source ?? 'unknown',
+        source: trackSource(track) ?? 'unknown',
         recommendationReason: metadata.recommendationReason,
         isAutoplay: metadata.isAutoplay,
         requestedById: metadata.requestedById,
