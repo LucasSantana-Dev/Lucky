@@ -270,13 +270,6 @@ export function _resetPopularityCache(): void {
     artistPopularityCache.clear()
 }
 
-/**
- * Test helper to clear genres cache for test isolation.
- */
-export function _resetGenresCache(): void {
-    artistGenresCache.clear()
-}
-
 export async function getAudioFeatures(
     accessToken: string,
     spotifyTrackId: string,
