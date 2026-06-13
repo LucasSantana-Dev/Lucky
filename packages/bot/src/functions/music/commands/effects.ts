@@ -128,11 +128,11 @@ export default new Command({
 
         if (subcommand === 'bassboost') {
             const level = interaction.options.getInteger('level', true)
-            await handleBassBoost(queue!, level, interaction)
+            await handleBassBoost(assertDefined(queue, 'queue present after requireQueue guard'), level, interaction)
         } else if (subcommand === 'nightcore') {
-            await handleNightcore(queue!, interaction)
+            await handleNightcore(assertDefined(queue, 'queue present after requireQueue guard'), interaction)
         } else if (subcommand === 'reset') {
-            await handleReset(queue!, interaction)
+            await handleReset(assertDefined(queue, 'queue present after requireQueue guard'), interaction)
         }
     },
 })

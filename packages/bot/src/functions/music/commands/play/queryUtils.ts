@@ -16,6 +16,7 @@ import { interactionReply } from '../../../../utils/general/interactionReply'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { withTimeout } from '@lucky/shared/utils/async'
+import { assertDefined } from '@lucky/shared/utils/guards'
 
 export const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
 
@@ -176,7 +177,7 @@ export async function executePlayAtTop({
     if (!(await requireVoiceChannel(interaction))) return
     if (!(await requireDJRole(interaction, interaction.guildId))) return
 
-    const voiceChannel = member.voice.channel!
+    const voiceChannel = assertDefined(member.voice.channel, 'voice channel present after requireVoiceChannel guard')
 
     try {
         await interaction.deferReply()

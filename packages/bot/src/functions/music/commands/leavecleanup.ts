@@ -77,6 +77,6 @@ export default new Command({
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return
 
-        await cleanupTracksFromLeftMembers(queue!, interaction)
+        await cleanupTracksFromLeftMembers(assertDefined(queue, 'queue present after requireQueue guard'), interaction)
     },
 })

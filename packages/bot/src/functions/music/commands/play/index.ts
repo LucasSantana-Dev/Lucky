@@ -6,6 +6,7 @@ import {
 import type { CommandExecuteParams } from '../../../../types/CommandData'
 import Command from '../../../../models/Command'
 import { executePlayHandler } from './handlers/playHandler'
+import { assertDefined } from '@lucky/shared/utils/guards'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -60,7 +61,7 @@ export default new Command({
         if (
             !(await requireDJRole(
                 params.interaction,
-                params.interaction.guildId!,
+                assertDefined(params.interaction.guildId, 'guildId guaranteed by preceding guard'),
             ))
         )
             return
