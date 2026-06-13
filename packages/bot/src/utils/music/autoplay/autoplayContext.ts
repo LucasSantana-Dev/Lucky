@@ -27,4 +27,6 @@ export interface AutoplayContext {
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
     }
+    replayFrequentTrackIds?: Set<string>
+    replayFrequentArtists?: Set<string>
 }

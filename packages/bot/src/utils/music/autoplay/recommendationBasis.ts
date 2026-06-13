@@ -39,6 +39,7 @@ export type RecommendationSignal =
     | 'low quality upload'
     | 'discovery boost'
     | 'energy match'
+    | 'replay frequent'
 
 export interface RecommendationBasis {
     source: RecommendationSource

@@ -153,6 +153,8 @@ export async function collectSeedSimilarCandidates(
                     currentTrackTags,
                     sessionGenreFamilies,
                 },
+                replayFrequentTrackIds: ctx.replayFrequentTrackIds,
+                replayFrequentArtists: ctx.replayFrequentArtists,
             })
             // Last.fm returns `match` on a 0..1 scale. Weight by it but keep
             // seed-similar competitive — the weight is clamped to [0.5, 1.0]
