@@ -345,4 +345,160 @@ describe('blendAutoplayTracks', () => {
         expect(queue.node.remove).toHaveBeenCalledTimes(2)
         expect(replenishQueueMock).toHaveBeenCalledWith(queue)
     })
+
+    describe('integration: real queue.tracks mutation', () => {
+        beforeEach(() => {
+            jest.clearAllMocks()
+            replenishQueueMock.mockResolvedValue(undefined)
+        })
+
+        it('removes autoplay tracks from queue.tracks, keeping correct count with ratio 0.5', async () => {
+            const seedTrack = createTrack('Seed', 'A', 'seed')
+            const auto1 = createTrack('Auto1', 'Bot', 'u1')
+            const auto2 = createTrack('Auto2', 'Bot', 'u2')
+            const auto3 = createTrack('Auto3', 'Bot', 'u3')
+            const auto4 = createTrack('Auto4', 'Bot', 'u4')
+            for (const t of [auto1, auto2, auto3, auto4]) {
+                ;(t as unknown as { metadata: Record<string, unknown> }).metadata =
+                    { isAutoplay: true }
+            }
+            const queue = createQueue([auto1, auto2, auto3, auto4])
+
+            expect(queue.tracks.size).toBe(4)
+
+            await blendAutoplayTracks(queue, seedTrack, 0.5)
+
+            // keepCount = ceil(4 * 0.5) = 2, so 2 tracks removed
+            expect(queue.tracks.size).toBe(2)
+            const remainingTracks = queue.tracks.toArray()
+            expect(remainingTracks).toHaveLength(2)
+            expect(remainingTracks[0]).toBe(auto1)
+            expect(remainingTracks[1]).toBe(auto2)
+        })
+
+        it('handles ratio 0 by removing all autoplay tracks', async () => {
+            const seedTrack = createTrack('Seed', 'A', 'seed')
+            const auto1 = createTrack('Auto1', 'Bot', 'u1')
+            const auto2 = createTrack('Auto2', 'Bot', 'u2')
+            for (const t of [auto1, auto2]) {
+                ;(t as unknown as { metadata: Record<string, unknown> }).metadata =
+                    { isAutoplay: true }
+            }
+            const queue = createQueue([auto1, auto2])
+
+            await blendAutoplayTracks(queue, seedTrack, 0)
+
+            // keepCount = ceil(2 * 0) = 0, so all 2 tracks removed
+            expect(queue.tracks.size).toBe(0)
+            expect(replenishQueueMock).toHaveBeenCalledWith(queue)
+        })
+
+        it('handles ratio 1 by keeping all autoplay tracks', async () => {
+            const seedTrack = createTrack('Seed', 'A', 'seed')
+            const auto1 = createTrack('Auto1', 'Bot', 'u1')
+            const auto2 = createTrack('Auto2', 'Bot', 'u2')
+            const auto3 = createTrack('Auto3', 'Bot', 'u3')
+            for (const t of [auto1, auto2, auto3]) {
+                ;(t as unknown as { metadata: Record<string, unknown> }).metadata =
+                    { isAutoplay: true }
+            }
+            const queue = createQueue([auto1, auto2, auto3])
+
+            await blendAutoplayTracks(queue, seedTrack, 1)
+
+            // keepCount = ceil(3 * 1) = 3, so 0 tracks removed
+            expect(queue.tracks.size).toBe(3)
+            expect(queue.tracks.toArray()).toEqual([auto1, auto2, auto3])
+            expect(replenishQueueMock).toHaveBeenCalledWith(queue)
+        })
+
+        it('leaves non-autoplay tracks untouched when blending', async () => {
+            const seedTrack = createTrack('Seed', 'A', 'seed')
+            const userTrack1 = createTrack('User1', 'Human', 'u1')
+            const auto1 = createTrack('Auto1', 'Bot', 'a1')
+            const auto2 = createTrack('Auto2', 'Bot', 'a2')
+            const userTrack2 = createTrack('User2', 'Human', 'u2')
+
+            ;(auto1 as unknown as { metadata: Record<string, unknown> }).metadata =
+                { isAutoplay: true }
+            ;(auto2 as unknown as { metadata: Record<string, unknown> }).metadata =
+                { isAutoplay: true }
+
+            const queue = createQueue([
+                userTrack1,
+                auto1,
+                auto2,
+                userTrack2,
+            ])
+
+            await blendAutoplayTracks(queue, seedTrack, 0.5)
+
+            // keepCount = ceil(2 * 0.5) = 1, so 1 autoplay track removed
+            expect(queue.tracks.size).toBe(3)
+            const remaining = queue.tracks.toArray()
+            expect(remaining).toContain(userTrack1)
+            expect(remaining).toContain(userTrack2)
+            // One of the two autoplay tracks should remain
+            const autoplayRemaining = remaining.filter((t) => {
+                const meta = (t as unknown as { metadata: Record<string, unknown> })
+                    .metadata
+                return (meta as { isAutoplay?: boolean }).isAutoplay === true
+            })
+            expect(autoplayRemaining).toHaveLength(1)
+        })
+
+        it('invokes replenishQueue with the queue after mutation', async () => {
+            const seedTrack = createTrack('Seed', 'A', 'seed')
+            const auto1 = createTrack('Auto1', 'Bot', 'u1')
+            const auto2 = createTrack('Auto2', 'Bot', 'u2')
+            for (const t of [auto1, auto2]) {
+                ;(t as unknown as { metadata: Record<string, unknown> }).metadata =
+                    { isAutoplay: true }
+            }
+            const queue = createQueue([auto1, auto2])
+
+            await blendAutoplayTracks(queue, seedTrack, 0.5)
+
+            // Verify replenishQueue was called with the queue
+            expect(replenishQueueMock).toHaveBeenCalledWith(queue)
+            expect(replenishQueueMock).toHaveBeenCalledTimes(1)
+        })
+
+        it('does not crash on remove failures for individual tracks', async () => {
+            const seedTrack = createTrack('Seed', 'A', 'seed')
+            const auto1 = createTrack('Auto1', 'Bot', 'u1')
+            const auto2 = createTrack('Auto2', 'Bot', 'u2')
+            const auto3 = createTrack('Auto3', 'Bot', 'u3')
+            for (const t of [auto1, auto2, auto3]) {
+                ;(t as unknown as { metadata: Record<string, unknown> }).metadata =
+                    { isAutoplay: true }
+            }
+            const queue = createQueue([auto1, auto2, auto3])
+
+            // Make node.remove fail on the second call, delegating successful
+            // calls to the stub's real implementation (mutates the live array)
+            const originalRemove = (
+                queue.node.remove as jest.Mock
+            ).getMockImplementation() as (track: Track) => void
+            const removeCallCount = { count: 0 }
+            ;(queue.node.remove as jest.Mock).mockImplementation(
+                (track: Track) => {
+                    removeCallCount.count++
+                    if (removeCallCount.count === 2) {
+                        throw new Error('simulated removal failure')
+                    }
+                    originalRemove(track)
+                },
+            )
+
+            // Should not throw despite the failure
+            await blendAutoplayTracks(queue, seedTrack, 0.33)
+
+            // keepCount = ceil(3 * 0.33) = 1, so 2 removals are attempted:
+            // the first succeeds (queue drops to 2), the second throws and is
+            // swallowed by the per-track try-catch — leaving 2 tracks
+            expect(queue.tracks.size).toBe(2)
+            expect(replenishQueueMock).toHaveBeenCalledWith(queue)
+        })
+    })
 })
