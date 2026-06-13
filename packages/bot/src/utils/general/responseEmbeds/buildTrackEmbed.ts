@@ -2,6 +2,7 @@ import { EmbedBuilder } from 'discord.js'
 import type { User } from 'discord.js'
 import type { Track } from 'discord-player'
 import { detectSource } from '../../music/nowPlayingEmbed'
+import { trackSource } from '../../music/trackFields'
 import { formatDurationClock } from '../formatDuration'
 
 export type TrackEmbedKind = 'queued' | 'playing' | 'recommended' | 'history'
@@ -78,6 +79,6 @@ export function trackToData(track: Track): TrackData {
         duration: track.durationMS
             ? formatDurationClock(Math.floor(track.durationMS / 1000))
             : undefined,
-        source: track.source ?? null,
+        source: trackSource(track) ?? null,
     }
 }

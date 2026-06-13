@@ -5,6 +5,7 @@ import { extractSongCore, cleanTitle, cleanAuthor } from '../searchQueryCleaner'
 import { calculateStringSimilarity } from '../duplicateDetection/similarityChecker'
 import { markAndRecordAutoplayTrack } from './queueMarkers'
 import { extractYouTubeVideoId } from './scoringUtils'
+import { trackSource, trackAlbumName } from '../trackFields'
 import type { RecommendationBasis } from './recommendationBasis.js'
 
 interface ScoredTrack {
@@ -266,9 +267,11 @@ export function selectDiverseCandidates(
 
     for (const candidate of sortedCandidates) {
         const artistKey = candidate.track.author.toLowerCase()
-        const sourceKey = (candidate.track.source ?? 'unknown').toLowerCase()
+        const sourceKey = (
+            trackSource(candidate.track) ?? 'unknown'
+        ).toLowerCase()
         const titleKey = normalizeTitleOnly(candidate.track.title)
-        const albumName = candidate.track.raw?.album?.name?.toLowerCase() ?? ''
+        const albumName = trackAlbumName(candidate.track)?.toLowerCase() ?? ''
         const core = extractSongCore(
             candidate.track.title ?? '',
             candidate.track.author,

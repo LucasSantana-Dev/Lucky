@@ -249,7 +249,7 @@ export async function enrichWithAudioFeatures(
     if (spotifyIds.length === 0) return tracks
 
     const features = await getBatchAudioFeatures(token, spotifyIds).catch(
-        () => new Map(),
+        () => new Map<string, SpotifyAudioFeatures>(),
     )
 
     let currentGenres: string[] = []
