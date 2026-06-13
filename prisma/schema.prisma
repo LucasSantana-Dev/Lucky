@@ -80,6 +80,7 @@ model Guild {
   moderationCases      ModerationCase[]
   moderationSettings   ModerationSettings?
   autoModSettings      AutoModSettings?
+  modDigestConfig      ModDigestConfig?
   embedTemplates       EmbedTemplate[]
   autoMessages         AutoMessage[]
   customCommands       CustomCommand[]
@@ -692,6 +693,21 @@ model AutoModSettings {
   updatedAt          DateTime @updatedAt
 
   @@map("automod_settings")
+}
+
+// Moderation Digest Config — per-guild configuration for weekly digests.
+// Stores the enabled status and last-sent timestamp to drive the scheduler.
+// Migrated from Redis to Postgres for durability (enablement is user-facing state).
+model ModDigestConfig {
+  id         String   @id @default(cuid())
+  guildId    String   @unique
+  guild      Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  channelId  String
+  lastSentAt BigInt?
+  createdAt  BigInt
+  updatedAt  DateTime @updatedAt
+
+  @@map("mod_digest_config")
 }
 
 model EmbedTemplate {

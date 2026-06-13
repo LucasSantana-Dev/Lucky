@@ -1,4 +1,4 @@
-import { redisClient } from '@lucky/shared/services'
+import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
 import { errorLog } from '@lucky/shared/utils'
 
 export type ModDigestConfig = {
@@ -16,74 +16,94 @@ export type EnableModDigestInput = {
     createdAt?: number
 }
 
-const CONFIG_KEY_PREFIX = 'mod-digest:config:'
-const INDEX_KEY = 'mod-digest:enabled-guilds'
-
-function isModDigestConfig(value: unknown): value is ModDigestConfig {
-    if (!value || typeof value !== 'object') return false
-
-    const candidate = value as Record<string, unknown>
-    return (
-        typeof candidate.guildId === 'string' &&
-        typeof candidate.channelId === 'string' &&
-        typeof candidate.enabled === 'boolean' &&
-        (candidate.lastSentAt === null ||
-            typeof candidate.lastSentAt === 'number') &&
-        typeof candidate.createdAt === 'number'
-    )
-}
-
 export class ModDigestConfigService {
-    private getConfigKey(guildId: string): string {
-        return `${CONFIG_KEY_PREFIX}${guildId}`
-    }
-
     /**
-     * Persist a guild's digest config and add it to the enabled-guilds index.
+     * Persist a guild's digest config to Postgres.
      * Callers can pre-populate `lastSentAt` (used by /digest schedule to write
      * the post-sample timestamp atomically with enabling, eliminating the
      * scheduler-tick race window).
      */
     async enable(input: EnableModDigestInput): Promise<ModDigestConfig> {
-        const config: ModDigestConfig = {
-            guildId: input.guildId,
-            channelId: input.channelId,
-            enabled: true,
-            lastSentAt: input.lastSentAt ?? null,
-            createdAt: input.createdAt ?? Date.now(),
-        }
+        const prisma = getPrismaClient()
+        const createdAtMs = input.createdAt ?? Date.now()
+        const lastSentAtMs = input.lastSentAt ?? null
 
-        await redisClient.set(
-            this.getConfigKey(input.guildId),
-            JSON.stringify(config),
-        )
-        await redisClient.sadd(INDEX_KEY, input.guildId)
-        return config
+        try {
+            const row = await prisma.modDigestConfig.upsert({
+                where: { guildId: input.guildId },
+                update: {
+                    channelId: input.channelId,
+                    lastSentAt: lastSentAtMs !== null ? BigInt(lastSentAtMs) : null,
+                    updatedAt: new Date(),
+                },
+                create: {
+                    guildId: input.guildId,
+                    channelId: input.channelId,
+                    lastSentAt: lastSentAtMs !== null ? BigInt(lastSentAtMs) : null,
+                    createdAt: BigInt(createdAtMs),
+                },
+            })
+
+            return {
+                guildId: row.guildId,
+                channelId: row.channelId,
+                enabled: true,
+                lastSentAt: row.lastSentAt !== null ? Number(row.lastSentAt) : null,
+                createdAt: Number(row.createdAt),
+            }
+        } catch (error) {
+            errorLog({
+                message: 'Failed to enable mod digest config',
+                error,
+                data: { guildId: input.guildId },
+            })
+            throw error
+        }
     }
 
     async disable(guildId: string): Promise<boolean> {
-        const existing = await this.get(guildId)
-        if (!existing) return false
+        const prisma = getPrismaClient()
 
-        await redisClient.del(this.getConfigKey(guildId))
-        await redisClient.srem(INDEX_KEY, guildId)
-        return true
+        try {
+            await prisma.modDigestConfig.delete({
+                where: { guildId },
+            })
+            return true
+        } catch (error) {
+            const isP2025 =
+                error instanceof Error &&
+                'code' in error &&
+                error.code === 'P2025'
+
+            if (isP2025) {
+                return false
+            }
+
+            errorLog({
+                message: 'Failed to disable mod digest config',
+                error,
+                data: { guildId },
+            })
+            throw error
+        }
     }
 
     async get(guildId: string): Promise<ModDigestConfig | null> {
-        try {
-            const raw = await redisClient.get(this.getConfigKey(guildId))
-            if (!raw) return null
+        const prisma = getPrismaClient()
 
-            const parsed: unknown = JSON.parse(raw)
-            if (!isModDigestConfig(parsed)) {
-                errorLog({
-                    message: 'Mod digest config payload failed validation',
-                    data: { guildId },
-                })
-                return null
+        try {
+            const row = await prisma.modDigestConfig.findUnique({
+                where: { guildId },
+            })
+            if (!row) return null
+
+            return {
+                guildId: row.guildId,
+                channelId: row.channelId,
+                enabled: true,
+                lastSentAt: row.lastSentAt !== null ? Number(row.lastSentAt) : null,
+                createdAt: Number(row.createdAt),
             }
-            return parsed
         } catch (error) {
             errorLog({
                 message: 'Failed to read mod digest config',
@@ -95,8 +115,13 @@ export class ModDigestConfigService {
     }
 
     async listEnabledGuildIds(): Promise<string[]> {
+        const prisma = getPrismaClient()
+
         try {
-            return await redisClient.smembers(INDEX_KEY)
+            const rows = await prisma.modDigestConfig.findMany({
+                select: { guildId: true },
+            })
+            return rows.map((row) => row.guildId)
         } catch (error) {
             errorLog({
                 message: 'Failed to list enabled mod digest guilds',
@@ -107,11 +132,33 @@ export class ModDigestConfigService {
     }
 
     async markSent(guildId: string, sentAt: number = Date.now()): Promise<void> {
-        const existing = await this.get(guildId)
-        if (!existing) return
+        const prisma = getPrismaClient()
 
-        const updated: ModDigestConfig = { ...existing, lastSentAt: sentAt }
-        await redisClient.set(this.getConfigKey(guildId), JSON.stringify(updated))
+        try {
+            await prisma.modDigestConfig.update({
+                where: { guildId },
+                data: {
+                    lastSentAt: BigInt(sentAt),
+                    updatedAt: new Date(),
+                },
+            })
+        } catch (error) {
+            const isP2025 =
+                error instanceof Error &&
+                'code' in error &&
+                error.code === 'P2025'
+
+            if (isP2025) {
+                // Guild no longer has digest enabled; silently succeed
+                return
+            }
+            errorLog({
+                message: 'Failed to mark mod digest as sent',
+                error,
+                data: { guildId },
+            })
+            throw error
+        }
     }
 }
 
