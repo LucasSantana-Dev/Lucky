@@ -15,6 +15,10 @@ jest.mock('@lucky/shared/services', () => ({
         add: jest.fn(),
         remove: jest.fn(),
     },
+    twitchControlService: {
+        connect: jest.fn(),
+        publishRefresh: jest.fn(),
+    },
 }))
 
 // Mock auth middleware

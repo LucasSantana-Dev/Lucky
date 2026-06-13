@@ -4,7 +4,10 @@ import { validateBody, validateParams } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
-import { twitchNotificationService, twitchControlService } from '@lucky/shared/services'
+import {
+    twitchNotificationService,
+    twitchControlService,
+} from '@lucky/shared/services'
 import { warnLog } from '@lucky/shared/utils'
 import { AppError } from '../errors/AppError'
 import { z } from 'zod'
@@ -153,7 +156,10 @@ export function setupTwitchRoutes(app: Express): void {
                     displayName: user.display_name,
                 })
             } catch (error) {
-                if (error instanceof DOMException && error.name === 'TimeoutError') {
+                if (
+                    error instanceof DOMException &&
+                    error.name === 'TimeoutError'
+                ) {
                     throw AppError.gatewayTimeout(
                         'Twitch API request timed out, please try again',
                     )

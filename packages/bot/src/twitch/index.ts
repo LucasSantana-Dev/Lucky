@@ -1,6 +1,9 @@
 import type { Client } from 'discord.js'
 import { infoLog } from '@lucky/shared/utils'
-import { featureToggleService, twitchControlService } from '@lucky/shared/services'
+import {
+    featureToggleService,
+    twitchControlService,
+} from '@lucky/shared/services'
 import { isTwitchConfigured } from './token'
 import { twitchEventSubClient } from './eventsubClient'
 

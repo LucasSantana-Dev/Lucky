@@ -16,12 +16,17 @@ jest.mock('../../../src/services/SessionService', () => ({
 const mockListByGuild = jest.fn<any>()
 const mockAdd = jest.fn<any>()
 const mockRemove = jest.fn<any>()
+const mockPublishRefresh = jest.fn<any>()
 
 jest.mock('@lucky/shared/services', () => ({
     twitchNotificationService: {
         listByGuild: (...args: any[]) => mockListByGuild(...args),
         add: (...args: any[]) => mockAdd(...args),
         remove: (...args: any[]) => mockRemove(...args),
+    },
+    twitchControlService: {
+        connect: jest.fn(),
+        publishRefresh: (...args: any[]) => mockPublishRefresh(...args),
     },
 }))
 
