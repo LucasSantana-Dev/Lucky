@@ -10,6 +10,7 @@ import {
     autoMessageService,
     autoroleService,
     featureToggleService,
+    type EmbedData,
 } from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 
@@ -113,12 +114,13 @@ async function handleMemberAdd(member: GuildMember): Promise<void> {
         // Send message
         if (welcomeMessage.embedData) {
             try {
-                const embedData =
+                const embedData = (
                     typeof welcomeMessage.embedData === 'string'
                         ? JSON.parse(welcomeMessage.embedData)
                         : welcomeMessage.embedData
+                ) as EmbedData
                 const embed = new EmbedBuilder()
-                    .setTitle(embedData.title || undefined)
+                    .setTitle(embedData.title || null)
                     .setDescription(content)
 
                 if (embedData.color) {
@@ -200,12 +202,13 @@ async function handleMemberRemove(
         // Send message
         if (leaveMessage.embedData) {
             try {
-                const embedData =
+                const embedData = (
                     typeof leaveMessage.embedData === 'string'
                         ? JSON.parse(leaveMessage.embedData)
                         : leaveMessage.embedData
+                ) as EmbedData
                 const embed = new EmbedBuilder()
-                    .setTitle(embedData.title || undefined)
+                    .setTitle(embedData.title || null)
                     .setDescription(content)
 
                 if (embedData.color) {
