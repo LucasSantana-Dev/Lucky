@@ -16,6 +16,12 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
+jest.mock('../../../utils/monitoring/prometheus', () => ({
+    guildAutomationUsageTotal: {
+        inc: jest.fn(),
+    },
+}))
+
 jest.mock('./helpers/serversetupCriativaria', () => ({
     resolveSetupMode: jest.fn(),
     runCriativariaSetup: jest.fn(),
@@ -35,6 +41,9 @@ function createInteraction(options: {
                       id: '895505900016631839',
                       name: 'Criativaria',
                   },
+        user: {
+            id: '123456789',
+        },
         options: {
             getString: jest.fn((name: string, required?: boolean) => {
                 if (name === 'template') {

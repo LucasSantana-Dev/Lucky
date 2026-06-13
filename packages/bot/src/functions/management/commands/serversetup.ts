@@ -14,6 +14,7 @@ import {
 import Command from '../../../models/Command.js'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
+import { guildAutomationUsageTotal } from '../../../utils/monitoring/prometheus.js'
 import {
     formatCriativariaSummary,
     resolveSetupMode,
@@ -302,6 +303,17 @@ export default new Command({
         const mode = resolveSetupMode(interaction.options.getString('mode'))
 
         if (template === 'criativaria') {
+            // Telemetry: track invocation of criativaria command for demand measurement
+            infoLog({
+                message: 'serversetup: criativaria invoked',
+                data: {
+                    guildId: interaction.guild.id,
+                    userId: interaction.user.id,
+                    mode,
+                },
+            })
+            guildAutomationUsageTotal.inc({ operation: 'criativaria' })
+
             await interaction.deferReply({ flags: MessageFlags.Ephemeral })
             try {
                 const result = await runCriativariaSetup(
