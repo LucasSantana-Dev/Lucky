@@ -57,7 +57,16 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireVoiceChannel(interaction))) return
-        if (!(await requireDJRole(interaction, interaction.guildId!))) return
+        if (
+            !(await requireDJRole(
+                interaction,
+                assertDefined(
+                    interaction.guildId,
+                    'Guild ID required after requireVoiceChannel check',
+                ),
+            ))
+        )
+            return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 
