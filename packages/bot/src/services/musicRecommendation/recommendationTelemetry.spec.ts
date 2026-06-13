@@ -28,8 +28,10 @@ jest.mock('@lucky/shared/utils/general/log', () => ({
 import {
     recordRecommendationPick,
     recordRecommendationOutcome,
+    recordRecommendationSkipReason,
     type RecordPickInput,
     type RecordOutcomeArgs,
+    type RecordSkipReasonArgs,
 } from './recommendationTelemetry'
 
 describe('recommendationTelemetry', () => {
@@ -311,6 +313,125 @@ describe('recommendationTelemetry', () => {
                 recordRecommendationOutcome(args),
             ).resolves.toBeUndefined()
             expect(mockErrorLog).toHaveBeenCalled()
+        })
+    })
+
+    describe('recordRecommendationSkipReason', () => {
+        it('updates skipReason on recommendation by id (happy path)', async () => {
+            const args: RecordSkipReasonArgs = {
+                recommendationId: 'rec-id-123',
+                skipReason: 'too_chill',
+            }
+
+            mockUpdate.mockResolvedValue({
+                id: 'rec-id-123',
+                skipReason: 'too_chill',
+            })
+
+            await recordRecommendationSkipReason(args)
+
+            expect(mockUpdate).toHaveBeenCalledWith({
+                where: { id: 'rec-id-123' },
+                data: { skipReason: 'too_chill' },
+            })
+        })
+
+        it('persists generic_dislike skip reason', async () => {
+            const args: RecordSkipReasonArgs = {
+                recommendationId: 'rec-id-456',
+                skipReason: 'generic_dislike',
+            }
+
+            mockUpdate.mockResolvedValue({
+                id: 'rec-id-456',
+                skipReason: 'generic_dislike',
+            })
+
+            await recordRecommendationSkipReason(args)
+
+            expect(mockUpdate).toHaveBeenCalledWith({
+                where: { id: 'rec-id-456' },
+                data: { skipReason: 'generic_dislike' },
+            })
+        })
+
+        it('persists mood_mismatch skip reason', async () => {
+            const args: RecordSkipReasonArgs = {
+                recommendationId: 'rec-id-789',
+                skipReason: 'mood_mismatch',
+            }
+
+            mockUpdate.mockResolvedValue({
+                id: 'rec-id-789',
+                skipReason: 'mood_mismatch',
+            })
+
+            await recordRecommendationSkipReason(args)
+
+            expect(mockUpdate).toHaveBeenCalledWith({
+                where: { id: 'rec-id-789' },
+                data: { skipReason: 'mood_mismatch' },
+            })
+        })
+
+        it('persists repeat skip reason', async () => {
+            const args: RecordSkipReasonArgs = {
+                recommendationId: 'rec-id-101',
+                skipReason: 'repeat',
+            }
+
+            mockUpdate.mockResolvedValue({
+                id: 'rec-id-101',
+                skipReason: 'repeat',
+            })
+
+            await recordRecommendationSkipReason(args)
+
+            expect(mockUpdate).toHaveBeenCalledWith({
+                where: { id: 'rec-id-101' },
+                data: { skipReason: 'repeat' },
+            })
+        })
+
+        it('DB error is swallowed and resolved void (non-blocking)', async () => {
+            const args: RecordSkipReasonArgs = {
+                recommendationId: 'rec-id-123',
+                skipReason: 'too_chill',
+            }
+
+            const testError = new Error('DB connection failed')
+            mockUpdate.mockRejectedValue(testError)
+
+            // Should not throw
+            await expect(
+                recordRecommendationSkipReason(args),
+            ).resolves.toBeUndefined()
+            expect(mockErrorLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'recordRecommendationSkipReason',
+                    ),
+                }),
+            )
+        })
+
+        it('persistence failure does not break skip flow', async () => {
+            const args: RecordSkipReasonArgs = {
+                recommendationId: 'rec-id-123',
+                skipReason: 'generic_dislike',
+            }
+
+            mockUpdate.mockRejectedValue(
+                new Error('Network timeout'),
+            )
+
+            const result = await recordRecommendationSkipReason(args)
+
+            // Verify the function returns undefined (void) even on error
+            expect(result).toBeUndefined()
+            // Verify error was logged but not thrown
+            expect(mockErrorLog).toHaveBeenCalled()
+            // Function should complete without throwing
         })
     })
 })

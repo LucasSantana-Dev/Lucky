@@ -5,6 +5,7 @@ import {
     serializeBasis,
     type RecommendationBasis,
 } from '../../utils/music/autoplay/recommendationBasis'
+import type { SkipReason } from '../../utils/music/skipReasonMap'
 
 export interface RecordPickInput {
     guildId: string
@@ -23,6 +24,11 @@ export interface RecordOutcomeArgs {
     guildId: string
     trackId: string
     outcome: 'accepted' | 'rejected'
+}
+
+export interface RecordSkipReasonArgs {
+    recommendationId: string
+    skipReason: SkipReason
 }
 
 /**
@@ -107,6 +113,30 @@ export async function recordRecommendationOutcome(
         errorLog({
             message:
                 '[recordRecommendationOutcome] failed to update Recommendation row',
+            error: err,
+        })
+    }
+}
+
+/**
+ * Records the skip reason for a recommendation via emoji reaction on the now-playing control.
+ * Non-blocking: swallows DB errors and logs them without throwing.
+ * Does not affect the skip flow if persistence fails.
+ */
+export async function recordRecommendationSkipReason(
+    args: RecordSkipReasonArgs,
+): Promise<void> {
+    try {
+        const prisma = getPrismaClient()
+
+        await prisma.recommendation.update({
+            where: { id: args.recommendationId },
+            data: { skipReason: args.skipReason },
+        })
+    } catch (err) {
+        errorLog({
+            message:
+                '[recordRecommendationSkipReason] failed to update Recommendation row',
             error: err,
         })
     }

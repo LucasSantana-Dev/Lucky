@@ -501,6 +501,13 @@ enum RecommendationSource {
   GENRE_TAG
 }
 
+enum SkipReason {
+  generic_dislike
+  too_chill
+  mood_mismatch
+  repeat
+}
+
 model Recommendation {
   id      String @id @default(cuid())
   guildId String
@@ -534,6 +541,8 @@ model Recommendation {
   isAccepted Boolean?
   isRejected Boolean?
   feedback   String?
+  // Optional skip reason captured via emoji reaction on now-playing control
+  skipReason SkipReason?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
