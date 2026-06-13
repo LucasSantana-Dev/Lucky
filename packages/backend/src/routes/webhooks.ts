@@ -79,9 +79,12 @@ async function readVoteState(
         VOTE_TTL_MILLISECONDS - timeSinceVote,
     )
 
+    // Streak expires after 36h with no vote, matching the original Redis EXPIRE behavior
+    const expiredStreak = timeSinceVote > STREAK_TTL_MILLISECONDS ? 0 : vote.streak
+
     return {
         hasVoted: timeSinceVote < VOTE_TTL_MILLISECONDS,
-        streak: vote.streak,
+        streak: expiredStreak,
         nextVoteInSeconds: Math.ceil(nextVoteInMilliseconds / 1000),
     }
 }
