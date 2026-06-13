@@ -80,8 +80,16 @@ export class TwitchEventSubClient {
                 this.clearKeepalive()
                 this.ws = null
                 this.sessionId = null
-                if (code !== 1000 && this.client)
+                if (code !== 1000 && this.client) {
+                    // Unexpected close: the old session and its subscriptions are
+                    // gone, so the reconnect gets a brand-new session. Clear the
+                    // dedupe set or subscribeToStreamOnline would skip every id and
+                    // register zero subscriptions, silently killing notifications.
+                    // (session_reconnect migration closes with code 1000 and keeps
+                    // its subscriptions, so it intentionally bypasses this reset.)
+                    this.subscribedUserIds.clear()
                     setTimeout(() => this.connect(EVENTSUB_WS_URL), 5000)
+                }
             })
             this.ws.on('error', (err) =>
                 errorLog({
@@ -102,10 +110,16 @@ export class TwitchEventSubClient {
                 this.scheduleKeepalive(
                     p.session.keepalive_timeout_seconds * 1000,
                 )
-                subscribeToStreamOnline(
+                void subscribeToStreamOnline(
                     this.sessionId,
                     this.clientId,
                     this.subscribedUserIds,
+                ).catch((error) =>
+                    errorLog({
+                        message:
+                            'Twitch EventSub: subscribe on session_welcome failed',
+                        error,
+                    }),
                 )
                 break
             }
