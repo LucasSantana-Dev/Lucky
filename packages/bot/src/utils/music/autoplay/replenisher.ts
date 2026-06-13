@@ -230,9 +230,20 @@ async function _replenishQueue(
                     ),
                 ),
             ),
-            trackHistoryService
-                .getReplayFrequentTracks(queue.guild.id)
-                .catch(() => ({ trackIds: new Set(), artists: new Set() })),
+            // Async wrapper so even a synchronous throw (e.g. method absent on
+            // a partial service double) degrades to the empty no-boost result
+            (async () => {
+                try {
+                    return await trackHistoryService.getReplayFrequentTracks(
+                        queue.guild.id,
+                    )
+                } catch {
+                    return {
+                        trackIds: new Set<string>(),
+                        artists: new Set<string>(),
+                    }
+                }
+            })(),
         ])
 
         const preferredArtistKeys = new Set(
