@@ -189,6 +189,7 @@ describe('trackNowPlaying handlers', () => {
 
             mockChannel.send = jest.fn().mockResolvedValueOnce({
                 id: 'msg-123',
+                react: jest.fn().mockResolvedValue(undefined),
             })
 
             const trackWithSource = {
@@ -217,6 +218,7 @@ describe('trackNowPlaying handlers', () => {
         it('omits acceptance rate if recommendationSource not provided', async () => {
             mockChannel.send = jest.fn().mockResolvedValueOnce({
                 id: 'msg-123',
+                react: jest.fn().mockResolvedValue(undefined),
             })
 
             const trackWithoutSource = {
@@ -249,6 +251,7 @@ describe('trackNowPlaying handlers', () => {
 
             mockChannel.send = jest.fn().mockResolvedValueOnce({
                 id: 'msg-123',
+                react: jest.fn().mockResolvedValue(undefined),
             })
 
             const trackWithSource = {
@@ -281,6 +284,7 @@ describe('trackNowPlaying handlers', () => {
 
             mockChannel.send = jest.fn().mockResolvedValueOnce({
                 id: 'msg-123',
+                react: jest.fn().mockResolvedValue(undefined),
             })
 
             const trackWithSource = {
@@ -309,6 +313,7 @@ describe('trackNowPlaying handlers', () => {
         it('omits "Why this track" field entirely for non-autoplay tracks', async () => {
             mockChannel.send = jest.fn().mockResolvedValueOnce({
                 id: 'msg-123',
+                react: jest.fn().mockResolvedValue(undefined),
             })
 
             const userTrack = {

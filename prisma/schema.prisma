@@ -534,6 +534,9 @@ model Recommendation {
   isAccepted Boolean?
   isRejected Boolean?
   feedback   String?
+  // Optional skip reason captured via emoji reaction on now-playing control
+  // (e.g., 'too_chill', 'mood_mismatch', 'repeat', or 'skip')
+  skipReason String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

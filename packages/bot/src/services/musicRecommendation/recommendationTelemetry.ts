@@ -25,6 +25,11 @@ export interface RecordOutcomeArgs {
     outcome: 'accepted' | 'rejected'
 }
 
+export interface RecordSkipReasonArgs {
+    recommendationId: string
+    skipReason: string
+}
+
 /**
  * Records a music recommendation pick into the database.
  * Non-blocking: swallows DB errors and logs them without throwing.
@@ -107,6 +112,30 @@ export async function recordRecommendationOutcome(
         errorLog({
             message:
                 '[recordRecommendationOutcome] failed to update Recommendation row',
+            error: err,
+        })
+    }
+}
+
+/**
+ * Records the skip reason for a recommendation via emoji reaction on the now-playing control.
+ * Non-blocking: swallows DB errors and logs them without throwing.
+ * Does not affect the skip flow if persistence fails.
+ */
+export async function recordRecommendationSkipReason(
+    args: RecordSkipReasonArgs,
+): Promise<void> {
+    try {
+        const prisma = getPrismaClient()
+
+        await prisma.recommendation.update({
+            where: { id: args.recommendationId },
+            data: { skipReason: args.skipReason },
+        })
+    } catch (err) {
+        errorLog({
+            message:
+                '[recordRecommendationSkipReason] failed to update Recommendation row',
             error: err,
         })
     }

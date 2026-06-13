@@ -225,6 +225,8 @@ export async function sendNowPlayingEmbed(
         footer,
     })
 
+    const skipReasonEmojis = ['👎', '😴', '🎸', '🔁']
+
     const previousMessage = getSongInfoMessage(queue.guild.id)
     if (previousMessage && previousMessage.channelId === metadata.channel.id) {
         try {
@@ -239,6 +241,12 @@ export async function sendNowPlayingEmbed(
                     createMusicActionButtons(queue),
                 ],
             })
+            // Add skip-reason emoji reactions
+            for (const emoji of skipReasonEmojis) {
+                message.react(emoji).catch(() => {
+                    // Silently ignore if reaction fails (e.g., bot permissions)
+                })
+            }
             debugLog({
                 message: 'Updated now playing message in channel',
                 data: {
@@ -268,6 +276,13 @@ export async function sendNowPlayingEmbed(
             createMusicActionButtons(queue),
         ],
     })
+
+    // Add skip-reason emoji reactions
+    for (const emoji of skipReasonEmojis) {
+        message.react(emoji).catch(() => {
+            // Silently ignore if reaction fails (e.g., bot permissions)
+        })
+    }
 
     registerNowPlayingMessage(queue.guild.id, message.id, metadata.channel.id)
 
