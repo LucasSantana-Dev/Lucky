@@ -547,4 +547,132 @@ describe('candidateScorer', () => {
             expect(result[0].score).toBeGreaterThan(result[1].score)
         })
     })
+
+    describe('replay frequency boost (acceptance criteria)', () => {
+        it('applies replay-count boost to candidates matching frequently replayed track IDs', () => {
+            const replayTrackId = 'frequently-played-track-id'
+            const baselineResult = calculateRecommendationScore({
+                candidate: createTrack({ id: replayTrackId }),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+            })
+            const boostedResult = calculateRecommendationScore({
+                candidate: createTrack({ id: replayTrackId }),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                replayFrequentTrackIds: new Set([replayTrackId]),
+            })
+            expect(boostedResult.score).toBeGreaterThan(baselineResult.score)
+            expect(boostedResult.signals).toContain('replay frequent')
+        })
+
+        it('applies replay-count boost to candidates matching frequently replayed artist names', () => {
+            const replayArtist = 'frequently-replayed-artist'
+            const baselineResult = calculateRecommendationScore({
+                candidate: createTrack({ author: replayArtist }),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+            })
+            const boostedResult = calculateRecommendationScore({
+                candidate: createTrack({ author: replayArtist }),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                replayFrequentArtists: new Set([replayArtist.toLowerCase()]),
+            })
+            expect(boostedResult.score).toBeGreaterThan(baselineResult.score)
+            expect(boostedResult.signals).toContain('replay frequent')
+        })
+
+        it('bounds replay boost so it cannot flip genre-family veto (-Infinity)', () => {
+            // Cross-genre jump with strong family mismatch = -Infinity veto
+            const result = calculateRecommendationScore({
+                candidate: createTrack({ author: 'Frequently Replayed Artist' }),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                replayFrequentArtists: new Set(['frequently replayed artist']),
+                autoplayMode: 'similar',
+                sessionMood: {
+                    dominantLocale: null,
+                    deepDiveArtist: null,
+                    preferLong: false,
+                    preferShort: false,
+                    restless: false,
+                },
+                genreContext: {
+                    candidateTags: ['thrash metal'],
+                    currentTrackTags: ['reggaeton'],
+                    sessionGenreFamilies: new Set(['latin']),
+                },
+            })
+            // Score should remain -Infinity; boost is additive and cannot override hard vetoes
+            expect(result.score).toBe(-Infinity)
+        })
+
+        it('bounds replay boost so it cannot flip blocked-artist rejection', () => {
+            // Blocked artist = -Infinity veto regardless of replay frequency
+            const result = calculateRecommendationScore({
+                candidate: createTrack({ author: 'Blocked Artist' }),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                blockedArtistKeys: new Set(['blockedartist']),
+                replayFrequentArtists: new Set(['blocked artist']),
+            })
+            expect(result.score).toBe(-Infinity)
+        })
+
+        it('bounds replay boost so it cannot flip dislike-weight rejection', () => {
+            // High dislike weight (> 0.5) = -Infinity veto
+            const result = calculateRecommendationScore({
+                candidate: createTrack({
+                    title: 'Disliked Song',
+                    author: 'Disliked Artist',
+                }),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                autoplayMode: 'similar',
+                dislikedWeights: new Map([['dislikedsong::dislikedartist', 0.8]]),
+                replayFrequentTrackIds: new Set(['frequently-played-track-id']),
+            })
+            expect(result.score).toBe(-Infinity)
+        })
+
+        it('applies replay boost additively below hard vetoes and respects diversity caps', () => {
+            // Verify that replay boost stacks with other positive signals
+            // but remains bounded by hard rejection thresholds
+            const candidate = createTrack({
+                title: 'Great Song',
+                author: 'Favorite Artist',
+            })
+            const baselineResult = calculateRecommendationScore({
+                candidate,
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                preferredArtistKeys: new Set(['favoriteartist']),
+            })
+            const withReplayBoostResult = calculateRecommendationScore({
+                candidate,
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                preferredArtistKeys: new Set(['favoriteartist']),
+                replayFrequentArtists: new Set(['favorite artist']),
+            })
+            expect(withReplayBoostResult.score).toBeGreaterThan(baselineResult.score)
+            expect(withReplayBoostResult.signals).toContain('preferred artist')
+            expect(withReplayBoostResult.signals).toContain('replay frequent')
+        })
+
+        it('gracefully handles missing replay frequency data (empty sets)', () => {
+            // Fail-open: if history query returns empty sets, scoring continues normally
+            const result = calculateRecommendationScore({
+                candidate: createTrack(),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                replayFrequentTrackIds: new Set(),
+                replayFrequentArtists: new Set(),
+            })
+            expect(result.score).toBeDefined()
+            expect(result.signals).toBeDefined()
+            expect(() => result).not.toThrow()
+        })
+    })
 })

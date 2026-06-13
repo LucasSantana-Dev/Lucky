@@ -230,7 +230,9 @@ async function _replenishQueue(
                     ),
                 ),
             ),
-            trackHistoryService.getReplayFrequentTracks(queue.guild.id),
+            trackHistoryService
+                .getReplayFrequentTracks(queue.guild.id)
+                .catch(() => ({ trackIds: new Set(), artists: new Set() })),
         ])
 
         const preferredArtistKeys = new Set(
@@ -345,8 +347,8 @@ async function _replenishQueue(
             implicitLikeKeys,
             sessionMood,
             genreContext: candidateGenreContext,
-            replayFrequentTrackIds: replayFrequency.trackIds,
-            replayFrequentArtists: replayFrequency.artists,
+            replayFrequentTrackIds: replayFrequency?.trackIds ?? new Set(),
+            replayFrequentArtists: replayFrequency?.artists ?? new Set(),
         }
         const candidates = await collectRecommendationCandidates(
             autoplayContext,
