@@ -14,6 +14,7 @@ import {
     handleAutoplayMode,
     handleAutoplayGenre,
     handleAutoplayAnalytics,
+    handleAutoplaySertanejo,
 } from './autoplay/settingsHandlers'
 import { handleAutoplayArtist } from './autoplay/artistHandlers'
 
@@ -68,6 +69,19 @@ export default new Command({
                                 name: '🔥 Popular — favour your liked tracks',
                                 value: 'popular',
                             },
+                        )
+                        .setRequired(false),
+                ),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('sertanejo')
+                .setDescription('Get or set sertanejo veto for this guild')
+                .addBooleanOption((opt) =>
+                    opt
+                        .setName('block')
+                        .setDescription(
+                            'Block sertanejo candidates (true) or allow them (false)',
                         )
                         .setRequired(false),
                 ),
@@ -218,6 +232,9 @@ export default new Command({
                     break
                 case 'mode':
                     await handleAutoplayMode(interaction)
+                    break
+                case 'sertanejo':
+                    await handleAutoplaySertanejo(interaction)
                     break
                 default:
                     await interactionReply({

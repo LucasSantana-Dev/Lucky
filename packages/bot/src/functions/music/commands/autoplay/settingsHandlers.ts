@@ -490,8 +490,100 @@ async function handleAutoplayGenre(
     }
 }
 
+async function handleAutoplaySertanejo(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    const guildId = interaction.guildId
+    if (!guildId) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Guild Not Found',
+                        'Unable to retrieve guild information.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    const block = interaction.options.getBoolean('block')
+
+    if (block === null) {
+        // Get current setting
+        const settings = await guildSettingsService.getGuildSettings(guildId)
+        const currentBlock = settings?.blockSertanejo ?? true
+
+        const description = currentBlock
+            ? '🚫 Sertanejo candidates are blocked unless the seed track is sertanejo'
+            : '✅ Sertanejo candidates are allowed'
+
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createEmbed({
+                        title: '🎸 Sertanejo Veto',
+                        description: `**Current setting:** ${currentBlock ? 'Blocked' : 'Allowed'}\n${description}`,
+                        color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                        emoji: EMOJIS.AUTOPLAY,
+                        timestamp: true,
+                    }),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    // Set new setting
+    const success = await guildSettingsService.updateGuildSettings(guildId, {
+        blockSertanejo: block,
+    })
+
+    if (!success) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Error',
+                        'Failed to update sertanejo veto setting.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    const statusText = block
+        ? '🚫 Sertanejo candidates are now blocked'
+        : '✅ Sertanejo candidates are now allowed'
+
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createEmbed({
+                    title: '✅ Sertanejo veto updated',
+                    description: statusText,
+                    color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                    emoji: EMOJIS.AUTOPLAY,
+                    timestamp: true,
+                }),
+            ],
+            ephemeral: true,
+        },
+    })
+}
+
 export {
     handleAutoplayMode,
     handleAutoplayGenre,
     handleAutoplayAnalytics,
+    handleAutoplaySertanejo,
 }

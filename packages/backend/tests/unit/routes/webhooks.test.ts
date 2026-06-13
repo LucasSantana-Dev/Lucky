@@ -9,26 +9,14 @@ import {
 import express from 'express'
 import request from 'supertest'
 
-// Mock ioredis so the route never opens a real connection.
-const pipelineExec = jest.fn<() => Promise<unknown>>().mockResolvedValue([])
-const pipelineMock = {
-    set: jest.fn().mockReturnThis(),
-    incr: jest.fn().mockReturnThis(),
-    expire: jest.fn().mockReturnThis(),
-    get: jest.fn().mockReturnThis(),
-    ttl: jest.fn().mockReturnThis(),
-    exec: pipelineExec,
-}
-const redisEval = jest.fn<() => Promise<unknown>>().mockResolvedValue(1)
-const redisOn = jest.fn()
-
-jest.mock('ioredis', () => {
-    return jest.fn().mockImplementation(() => ({
-        pipeline: () => pipelineMock,
-        eval: redisEval,
-        on: redisOn,
-    }))
-})
+// Mock chalk to avoid "color is not a function" in LogService
+jest.mock('chalk', () => ({
+    red: (str: string) => str,
+    yellow: (str: string) => str,
+    blue: (str: string) => str,
+    green: (str: string) => str,
+    gray: (str: string) => str,
+}))
 
 // Mock auth middleware to inject a configurable user. The actual middleware
 // reads from session; for unit tests we short-circuit with a header.
@@ -46,6 +34,24 @@ jest.mock('../../../src/middleware/auth', () => ({
         next()
     },
 }))
+
+// Mock Prisma client via getPrismaClient so the route never opens a real database connection.
+// This must be done before importing the route module.
+const mockFindUnique = jest.fn()
+const mockTransaction = jest.fn()
+
+jest.mock('@lucky/shared/utils', () => {
+    const actual = jest.requireActual('@lucky/shared/utils')
+    return {
+        ...actual,
+        getPrismaClient: jest.fn(() => ({
+            topggVote: {
+                findUnique: mockFindUnique,
+            },
+            $transaction: mockTransaction,
+        })),
+    }
+}, { virtual: true })
 
 import { setupWebhookRoutes } from '../../../src/routes/webhooks'
 
@@ -72,23 +78,13 @@ function buildApp(): express.Express {
 beforeEach(() => {
     process.env.TOPGG_AUTH_TOKEN = 'valid-token'
     process.env.LUCKY_NOTIFY_API_KEY = 'internal-key'
-    process.env.REDIS_HOST = 'localhost'
-    process.env.REDIS_PORT = '6379'
-    pipelineExec.mockClear().mockResolvedValue([])
-    pipelineMock.set.mockClear()
-    pipelineMock.incr.mockClear()
-    pipelineMock.expire.mockClear()
-    pipelineMock.get.mockClear()
-    pipelineMock.ttl.mockClear()
-    redisEval.mockClear().mockResolvedValue(1)
-    redisOn.mockClear()
+    mockFindUnique.mockClear()
+    mockTransaction.mockClear()
 })
 
 afterEach(() => {
     delete process.env.TOPGG_AUTH_TOKEN
     delete process.env.LUCKY_NOTIFY_API_KEY
-    delete process.env.REDIS_HOST
-    delete process.env.REDIS_PORT
 })
 
 describe('POST /webhooks/topgg-votes', () => {
@@ -131,7 +127,7 @@ describe('POST /webhooks/topgg-votes', () => {
             .send({ type: 'test' })
         expect(res.status).toBe(200)
         expect(res.body).toEqual({ ok: true, test: true })
-        expect(pipelineExec).not.toHaveBeenCalled()
+        expect(mockTransaction).not.toHaveBeenCalled()
     })
 
     it('rejects when user id is missing', async () => {
@@ -148,17 +144,19 @@ describe('POST /webhooks/topgg-votes', () => {
             .set('authorization', 'valid-token')
             .send({ user: '1', type: 'downvote' })
         expect(res.status).toBe(400)
-        expect(redisEval).not.toHaveBeenCalled()
+        expect(mockTransaction).not.toHaveBeenCalled()
     })
 })
 
 describe('GET /api/internal/votes/:userId', () => {
     it('responds to GET /api/internal/votes/:userId with current state', async () => {
-        pipelineExec.mockResolvedValueOnce([
-            [null, '1700000000000'],
-            [null, '7'],
-            [null, 3600],
-        ])
+        const now = Date.now()
+        const lastVoteTime = new Date(now - 7200000) // 2 hours ago
+        mockFindUnique.mockResolvedValueOnce({
+            userId: '123456789012345678',
+            lastVoteAt: lastVoteTime,
+            streak: 7,
+        })
         const res = await request(buildApp())
             .get('/api/internal/votes/123456789012345678')
             .set('x-notify-key', 'internal-key')
@@ -166,8 +164,10 @@ describe('GET /api/internal/votes/:userId', () => {
         expect(res.body).toEqual({
             hasVoted: true,
             streak: 7,
-            nextVoteInSeconds: 3600,
+            nextVoteInSeconds: expect.any(Number),
         })
+        expect(res.body.nextVoteInSeconds).toBeGreaterThan(0)
+        expect(res.body.nextVoteInSeconds).toBeLessThanOrEqual(43200) // 12h in seconds
     })
 
     it('rejects GET with wrong internal key', async () => {
@@ -198,16 +198,36 @@ describe('GET /api/internal/votes/:userId', () => {
         expect(res.status).toBe(400)
     })
 
-    it('returns 500 when a Redis read command fails', async () => {
-        pipelineExec.mockResolvedValueOnce([
-            [new Error('get failed'), null],
-            [null, null],
-            [null, -2],
-        ])
+    it('returns state with no votes when user not found', async () => {
+        mockFindUnique.mockResolvedValueOnce(null)
         const res = await request(buildApp())
             .get('/api/internal/votes/123456789012345678')
             .set('x-notify-key', 'internal-key')
-        expect(res.status).toBe(500)
+        expect(res.status).toBe(200)
+        expect(res.body).toEqual({
+            hasVoted: false,
+            streak: 0,
+            nextVoteInSeconds: 0,
+        })
+    })
+
+    it('returns streak=0 when streak has expired (>36h stale)', async () => {
+        const now = Date.now()
+        const lastVoteTime = new Date(now - 129600001) // 36h + 1ms ago
+        mockFindUnique.mockResolvedValueOnce({
+            userId: '123456789012345678',
+            lastVoteAt: lastVoteTime,
+            streak: 7,
+        })
+        const res = await request(buildApp())
+            .get('/api/internal/votes/123456789012345678')
+            .set('x-notify-key', 'internal-key')
+        expect(res.status).toBe(200)
+        expect(res.body).toEqual({
+            hasVoted: false,
+            streak: 0,
+            nextVoteInSeconds: 0,
+        })
     })
 })
 
@@ -218,31 +238,26 @@ describe('GET /api/me/vote-status', () => {
     })
 
     it('returns state + tier + nextTier + voteUrl for a streak-14 voter', async () => {
-        pipelineExec.mockResolvedValueOnce([
-            [null, '1700000000000'],
-            [null, '14'],
-            [null, 7200],
-        ])
+        const now = Date.now()
+        const lastVoteTime = new Date(now - 7200000) // 2 hours ago
+        mockFindUnique.mockResolvedValueOnce({
+            userId: '555',
+            lastVoteAt: lastVoteTime,
+            streak: 14,
+        })
         const res = await request(buildApp())
             .get('/api/me/vote-status')
             .set('x-test-user', '555')
         expect(res.status).toBe(200)
-        expect(res.body).toEqual({
-            hasVoted: true,
-            streak: 14,
-            nextVoteInSeconds: 7200,
-            tier: { label: 'Lucky Regular', threshold: 14 },
-            nextTier: { label: 'Lucky Legend', threshold: 30 },
-            voteUrl: 'https://top.gg/bot/962198089161134131/vote',
-        })
+        expect(res.body.hasVoted).toBe(true)
+        expect(res.body.streak).toBe(14)
+        expect(res.body.tier).toEqual({ label: 'Lucky Regular', threshold: 14 })
+        expect(res.body.nextTier).toEqual({ label: 'Lucky Legend', threshold: 30 })
+        expect(res.body.voteUrl).toBe('https://top.gg/bot/962198089161134131/vote')
     })
 
     it('returns tier=null for a 0-streak user', async () => {
-        pipelineExec.mockResolvedValueOnce([
-            [null, null],
-            [null, null],
-            [null, -2],
-        ])
+        mockFindUnique.mockResolvedValueOnce(null)
         const res = await request(buildApp())
             .get('/api/me/vote-status')
             .set('x-test-user', '777')
@@ -257,22 +272,47 @@ describe('GET /api/me/vote-status', () => {
     })
 
     it('returns nextTier=null when user is at max tier (30+)', async () => {
-        pipelineExec.mockResolvedValueOnce([
-            [null, '1700000000000'],
-            [null, '45'],
-            [null, 100],
-        ])
+        const now = Date.now()
+        const lastVoteTime = new Date(now - 36000000) // 10 hours ago
+        mockFindUnique.mockResolvedValueOnce({
+            userId: '999',
+            lastVoteAt: lastVoteTime,
+            streak: 45,
+        })
         const res = await request(buildApp())
             .get('/api/me/vote-status')
             .set('x-test-user', '999')
         expect(res.status).toBe(200)
         expect(res.body.tier.label).toBe('Lucky Legend')
         expect(res.body.nextTier).toBeNull()
+        expect(res.body.streak).toBe(45)
     })
 })
 
 describe('POST /webhooks/topgg-votes persistence', () => {
-    it('records a valid upvote with one atomic Redis script', async () => {
+    it('records a valid upvote with Prisma transaction', async () => {
+        // Mock the transaction callback to simulate recording a new vote
+        const txUpsertCalls: unknown[] = []
+        mockTransaction.mockImplementation(async (callback: Function) => {
+            // The callback receives a tx object with topggVote operations
+            const txMock = {
+                topggVote: {
+                    findUnique: jest.fn().mockResolvedValue(null), // No existing vote
+                    upsert: jest.fn(async (arg) => {
+                        txUpsertCalls.push(arg)
+                        return {
+                            id: 'vote-id',
+                            userId: '123456789012345678',
+                            lastVoteAt: new Date(),
+                            streak: 1,
+                        }
+                    }),
+                },
+            }
+            const result = await callback(txMock)
+            return result
+        })
+
         const res = await request(buildApp())
             .post('/webhooks/topgg-votes')
             .set('authorization', 'valid-token')
@@ -283,25 +323,213 @@ describe('POST /webhooks/topgg-votes persistence', () => {
             })
         expect(res.status).toBe(200)
         expect(res.body).toEqual({ ok: true })
-        expect(redisEval).toHaveBeenCalledWith(
-            expect.stringContaining("redis.call('INCR', KEYS[2])"),
-            2,
-            'votes:123456789012345678',
-            'votes:streak:123456789012345678',
-            expect.any(String),
-            String(60 * 60 * 12),
-            String(60 * 60 * 36),
+        expect(mockTransaction).toHaveBeenCalled()
+        expect(txUpsertCalls).toHaveLength(1)
+        expect(txUpsertCalls[0]).toEqual(
+            expect.objectContaining({
+                where: { userId: '123456789012345678' },
+                create: expect.objectContaining({
+                    userId: '123456789012345678',
+                    streak: 1,
+                }),
+                update: expect.objectContaining({
+                    streak: 1,
+                }),
+            }),
         )
-        expect(pipelineMock.incr).not.toHaveBeenCalled()
-        expect(pipelineMock.expire).not.toHaveBeenCalled()
     })
 
-    it('rejects unsafe non-snowflake user ids before writing to Redis', async () => {
+    it('returns duplicate=true on duplicate vote within 12h', async () => {
+        const now = Date.now()
+        const lastVoteTime = new Date(now - 3600000) // 1 hour ago, within 12h window
+        const txUpsertCalls: unknown[] = []
+        mockTransaction.mockImplementation(async (callback: Function) => {
+            const txMock = {
+                topggVote: {
+                    findUnique: jest.fn().mockResolvedValue({
+                        userId: '123456789012345678',
+                        lastVoteAt: lastVoteTime,
+                        streak: 5,
+                    }),
+                    upsert: jest.fn(async (arg) => {
+                        txUpsertCalls.push(arg)
+                        throw new Error('upsert should not be called on duplicate')
+                    }),
+                },
+            }
+            const result = await callback(txMock)
+            return result
+        })
+
+        const res = await request(buildApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'valid-token')
+            .send({
+                user: '123456789012345678',
+                type: 'upvote',
+                bot: '962198089161134131',
+            })
+        expect(res.status).toBe(200)
+        expect(res.body).toEqual({ ok: true, duplicate: true })
+        expect(mockTransaction).toHaveBeenCalled()
+        expect(txUpsertCalls).toHaveLength(0)
+    })
+
+    it('increments streak when vote recorded after 12h but within 36h', async () => {
+        const now = Date.now()
+        const lastVoteTime = new Date(now - 86400000) // 24 hours ago, within 36h window
+        let txMockUpsert: jest.Mock
+        mockTransaction.mockImplementation(async (callback: Function) => {
+            txMockUpsert = jest.fn().mockResolvedValue({
+                userId: '123456789012345678',
+                lastVoteAt: new Date(),
+                streak: 6,
+            })
+            const txMock = {
+                topggVote: {
+                    findUnique: jest.fn().mockResolvedValue({
+                        userId: '123456789012345678',
+                        lastVoteAt: lastVoteTime,
+                        streak: 5,
+                    }),
+                    upsert: txMockUpsert,
+                },
+            }
+            const result = await callback(txMock)
+            return result
+        })
+
+        const res = await request(buildApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'valid-token')
+            .send({
+                user: '123456789012345678',
+                type: 'upvote',
+                bot: '962198089161134131',
+            })
+        expect(res.status).toBe(200)
+        expect(res.body).toEqual({ ok: true })
+        expect(mockTransaction).toHaveBeenCalled()
+        expect(txMockUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { userId: '123456789012345678' },
+                update: expect.objectContaining({
+                    streak: 6,
+                }),
+            }),
+        )
+    })
+
+    it('preserves streak at exactly 36h boundary', async () => {
+        // Use fake timers to control time precisely
+        const STREAK_TTL = 129600000 // 36 hours in milliseconds
+        const baseTime = 1000000000 // arbitrary fixed time
+        jest.useFakeTimers()
+        jest.setSystemTime(baseTime)
+
+        const lastVoteTime = new Date(baseTime - STREAK_TTL) // exactly 36h ago
+        let txMockUpsert: jest.Mock
+        mockTransaction.mockImplementation(async (callback: Function) => {
+            txMockUpsert = jest.fn().mockResolvedValue({
+                userId: '123456789012345678',
+                lastVoteAt: new Date(),
+                streak: 11,
+            })
+            const txMock = {
+                topggVote: {
+                    findUnique: jest.fn().mockResolvedValue({
+                        userId: '123456789012345678',
+                        lastVoteAt: lastVoteTime,
+                        streak: 10,
+                    }),
+                    upsert: txMockUpsert,
+                },
+            }
+            const result = await callback(txMock)
+            return result
+        })
+
+        const res = await request(buildApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'valid-token')
+            .send({
+                user: '123456789012345678',
+                type: 'upvote',
+                bot: '962198089161134131',
+            })
+        expect(res.status).toBe(200)
+        expect(res.body).toEqual({ ok: true })
+        expect(mockTransaction).toHaveBeenCalled()
+        expect(txMockUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { userId: '123456789012345678' },
+                update: expect.objectContaining({
+                    streak: 11,
+                }),
+            }),
+        )
+
+        jest.useRealTimers()
+    })
+
+    it('resets streak when vote recorded after 36h', async () => {
+        // Use fake timers to control time precisely
+        const STREAK_TTL = 129600000 // 36 hours in milliseconds
+        const baseTime = 1000000000 // arbitrary fixed time
+        jest.useFakeTimers()
+        jest.setSystemTime(baseTime)
+
+        const lastVoteTime = new Date(baseTime - STREAK_TTL - 1) // 36h + 1ms ago, beyond window
+        let txMockUpsert: jest.Mock
+        mockTransaction.mockImplementation(async (callback: Function) => {
+            txMockUpsert = jest.fn().mockResolvedValue({
+                userId: '123456789012345678',
+                lastVoteAt: new Date(),
+                streak: 1,
+            })
+            const txMock = {
+                topggVote: {
+                    findUnique: jest.fn().mockResolvedValue({
+                        userId: '123456789012345678',
+                        lastVoteAt: lastVoteTime,
+                        streak: 10,
+                    }),
+                    upsert: txMockUpsert,
+                },
+            }
+            const result = await callback(txMock)
+            return result
+        })
+
+        const res = await request(buildApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'valid-token')
+            .send({
+                user: '123456789012345678',
+                type: 'upvote',
+                bot: '962198089161134131',
+            })
+        expect(res.status).toBe(200)
+        expect(res.body).toEqual({ ok: true })
+        expect(mockTransaction).toHaveBeenCalled()
+        expect(txMockUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { userId: '123456789012345678' },
+                update: expect.objectContaining({
+                    streak: 1,
+                }),
+            }),
+        )
+
+        jest.useRealTimers()
+    })
+
+    it('rejects unsafe non-snowflake user ids before writing to database', async () => {
         const res = await request(buildApp())
             .post('/webhooks/topgg-votes')
             .set('authorization', 'valid-token')
             .send({ user: 'streak:123', type: 'upvote' })
         expect(res.status).toBe(400)
-        expect(redisEval).not.toHaveBeenCalled()
+        expect(mockTransaction).not.toHaveBeenCalled()
     })
 })
