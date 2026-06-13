@@ -22,6 +22,7 @@ export type RecommendationSignal =
     | 'old dislike'
     | 'skipped before'
     | 'completed before'
+    | 'implicit dislike'
     | 'album match'
     | 'deep-dive artist'
     | 'session novelty'

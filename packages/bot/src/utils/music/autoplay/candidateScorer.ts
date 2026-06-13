@@ -367,7 +367,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
 
     if (implicitDislikeKeys.has(candidateKey)) {
         score += SCORE_IMPLICIT_DISLIKE
-        signals.push('skipped before')
+        signals.push('implicit dislike')
     }
     if (implicitLikeKeys.has(candidateKey)) {
         score += SCORE_IMPLICIT_LIKE
@@ -381,6 +381,9 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         deepDiveArtist !== null && candidateArtist === deepDiveArtist
     if (candidateArtist === currentArtist) {
         if (!isDeepDive) {
+            // Same-artist penalty reuses the implicit-dislike weight but is a
+            // distinct heuristic — do NOT emit the 'implicit dislike' signal
+            // here or Phase D telemetry would conflate the two.
             score += SCORE_IMPLICIT_DISLIKE
         }
         const titleSim = sharedTitleTokenScore(
