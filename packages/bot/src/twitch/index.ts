@@ -1,6 +1,6 @@
 import type { Client } from 'discord.js'
 import { infoLog } from '@lucky/shared/utils'
-import { featureToggleService } from '@lucky/shared/services'
+import { featureToggleService, twitchControlService } from '@lucky/shared/services'
 import { isTwitchConfigured } from './token'
 import { twitchEventSubClient } from './eventsubClient'
 
@@ -12,6 +12,11 @@ export async function startTwitchService(client: Client): Promise<void> {
     try {
         await twitchEventSubClient.start(client)
         infoLog({ message: 'Twitch EventSub service started' })
+
+        await twitchControlService.connect()
+        await twitchControlService.onRefresh(() => {
+            void refreshTwitchSubscriptions()
+        })
     } catch (err) {
         infoLog({
             message: 'Twitch EventSub service failed to start (non-fatal)',

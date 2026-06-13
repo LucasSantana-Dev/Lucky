@@ -4,7 +4,7 @@ import { validateBody, validateParams } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
-import { twitchNotificationService } from '@lucky/shared/services'
+import { twitchNotificationService, twitchControlService } from '@lucky/shared/services'
 import { warnLog } from '@lucky/shared/utils'
 import { AppError } from '../errors/AppError'
 import { z } from 'zod'
@@ -117,6 +117,8 @@ async function lookupTwitchUser(
 }
 
 export function setupTwitchRoutes(app: Express): void {
+    void twitchControlService.connect()
+
     app.get(
         '/api/twitch/status',
         asyncHandler(async (_req: Request, res: Response) => {
@@ -189,6 +191,9 @@ export function setupTwitchRoutes(app: Express): void {
                 twitchUserId,
                 twitchLogin,
             )
+            if (success) {
+                twitchControlService.publishRefresh()
+            }
             res.json({ success })
         }),
     )
@@ -206,6 +211,9 @@ export function setupTwitchRoutes(app: Express): void {
                 guildId,
                 twitchUserId,
             )
+            if (success) {
+                twitchControlService.publishRefresh()
+            }
             res.json({ success })
         }),
     )
