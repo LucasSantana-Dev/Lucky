@@ -394,6 +394,8 @@ export class TrackHistoryService {
                     guildId,
                     playedAt: { gte: thirtyDaysAgo },
                 },
+                orderBy: { playedAt: 'desc' },
+                take: 10000,
                 select: { trackId: true, author: true },
             })
 
@@ -406,7 +408,8 @@ export class TrackHistoryService {
                     row.trackId,
                     (trackCounts.get(row.trackId) ?? 0) + 1,
                 )
-                artistCounts.set(row.author, (artistCounts.get(row.author) ?? 0) + 1)
+                const normalizedArtist = row.author.toLowerCase().trim()
+                artistCounts.set(normalizedArtist, (artistCounts.get(normalizedArtist) ?? 0) + 1)
             }
 
             const trackIds = new Set<string>()
