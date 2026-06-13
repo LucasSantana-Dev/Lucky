@@ -132,13 +132,17 @@ export default [
             "no-unused-vars": "off",
             "no-empty": ["warn", { allowEmptyCatch: false }],
             "@typescript-eslint/no-non-null-assertion": "warn",
-            // Promoted to error: the no-unsafe-* inventory is cleaned (#1378),
-            // so these are now regression guards rather than ratchet warnings.
-            "@typescript-eslint/no-unsafe-assignment": "error",
-            "@typescript-eslint/no-unsafe-call": "error",
-            "@typescript-eslint/no-unsafe-member-access": "error",
-            "@typescript-eslint/no-unsafe-return": "error",
-            "@typescript-eslint/no-unsafe-argument": "error",
+            // NOTE: the no-unsafe-* inventory is cleaned to 0 (#1378), but these
+            // stay at `warn` until the CI `quality / Lint` job is type-aware.
+            // That job runs `eslint .` without `db:generate` / `build:shared`,
+            // so these type-aware rules report ~4200 phantom "type could not be
+            // resolved" errors there; promoting to `error` turns the job
+            // permanently red. Promotion is gated on #1386.
+            "@typescript-eslint/no-unsafe-assignment": "warn",
+            "@typescript-eslint/no-unsafe-call": "warn",
+            "@typescript-eslint/no-unsafe-member-access": "warn",
+            "@typescript-eslint/no-unsafe-return": "warn",
+            "@typescript-eslint/no-unsafe-argument": "warn",
             "@typescript-eslint/no-explicit-any": "warn",
             // Honor the same ^_ ignore convention as the per-package block
             // (line ~52): without these options the root-cwd lint flags
