@@ -10,10 +10,7 @@ import {
     requireDJRole,
 } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
-import {
-    createSuccessEmbed,
-    createErrorEmbed,
-} from '../../../utils/general/embeds'
+import { createErrorEmbed } from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
 
 function parseTimeToMs(timeStr: string): number | null {
