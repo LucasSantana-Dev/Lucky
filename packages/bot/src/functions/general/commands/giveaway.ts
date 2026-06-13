@@ -61,17 +61,6 @@ async function endGiveaway(
 
     if (!giveaway) return
 
-    if (!client) {
-        try {
-            // NOTE: this fallback path is currently broken — `../../../client`
-            // resolves to a non-existent module, so the require throws and the
-            // catch returns. Tracked in #1383. Cast keeps the type honest.
-            client = (require('../../../client') as { default: Client }).default
-        } catch {
-            return
-        }
-    }
-
     if (!client) return
     const guild = client.guilds.cache.get(giveaway.guildId)
     if (!guild) return
@@ -270,7 +259,7 @@ export default new Command({
                     endTime,
                     entries: new Set(),
                     timeoutId: setTimeout(() => {
-                        endGiveaway(message.id)
+                        endGiveaway(message.id, false, interaction.client)
                     }, durationMs),
                 }
 
@@ -310,7 +299,7 @@ export default new Command({
                     return
                 }
 
-                await endGiveaway(messageId)
+                await endGiveaway(messageId, false, interaction.client)
 
                 await interactionReply({
                     interaction,
@@ -346,7 +335,7 @@ export default new Command({
                     return
                 }
 
-                await endGiveaway(messageId, true)
+                await endGiveaway(messageId, true, interaction.client)
 
                 await interactionReply({
                     interaction,
