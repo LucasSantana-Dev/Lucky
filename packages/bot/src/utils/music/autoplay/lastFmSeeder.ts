@@ -8,9 +8,8 @@ import {
     LASTFM_SEED_COUNT,
 } from './lastFmSeeds'
 import { getSimilarTracks, getTagTopTracks } from '../../../lastfm'
-import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
+import { createArtistTagFetcher } from './artistTagCache'
 import { cleanSearchQuery, cleanTitle } from '../searchQueryCleaner'
-import type { SessionMood } from './sessionMood'
 import type { AutoplayContext } from './autoplayContext'
 import { calculateRecommendationScore } from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'

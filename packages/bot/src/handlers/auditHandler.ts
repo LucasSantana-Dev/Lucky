@@ -3,7 +3,6 @@ import {
     type Client,
     type Message,
     type PartialMessage,
-    type GuildMember,
     type Guild,
     type GuildChannel,
     type Role,

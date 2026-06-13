@@ -3,7 +3,6 @@ import { TtlCache } from '@lucky/shared/utils/cache'
 import {
     getTopTracks,
     getRecentTracks,
-    getSimilarTracks,
     getLovedTracks,
 } from '../../../lastfm/lastFmApi'
 import { debugLog, errorLog } from '@lucky/shared/utils'

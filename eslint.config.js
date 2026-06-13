@@ -138,7 +138,19 @@ export default [
             "@typescript-eslint/no-unsafe-return": "warn",
             "@typescript-eslint/no-unsafe-argument": "warn",
             "@typescript-eslint/no-explicit-any": "warn",
-            "@typescript-eslint/no-unused-vars": "warn",
+            // Honor the same ^_ ignore convention as the per-package block
+            // (line ~52): without these options the root-cwd lint flags
+            // intentionally-unused _-prefixed params/vars/caught-errors that
+            // the per-package lint already excuses (#1378).
+            "@typescript-eslint/no-unused-vars": [
+                "warn",
+                {
+                    argsIgnorePattern: "^_",
+                    varsIgnorePattern: "^_",
+                    caughtErrorsIgnorePattern: "^_",
+                    ignoreRestSiblings: true,
+                },
+            ],
             // Superseded by import-x/no-duplicates (autofixable + type-aware).
             // eslint-plugin-import-x is the eslint-10-compatible fork; the
             // original eslint-plugin-import peer-caps at eslint 9 (#1378).

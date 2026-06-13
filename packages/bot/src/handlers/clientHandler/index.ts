@@ -3,7 +3,6 @@ import {
     startClient as startClientFunc,
     stopPresenceRotation as stopPresenceRotationFunc,
 } from './service'
-import type { CustomClient } from '../../types'
 import type {
     StartClientParams,
     CreateClientOptions,

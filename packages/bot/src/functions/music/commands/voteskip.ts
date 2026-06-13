@@ -1,11 +1,23 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import type { CommandExecuteParams } from '../../../types/CommandData'
-import { requireGuild, requireQueue, requireCurrentTrack, requireIsPlaying } from '../../../utils/command/commandValidations'
+import {
+    requireGuild,
+    requireQueue,
+    requireCurrentTrack,
+    requireIsPlaying,
+} from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
-import { addVote, clearVotes, getVotes, hasVoted } from '../../../utils/music/voteSkipStore'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
+import {
+    addVote,
+    clearVotes,
+    hasVoted,
+} from '../../../utils/music/voteSkipStore'
 import { guildSettingsService } from '@lucky/shared/services'
 import { debugLog } from '@lucky/shared/utils'
 import type { GuildMember } from 'discord.js'
@@ -17,7 +29,10 @@ export default new Command({
         .setName('voteskip')
         .setDescription('🗳️ Vote to skip the current track'),
     category: 'music',
-    execute: async ({ client, interaction }: CommandExecuteParams): Promise<void> => {
+    execute: async ({
+        client,
+        interaction,
+    }: CommandExecuteParams): Promise<void> => {
         if (!(await requireGuild(interaction))) return
 
         const guildId = interaction.guildId!
@@ -32,7 +47,12 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [createErrorEmbed('Error', 'Bot is not in a voice channel.')],
+                    embeds: [
+                        createErrorEmbed(
+                            'Error',
+                            'Bot is not in a voice channel.',
+                        ),
+                    ],
                     ephemeral: true,
                 },
             })
@@ -48,7 +68,12 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [createErrorEmbed('Error', 'No eligible members in the voice channel.')],
+                    embeds: [
+                        createErrorEmbed(
+                            'Error',
+                            'No eligible members in the voice channel.',
+                        ),
+                    ],
                     ephemeral: true,
                 },
             })
@@ -61,7 +86,12 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [createErrorEmbed('Already voted', 'You have already voted to skip this track.')],
+                    embeds: [
+                        createErrorEmbed(
+                            'Already voted',
+                            'You have already voted to skip this track.',
+                        ),
+                    ],
                     ephemeral: true,
                 },
             })
@@ -75,7 +105,9 @@ export default new Command({
         const threshold = settings?.voteSkipThreshold ?? DEFAULT_THRESHOLD
         const required = Math.ceil((eligibleCount * threshold) / 100)
 
-        debugLog({ message: `Vote skip: ${voteCount}/${required} (${threshold}%) in guild ${guildId}` })
+        debugLog({
+            message: `Vote skip: ${voteCount}/${required} (${threshold}%) in guild ${guildId}`,
+        })
 
         if (voteCount >= required) {
             clearVotes(guildId)

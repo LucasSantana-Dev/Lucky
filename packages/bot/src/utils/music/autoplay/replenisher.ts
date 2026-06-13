@@ -13,7 +13,7 @@ import {
     getArtistPopularity,
     getArtistGenres,
 } from '../../../spotify/spotifyApi'
-import { detectSessionMood, type SessionMood } from './sessionMood'
+import { detectSessionMood } from './sessionMood'
 import {
     collectRecommendationCandidates,
     SERTANEJO_TAGS,
@@ -334,7 +334,8 @@ async function _replenishQueue(
         // Block sertanejo candidates unless the seed itself is sertanejo — fail-open
         // when tags are absent (Last.fm unlinked) to avoid over-filtering.
         // Allow guild to opt-out via blockSertanejo setting (defaults to true).
-        const blockSertanejo = guildSettings?.blockSertanejo !== false && !seedIsSertanejo
+        const blockSertanejo =
+            guildSettings?.blockSertanejo !== false && !seedIsSertanejo
 
         const candidateGenreContext = {
             getArtistTags,

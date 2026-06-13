@@ -5,7 +5,6 @@ import {
     hexToDecimal as _hexToDecimal,
     decimalToHex as _decimalToHex,
     type EmbedData,
-    type EmbedField,
 } from './embedValidation.js'
 
 const prisma = getPrismaClient()

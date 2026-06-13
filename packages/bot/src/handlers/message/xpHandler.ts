@@ -12,7 +12,7 @@ export const xpHandler: MessageHandler = {
 
     async canHandle(
         message: Message,
-        context: MessageContext,
+        _context: MessageContext,
     ): Promise<boolean> {
         return !message.author.bot
     },

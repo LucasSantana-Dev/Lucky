@@ -1,8 +1,7 @@
-import type { Track, GuildQueue } from 'discord-player'
+import type { Track } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog } from '@lucky/shared/utils'
 import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
-import type { SessionMood } from './sessionMood'
 import type { AutoplayContext } from './autoplayContext'
 import {
     collectSpotifyRecommendationCandidates,
@@ -14,19 +13,8 @@ import {
     shouldIncludeCandidate,
     upsertScoredCandidate,
 } from './candidateContracts'
-import {
-    createArtistTagFetcher,
-    hasGenreTag,
-    type ArtistTagFetcher,
-} from './artistTagCache'
+import { createArtistTagFetcher, hasGenreTag } from './artistTagCache'
 import type { ScoredTrack } from './diversitySelector'
-import type { AutoplayAuditCollector } from './autoplayAudit'
-import type {
-    RecommendationBasis,
-    RecommendationSource,
-    RecommendationSignal,
-} from './recommendationBasis.js'
-import { serializeBasis } from './recommendationBasis.js'
 
 export type { ScoredTrack }
 export type {
@@ -76,7 +64,7 @@ export async function collectRecommendationCandidates(
     ctx: AutoplayContext,
     seedTracks: Track[],
     requestedBy: User | null,
-    replenishCount = 0,
+    _replenishCount = 0,
     currentFeatures: SpotifyAudioFeatures | null = null,
     blockSertanejo = false,
 ): Promise<Map<string, ScoredTrack>> {

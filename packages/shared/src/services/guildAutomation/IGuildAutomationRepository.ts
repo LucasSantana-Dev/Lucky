@@ -5,7 +5,6 @@ import type {
     AutomationRunType,
     GuildAutomationManifestDocument,
 } from './types.js'
-import type { GuildAutomationManifestInput } from './manifestSchema.js'
 
 /**
  * Repository interface for all Guild Automation database operations.

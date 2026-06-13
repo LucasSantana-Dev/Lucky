@@ -19,7 +19,7 @@ import {
     providerHealthService,
 } from '../../utils/music/search/providerHealth'
 import type { QueueMetadata } from '../../types/QueueMetadata'
-import { cleanTitle, cleanAuthor } from '../../utils/music/searchQueryCleaner'
+import { cleanTitle } from '../../utils/music/searchQueryCleaner'
 
 type PlayerEvents = {
     events: {
