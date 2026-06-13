@@ -17,6 +17,7 @@ import {
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { errorLog } from '@lucky/shared/utils'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
@@ -92,7 +93,7 @@ export default new Command({
         if (!(await requireVoiceChannel(interaction))) return
         if (!(await requireDJRole(interaction, interaction.guildId))) return
 
-        const voiceChannel = member.voice.channel!
+        const voiceChannel = assertDefined(member.voice.channel, 'voice channel present after requireVoiceChannel guard')
         const query = interaction.options.getString('query', true)
         const artistFilter = interaction.options.getString('artist')
 

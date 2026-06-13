@@ -1,5 +1,6 @@
 import { errorLog, getPrismaClient } from '@lucky/shared/utils'
 import { parseIntEnv } from '@lucky/shared/utils/env'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import { cleanAuthor } from '../../utils/music/searchQueryCleaner'
 
 export type RecommendationFeedback = 'like' | 'dislike'
@@ -421,7 +422,7 @@ export class RecommendationFeedbackService {
         if (!this.implicitFeedbackCache.has(userId)) {
             this.implicitFeedbackCache.set(userId, {})
         }
-        return this.implicitFeedbackCache.get(userId)!
+        return assertDefined(this.implicitFeedbackCache.get(userId), 'Map entry present after .has() and .set() guards')
     }
 
     async recordImplicitFeedback(

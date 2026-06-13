@@ -12,6 +12,7 @@ import type { CommandExecuteParams } from '../../../types/CommandData'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { smartShuffle } from '../../../utils/music/queue/smartShuffle'
 import { parseIntEnv } from '@lucky/shared/utils/env'
+import { assertDefined } from '@lucky/shared/utils/guards'
 
 const STREAK_LIMIT = parseIntEnv('SMART_SHUFFLE_STREAK_LIMIT', 2)
 
@@ -58,11 +59,11 @@ export default new Command({
         const subcommand = interaction.options.getSubcommand(false) ?? 'random'
 
         if (subcommand === 'smart') {
-            const tracks = queue!.tracks.toArray()
+            const tracks = assertDefined(queue, 'queue present after requireQueue guard').tracks.toArray()
             const shuffled = smartShuffle(tracks, { streakLimit: STREAK_LIMIT })
-            queue!.tracks.clear()
+            assertDefined(queue, 'queue present after requireQueue guard').tracks.clear()
             for (const track of shuffled) {
-                queue!.tracks.add(track)
+                assertDefined(queue, 'queue present after requireQueue guard').tracks.add(track)
             }
             await interactionReply({
                 interaction,

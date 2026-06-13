@@ -1,6 +1,7 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 import { Prisma } from '../generated/prisma/client.js'
 import type { EmbedData } from './embedValidation.js'
+import { assertDefined } from '../utils/guards.js'
 
 const prisma = getPrismaClient()
 
@@ -208,17 +209,17 @@ export class AutoMessageService {
         if (data.guild || data.server) {
             const guildData = data.guild || data.server
             result = result
-                .replace(/{guild}/g, guildData!.name)
-                .replace(/{guild\.name}/g, guildData!.name)
+                .replace(/{guild}/g, assertDefined(guildData, 'guildData present after guard').name)
+                .replace(/{guild\.name}/g, assertDefined(guildData, 'guildData present after guard').name)
                 .replace(
                     /{guild\.memberCount}/g,
-                    String(guildData!.memberCount),
+                    String(assertDefined(guildData, 'guildData present after guard').memberCount),
                 )
-                .replace(/{server}/g, guildData!.name)
-                .replace(/{server\.name}/g, guildData!.name)
+                .replace(/{server}/g, assertDefined(guildData, 'guildData present after guard').name)
+                .replace(/{server\.name}/g, assertDefined(guildData, 'guildData present after guard').name)
                 .replace(
                     /{server\.memberCount}/g,
-                    String(guildData!.memberCount),
+                    String(assertDefined(guildData, 'guildData present after guard').memberCount),
                 )
         }
 

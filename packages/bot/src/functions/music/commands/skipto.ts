@@ -3,10 +3,12 @@ import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import {
+    requireGuild,
     requireQueue,
     requireVoiceChannel,
     requireDJRole,
 } from '../../../utils/command/commandValidations'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import {
     createSuccessEmbed,
@@ -27,8 +29,9 @@ export default new Command({
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
+        if (!(await requireGuild(interaction))) return
         if (!(await requireVoiceChannel(interaction))) return
-        if (!(await requireDJRole(interaction, interaction.guildId!))) return
+        if (!(await requireDJRole(interaction, assertDefined(interaction.guildId, 'guildId guaranteed by requireGuild guard')))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 

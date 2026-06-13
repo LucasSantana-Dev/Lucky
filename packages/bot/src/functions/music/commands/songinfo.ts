@@ -1,5 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import { interactionReply } from "../../../utils/general/interactionReply"
 import { buildTrackEmbed, trackToData } from '../../../utils/general/responseEmbeds'
 import type { CommandExecuteParams } from "../../../types/CommandData"
@@ -23,7 +24,7 @@ export default new Command({
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireCurrentTrack(queue, interaction))) return
 
-        const trackData = trackToData(track!)
+        const trackData = trackToData(assertDefined(track, 'track present after requireCurrentTrack guard'))
         const embed = buildTrackEmbed(trackData, 'playing', {
             tag: interaction.user.username,
             displayAvatarURL: interaction.user.displayAvatarURL,

@@ -2,6 +2,7 @@ import { config } from 'dotenv'
 import { setLogLevel, debugLog } from '../utils/general/log'
 import { setEnvironmentLoaded } from './config'
 import { parseIntEnv } from '../utils/env'
+import { assertDefined } from '../utils/guards.js'
 import path from 'path'
 import fs from 'fs'
 
@@ -226,11 +227,11 @@ async function loadInfisicalSecrets(): Promise<void> {
         const siteUrl = process.env.INFISICAL_SITE_URL
         const client = new InfisicalSDK(siteUrl ? { siteUrl } : undefined)
         await client.auth().universalAuth.login({
-            clientId: process.env.INFISICAL_CLIENT_ID!,
-            clientSecret: process.env.INFISICAL_CLIENT_SECRET!,
+            clientId: assertDefined(process.env.INFISICAL_CLIENT_ID, 'INFISICAL_CLIENT_ID required when isInfisicalConfigured'),
+            clientSecret: assertDefined(process.env.INFISICAL_CLIENT_SECRET, 'INFISICAL_CLIENT_SECRET required when isInfisicalConfigured'),
         })
-        const projectId = process.env.INFISICAL_PROJECT_ID!
-        const environment = process.env.INFISICAL_ENV!
+        const projectId = assertDefined(process.env.INFISICAL_PROJECT_ID, 'INFISICAL_PROJECT_ID required when isInfisicalConfigured')
+        const environment = assertDefined(process.env.INFISICAL_ENV, 'INFISICAL_ENV required when isInfisicalConfigured')
         const secretPath = process.env.INFISICAL_SECRET_PATH ?? '/'
         const response = (await client.secrets().listSecrets({
             projectId,

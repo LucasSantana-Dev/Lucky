@@ -45,7 +45,7 @@ export async function handleMusicButtonInteraction(
 
         const { queue, source, diagnostics } = resolveGuildQueue(
             interaction.client as unknown as Pick<CustomClient, 'player'>,
-            interaction.guildId!,
+            interaction.guildId ?? '',
         )
         if (!queue) {
             debugLog({

@@ -2,6 +2,7 @@ import RedisClientClass, { type Redis } from 'ioredis'
 import { randomUUID } from 'crypto'
 import { createRedisConfig } from '../redis/config.js'
 import { debugLog, errorLog, infoLog } from '../../utils/general/log.js'
+import { assertDefined } from '../../utils/guards.js'
 import {
     CHANNEL_COMMAND,
     CHANNEL_STATE,
@@ -82,7 +83,10 @@ export class MusicControlService {
 
             this.pendingResults.set(cmd.id, { resolve, timeout })
 
-            this.publisher!.publish(CHANNEL_COMMAND, JSON.stringify(cmd)).catch(
+            assertDefined(
+                this.publisher,
+                'publisher ready — guaranteed by isHealthy() guard',
+            ).publish(CHANNEL_COMMAND, JSON.stringify(cmd)).catch(
                 (err: unknown) => {
                     this.pendingResults.delete(cmd.id)
                     clearTimeout(timeout)

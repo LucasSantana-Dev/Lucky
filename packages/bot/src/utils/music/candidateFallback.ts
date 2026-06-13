@@ -1,6 +1,7 @@
 import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { logAndSwallow } from '@lucky/shared/utils/error'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import {
     getBatchAudioFeatures,
     getArtistGenres,
@@ -318,7 +319,7 @@ export function interleaveByArtist(tracks: ScoredTrack[]): ScoredTrack[] {
         added = false
         for (const group of groups.values()) {
             if (round < group.length) {
-                result.push(group[round]!)
+                result.push(assertDefined(group[round], 'element present after length check'))
                 added = true
             }
         }

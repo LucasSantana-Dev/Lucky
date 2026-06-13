@@ -1,10 +1,12 @@
+import { assertDefined } from '@lucky/shared/utils/guards'
+
 const activeVotes = new Map<string, Set<string>>()
 
 export function addVote(guildId: string, userId: string): Set<string> {
     if (!activeVotes.has(guildId)) {
         activeVotes.set(guildId, new Set())
     }
-    const votes = activeVotes.get(guildId)!
+    const votes = assertDefined(activeVotes.get(guildId), 'Set present after .has() and .set() guards')
     votes.add(userId)
     return votes
 }
