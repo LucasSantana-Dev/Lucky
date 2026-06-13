@@ -196,6 +196,7 @@ async function _replenishQueue(
             implicitLikeKeys,
             allPreferredSets,
             allBlockedSets,
+            replayFrequency,
         ] = await Promise.all([
             recommendationFeedbackService.getLikedTrackWeights(
                 queue.guild.id,
@@ -229,6 +230,20 @@ async function _replenishQueue(
                     ),
                 ),
             ),
+            // Async wrapper so even a synchronous throw (e.g. method absent on
+            // a partial service double) degrades to the empty no-boost result
+            (async () => {
+                try {
+                    return await trackHistoryService.getReplayFrequentTracks(
+                        queue.guild.id,
+                    )
+                } catch {
+                    return {
+                        trackIds: new Set<string>(),
+                        artists: new Set<string>(),
+                    }
+                }
+            })(),
         ])
 
         const preferredArtistKeys = new Set(
@@ -343,6 +358,8 @@ async function _replenishQueue(
             implicitLikeKeys,
             sessionMood,
             genreContext: candidateGenreContext,
+            replayFrequentTrackIds: replayFrequency?.trackIds ?? new Set(),
+            replayFrequentArtists: replayFrequency?.artists ?? new Set(),
         }
         const candidates = await collectRecommendationCandidates(
             autoplayContext,

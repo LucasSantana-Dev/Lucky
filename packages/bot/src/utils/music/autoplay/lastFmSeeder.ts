@@ -120,6 +120,8 @@ export async function collectLastFmCandidates(
                     currentTrackTags,
                     sessionGenreFamilies,
                 },
+                replayFrequentTrackIds: ctx.replayFrequentTrackIds,
+                replayFrequentArtists: ctx.replayFrequentArtists,
             })
             upsertScoredCandidate(
                 candidates,
@@ -181,6 +183,8 @@ export async function collectLastFmCandidates(
                         currentTrackTags,
                         sessionGenreFamilies,
                     },
+                    replayFrequentTrackIds: ctx.replayFrequentTrackIds,
+                    replayFrequentArtists: ctx.replayFrequentArtists,
                 })
                 upsertScoredCandidate(
                     candidates,
@@ -252,6 +256,8 @@ export async function collectLastFmCandidates(
                             currentTrackTags,
                             sessionGenreFamilies,
                         },
+                        replayFrequentTrackIds: ctx.replayFrequentTrackIds,
+                        replayFrequentArtists: ctx.replayFrequentArtists,
                     })
                     upsertScoredCandidate(
                         candidates,

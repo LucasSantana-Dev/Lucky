@@ -59,6 +59,7 @@ jest.mock('@lucky/shared/utils', () => ({
 
 const getTrackHistoryMock = jest.fn()
 const addTrackToHistoryMock = jest.fn().mockResolvedValue(true)
+const getReplayFrequentTracksMock = jest.fn()
 const getGuildSettingsMock = jest.fn()
 
 const getLastFmLinkMock = jest.fn()
@@ -68,6 +69,8 @@ jest.mock('@lucky/shared/services', () => ({
         getTrackHistory: (...args: unknown[]) => getTrackHistoryMock(...args),
         addTrackToHistory: (...args: unknown[]) =>
             addTrackToHistoryMock(...args),
+        getReplayFrequentTracks: (...args: unknown[]) =>
+            getReplayFrequentTracksMock(...args),
     },
     guildSettingsService: {
         getGuildSettings: (...args: unknown[]) => getGuildSettingsMock(...args),
@@ -195,6 +198,10 @@ describe('queueManipulation.replenishQueue', () => {
         getSimilarTracksMock.mockResolvedValue([])
         getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
+        getReplayFrequentTracksMock.mockResolvedValue({
+            trackIds: new Set(),
+            artists: new Set(),
+        })
         getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })

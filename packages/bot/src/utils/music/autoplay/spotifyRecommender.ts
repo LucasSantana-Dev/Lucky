@@ -157,6 +157,8 @@ export async function collectSpotifyRecommendationCandidates(
                 currentTrackTags,
                 sessionGenreFamilies,
             },
+            replayFrequentTrackIds: ctx.replayFrequentTrackIds,
+            replayFrequentArtists: ctx.replayFrequentArtists,
         })
         let score = rec.score + 0.3
         let source: 'spotify-rec' | 'spotify-taste' = 'spotify-rec'

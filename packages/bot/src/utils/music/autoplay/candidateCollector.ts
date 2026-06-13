@@ -157,6 +157,8 @@ export async function collectRecommendationCandidates(
                     currentTrackTags,
                     sessionGenreFamilies,
                 },
+                replayFrequentTrackIds: ctx.replayFrequentTrackIds,
+                replayFrequentArtists: ctx.replayFrequentArtists,
             })
             upsertScoredCandidate(candidates, candidate, {
                 score: rec.score,

@@ -45,6 +45,10 @@ const SCORE_SPOTIFY_PREFERRED = 0.4
 // On an unknown-genre candidate the spotify-preferred boost is halved rather
 // than dropped, so the pool isn't starved when tags are missing.
 const SPOTIFY_PREFERRED_UNKNOWN_MULTIPLIER = 0.5
+// Replay-count boost: applied additively when a candidate matches a track or
+// artist replayed >2 times in the last 30 days. Bounded so it cannot flip
+// genre vetoes (-Infinity) or dominate provenance-aware rankings.
+const SCORE_REPLAY_COUNT_BOOST = 0.15
 // Genre families dense/cohesive enough that a cross-family jump reads as drift.
 // Used both for the cross-family penalty and the untagged-candidate fail-closed
 // guard. Kept deliberately narrow (pop/soul are too broad to fail closed on).
@@ -190,6 +194,12 @@ export interface ScoringContext {
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
     }
+    /**
+     * Sets of track IDs and artist names that the user has replayed >2 times in
+     * the last 30 days, used to apply a bounded boost to replay-frequent candidates.
+     */
+    replayFrequentTrackIds?: Set<string>
+    replayFrequentArtists?: Set<string>
 }
 
 export function calculateRecommendationScore(ctx: ScoringContext): {
@@ -212,6 +222,8 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         skipNoveltyBoost = false,
         seedDerived = false,
         genreContext = {},
+        replayFrequentTrackIds = new Set(),
+        replayFrequentArtists = new Set(),
     } = ctx
     const candidateTags = genreContext.candidateTags ?? []
     const currentTrackTags = genreContext.currentTrackTags ?? []
@@ -487,6 +499,18 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
             score += spotifyBoost
             signals.push('spotify preferred')
         }
+    }
+
+    // Replay-count boost: match the candidate's track ID or artist against
+    // tracks/artists replayed >2 times in the last 30 days. Bounded boost
+    // applied additively, stacks below hard vetoes (blocked, cross-locale,
+    // cross-genre on un-vetted sources) and respects provenance-aware guards.
+    if (
+        replayFrequentTrackIds.has(candidate.id) ||
+        replayFrequentArtists.has(candidateArtist)
+    ) {
+        score += SCORE_REPLAY_COUNT_BOOST
+        signals.push('replay frequent')
     }
 
     // Soft genre-family penalty (formerly inside enrichWithAudioFeatures via

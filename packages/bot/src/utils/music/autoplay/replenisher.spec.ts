@@ -17,6 +17,7 @@ jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: jest.fn(),
+        getReplayFrequentTracks: jest.fn(),
     },
     guildSettingsService: {
         getGuildSettings: jest.fn(),
@@ -131,6 +132,10 @@ describe('replenishQueue', () => {
             premiumService,
         } = require('@lucky/shared/services')
         trackHistoryService.getTrackHistory.mockResolvedValue([])
+        trackHistoryService.getReplayFrequentTracks.mockResolvedValue({
+            trackIds: new Set(),
+            artists: new Set(),
+        })
         guildSettingsService.getGuildSettings.mockResolvedValue(null)
         spotifyLinkService.getValidAccessToken.mockResolvedValue(null)
         premiumService.isPremium.mockResolvedValue(false)
@@ -256,6 +261,29 @@ describe('replenishQueue', () => {
         await replenishQueue(queue)
 
         expect(collectRecommendationCandidates).toHaveBeenCalled()
+    })
+
+    it('calls getReplayFrequentTracks during replenish', async () => {
+        const queue = createGuildQueue()
+        const entries: [string, Track][] = []
+        for (let i = 0; i < 8; i++) {
+            const track = createTrack({ id: `user${i}`, metadata: undefined })
+            entries.push([`user${i}`, track])
+        }
+        const autoTrack = createTrack({
+            id: 'auto0',
+            metadata: { isAutoplay: true } as Record<string, unknown>,
+        })
+        entries.push(['auto0', autoTrack])
+        queue.tracks = createTracksMap(entries)
+
+        const { trackHistoryService } = require('@lucky/shared/services')
+
+        await replenishQueue(queue)
+
+        expect(trackHistoryService.getReplayFrequentTracks).toHaveBeenCalledWith(
+            'guildid',
+        )
     })
 
     it('should handle errors gracefully without throwing', async () => {
