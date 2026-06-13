@@ -1,4 +1,9 @@
 import { QueryType } from 'discord-player'
+import type {
+    Player,
+    PlayerNodeInitializerOptions,
+    PlayerNodeInitializationResult,
+} from 'discord-player'
 import type { VoiceBasedChannel } from 'discord.js'
 import { warnLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
@@ -21,13 +26,16 @@ interface ResolutionTelemetry {
  * Emits telemetry breadcrumbs for observability.
  */
 export async function resolveQueryWithFallbacks(
-    player: any,
+    player: Player,
     voiceChannel: VoiceBasedChannel,
     query: string,
     requestedProvider: string,
     searchEngine: QueryType,
-    playOptions: any,
-): Promise<{ result: any; telemetry: ResolutionTelemetry }> {
+    playOptions: PlayerNodeInitializerOptions<unknown>,
+): Promise<{
+    result: PlayerNodeInitializationResult<unknown>
+    telemetry: ResolutionTelemetry
+}> {
     const startTime = Date.now()
     const telemetry: ResolutionTelemetry = {
         resolvedVia: 'primary',
@@ -56,7 +64,7 @@ export async function resolveQueryWithFallbacks(
             try {
                 // Attempt YouTube fallback
                 const result = await player.play(voiceChannel, query, {
-                    ...(playOptions as Record<string, unknown>),
+                    ...playOptions,
                     searchEngine: QueryType.YOUTUBE_SEARCH,
                 })
                 telemetry.latencyMs = Date.now() - startTime
@@ -72,7 +80,7 @@ export async function resolveQueryWithFallbacks(
                 try {
                     // Attempt SoundCloud fallback
                     const result = await player.play(voiceChannel, query, {
-                        ...(playOptions as Record<string, unknown>),
+                        ...playOptions,
                         searchEngine: QueryType.SOUNDCLOUD_SEARCH,
                     })
                     telemetry.latencyMs = Date.now() - startTime

@@ -85,7 +85,11 @@ export class SupportReportService {
             const report = await prisma.supportReport.create({
                 data: {
                     context: input.context,
-                    image: (input.image ?? null) as any,
+                    // Prisma's Bytes input is typed Uint8Array<ArrayBuffer>;
+                    // Buffer is Uint8Array<ArrayBufferLike> at compile time but
+                    // a valid Bytes value at runtime — narrow the generic here.
+                    image: (input.image ??
+                        null) as Uint8Array<ArrayBuffer> | null,
                     imageMimeType: input.imageMimeType || null,
                     correlationId: input.correlationId || null,
                     guildId: input.guildId || null,
