@@ -1,6 +1,7 @@
 import { type Track, type GuildQueue } from 'discord-player'
 import { randomInt } from 'node:crypto'
 import { debugLog, errorLog } from '@lucky/shared/utils'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import { replenishQueue } from './autoplay/replenisher'
 import { markAsAutoplayTrack } from './autoplay/queueMarkers'
 
@@ -174,7 +175,7 @@ export function moveUserTrackToPriority(queue: GuildQueue, track: Track): void {
     const tracks = queue.tracks.toArray()
     let trackIndex = -1
     for (let i = tracks.length - 1; i >= 0; i--) {
-        const t = tracks[i]!
+        const t = assertDefined(tracks[i], 'Array index guaranteed by loop bounds')
         if (
             t === track ||
             (Boolean(track.id) && t.id === track.id) ||
@@ -202,7 +203,7 @@ export function moveUserTrackToPriority(queue: GuildQueue, track: Track): void {
         return
     }
 
-    const queuedTrack = tracks[trackIndex]!
+    const queuedTrack = assertDefined(tracks[trackIndex], 'Track index guaranteed by prior check')
 
     try {
         queue.node.remove(queuedTrack)

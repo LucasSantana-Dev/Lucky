@@ -3,6 +3,7 @@ import type { PlayerNodeInitializationResult } from 'discord-player'
 import type { CommandExecuteParams } from '../../../../../types/CommandData'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import { createErrorEmbed } from '../../../../../utils/general/embeds'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
@@ -44,7 +45,7 @@ export async function executePlayHandler({
     }
 
     const member = interaction.member as GuildMember
-    const voiceChannel = member.voice.channel!
+    const voiceChannel = assertDefined(member.voice.channel, 'Voice channel guaranteed by requireVoiceChannel check')
 
     try {
         await interaction.deferReply()
@@ -88,7 +89,7 @@ export async function executePlayHandler({
             try {
                 const deferredMsg = await interaction.fetchReply()
                 registerNowPlayingMessage(
-                    interaction.guildId!,
+                    assertDefined(interaction.guildId, 'Guild ID guaranteed by requireGuild check'),
                     deferredMsg.id,
                     interaction.channelId,
                 )
@@ -213,7 +214,7 @@ export async function executePlayHandler({
         // single failure never silently skips the others (#1085).
         void runPostPlayBackgroundOps({
             queue,
-            guildId: interaction.guildId!,
+            guildId: assertDefined(interaction.guildId, 'Guild ID guaranteed by requireGuild check'),
             track,
             hadQueueBeforePlay,
             isPlaylist,

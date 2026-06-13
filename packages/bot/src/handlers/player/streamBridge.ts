@@ -3,6 +3,7 @@ import { PassThrough } from 'stream'
 import type { Readable } from 'stream'
 import type { Track } from 'discord-player'
 import { errorLog, infoLog, warnLog, debugLog } from '@lucky/shared/utils'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import {
     cleanTitle,
     cleanAuthor,
@@ -68,17 +69,17 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
         }, 15_000)
 
         const stderrChunks: Buffer[] = []
-        proc.stderr!.on('data', (chunk: Buffer) => stderrChunks.push(chunk))
+        assertDefined(proc.stderr, 'stderr guaranteed by stdio config').on('data', (chunk: Buffer) => stderrChunks.push(chunk))
 
         let settled = false
 
-        proc.stdout!.once('data', (firstChunk: Buffer) => {
+        assertDefined(proc.stdout, 'stdout guaranteed by stdio config').once('data', (firstChunk: Buffer) => {
             if (settled) return
             settled = true
             clearTimeout(timeout)
             const through = new PassThrough()
             through.write(firstChunk)
-            proc.stdout!.pipe(through)
+            assertDefined(proc.stdout, 'stdout guaranteed by stdio config').pipe(through)
             resolve(through)
         })
 

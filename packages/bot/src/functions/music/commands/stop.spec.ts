@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import stopCommand from './stop'
 
+const requireGuildMock = jest.fn()
 const requireQueueMock = jest.fn()
 const requireDJRoleMock = jest.fn()
 const interactionReplyMock = jest.fn()
@@ -11,6 +12,7 @@ const deleteSnapshotMock = jest.fn()
 const clearSessionMoodCacheMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
+    requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
@@ -63,6 +65,7 @@ function createQueue(guildId = 'guild-1') {
 describe('stop command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        requireGuildMock.mockResolvedValue(true)
         requireQueueMock.mockResolvedValue(true)
         requireDJRoleMock.mockResolvedValue(true)
         interactionReplyMock.mockResolvedValue(undefined)
@@ -143,6 +146,18 @@ describe('stop command', () => {
         })
 
         expect(queue.delete).toHaveBeenCalled()
+    })
+
+    it('returns early if guild check fails', async () => {
+        requireGuildMock.mockResolvedValue(false)
+
+        await stopCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+
+        expect(requireQueueMock).not.toHaveBeenCalled()
+        expect(clearSessionMoodCacheMock).not.toHaveBeenCalled()
     })
 
     it('returns early if queue check fails', async () => {

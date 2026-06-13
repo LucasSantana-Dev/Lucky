@@ -1,5 +1,6 @@
 import { logAndSwallow } from '@lucky/shared/utils/error'
 import { debugLog, warnLog } from '@lucky/shared/utils/general/log'
+import { assertDefined } from '@lucky/shared/utils/guards'
 
 export interface SpotifyRecommendationTrack {
     id: string
@@ -218,8 +219,8 @@ export async function getSpotifyRecommendations(
             return (data?.tracks ?? [])
                 .filter((t) => t.id && t.name)
                 .map((t) => ({
-                    id: t.id!,
-                    name: t.name!,
+                    id: assertDefined(t.id, 'Track ID guaranteed by filter'),
+                    name: assertDefined(t.name, 'Track name guaranteed by filter'),
                     artists: (t.artists ?? []).map((a) => ({
                         name: a.name ?? '',
                     })),
@@ -591,16 +592,16 @@ export async function getUserTopArtistsAndTracks(
         const artists: SpotifyTopArtist[] = (artistsData.items ?? [])
             .filter((a) => a.id && a.name)
             .map((a) => ({
-                id: a.id!,
-                name: a.name!,
+                id: assertDefined(a.id, 'Artist ID guaranteed by filter'),
+                name: assertDefined(a.name, 'Artist name guaranteed by filter'),
                 genres: a.genres ?? [],
             }))
 
         const tracks: SpotifyTopTrack[] = (tracksData.items ?? [])
             .filter((t) => t.id && t.name)
             .map((t) => ({
-                id: t.id!,
-                name: t.name!,
+                id: assertDefined(t.id, 'Track ID guaranteed by filter'),
+                name: assertDefined(t.name, 'Track name guaranteed by filter'),
                 artist: t.artists?.[0]?.name ?? 'Unknown',
             }))
 
