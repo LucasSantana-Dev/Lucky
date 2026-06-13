@@ -1,4 +1,4 @@
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, safeSetInterval } from '@lucky/shared/utils'
 import {
     artistTitlePatterns,
     youtubePatterns,
@@ -9,7 +9,6 @@ import {
     calculateSimilarity,
     normalizeString,
 } from '../../misc/stringUtils'
-import { safeSetInterval } from '@lucky/shared/utils'
 import type {
     ArtistTitle,
     TitleComparisonOptions,

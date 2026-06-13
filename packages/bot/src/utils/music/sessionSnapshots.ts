@@ -2,9 +2,8 @@ import type { GuildQueue, Track } from 'discord-player'
 import { QueryType } from 'discord-player'
 import type { User } from 'discord.js'
 import { randomUUID } from 'crypto'
-import { getPrismaClient } from '@lucky/shared/utils'
+import { getPrismaClient, debugLog, errorLog } from '@lucky/shared/utils'
 import type { Prisma } from '@lucky/shared/utils'
-import { debugLog, errorLog } from '@lucky/shared/utils'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 
 /**

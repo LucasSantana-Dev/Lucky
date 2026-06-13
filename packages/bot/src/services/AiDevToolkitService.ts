@@ -4,8 +4,12 @@ import {
     type ThreadChannel,
     type Message,
 } from 'discord.js'
-import { getPrismaClient } from '@lucky/shared/utils'
-import { infoLog, errorLog, debugLog } from '@lucky/shared/utils'
+import {
+    getPrismaClient,
+    infoLog,
+    errorLog,
+    debugLog,
+} from '@lucky/shared/utils'
 
 const GITHUB_REPO = 'Forge-Space/ai-dev-toolkit'
 const BOARD_KEY = 'ai-dev-toolkit-guide'

@@ -6,8 +6,11 @@ import {
     ChannelType,
     EmbedBuilder,
 } from 'discord.js'
-import { autoMessageService, autoroleService } from '@lucky/shared/services'
-import { featureToggleService } from '@lucky/shared/services'
+import {
+    autoMessageService,
+    autoroleService,
+    featureToggleService,
+} from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 
 async function handleMemberAdd(member: GuildMember): Promise<void> {

@@ -1,14 +1,14 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
-import { interactionReply } from "../../../utils/general/interactionReply"
-import type { CommandExecuteParams } from "../../../types/CommandData"
+import { interactionReply } from '../../../utils/general/interactionReply'
+import type { CommandExecuteParams } from '../../../types/CommandData'
 import {
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
     requireVoiceChannel,
-} from "../../../utils/command/commandValidations"
-import { requireDJRole } from '../../../utils/command/commandValidations'
+    requireDJRole,
+} from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { createSuccessEmbed } from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
@@ -46,7 +46,14 @@ export default new Command({
             return
         }
 
-        const trackEmbed = buildCommandTrackEmbed(currentTrack, '🔄 Replayed', interaction.user)
-        await interactionReply({ interaction, content: { embeds: [trackEmbed] } })
+        const trackEmbed = buildCommandTrackEmbed(
+            currentTrack,
+            '🔄 Replayed',
+            interaction.user,
+        )
+        await interactionReply({
+            interaction,
+            content: { embeds: [trackEmbed] },
+        })
     },
 })
