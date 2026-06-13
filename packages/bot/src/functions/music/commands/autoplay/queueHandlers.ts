@@ -71,7 +71,7 @@ async function handleSkipAutoplayTrack(
 
     try {
         await replenishQueue(queue)
-    } catch (error) {
+    } catch (_error) {
         await interactionReply({
             interaction,
             content: {
@@ -142,7 +142,7 @@ async function handleClearAutoplayTracks(
 
     try {
         await replenishQueue(queue)
-    } catch (error) {
+    } catch (_error) {
         await interactionReply({
             interaction,
             content: {

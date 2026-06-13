@@ -12,7 +12,6 @@ import {
     requireGuild,
     requireVoiceChannel,
 } from '../../../utils/command/commandValidations'
-import { musicSessionSnapshotService } from '../../../utils/music/sessionSnapshots'
 import { namedSessionService } from '../../../utils/music/namedSessions'
 import { createQueue, queueConnect } from '../../../handlers/queueHandler'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
@@ -72,7 +71,9 @@ export default new Command({
         const subcommand = interaction.options.getSubcommand()
 
         if (subcommand === 'save') {
-            const name = interaction.options.getString('name', true).toLowerCase()
+            const name = interaction.options
+                .getString('name', true)
+                .toLowerCase()
 
             const { queue } = resolveGuildQueue(client, guildId)
             if (!queue) {
@@ -168,7 +169,9 @@ export default new Command({
         }
 
         if (subcommand === 'restore' || subcommand === 'delete') {
-            const name = interaction.options.getString('name', true).toLowerCase()
+            const name = interaction.options
+                .getString('name', true)
+                .toLowerCase()
 
             if (subcommand === 'delete') {
                 const deleted = await namedSessionService.delete(guildId, name)

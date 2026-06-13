@@ -17,10 +17,7 @@ import {
 } from './autoplay/candidateCollector'
 import { calculateRecommendationScore } from './autoplay/candidateScorer'
 import type { SessionMood } from './autoplay/sessionMood'
-import {
-    createArtistTagFetcher,
-    type ArtistTagFetcher,
-} from './autoplay/artistTagCache'
+import { createArtistTagFetcher } from './autoplay/artistTagCache'
 import type { AutoplayAuditCollector } from './autoplay/autoplayAudit'
 import { cleanSearchQuery, cleanAuthor } from './searchQueryCleaner'
 import {

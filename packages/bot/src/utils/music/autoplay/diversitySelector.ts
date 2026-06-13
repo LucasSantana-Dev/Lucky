@@ -3,10 +3,9 @@ import { debugLog } from '@lucky/shared/utils'
 import { trackHistoryService } from '@lucky/shared/services'
 import { extractSongCore, cleanTitle, cleanAuthor } from '../searchQueryCleaner'
 import { calculateStringSimilarity } from '../duplicateDetection/similarityChecker'
-import { markAsAutoplayTrack, markAndRecordAutoplayTrack } from './queueMarkers'
+import { markAndRecordAutoplayTrack } from './queueMarkers'
 import { extractYouTubeVideoId } from './scoringUtils'
 import type { RecommendationBasis } from './recommendationBasis.js'
-import { serializeBasis } from './recommendationBasis.js'
 
 interface ScoredTrack {
     track: Track

@@ -5,7 +5,7 @@
 import { getPrismaClient } from '../../utils/database/prismaClient'
 import type { PrismaClient } from '@prisma/client'
 import { Result } from '../../types/common/BaseResult'
-import { infoLog, errorLog, debugLog } from '../../utils/general/log'
+import { infoLog, errorLog } from '../../utils/general/log'
 import type {
     DatabaseUser,
     DatabaseGuild,

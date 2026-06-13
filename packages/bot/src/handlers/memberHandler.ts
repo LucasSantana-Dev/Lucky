@@ -128,7 +128,7 @@ async function handleMemberAdd(member: GuildMember): Promise<void> {
                 }
 
                 await targetChannel.send({ embeds: [embed] })
-            } catch (err) {
+            } catch (_err) {
                 // Fallback to text message if embed parsing fails
                 await targetChannel.send(content)
             }
@@ -215,7 +215,7 @@ async function handleMemberRemove(
                 }
 
                 await targetChannel.send({ embeds: [embed] })
-            } catch (err) {
+            } catch (_err) {
                 // Fallback to text message if embed parsing fails
                 await targetChannel.send(content)
             }

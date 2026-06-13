@@ -22,10 +22,7 @@ import {
 import { clearVotes } from '../../utils/music/voteSkipStore'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 import { cleanTitle, cleanAuthor } from '../../utils/music/searchQueryCleaner'
-import {
-    isReplenishSuppressed,
-    setReplenishSuppressed,
-} from '../../utils/music/replenishSuppressionStore'
+import { isReplenishSuppressed } from '../../utils/music/replenishSuppressionStore'
 import { handleQueueExhaustion } from './queueExhaustion'
 import { recordRecommendationOutcome } from '../../services/musicRecommendation/recommendationTelemetry'
 

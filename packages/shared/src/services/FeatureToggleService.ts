@@ -92,7 +92,7 @@ class FeatureToggleService {
     /** Checks if a feature is enabled (optionally scoped to user/guild). */
     async isEnabled(
         name: FeatureToggleName,
-        context?: { userId?: string; guildId?: string },
+        _context?: { userId?: string; guildId?: string },
     ): Promise<boolean> {
         return this.isEnabledGlobal(name)
     }

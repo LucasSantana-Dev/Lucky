@@ -54,7 +54,7 @@ export default new Command({
                     },
                 })
             }
-        } catch (error) {
+        } catch (_error) {
             await interactionReply({
                 interaction,
                 content: {

@@ -30,7 +30,6 @@ const SCORE_LIKED_ARTIST_WEIGHT = 0.2
 const SCORE_LIKED_ARTIST_TEMPO = 0.1
 const SCORE_TEMPO_PENALTY_LARGE = -0.15
 const SCORE_TEMPO_PENALTY_SMALL = -0.07
-const TEMPO_DELTA_LARGE = 40
 const TEMPO_DELTA_SMALL = 25
 const DURATION_RATIO_TIGHT_LOW = 0.8
 const DURATION_RATIO_TIGHT_HIGH = 1.2
@@ -60,7 +59,6 @@ export const RECENCY_WINDOW_TRACKS = 10
 // guard. Kept deliberately narrow (pop/soul are too broad to fail closed on).
 const STRONG_GENRE_FAMILIES = ['rap_hiphop', 'rock_metal', 'latin']
 const DISLIKE_WEIGHT_THRESHOLD = 0.5
-const POPULAR_TRACK_THRESHOLD = 50
 
 /**
  * Tag-driven genre context, threaded through every collector by the

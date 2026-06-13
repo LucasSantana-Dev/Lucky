@@ -62,7 +62,7 @@ export async function resolveQueryWithFallbacks(
                 telemetry.latencyMs = Date.now() - startTime
                 telemetry.resolvedVia = 'youtube-fallback'
                 return { result, telemetry }
-            } catch (youtubeError) {
+            } catch (_youtubeError) {
                 warnLog({
                     message:
                         'YouTube search failed, falling back to SoundCloud',
