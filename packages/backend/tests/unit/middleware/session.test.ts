@@ -1,22 +1,8 @@
 import { describe, test, expect, beforeEach } from '@jest/globals'
 import express from 'express'
 
-jest.mock('ioredis', () => {
-    return jest.fn().mockImplementation(() => ({
-        connect: jest.fn().mockRejectedValue(new Error('not available')),
-        disconnect: jest.fn(),
-        on: jest.fn(),
-        status: 'wait',
-    }))
-})
-
-jest.mock('connect-redis', () => ({
-    RedisStore: jest.fn().mockImplementation(() => ({
-        get: jest.fn(),
-        set: jest.fn(),
-        destroy: jest.fn(),
-    })),
-}))
+// The session store is Postgres-backed (PrismaSessionStore) via the globally
+// mocked getPrismaClient (tests/setup.ts); no Redis mocks are needed.
 
 describe('Session Middleware', () => {
     let app: express.Express
@@ -101,25 +87,5 @@ describe('Session Middleware', () => {
         }).not.toThrow()
 
         process.env.NODE_ENV = originalEnv
-    })
-
-    test('should provide adapted client to RedisStore', async () => {
-        const { setupSessionMiddleware } =
-            await import('../../../src/middleware/session')
-        const { RedisStore } = await import('connect-redis')
-
-        setupSessionMiddleware(app)
-
-        const redisStoreMock = RedisStore as unknown as jest.Mock
-        const options = redisStoreMock.mock.calls[0][0] as {
-            client: Record<string, unknown>
-        }
-
-        expect(typeof options.client.set).toBe('function')
-        expect(typeof options.client.del).toBe('function')
-        expect(typeof options.client.mGet).toBe('function')
-        expect(typeof options.client.scanIterator).toBe('function')
-        expect(typeof options.client.expire).toBe('function')
-        expect(typeof options.client.get).toBe('function')
     })
 })
