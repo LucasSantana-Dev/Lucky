@@ -29,4 +29,5 @@ export interface AutoplayContext {
     }
     replayFrequentTrackIds?: Set<string>
     replayFrequentArtists?: Set<string>
+    recentArtistIndices?: Map<string, number>
 }

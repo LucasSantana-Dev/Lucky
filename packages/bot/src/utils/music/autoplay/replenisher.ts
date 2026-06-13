@@ -286,6 +286,7 @@ async function _replenishQueue(
             },
         })
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
+        const recentArtistIndices = buildRecentArtistIndices(currentTrack, historyTracks)
         const artistFrequency = buildArtistFrequency(persistentHistory)
 
         // Fetch the token FIRST (it may refresh), then audio features —
@@ -361,6 +362,7 @@ async function _replenishQueue(
             genreContext: candidateGenreContext,
             replayFrequentTrackIds: replayFrequency?.trackIds ?? new Set(),
             replayFrequentArtists: replayFrequency?.artists ?? new Set(),
+            recentArtistIndices,
         }
         const candidates = await collectRecommendationCandidates(
             autoplayContext,
@@ -611,6 +613,31 @@ function buildRecentArtists(
             .filter(Boolean)
             .map((artist) => artist.toLowerCase()),
     )
+}
+
+/**
+ * Build a map of artist names (lowercased) to their queue position (0 = most recent)
+ * for recency-decay scoring. Maps only the most recent N unique artists in the
+ * session history to keep memory usage bounded.
+ */
+function buildRecentArtistIndices(
+    currentTrack: Track,
+    historyTracks: Track[],
+): Map<string, number> {
+    const indices = new Map<string, number>()
+    const allTracks = [currentTrack, ...historyTracks]
+    const seenArtists = new Set<string>()
+
+    // Iterate from most recent to oldest, assigning indices only to unique artists
+    for (let i = 0; i < allTracks.length; i++) {
+        const artist = allTracks[i].author?.toLowerCase()
+        if (artist && !seenArtists.has(artist)) {
+            indices.set(artist, i)
+            seenArtists.add(artist)
+        }
+    }
+
+    return indices
 }
 
 /**
