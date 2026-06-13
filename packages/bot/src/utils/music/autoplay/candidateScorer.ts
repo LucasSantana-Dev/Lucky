@@ -367,7 +367,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
 
     if (implicitDislikeKeys.has(candidateKey)) {
         score += SCORE_IMPLICIT_DISLIKE
-        signals.push('skipped before')
+        signals.push('implicit-dislike-penalty')
     }
     if (implicitLikeKeys.has(candidateKey)) {
         score += SCORE_IMPLICIT_LIKE
@@ -382,6 +382,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     if (candidateArtist === currentArtist) {
         if (!isDeepDive) {
             score += SCORE_IMPLICIT_DISLIKE
+            signals.push('implicit-dislike-penalty')
         }
         const titleSim = sharedTitleTokenScore(
             candidate.title ?? '',
