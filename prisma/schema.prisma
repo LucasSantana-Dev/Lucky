@@ -168,6 +168,7 @@ model GuildSettings {
   autoPlayEnabled Boolean      @default(true)
   autoplayMode    AutoplayMode @default(similar)
   autoplayGenres  String[]     @default([])
+  blockSertanejo  Boolean      @default(true)
   repeatMode      Int          @default(0)
   shuffleEnabled  Boolean      @default(false)
 

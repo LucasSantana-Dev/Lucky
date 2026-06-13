@@ -15,7 +15,7 @@ function prismaErrorMeta(error: unknown): Record<string, unknown> | undefined {
     return undefined
 }
 
-/** Guild-specific music and command settings cached in Redis. */
+/** Guild-specific music and command settings. */
 export interface GuildSettings {
     guildId: string
     defaultVolume: number
@@ -23,6 +23,7 @@ export interface GuildSettings {
     autoPlayEnabled: boolean
     autoplayMode?: 'similar' | 'discover' | 'popular'
     autoplayGenres?: string[]
+    blockSertanejo?: boolean
     repeatMode: number
     shuffleEnabled: boolean
     prefix: string
@@ -67,6 +68,7 @@ export class GuildSettingsService {
             autoPlayEnabled: true,
             autoplayMode: 'similar',
             autoplayGenres: [],
+            blockSertanejo: true,
             repeatMode: 0,
             shuffleEnabled: false,
             prefix: '/',
@@ -93,6 +95,7 @@ export class GuildSettingsService {
         autoPlayEnabled: boolean
         autoplayMode: string
         autoplayGenres: string[]
+        blockSertanejo: boolean
         repeatMode: number
         shuffleEnabled: boolean
         prefix: string | null
@@ -117,6 +120,7 @@ export class GuildSettingsService {
             autoPlayEnabled: row.autoPlayEnabled,
             autoplayMode: row.autoplayMode as GuildSettings['autoplayMode'],
             autoplayGenres: row.autoplayGenres,
+            blockSertanejo: row.blockSertanejo ?? defaults.blockSertanejo,
             repeatMode: row.repeatMode,
             shuffleEnabled: row.shuffleEnabled,
             prefix: row.prefix ?? defaults.prefix,
@@ -152,6 +156,7 @@ export class GuildSettingsService {
         copy('autoPlayEnabled')
         copy('autoplayMode')
         copy('autoplayGenres')
+        copy('blockSertanejo')
         copy('repeatMode')
         copy('shuffleEnabled')
         copy('prefix')
