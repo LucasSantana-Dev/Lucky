@@ -63,7 +63,10 @@ async function endGiveaway(
 
     if (!client) {
         try {
-            client = require('../../../client').default
+            // NOTE: this fallback path is currently broken — `../../../client`
+            // resolves to a non-existent module, so the require throws and the
+            // catch returns. Tracked in #1383. Cast keeps the type honest.
+            client = (require('../../../client') as { default: Client }).default
         } catch {
             return
         }

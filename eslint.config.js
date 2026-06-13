@@ -132,11 +132,13 @@ export default [
             "no-unused-vars": "off",
             "no-empty": ["warn", { allowEmptyCatch: false }],
             "@typescript-eslint/no-non-null-assertion": "warn",
-            "@typescript-eslint/no-unsafe-assignment": "warn",
-            "@typescript-eslint/no-unsafe-call": "warn",
-            "@typescript-eslint/no-unsafe-member-access": "warn",
-            "@typescript-eslint/no-unsafe-return": "warn",
-            "@typescript-eslint/no-unsafe-argument": "warn",
+            // Promoted to error: the no-unsafe-* inventory is cleaned (#1378),
+            // so these are now regression guards rather than ratchet warnings.
+            "@typescript-eslint/no-unsafe-assignment": "error",
+            "@typescript-eslint/no-unsafe-call": "error",
+            "@typescript-eslint/no-unsafe-member-access": "error",
+            "@typescript-eslint/no-unsafe-return": "error",
+            "@typescript-eslint/no-unsafe-argument": "error",
             "@typescript-eslint/no-explicit-any": "warn",
             // Honor the same ^_ ignore convention as the per-package block
             // (line ~52): without these options the root-cwd lint flags
