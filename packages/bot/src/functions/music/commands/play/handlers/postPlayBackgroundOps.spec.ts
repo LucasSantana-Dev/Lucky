@@ -7,6 +7,7 @@ const applyStoredAutoplayPreference =
     jest.fn<(queue: unknown, guildId: string) => Promise<void>>()
 const blendAutoplayTracks =
     jest.fn<(queue: unknown, track: unknown) => Promise<void>>()
+const clearSessionMoodCache = jest.fn<(guildId: string) => void>()
 const addBreadcrumb = jest.fn()
 const errorLog = jest.fn()
 
@@ -19,6 +20,9 @@ jest.mock('./autoplayPreference', () => ({
 }))
 jest.mock('../../../../../utils/music/queueManipulation', () => ({
     blendAutoplayTracks: (q: unknown, t: unknown) => blendAutoplayTracks(q, t),
+}))
+jest.mock('../../../../../utils/music/autoplay/replenisher', () => ({
+    clearSessionMoodCache: (id: string) => clearSessionMoodCache(id),
 }))
 jest.mock('@lucky/shared/utils/monitoring', () => ({
     addBreadcrumb: (...args: unknown[]) => addBreadcrumb(...args),
@@ -58,6 +62,7 @@ describe('runPostPlayBackgroundOps', () => {
         })
 
         expect(clearAutoplayPause).toHaveBeenCalledWith(guildId)
+        expect(clearSessionMoodCache).toHaveBeenCalledWith(guildId)
         expect(applyStoredAutoplayPreference).toHaveBeenCalledTimes(1)
         expect(blendAutoplayTracks).toHaveBeenCalledTimes(1)
         expect(failedOps()).toEqual([])
