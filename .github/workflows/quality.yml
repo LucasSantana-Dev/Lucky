@@ -8,12 +8,13 @@ on:
 
 jobs:
     quality:
-        uses: LucasSantana-Dev/.github/.github/workflows/quality.yml@6ec7fbeaa6f7a83dbe31dc6947ca5692e2d60d11
+        uses: LucasSantana-Dev/.github/.github/workflows/quality.yml@aae80785af816b7dde59e50f66855be65d120685
         with:
             node-version: '22'
             has-dockerfile: true
             run-deadcode: true
             package-manager: npm
+            pre-lint-script: 'npm run db:generate && npm run build:shared'
         permissions:
             contents: read
             security-events: write
