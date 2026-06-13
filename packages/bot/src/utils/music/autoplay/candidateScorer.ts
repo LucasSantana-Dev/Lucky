@@ -54,7 +54,7 @@ const SCORE_REPLAY_COUNT_BOOST = 0.15
 // over a window of RECENCY_WINDOW_TRACKS. Bounded so it cannot flip genre
 // vetoes (-Infinity) or override provenance-aware ordering.
 const SCORE_RECENCY_DECAY_MAX = -0.15
-const RECENCY_WINDOW_TRACKS = 10
+export const RECENCY_WINDOW_TRACKS = 10
 // Genre families dense/cohesive enough that a cross-family jump reads as drift.
 // Used both for the cross-family penalty and the untagged-candidate fail-closed
 // guard. Kept deliberately narrow (pop/soul are too broad to fail closed on).

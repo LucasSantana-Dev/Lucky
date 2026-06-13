@@ -24,7 +24,7 @@ import {
     hasGenreTag,
     type ArtistTagFetcher,
 } from './artistTagCache'
-import { getGenreFamilies } from './candidateScorer'
+import { getGenreFamilies, RECENCY_WINDOW_TRACKS } from './candidateScorer'
 import {
     buildExcludedUrls,
     buildExcludedKeys,
@@ -286,7 +286,13 @@ async function _replenishQueue(
             },
         })
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
-        const recentArtistIndices = buildRecentArtistIndices(currentTrack, historyTracks)
+        // Recency-decay needs the real recent queue, not the 3-track seed sample
+        // (HISTORY_SEED_LIMIT) — otherwise the linear-decay window never fills and
+        // every recent artist gets a near-max penalty. Feed it the fuller history.
+        const recentArtistIndices = buildRecentArtistIndices(
+            currentTrack,
+            allHistoryTracks,
+        )
         const artistFrequency = buildArtistFrequency(persistentHistory)
 
         // Fetch the token FIRST (it may refresh), then audio features —
@@ -617,8 +623,9 @@ function buildRecentArtists(
 
 /**
  * Build a map of artist names (lowercased) to their queue position (0 = most recent)
- * for recency-decay scoring. Maps only the most recent N unique artists in the
- * session history to keep memory usage bounded.
+ * for recency-decay scoring. Only positions within RECENCY_WINDOW_TRACKS matter —
+ * the scorer's decay factor clamps to zero past the window — so iteration stops
+ * there, keeping the map bounded regardless of how much history is fetched upstream.
  */
 function buildRecentArtistIndices(
     currentTrack: Track,
@@ -628,8 +635,10 @@ function buildRecentArtistIndices(
     const allTracks = [currentTrack, ...historyTracks]
     const seenArtists = new Set<string>()
 
-    // Iterate from most recent to oldest, assigning indices only to unique artists
-    for (let i = 0; i < allTracks.length; i++) {
+    // Iterate from most recent to oldest, assigning each unique artist its
+    // most-recent position. Stop at the decay window — later positions score 0.
+    const limit = Math.min(allTracks.length, RECENCY_WINDOW_TRACKS)
+    for (let i = 0; i < limit; i++) {
         const artist = allTracks[i].author?.toLowerCase()
         if (artist && !seenArtists.has(artist)) {
             indices.set(artist, i)
