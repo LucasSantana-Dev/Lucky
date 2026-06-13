@@ -14,6 +14,11 @@ describe('trackSource', () => {
     it('returns undefined when source is absent', () => {
         expect(trackSource(asTrack({}))).toBeUndefined()
     })
+
+    it('returns undefined when source is null or not a string', () => {
+        expect(trackSource(asTrack({ source: null as never }))).toBeUndefined()
+        expect(trackSource(asTrack({ source: 7 as never }))).toBeUndefined()
+    })
 })
 
 describe('trackAlbumName', () => {

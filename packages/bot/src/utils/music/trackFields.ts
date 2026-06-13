@@ -17,7 +17,8 @@ import type { Track, TrackSource } from 'discord-player'
  * runtime so callers keep their existing fallbacks.
  */
 export function trackSource(track: Track): TrackSource | undefined {
-    return track.source as TrackSource | undefined
+    const source: unknown = track.source
+    return typeof source === 'string' ? (source as TrackSource) : undefined
 }
 
 /**
