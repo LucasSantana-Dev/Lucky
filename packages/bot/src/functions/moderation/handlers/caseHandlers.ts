@@ -5,6 +5,7 @@ import {
 } from 'discord.js'
 import { moderationService } from '@lucky/shared/services'
 import { getPrismaClient, infoLog } from '@lucky/shared/utils'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 import { formatDurationHuman } from '../../../utils/general/formatDuration'
 
@@ -25,7 +26,7 @@ export async function handleCaseView(
     caseNumber: number,
 ): Promise<void> {
     const moderationCase = await moderationService.getCase(
-        interaction.guild!.id,
+        assertDefined(interaction.guild, 'Guild required for handler').id,
         caseNumber,
     )
     if (!moderationCase) {
@@ -102,7 +103,7 @@ export async function handleCaseUpdate(
 ): Promise<void> {
     const newReason = interaction.options.getString('reason', true)
     const moderationCase = await moderationService.getCase(
-        interaction.guild!.id,
+        assertDefined(interaction.guild, 'Guild required for handler').id,
         caseNumber,
     )
     if (!moderationCase) {
@@ -133,7 +134,7 @@ export async function handleCaseUpdate(
 
     await interactionReply({ interaction, content: { embeds: [embed] } })
     infoLog({
-        message: `Case #${caseNumber} updated by ${interaction.user.tag} in ${interaction.guild!.name}`,
+        message: `Case #${caseNumber} updated by ${interaction.user.tag} in ${assertDefined(interaction.guild, 'Guild required for handler').name}`,
     })
 }
 
@@ -141,7 +142,7 @@ export async function handleCaseDelete(
     interaction: ChatInputCommandInteraction,
     caseNumber: number,
 ): Promise<void> {
-    const member = await interaction.guild!.members.fetch(interaction.user.id)
+    const member = await assertDefined(interaction.guild, 'Guild required for handler').members.fetch(interaction.user.id)
     if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
         await interactionReply({
             interaction,
@@ -154,7 +155,7 @@ export async function handleCaseDelete(
     }
 
     const moderationCase = await moderationService.getCase(
-        interaction.guild!.id,
+        assertDefined(interaction.guild, 'Guild required for handler').id,
         caseNumber,
     )
     if (!moderationCase) {
@@ -179,6 +180,6 @@ export async function handleCaseDelete(
 
     await interactionReply({ interaction, content: { embeds: [embed] } })
     infoLog({
-        message: `Case #${caseNumber} deleted by ${interaction.user.tag} in ${interaction.guild!.name}`,
+        message: `Case #${caseNumber} deleted by ${interaction.user.tag} in ${assertDefined(interaction.guild, 'Guild required for handler').name}`,
     })
 }

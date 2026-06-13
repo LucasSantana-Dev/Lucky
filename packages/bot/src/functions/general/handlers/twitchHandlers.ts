@@ -2,21 +2,23 @@ import type { ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { twitchNotificationService } from '@lucky/shared/services'
 import { getPrismaClient } from '@lucky/shared/utils'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
 import { getTwitchUserByLogin } from '../../../twitch/twitchApi'
 import { refreshTwitchSubscriptions } from '../../../twitch'
 
 async function ensureGuild(interaction: ChatInputCommandInteraction) {
     const prisma = getPrismaClient()
+    const guildObj = assertDefined(interaction.guild, 'Guild required for handler')
     let guild = await prisma.guild.findUnique({
-        where: { discordId: interaction.guild!.id },
+        where: { discordId: guildObj.id },
     })
     if (!guild) {
         guild = await prisma.guild.create({
             data: {
-                discordId: interaction.guild!.id,
-                name: interaction.guild!.name,
-                ownerId: interaction.guild!.ownerId,
+                discordId: guildObj.id,
+                name: guildObj.name,
+                ownerId: guildObj.ownerId,
             },
         })
     }
@@ -115,8 +117,9 @@ export async function handleTwitchRemove(
     }
 
     const prisma = getPrismaClient()
+    const guildObj = assertDefined(interaction.guild, 'Guild required for handler')
     const guild = await prisma.guild.findUnique({
-        where: { discordId: interaction.guild!.id },
+        where: { discordId: guildObj.id },
     })
     if (!guild) {
         await replyError(
@@ -151,8 +154,9 @@ export async function handleTwitchList(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     const prisma = getPrismaClient()
+    const guildObj = assertDefined(interaction.guild, 'Guild required for handler')
     const guild = await prisma.guild.findUnique({
-        where: { discordId: interaction.guild!.id },
+        where: { discordId: guildObj.id },
     })
     if (!guild) {
         await replySuccess(

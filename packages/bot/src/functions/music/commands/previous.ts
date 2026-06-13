@@ -1,5 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { debugLog, errorLog } from '@lucky/shared/utils'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import {
@@ -138,7 +139,7 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        if (!(await requireDJRole(interaction, interaction.guildId!))) return
+        if (!(await requireDJRole(interaction, assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 
