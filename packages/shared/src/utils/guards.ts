@@ -54,3 +54,27 @@ export const isPromise = <T>(value: unknown): value is Promise<T> =>
 
 export const isError = (value: unknown): value is Error =>
     value instanceof Error
+
+/**
+ * Assert that a value is neither `null` nor `undefined`, returning it narrowed.
+ *
+ * Use at sites where a value is invariantly present by design but TypeScript
+ * can't prove it (e.g. `interaction.guild` inside a guild-only command). This
+ * turns a silent non-null assertion (`x!`) into an explicit, message-carrying
+ * failure if the invariant is ever violated, instead of an opaque
+ * `TypeError: Cannot read properties of null`.
+ *
+ * @param value The possibly-nullish value.
+ * @param message Why the value is expected to be present (shown if it isn't).
+ * @returns The value, narrowed to exclude `null | undefined`.
+ * @throws Error when `value` is `null` or `undefined`.
+ */
+export function assertDefined<T>(
+    value: T | null | undefined,
+    message: string,
+): T {
+    if (value === null || value === undefined) {
+        throw new Error(`assertDefined: ${message}`)
+    }
+    return value
+}
