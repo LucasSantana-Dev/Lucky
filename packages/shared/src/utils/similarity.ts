@@ -31,7 +31,7 @@ export function levenshteinDistance(str1: string, str2: string): number {
     if (m === 0) return n
 
     let prev: number[] = Array.from({ length: m + 1 }, (_, i) => i)
-    let curr: number[] = new Array(m + 1)
+    let curr: number[] = new Array<number>(m + 1)
 
     for (let j = 1; j <= n; j++) {
         curr[0] = j

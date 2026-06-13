@@ -83,12 +83,12 @@ export class MusicControlService {
             this.pendingResults.set(cmd.id, { resolve, timeout })
 
             this.publisher!.publish(CHANNEL_COMMAND, JSON.stringify(cmd)).catch(
-                (err) => {
+                (err: unknown) => {
                     this.pendingResults.delete(cmd.id)
                     clearTimeout(timeout)
-                    resolve(
-                        this.failResult(cmd, `Publish failed: ${err.message}`),
-                    )
+                    const reason =
+                        err instanceof Error ? err.message : String(err)
+                    resolve(this.failResult(cmd, `Publish failed: ${reason}`))
                 },
             )
         })

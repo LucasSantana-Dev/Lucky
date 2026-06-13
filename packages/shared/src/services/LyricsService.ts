@@ -81,7 +81,7 @@ export class LyricsService {
         const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`
 
         try {
-            const response = await axios.get(url, {
+            const response = await axios.get<{ lyrics?: string }>(url, {
                 timeout: LyricsService.TIMEOUT,
                 headers: {
                     'User-Agent': 'Lucky/1.0',
