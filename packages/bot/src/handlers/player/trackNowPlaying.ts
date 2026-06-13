@@ -18,6 +18,7 @@ import {
     updateNowPlaying as lastFmUpdateNowPlaying,
     scrobble as lastFmScrobble,
 } from '../../lastfm'
+import { getSkipReasonEmojis } from '../../utils/music/skipReasonMap'
 
 /**
  * Manages per-guild now-playing state with automatic TTL + explicit cleanup
@@ -26,7 +27,7 @@ import {
 class TrackNowPlayingState {
     private songInfoMessages = new LRUCache<
         string,
-        { messageId: string; channelId: string }
+        { messageId: string; channelId: string; trackUrl?: string }
     >({
         max: 5000,
         ttl: 30 * 60 * 1000,
@@ -41,13 +42,14 @@ class TrackNowPlayingState {
         guildId: string,
         messageId: string,
         channelId: string,
+        trackUrl?: string,
     ): void {
-        this.songInfoMessages.set(guildId, { messageId, channelId })
+        this.songInfoMessages.set(guildId, { messageId, channelId, trackUrl })
     }
 
     getSongInfoMessage(
         guildId: string,
-    ): { messageId: string; channelId: string } | undefined {
+    ): { messageId: string; channelId: string; trackUrl?: string } | undefined {
         return this.songInfoMessages.get(guildId)
     }
 
@@ -89,17 +91,19 @@ export function registerNowPlayingMessage(
     guildId: string,
     messageId: string,
     channelId: string,
+    trackUrl?: string,
 ): void {
     trackNowPlayingState.registerNowPlayingMessage(
         guildId,
         messageId,
         channelId,
+        trackUrl,
     )
 }
 
 export function getSongInfoMessage(
     guildId: string,
-): { messageId: string; channelId: string } | undefined {
+): { messageId: string; channelId: string; trackUrl?: string } | undefined {
     return trackNowPlayingState.getSongInfoMessage(guildId)
 }
 
@@ -225,6 +229,8 @@ export async function sendNowPlayingEmbed(
         footer,
     })
 
+    const skipReasonEmojis = getSkipReasonEmojis()
+
     const previousMessage = getSongInfoMessage(queue.guild.id)
     if (previousMessage && previousMessage.channelId === metadata.channel.id) {
         try {
@@ -239,6 +245,21 @@ export async function sendNowPlayingEmbed(
                     createMusicActionButtons(queue),
                 ],
             })
+            // Add skip-reason emoji reactions
+            for (const emoji of skipReasonEmojis) {
+                message.react(emoji).catch(() => {
+                    // Silently ignore if reaction fails (e.g., bot permissions)
+                })
+            }
+            // Refresh the cached trackUrl — the message is reused but now points
+            // at a new track, so skip-reason reactions must resolve to it, not
+            // the previous track's recommendation.
+            registerNowPlayingMessage(
+                queue.guild.id,
+                previousMessage.messageId,
+                metadata.channel.id,
+                track.url,
+            )
             debugLog({
                 message: 'Updated now playing message in channel',
                 data: {
@@ -269,7 +290,14 @@ export async function sendNowPlayingEmbed(
         ],
     })
 
-    registerNowPlayingMessage(queue.guild.id, message.id, metadata.channel.id)
+    // Add skip-reason emoji reactions
+    for (const emoji of skipReasonEmojis) {
+        message.react(emoji).catch(() => {
+            // Silently ignore if reaction fails (e.g., bot permissions)
+        })
+    }
+
+    registerNowPlayingMessage(queue.guild.id, message.id, metadata.channel.id, track.url)
 
     debugLog({
         message: 'Sent now playing message to channel',
