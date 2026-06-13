@@ -3,6 +3,7 @@ import { EmbedBuilder, type ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { roleManagementService } from '@lucky/shared/services'
 import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
+import { assertDefined } from '@lucky/shared/utils/guards'
 
 async function replyError(
     interaction: ChatInputCommandInteraction,
@@ -38,7 +39,7 @@ export async function handleSetExclusive(
     }
 
     const success = await roleManagementService.setExclusiveRole(
-        interaction.guild!.id,
+        assertDefined(interaction.guild, 'Guild required for handler').id,
         role.id,
         excludedRole.id,
     )
@@ -64,7 +65,7 @@ export async function handleRemoveExclusive(
     const excludedRole = interaction.options.getRole('excluded_role', true)
 
     const success = await roleManagementService.removeExclusiveRole(
-        interaction.guild!.id,
+        assertDefined(interaction.guild, 'Guild required for handler').id,
         role.id,
         excludedRole.id,
     )
@@ -83,7 +84,7 @@ export async function handleListExclusive(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     const exclusions = await roleManagementService.listExclusiveRoles(
-        interaction.guild!.id,
+        assertDefined(interaction.guild, 'Guild required for handler').id,
     )
 
     if (exclusions.length === 0) {

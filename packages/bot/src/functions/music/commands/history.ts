@@ -5,6 +5,7 @@ import { createErrorEmbed, musicEmbed, createWarningEmbed } from '../../../utils
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import { trackHistoryService } from '@lucky/shared/services'
+import { assertDefined } from '@lucky/shared/utils/guards'
 
 const PAGE_SIZE = 10
 
@@ -22,7 +23,7 @@ export default new Command({
     execute: async ({ interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
 
-        const guildId = interaction.guildId!
+        const guildId = assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')
         const page = (interaction.options.getInteger('page') ?? 1)
 
         await interaction.deferReply()

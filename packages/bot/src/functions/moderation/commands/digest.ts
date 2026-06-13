@@ -8,6 +8,7 @@ import {
 import Command from '../../../models/Command.js'
 import { moderationService } from '@lucky/shared/services'
 import { infoLog, errorLog } from '@lucky/shared/utils'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import {
@@ -92,7 +93,7 @@ async function handleView(
     const days = resolveDigestPeriodDays(period)
 
     try {
-        const guildId = interaction.guild!.id
+        const guildId = assertDefined(interaction.guild, 'Guild checked in execute').id
         const since = new Date(Date.now() - days * MS_PER_DAY)
         const [stats, periodCases] = await Promise.all([
             moderationService.getStats(guildId),
@@ -104,7 +105,7 @@ async function handleView(
         await interactionReply({ interaction, content: { embeds: [embed] } })
 
         infoLog({
-            message: `Mod digest viewed by ${interaction.user.tag} in ${interaction.guild!.name} (period: ${period})`,
+            message: `Mod digest viewed by ${interaction.user.tag} in ${assertDefined(interaction.guild, 'Guild checked in execute').name} (period: ${period})`,
         })
     } catch (error) {
         errorLog({ message: 'Failed to generate mod digest', error: error as Error })
@@ -127,7 +128,7 @@ async function handleSchedule(
         return
     }
 
-    const guildId = interaction.guild!.id
+    const guildId = assertDefined(interaction.guild, 'Guild checked in execute').id
     const channelId = (channel as TextChannel).id
 
     try {
@@ -157,7 +158,7 @@ async function handleSchedule(
         })
 
         infoLog({
-            message: `Mod digest scheduled by ${interaction.user.tag} in ${interaction.guild!.name} → channel ${channelId}`,
+            message: `Mod digest scheduled by ${interaction.user.tag} in ${assertDefined(interaction.guild, 'Guild checked in execute').name} → channel ${channelId}`,
         })
     } catch (error) {
         errorLog({ message: 'Failed to schedule mod digest', error: error as Error })
@@ -172,7 +173,7 @@ async function handleUnschedule(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     try {
-        const removed = await modDigestConfigService.disable(interaction.guild!.id)
+        const removed = await modDigestConfigService.disable(assertDefined(interaction.guild, 'Guild checked in execute').id)
 
         await interactionReply({
             interaction,
@@ -185,7 +186,7 @@ async function handleUnschedule(
 
         if (removed) {
             infoLog({
-                message: `Mod digest unscheduled by ${interaction.user.tag} in ${interaction.guild!.name}`,
+                message: `Mod digest unscheduled by ${interaction.user.tag} in ${assertDefined(interaction.guild, 'Guild checked in execute').name}`,
             })
         }
     } catch (error) {
