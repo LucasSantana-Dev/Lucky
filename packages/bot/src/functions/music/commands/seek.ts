@@ -11,6 +11,7 @@ import {
 } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { createErrorEmbed } from '../../../utils/general/embeds'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
 
 function parseTimeToMs(timeStr: string): number | null {

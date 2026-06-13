@@ -9,6 +9,7 @@ import {
 import { guildSettingsService } from '@lucky/shared/services'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../types/CommandData'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import { MessageFlags, PermissionFlagsBits } from 'discord.js'
 
 export default new Command({
@@ -33,7 +34,7 @@ export default new Command({
     category: 'music',
     execute: async ({ interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        const guildId = interaction.guildId!
+        const guildId = assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')
         const sub = interaction.options.getSubcommand()
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral })

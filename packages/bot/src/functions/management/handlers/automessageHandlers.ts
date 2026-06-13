@@ -1,6 +1,7 @@
 import { EmbedBuilder, type ChatInputCommandInteraction } from 'discord.js'
 import { autoMessageService, type MessageType } from '@lucky/shared/services'
 import { infoLog } from '@lucky/shared/utils'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 
 async function getMessageByType(guildId: string, type: MessageType) {
@@ -18,7 +19,7 @@ export async function handleAutoMessageConfig(
     const message = interaction.options.getString('message')
 
     if (enabled && !message && !channel) {
-        const existing = await getMessageByType(interaction.guild!.id, type)
+        const existing = await getMessageByType(assertDefined(interaction.guild, 'Guild required for handler').id, type)
         if (!existing) {
             await interactionReply({
                 interaction,
@@ -32,7 +33,7 @@ export async function handleAutoMessageConfig(
     }
 
     if (enabled && message && channel) {
-        const existing = await getMessageByType(interaction.guild!.id, type)
+        const existing = await getMessageByType(assertDefined(interaction.guild, 'Guild required for handler').id, type)
         if (existing) {
             await autoMessageService.updateMessage(existing.id, {
                 enabled: true,
@@ -41,14 +42,14 @@ export async function handleAutoMessageConfig(
             })
         } else {
             await autoMessageService.createMessage(
-                interaction.guild!.id,
+                assertDefined(interaction.guild, 'Guild required for handler').id,
                 type,
                 { message },
                 { channelId: channel.id },
             )
         }
     } else if (enabled && (message || channel)) {
-        const existing = await getMessageByType(interaction.guild!.id, type)
+        const existing = await getMessageByType(assertDefined(interaction.guild, 'Guild required for handler').id, type)
         if (existing) {
             await autoMessageService.updateMessage(existing.id, {
                 enabled: true,
@@ -66,7 +67,7 @@ export async function handleAutoMessageConfig(
             return
         }
     } else if (!enabled) {
-        const existing = await getMessageByType(interaction.guild!.id, type)
+        const existing = await getMessageByType(assertDefined(interaction.guild, 'Guild required for handler').id, type)
         if (existing)
             await autoMessageService.updateMessage(existing.id, {
                 enabled: false,
@@ -92,7 +93,7 @@ export async function handleAutoMessageConfig(
 
     await interactionReply({ interaction, content: { embeds: [embed] } })
     infoLog({
-        message: `${type} messages ${enabled ? 'enabled' : 'disabled'} by ${interaction.user.tag} in ${interaction.guild!.name}`,
+        message: `${type} messages ${enabled ? 'enabled' : 'disabled'} by ${interaction.user.tag} in ${assertDefined(interaction.guild, 'Guild required for handler').name}`,
     })
 }
 
@@ -100,11 +101,11 @@ export async function handleAutoMessageList(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     const welcomeMessages = await autoMessageService.getMessagesByType(
-        interaction.guild!.id,
+        assertDefined(interaction.guild, 'Guild required for handler').id,
         'welcome',
     )
     const leaveMessages = await autoMessageService.getMessagesByType(
-        interaction.guild!.id,
+        assertDefined(interaction.guild, 'Guild required for handler').id,
         'leave',
     )
     const allMessages = [...welcomeMessages, ...leaveMessages]

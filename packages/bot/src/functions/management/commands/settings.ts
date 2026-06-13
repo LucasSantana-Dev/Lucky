@@ -5,6 +5,7 @@ import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/emb
 import { guildSettingsService } from '@lucky/shared/services'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../types/CommandData'
+import { assertDefined } from '@lucky/shared/utils/guards'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -32,7 +33,7 @@ export default new Command({
     category: 'management',
     execute: async ({ interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        const guildId = interaction.guildId!
+        const guildId = assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
