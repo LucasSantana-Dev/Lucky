@@ -1,6 +1,5 @@
 import session from 'express-session'
-import { getPrismaClient } from '@lucky/shared/utils'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { getPrismaClient, debugLog, errorLog } from '@lucky/shared/utils'
 
 const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const PRUNE_INTERVAL_MS = 60 * 60 * 1000
