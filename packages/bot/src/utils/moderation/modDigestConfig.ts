@@ -1,6 +1,5 @@
 import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
 import { errorLog } from '@lucky/shared/utils'
-import cuid2 from '@paralleldrive/cuid2'
 
 export type ModDigestConfig = {
     guildId: string
@@ -34,15 +33,12 @@ export class ModDigestConfigService {
                 where: { guildId: input.guildId },
                 update: {
                     channelId: input.channelId,
-                    enabled: true,
                     lastSentAt: lastSentAtMs !== null ? BigInt(lastSentAtMs) : null,
                     updatedAt: new Date(),
                 },
                 create: {
-                    id: cuid2.createId(),
                     guildId: input.guildId,
                     channelId: input.channelId,
-                    enabled: true,
                     lastSentAt: lastSentAtMs !== null ? BigInt(lastSentAtMs) : null,
                     createdAt: BigInt(createdAtMs),
                 },
@@ -51,7 +47,7 @@ export class ModDigestConfigService {
             return {
                 guildId: row.guildId,
                 channelId: row.channelId,
-                enabled: row.enabled,
+                enabled: true,
                 lastSentAt: row.lastSentAt !== null ? Number(row.lastSentAt) : null,
                 createdAt: Number(row.createdAt),
             }
@@ -69,16 +65,20 @@ export class ModDigestConfigService {
         const prisma = getPrismaClient()
 
         try {
-            const row = await prisma.modDigestConfig.findUnique({
-                where: { guildId },
-            })
-            if (!row) return false
-
             await prisma.modDigestConfig.delete({
                 where: { guildId },
             })
             return true
         } catch (error) {
+            const isP2025 =
+                error instanceof Error &&
+                'code' in error &&
+                error.code === 'P2025'
+
+            if (isP2025) {
+                return false
+            }
+
             errorLog({
                 message: 'Failed to disable mod digest config',
                 error,
@@ -100,7 +100,7 @@ export class ModDigestConfigService {
             return {
                 guildId: row.guildId,
                 channelId: row.channelId,
-                enabled: row.enabled,
+                enabled: true,
                 lastSentAt: row.lastSentAt !== null ? Number(row.lastSentAt) : null,
                 createdAt: Number(row.createdAt),
             }
@@ -119,7 +119,6 @@ export class ModDigestConfigService {
 
         try {
             const rows = await prisma.modDigestConfig.findMany({
-                where: { enabled: true },
                 select: { guildId: true },
             })
             return rows.map((row) => row.guildId)
@@ -144,10 +143,12 @@ export class ModDigestConfigService {
                 },
             })
         } catch (error) {
-            if (
+            const isP2025 =
                 error instanceof Error &&
-                error.message.includes('Record to update not found')
-            ) {
+                'code' in error &&
+                error.code === 'P2025'
+
+            if (isP2025) {
                 // Guild no longer has digest enabled; silently succeed
                 return
             }

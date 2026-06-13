@@ -9,13 +9,6 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
-jest.mock('@paralleldrive/cuid2', () => ({
-    createId: jest.fn(() => 'test-id-1'),
-    default: {
-        createId: jest.fn(() => 'test-id-1'),
-    },
-}))
-
 import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
 
 const mockPrisma = {
@@ -44,7 +37,6 @@ describe('ModDigestConfigService.enable', () => {
             id: 'test-id-1',
             guildId: 'guild-1',
             channelId: 'channel-1',
-            enabled: true,
             lastSentAt: null,
             createdAt: BigInt(1000),
             updatedAt: new Date(),
@@ -72,7 +64,6 @@ describe('ModDigestConfigService.enable', () => {
             id: 'test-id-1',
             guildId: 'guild-1',
             channelId: 'channel-1',
-            enabled: true,
             lastSentAt: BigInt(1234),
             createdAt: BigInt(5678),
             updatedAt: new Date(),
@@ -98,15 +89,6 @@ describe('ModDigestConfigService.disable', () => {
 
     it('deletes the config row', async () => {
         const service = createService()
-        mockPrisma.modDigestConfig.findUnique.mockResolvedValue({
-            id: 'test-id-1',
-            guildId: 'guild-1',
-            channelId: 'c',
-            enabled: true,
-            lastSentAt: null,
-            createdAt: BigInt(1),
-            updatedAt: new Date(),
-        })
         mockPrisma.modDigestConfig.delete.mockResolvedValue({})
 
         const result = await service.disable('guild-1')
@@ -117,14 +99,18 @@ describe('ModDigestConfigService.disable', () => {
         })
     })
 
-    it('returns false when no config exists', async () => {
+    it('returns false when no config exists (P2025)', async () => {
         const service = createService()
-        mockPrisma.modDigestConfig.findUnique.mockResolvedValue(null)
+        const p2025Error = new Error('An operation failed because it depends on one or more records that were required but not found. Record to delete does not exist.')
+        ;(p2025Error as any).code = 'P2025'
+        mockPrisma.modDigestConfig.delete.mockRejectedValue(p2025Error)
 
         const result = await service.disable('guild-1')
 
         expect(result).toBe(false)
-        expect(mockPrisma.modDigestConfig.delete).not.toHaveBeenCalled()
+        expect(mockPrisma.modDigestConfig.delete).toHaveBeenCalledWith({
+            where: { guildId: 'guild-1' },
+        })
     })
 })
 
@@ -198,7 +184,6 @@ describe('ModDigestConfigService.listEnabledGuildIds', () => {
 
         expect(ids).toEqual(['guild-a', 'guild-b'])
         expect(mockPrisma.modDigestConfig.findMany).toHaveBeenCalledWith({
-            where: { enabled: true },
             select: { guildId: true },
         })
     })
@@ -247,6 +232,7 @@ describe('ModDigestConfigService.markSent', () => {
     it('silently succeeds when config is missing', async () => {
         const service = createService()
         const err = new Error('Record to update not found')
+        ;(err as any).code = 'P2025'
         mockPrisma.modDigestConfig.update.mockRejectedValue(err)
 
         // Should not throw

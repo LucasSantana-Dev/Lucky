@@ -703,12 +703,10 @@ model ModDigestConfig {
   guildId    String   @unique
   guild      Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   channelId  String
-  enabled    Boolean  @default(true)
   lastSentAt BigInt?
   createdAt  BigInt
   updatedAt  DateTime @updatedAt
 
-  @@index([enabled])
   @@map("mod_digest_config")
 }
 
