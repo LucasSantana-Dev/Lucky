@@ -1,6 +1,7 @@
 import type { Message } from 'discord.js'
 import { autoModService, moderationService } from '@lucky/shared/services'
 import { errorLog } from '@lucky/shared/utils'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import type {
     MessageContext,
     MessageHandler,
@@ -112,12 +113,13 @@ export const autoModHandler: MessageHandler = {
 
             await message.delete().catch(() => {})
 
+            const clientUser = assertDefined(message.client.user, 'Client user guaranteed when bot is ready')
             const caseInput = {
                 guildId,
                 userId,
                 username: message.author.tag,
-                moderatorId: message.client.user!.id,
-                moderatorName: message.client.user!.tag,
+                moderatorId: clientUser.id,
+                moderatorName: clientUser.tag,
                 reason: `[AutoMod] ${violations[0].reason}`,
                 channelId: message.channelId,
             }

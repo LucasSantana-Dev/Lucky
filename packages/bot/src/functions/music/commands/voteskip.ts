@@ -20,6 +20,7 @@ import {
 } from '../../../utils/music/voteSkipStore'
 import { guildSettingsService } from '@lucky/shared/services'
 import { debugLog } from '@lucky/shared/utils'
+import { assertDefined } from '@lucky/shared/utils/guards'
 import type { GuildMember } from 'discord.js'
 
 const DEFAULT_THRESHOLD = 50
@@ -35,7 +36,7 @@ export default new Command({
     }: CommandExecuteParams): Promise<void> => {
         if (!(await requireGuild(interaction))) return
 
-        const guildId = interaction.guildId!
+        const guildId = assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')
         const { queue } = resolveGuildQueue(client, guildId)
 
         if (!(await requireQueue(queue, interaction))) return
@@ -111,7 +112,7 @@ export default new Command({
 
         if (voteCount >= required) {
             clearVotes(guildId)
-            queue!.node.skip()
+            assertDefined(queue, 'Queue required after requireQueue check').node.skip()
             await interactionReply({
                 interaction,
                 content: {
