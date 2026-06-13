@@ -490,6 +490,41 @@ describe('replenishQueue', () => {
             'guildid',
         )
     })
+
+    it('builds recency-decay indices from full history: most-recent-per-artist, dedup, missing-author skip, window-bounded', async () => {
+        const { collectRecommendationCandidates } = require('./candidateCollector')
+        collectRecommendationCandidates.mockResolvedValue(new Map())
+
+        // allTracks = [currentTrack, ...history]; only positions < window (10)
+        // are mapped, each unique artist keyed to its most-recent position.
+        const history = [
+            createTrack({ author: 'Alpha' }), // allTracks idx 1
+            createTrack({ author: 'Beta' }), // idx 2
+            createTrack({ author: 'Alpha' }), // idx 3 — dup, keep idx 1
+            createTrack({ author: '' }), // idx 4 — missing author, skip
+            createTrack({ author: 'F5' }), // idx 5
+            createTrack({ author: 'F6' }), // idx 6
+            createTrack({ author: 'F7' }), // idx 7
+            createTrack({ author: 'F8' }), // idx 8
+            createTrack({ author: 'F9' }), // idx 9
+            createTrack({ author: 'OutOfWindow' }), // idx 10 — beyond window
+        ]
+        const queue = createGuildQueue({
+            currentTrack: createTrack({ author: 'Cur' }),
+            history: { tracks: { toArray: () => history } },
+        } as Partial<GuildQueue>)
+
+        await replenishQueue(queue)
+
+        const ctx = collectRecommendationCandidates.mock.calls[0][0]
+        const indices: Map<string, number> = ctx.recentArtistIndices
+        expect(indices.get('cur')).toBe(0)
+        expect(indices.get('alpha')).toBe(1) // most-recent position wins
+        expect(indices.get('beta')).toBe(2)
+        expect(indices.get('f9')).toBe(9)
+        expect(indices.has('')).toBe(false) // missing author skipped
+        expect(indices.has('outofwindow')).toBe(false) // window-bounded
+    })
 })
 
 describe('clearSessionMoodCache', () => {

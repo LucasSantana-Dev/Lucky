@@ -49,6 +49,12 @@ const SPOTIFY_PREFERRED_UNKNOWN_MULTIPLIER = 0.5
 // artist replayed >2 times in the last 30 days. Bounded so it cannot flip
 // genre vetoes (-Infinity) or dominate provenance-aware rankings.
 const SCORE_REPLAY_COUNT_BOOST = 0.15
+// Recency-decay penalty: applied to candidates whose artist appeared in the
+// recent queue, scaled by how recently they appeared. Decays linearly to zero
+// over a window of RECENCY_WINDOW_TRACKS. Bounded so it cannot flip genre
+// vetoes (-Infinity) or override provenance-aware ordering.
+const SCORE_RECENCY_DECAY_MAX = -0.15
+export const RECENCY_WINDOW_TRACKS = 10
 // Genre families dense/cohesive enough that a cross-family jump reads as drift.
 // Used both for the cross-family penalty and the untagged-candidate fail-closed
 // guard. Kept deliberately narrow (pop/soul are too broad to fail closed on).
@@ -200,6 +206,12 @@ export interface ScoringContext {
      */
     replayFrequentTrackIds?: Set<string>
     replayFrequentArtists?: Set<string>
+    /**
+     * Map of artist names (lowercased) to their queue position (0 = most recent)
+     * in the recent history. Used to calculate recency-decay penalty: artists
+     * that appeared recently get a penalty that decays to zero over RECENCY_WINDOW_TRACKS.
+     */
+    recentArtistIndices?: Map<string, number>
 }
 
 export function calculateRecommendationScore(ctx: ScoringContext): {
@@ -224,6 +236,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         genreContext = {},
         replayFrequentTrackIds = new Set(),
         replayFrequentArtists = new Set(),
+        recentArtistIndices = new Map(),
     } = ctx
     const candidateTags = genreContext.candidateTags ?? []
     const currentTrackTags = genreContext.currentTrackTags ?? []
@@ -514,6 +527,22 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     ) {
         score += SCORE_REPLAY_COUNT_BOOST
         signals.push('replay frequent')
+    }
+
+    // Recency-decay penalty: candidates whose artist appeared in the recent
+    // queue receive a penalty that decays linearly to zero over a window of
+    // RECENCY_WINDOW_TRACKS. More recent = larger penalty, older = smaller
+    // penalty. Bounded and applied additively so it cannot flip hard vetoes
+    // or override provenance-aware ordering.
+    const recentIndex = recentArtistIndices.get(candidateArtist)
+    if (recentIndex !== undefined && recentIndex >= 0) {
+        // Linear decay: penalty = max * (1 - index/window), clamped to [0, max]
+        const decayFactor = Math.max(0, 1 - recentIndex / RECENCY_WINDOW_TRACKS)
+        const penalty = SCORE_RECENCY_DECAY_MAX * decayFactor
+        if (penalty !== 0) {
+            score += penalty
+            signals.push('recency decay')
+        }
     }
 
     // Soft genre-family penalty (formerly inside enrichWithAudioFeatures via

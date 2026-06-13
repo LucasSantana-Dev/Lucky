@@ -5,6 +5,7 @@ import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
 import { blendAutoplayTracks } from '../../../../../utils/music/queueManipulation'
 import { applyStoredAutoplayPreference } from './autoplayPreference'
 import { clearAutoplayPause } from '../../../../../utils/music/autoplay/skipCircuitBreaker'
+import { clearSessionMoodCache } from '../../../../../utils/music/autoplay/replenisher'
 
 export interface PostPlayBackgroundOpsInput {
     queue: GuildQueue | null | undefined
@@ -73,6 +74,10 @@ export async function runPostPlayBackgroundOps(
 
     await runIsolated('clearAutoplayPause', guildId, () =>
         clearAutoplayPause(guildId),
+    )
+
+    await runIsolated('clearSessionMoodCache', guildId, () =>
+        clearSessionMoodCache(guildId),
     )
 
     if (!hadQueueBeforePlay && queue) {

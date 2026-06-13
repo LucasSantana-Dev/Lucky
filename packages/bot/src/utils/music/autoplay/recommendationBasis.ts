@@ -41,6 +41,7 @@ export type RecommendationSignal =
     | 'discovery boost'
     | 'energy match'
     | 'replay frequent'
+    | 'recency decay'
 
 export interface RecommendationBasis {
     source: RecommendationSource
