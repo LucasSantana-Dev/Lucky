@@ -1,4 +1,5 @@
 import type { GuildMember } from 'discord.js'
+import type { PlayerNodeInitializationResult } from 'discord-player'
 import type { CommandExecuteParams } from '../../../../../types/CommandData'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
@@ -119,7 +120,7 @@ export async function executePlayHandler({
             searchEngine,
         }
 
-        let result: any
+        let result: PlayerNodeInitializationResult<unknown>
         let resolutionTelemetry
         try {
             const resolution = await resolveQueryWithFallbacks(
@@ -149,9 +150,9 @@ export async function executePlayHandler({
             throw error
         }
 
-        const track = (result as any).track
+        const track = result.track
 
-        const isPlaylist = !!(result as any).searchResult.playlist
+        const isPlaylist = !!result.searchResult.playlist
         if (!isPlaylist && !track.title) {
             throw new Error('YouTube: track metadata unavailable')
         }
@@ -172,15 +173,15 @@ export async function executePlayHandler({
                     : queuedTracks.length
                 : 0
 
-        const embed = (result as any).searchResult.playlist
+        const embed = result.searchResult.playlist
             ? buildPlayResponseEmbed({
                   kind: 'playlistQueued',
                   track,
                   requestedBy: interaction.user,
                   playlist: {
-                      title: (result as any).searchResult.playlist.title,
-                      trackCount: (result as any).searchResult.tracks.length,
-                      url: (result as any).searchResult.playlist.url,
+                      title: result.searchResult.playlist.title,
+                      trackCount: result.searchResult.tracks.length,
+                      url: result.searchResult.playlist.url,
                   },
               })
             : buildPlayResponseEmbed({

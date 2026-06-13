@@ -11,7 +11,7 @@ export type ServerLog = {
     userId: string | null
     channelId: string | null
     moderatorId: string | null
-    details: any
+    details: unknown
     createdAt: Date
 }
 
@@ -35,7 +35,7 @@ export type LogType =
 
 /** Arbitrary key-value payload attached to a log entry. */
 export interface LogDetails {
-    [key: string]: any
+    [key: string]: unknown
 }
 
 /** Service for creating and querying server audit logs persisted in the database. */

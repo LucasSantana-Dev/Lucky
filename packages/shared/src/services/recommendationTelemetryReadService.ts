@@ -160,7 +160,7 @@ export async function getSummary(
     const prisma = getPrismaClient()
     const createdAtGte = getCreatedAtCutoff(days)
 
-    const getCountValue = (result: any): number =>
+    const getCountValue = (result: number | { count: number }): number =>
         typeof result === 'number' ? result : result.count
 
     const totalPicks = getCountValue(
@@ -250,7 +250,7 @@ export async function getAutoplaySkipRateForGuild(
     const prisma = getPrismaClient()
     const createdAtGte = new Date(Date.now() - 24 * 60 * 60 * 1000) // 24 hours
 
-    const getCountValue = (result: any): number =>
+    const getCountValue = (result: number | { count: number }): number =>
         typeof result === 'number' ? result : result.count
 
     const acceptedCount = getCountValue(
