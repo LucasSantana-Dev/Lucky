@@ -6,6 +6,7 @@ import {
     enrichWithAudioFeatures,
     calculateGenreFamilyPenalty,
     getGenreFamilies,
+    RECENCY_WINDOW_TRACKS,
 } from './candidateScorer'
 import type { SessionMood } from './sessionMood'
 
@@ -747,6 +748,76 @@ describe('candidateScorer', () => {
                 implicitDislikeKeys: new Set(['skippedsong::testartist']),
             })
             expect(result.signals).not.toContain('implicit dislike')
+        })
+    })
+
+    describe('recency-decay penalty (diversity decay)', () => {
+        const candidateArtist = 'Recent Band'
+        const candidateKey = candidateArtist.toLowerCase()
+
+        function score(recentArtistIndices?: Map<string, number>) {
+            return calculateRecommendationScore({
+                candidate: createTrack({ author: candidateArtist }),
+                currentTrack: createTrack({ author: 'Now Playing Artist' }),
+                recentArtists: new Set(),
+                recentArtistIndices,
+            })
+        }
+
+        it('penalizes a candidate whose artist played most recently (index 0)', () => {
+            const baseline = score()
+            const decayed = score(new Map([[candidateKey, 0]]))
+            expect(decayed.score).toBeLessThan(baseline.score)
+            expect(decayed.signals).toContain('recency decay')
+        })
+
+        it('applies a smaller penalty the further back the artist appeared', () => {
+            const recent = score(new Map([[candidateKey, 0]]))
+            const older = score(new Map([[candidateKey, 8]]))
+            // Older appearance => smaller decay factor => less-negative penalty
+            // => higher score than the most-recent case.
+            expect(older.score).toBeGreaterThan(recent.score)
+            expect(older.signals).toContain('recency decay')
+        })
+
+        it('applies no penalty once the artist is at or beyond the decay window', () => {
+            const baseline = score()
+            const atWindow = score(new Map([[candidateKey, RECENCY_WINDOW_TRACKS]]))
+            expect(atWindow.score).toBe(baseline.score)
+            expect(atWindow.signals).not.toContain('recency decay')
+        })
+
+        it('applies no penalty when the candidate artist is not in the recent map', () => {
+            const result = score(new Map([['some other artist', 0]]))
+            expect(result.signals).not.toContain('recency decay')
+        })
+
+        it('omits the penalty entirely when no recency map is provided', () => {
+            const result = score()
+            expect(result.signals).not.toContain('recency decay')
+        })
+
+        it('is bounded so it cannot flip a genre-family veto (-Infinity)', () => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack({ author: candidateArtist }),
+                currentTrack: createTrack({ author: 'Now Playing Artist' }),
+                recentArtists: new Set(),
+                recentArtistIndices: new Map([[candidateKey, 0]]),
+                autoplayMode: 'similar',
+                sessionMood: {
+                    dominantLocale: null,
+                    deepDiveArtist: null,
+                    preferLong: false,
+                    preferShort: false,
+                    restless: false,
+                },
+                genreContext: {
+                    candidateTags: ['thrash metal'],
+                    currentTrackTags: ['reggaeton'],
+                    sessionGenreFamilies: new Set(['latin']),
+                },
+            })
+            expect(result.score).toBe(-Infinity)
         })
     })
 })
