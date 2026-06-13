@@ -675,7 +675,7 @@ describe('candidateScorer', () => {
             expect(() => result).not.toThrow()
         })
 
-        it('emits implicit-dislike-penalty signal when candidate is in implicit dislike keys', () => {
+        it('emits implicit dislike signal when candidate is in implicit dislike keys', () => {
             const baselineResult = calculateRecommendationScore({
                 candidate: createTrack({
                     title: 'Skipped Song',
@@ -693,11 +693,11 @@ describe('candidateScorer', () => {
                 recentArtists: new Set(),
                 implicitDislikeKeys: new Set(['skippedsong::testartist']),
             })
-            expect(withDislikeResult.signals).toContain('implicit-dislike-penalty')
+            expect(withDislikeResult.signals).toContain('implicit dislike')
             expect(withDislikeResult.score).toBeLessThan(baselineResult.score)
         })
 
-        it('emits implicit-dislike-penalty signal when candidate artist matches current without deep-dive', () => {
+        it('does not emit implicit dislike signal for the same-artist penalty', () => {
             const result = calculateRecommendationScore({
                 candidate: createTrack({
                     title: 'Similar Track',
@@ -713,10 +713,10 @@ describe('candidateScorer', () => {
                     restless: false,
                 },
             })
-            expect(result.signals).toContain('implicit-dislike-penalty')
+            expect(result.signals).not.toContain('implicit dislike')
         })
 
-        it('does not emit implicit-dislike-penalty for same artist during deep-dive', () => {
+        it('does not emit implicit dislike for same artist during deep-dive', () => {
             const deepDiveArtist = 'Deep Dive Artist'
             const result = calculateRecommendationScore({
                 candidate: createTrack({
@@ -733,10 +733,10 @@ describe('candidateScorer', () => {
                     restless: false,
                 },
             })
-            expect(result.signals).not.toContain('implicit-dislike-penalty')
+            expect(result.signals).not.toContain('implicit dislike')
         })
 
-        it('does not emit implicit-dislike-penalty when implicit dislike keys do not match', () => {
+        it('does not emit implicit dislike when implicit dislike keys do not match', () => {
             const result = calculateRecommendationScore({
                 candidate: createTrack({
                     title: 'Other Song',
@@ -746,7 +746,7 @@ describe('candidateScorer', () => {
                 recentArtists: new Set(),
                 implicitDislikeKeys: new Set(['skippedsong::testartist']),
             })
-            expect(result.signals).not.toContain('implicit-dislike-penalty')
+            expect(result.signals).not.toContain('implicit dislike')
         })
     })
 })
