@@ -5,6 +5,7 @@ import {
     serializeBasis,
     type RecommendationBasis,
 } from '../../utils/music/autoplay/recommendationBasis'
+import type { SkipReason } from '../../utils/music/skipReasonMap'
 
 export interface RecordPickInput {
     guildId: string
@@ -27,7 +28,7 @@ export interface RecordOutcomeArgs {
 
 export interface RecordSkipReasonArgs {
     recommendationId: string
-    skipReason: string
+    skipReason: SkipReason
 }
 
 /**

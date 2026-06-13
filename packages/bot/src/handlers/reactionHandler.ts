@@ -13,14 +13,7 @@ import { activeGiveaways } from '../functions/general/commands/giveaway'
 import { getSongInfoMessage } from './player/trackNowPlaying'
 import { recordRecommendationSkipReason } from '../services/musicRecommendation/recommendationTelemetry'
 import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
-
-// Map emoji names to skip reasons
-const SKIP_REASON_MAP: Record<string, string> = {
-    '👎': 'generic_dislike',
-    '😴': 'too_chill',
-    '🎸': 'mood_mismatch',
-    '🔁': 'repeat',
-}
+import { SKIP_REASON_EMOJI_MAP } from '../utils/music/skipReasonMap'
 
 async function handleGiveawayReaction(
     reaction: MessageReaction | PartialMessageReaction,
@@ -113,18 +106,21 @@ async function handleSkipReasonReaction(
     const emojiName = reaction.emoji.name ?? ''
 
     // Check if this emoji is a skip-reason emoji
-    const skipReason = SKIP_REASON_MAP[emojiName]
+    const skipReason = SKIP_REASON_EMOJI_MAP[emojiName]
     if (!skipReason) return
 
     // Check if this message is the now-playing message for the guild
     const nowPlayingMsg = getSongInfoMessage(guildId)
     if (!nowPlayingMsg || nowPlayingMsg.messageId !== messageId) return
 
-    // Find the most recent recommendation for this guild
+    // Find the recommendation for this specific track (narrow by guild + trackUrl)
     try {
         const prisma = getPrismaClient()
         const recommendation = await prisma.recommendation.findFirst({
-            where: { guildId },
+            where: {
+                guildId,
+                ...(nowPlayingMsg.trackUrl && { url: nowPlayingMsg.trackUrl }),
+            },
             orderBy: { createdAt: 'desc' },
             take: 1,
         })
