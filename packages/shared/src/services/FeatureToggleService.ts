@@ -5,6 +5,7 @@ import type {
 } from '../types/featureToggle'
 import { getFeatureToggleConfig } from '../config/featureToggles'
 import { getPrismaClient } from '../utils/database/prismaClient'
+import { warnLog } from '../utils/general/log'
 
 /** Manages feature toggles with multi-layer provider support (database, environment). */
 class FeatureToggleService {
@@ -39,7 +40,16 @@ class FeatureToggleService {
                 select: { enabled: true },
             })
             return row?.enabled ?? null
-        } catch {
+        } catch (error) {
+            // Fail open to the environment/config fallback, but surface the
+            // failure: a swallowed-to-null DB error here was indistinguishable
+            // from "no override set", hiding a persistent outage (#1286 B3).
+            warnLog({
+                message:
+                    'Failed to read global feature toggle override; falling back to config default',
+                error,
+                data: { name },
+            })
             return null
         }
     }
