@@ -143,6 +143,42 @@ export function captureMessage(
     })
 }
 
+const lastThrottledCaptureAt = new Map<string, number>()
+
+/**
+ * Capture a message in Sentry at most once per `windowMs` for a given `key`,
+ * so a sustained failure (e.g. a Redis outage hit on every request) raises one
+ * alert instead of flooding Sentry. Returns true when the message was captured.
+ * @param key Throttle bucket — repeats within the window for the same key are dropped
+ * @param message The message to capture
+ * @param level The severity level
+ * @param extras Additional data to include (sanitized before send)
+ * @param windowMs Minimum gap between captures for this key (default 60s)
+ */
+export function captureMessageThrottled(
+    key: string,
+    message: string,
+    level: Sentry.SeverityLevel = 'warning',
+    extras?: Record<string, unknown>,
+    windowMs = 60_000,
+): boolean {
+    // Check enablement first: a disabled call must not touch the throttle map,
+    // otherwise it pollutes the window and could suppress the first real capture
+    // if Sentry is re-enabled before the window elapses. Also keeps the return
+    // contract honest (true only when actually captured).
+    if (!isSentryEnabled()) {
+        return false
+    }
+    const now = Date.now()
+    const last = lastThrottledCaptureAt.get(key)
+    if (last !== undefined && now - last < windowMs) {
+        return false
+    }
+    lastThrottledCaptureAt.set(key, now)
+    captureMessage(message, level, extras)
+    return true
+}
+
 /**
  * Initialize Sentry monitoring with appropriate configuration
  */

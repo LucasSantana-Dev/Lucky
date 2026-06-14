@@ -2,6 +2,7 @@ import RedisClientClass, { type Redis } from 'ioredis'
 import { randomUUID } from 'crypto'
 import { createRedisConfig } from '../redis/config.js'
 import { debugLog, errorLog, infoLog } from '../../utils/general/log.js'
+import { captureMessageThrottled } from '../../utils/monitoring/sentry.js'
 import { assertDefined } from '../../utils/guards.js'
 import {
     CHANNEL_COMMAND,
@@ -86,15 +87,21 @@ export class MusicControlService {
             assertDefined(
                 this.publisher,
                 'publisher ready — guaranteed by isHealthy() guard',
-            ).publish(CHANNEL_COMMAND, JSON.stringify(cmd)).catch(
-                (err: unknown) => {
+            )
+                .publish(CHANNEL_COMMAND, JSON.stringify(cmd))
+                .catch((err: unknown) => {
                     this.pendingResults.delete(cmd.id)
                     clearTimeout(timeout)
                     const reason =
                         err instanceof Error ? err.message : String(err)
+                    captureMessageThrottled(
+                        'music:command:fail',
+                        'MusicControlService: command publish failed — bot did not receive the command',
+                        'warning',
+                        { reason },
+                    )
                     resolve(this.failResult(cmd, `Publish failed: ${reason}`))
-                },
-            )
+                })
         })
     }
 
