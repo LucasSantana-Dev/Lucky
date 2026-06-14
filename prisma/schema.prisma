@@ -996,3 +996,17 @@ model TopggVote {
 
   @@map("topgg_votes")
 }
+
+// Web dashboard session store (express-session), moved off Redis per ADR
+// 2026-05-31-redis-scope-reduction (#1111). Backed by PrismaSessionStore,
+// which reuses the app's Prisma client (no extra connection pool). `data`
+// holds the JSON-serialized express-session payload; expired rows are pruned
+// lazily on read and by a periodic sweep.
+model Session {
+  sid       String   @id
+  data      String
+  expiresAt DateTime
+
+  @@index([expiresAt], map: "idx_sessions_expires_at")
+  @@map("sessions")
+}

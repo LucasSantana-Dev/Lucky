@@ -18,7 +18,6 @@
     },
     "dependencies": {
         "@lucky/shared": "file:../shared",
-        "connect-redis": "^9.0.0",
         "cookie-parser": "^1.4.7",
         "cors": "^2.8.5",
         "express": "^5.2.1",
