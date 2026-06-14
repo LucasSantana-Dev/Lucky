@@ -6,20 +6,7 @@ import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import axios from 'axios'
-import { inferApiBase } from '@/services/apiBase'
-
-const API_BASE = inferApiBase(
-    import.meta.env.VITE_API_BASE_URL,
-    typeof globalThis !== 'undefined' && 'window' in globalThis
-        ? globalThis.window.location
-        : undefined,
-)
-
-const apiClient = axios.create({
-    baseURL: API_BASE,
-    withCredentials: true,
-})
+import apiClient from '@/services/api'
 
 interface AutoplayGenresProps {
     guildId: string
