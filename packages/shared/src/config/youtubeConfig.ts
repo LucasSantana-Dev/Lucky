@@ -1,5 +1,31 @@
-import { QueryType } from 'discord-player'
+import type { QueryType } from 'discord-player'
 import { ENVIRONMENT_CONFIG } from './config'
+
+// Search-engine identifiers as literal strings rather than `QueryType` enum
+// members. The enum is imported as a *type only* (erased at build), so this
+// config — loaded transitively by anything importing shared config — no longer
+// pulls the heavy `discord-player → discord-voip → @snazzah/davey` chain at
+// module load. That native chain registered a `CustomGC` handle that leaked
+// into jest workers and caused intermittent suite failures (#1322).
+//
+// `satisfies readonly \`${QueryType}\`[]` keeps these in lockstep with
+// discord-player's QueryType: if an upgrade renames a value, this stops
+// compiling. Verified against the installed package (e.g. SOUNDCLOUD_SEARCH ===
+// 'soundcloudSearch').
+const FALLBACK_ENGINES = [
+    'soundcloudSearch',
+    'spotifySong',
+    'appleMusicSong',
+    'auto',
+    'youtubeVideo',
+    'youtubeSearch',
+] as const satisfies readonly `${QueryType}`[]
+
+const YOUTUBE_ENGINES = [
+    'youtubeSearch',
+    'youtubeVideo',
+    'youtubePlaylist',
+] as const satisfies readonly `${QueryType}`[]
 
 /**
  * Configuration for YouTube.js error handling and fallback mechanisms
@@ -24,21 +50,10 @@ export const youtubeConfig = {
     },
 
     // Fallback search engines in order of preference
-    fallbackEngines: [
-        QueryType.SOUNDCLOUD_SEARCH,
-        QueryType.SPOTIFY_SONG,
-        QueryType.APPLE_MUSIC_SONG,
-        QueryType.AUTO,
-        QueryType.YOUTUBE_VIDEO,
-        QueryType.YOUTUBE_SEARCH,
-    ],
+    fallbackEngines: FALLBACK_ENGINES,
 
     // YouTube-specific search engines
-    youtubeEngines: [
-        QueryType.YOUTUBE_SEARCH,
-        QueryType.YOUTUBE_VIDEO,
-        QueryType.YOUTUBE_PLAYLIST,
-    ],
+    youtubeEngines: YOUTUBE_ENGINES,
 
     // Error messages for different types of YouTube errors
     errorMessages: {
