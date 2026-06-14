@@ -84,6 +84,18 @@ describe('POST /api/security/csp-report (#1283)', () => {
                 blockedUri: 'https://evil.example/p.png',
             }),
         })
+        expect(captureMock).toHaveBeenCalledTimes(1)
+    })
+
+    test('returns 204 (not 500) on malformed JSON without logging', async () => {
+        const response = await request(app)
+            .post('/api/security/csp-report')
+            .set('Content-Type', 'application/csp-report')
+            .send('{ this is not valid json')
+
+        expect(response.status).toBe(204)
+        expect(warnLogMock).not.toHaveBeenCalled()
+        expect(captureMock).not.toHaveBeenCalled()
     })
 
     test('strips the query string from document-uri before recording', async () => {

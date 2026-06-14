@@ -23,6 +23,7 @@ const setupMusicRoutes = jest.fn()
 const setupSpotifyRoutes = jest.fn()
 const setupArtistsRoutes = jest.fn()
 const setupSupportRoutes = jest.fn()
+const setupSecurityRoutes = jest.fn()
 const setupInternalNotifyRoutes = jest.fn()
 const setupWebhookApiRoutes = jest.fn()
 const setupWebhookPublicRoutes = jest.fn()
@@ -127,6 +128,10 @@ jest.mock('../../../src/routes/internalNotify', () => ({
     setupInternalNotifyRoutes,
 }))
 
+jest.mock('../../../src/routes/security', () => ({
+    setupSecurityRoutes,
+}))
+
 jest.mock('../../../src/routes/webhooks', () => ({
     setupWebhookApiRoutes,
     setupWebhookPublicRoutes,
@@ -183,6 +188,7 @@ describe('setupRoutes', () => {
         expect(setupInviteRoute).toHaveBeenCalledWith(app)
         expect(setupInternalNotifyRoutes).toHaveBeenCalledWith(app)
         expect(setupWebhookPublicRoutes).toHaveBeenCalledWith(app)
+        expect(setupSecurityRoutes).toHaveBeenCalledWith(app)
         expect(app.use).toHaveBeenCalledWith('/api/', apiLimiter)
         expect(app.use).toHaveBeenCalledWith(
             '/api/admin',

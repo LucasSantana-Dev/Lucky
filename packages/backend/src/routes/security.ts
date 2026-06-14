@@ -1,4 +1,9 @@
-import express, { type Express, type Request, type Response } from 'express'
+import express, {
+    type Express,
+    type NextFunction,
+    type Request,
+    type Response,
+} from 'express'
 import rateLimit from 'express-rate-limit'
 import { warnLog } from '@lucky/shared/utils'
 import { captureMessageThrottled } from '@lucky/shared/utils/monitoring'
@@ -121,6 +126,13 @@ export function setupSecurityRoutes(app: Express): void {
             } catch {
                 // A malformed report must never surface an error to the browser.
             }
+            res.status(204).end()
+        },
+        // Route-scoped error handler: cspBodyParser throws a SyntaxError on
+        // malformed JSON *before* the handler runs, which would otherwise reach
+        // the global error handler and 500. Swallow it — a public report sink
+        // must stay quiet (204) under malformed traffic.
+        (_err: unknown, _req: Request, res: Response, _next: NextFunction) => {
             res.status(204).end()
         },
     )
