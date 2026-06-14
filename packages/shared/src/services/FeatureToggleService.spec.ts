@@ -28,6 +28,12 @@ jest.mock('../config/featureToggles', () => ({
     }),
 }))
 
+const mockWarnLog = jest.fn()
+jest.mock('../utils/general/log', () => ({
+    ...jest.requireActual<object>('../utils/general/log'),
+    warnLog: (...args: unknown[]) => mockWarnLog(...args),
+}))
+
 describe('FeatureToggleService', () => {
     let service: InstanceType<
         (typeof import('./FeatureToggleService'))['featureToggleService'] extends infer S
@@ -43,6 +49,7 @@ describe('FeatureToggleService', () => {
         delete process.env.FLAGS
         mockFindUnique.mockReset()
         mockUpsert.mockReset()
+        mockWarnLog.mockReset()
 
         const mod = await import('./FeatureToggleService')
         service = mod.featureToggleService as unknown as typeof service
@@ -87,7 +94,7 @@ describe('FeatureToggleService', () => {
             expect(result).toBeNull()
         })
 
-        it('returns null when db throws', async () => {
+        it('returns null and logs a warning when db throws', async () => {
             mockFindUnique.mockRejectedValue(new Error('DB connection failed'))
             const result = await (
                 service as unknown as {
@@ -95,6 +102,14 @@ describe('FeatureToggleService', () => {
                 }
             ).getDbGlobalOverride('DOWNLOAD_AUDIO')
             expect(result).toBeNull()
+            // #1286 B3: the DB failure must be surfaced, not swallowed silently.
+            expect(mockWarnLog).toHaveBeenCalledTimes(1)
+            expect(mockWarnLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    error: expect.any(Error),
+                    data: { name: 'DOWNLOAD_AUDIO' },
+                }),
+            )
         })
     })
 
