@@ -31,12 +31,18 @@ concurrency:
   group: review-tools-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-# Minimum permissions for both reusable workflows:
-#   - claude-review.yml needs to read PR contents and post review comments
-#   - danger.yml needs to read PR diff and post a comment with findings
+# Minimum permissions for both reusable workflows. An explicit block sets
+# every unlisted scope to `none`, and a called reusable workflow cannot
+# request scopes the caller withheld — so the caller must grant the UNION of
+# what the reusables declare, or the run fails at startup (see #1423):
+#   - claude-review.yml needs contents:read, pull-requests:write,
+#     issues:write, and id-token:write (OIDC)
+#   - danger.yml needs contents:read, pull-requests:write, issues:write
 permissions:
   contents: read
   pull-requests: write
+  issues: write
+  id-token: write
 
 jobs:
   claude-review:
