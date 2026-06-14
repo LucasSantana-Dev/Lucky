@@ -354,10 +354,30 @@ describe('sentry monitoring', () => {
             expect(captureMessageMock).toHaveBeenCalledTimes(2)
         })
 
-        it('does not reach sentry when disabled', () => {
+        it('does not reach sentry and returns false when disabled', () => {
             process.env.SENTRY_ENABLED = 'false'
-            captureMessageThrottled('test:disabled', 'x', 'warning')
+            const captured = captureMessageThrottled(
+                'test:disabled',
+                'x',
+                'warning',
+            )
+            expect(captured).toBe(false)
             expect(captureMessageMock).not.toHaveBeenCalled()
+        })
+
+        it('does not pollute the throttle window while disabled', () => {
+            // Disabled call must not consume the window: once re-enabled, the
+            // first real capture for the same key must still go through.
+            process.env.SENTRY_ENABLED = 'false'
+            captureMessageThrottled('test:reenable', 'skipped', 'warning')
+            process.env.SENTRY_ENABLED = 'true'
+            const captured = captureMessageThrottled(
+                'test:reenable',
+                'real',
+                'warning',
+            )
+            expect(captured).toBe(true)
+            expect(captureMessageMock).toHaveBeenCalledTimes(1)
         })
     })
 })

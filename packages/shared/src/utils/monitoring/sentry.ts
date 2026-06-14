@@ -162,6 +162,13 @@ export function captureMessageThrottled(
     extras?: Record<string, unknown>,
     windowMs = 60_000,
 ): boolean {
+    // Check enablement first: a disabled call must not touch the throttle map,
+    // otherwise it pollutes the window and could suppress the first real capture
+    // if Sentry is re-enabled before the window elapses. Also keeps the return
+    // contract honest (true only when actually captured).
+    if (!isSentryEnabled()) {
+        return false
+    }
     const now = Date.now()
     const last = lastThrottledCaptureAt.get(key)
     if (last !== undefined && now - last < windowMs) {
