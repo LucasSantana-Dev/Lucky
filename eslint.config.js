@@ -77,7 +77,7 @@ export default [
             "no-alert": "error",
             "no-debugger": "error",
             "no-console": "warn",
-            "no-empty": ["warn", { allowEmptyCatch: false }],
+            "no-empty": ["error", { allowEmptyCatch: false }],
             "complexity": ["warn", 15],
             "max-depth": ["warn", 6],
             "max-params": ["warn", 6],
@@ -130,7 +130,7 @@ export default [
             // (files: ["src/**/*.ts"]) doesn't match from the root, so without
             // these the @eslint/js recommended core rules fire as errors (#1364)
             "no-unused-vars": "off",
-            "no-empty": ["warn", { allowEmptyCatch: false }],
+            "no-empty": ["error", { allowEmptyCatch: false }],
             "@typescript-eslint/no-non-null-assertion": "warn",
             // NOTE: the no-unsafe-* inventory is cleaned to 0 (#1382/#1384/#1385), but these
             // stay at `warn` until the CI `quality / Lint` job is type-aware.
