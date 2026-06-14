@@ -5,6 +5,7 @@ import helmet from 'helmet'
 import { existsSync } from 'node:fs'
 import path from 'path'
 import { setupSessionMiddleware } from './session'
+import { requestId } from './requestId'
 import { requestLogger } from './requestLogger'
 import { metricsMiddleware } from './metrics'
 import { getFrontendOrigins } from '../utils/frontendOrigin'
@@ -119,6 +120,7 @@ export function setupMiddleware(app: Express): void {
         }),
     )
 
+    app.use(requestId)
     app.use(requestLogger)
     app.use(metricsMiddleware)
     app.use(express.json())
