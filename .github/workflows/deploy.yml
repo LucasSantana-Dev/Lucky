@@ -137,14 +137,14 @@ jobs:
                   detect_interval=5
                   run_info=""
                   while [ $detect_elapsed -lt $detect_max ]; do
-                    run_info=$(gh run list \
-                      --repo "${{ github.repository }}" \
-                      --workflow=docker-publish.yml \
-                      --json headSha,status,conclusion,databaseId \
-                      --limit 10 \
-                      | jq -r --arg sha "$commit_sha" \
-                        '.[] | select(.headSha == $sha) | "\(.databaseId) \(.status) \(.conclusion)"' \
-                      | head -1)
+                    # Look the build up by exact head_sha, not from the N most
+                    # recent runs: a release can be published for an older tag
+                    # whose docker-publish run has since fallen out of the recent
+                    # window, which a capped `gh run list` would miss (#1398).
+                    run_info=$(gh api \
+                      "repos/${{ github.repository }}/actions/workflows/docker-publish.yml/runs?head_sha=${commit_sha}&per_page=1" \
+                      --jq '.workflow_runs[0] | select(. != null) | "\(.id) \(.status) \(.conclusion)"' \
+                      2>/dev/null || true)
                     [ -n "$run_info" ] && break
                     echo "  No docker-publish run yet, waiting ${detect_interval}s... (${detect_elapsed}s elapsed)"
                     sleep $detect_interval
