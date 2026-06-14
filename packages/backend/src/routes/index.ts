@@ -31,6 +31,7 @@ import { setupMetricsRoute } from './metrics'
 import { setupStatsRoutes } from './stats'
 import { setupInviteRoute } from './invite'
 import { setupSupportRoutes } from './support'
+import { setupSecurityRoutes } from './security'
 
 type GuildGuardConfig = {
     path: string
@@ -94,6 +95,9 @@ export function setupRoutes(app: Express): void {
     setupStatsRoutes(app)
     setupInternalNotifyRoutes(app)
     setupWebhookPublicRoutes(app)
+    // Public, unauthenticated CSP report sink — registered before the shared
+    // /api limiter/guards so it uses its own strict limiter (#1283).
+    setupSecurityRoutes(app)
     app.use('/api/', apiLimiter)
     app.use('/api/admin', requireAuth, requireAdmin)
     app.use('/api/toggles/global', requireAuth, requireAdmin, writeLimiter)
