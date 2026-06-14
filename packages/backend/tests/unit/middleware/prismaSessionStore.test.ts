@@ -220,8 +220,17 @@ describe('PrismaSessionStore', () => {
 
         test('does not error when the row is missing', (done) => {
             db.session.update.mockRejectedValue({ code: 'P2025' })
-            store.touch('gone', makeSession(), () => {
-                // Reaching the callback without throwing is the assertion.
+            store.touch('gone', makeSession(), (err) => {
+                expect(err).toBeUndefined()
+                done()
+            })
+        })
+
+        test('propagates non-P2025 errors so failover can trigger', (done) => {
+            const boom = new Error('connection lost')
+            db.session.update.mockRejectedValue(boom)
+            store.touch('s1', makeSession(), (err) => {
+                expect(err).toBe(boom)
                 done()
             })
         })

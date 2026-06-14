@@ -107,14 +107,18 @@ export class PrismaSessionStore extends session.Store {
     touch(
         sid: string,
         sessionData: session.SessionData,
-        callback: () => void = () => {},
+        callback: (error?: unknown) => void = () => {},
     ): void {
         const expiresAt = this.expiresAtFor(sessionData)
         this.db.session
             .update({ where: { sid }, data: { expiresAt } })
             .then(() => callback())
-            // Missing row (touch before set / after destroy) is a no-op success.
-            .catch(() => callback())
+            // A missing row (touch before set / after destroy) is a benign
+            // no-op, but real DB errors must propagate so ResilientSessionStore
+            // can fail over instead of silently masking an outage.
+            .catch((error) =>
+                isRecordNotFound(error) ? callback() : callback(error),
+            )
     }
 
     async prune(): Promise<void> {
