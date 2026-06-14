@@ -2,7 +2,14 @@
 # Multi-stage Dockerfile for Lucky services
 # Usage: docker compose --env-file .env.production up -d --build
 
-ARG NODE_VERSION=22-alpine
+# Node 24 = Active LTS (since Oct 2025). @discordjs/opus ships no prebuilt for
+# this ABI, so it source-compiles via the toolchain the build/deps stages carry
+# (build-base python3-dev opus-dev). Verified on linux/amd64 — the arch CI builds
+# and the homelab runs. NOTE: opus 0.10.0's bundled NEON code fails to compile on
+# linux/arm64 (musl) regardless of Node version (already broken on Node 22) — see
+# issue #1406; Apple-Silicon local dev should run the bot natively rather than
+# via the Docker dev stage.
+ARG NODE_VERSION=24-alpine
 # Lockfile-hash cache key — auto-busts npm BuildKit caches when package-lock.json
 # changes. Passed as a build-arg from the workflow: hashFiles('package-lock.json').
 # Bump the default (v3 → v4) only if you need a forced one-off cache wipe.
