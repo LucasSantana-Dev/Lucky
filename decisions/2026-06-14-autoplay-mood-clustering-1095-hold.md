@@ -53,7 +53,11 @@ The spike (read-only, no code change) answers two facts and one analysis:
 2. **Phase C per-source acceptance baseline** (`getPerSourceAcceptance` / `getSummary`
    over the last 7 days).
 3. **`enrichWithAudioFeatures` efficacy** — what share of live score variance the
-   existing energy/valence/tempo deltas already explain.
+   existing audio-feature adjustments already explain. Scope this to the helper's
+   _full_ contribution, not just the mood-clustering signal: besides the
+   energy/valence/tempo deltas, `enrichWithAudioFeatures` also applies an
+   acousticness adjustment and a duration-match bonus (`candidateScorer.ts`), so a
+   model limited to the three mood terms would undercount its real effect.
 
 ## Alternatives considered
 
