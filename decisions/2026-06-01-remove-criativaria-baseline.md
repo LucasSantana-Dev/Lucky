@@ -30,3 +30,9 @@ The bot's `/serversetup criativaria` command remains available and is tracked se
 ## Revisit
 
 Never; feature retired by decision.
+
+## Addendum 2026-06-14 — bot `/serversetup criativaria` tracking resolved (#1288)
+
+#1288 flagged that the bot command, kept per the original decision, was "tracked separately" with nothing actually tracking it. Resolved: the command IS instrumented at `packages/bot/src/functions/management/commands/serversetup.ts` — Prometheus counter `guildAutomationUsageTotal{operation="criativaria"}` (line 315) and a structured `serversetup: criativaria invoked` log carrying guildId/userId/mode (lines 307–314). The demand-measurement precondition is therefore satisfied.
+
+Decision: KEEP the command, instrumented. Defer removal until a usage review on 2026-07-14. If invocations are zero/negligible by then, run the standard feature-removal sweep (file + serversetup.ts choice/handler/imports + both spec files + this ADR). Tracking issue: #1288.
