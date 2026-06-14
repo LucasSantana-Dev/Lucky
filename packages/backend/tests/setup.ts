@@ -202,6 +202,16 @@ jest.mock('express-session', () => {
     return sessionFactory
 })
 
+// Neutralize the @snazzah/davey native addon (Discord DAVE E2E encryption).
+// It is pulled in transitively (config → youtubeConfig imports `QueryType` from
+// discord-player → discord-voip → @snazzah/davey) and registers a native
+// `CustomGC` handle that keeps the jest worker alive. Under maxWorkers > 1 jest
+// force-exits the un-exitable worker, and whatever test is in-flight there times
+// out at 30s — an intermittent, victim-varies failure that vanishes on rerun
+// (#1322). discord-voip wraps the require in try/catch (DAVE is optional), and
+// backend route tests never exercise it, so an empty module is safe.
+jest.mock('@snazzah/davey', () => ({}))
+
 jest.mock('chalk', () => ({
     default: {
         red: jest.fn((str: string) => str),
