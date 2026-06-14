@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import { sessionService } from '../services/SessionService'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, warnLog } from '@lucky/shared/utils'
 
 export interface AuthenticatedRequest extends Request {
     sessionId?: string
@@ -88,7 +88,15 @@ export function optionalAuth(
 
             next()
         })
-        .catch(() => {
+        .catch((error) => {
+            // Optional auth: proceed unauthenticated, but a session-store
+            // failure (DB/Redis) would otherwise be invisible — surface it so a
+            // store outage degrading every request to anonymous is observable.
+            warnLog({
+                message:
+                    'optionalAuth: session lookup failed; proceeding unauthenticated',
+                error,
+            })
             next()
         })
 }
