@@ -16,6 +16,7 @@ export function requestLogger(
 
         const logParams = {
             message: `${method} ${url} ${status} ${duration}ms`,
+            correlationId: req.requestId,
         }
 
         if (status >= 500) {
