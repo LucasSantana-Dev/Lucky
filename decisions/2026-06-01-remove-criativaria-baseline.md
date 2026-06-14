@@ -29,7 +29,7 @@ The bot's `/serversetup criativaria` command remains available and is tracked se
 
 ## Revisit
 
-Never; feature retired by decision.
+The dashboard "Criativaria Baseline" removal is final — never; that feature is retired by decision. This does **not** apply to the bot `/serversetup criativaria` command, which is kept and carries its own usage-review gate (2026-07-14) per the 2026-06-14 addendum below.
 
 ## Addendum 2026-06-14 — bot `/serversetup criativaria` tracking resolved (#1288)
 
