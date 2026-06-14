@@ -55,6 +55,7 @@ describe('requestId middleware', () => {
 
         expect(req.requestId).not.toBe('evil\ninjected')
         expect(req.requestId).toMatch(/^[A-Za-z0-9_-]{8}$/)
+        expect(res.headers['X-Request-Id']).toBe(req.requestId)
     })
 
     test('mints a fresh id when the inbound header is over 64 chars', () => {
@@ -65,6 +66,7 @@ describe('requestId middleware', () => {
         requestId(req, res, next)
 
         expect(req.requestId).toMatch(/^[A-Za-z0-9_-]{8}$/)
+        expect(res.headers['X-Request-Id']).toBe(req.requestId)
     })
 
     test('mints a fresh id when the inbound header is empty', () => {
@@ -75,5 +77,6 @@ describe('requestId middleware', () => {
         requestId(req, res, next)
 
         expect(req.requestId).toMatch(/^[A-Za-z0-9_-]{8}$/)
+        expect(res.headers['X-Request-Id']).toBe(req.requestId)
     })
 })
