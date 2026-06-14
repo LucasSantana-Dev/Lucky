@@ -8,8 +8,8 @@ const mockUserFindUnique = jest.fn<() => Promise<any>>()
 const mockGuildUpsert = jest.fn<() => Promise<any>>()
 const mockGuildFindUnique = jest.fn<() => Promise<any>>()
 const mockTrackHistoryCreate = jest.fn<() => Promise<any>>()
-const mockTrackHistoryFindMany = jest.fn<() => Promise<any>>()
-const mockTrackHistoryGroupBy = jest.fn<() => Promise<any>>()
+const mockTrackHistoryFindMany = jest.fn<(args?: any) => Promise<any>>()
+const mockTrackHistoryGroupBy = jest.fn<(args?: any) => Promise<any>>()
 const mockTrackHistoryDeleteMany = jest.fn<() => Promise<any>>()
 const mockRateLimitFindUnique = jest.fn<() => Promise<any>>()
 const mockRateLimitUpsert = jest.fn<() => Promise<any>>()
@@ -191,7 +191,9 @@ describe('DatabaseService', () => {
             expect(result.isSuccess()).toBe(true)
             expect(result.getData()?.discordId).toBe('123456789')
             expect(result.getData()?.username).toBe('testuser')
-            expect(result.getData()?.avatar).toBe('http://example.com/avatar.png')
+            expect(result.getData()?.avatar).toBe(
+                'http://example.com/avatar.png',
+            )
         })
 
         it('creates user without avatar', async () => {
@@ -259,7 +261,9 @@ describe('DatabaseService', () => {
         })
 
         it('returns failure on query error', async () => {
-            mockUserFindUnique.mockRejectedValue(new Error('DB connection lost'))
+            mockUserFindUnique.mockRejectedValue(
+                new Error('DB connection lost'),
+            )
 
             const result = await service.getUser('123456789')
 
@@ -498,7 +502,9 @@ describe('DatabaseService', () => {
 
             await service.getTrackHistory('guild-1', 50)
 
-            expect(mockTrackHistoryFindMany).toHaveBeenCalled()
+            expect(mockTrackHistoryFindMany).toHaveBeenCalledWith(
+                expect.objectContaining({ take: 50 }),
+            )
         })
 
         it('returns empty array when no tracks found', async () => {
@@ -630,7 +636,9 @@ describe('DatabaseService', () => {
 
             await service.getTopTracks('guild-1', 50)
 
-            expect(mockTrackHistoryGroupBy).toHaveBeenCalled()
+            expect(mockTrackHistoryGroupBy).toHaveBeenCalledWith(
+                expect.objectContaining({ take: 50 }),
+            )
         })
 
         it('returns empty array when no tracks exist', async () => {
@@ -702,7 +710,9 @@ describe('DatabaseService', () => {
 
             await service.getTopArtists('guild-1', 25)
 
-            expect(mockTrackHistoryGroupBy).toHaveBeenCalled()
+            expect(mockTrackHistoryGroupBy).toHaveBeenCalledWith(
+                expect.objectContaining({ take: 25 }),
+            )
         })
 
         it('returns empty array when no artists exist', async () => {
