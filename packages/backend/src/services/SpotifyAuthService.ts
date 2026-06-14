@@ -1,3 +1,5 @@
+import { errorLog } from '@lucky/shared/utils'
+
 export type SpotifyTokenResponse = {
     accessToken: string
     refreshToken: string
@@ -78,7 +80,11 @@ export async function exchangeCodeForToken(
             spotifyId: userData.id,
             spotifyUsername: userData.display_name ?? userData.id,
         }
-    } catch {
+    } catch (error) {
+        errorLog({
+            message: 'Spotify authorization-code token exchange failed',
+            error,
+        })
         return null
     }
 }
@@ -112,7 +118,11 @@ export async function getSpotifyClientToken(): Promise<string | null> {
             expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000 - 30_000,
         }
         return cachedClientToken.token
-    } catch {
+    } catch (error) {
+        errorLog({
+            message: 'Spotify client-credentials token request failed',
+            error,
+        })
         return null
     }
 }
