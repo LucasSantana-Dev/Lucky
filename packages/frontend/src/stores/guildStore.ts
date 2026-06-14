@@ -6,6 +6,7 @@ import type {
 } from '@/types'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
+import { captureFrontendException } from '@/lib/sentry'
 
 export type GuildLoadErrorKind =
     | 'auth'
@@ -184,7 +185,13 @@ export const useGuildStore = create<GuildState>((set, get) => ({
                       }
                     : {},
             )
-        } catch {
+        } catch (error) {
+            // The UI already degrades (context cleared below); report to Sentry
+            // so the failure isn't silently swallowed (#1286 Track B3).
+            captureFrontendException(error, {
+                message: 'Failed to fetch guild member context',
+                guildId,
+            })
             set((state) =>
                 state.selectedGuildId === guildId
                     ? {
