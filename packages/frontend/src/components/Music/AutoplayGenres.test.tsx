@@ -6,12 +6,10 @@ import { toast } from 'sonner'
 let mockGet: any
 let mockPut: any
 
-vi.mock('axios', () => ({
+vi.mock('@/services/api', () => ({
     default: {
-        create: vi.fn(() => ({
-            get: (...args: any[]) => mockGet(...args),
-            put: (...args: any[]) => mockPut(...args),
-        })),
+        get: (...args: any[]) => mockGet(...args),
+        put: (...args: any[]) => mockPut(...args),
     },
 }))
 
@@ -40,7 +38,9 @@ describe('AutoplayGenres', () => {
 
         render(<AutoplayGenres guildId={mockGuildId} />)
 
-        expect(screen.getByText('Autoplay Genre Preferences')).toBeInTheDocument()
+        expect(
+            screen.getByText('Autoplay Genre Preferences'),
+        ).toBeInTheDocument()
     })
 
     test('loads genres on mount', async () => {
@@ -84,9 +84,9 @@ describe('AutoplayGenres', () => {
             expect(mockGet).toHaveBeenCalled()
         })
 
-        const rockButton = screen.getAllByRole('button').find(
-            (btn) => btn.textContent === 'rock'
-        )
+        const rockButton = screen
+            .getAllByRole('button')
+            .find((btn) => btn.textContent === 'rock')
         await user.click(rockButton!)
 
         const input = screen.getByPlaceholderText(/e.g., rock, pop, jazz/)
@@ -135,7 +135,9 @@ describe('AutoplayGenres', () => {
         const input = screen.getByPlaceholderText(/e.g., rock, pop, jazz/)
         await user.type(input, 'jazz')
 
-        const addButtons = screen.getAllByRole('button').filter(btn => btn.textContent?.includes('Add'))
+        const addButtons = screen
+            .getAllByRole('button')
+            .filter((btn) => btn.textContent?.includes('Add'))
         await user.click(addButtons[addButtons.length - 1])
 
         await waitFor(() => {
@@ -155,7 +157,9 @@ describe('AutoplayGenres', () => {
             expect(mockGet).toHaveBeenCalled()
         })
 
-        const addButtons = screen.getAllByRole('button').filter(btn => btn.textContent?.includes('Add'))
+        const addButtons = screen
+            .getAllByRole('button')
+            .filter((btn) => btn.textContent?.includes('Add'))
         await user.click(addButtons[addButtons.length - 1])
 
         expect(mockPut).not.toHaveBeenCalled()
@@ -176,7 +180,9 @@ describe('AutoplayGenres', () => {
         const input = screen.getByPlaceholderText(/e.g., rock, pop, jazz/)
         await user.type(input, 'rock')
 
-        const addButtons = screen.getAllByRole('button').filter(btn => btn.textContent?.includes('Add'))
+        const addButtons = screen
+            .getAllByRole('button')
+            .filter((btn) => btn.textContent?.includes('Add'))
         await user.click(addButtons[addButtons.length - 1])
 
         expect(toast.error).toHaveBeenCalledWith('Genre already added')
@@ -229,7 +235,7 @@ describe('AutoplayGenres', () => {
 
         await waitFor(() => {
             expect(
-                screen.getByText('Failed to load autoplay genres')
+                screen.getByText('Failed to load autoplay genres'),
             ).toBeInTheDocument()
         })
     })
@@ -250,12 +256,14 @@ describe('AutoplayGenres', () => {
         const input = screen.getByPlaceholderText(/e.g., rock, pop, jazz/)
         await user.type(input, 'rock')
 
-        const addButtons = screen.getAllByRole('button').filter(btn => btn.textContent?.includes('Add'))
+        const addButtons = screen
+            .getAllByRole('button')
+            .filter((btn) => btn.textContent?.includes('Add'))
         await user.click(addButtons[addButtons.length - 1])
 
         await waitFor(() => {
             expect(
-                screen.getByText('Failed to update autoplay genres')
+                screen.getByText('Failed to update autoplay genres'),
             ).toBeInTheDocument()
         })
     })
@@ -276,11 +284,13 @@ describe('AutoplayGenres', () => {
         })
 
         const input = screen.getByPlaceholderText(
-            /e.g., rock, pop, jazz/
+            /e.g., rock, pop, jazz/,
         ) as HTMLInputElement
         await user.type(input, 'rock')
 
-        const addButtons = screen.getAllByRole('button').filter(btn => btn.textContent?.includes('Add'))
+        const addButtons = screen
+            .getAllByRole('button')
+            .filter((btn) => btn.textContent?.includes('Add'))
         await user.click(addButtons[addButtons.length - 1])
 
         await waitFor(() => {
@@ -297,11 +307,10 @@ describe('AutoplayGenres', () => {
             () =>
                 new Promise((resolve) =>
                     setTimeout(
-                        () =>
-                            resolve({ data: { genres: ['rock'] } }),
-                        50
-                    )
-                )
+                        () => resolve({ data: { genres: ['rock'] } }),
+                        50,
+                    ),
+                ),
         )
 
         render(<AutoplayGenres guildId={mockGuildId} />)
@@ -313,7 +322,9 @@ describe('AutoplayGenres', () => {
         const input = screen.getByPlaceholderText(/e.g., rock, pop, jazz/)
         await user.type(input, 'rock')
 
-        const addButtons = screen.getAllByRole('button').filter(btn => btn.textContent?.includes('Add'))
+        const addButtons = screen
+            .getAllByRole('button')
+            .filter((btn) => btn.textContent?.includes('Add'))
         await user.click(addButtons[addButtons.length - 1])
 
         expect(input).toBeDisabled()
@@ -353,7 +364,9 @@ describe('AutoplayGenres', () => {
         const input = screen.getByPlaceholderText(/e.g., rock, pop, jazz/)
         await user.type(input, 'ROCK')
 
-        const addButtons = screen.getAllByRole('button').filter(btn => btn.textContent?.includes('Add'))
+        const addButtons = screen
+            .getAllByRole('button')
+            .filter((btn) => btn.textContent?.includes('Add'))
         await user.click(addButtons[addButtons.length - 1])
 
         await waitFor(() => {
@@ -379,11 +392,15 @@ describe('AutoplayGenres', () => {
         const input = screen.getByPlaceholderText(/e.g., rock, pop, jazz/)
         await user.type(input, 'rock')
 
-        const addButtons = screen.getAllByRole('button').filter(btn => btn.textContent?.includes('Add'))
+        const addButtons = screen
+            .getAllByRole('button')
+            .filter((btn) => btn.textContent?.includes('Add'))
         await user.click(addButtons[addButtons.length - 1])
 
         await waitFor(() => {
-            expect(toast.success).toHaveBeenCalledWith('Autoplay genres updated')
+            expect(toast.success).toHaveBeenCalledWith(
+                'Autoplay genres updated',
+            )
         })
     })
 
@@ -403,11 +420,15 @@ describe('AutoplayGenres', () => {
         const input = screen.getByPlaceholderText(/e.g., rock, pop, jazz/)
         await user.type(input, 'rock')
 
-        const addButtons = screen.getAllByRole('button').filter(btn => btn.textContent?.includes('Add'))
+        const addButtons = screen
+            .getAllByRole('button')
+            .filter((btn) => btn.textContent?.includes('Add'))
         await user.click(addButtons[addButtons.length - 1])
 
         await waitFor(() => {
-            expect(toast.error).toHaveBeenCalledWith('Failed to update autoplay genres')
+            expect(toast.error).toHaveBeenCalledWith(
+                'Failed to update autoplay genres',
+            )
         })
     })
 
@@ -419,7 +440,9 @@ describe('AutoplayGenres', () => {
         render(<AutoplayGenres guildId={mockGuildId} />)
 
         await waitFor(() => {
-            expect(screen.getByText(/Selected Genres \(3\/5\)/)).toBeInTheDocument()
+            expect(
+                screen.getByText(/Selected Genres \(3\/5\)/),
+            ).toBeInTheDocument()
         })
     })
 
@@ -434,7 +457,9 @@ describe('AutoplayGenres', () => {
             expect(screen.getByText('rock')).toBeInTheDocument()
         })
 
-        const rockButtons = screen.getAllByRole('button').filter(btn => btn.textContent === 'rock')
+        const rockButtons = screen
+            .getAllByRole('button')
+            .filter((btn) => btn.textContent === 'rock')
         expect(rockButtons.length).toBe(1)
     })
 })
