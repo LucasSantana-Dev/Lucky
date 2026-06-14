@@ -72,12 +72,16 @@ export class TwitchControlService {
     /**
      * Signal every listening bot to refresh its Twitch subscriptions.
      *
+     * Gated on the *publisher* connection only — not {@link isHealthy} — so a
+     * subscriber reconnect on this process can't suppress an otherwise-valid
+     * publish (publishing needs only the publisher socket).
+     *
      * Fire-and-forget: if Redis is unavailable the dashboard write still
      * landed in Postgres and the bot picks it up on its next restart, so a
      * skipped/failed publish is logged but never surfaced to the caller.
      */
     async publishRefresh(): Promise<void> {
-        if (!this.isHealthy() || !this.publisher) {
+        if (this.publisher?.status !== 'ready') {
             debugLog({
                 message:
                     'TwitchControlService: skipping refresh publish (Redis not ready)',

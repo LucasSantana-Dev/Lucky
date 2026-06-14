@@ -19,9 +19,11 @@ export async function startTwitchService(client: Client): Promise<void> {
         // backend writes Postgres then publishes a refresh signal, so the
         // running session reflects the change without a restart (#870).
         await twitchControlService.connect()
-        await twitchControlService.subscribeToRefresh(
-            refreshTwitchSubscriptions,
-        )
+        if (twitchControlService.isHealthy()) {
+            await twitchControlService.subscribeToRefresh(
+                refreshTwitchSubscriptions,
+            )
+        }
     } catch (err) {
         infoLog({
             message: 'Twitch EventSub service failed to start (non-fatal)',

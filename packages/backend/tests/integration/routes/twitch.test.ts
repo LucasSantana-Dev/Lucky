@@ -184,5 +184,19 @@ describe('Twitch Routes', () => {
             // Bot must drop the EventSub subscription without a restart (#870).
             expect(mockPublishRefresh).toHaveBeenCalledTimes(1)
         })
+
+        test('does not signal the bot when the remove is a no-op', async () => {
+            authed()
+            mockRemove.mockResolvedValue(false)
+
+            const res = await request(app)
+                .delete(`/api/guilds/${GUILD_ID}/twitch/notifications`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ twitchUserId: 'tw123' })
+
+            expect(res.status).toBe(200)
+            expect(res.body.success).toBe(false)
+            expect(mockPublishRefresh).not.toHaveBeenCalled()
+        })
     })
 })

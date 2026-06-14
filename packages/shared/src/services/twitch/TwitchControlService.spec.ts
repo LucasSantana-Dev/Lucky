@@ -77,6 +77,24 @@ describe('TwitchControlService', () => {
         expect(publish).toHaveBeenCalledWith(CHANNEL_TWITCH_REFRESH, '1')
     })
 
+    it('publishRefresh publishes while the subscriber is reconnecting (publisher-only gate)', async () => {
+        const service = new TwitchControlService()
+        const internals = service as unknown as WithClients
+        const publish = jest.fn((..._a: unknown[]) => Promise.resolve(1))
+        // Publisher ready, subscriber mid-reconnect — a valid publish must not
+        // be suppressed by the subscriber's transient state (#870 / cubic).
+        internals.publisher = { status: 'ready', publish }
+        internals.subscriber = {
+            status: 'reconnecting',
+            subscribe: jest.fn(),
+            on: jest.fn(),
+        }
+
+        await service.publishRefresh()
+
+        expect(publish).toHaveBeenCalledWith(CHANNEL_TWITCH_REFRESH, '1')
+    })
+
     it('subscribeToRefresh runs the handler only for the refresh channel', async () => {
         const service = new TwitchControlService()
         const internals = service as unknown as WithClients
