@@ -30,6 +30,7 @@ export {
     validateEmbedData,
 } from './embedValidation.js'
 export { twitchNotificationService } from './TwitchNotificationService'
+export { TwitchControlService, twitchControlService } from './twitch/index.js'
 export { lastFmLinkService, type LastFmLinkRow } from './LastFmLinkService'
 export { spotifyLinkService, type SpotifyLinkRow } from './SpotifyLinkService'
 export {

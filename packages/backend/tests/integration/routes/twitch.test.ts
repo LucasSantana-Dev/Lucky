@@ -16,12 +16,18 @@ jest.mock('../../../src/services/SessionService', () => ({
 const mockListByGuild = jest.fn<any>()
 const mockAdd = jest.fn<any>()
 const mockRemove = jest.fn<any>()
+const mockPublishRefresh = jest.fn<any>()
+const mockControlConnect = jest.fn<any>()
 
 jest.mock('@lucky/shared/services', () => ({
     twitchNotificationService: {
         listByGuild: (...args: any[]) => mockListByGuild(...args),
         add: (...args: any[]) => mockAdd(...args),
         remove: (...args: any[]) => mockRemove(...args),
+    },
+    twitchControlService: {
+        connect: (...args: any[]) => mockControlConnect(...args),
+        publishRefresh: (...args: any[]) => mockPublishRefresh(...args),
     },
 }))
 
@@ -127,6 +133,27 @@ describe('Twitch Routes', () => {
                 'tw123',
                 'streamer1',
             )
+            // The running bot must be signalled so it registers the new
+            // EventSub subscription without a restart (#870).
+            expect(mockPublishRefresh).toHaveBeenCalledTimes(1)
+        })
+
+        test('does not signal the bot when the add is a no-op', async () => {
+            authed()
+            mockAdd.mockResolvedValue(false)
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/twitch/notifications`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({
+                    twitchUserId: 'tw123',
+                    twitchLogin: 'streamer1',
+                    discordChannelId: '444444444444444444',
+                })
+
+            expect(res.status).toBe(200)
+            expect(res.body.success).toBe(false)
+            expect(mockPublishRefresh).not.toHaveBeenCalled()
         })
 
         test('should reject invalid body', async () => {
@@ -154,6 +181,8 @@ describe('Twitch Routes', () => {
             expect(res.status).toBe(200)
             expect(res.body.success).toBe(true)
             expect(mockRemove).toHaveBeenCalledWith(GUILD_ID, 'tw123')
+            // Bot must drop the EventSub subscription without a restart (#870).
+            expect(mockPublishRefresh).toHaveBeenCalledTimes(1)
         })
     })
 })
