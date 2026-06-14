@@ -1,5 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { MessageFlags } from 'discord.js'
+import { debugLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -17,7 +18,11 @@ function resolveVersion(): string {
             version?: string
         }
         if (packageJson.version) return `v${packageJson.version}`
-    } catch {
+    } catch (error) {
+        debugLog({
+            message: 'version: failed to read package.json, using fallback',
+            data: { error: String(error) },
+        })
     }
 
     const sha = process.env.COMMIT_SHA
