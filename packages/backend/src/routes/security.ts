@@ -39,9 +39,20 @@ const cspBodyParser = express.json({
 })
 
 const MAX_FIELD_LENGTH = 512
+// Real browsers send one (or a tiny batch of) report(s) per POST. Cap hard so a
+// crafted multi-report payload that fits under the body limit can't fan out into
+// hundreds of log/Sentry writes in a single request.
+const MAX_REPORTS_PER_REQUEST = 20
 
 const str = (value: unknown): string | undefined =>
     typeof value === 'string' ? value.slice(0, MAX_FIELD_LENGTH) : undefined
+
+// document-uri carries the full page URL; its query string can hold tokens/PII.
+// Keep only the path-and-origin so secrets don't land in logs or Sentry.
+const strNoQuery = (value: unknown): string | undefined =>
+    typeof value === 'string'
+        ? value.split('?')[0].slice(0, MAX_FIELD_LENGTH)
+        : undefined
 
 /**
  * Extract the report payload(s). Legacy report-uri sends `{ "csp-report": {…} }`;
@@ -62,6 +73,7 @@ const extractReports = (body: unknown): Array<Record<string, unknown>> => {
                     : record
             })
             .filter((entry): entry is Record<string, unknown> => !!entry)
+            .slice(0, MAX_REPORTS_PER_REQUEST)
     }
     const record = asRecord(body)
     if (record) {
@@ -74,7 +86,7 @@ const extractReports = (body: unknown): Array<Record<string, unknown>> => {
 // Allowlist the fields we record, accepting both the kebab-case (report-uri)
 // and camelCase (Reporting API) spellings.
 const pickReportFields = (report: Record<string, unknown>) => ({
-    documentUri: str(report['document-uri'] ?? report['documentURL']),
+    documentUri: strNoQuery(report['document-uri'] ?? report['documentURL']),
     violatedDirective: str(
         report['violated-directive'] ??
             report['effective-directive'] ??

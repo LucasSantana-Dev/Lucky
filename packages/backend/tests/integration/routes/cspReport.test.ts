@@ -86,6 +86,48 @@ describe('POST /api/security/csp-report (#1283)', () => {
         })
     })
 
+    test('strips the query string from document-uri before recording', async () => {
+        await request(app)
+            .post('/api/security/csp-report')
+            .set('Content-Type', 'application/csp-report')
+            .send(
+                JSON.stringify({
+                    'csp-report': {
+                        'document-uri':
+                            'https://app.example/dashboard?token=secret123',
+                        'violated-directive': 'script-src',
+                        'blocked-uri': 'https://evil.example/x.js',
+                    },
+                }),
+            )
+            .expect(204)
+
+        expect(warnLogMock).toHaveBeenCalledWith({
+            message: 'csp-violation',
+            data: expect.objectContaining({
+                documentUri: 'https://app.example/dashboard',
+            }),
+        })
+    })
+
+    test('caps the number of reports processed per request', async () => {
+        const reports = Array.from({ length: 50 }, () => ({
+            type: 'csp-violation',
+            body: {
+                effectiveDirective: 'img-src',
+                blockedURL: 'https://evil.example/p.png',
+            },
+        }))
+
+        await request(app)
+            .post('/api/security/csp-report')
+            .set('Content-Type', 'application/reports+json')
+            .send(JSON.stringify(reports))
+            .expect(204)
+
+        expect(warnLogMock.mock.calls.length).toBeLessThanOrEqual(20)
+    })
+
     test('ignores an empty/garbage payload without logging and returns 204', async () => {
         const response = await request(app)
             .post('/api/security/csp-report')
