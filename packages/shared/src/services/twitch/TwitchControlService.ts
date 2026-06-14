@@ -1,6 +1,7 @@
 import RedisClientClass, { type Redis } from 'ioredis'
 import { createRedisConfig } from '../redis/config.js'
 import { debugLog, errorLog, infoLog } from '../../utils/general/log.js'
+import { captureMessageThrottled } from '../../utils/monitoring/sentry.js'
 
 /** Redis pub/sub channel carrying "re-read your Twitch subscriptions" signals. */
 export const CHANNEL_TWITCH_REFRESH = 'twitch:refresh'
@@ -86,6 +87,11 @@ export class TwitchControlService {
                 message:
                     'TwitchControlService: skipping refresh publish (Redis not ready)',
             })
+            captureMessageThrottled(
+                'twitch:refresh:skip',
+                'TwitchControlService: refresh publish skipped — Redis not ready; bot sync delayed until reconnect/restart',
+                'warning',
+            )
             return
         }
         try {
@@ -95,6 +101,15 @@ export class TwitchControlService {
                 message: 'TwitchControlService: refresh publish failed',
                 error,
             })
+            captureMessageThrottled(
+                'twitch:refresh:fail',
+                'TwitchControlService: refresh publish failed',
+                'warning',
+                {
+                    reason:
+                        error instanceof Error ? error.message : String(error),
+                },
+            )
         }
     }
 

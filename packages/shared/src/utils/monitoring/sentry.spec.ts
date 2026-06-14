@@ -23,6 +23,7 @@ jest.mock('../general/log', () => ({
 import {
     captureException,
     captureMessage,
+    captureMessageThrottled,
     flushSentry,
     initializeSentry,
     isSentryEnabled,
@@ -321,6 +322,42 @@ describe('sentry monitoring', () => {
             process.env.SENTRY_ENABLED = 'false'
             monitorInteractionHandling('button', 'user-1')
             expect(setContextMock).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('captureMessageThrottled', () => {
+        it('captures the first message for a key', () => {
+            const captured = captureMessageThrottled(
+                'test:first',
+                'first',
+                'warning',
+            )
+            expect(captured).toBe(true)
+            expect(captureMessageMock).toHaveBeenCalledTimes(1)
+        })
+
+        it('throttles repeats within the window for the same key', () => {
+            captureMessageThrottled('test:repeat', 'a', 'warning')
+            const second = captureMessageThrottled(
+                'test:repeat',
+                'b',
+                'warning',
+            )
+            expect(second).toBe(false)
+            // only the first call reached sentry
+            expect(captureMessageMock).toHaveBeenCalledTimes(1)
+        })
+
+        it('captures independently for distinct keys', () => {
+            captureMessageThrottled('test:k1', 'a', 'warning')
+            captureMessageThrottled('test:k2', 'b', 'warning')
+            expect(captureMessageMock).toHaveBeenCalledTimes(2)
+        })
+
+        it('does not reach sentry when disabled', () => {
+            process.env.SENTRY_ENABLED = 'false'
+            captureMessageThrottled('test:disabled', 'x', 'warning')
+            expect(captureMessageMock).not.toHaveBeenCalled()
         })
     })
 })
