@@ -15,6 +15,10 @@ jest.mock('@lucky/shared/services', () => ({
         add: jest.fn(),
         remove: jest.fn(),
     },
+    twitchControlService: {
+        connect: jest.fn(),
+        publishRefresh: jest.fn(),
+    },
 }))
 
 // Mock auth middleware
@@ -185,8 +189,14 @@ describe('GET /api/twitch/users', () => {
     test('returns 504 when twitch API request times out', async () => {
         process.env.TWITCH_CLIENT_ID = 'test-client-id'
         process.env.TWITCH_ACCESS_TOKEN = 'test-token'
-        const timeoutError = new DOMException('The operation was aborted', 'AbortError')
-        Object.defineProperty(timeoutError, 'name', { value: 'TimeoutError', writable: false })
+        const timeoutError = new DOMException(
+            'The operation was aborted',
+            'AbortError',
+        )
+        Object.defineProperty(timeoutError, 'name', {
+            value: 'TimeoutError',
+            writable: false,
+        })
         ;(global.fetch as jest.MockedFunction<typeof fetch>).mockRejectedValue(
             timeoutError,
         )
@@ -200,8 +210,14 @@ describe('GET /api/twitch/users', () => {
         process.env.TWITCH_CLIENT_ID = 'test-client-id'
         process.env.TWITCH_CLIENT_SECRET = 'test-secret'
         delete process.env.TWITCH_ACCESS_TOKEN
-        const timeoutError = new DOMException('The operation was aborted', 'AbortError')
-        Object.defineProperty(timeoutError, 'name', { value: 'TimeoutError', writable: false })
+        const timeoutError = new DOMException(
+            'The operation was aborted',
+            'AbortError',
+        )
+        Object.defineProperty(timeoutError, 'name', {
+            value: 'TimeoutError',
+            writable: false,
+        })
         ;(global.fetch as jest.MockedFunction<typeof fetch>).mockRejectedValue(
             timeoutError,
         )

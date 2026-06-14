@@ -4,7 +4,10 @@ import { validateBody, validateParams } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
-import { twitchNotificationService } from '@lucky/shared/services'
+import {
+    twitchNotificationService,
+    twitchControlService,
+} from '@lucky/shared/services'
 import { warnLog } from '@lucky/shared/utils'
 import { AppError } from '../errors/AppError'
 import { z } from 'zod'
@@ -117,6 +120,12 @@ async function lookupTwitchUser(
 }
 
 export function setupTwitchRoutes(app: Express): void {
+    // Connect the refresh publisher only when Twitch is configured on this
+    // backend — otherwise the routes still work but publishRefresh() no-ops.
+    if (process.env.TWITCH_CLIENT_ID) {
+        void twitchControlService.connect()
+    }
+
     app.get(
         '/api/twitch/status',
         asyncHandler(async (_req: Request, res: Response) => {
@@ -151,7 +160,10 @@ export function setupTwitchRoutes(app: Express): void {
                     displayName: user.display_name,
                 })
             } catch (error) {
-                if (error instanceof DOMException && error.name === 'TimeoutError') {
+                if (
+                    error instanceof DOMException &&
+                    error.name === 'TimeoutError'
+                ) {
                     throw AppError.gatewayTimeout(
                         'Twitch API request timed out, please try again',
                     )
@@ -189,6 +201,11 @@ export function setupTwitchRoutes(app: Express): void {
                 twitchUserId,
                 twitchLogin,
             )
+            // Tell the running bot to register the new EventSub subscription
+            // now, instead of only on its next restart (#870).
+            if (success) {
+                await twitchControlService.publishRefresh()
+            }
             res.json({ success })
         }),
     )
@@ -206,6 +223,11 @@ export function setupTwitchRoutes(app: Express): void {
                 guildId,
                 twitchUserId,
             )
+            // Tell the running bot to drop the EventSub subscription now,
+            // instead of only on its next restart (#870).
+            if (success) {
+                await twitchControlService.publishRefresh()
+            }
             res.json({ success })
         }),
     )
