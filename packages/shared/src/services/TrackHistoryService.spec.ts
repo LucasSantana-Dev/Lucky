@@ -554,5 +554,58 @@ describe('TrackHistoryService', () => {
             // three spellings normalize to one artist with count 3 (> 2)
             expect(result.artists.has('the band')).toBe(true)
         })
+
+        it('getReplayFrequentTracks excludes an artist seen exactly twice', async () => {
+            mockFindMany.mockResolvedValue([
+                { trackId: 'a', author: 'Pair' },
+                { trackId: 'b', author: 'Pair' },
+            ])
+            const result =
+                await new TrackHistoryService().getReplayFrequentTracks(GUILD)
+            expect(result.artists.has('pair')).toBe(false)
+        })
+
+        it('clearHistory returns false on error', async () => {
+            mockDeleteMany.mockRejectedValue(new Error('db'))
+            expect(await new TrackHistoryService().clearHistory(GUILD)).toBe(
+                false,
+            )
+        })
+
+        it('clearAllGuildCaches swallows errors (no throw)', async () => {
+            mockDeleteMany.mockRejectedValue(new Error('db'))
+            await expect(
+                new TrackHistoryService().clearAllGuildCaches(GUILD),
+            ).resolves.toBeUndefined()
+        })
+
+        it('isDuplicateTrack is false when the matching play is outside the window', async () => {
+            mockFindMany.mockResolvedValue([
+                row({
+                    url: 'https://old/x',
+                    playedAt: new Date(Date.now() - 10 * 60 * 1000), // 10 min ago
+                }),
+            ])
+            expect(
+                await new TrackHistoryService().isDuplicateTrack(
+                    GUILD,
+                    'https://old/x',
+                    60_000, // 1-minute window
+                ),
+            ).toBe(false)
+        })
+
+        it('getTopArtists slices to the requested limit', async () => {
+            mockFindMany.mockResolvedValue([
+                row({ author: 'A' }),
+                row({ author: 'B' }),
+                row({ author: 'C' }),
+            ])
+            const result = await new TrackHistoryService().getTopArtists(
+                GUILD,
+                2,
+            )
+            expect(result).toHaveLength(2)
+        })
     })
 })
