@@ -276,6 +276,18 @@ describe('recommendationTelemetryReadService', () => {
             expect(mockGroupBy).toHaveBeenCalled()
         })
 
+        it('groups by the mode column', async () => {
+            mockGroupBy.mockResolvedValue([])
+
+            await getPerModeAcceptance('guild-123')
+
+            expect(mockGroupBy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    by: ['mode', 'isAccepted', 'isRejected'],
+                }),
+            )
+        })
+
         it('returns rows for all three modes', async () => {
             mockGroupBy.mockResolvedValue([
                 // similar: 7 accepted, 2 rejected, 1 pending
@@ -562,6 +574,61 @@ describe('recommendationTelemetryReadService', () => {
                 -2,
             )
         })
+
+        it('queries each bucket with the correct accept/reject filters', async () => {
+            mockCount
+                .mockResolvedValueOnce({ count: 100 }) // total picks
+                .mockResolvedValueOnce({ count: 65 }) // accepted
+                .mockResolvedValueOnce({ count: 25 }) // rejected
+                .mockResolvedValueOnce({ count: 10 }) // pending
+
+            await getSummary('guild-xyz')
+
+            const where = (i: number) =>
+                (mockCount.mock.calls[i][0] as any).where
+
+            // total picks: no accept/reject filter
+            expect(where(0)).toEqual(
+                expect.objectContaining({ guildId: 'guild-xyz' }),
+            )
+            expect(where(0).isAccepted).toBeUndefined()
+            expect(where(0).isRejected).toBeUndefined()
+            // accepted bucket filters isAccepted: true
+            expect(where(1)).toEqual(
+                expect.objectContaining({
+                    guildId: 'guild-xyz',
+                    isAccepted: true,
+                }),
+            )
+            // rejected bucket filters isRejected: true
+            expect(where(2)).toEqual(
+                expect.objectContaining({
+                    guildId: 'guild-xyz',
+                    isRejected: true,
+                }),
+            )
+            // pending bucket filters both null
+            expect(where(3)).toEqual(
+                expect.objectContaining({
+                    guildId: 'guild-xyz',
+                    isAccepted: null,
+                    isRejected: null,
+                }),
+            )
+            // every bucket carries the rolling time window
+            for (let i = 0; i < 4; i++) {
+                expect(where(i).createdAt.gte).toBeInstanceOf(Date)
+            }
+        })
+
+        it('handles prisma count returning a plain number', async () => {
+            mockCount.mockResolvedValue(7) // plain number, not { count }
+
+            const result = await getSummary('guild-123')
+
+            expect(result.totalPicks).toBe(7)
+            expect(result.accepted).toBe(7)
+        })
     })
 
     describe('getAutoplaySkipRateForGuild', () => {
@@ -648,6 +715,51 @@ describe('recommendationTelemetryReadService', () => {
                 rejectedCount: 0,
                 canTrip: false,
             })
+        })
+
+        it('filters by isAccepted/isRejected and a precise 24h window', async () => {
+            mockCount.mockResolvedValueOnce(3).mockResolvedValueOnce(2)
+            const before = Date.now()
+
+            await getAutoplaySkipRateForGuild('guild-aa')
+
+            const w0 = (mockCount.mock.calls[0][0] as any).where
+            const w1 = (mockCount.mock.calls[1][0] as any).where
+            // accepted query
+            expect(w0).toEqual(
+                expect.objectContaining({
+                    guildId: 'guild-aa',
+                    isAccepted: true,
+                }),
+            )
+            // rejected query
+            expect(w1).toEqual(
+                expect.objectContaining({
+                    guildId: 'guild-aa',
+                    isRejected: true,
+                }),
+            )
+            // exactly a 24h window (catches arithmetic drift in the cutoff)
+            const expectedGte = before - 24 * 60 * 60 * 1000
+            const gte = w0.createdAt.gte.getTime()
+            expect(gte).toBeGreaterThan(expectedGte - 5_000)
+            expect(gte).toBeLessThan(expectedGte + 5_000)
+        })
+
+        it('handles prisma count returning { count } objects', async () => {
+            mockCount
+                .mockResolvedValueOnce({ count: 4 })
+                .mockResolvedValueOnce({ count: 1 })
+
+            const result = await getAutoplaySkipRateForGuild('guild-bb')
+
+            expect(result).toEqual(
+                expect.objectContaining({
+                    acceptedCount: 4,
+                    rejectedCount: 1,
+                    sampleSize: 5,
+                }),
+            )
         })
     })
 })
