@@ -132,7 +132,9 @@ describe('getOAuthRedirectUri', () => {
 
         const uri = getOAuthRedirectUri(createRequest())
 
-        expect(uri).toBe('https://lucky-api.lucassantana.tech/api/auth/callback')
+        expect(uri).toBe(
+            'https://lucky-api.lucassantana.tech/api/auth/callback',
+        )
     })
 
     test('should use forwarded host in non-production when env is unset', () => {
@@ -146,5 +148,156 @@ describe('getOAuthRedirectUri', () => {
         )
 
         expect(uri).toBe('https://dashboard.example.com/api/auth/callback')
+    })
+
+    test('forces https in production regardless of forwarded proto', () => {
+        process.env.NODE_ENV = 'production'
+        delete process.env.WEBAPP_REDIRECT_URI
+
+        const req = {
+            headers: {
+                'x-forwarded-proto': 'http',
+                'x-forwarded-host': 'lucky.example.com',
+            },
+            protocol: 'http',
+            get: () => undefined,
+        } as unknown as Request
+
+        expect(getOAuthRedirectUri(req)).toBe(
+            'https://lucky.example.com/api/auth/callback',
+        )
+    })
+
+    test('uses first element of an array-valued forwarded host', () => {
+        process.env.NODE_ENV = 'production'
+        delete process.env.WEBAPP_REDIRECT_URI
+
+        const req = {
+            headers: {
+                'x-forwarded-proto': 'https',
+                'x-forwarded-host': [
+                    'proxy-a.example.com',
+                    'proxy-b.example.com',
+                ],
+            },
+            protocol: 'http',
+            get: () => undefined,
+        } as unknown as Request
+
+        expect(getOAuthRedirectUri(req)).toBe(
+            'https://proxy-a.example.com/api/auth/callback',
+        )
+    })
+
+    test('uses first comma-separated forwarded host and trims it', () => {
+        process.env.NODE_ENV = 'production'
+        delete process.env.WEBAPP_REDIRECT_URI
+
+        const req = {
+            headers: {
+                'x-forwarded-proto': 'https',
+                'x-forwarded-host': ' edge.example.com , inner.example.com',
+            },
+            protocol: 'http',
+            get: () => undefined,
+        } as unknown as Request
+
+        expect(getOAuthRedirectUri(req)).toBe(
+            'https://edge.example.com/api/auth/callback',
+        )
+    })
+
+    test('ignores a whitespace-only forwarded host header', () => {
+        delete process.env.WEBAPP_REDIRECT_URI
+        process.env.WEBAPP_PORT = '8080'
+
+        const req = {
+            headers: { 'x-forwarded-host': '   ' },
+            protocol: 'http',
+            get: () => undefined,
+        } as unknown as Request
+
+        expect(getOAuthRedirectUri(req)).toBe(
+            'http://localhost:8080/api/auth/callback',
+        )
+
+        delete process.env.WEBAPP_PORT
+    })
+
+    test('falls back to req.protocol and req host in non-production', () => {
+        delete process.env.WEBAPP_REDIRECT_URI
+
+        const req = {
+            headers: {},
+            protocol: 'https',
+            get: (name: string) =>
+                name.toLowerCase() === 'host' ? 'app.local' : undefined,
+        } as unknown as Request
+
+        expect(getOAuthRedirectUri(req)).toBe(
+            'https://app.local/api/auth/callback',
+        )
+    })
+
+    test('falls back to localhost:WEBAPP_PORT when no forwarded or req host', () => {
+        delete process.env.WEBAPP_REDIRECT_URI
+        process.env.WEBAPP_PORT = '4567'
+
+        const req = {
+            headers: {},
+            protocol: 'http',
+            get: () => undefined,
+        } as unknown as Request
+
+        expect(getOAuthRedirectUri(req)).toBe(
+            'http://localhost:4567/api/auth/callback',
+        )
+
+        delete process.env.WEBAPP_PORT
+    })
+
+    test('defaults to port 3000 when WEBAPP_PORT is unset', () => {
+        delete process.env.WEBAPP_REDIRECT_URI
+        delete process.env.WEBAPP_PORT
+
+        const req = {
+            headers: {},
+            protocol: 'http',
+            get: () => undefined,
+        } as unknown as Request
+
+        expect(getOAuthRedirectUri(req)).toBe(
+            'http://localhost:3000/api/auth/callback',
+        )
+    })
+
+    test('ignores a malformed session redirect uri and uses env', () => {
+        const uri = getOAuthRedirectUri(createRequest(), 'not-a-valid-url')
+
+        expect(uri).toBe('http://localhost:3000/api/auth/callback')
+    })
+
+    test('leaves a non-legacy session path unchanged', () => {
+        const uri = getOAuthRedirectUri(
+            createRequest(),
+            'https://api.example.com/some/other/path',
+        )
+
+        expect(uri).toBe('https://api.example.com/some/other/path')
+    })
+
+    test('defaults protocol to http when neither forwarded nor req protocol set', () => {
+        delete process.env.WEBAPP_REDIRECT_URI
+
+        const req = {
+            headers: {},
+            protocol: undefined,
+            get: (name: string) =>
+                name.toLowerCase() === 'host' ? 'app.local' : undefined,
+        } as unknown as Request
+
+        expect(getOAuthRedirectUri(req)).toBe(
+            'http://app.local/api/auth/callback',
+        )
     })
 })

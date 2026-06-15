@@ -1,8 +1,8 @@
 name: Mutation Testing
 
-# Runs Stryker mutation testing on the shared package (#1426). Unlike line
-# coverage, mutation testing verifies that tests actually CATCH bugs. The
-# `thresholds.break` in packages/shared/stryker.conf.json fails this job if the
+# Runs Stryker mutation testing on the shared and backend packages (#1426). Unlike
+# line coverage, mutation testing verifies that tests actually CATCH bugs. The
+# `thresholds.break` in each package's stryker.conf.json fails the job if the
 # score regresses, so weakened assertions can't land silently.
 #
 # Scope is the gated shared modules listed in stryker.conf.json `mutate`. The run
@@ -19,6 +19,7 @@ on:
       - 'release/**'
     paths:
       - 'packages/shared/**'
+      - 'packages/backend/**'
       - '.github/workflows/mutation.yml'
 
 concurrency:
@@ -65,4 +66,42 @@ jobs:
         with:
           name: mutation-report-shared
           path: packages/shared/reports/mutation
+          retention-days: 7
+
+  mutation-backend:
+    name: Mutation — backend
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps --ignore-scripts
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Build shared package
+        run: npm run build:shared
+      - name: Restore Stryker incremental cache
+        uses: actions/cache@v4
+        with:
+          path: packages/backend/reports/stryker-incremental.json
+          key: stryker-incremental-backend-${{ github.run_id }}
+          restore-keys: |
+            stryker-incremental-backend-
+      - name: Run mutation tests (backend)
+        run: npm run test:mutation --workspace=packages/backend
+        env:
+          # Backend specs mock the Prisma client but read the env at load time;
+          # the dummy URL keeps parity with the shared job and the other backend
+          # CI jobs and avoids a load-time failure.
+          DATABASE_URL: postgresql://localhost:5432/test
+      - name: Upload mutation report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-report-backend
+          path: packages/backend/reports/mutation
           retention-days: 7
