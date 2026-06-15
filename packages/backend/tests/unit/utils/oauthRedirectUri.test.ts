@@ -20,6 +20,7 @@ describe('getOAuthRedirectUri', () => {
     const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI
     const originalBackendUrl = process.env.WEBAPP_BACKEND_URL
     const originalFrontendUrl = process.env.WEBAPP_FRONTEND_URL
+    const originalPort = process.env.WEBAPP_PORT
 
     beforeEach(() => {
         process.env.NODE_ENV = 'test'
@@ -52,6 +53,12 @@ describe('getOAuthRedirectUri', () => {
             process.env.WEBAPP_FRONTEND_URL = originalFrontendUrl
         } else {
             delete process.env.WEBAPP_FRONTEND_URL
+        }
+
+        if (originalPort) {
+            process.env.WEBAPP_PORT = originalPort
+        } else {
+            delete process.env.WEBAPP_PORT
         }
     })
 
