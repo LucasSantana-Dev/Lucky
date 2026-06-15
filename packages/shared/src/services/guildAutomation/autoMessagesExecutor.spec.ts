@@ -218,4 +218,56 @@ describe('autoMessagesExecutor', () => {
             expect(result.error).toMatch(/Discord API error/)
         }
     })
+
+    it('Apply detects noop op kind in diff', async () => {
+        const service = makeService()
+        const executor = createAutoMessagesExecutor({
+            autoMessageService: service,
+        })
+        const ctx = { guildId: 'guild-1' }
+
+        const live = await executor.capture(ctx)
+        const diff = executor.diff(live, {
+            // No messages — should produce noop ops
+            welcome: { channelId: '1' },
+            leave: {},
+        })
+
+        // Verify diff contains noop ops
+        expect(diff.ops).toHaveLength(2)
+        expect(diff.ops[0].kind).toBe('noop')
+        expect(diff.ops[1].kind).toBe('noop')
+
+        const result = await executor.apply(diff, ctx)
+        expect(result.status).toBe('success')
+        if (result.status === 'success') {
+            expect(result.applied[0].action).toBe('noop')
+            expect(result.applied[1].action).toBe('noop')
+        }
+    })
+
+    it('Apply formats error messages with semicolon separator', async () => {
+        const service = makeService()
+        service.createMessage.mockRejectedValueOnce(new Error('Error 1'))
+        service.createMessage.mockRejectedValueOnce(new Error('Error 2'))
+        const executor = createAutoMessagesExecutor({
+            autoMessageService: service,
+        })
+        const ctx = { guildId: 'guild-1' }
+
+        const live = await executor.capture(ctx)
+        const diff = executor.diff(live, {
+            welcome: { message: 'Hi', channelId: '1' },
+            leave: { message: 'Bye', channelId: '2' },
+        })
+        const result = await executor.apply(diff, ctx)
+
+        expect(result.status).toBe('failed')
+        if (result.status === 'failed') {
+            // Verify semicolon separator is present between errors
+            expect(result.error).toContain('; ')
+            expect(result.error).toContain('Error 1')
+            expect(result.error).toContain('Error 2')
+        }
+    })
 })

@@ -120,4 +120,51 @@ describe('createModerationExecutor', () => {
             expect(result.error).toContain('automod error')
         }
     })
+
+    it('capture returns empty object literal (not undefined)', async () => {
+        const port = makePort()
+        const executor = createModerationExecutor({ port })
+
+        const live = executor.capture()
+
+        // Verify capture returns an object, not undefined
+        expect(live).toBeDefined()
+        expect(typeof live).toBe('object')
+        expect(live).toEqual({})
+    })
+
+    it('diff creates noop with proper kind property', async () => {
+        const port = makePort()
+        const executor = createModerationExecutor({ port })
+
+        const live = executor.capture()
+        const diff = executor.diff(live, {})
+
+        // Verify noop op has kind property set to 'noop'
+        expect(diff.ops).toHaveLength(1)
+        expect(diff.ops[0]).toHaveProperty('kind')
+        expect(diff.ops[0].kind).toBe('noop')
+    })
+
+    it('apply formats multiple error messages with semicolon separator', async () => {
+        const port = makePort()
+        port.updateAutoModSettings.mockRejectedValue(new Error('error1'))
+        port.updateModerationSettings.mockRejectedValue(new Error('error2'))
+        const executor = createModerationExecutor({ port })
+
+        const live = executor.capture()
+        const diff = executor.diff(live, {
+            automod: { test: true },
+            moderationSettings: { test: true },
+        })
+        const result = await executor.apply(diff, { guildId: 'g6' })
+
+        expect(result.status).toBe('failed')
+        if (result.status === 'failed') {
+            // Verify errors are joined with semicolon
+            expect(result.error).toContain('; ')
+            expect(result.error).toContain('error1')
+            expect(result.error).toContain('error2')
+        }
+    })
 })
