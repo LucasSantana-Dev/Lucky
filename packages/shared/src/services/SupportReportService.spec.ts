@@ -220,6 +220,81 @@ describe('SupportReportService', () => {
                 }),
             ).rejects.toThrow('Unique constraint failed')
         })
+
+        it('persists a provided submissionKey verbatim', async () => {
+            const createMock = jest
+                .fn<(args: unknown) => Promise<{ id: string }>>()
+                .mockResolvedValue({ id: 'report-sk' })
+            // @ts-ignore - partial prisma client mock
+            mockGetPrismaClient.mockReturnValue({
+                supportReport: { create: createMock },
+            })
+
+            await service.create({
+                context: 'Error occurred',
+                surface: 'web',
+                submissionKey: 'sub-key-xyz',
+            })
+
+            expect(createMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        submissionKey: 'sub-key-xyz',
+                    }),
+                }),
+            )
+        })
+
+        it('rethrows when the thrown value is not an Error instance', async () => {
+            // A plain object (not instanceof Error) must NOT be treated as a
+            // P2002 dedup — the guard requires a real Error.
+            const notAnError = { code: 'P2002' }
+            // @ts-ignore - partial prisma client mock
+            mockGetPrismaClient.mockReturnValue({
+                supportReport: {
+                    create: jest
+                        .fn<(args: unknown) => Promise<{ id: string }>>()
+                        .mockRejectedValue(notAnError),
+                    findUnique: jest
+                        .fn<(args: unknown) => Promise<{ id: string }>>()
+                        .mockResolvedValue({ id: 'should-not-be-used' }),
+                },
+            })
+
+            await expect(
+                service.create({
+                    context: 'Error occurred',
+                    surface: 'web',
+                    submissionKey: 'sub-key-123',
+                }),
+            ).rejects.toEqual({ code: 'P2002' })
+        })
+
+        it('rethrows a non-P2002 error code instead of deduping', async () => {
+            const p2003 = Object.assign(
+                new Error('Foreign key constraint failed'),
+                { code: 'P2003' },
+            )
+            // @ts-ignore - partial prisma client mock
+            mockGetPrismaClient.mockReturnValue({
+                supportReport: {
+                    create: jest
+                        .fn<(args: unknown) => Promise<{ id: string }>>()
+                        .mockRejectedValue(p2003),
+                    findUnique: jest
+                        .fn<(args: unknown) => Promise<{ id: string }>>()
+                        .mockResolvedValue({ id: 'should-not-be-used' }),
+                },
+            })
+
+            await expect(
+                service.create({
+                    context: 'Error occurred',
+                    surface: 'web',
+                    submissionKey: 'sub-key-123',
+                }),
+            ).rejects.toThrow('Foreign key constraint failed')
+        })
     })
 
     describe('get', () => {
@@ -264,6 +339,22 @@ describe('SupportReportService', () => {
             const result = await service.get('nonexistent')
 
             expect(result).toBeNull()
+        })
+
+        it('queries findUnique by the given id', async () => {
+            const findUniqueMock = jest
+                .fn<(args: unknown) => Promise<null>>()
+                .mockResolvedValue(null)
+            // @ts-ignore - partial prisma client mock
+            mockGetPrismaClient.mockReturnValue({
+                supportReport: { findUnique: findUniqueMock },
+            })
+
+            await service.get('report-42')
+
+            expect(findUniqueMock).toHaveBeenCalledWith({
+                where: { id: 'report-42' },
+            })
         })
     })
 
@@ -356,6 +447,25 @@ describe('SupportReportService', () => {
             expect(findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
                     where: { status: 'triaged' },
+                }),
+            )
+        })
+
+        it('paginates with a cursor and skips the cursor row', async () => {
+            const findMany = jest
+                .fn<(args: unknown) => Promise<Array<{ id: string }>>>()
+                .mockResolvedValue([])
+            // @ts-ignore - partial prisma client mock
+            mockGetPrismaClient.mockReturnValue({
+                supportReport: { findMany },
+            })
+
+            await service.list({ cursor: 'cur-1' })
+
+            expect(findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    cursor: { id: 'cur-1' },
+                    skip: 1,
                 }),
             )
         })

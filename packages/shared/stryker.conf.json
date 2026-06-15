@@ -14,6 +14,7 @@
         "src/services/ModerationService.ts",
         "src/services/PremiumService.ts",
         "src/services/recommendationTelemetryReadService.ts",
+        "src/services/SupportReportService.ts",
         "src/services/TrackHistoryService.ts",
         "src/services/embedValidation.ts"
     ],
@@ -28,6 +29,6 @@
     "thresholds": {
         "high": 85,
         "low": 70,
-        "break": 75
+        "break": 77
     }
 }
