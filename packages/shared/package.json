@@ -69,6 +69,7 @@
         "type:check": "tsc --noEmit",
         "test": "jest",
         "test:ci": "jest --ci",
+        "test:mutation": "stryker run",
         "docs:check": "node check-docs-coverage.mjs",
         "lint": "eslint . -c ../../eslint.config.js",
         "lint:fix": "npm run lint -- --fix"

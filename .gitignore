@@ -126,3 +126,7 @@ graphify-out/
 
 # Feature specs are local AI/planning artifacts — kept untracked (mirrored under .claude/specs/).
 docs/specs/
+
+# Stryker mutation-testing artifacts (generated)
+.stryker-tmp/
+packages/*/reports/mutation/
