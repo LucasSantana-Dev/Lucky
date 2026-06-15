@@ -429,5 +429,41 @@ describe('GuildSettingsService — settings CRUD + counter methods', () => {
             cUpsert.mockResolvedValue({})
             expect(await service.clearGuildSessions(GUILD)).toBe(false)
         })
+
+        it('returns false when a counter reset fails', async () => {
+            sDeleteMany.mockResolvedValue({ count: 1 })
+            cUpsert.mockRejectedValue(new Error('db'))
+            expect(await service.clearGuildSessions(GUILD)).toBe(false)
+        })
+    })
+
+    // Error-path coverage: every read/write falls back gracefully (catch blocks).
+    describe('counter error paths', () => {
+        it('getAutoplayCounter returns null on error', async () => {
+            cFindUnique.mockRejectedValue(new Error('db'))
+            expect(await service.getAutoplayCounter(GUILD)).toBeNull()
+        })
+        it('setAutoplayCounter returns false on error', async () => {
+            cUpsert.mockRejectedValue(new Error('db'))
+            expect(
+                await service.setAutoplayCounter(GUILD, {
+                    guildId: GUILD,
+                    count: 1,
+                    lastReset: new Date(),
+                }),
+            ).toBe(false)
+        })
+        it('getRepeatCount returns 0 on error', async () => {
+            cFindUnique.mockRejectedValue(new Error('db'))
+            expect(await service.getRepeatCount(GUILD)).toBe(0)
+        })
+        it('setRepeatCount returns false on error', async () => {
+            cUpsert.mockRejectedValue(new Error('db'))
+            expect(await service.setRepeatCount(GUILD, 3)).toBe(false)
+        })
+        it('incrementRepeatCount returns 0 on error', async () => {
+            cUpsert.mockRejectedValue(new Error('db'))
+            expect(await service.incrementRepeatCount(GUILD)).toBe(0)
+        })
     })
 })
