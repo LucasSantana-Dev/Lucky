@@ -97,7 +97,8 @@
         "prettier": "^3.8.3",
         "secretlint": "^13.0.2",
         "ts-jest": "^29.4.11",
-        "unfetch": "^5.0.0"
+        "unfetch": "^5.0.0",
+        "vite": "^8.0.16"
     },
     "dependencies": {
         "@discord-player/extractor": "^7.2.0",
