@@ -1,0 +1,23 @@
+{
+    "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-js/master/packages/core/schema/stryker-core.json",
+    "version": "7",
+    "testRunner": "jest",
+    "jest": {
+        "config": {
+            "configFile": "./jest.config.cjs"
+        }
+    },
+    "mutate": ["src/services/database/DatabaseService.ts"],
+    "reporters": ["html", "clear-text", "progress"],
+    "timeoutMS": 15000,
+    "timeoutFactor": 1.5,
+    "logLevel": "info",
+    "concurrency": 2,
+    "ignoreStatic": false,
+    "incremental": false,
+    "thresholds": {
+        "high": 60,
+        "low": 50,
+        "break": 44
+    }
+}
