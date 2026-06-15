@@ -45,6 +45,11 @@ jobs:
         run: npm run build:shared
       - name: Run mutation tests (shared)
         run: npm run test:mutation --workspace=packages/shared
+        env:
+          # Shared specs import code that reads Prisma env at module load; the
+          # client is mocked in tests but the dummy URL keeps parity with the
+          # other shared-test CI jobs and avoids a load-time failure.
+          DATABASE_URL: postgresql://localhost:5432/test
       - name: Upload mutation report
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
