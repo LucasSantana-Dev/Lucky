@@ -57,9 +57,5 @@ export function getOAuthRedirectUri(
         return normalizedSessionRedirectUri
     }
 
-    return (
-        resolveEnvRedirectUri() ??
-        normalizeCallbackPath(process.env.WEBAPP_REDIRECT_URI) ??
-        buildRequestRedirectUri(req)
-    )
+    return resolveEnvRedirectUri() ?? buildRequestRedirectUri(req)
 }

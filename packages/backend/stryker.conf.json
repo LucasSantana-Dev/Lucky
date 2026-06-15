@@ -1,0 +1,25 @@
+{
+    "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-js/master/packages/core/schema/stryker-core.json",
+    "version": "7",
+    "testRunner": "jest",
+    "jest": {
+        "config": {
+            "configFile": "./jest.config.cjs"
+        }
+    },
+    "mutate": ["src/utils/oauthRedirectUri.ts"],
+    "reporters": ["html", "clear-text", "progress"],
+    "timeoutMS": 15000,
+    "timeoutFactor": 1.5,
+    "logLevel": "info",
+    "concurrency": 2,
+    "ignoreStatic": false,
+    "inPlace": true,
+    "incremental": true,
+    "incrementalFile": "reports/stryker-incremental.json",
+    "thresholds": {
+        "high": 85,
+        "low": 70,
+        "break": 90
+    }
+}
