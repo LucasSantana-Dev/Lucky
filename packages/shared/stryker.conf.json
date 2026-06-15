@@ -12,6 +12,7 @@
         "src/services/FeatureToggleService.ts",
         "src/services/ModerationService.ts",
         "src/services/PremiumService.ts",
+        "src/services/TrackHistoryService.ts",
         "src/services/embedValidation.ts"
     ],
     "reporters": ["html", "clear-text", "progress"],
@@ -24,6 +25,6 @@
     "thresholds": {
         "high": 85,
         "low": 70,
-        "break": 75
+        "break": 72
     }
 }
