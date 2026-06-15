@@ -24,16 +24,19 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
-  // Honest gate (#1277): set just below coverage measured on 2026-06-09
-  // (47.08/41.83/38.82/46.76). The previous 89/89/90/89 was never enforced —
-  // no CI job ran shared tests — and had drifted far from reality. Ratchet
-  // these up as coverage improves; never raise above measured coverage.
+  // Honest gate (#1277, ratcheted up #1426): set just below coverage measured
+  // on 2026-06-14 (57.07/52.63/49.66/56.94). Coverage climbed ~10pp since the
+  // floor was last set (2026-06-09 @ 47%) — e.g. DatabaseService 7→50 tests
+  // (#1419) — but the floor wasn't ratcheted, leaving a silent-decay window on
+  // the most-depended-upon package. The original 89/89/90/89 was never enforced
+  // (no CI job ran shared tests, pre-#1277). Ratchet these up as coverage
+  // improves; never raise above measured coverage.
   coverageThreshold: {
     global: {
-      statements: 46,
-      branches: 41,
-      functions: 38,
-      lines: 46
+      statements: 56,
+      branches: 52,
+      functions: 49,
+      lines: 56
     }
   },
   testTimeout: 30000,
