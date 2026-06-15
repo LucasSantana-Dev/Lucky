@@ -13,6 +13,26 @@ import type {
     GuildAutomationManifestDocument,
 } from './types'
 
+jest.mock('./diff.js', () => {
+    const actual = jest.requireActual('./diff.js') as Record<string, unknown>
+    return {
+        __esModule: true,
+        ...actual,
+        createAutomationPlan: jest.fn(actual.createAutomationPlan as any),
+    }
+})
+import { createAutomationPlan } from './diff.js'
+const mockCreateAutomationPlan = createAutomationPlan as jest.MockedFunction<
+    typeof createAutomationPlan
+>
+
+// Clean up locks and timers after each test
+// Reset to real timers to ensure locks can expire naturally or are cleaned up
+afterEach(() => {
+    jest.useRealTimers()
+    jest.clearAllTimers()
+})
+
 type UpdateRunStatusArgs = [
     runId: string,
     status: AutomationRunStatus,
@@ -221,68 +241,74 @@ describe('GuildAutomationOrchestrator.createApplyRun', () => {
         stubPlan(orchestrator, [])
         jest.useFakeTimers()
 
-        await orchestrator.createApplyRun('guild-lock', {
-            runType: 'apply',
-        })
+        try {
+            await orchestrator.createApplyRun('guild-lock', {
+                runType: 'apply',
+            })
 
-        // Lock should be released after execution
-        // Try to acquire it again - should succeed
-        const { orchestrator: orch2 } = makeOrchestrator()
-        stubPlan(orch2, [])
-        const canAcquire = await orch2.createApplyRun('guild-lock', {
-            runType: 'apply',
-        })
-        expect(canAcquire.status).toBeDefined()
-
-        jest.useRealTimers()
+            // Lock should be released after execution
+            // Try to acquire it again - should succeed
+            const { orchestrator: orch2 } = makeOrchestrator()
+            stubPlan(orch2, [])
+            const canAcquire = await orch2.createApplyRun('guild-lock', {
+                runType: 'apply',
+            })
+            expect(canAcquire.status).toBeDefined()
+        } finally {
+            jest.useRealTimers()
+        }
     })
 
     it('throws when acquiring lock if another operation is running', async () => {
         stubPlan(orchestrator, [])
         jest.useFakeTimers()
 
-        const promise1 = orchestrator.createApplyRun('guild-concurrent', {
-            runType: 'apply',
-        })
+        try {
+            const promise1 = orchestrator.createApplyRun('guild-concurrent', {
+                runType: 'apply',
+            })
 
-        // Attempt concurrent operation on same guild immediately
-        const promise2 = orchestrator.createApplyRun('guild-concurrent', {
-            runType: 'apply',
-        })
+            // Attempt concurrent operation on same guild immediately
+            const promise2 = orchestrator.createApplyRun('guild-concurrent', {
+                runType: 'apply',
+            })
 
-        // First one should succeed
-        await expect(promise1).resolves.toBeDefined()
-        // Second one should reject due to lock
-        await expect(promise2).rejects.toThrow(
-            'Another automation apply operation is already running',
-        )
-
-        jest.useRealTimers()
+            // First one should succeed
+            await expect(promise1).resolves.toBeDefined()
+            // Second one should reject due to lock
+            await expect(promise2).rejects.toThrow(
+                'Another automation apply operation is already running',
+            )
+        } finally {
+            jest.useRealTimers()
+        }
     })
 
     it('cleans up expired locks when acquiring a new lock', async () => {
         stubPlan(orchestrator, [])
         jest.useFakeTimers()
 
-        // Create a lock on guild-expire
-        const promise1 = orchestrator.createApplyRun('guild-expire', {
-            runType: 'apply',
-        })
-        await expect(promise1).resolves.toBeDefined()
+        try {
+            // Create a lock on guild-expire
+            const promise1 = orchestrator.createApplyRun('guild-expire', {
+                runType: 'apply',
+            })
+            await expect(promise1).resolves.toBeDefined()
 
-        // Move time forward past TTL (60 seconds)
-        jest.advanceTimersByTime(61000)
+            // Move time forward past TTL (60 seconds)
+            jest.advanceTimersByTime(61000)
 
-        // Now another operation should succeed because the lock expired
-        const { orchestrator: orch2 } = makeOrchestrator()
-        stubPlan(orch2, [])
-        const promise2 = orch2.createApplyRun('guild-expire', {
-            runType: 'apply',
-        })
+            // Now another operation should succeed because the lock expired
+            const { orchestrator: orch2 } = makeOrchestrator()
+            stubPlan(orch2, [])
+            const promise2 = orch2.createApplyRun('guild-expire', {
+                runType: 'apply',
+            })
 
-        await expect(promise2).resolves.toBeDefined()
-
-        jest.useRealTimers()
+            await expect(promise2).resolves.toBeDefined()
+        } finally {
+            jest.useRealTimers()
+        }
     })
 
     it('defaults runType to apply when not provided', async () => {
@@ -1052,7 +1078,7 @@ describe('GuildAutomationOrchestrator.createPlan', () => {
             version: 99,
             guild: {
                 ...actualStateManifest.guild,
-                discordId: 'provided-guild-id',
+                id: '99999999999999999',
             },
         }
         ;(mocks.getManifestRow as any).mockResolvedValue({
@@ -1073,10 +1099,11 @@ describe('GuildAutomationOrchestrator.createPlan', () => {
             actualState: providedState,
         })
 
-        expect(mocks.createPlanRecord).toHaveBeenCalled()
-        const call = mocks.createPlanRecord.mock.calls[0]
-        // Verify the plan was created with provided state
-        expect(call[4]).toHaveProperty('length') // operations array
+        // Verify mockCreateAutomationPlan was called with the provided actualState
+        expect(mockCreateAutomationPlan).toHaveBeenCalled()
+        const mockCall = mockCreateAutomationPlan.mock.calls[0]
+        expect(mockCall[0].actual.version).toBe(99)
+        expect(mockCall[0].actual.guild.id).toBe('99999999999999999')
     })
 
     it('uses lastCapturedState when actualState not provided', async () => {
@@ -1214,20 +1241,45 @@ describe('GuildAutomationOrchestrator.createPlan', () => {
             guildId: 'guild-1',
         })
 
-        // Mock upsertDrift to track what severity was passed
-        const severities: string[] = []
-        ;(mocks.upsertDrift as any).mockImplementation(
-            (guildId: any, module: any, ops: any, severity: any) => {
-                severities.push(severity)
-                return Promise.resolve()
+        // Mock createAutomationPlan to return 1 operation (triggers 'low' severity: count < 3)
+        mockCreateAutomationPlan.mockReturnValueOnce({
+            operations: [
+                {
+                    module: 'roles',
+                    action: 'create',
+                    target: 'roles/test',
+                    protected: false,
+                    desired: {},
+                    actual: undefined,
+                    reason: 'test',
+                },
+            ],
+            protectedOperations: [],
+            summary: {
+                total: 1,
+                safe: 1,
+                protected: 0,
+                byModule: {
+                    roles: 1,
+                    onboarding: 0,
+                    moderation: 0,
+                    automessages: 0,
+                    reactionroles: 0,
+                    commandaccess: 0,
+                    parity: 0,
+                },
             },
-        )
+        })
 
         await orchestrator.createPlan('guild-1')
 
-        // Verify at least one 'low' severity was recorded (count 1-2)
-        // Note: actual behavior depends on createAutomationPlan return
-        expect(mocks.upsertDrift).toHaveBeenCalled()
+        // Find the call to upsertDrift with roles module (count 1) and verify severity is 'low'
+        const calls = mocks.upsertDrift.mock.calls
+        const rolesCall = calls.find(
+            (c: any) => c[1] === 'roles' && c[2].length === 1,
+        )
+        expect(rolesCall).toBeDefined()
+        expect(rolesCall[3]).toBe('low')
     })
 
     it('maps 8+ operations to severity "high"', async () => {
@@ -1247,9 +1299,44 @@ describe('GuildAutomationOrchestrator.createPlan', () => {
             guildId: 'guild-1',
         })
 
+        // Mock createAutomationPlan to return 8 operations (triggers 'high' severity: count >= 8)
+        const ops = Array.from({ length: 8 }, (_, i) => ({
+            module: 'roles' as const,
+            action: 'create' as const,
+            target: `roles/test-${i}`,
+            protected: false,
+            desired: {},
+            actual: undefined,
+            reason: 'test',
+        }))
+        mockCreateAutomationPlan.mockReturnValueOnce({
+            operations: ops,
+            protectedOperations: [],
+            summary: {
+                total: 8,
+                safe: 8,
+                protected: 0,
+                byModule: {
+                    roles: 8,
+                    onboarding: 0,
+                    moderation: 0,
+                    automessages: 0,
+                    reactionroles: 0,
+                    commandaccess: 0,
+                    parity: 0,
+                },
+            },
+        })
+
         await orchestrator.createPlan('guild-1')
 
-        expect(mocks.upsertDrift).toHaveBeenCalled()
+        // Find the call to upsertDrift with roles module (count 8) and verify severity is 'high'
+        const calls = mocks.upsertDrift.mock.calls
+        const rolesCall = calls.find(
+            (c: any) => c[1] === 'roles' && c[2].length === 8,
+        )
+        expect(rolesCall).toBeDefined()
+        expect(rolesCall[3]).toBe('high')
     })
 
     it('verifies severity "low" for 1-2 operations explicitly', async () => {
@@ -1265,15 +1352,44 @@ describe('GuildAutomationOrchestrator.createPlan', () => {
             updatedAt: now,
         })
 
-        const severities: string[] = []
-        ;(mocks.upsertDrift as any).mockImplementation(
-            (guildId: any, module: any, ops: any, severity: any) => {
-                if (ops.length === 1 || ops.length === 2) {
-                    severities.push(severity)
-                }
-                return Promise.resolve()
+        // Mock createAutomationPlan to return 2 operations (triggers 'low' severity: count < 3)
+        mockCreateAutomationPlan.mockReturnValueOnce({
+            operations: [
+                {
+                    module: 'roles',
+                    action: 'create',
+                    target: 'roles/test-1',
+                    protected: false,
+                    desired: {},
+                    actual: undefined,
+                    reason: 'test',
+                },
+                {
+                    module: 'roles',
+                    action: 'update',
+                    target: 'roles/test-2',
+                    protected: false,
+                    desired: {},
+                    actual: {},
+                    reason: 'test',
+                },
+            ],
+            protectedOperations: [],
+            summary: {
+                total: 2,
+                safe: 2,
+                protected: 0,
+                byModule: {
+                    roles: 2,
+                    onboarding: 0,
+                    moderation: 0,
+                    automessages: 0,
+                    reactionroles: 0,
+                    commandaccess: 0,
+                    parity: 0,
+                },
             },
-        )
+        })
         ;(mocks.createPlanRecord as any).mockResolvedValue({
             id: 'run-1',
             guildId: 'guild-1',
@@ -1281,8 +1397,13 @@ describe('GuildAutomationOrchestrator.createPlan', () => {
 
         await orchestrator.createPlan('guild-1')
 
-        // The mutation test expects that count < 3 specifically returns 'low'
-        expect(mocks.upsertDrift).toHaveBeenCalled()
+        // Verify the call with roles module (count 2) has 'low' severity
+        const calls = mocks.upsertDrift.mock.calls
+        const rolesCall = calls.find(
+            (c: any) => c[1] === 'roles' && c[2].length === 2,
+        )
+        expect(rolesCall).toBeDefined()
+        expect(rolesCall[3]).toBe('low')
     })
 
     it('verifies severity "medium" for 3-7 operations', async () => {
@@ -1298,15 +1419,34 @@ describe('GuildAutomationOrchestrator.createPlan', () => {
             updatedAt: now,
         })
 
-        const severities: string[] = []
-        ;(mocks.upsertDrift as any).mockImplementation(
-            (guildId: any, module: any, ops: any, severity: any) => {
-                if (ops.length >= 3 && ops.length < 8) {
-                    severities.push(severity)
-                }
-                return Promise.resolve()
+        // Mock createAutomationPlan to return 5 operations (triggers 'medium' severity: 3 <= count < 8)
+        const ops = Array.from({ length: 5 }, (_, i) => ({
+            module: 'roles' as const,
+            action: 'create' as const,
+            target: `roles/test-${i}`,
+            protected: false,
+            desired: {},
+            actual: undefined,
+            reason: 'test',
+        }))
+        mockCreateAutomationPlan.mockReturnValueOnce({
+            operations: ops,
+            protectedOperations: [],
+            summary: {
+                total: 5,
+                safe: 5,
+                protected: 0,
+                byModule: {
+                    roles: 5,
+                    onboarding: 0,
+                    moderation: 0,
+                    automessages: 0,
+                    reactionroles: 0,
+                    commandaccess: 0,
+                    parity: 0,
+                },
             },
-        )
+        })
         ;(mocks.createPlanRecord as any).mockResolvedValue({
             id: 'run-1',
             guildId: 'guild-1',
@@ -1314,7 +1454,13 @@ describe('GuildAutomationOrchestrator.createPlan', () => {
 
         await orchestrator.createPlan('guild-1')
 
-        expect(mocks.upsertDrift).toHaveBeenCalled()
+        // Verify the call with roles module (count 5) has 'medium' severity
+        const calls = mocks.upsertDrift.mock.calls
+        const rolesCall = calls.find(
+            (c: any) => c[1] === 'roles' && c[2].length === 5,
+        )
+        expect(rolesCall).toBeDefined()
+        expect(rolesCall[3]).toBe('medium')
     })
 
     it('records usedCapturedState = true when actualState not provided', async () => {

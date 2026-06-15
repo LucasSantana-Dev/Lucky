@@ -332,20 +332,33 @@ describe('MusicControlService', () => {
         })
 
         it('uses default timeout of 10000ms', async () => {
-            const service = new MusicControlService()
-            const internals = service as unknown as WithClients
+            jest.useFakeTimers()
 
-            internals.publisher = {
-                status: 'ready',
-                publish: mockPublish,
+            try {
+                const service = new MusicControlService()
+                const internals = service as unknown as WithClients
+
+                internals.publisher = {
+                    status: 'ready',
+                    publish: mockPublish,
+                }
+                internals.subscriber = { status: 'ready' }
+
+                const cmd = buildCommand()
+                const promise = service.sendCommand(cmd)
+
+                expect(mockPublish).toHaveBeenCalled()
+
+                // Advance timers by the default timeout
+                jest.advanceTimersByTime(10000)
+
+                // Result should be a timeout error
+                const result = await promise
+                expect(result.success).toBe(false)
+                expect(result.error).toBe('Command timed out')
+            } finally {
+                jest.useRealTimers()
             }
-            internals.subscriber = { status: 'ready' }
-
-            const cmd = buildCommand()
-            const promise = service.sendCommand(cmd)
-
-            expect(mockPublish).toHaveBeenCalled()
-            await promise
         })
     })
 
