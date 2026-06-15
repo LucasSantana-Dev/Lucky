@@ -130,3 +130,4 @@ docs/specs/
 # Stryker mutation-testing artifacts (generated)
 .stryker-tmp/
 packages/*/reports/mutation/
+packages/*/reports/stryker-incremental.json

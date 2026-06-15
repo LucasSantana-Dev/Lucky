@@ -5,7 +5,9 @@ name: Mutation Testing
 # `thresholds.break` in packages/shared/stryker.conf.json fails this job if the
 # score regresses, so weakened assertions can't land silently.
 #
-# Scope is currently one deep module (DatabaseService.ts) — the run is ~20s.
+# Scope is the gated shared modules listed in stryker.conf.json `mutate`. The run
+# uses Stryker incremental mode (#1438): the incremental cache is restored/saved
+# across runs so unchanged modules are skipped and only changed files re-mutate.
 # This is NOT a required status check yet; promote it in branch protection once
 # the score has stabilised, and widen `mutate` to more modules over time.
 
@@ -43,6 +45,13 @@ jobs:
         run: npx prisma generate
       - name: Build shared package
         run: npm run build:shared
+      - name: Restore Stryker incremental cache
+        uses: actions/cache@v4
+        with:
+          path: packages/shared/reports/stryker-incremental.json
+          key: stryker-incremental-shared-${{ github.run_id }}
+          restore-keys: |
+            stryker-incremental-shared-
       - name: Run mutation tests (shared)
         run: npm run test:mutation --workspace=packages/shared
         env:

@@ -22,7 +22,8 @@
     "logLevel": "info",
     "concurrency": 2,
     "ignoreStatic": false,
-    "incremental": false,
+    "incremental": true,
+    "incrementalFile": "reports/stryker-incremental.json",
     "thresholds": {
         "high": 85,
         "low": 70,
