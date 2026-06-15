@@ -16,8 +16,8 @@
     "ignoreStatic": false,
     "incremental": false,
     "thresholds": {
-        "high": 80,
-        "low": 65,
-        "break": 69
+        "high": 85,
+        "low": 70,
+        "break": 75
     }
 }

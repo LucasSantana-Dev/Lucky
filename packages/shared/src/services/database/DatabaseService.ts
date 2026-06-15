@@ -210,7 +210,6 @@ export class DatabaseService {
 
     private async executeWithFallback<T>(
         operation: () => Promise<T>,
-        _fallback: T,
         operationName: string,
     ): Promise<Result<T>> {
         try {
@@ -228,55 +227,43 @@ export class DatabaseService {
 
     /** Establishes the database connection. */
     async connect(): Promise<Result<boolean>> {
-        return this.executeWithFallback(
-            async () => {
-                if (this.isConnected) {
-                    return true
-                }
-
-                await this.prisma.$connect()
-                this.isConnected = true
-
-                infoLog({ message: 'Database connected successfully' })
+        return this.executeWithFallback(async () => {
+            if (this.isConnected) {
                 return true
-            },
-            false,
-            'database_connect',
-        )
+            }
+
+            await this.prisma.$connect()
+            this.isConnected = true
+
+            infoLog({ message: 'Database connected successfully' })
+            return true
+        }, 'database_connect')
     }
 
     /** Closes the database connection. */
     async disconnect(): Promise<Result<void>> {
-        return this.executeWithFallback(
-            async () => {
-                if (!this.isConnected) {
-                    return
-                }
+        return this.executeWithFallback(async () => {
+            if (!this.isConnected) {
+                return
+            }
 
-                await this.prisma.$disconnect()
-                this.isConnected = false
+            await this.prisma.$disconnect()
+            this.isConnected = false
 
-                infoLog({ message: 'Database disconnected successfully' })
-            },
-            undefined,
-            'database_disconnect',
-        )
+            infoLog({ message: 'Database disconnected successfully' })
+        }, 'database_disconnect')
     }
 
     /** Checks the database connection by executing a test query. */
     async isHealthy(): Promise<Result<boolean>> {
-        return this.executeWithFallback(
-            async () => {
-                if (!this.isConnected) {
-                    return false
-                }
+        return this.executeWithFallback(async () => {
+            if (!this.isConnected) {
+                return false
+            }
 
-                await this.prisma.$queryRaw`SELECT 1`
-                return true
-            },
-            false,
-            'database_health_check',
-        )
+            await this.prisma.$queryRaw`SELECT 1`
+            return true
+        }, 'database_health_check')
     }
 
     // User operations
@@ -286,70 +273,53 @@ export class DatabaseService {
         username: string,
         avatar?: string,
     ): Promise<Result<DatabaseUser>> {
-        return this.executeWithFallback(
-            async () => {
-                const user = await typedUserUpsert(this.prisma, {
-                    where: { discordId },
-                    update: { username, avatar },
-                    create: { discordId, username, avatar },
-                })
-                const result: DatabaseUser = {
-                    id: String(user.id),
-                    discordId: String(user.discordId),
-                    username: String(user.username),
-                    avatar: user.avatar ? String(user.avatar) : undefined,
-                    createdAt:
-                        user.createdAt instanceof Date
-                            ? user.createdAt
-                            : new Date(user.createdAt),
-                    updatedAt:
-                        user.updatedAt instanceof Date
-                            ? user.updatedAt
-                            : new Date(user.updatedAt),
-                }
-                return result
-            },
-            {
-                id: '',
-                discordId: '',
-                username: '',
-                avatar: undefined,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            },
-            'create_user',
-        )
+        return this.executeWithFallback(async () => {
+            const user = await typedUserUpsert(this.prisma, {
+                where: { discordId },
+                update: { username, avatar },
+                create: { discordId, username, avatar },
+            })
+            const result: DatabaseUser = {
+                id: String(user.id),
+                discordId: String(user.discordId),
+                username: String(user.username),
+                avatar: user.avatar ? String(user.avatar) : undefined,
+                createdAt:
+                    user.createdAt instanceof Date
+                        ? user.createdAt
+                        : new Date(user.createdAt),
+                updatedAt:
+                    user.updatedAt instanceof Date
+                        ? user.updatedAt
+                        : new Date(user.updatedAt),
+            }
+            return result
+        }, 'create_user')
     }
 
     /** Retrieves a user by Discord ID, or null if not found. */
     async getUser(discordId: string): Promise<Result<DatabaseUser | null>> {
-        return this.executeWithFallback(
-            async () => {
-                const typedUser = await typedUserFindUnique(this.prisma, {
-                    where: { discordId },
-                })
-                if (!typedUser) return null
-                const result: DatabaseUser = {
-                    id: String(typedUser.id),
-                    discordId: String(typedUser.discordId),
-                    username: String(typedUser.username),
-                    avatar: typedUser.avatar
-                        ? String(typedUser.avatar)
-                        : undefined,
-                    createdAt:
-                        typedUser.createdAt instanceof Date
-                            ? typedUser.createdAt
-                            : new Date(typedUser.createdAt),
-                    updatedAt:
-                        typedUser.updatedAt instanceof Date
-                            ? typedUser.updatedAt
-                            : new Date(typedUser.updatedAt),
-                }
-                return result
-            },
-            null,
-            'get_user',
-        )
+        return this.executeWithFallback(async () => {
+            const typedUser = await typedUserFindUnique(this.prisma, {
+                where: { discordId },
+            })
+            if (!typedUser) return null
+            const result: DatabaseUser = {
+                id: String(typedUser.id),
+                discordId: String(typedUser.discordId),
+                username: String(typedUser.username),
+                avatar: typedUser.avatar ? String(typedUser.avatar) : undefined,
+                createdAt:
+                    typedUser.createdAt instanceof Date
+                        ? typedUser.createdAt
+                        : new Date(typedUser.createdAt),
+                updatedAt:
+                    typedUser.updatedAt instanceof Date
+                        ? typedUser.updatedAt
+                        : new Date(typedUser.updatedAt),
+            }
+            return result
+        }, 'get_user')
     }
 
     // Guild operations
@@ -360,71 +330,55 @@ export class DatabaseService {
         ownerId: string,
         icon?: string,
     ): Promise<Result<DatabaseGuild>> {
-        return this.executeWithFallback(
-            async () => {
-                const guild = await typedGuildUpsert(this.prisma, {
-                    where: { discordId },
-                    update: { name, icon },
-                    create: { discordId, name, ownerId, icon },
-                })
-                const result: DatabaseGuild = {
-                    id: String(guild.id),
-                    discordId: String(guild.discordId),
-                    name: String(guild.name),
-                    icon: guild.icon ? String(guild.icon) : undefined,
-                    ownerId: String(guild.ownerId),
-                    createdAt:
-                        guild.createdAt instanceof Date
-                            ? guild.createdAt
-                            : new Date(guild.createdAt),
-                    updatedAt:
-                        guild.updatedAt instanceof Date
-                            ? guild.updatedAt
-                            : new Date(guild.updatedAt),
-                }
-                return result
-            },
-            {
-                id: '',
-                discordId: '',
-                name: '',
-                icon: undefined,
-                ownerId: '',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            },
-            'create_guild',
-        )
+        return this.executeWithFallback(async () => {
+            const guild = await typedGuildUpsert(this.prisma, {
+                where: { discordId },
+                update: { name, icon },
+                create: { discordId, name, ownerId, icon },
+            })
+            const result: DatabaseGuild = {
+                id: String(guild.id),
+                discordId: String(guild.discordId),
+                name: String(guild.name),
+                icon: guild.icon ? String(guild.icon) : undefined,
+                ownerId: String(guild.ownerId),
+                createdAt:
+                    guild.createdAt instanceof Date
+                        ? guild.createdAt
+                        : new Date(guild.createdAt),
+                updatedAt:
+                    guild.updatedAt instanceof Date
+                        ? guild.updatedAt
+                        : new Date(guild.updatedAt),
+            }
+            return result
+        }, 'create_guild')
     }
 
     /** Retrieves a guild by Discord ID, or null if not found. */
     async getGuild(discordId: string): Promise<Result<DatabaseGuild | null>> {
-        return this.executeWithFallback(
-            async () => {
-                const typedGuild = await typedGuildFindUnique(this.prisma, {
-                    where: { discordId },
-                })
-                if (!typedGuild) return null
-                const result: DatabaseGuild = {
-                    id: String(typedGuild.id),
-                    discordId: String(typedGuild.discordId),
-                    name: String(typedGuild.name),
-                    icon: typedGuild.icon ? String(typedGuild.icon) : undefined,
-                    ownerId: String(typedGuild.ownerId),
-                    createdAt:
-                        typedGuild.createdAt instanceof Date
-                            ? typedGuild.createdAt
-                            : new Date(typedGuild.createdAt),
-                    updatedAt:
-                        typedGuild.updatedAt instanceof Date
-                            ? typedGuild.updatedAt
-                            : new Date(typedGuild.updatedAt),
-                }
-                return result
-            },
-            null,
-            'get_guild',
-        )
+        return this.executeWithFallback(async () => {
+            const typedGuild = await typedGuildFindUnique(this.prisma, {
+                where: { discordId },
+            })
+            if (!typedGuild) return null
+            const result: DatabaseGuild = {
+                id: String(typedGuild.id),
+                discordId: String(typedGuild.discordId),
+                name: String(typedGuild.name),
+                icon: typedGuild.icon ? String(typedGuild.icon) : undefined,
+                ownerId: String(typedGuild.ownerId),
+                createdAt:
+                    typedGuild.createdAt instanceof Date
+                        ? typedGuild.createdAt
+                        : new Date(typedGuild.createdAt),
+                updatedAt:
+                    typedGuild.updatedAt instanceof Date
+                        ? typedGuild.updatedAt
+                        : new Date(typedGuild.updatedAt),
+            }
+            return result
+        }, 'get_guild')
     }
 
     // Track history operations
@@ -441,23 +395,68 @@ export class DatabaseService {
         playedBy?: string
         isAutoplay?: boolean
     }): Promise<Result<DatabaseTrackHistory>> {
-        return this.executeWithFallback(
-            async () => {
-                const track = await typedTrackHistoryCreate(this.prisma, {
-                    data: {
-                        guild: { connect: { discordId: data.guildId } },
-                        trackId: data.trackId,
-                        title: data.title,
-                        author: data.author,
-                        duration: data.duration,
-                        url: data.url,
-                        thumbnail: data.thumbnail,
-                        source: data.source,
-                        playedBy: data.playedBy,
-                        isAutoplay: data.isAutoplay ?? false,
-                    },
-                })
-                const result: DatabaseTrackHistory = {
+        return this.executeWithFallback(async () => {
+            const track = await typedTrackHistoryCreate(this.prisma, {
+                data: {
+                    guild: { connect: { discordId: data.guildId } },
+                    trackId: data.trackId,
+                    title: data.title,
+                    author: data.author,
+                    duration: data.duration,
+                    url: data.url,
+                    thumbnail: data.thumbnail,
+                    source: data.source,
+                    playedBy: data.playedBy,
+                    isAutoplay: data.isAutoplay ?? false,
+                },
+            })
+            const result: DatabaseTrackHistory = {
+                id: String(track.id),
+                guildId: String(track.guildId),
+                trackId: String(track.trackId),
+                title: String(track.title),
+                author: String(track.author),
+                duration: String(track.duration),
+                url: String(track.url),
+                thumbnail: track.thumbnail,
+                source: String(track.source),
+                playedAt:
+                    track.playedAt instanceof Date
+                        ? track.playedAt
+                        : new Date(track.playedAt),
+                createdAt:
+                    track.createdAt instanceof Date
+                        ? track.createdAt
+                        : new Date(track.createdAt),
+                playedBy: track.playedBy ? String(track.playedBy) : null,
+                isAutoplay: Boolean(track.isAutoplay),
+                playlistName: track.playlistName,
+                playDuration: track.playDuration
+                    ? Number(track.playDuration)
+                    : null,
+                skipped: track.skipped !== null ? Boolean(track.skipped) : null,
+                isPlaylist:
+                    track.isPlaylist !== null
+                        ? Boolean(track.isPlaylist)
+                        : null,
+            }
+            return result
+        }, 'add_track_to_history')
+    }
+
+    /** Retrieves the most recently played tracks for a guild. */
+    async getTrackHistory(
+        guildId: string,
+        limit = 10,
+    ): Promise<Result<DatabaseTrackHistory[]>> {
+        return this.executeWithFallback(async () => {
+            const tracks = await typedTrackHistoryFindMany(this.prisma, {
+                where: { guild: { discordId: guildId } },
+                orderBy: { playedAt: 'desc' },
+                take: limit,
+            })
+            const results: DatabaseTrackHistory[] = tracks.map(
+                (track): DatabaseTrackHistory => ({
                     id: String(track.id),
                     guildId: String(track.guildId),
                     trackId: String(track.trackId),
@@ -487,86 +486,10 @@ export class DatabaseService {
                         track.isPlaylist !== null
                             ? Boolean(track.isPlaylist)
                             : null,
-                }
-                return result
-            },
-            {
-                id: '',
-                guildId: '',
-                trackId: '',
-                title: '',
-                author: '',
-                duration: '',
-                url: '',
-                thumbnail: null,
-                source: '',
-                playedAt: new Date(),
-                createdAt: new Date(),
-                playedBy: null,
-                isAutoplay: false,
-                playlistName: null,
-                playDuration: null,
-                skipped: false,
-                isPlaylist: false,
-            },
-            'add_track_to_history',
-        )
-    }
-
-    /** Retrieves the most recently played tracks for a guild. */
-    async getTrackHistory(
-        guildId: string,
-        limit = 10,
-    ): Promise<Result<DatabaseTrackHistory[]>> {
-        return this.executeWithFallback(
-            async () => {
-                const tracks = await typedTrackHistoryFindMany(this.prisma, {
-                    where: { guild: { discordId: guildId } },
-                    orderBy: { playedAt: 'desc' },
-                    take: limit,
-                })
-                const results: DatabaseTrackHistory[] = tracks.map(
-                    (track): DatabaseTrackHistory => ({
-                        id: String(track.id),
-                        guildId: String(track.guildId),
-                        trackId: String(track.trackId),
-                        title: String(track.title),
-                        author: String(track.author),
-                        duration: String(track.duration),
-                        url: String(track.url),
-                        thumbnail: track.thumbnail,
-                        source: String(track.source),
-                        playedAt:
-                            track.playedAt instanceof Date
-                                ? track.playedAt
-                                : new Date(track.playedAt),
-                        createdAt:
-                            track.createdAt instanceof Date
-                                ? track.createdAt
-                                : new Date(track.createdAt),
-                        playedBy: track.playedBy
-                            ? String(track.playedBy)
-                            : null,
-                        isAutoplay: Boolean(track.isAutoplay),
-                        playlistName: track.playlistName,
-                        playDuration: track.playDuration
-                            ? Number(track.playDuration)
-                            : null,
-                        skipped:
-                            track.skipped !== null
-                                ? Boolean(track.skipped)
-                                : null,
-                        isPlaylist:
-                            track.isPlaylist !== null
-                                ? Boolean(track.isPlaylist)
-                                : null,
-                    }),
-                )
-                return results
-            },
-            [],
-            'get_track_history',
-        )
+                }),
+            )
+            return results
+        }, 'get_track_history')
     }
 
     // Rate limiting
@@ -576,50 +499,46 @@ export class DatabaseService {
         limit: number,
         windowMs: number,
     ): Promise<Result<boolean>> {
-        return this.executeWithFallback(
-            async () => {
-                const now = new Date()
-                const resetAt = new Date(now.getTime() + windowMs)
+        return this.executeWithFallback(async () => {
+            const now = new Date()
+            const resetAt = new Date(now.getTime() + windowMs)
 
-                const existing = await typedRateLimitFindUnique(this.prisma, {
+            const existing = await typedRateLimitFindUnique(this.prisma, {
+                where: { key },
+            })
+
+            if (!existing) {
+                await this.prisma.rateLimit.upsert({
                     where: { key },
+                    update: { count: 1, resetAt },
+                    create: { key, count: 1, resetAt },
                 })
-
-                if (!existing) {
-                    await this.prisma.rateLimit.upsert({
-                        where: { key },
-                        update: { count: 1, resetAt },
-                        create: { key, count: 1, resetAt },
-                    })
-                    return true
-                }
-
-                const resetAtDate = existing.resetAt
-                if (resetAtDate < now) {
-                    await this.prisma.rateLimit.upsert({
-                        where: { key },
-                        update: { count: 1, resetAt },
-                        create: { key, count: 1, resetAt },
-                    })
-                    return true
-                }
-
-                const count = existing.count
-                if (count >= limit) {
-                    return false
-                }
-
-                // Increment count
-                await this.prisma.rateLimit.update({
-                    where: { key },
-                    data: { count: count + 1 },
-                })
-
                 return true
-            },
-            false,
-            'check_rate_limit',
-        )
+            }
+
+            const resetAtDate = existing.resetAt
+            if (resetAtDate < now) {
+                await this.prisma.rateLimit.upsert({
+                    where: { key },
+                    update: { count: 1, resetAt },
+                    create: { key, count: 1, resetAt },
+                })
+                return true
+            }
+
+            const count = existing.count
+            if (count >= limit) {
+                return false
+            }
+
+            // Increment count
+            await this.prisma.rateLimit.update({
+                where: { key },
+                data: { count: count + 1 },
+            })
+
+            return true
+        }, 'check_rate_limit')
     }
 
     // Analytics queries
@@ -628,49 +547,45 @@ export class DatabaseService {
         guildId: string,
         limit = 10,
     ): Promise<Result<DatabaseAnalytics[]>> {
-        return this.executeWithFallback(
-            async () => {
-                const tracksResult: unknown =
-                    await this.prisma.trackHistory.groupBy({
-                        by: ['trackId', 'title', 'author'],
-                        where: { guild: { discordId: guildId } },
-                        _count: { trackId: true },
-                        orderBy: { _count: { trackId: 'desc' } },
-                        take: limit,
-                    })
-                assertIsArray(tracksResult)
-                type TrackGroupByResult = {
-                    trackId: string
-                    title: string
-                    author: string
-                    _count: { trackId: number }
+        return this.executeWithFallback(async () => {
+            const tracksResult: unknown =
+                await this.prisma.trackHistory.groupBy({
+                    by: ['trackId', 'title', 'author'],
+                    where: { guild: { discordId: guildId } },
+                    _count: { trackId: true },
+                    orderBy: { _count: { trackId: 'desc' } },
+                    take: limit,
+                })
+            assertIsArray(tracksResult)
+            type TrackGroupByResult = {
+                trackId: string
+                title: string
+                author: string
+                _count: { trackId: number }
+            }
+            const typedTracks: TrackGroupByResult[] = []
+            for (const track of tracksResult) {
+                if (
+                    typeof track === 'object' &&
+                    track !== null &&
+                    'trackId' in track &&
+                    'title' in track &&
+                    'author' in track &&
+                    '_count' in track
+                ) {
+                    typedTracks.push(track as TrackGroupByResult)
                 }
-                const typedTracks: TrackGroupByResult[] = []
-                for (const track of tracksResult) {
-                    if (
-                        typeof track === 'object' &&
-                        track !== null &&
-                        'trackId' in track &&
-                        'title' in track &&
-                        'author' in track &&
-                        '_count' in track
-                    ) {
-                        typedTracks.push(track as TrackGroupByResult)
-                    }
-                }
-                const results: DatabaseAnalytics[] = typedTracks.map(
-                    (track): DatabaseAnalytics => ({
-                        trackId: String(track.trackId),
-                        title: String(track.title),
-                        author: String(track.author),
-                        playCount: Number(track._count.trackId),
-                    }),
-                )
-                return results
-            },
-            [],
-            'get_top_tracks',
-        )
+            }
+            const results: DatabaseAnalytics[] = typedTracks.map(
+                (track): DatabaseAnalytics => ({
+                    trackId: String(track.trackId),
+                    title: String(track.title),
+                    author: String(track.author),
+                    playCount: Number(track._count.trackId),
+                }),
+            )
+            return results
+        }, 'get_top_tracks')
     }
 
     /** Returns the most-played artists for a guild by play count. */
@@ -678,68 +593,60 @@ export class DatabaseService {
         guildId: string,
         limit = 10,
     ): Promise<Result<DatabaseArtistStats[]>> {
-        return this.executeWithFallback(
-            async () => {
-                const artistsResult: unknown =
-                    await this.prisma.trackHistory.groupBy({
-                        by: ['author'],
-                        where: { guild: { discordId: guildId } },
-                        _count: { author: true },
-                        orderBy: { _count: { author: 'desc' } },
-                        take: limit,
-                    })
-                assertIsArray(artistsResult)
-                type ArtistGroupByResult = {
-                    author: string
-                    _count: { author: number }
+        return this.executeWithFallback(async () => {
+            const artistsResult: unknown =
+                await this.prisma.trackHistory.groupBy({
+                    by: ['author'],
+                    where: { guild: { discordId: guildId } },
+                    _count: { author: true },
+                    orderBy: { _count: { author: 'desc' } },
+                    take: limit,
+                })
+            assertIsArray(artistsResult)
+            type ArtistGroupByResult = {
+                author: string
+                _count: { author: number }
+            }
+            const typedArtists: ArtistGroupByResult[] = []
+            for (const artist of artistsResult) {
+                if (
+                    typeof artist === 'object' &&
+                    artist !== null &&
+                    'author' in artist &&
+                    '_count' in artist
+                ) {
+                    typedArtists.push(artist as ArtistGroupByResult)
                 }
-                const typedArtists: ArtistGroupByResult[] = []
-                for (const artist of artistsResult) {
-                    if (
-                        typeof artist === 'object' &&
-                        artist !== null &&
-                        'author' in artist &&
-                        '_count' in artist
-                    ) {
-                        typedArtists.push(artist as ArtistGroupByResult)
-                    }
-                }
-                const results: DatabaseArtistStats[] = typedArtists.map(
-                    (artist): DatabaseArtistStats => ({
-                        author: String(artist.author),
-                        playCount: Number(artist._count.author),
-                    }),
-                )
-                return results
-            },
-            [],
-            'get_top_artists',
-        )
+            }
+            const results: DatabaseArtistStats[] = typedArtists.map(
+                (artist): DatabaseArtistStats => ({
+                    author: String(artist.author),
+                    playCount: Number(artist._count.author),
+                }),
+            )
+            return results
+        }, 'get_top_artists')
     }
 
     // Cleanup operations
     /** Deletes track history and expired rate limit records older than 30 days. */
     async cleanupOldData(): Promise<Result<number>> {
-        return this.executeWithFallback(
-            async () => {
-                const thirtyDaysAgo = new Date(
-                    Date.now() - 30 * 24 * 60 * 60 * 1000,
-                )
+        return this.executeWithFallback(async () => {
+            const thirtyDaysAgo = new Date(
+                Date.now() - 30 * 24 * 60 * 60 * 1000,
+            )
 
-                const [tracks, rateLimits] = await Promise.all([
-                    this.prisma.trackHistory.deleteMany({
-                        where: { playedAt: { lt: thirtyDaysAgo } },
-                    }),
-                    this.prisma.rateLimit.deleteMany({
-                        where: { resetAt: { lt: new Date() } },
-                    }),
-                ])
+            const [tracks, rateLimits] = await Promise.all([
+                this.prisma.trackHistory.deleteMany({
+                    where: { playedAt: { lt: thirtyDaysAgo } },
+                }),
+                this.prisma.rateLimit.deleteMany({
+                    where: { resetAt: { lt: new Date() } },
+                }),
+            ])
 
-                return tracks.count + rateLimits.count
-            },
-            0,
-            'cleanup_old_data',
-        )
+            return tracks.count + rateLimits.count
+        }, 'cleanup_old_data')
     }
 
     // Get Prisma client for direct access
