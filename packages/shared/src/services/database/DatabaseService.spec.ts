@@ -3,18 +3,18 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 const mockConnect = jest.fn<() => Promise<void>>()
 const mockDisconnect = jest.fn<() => Promise<void>>()
 const mockQueryRaw = jest.fn<() => Promise<unknown>>()
-const mockUserUpsert = jest.fn<() => Promise<any>>()
-const mockUserFindUnique = jest.fn<() => Promise<any>>()
-const mockGuildUpsert = jest.fn<() => Promise<any>>()
-const mockGuildFindUnique = jest.fn<() => Promise<any>>()
-const mockTrackHistoryCreate = jest.fn<() => Promise<any>>()
+const mockUserUpsert = jest.fn<(args?: any) => Promise<any>>()
+const mockUserFindUnique = jest.fn<(args?: any) => Promise<any>>()
+const mockGuildUpsert = jest.fn<(args?: any) => Promise<any>>()
+const mockGuildFindUnique = jest.fn<(args?: any) => Promise<any>>()
+const mockTrackHistoryCreate = jest.fn<(args?: any) => Promise<any>>()
 const mockTrackHistoryFindMany = jest.fn<(args?: any) => Promise<any>>()
 const mockTrackHistoryGroupBy = jest.fn<(args?: any) => Promise<any>>()
-const mockTrackHistoryDeleteMany = jest.fn<() => Promise<any>>()
-const mockRateLimitFindUnique = jest.fn<() => Promise<any>>()
-const mockRateLimitUpsert = jest.fn<() => Promise<any>>()
-const mockRateLimitUpdate = jest.fn<() => Promise<any>>()
-const mockRateLimitDeleteMany = jest.fn<() => Promise<any>>()
+const mockTrackHistoryDeleteMany = jest.fn<(args?: any) => Promise<any>>()
+const mockRateLimitFindUnique = jest.fn<(args?: any) => Promise<any>>()
+const mockRateLimitUpsert = jest.fn<(args?: any) => Promise<any>>()
+const mockRateLimitUpdate = jest.fn<(args?: any) => Promise<any>>()
+const mockRateLimitDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockGetPrismaClient = jest.fn<() => any>()
 
 jest.mock('../../utils/database/prismaClient', () => ({
@@ -27,6 +27,7 @@ jest.mock('../../utils/general/log', () => ({
 }))
 
 import { DatabaseService } from './DatabaseService'
+import { errorLog } from '../../utils/general/log'
 
 const TEST_CONFIG = {
     url: 'postgresql://user:pass@localhost:5432/test',
@@ -807,6 +808,577 @@ describe('DatabaseService', () => {
             expect(client).toBeDefined()
             expect(client.$connect).toBeDefined()
             expect(client.$disconnect).toBeDefined()
+        })
+    })
+
+    // Mutation-hardening (#1426): the tests above assert outcomes; these assert
+    // the exact query clauses, default values, validation guards, and error
+    // labels so mutants that blank a `where`/`data`/`orderBy`, flip a default,
+    // or weaken a type guard are KILLED rather than surviving silently.
+    describe('query-clause assertions (kill ObjectLiteral mutants)', () => {
+        const userRow = {
+            id: 'u1',
+            discordId: '123',
+            username: 'bob',
+            avatar: 'a.png',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        }
+        const guildRow = {
+            id: 'g1',
+            discordId: '777',
+            name: 'Guild',
+            icon: 'g.png',
+            ownerId: 'owner',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        }
+
+        it('createUser passes where/update/create clauses to upsert', async () => {
+            mockUserUpsert.mockResolvedValue(userRow)
+
+            await service.createUser('123', 'bob', 'a.png')
+
+            expect(mockUserUpsert).toHaveBeenCalledWith({
+                where: { discordId: '123' },
+                update: { username: 'bob', avatar: 'a.png' },
+                create: { discordId: '123', username: 'bob', avatar: 'a.png' },
+            })
+        })
+
+        it('getUser passes where clause to findUnique', async () => {
+            mockUserFindUnique.mockResolvedValue(userRow)
+
+            await service.getUser('123')
+
+            expect(mockUserFindUnique).toHaveBeenCalledWith({
+                where: { discordId: '123' },
+            })
+        })
+
+        it('createGuild passes where/update/create clauses to upsert', async () => {
+            mockGuildUpsert.mockResolvedValue(guildRow)
+
+            await service.createGuild('777', 'Guild', 'owner', 'g.png')
+
+            expect(mockGuildUpsert).toHaveBeenCalledWith({
+                where: { discordId: '777' },
+                update: { name: 'Guild', icon: 'g.png' },
+                create: {
+                    discordId: '777',
+                    name: 'Guild',
+                    ownerId: 'owner',
+                    icon: 'g.png',
+                },
+            })
+        })
+
+        it('getGuild passes where clause to findUnique', async () => {
+            mockGuildFindUnique.mockResolvedValue(guildRow)
+
+            await service.getGuild('777')
+
+            expect(mockGuildFindUnique).toHaveBeenCalledWith({
+                where: { discordId: '777' },
+            })
+        })
+
+        it('getTrackHistory passes where/orderBy/take to findMany', async () => {
+            mockTrackHistoryFindMany.mockResolvedValue([])
+
+            await service.getTrackHistory('777', 7)
+
+            expect(mockTrackHistoryFindMany).toHaveBeenCalledWith({
+                where: { guild: { discordId: '777' } },
+                orderBy: { playedAt: 'desc' },
+                take: 7,
+            })
+        })
+
+        it('getTopTracks passes by/where/_count/orderBy/take to groupBy', async () => {
+            mockTrackHistoryGroupBy.mockResolvedValue([])
+
+            await service.getTopTracks('777', 9)
+
+            expect(mockTrackHistoryGroupBy).toHaveBeenCalledWith({
+                by: ['trackId', 'title', 'author'],
+                where: { guild: { discordId: '777' } },
+                _count: { trackId: true },
+                orderBy: { _count: { trackId: 'desc' } },
+                take: 9,
+            })
+        })
+
+        it('getTopArtists passes by/where/_count/orderBy/take to groupBy', async () => {
+            mockTrackHistoryGroupBy.mockResolvedValue([])
+
+            await service.getTopArtists('777', 4)
+
+            expect(mockTrackHistoryGroupBy).toHaveBeenCalledWith({
+                by: ['author'],
+                where: { guild: { discordId: '777' } },
+                _count: { author: true },
+                orderBy: { _count: { author: 'desc' } },
+                take: 4,
+            })
+        })
+
+        it('cleanupOldData deletes by playedAt and resetAt cutoffs and sums counts', async () => {
+            mockTrackHistoryDeleteMany.mockResolvedValue({ count: 3 })
+            mockRateLimitDeleteMany.mockResolvedValue({ count: 2 })
+
+            const result = await service.cleanupOldData()
+
+            // 3 + 2 = 5 (kills the + -> - arithmetic mutant)
+            expect(result.getData()).toBe(5)
+            expect(mockTrackHistoryDeleteMany).toHaveBeenCalledWith({
+                where: { playedAt: { lt: expect.any(Date) } },
+            })
+            expect(mockRateLimitDeleteMany).toHaveBeenCalledWith({
+                where: { resetAt: { lt: expect.any(Date) } },
+            })
+        })
+    })
+
+    describe('default values (kill BooleanLiteral mutants)', () => {
+        const trackRow = {
+            id: 't1',
+            guildId: 'g1',
+            trackId: 'yt-1',
+            title: 'Song',
+            author: 'Artist',
+            duration: '3:00',
+            url: 'http://x',
+            thumbnail: null,
+            source: 'youtube',
+            playedAt: new Date(),
+            createdAt: new Date(),
+            playedBy: null,
+            isAutoplay: false,
+            playlistName: null,
+            playDuration: null,
+            skipped: null,
+            isPlaylist: null,
+        }
+        const baseTrack = {
+            guildId: 'g1',
+            trackId: 'yt-1',
+            title: 'Song',
+            author: 'Artist',
+            duration: '3:00',
+            url: 'http://x',
+            source: 'youtube',
+        }
+
+        it('defaults isAutoplay to false when omitted', async () => {
+            mockTrackHistoryCreate.mockResolvedValue(trackRow)
+
+            await service.addTrackToHistory(baseTrack)
+
+            expect(mockTrackHistoryCreate).toHaveBeenCalledWith({
+                data: expect.objectContaining({ isAutoplay: false }),
+            })
+        })
+
+        it('passes isAutoplay true through when provided', async () => {
+            mockTrackHistoryCreate.mockResolvedValue({
+                ...trackRow,
+                isAutoplay: true,
+            })
+
+            await service.addTrackToHistory({ ...baseTrack, isAutoplay: true })
+
+            expect(mockTrackHistoryCreate).toHaveBeenCalledWith({
+                data: expect.objectContaining({ isAutoplay: true }),
+            })
+        })
+
+        it('returns true (not the connect side effect) when already connected', async () => {
+            mockConnect.mockResolvedValue(undefined)
+            await service.connect()
+            mockConnect.mockClear()
+
+            const result = await service.connect()
+
+            expect(result.getData()).toBe(true)
+            expect(mockConnect).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('rate-limit branches (kill conditional/boundary mutants)', () => {
+        it('creates a fresh window when no record exists', async () => {
+            mockRateLimitFindUnique.mockResolvedValue(null)
+            mockRateLimitUpsert.mockResolvedValue({})
+
+            const result = await service.checkRateLimit('k', 5, 60000)
+
+            expect(result.getData()).toBe(true)
+            expect(mockRateLimitUpsert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { key: 'k' },
+                    update: expect.objectContaining({ count: 1 }),
+                    create: expect.objectContaining({ key: 'k', count: 1 }),
+                }),
+            )
+        })
+
+        it('resets the window when the existing record has expired', async () => {
+            mockRateLimitFindUnique.mockResolvedValue({
+                resetAt: new Date(Date.now() - 1000),
+                count: 99,
+            })
+            mockRateLimitUpsert.mockResolvedValue({})
+
+            const result = await service.checkRateLimit('k', 5, 60000)
+
+            expect(result.getData()).toBe(true)
+            expect(mockRateLimitUpsert).toHaveBeenCalled()
+        })
+
+        it('denies at the limit boundary (count === limit) without updating', async () => {
+            mockRateLimitFindUnique.mockResolvedValue({
+                resetAt: new Date(Date.now() + 60000),
+                count: 5,
+            })
+
+            const result = await service.checkRateLimit('k', 5, 60000)
+
+            expect(result.getData()).toBe(false)
+            expect(mockRateLimitUpdate).not.toHaveBeenCalled()
+        })
+
+        it('increments by one just under the limit (count === limit - 1)', async () => {
+            mockRateLimitFindUnique.mockResolvedValue({
+                resetAt: new Date(Date.now() + 60000),
+                count: 4,
+            })
+            mockRateLimitUpdate.mockResolvedValue({})
+
+            const result = await service.checkRateLimit('k', 5, 60000)
+
+            expect(result.getData()).toBe(true)
+            expect(mockRateLimitUpdate).toHaveBeenCalledWith({
+                where: { key: 'k' },
+                data: { count: 5 },
+            })
+        })
+    })
+
+    describe('validation guards (kill type-guard mutants)', () => {
+        it('createUser fails when upsert returns an object missing id', async () => {
+            mockUserUpsert.mockResolvedValue({ discordId: '123' })
+
+            const result = await service.createUser('123', 'bob')
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('createUser fails when upsert returns an object missing discordId', async () => {
+            mockUserUpsert.mockResolvedValue({ id: 'u1' })
+
+            const result = await service.createUser('123', 'bob')
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('createUser fails when upsert returns a non-object', async () => {
+            mockUserUpsert.mockResolvedValue('not-an-object')
+
+            const result = await service.createUser('123', 'bob')
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('getUser fails when findUnique returns an object missing discordId', async () => {
+            mockUserFindUnique.mockResolvedValue({ id: 'u1' })
+
+            const result = await service.getUser('123')
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('createGuild fails when upsert returns an object missing discordId', async () => {
+            mockGuildUpsert.mockResolvedValue({ id: 'g1' })
+
+            const result = await service.createGuild('777', 'G', 'owner')
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('addTrackToHistory fails when create returns an object missing trackId', async () => {
+            mockTrackHistoryCreate.mockResolvedValue({ id: 't1' })
+
+            const result = await service.addTrackToHistory({
+                guildId: 'g1',
+                trackId: 'yt-1',
+                title: 'S',
+                author: 'A',
+                duration: '1',
+                url: 'u',
+                source: 'youtube',
+            })
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('getTrackHistory fails when findMany returns a non-array', async () => {
+            mockTrackHistoryFindMany.mockResolvedValue({ not: 'array' })
+
+            const result = await service.getTrackHistory('777')
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('checkRateLimit fails when the record is missing resetAt', async () => {
+            mockRateLimitFindUnique.mockResolvedValue({ count: 3 })
+
+            const result = await service.checkRateLimit('k', 5, 60000)
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('checkRateLimit fails when resetAt is not a Date', async () => {
+            mockRateLimitFindUnique.mockResolvedValue({
+                resetAt: 'soon',
+                count: 3,
+            })
+
+            const result = await service.checkRateLimit('k', 5, 60000)
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('checkRateLimit fails when count is not a number', async () => {
+            mockRateLimitFindUnique.mockResolvedValue({
+                resetAt: new Date(Date.now() + 60000),
+                count: 'three',
+            })
+
+            const result = await service.checkRateLimit('k', 5, 60000)
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('getTopTracks filters out malformed group rows', async () => {
+            mockTrackHistoryGroupBy.mockResolvedValue([
+                {
+                    trackId: 't1',
+                    title: 'S',
+                    author: 'A',
+                    _count: { trackId: 5 },
+                },
+                { trackId: 't2' }, // malformed: missing title/author/_count
+            ])
+
+            const result = await service.getTopTracks('777')
+
+            expect(result.getData()).toHaveLength(1)
+        })
+    })
+
+    describe('error labels (kill operation-name StringLiteral mutants)', () => {
+        it('logs the create_user label on failure', async () => {
+            mockUserUpsert.mockRejectedValue(new Error('boom'))
+
+            await service.createUser('123', 'bob')
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({ message: 'create_user failed' }),
+            )
+        })
+
+        it('logs the get_top_tracks label on failure', async () => {
+            mockTrackHistoryGroupBy.mockRejectedValue(new Error('boom'))
+
+            await service.getTopTracks('777')
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({ message: 'get_top_tracks failed' }),
+            )
+        })
+
+        it('logs the cleanup_old_data label on failure', async () => {
+            mockTrackHistoryDeleteMany.mockRejectedValue(new Error('boom'))
+            mockRateLimitDeleteMany.mockResolvedValue({ count: 0 })
+
+            await service.cleanupOldData()
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({ message: 'cleanup_old_data failed' }),
+            )
+        })
+
+        it('logs the database_connect label on failure', async () => {
+            mockConnect.mockRejectedValue(new Error('boom'))
+
+            await service.connect()
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({ message: 'database_connect failed' }),
+            )
+        })
+
+        it('logs the database_disconnect label on failure', async () => {
+            mockConnect.mockResolvedValue(undefined)
+            await service.connect()
+            mockDisconnect.mockRejectedValue(new Error('boom'))
+
+            await service.disconnect()
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'database_disconnect failed',
+                }),
+            )
+        })
+
+        it('logs the database_health_check label on failure', async () => {
+            mockConnect.mockResolvedValue(undefined)
+            await service.connect()
+            mockQueryRaw.mockRejectedValue(new Error('boom'))
+
+            await service.isHealthy()
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'database_health_check failed',
+                }),
+            )
+        })
+
+        it('logs the get_user label on failure', async () => {
+            mockUserFindUnique.mockRejectedValue(new Error('boom'))
+
+            await service.getUser('123')
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({ message: 'get_user failed' }),
+            )
+        })
+
+        it('logs the create_guild label on failure', async () => {
+            mockGuildUpsert.mockRejectedValue(new Error('boom'))
+
+            await service.createGuild('777', 'G', 'owner')
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({ message: 'create_guild failed' }),
+            )
+        })
+
+        it('logs the get_guild label on failure', async () => {
+            mockGuildFindUnique.mockRejectedValue(new Error('boom'))
+
+            await service.getGuild('777')
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({ message: 'get_guild failed' }),
+            )
+        })
+
+        it('logs the add_track_to_history label on failure', async () => {
+            mockTrackHistoryCreate.mockRejectedValue(new Error('boom'))
+
+            await service.addTrackToHistory({
+                guildId: 'g1',
+                trackId: 'yt-1',
+                title: 'S',
+                author: 'A',
+                duration: '1',
+                url: 'u',
+                source: 'youtube',
+            })
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'add_track_to_history failed',
+                }),
+            )
+        })
+
+        it('logs the get_track_history label on failure', async () => {
+            mockTrackHistoryFindMany.mockRejectedValue(new Error('boom'))
+
+            await service.getTrackHistory('777')
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'get_track_history failed',
+                }),
+            )
+        })
+
+        it('logs the check_rate_limit label on failure', async () => {
+            mockRateLimitFindUnique.mockRejectedValue(new Error('boom'))
+
+            await service.checkRateLimit('k', 5, 60000)
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({ message: 'check_rate_limit failed' }),
+            )
+        })
+
+        it('logs the get_top_artists label on failure', async () => {
+            mockTrackHistoryGroupBy.mockRejectedValue(new Error('boom'))
+
+            await service.getTopArtists('777')
+
+            expect(jest.mocked(errorLog)).toHaveBeenCalledWith(
+                expect.objectContaining({ message: 'get_top_artists failed' }),
+            )
+        })
+    })
+
+    describe('more malformed inputs (kill remaining guard mutants)', () => {
+        it('getUser fails when findUnique returns a non-object', async () => {
+            mockUserFindUnique.mockResolvedValue(42)
+
+            const result = await service.getUser('123')
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('createGuild fails when upsert returns a non-object', async () => {
+            mockGuildUpsert.mockResolvedValue('nope')
+
+            const result = await service.createGuild('777', 'G', 'owner')
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('createGuild fails when upsert returns an object missing id', async () => {
+            mockGuildUpsert.mockResolvedValue({ discordId: '777' })
+
+            const result = await service.createGuild('777', 'G', 'owner')
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('addTrackToHistory fails when create returns a non-object', async () => {
+            mockTrackHistoryCreate.mockResolvedValue(null)
+
+            const result = await service.addTrackToHistory({
+                guildId: 'g1',
+                trackId: 'yt-1',
+                title: 'S',
+                author: 'A',
+                duration: '1',
+                url: 'u',
+                source: 'youtube',
+            })
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('getTopArtists filters out malformed group rows', async () => {
+            mockTrackHistoryGroupBy.mockResolvedValue([
+                { author: 'A', _count: { author: 3 } },
+                { author: 'B' }, // malformed: missing _count
+            ])
+
+            const result = await service.getTopArtists('777')
+
+            expect(result.getData()).toHaveLength(1)
         })
     })
 })
