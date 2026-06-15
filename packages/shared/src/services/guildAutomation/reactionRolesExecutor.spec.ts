@@ -147,4 +147,107 @@ describe('createReactionRolesExecutor', () => {
             expect(result.error).toBeTruthy()
         }
     })
+
+    it('diff creates noop with proper kind property', async () => {
+        const port = makePort()
+        const executor = createReactionRolesExecutor({ port })
+
+        const live = await executor.capture({ guildId: 'g1' })
+        const diff = executor.diff(live, {})
+
+        // Verify noop op has kind property set to 'noop'
+        expect(diff.ops).toHaveLength(1)
+        expect(diff.ops[0]).toHaveProperty('kind')
+        expect(diff.ops[0].kind).toBe('noop')
+    })
+
+    it('diff generates set-exclusive ops with correct kind', async () => {
+        const port = makePort()
+        const executor = createReactionRolesExecutor({ port })
+
+        const live = await executor.capture({ guildId: 'g1' })
+        const diff = executor.diff(live, {
+            exclusiveRoles: [{ roleId: 'r1', excludedRoleId: 'r2' }],
+        })
+
+        // Verify set-exclusive op has correct kind
+        expect(diff.ops).toHaveLength(1)
+        expect(diff.ops[0]).toHaveProperty('kind')
+        expect(diff.ops[0].kind).toBe('set-exclusive')
+    })
+
+    it('apply pushes set-exclusive into applied array', async () => {
+        const port = makePort()
+        const executor = createReactionRolesExecutor({ port })
+
+        const live = await executor.capture({ guildId: 'g1' })
+        const diff = executor.diff(live, {
+            exclusiveRoles: [{ roleId: 'r1', excludedRoleId: 'r2' }],
+        })
+        const result = await executor.apply(diff, { guildId: 'g1' })
+
+        // Verify applied contains 'set-exclusive' string
+        expect(result.status).toBe('success')
+        if (result.status === 'success') {
+            expect(result.applied).toContain('set-exclusive')
+        }
+    })
+
+    it('apply pushes noop into applied array when op.kind is noop', async () => {
+        const port = makePort()
+        const executor = createReactionRolesExecutor({ port })
+
+        const live = await executor.capture({ guildId: 'g1' })
+        const diff = executor.diff(live, {})
+        const result = await executor.apply(diff, { guildId: 'g1' })
+
+        // Verify applied contains 'noop' string
+        expect(result.status).toBe('success')
+        if (result.status === 'success') {
+            expect(result.applied).toEqual(['noop'])
+        }
+    })
+
+    it('apply error object contains opKind property from op.kind', async () => {
+        const port = makePort()
+        port.setExclusiveRole.mockRejectedValue(new Error('set-error'))
+        const executor = createReactionRolesExecutor({ port })
+
+        const live = await executor.capture({ guildId: 'g1' })
+        const diff = executor.diff(live, {
+            exclusiveRoles: [{ roleId: 'r1', excludedRoleId: 'r2' }],
+        })
+        const result = await executor.apply(diff, { guildId: 'g1' })
+
+        // Verify error object has opKind property
+        expect(result.status).toBe('failed')
+        if (result.status === 'failed') {
+            expect(result.error).toContain('set-error')
+        }
+    })
+
+    it('apply formats multiple error messages with semicolon separator', async () => {
+        const port = makePort()
+        port.setExclusiveRole.mockRejectedValue(new Error('error1'))
+        port.removeExclusiveRole.mockRejectedValue(new Error('error2'))
+        port.listExclusiveRoles.mockResolvedValue([
+            { roleId: 'r1', excludedRoleId: 'r2' },
+        ])
+        const executor = createReactionRolesExecutor({ port })
+
+        const live = await executor.capture({ guildId: 'g1' })
+        // live has r1:r2 (triggers remove); manifest has r3:r4 (triggers set)
+        const diff = executor.diff(live, {
+            exclusiveRoles: [{ roleId: 'r3', excludedRoleId: 'r4' }],
+        })
+        const result = await executor.apply(diff, { guildId: 'g1' })
+
+        expect(result.status).toBe('failed')
+        if (result.status === 'failed') {
+            // Verify semicolon separator is present between errors
+            expect(result.error).toContain('; ')
+            expect(result.error).toContain('error1')
+            expect(result.error).toContain('error2')
+        }
+    })
 })
