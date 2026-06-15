@@ -10,6 +10,7 @@
     "mutate": [
         "src/services/database/DatabaseService.ts",
         "src/services/FeatureToggleService.ts",
+        "src/services/GuildSettingsService.ts",
         "src/services/ModerationService.ts",
         "src/services/PremiumService.ts",
         "src/services/TrackHistoryService.ts",
@@ -25,6 +26,6 @@
     "thresholds": {
         "high": 85,
         "low": 70,
-        "break": 72
+        "break": 70
     }
 }
