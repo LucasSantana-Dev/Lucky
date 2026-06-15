@@ -16,7 +16,13 @@
         "src/services/recommendationTelemetryReadService.ts",
         "src/services/SupportReportService.ts",
         "src/services/TrackHistoryService.ts",
-        "src/services/embedValidation.ts"
+        "src/services/embedValidation.ts",
+        "src/services/EmbedBuilderService.ts",
+        "src/services/guildAutomation/diff.ts",
+        "src/services/guildAutomation/autoMessagesExecutor.ts",
+        "src/services/guildAutomation/moderationExecutor.ts",
+        "src/services/guildAutomation/reactionRolesExecutor.ts",
+        "src/services/twitch/TwitchControlService.ts"
     ],
     "reporters": ["html", "clear-text", "progress"],
     "timeoutMS": 15000,
@@ -29,6 +35,6 @@
     "thresholds": {
         "high": 85,
         "low": 70,
-        "break": 77
+        "break": 82
     }
 }
