@@ -1,11 +1,4 @@
-import {
-    describe,
-    expect,
-    it,
-    jest,
-    beforeEach,
-    afterEach,
-} from '@jest/globals'
+import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 
 jest.mock('../../utils/general/log.js', () => ({
     debugLog: jest.fn(),

@@ -312,7 +312,6 @@ describe('GuildAutomationOrchestrator.createApplyRun', () => {
     })
 
     it('defaults runType to apply when not provided', async () => {
-        const { repo, mocks: repositoryMocks } = makeRepository()
         const createPlanSpy = jest.spyOn(orchestrator, 'createPlan' as any)
         createPlanSpy.mockResolvedValue({
             runId: 'run-1',
@@ -1015,7 +1014,7 @@ describe('GuildAutomationOrchestrator.runCutover', () => {
             manifestId: 'manifest-1',
         })
 
-        const result = await orchestrator.runCutover('guild-1', {
+        await orchestrator.runCutover('guild-1', {
             completeChecklist: true,
         })
 
