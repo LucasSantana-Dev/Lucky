@@ -45,6 +45,19 @@ describe('validateBody', () => {
         expect(next).toHaveBeenCalled()
         expect(req.body).toEqual({ name: 'ok' })
     })
+
+    test('joins a nested error path with dots', () => {
+        // A 2-segment path is the only way to tell `path.join('.')` apart
+        // from `join('')`; it also pins the error-mapping callback (field +
+        // message) against null-object / undefined-return mutants.
+        const nested = z.object({ user: z.object({ name: z.string() }) })
+        const { req, res, next } = setup({ user: {} }, 'body')
+        validateBody(nested)(req, res, next)
+        const body = res.json.mock.calls[0][0]
+        expect(body.errors[0].field).toBe('user.name')
+        expect(typeof body.errors[0].message).toBe('string')
+        expect(next).not.toHaveBeenCalled()
+    })
 })
 
 describe('validateQuery', () => {
@@ -62,6 +75,14 @@ describe('validateQuery', () => {
         const { req, res, next } = setup({ limit: 'abc' }, 'query')
         validateQuery(schema)(req, res, next)
         expect(res.status).toHaveBeenCalledWith(400)
+        // Assert the error body, not just the status — pins the 400 JSON
+        // payload (`{ error, errors }`) against empty-object / empty-string
+        // mutants on the response and the error-mapping callback.
+        const body = res.json.mock.calls[0][0]
+        expect(body.error).toBe('Validation failed')
+        expect(Array.isArray(body.errors)).toBe(true)
+        expect(body.errors[0]).toHaveProperty('field')
+        expect(body.errors[0]).toHaveProperty('message')
         expect(next).not.toHaveBeenCalled()
     })
 
@@ -72,7 +93,10 @@ describe('validateQuery', () => {
     })
 
     test('should strip unknown query fields', () => {
-        const { req, res, next } = setup({ limit: '20', extra: 'ignored' }, 'query')
+        const { req, res, next } = setup(
+            { limit: '20', extra: 'ignored' },
+            'query',
+        )
         validateQuery(schema)(req, res, next)
         expect(next).toHaveBeenCalled()
         expect(req.query).toEqual({ limit: '20' })
@@ -83,6 +107,16 @@ describe('validateQuery', () => {
         validateQuery(schema)(req, res, next)
         expect(next).toHaveBeenCalled()
         expect(req.query).toEqual({})
+    })
+
+    test('joins a nested error path with dots', () => {
+        const nested = z.object({ page: z.object({ size: z.string() }) })
+        const { req, res, next } = setup({ page: {} }, 'query')
+        validateQuery(nested)(req, res, next)
+        const body = res.json.mock.calls[0][0]
+        expect(body.errors[0].field).toBe('page.size')
+        expect(typeof body.errors[0].message).toBe('string')
+        expect(next).not.toHaveBeenCalled()
     })
 })
 
@@ -138,5 +172,15 @@ describe('validateParams', () => {
         validateParams(schema)(req, res, next)
         expect(next).toHaveBeenCalled()
         expect(req.params).toEqual({ guildId: '123456789012345678' })
+    })
+
+    test('joins a nested error path with dots', () => {
+        const nested = z.object({ scope: z.object({ id: z.string() }) })
+        const { req, res, next } = setup({ scope: {} }, 'params')
+        validateParams(nested)(req, res, next)
+        const body = res.json.mock.calls[0][0]
+        expect(body.errors[0].field).toBe('scope.id')
+        expect(typeof body.errors[0].message).toBe('string')
+        expect(next).not.toHaveBeenCalled()
     })
 })
