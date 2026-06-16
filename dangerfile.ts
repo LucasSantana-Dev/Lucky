@@ -84,16 +84,45 @@ if (
 }
 
 // --- 4. Lockfile guard ------------------------------------------------------
-// package.json without package-lock.json (or vice versa) usually means
-// someone forgot to commit one half of a dependency change.
-const packageJsonChanged = modified.some((p) => /(^|\/)package\.json$/.test(p))
+// A package.json *dependency* change without a matching package-lock.json
+// update usually means someone forgot to commit the resolved lockfile.
+// Narrowed to fire ONLY when a dependency-bearing field actually changed:
+// a script-/metadata-only edit (e.g. adding an npm script, bumping a private
+// `version`) needs no lockfile churn and must not fail (false-positive on
+// PR #1455, #1458). JSONDiffForFile keys only on CHANGED top-level fields —
+// a field is absent from the diff when it didn't change.
+const DEP_FIELDS = [
+    'dependencies',
+    'devDependencies',
+    'optionalDependencies',
+    'peerDependencies',
+    'overrides',
+] as const
 // Cover both modified and newly-created lockfiles (first-time npm install case).
 const lockChanged = all.some((p) => p === 'package-lock.json')
-if (packageJsonChanged && !lockChanged) {
-    fail(
-        `**\`package.json\` changed but \`package-lock.json\` did not.** ` +
-            `Run \`npm install\` and commit the lockfile.`,
-    )
+const changedPackageJsons = all.filter((p) => /(^|\/)package\.json$/.test(p))
+
+async function checkLockfileGuard(): Promise<void> {
+    if (changedPackageJsons.length === 0 || lockChanged) return
+    for (const path of changedPackageJsons) {
+        let depFieldChanged = false
+        try {
+            const diff = await danger.git.JSONDiffForFile(path)
+            // A dependency field appears in the diff only when it changed.
+            depFieldChanged = DEP_FIELDS.some((f) => Boolean(diff?.[f]))
+        } catch {
+            // If the diff can't be computed (e.g. malformed JSON), fall back
+            // to the conservative guard rather than silently passing.
+            depFieldChanged = true
+        }
+        if (depFieldChanged) {
+            fail(
+                `**\`${path}\` changed a dependency field but \`package-lock.json\` did not.** ` +
+                    `Run \`npm install\` and commit the lockfile.`,
+            )
+            return
+        }
+    }
 }
 
 // --- 5. .env protection -----------------------------------------------------
@@ -201,7 +230,11 @@ async function runAsyncChecks(): Promise<void> {
         )
     }
 
-    await Promise.all([checkConsoleLogs(), checkLargeFiles()])
+    await Promise.all([
+        checkConsoleLogs(),
+        checkLargeFiles(),
+        checkLockfileGuard(),
+    ])
 }
 
 // Hand the async work to Danger's scheduler. Danger awaits any promises
