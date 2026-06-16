@@ -19,6 +19,9 @@ export const withTimeout = async <T>(
     try {
         return await Promise.race([promise, timeout])
     } finally {
-        if (timer) clearTimeout(timer)
+        // `timer` is always assigned: the Promise executor above runs
+        // synchronously during construction, before this finally can run.
+        // clearTimeout tolerates undefined regardless, so no guard is needed.
+        clearTimeout(timer)
     }
 }
