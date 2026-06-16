@@ -27,8 +27,22 @@ jest.mock('./sessionSnapshots', () => ({
 
 import { restoreSessionsOnStartup } from './sessionStartupRestore'
 
-function clientWith(guildId: string, channelVoice = true): CustomClient {
-    const channel = { isVoiceBased: () => channelVoice }
+function clientWith(
+    guildId: string,
+    channelVoice = true,
+    humanCount = 1,
+): CustomClient {
+    // Minimal stand-in for a discord.js Collection of voice members: filter()
+    // returns an object exposing `.size`, which is all the guard inspects.
+    const members = {
+        filter: (predicate: (m: { user: { bot: boolean } }) => boolean) => {
+            const humans = Array.from({ length: humanCount }, () => ({
+                user: { bot: false },
+            })).filter(predicate)
+            return { size: humans.length }
+        },
+    }
+    const channel = { isVoiceBased: () => channelVoice, members }
     const guild = { channels: { cache: { get: () => channel } } }
     const queue = { connection: null, connect: jest.fn(async () => undefined) }
     return {
@@ -76,6 +90,17 @@ describe('restoreSessionsOnStartup', () => {
 
         await restoreSessionsOnStartup(clientWith('g1'))
         expect(restoreSnapshotMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('skips restore when no humans are in the saved channel', async () => {
+        listGuildIdsMock.mockResolvedValue(['g1'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-1',
+        })
+
+        await restoreSessionsOnStartup(clientWith('g1', true, 0))
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
     })
 
     it('deletes a stale snapshot instead of restoring', async () => {
