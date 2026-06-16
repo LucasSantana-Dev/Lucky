@@ -1,7 +1,43 @@
 # YouTube extraction reliability: po_token on the existing extractor, gated on a homelab verification test
 
-- Status: deferred (direction decided; commit gated on a homelab verification test)
+- Status: superseded by verification (2026-06-16) — po_token NOT needed; root
+  cause was extractor-registration timing. See "Update" below.
 - Date: 2026-06-16
+
+## Update (2026-06-16) — verification gate run, decision reversed
+
+The user authorized running the gate. Tested from the home network's residential
+egress IP (the same public IP the homelab uses), with the installed
+`discord-player-youtubei@3.0.0-beta.4` / `youtubei.js@17.0.1`:
+
+- Raw `youtubei.js` `getBasicInfo` with full player retrieval → `playability: OK`,
+  **26 streaming formats**, no po_token.
+- The extractor's own path (`discord-player-youtubei` registered on a real
+  `discord.js` Client then `Player`, exactly as the bot does), **no po_token**:
+  standard `watch?v=` URL → 1 track + stream OK; `youtu.be` short URL → 1 track +
+  stream OK; plain-text search → 19 tracks + stream OK.
+
+**Conclusion: the IP is not bot-detection-blocked and po_token is not needed.** The
+po_token plan below is therefore **not adopted** (it would add a per-video refresh
+daemon fixing nothing). The decision-critic's instinct to gate on the unverified
+"generator works on this IP" claim was correct — the gate killed the option before
+any code shipped.
+
+**Actual root cause (`playerFactory.ts`):** YouTube extractor registration is
+fire-and-forget and was sequenced **behind** an awaited, un-timed
+`play-dl.getFreeClientID()` network call (play-dl is unmaintained), and any
+registration failure was swallowed by `warnLog`. So a slow/hung play-dl init or a
+transient registration failure — likely right after the ~17:00 restart that also
+caused the auto-join (#1467) — left the bot with no YouTube extractor, and every
+`#play <url>` returned "No results found" until restart.
+
+**New decision (adopted, shipped):** harden registration — register YouTube before
+the play-dl init, bound the play-dl call with a timeout, retry youtubei
+registration, and escalate a final failure to `errorLog` so the degraded state is
+visible. See #1468 / the fix PR. The po_token analysis below is retained for the
+record and as the contingency if a real IP block ever appears.
+
+---
 
 ## Context
 

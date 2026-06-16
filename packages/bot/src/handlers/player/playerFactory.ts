@@ -11,6 +11,7 @@ import * as playdl from 'play-dl'
 import type { CustomClient } from '../../types'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { createResilientStream } from './streamBridge'
+import { withTimeout } from './withTimeout'
 
 type CreatePlayerParams = {
     client: CustomClient
@@ -49,11 +50,19 @@ const registerExtractorsInOrder = async (player: Player): Promise<void> => {
     // 1. Spotify — first priority for searches and Spotify URLs
     await registerSpotifyExtractor(player)
 
-    // 2. YouTube — via resilient yt-dlp bridge
-    await initPlayDlSoundCloud()
+    // 2. YouTube — register BEFORE the play-dl SoundCloud init. play-dl is
+    //    unmaintained and getFreeClientID() is a network call; sequencing it
+    //    ahead of YouTube meant a slow/hanging play-dl call delayed YouTube
+    //    registration, leaving #play of YouTube URLs returning "No results
+    //    found" until the call resolved (#1468). Extractor priority is
+    //    unchanged (Spotify → YouTube → SoundCloud …).
     await loadYoutubeExtractor(player)
 
-    // 3. SoundCloud, Apple Music, Vimeo, Attachments
+    // 3. play-dl SoundCloud client id — used only at stream time by the bridge;
+    //    bounded so a hang cannot stall the remaining registrations.
+    await initPlayDlSoundCloud()
+
+    // 4. SoundCloud, Apple Music, Vimeo, Attachments
     await registerRemainingExtractors(player)
 }
 
@@ -109,7 +118,11 @@ const registerRemainingExtractors = async (player: Player): Promise<void> => {
 
 const initPlayDlSoundCloud = async (): Promise<void> => {
     try {
-        const clientId = await playdl.getFreeClientID()
+        const clientId = await withTimeout(
+            playdl.getFreeClientID(),
+            10_000,
+            'play-dl getFreeClientID',
+        )
         await playdl.setToken({ soundcloud: { client_id: clientId } })
         infoLog({ message: 'play-dl: SoundCloud client ID initialized' })
     } catch (error) {
@@ -126,45 +139,71 @@ type YoutubeExtractorModule = {
     YoutubeiExtractor?: typeof BaseExtractor<object>
 }
 
+const YOUTUBE_REGISTER_ATTEMPTS = 2
+
 const loadYoutubeExtractor = async (player: Player): Promise<void> => {
-    try {
-        const mod = (await import(
-            'discord-player-youtubei'
-        )) as YoutubeExtractorModule
+    // Retry: a transient import/activation failure here used to be swallowed,
+    // leaving the bot with NO YouTube extractor until the next restart — every
+    // #play of a YouTube URL then returns "No results found" (#1468).
+    for (let attempt = 1; attempt <= YOUTUBE_REGISTER_ATTEMPTS; attempt++) {
+        try {
+            const mod =
+                (await import('discord-player-youtubei')) as YoutubeExtractorModule
 
-        // v3 renamed YoutubeiExtractor → YoutubeExtractor
-        const YoutubeExtractor = mod.YoutubeExtractor ?? mod.YoutubeiExtractor
-        if (!YoutubeExtractor) {
+            // v3 renamed YoutubeiExtractor → YoutubeExtractor
+            const YoutubeExtractor =
+                mod.YoutubeExtractor ?? mod.YoutubeiExtractor
+            if (!YoutubeExtractor) {
+                warnLog({
+                    message:
+                        'discord-player-youtubei: no extractor export found — skipping YouTube extractor',
+                })
+                return
+            }
+
+            const registered = await player.extractors.register(
+                YoutubeExtractor,
+                { createStream: createResilientStream },
+            )
+
+            if (registered) {
+                infoLog({
+                    message:
+                        'Registered YoutubeExtractor (SoundCloud bridge + YouTube fallback)',
+                })
+                return
+            }
+
             warnLog({
-                message:
-                    'discord-player-youtubei: no extractor export found — skipping YouTube extractor',
+                message: `YoutubeExtractor registration returned null (attempt ${attempt}/${YOUTUBE_REGISTER_ATTEMPTS})`,
             })
-            return
+        } catch (error) {
+            warnLog({
+                message: `YouTube extractor registration failed (attempt ${attempt}/${YOUTUBE_REGISTER_ATTEMPTS})`,
+                error,
+            })
         }
 
-        const registered = await player.extractors.register(YoutubeExtractor, {
-            createStream: createResilientStream,
-        })
-
-        if (!registered) {
-            warnLog({
-                message:
-                    'YoutubeExtractor registration returned null — activation may have failed',
-            })
-            return
+        if (attempt < YOUTUBE_REGISTER_ATTEMPTS) {
+            await new Promise((resolve) => setTimeout(resolve, 1_000))
         }
-
-        infoLog({
-            message:
-                'Registered YoutubeExtractor (SoundCloud bridge + YouTube fallback)',
-        })
-    } catch (error) {
-        warnLog({
-            message: 'YouTube extractor unavailable. Using SoundCloud/Spotify.',
-            error,
-        })
     }
+
+    // Escalate to errorLog (not warn): the bot is now running degraded and
+    // YouTube playback will fail until restart — this must be visible.
+    errorLog({
+        message:
+            'YouTube extractor unavailable after retries — #play of YouTube URLs will fail until restart. Falling back to SoundCloud/Spotify only.',
+    })
 }
 
-export { streamViaYtDlp, streamViaYtDlpSearch, createResilientStream } from './streamBridge'
-export { streamViaSoundCloud, findMatchingSoundCloudResult, parseDurationString } from './soundcloudMatcher'
+export {
+    streamViaYtDlp,
+    streamViaYtDlpSearch,
+    createResilientStream,
+} from './streamBridge'
+export {
+    streamViaSoundCloud,
+    findMatchingSoundCloudResult,
+    parseDurationString,
+} from './soundcloudMatcher'
