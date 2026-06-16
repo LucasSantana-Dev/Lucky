@@ -69,6 +69,20 @@ describe('requestId middleware', () => {
         expect(res.headers['X-Request-Id']).toBe(req.requestId)
     })
 
+    test('honours an inbound header of exactly 64 chars (upper boundary)', () => {
+        // The boundary itself must be accepted: 64 is valid, 65 is not.
+        // Pins the `{1,64}` quantifier so a `{1,63}` mutant cannot survive.
+        const id = 'a'.repeat(64)
+        const req = createReq(id)
+        const res = createRes()
+        const next = jest.fn()
+
+        requestId(req, res, next)
+
+        expect(req.requestId).toBe(id)
+        expect(res.headers['X-Request-Id']).toBe(id)
+    })
+
     test('mints a fresh id when the inbound header is empty', () => {
         const req = createReq('')
         const res = createRes()
