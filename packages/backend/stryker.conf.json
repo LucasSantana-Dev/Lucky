@@ -3,14 +3,14 @@
     "version": "7",
     "testRunner": "jest",
     "jest": {
-        "config": {
-            "configFile": "./jest.config.cjs"
-        }
+        "projectType": "custom",
+        "configFile": "./jest.mutation.cjs"
     },
     "mutate": [
         "src/utils/oauthRedirectUri.ts",
         "src/utils/frontendOrigin.ts",
         "src/utils/prismaErrors.ts",
+        "src/utils/authHealth.ts",
         "src/middleware/requestId.ts",
         "src/middleware/validate.ts",
         "src/middleware/errorHandler.ts"
