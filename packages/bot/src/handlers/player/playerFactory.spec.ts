@@ -1,6 +1,32 @@
 import { describe, it, expect } from '@jest/globals'
+import { withTimeout } from './withTimeout'
 
 describe('playerFactory', () => {
+    describe('withTimeout', () => {
+        it('resolves with the value when the promise wins', async () => {
+            await expect(
+                withTimeout(Promise.resolve('ok'), 1_000, 'fast'),
+            ).resolves.toBe('ok')
+        })
+
+        it('rejects with a labelled error when the timeout wins', async () => {
+            const slow = new Promise((resolve) => setTimeout(resolve, 50))
+            await expect(withTimeout(slow, 5, 'slow-op')).rejects.toThrow(
+                'slow-op timed out after 5ms',
+            )
+        })
+
+        it('propagates the underlying rejection unchanged', async () => {
+            await expect(
+                withTimeout(
+                    Promise.reject(new Error('boom')),
+                    1_000,
+                    'failing',
+                ),
+            ).rejects.toThrow('boom')
+        })
+    })
+
     describe('createPlayer', () => {
         it('should identify YouTube URLs correctly', () => {
             const isYouTubeUrl = (url: string): boolean =>
