@@ -28,10 +28,23 @@ showed the errors but there was no queryable INFO trail to reconstruct the seque
 
 Constraints specific to this stack:
 
-- **Disk-constrained homelab** (internal disk near capacity; bulk data must live on
-  attached storage). High-volume logs on the box are a real risk.
-- **Single operator** — low tolerance for ops-heavy infra; a broken log store must
-  not take down the bot.
+- **Logs must stay on the homelab and always be available** (operator requirement,
+  2026-06-16). The store is a permanent, always-running homelab service — not the
+  current ephemeral `json-file` rotation (10 MB × 3 ≈ last 30 MB/container, then
+  discarded) and **not** an off-box SaaS. This makes self-hosted Loki the firm
+  choice and demotes any SaaS to emergency-only.
+- **"Always up" ≠ infinite retention.** Always-running + always-queryable is the
+  requirement; _keeping every log forever_ is not achievable on finite disk. So
+  retention is a **bounded window sized to the homelab log-disk budget**: choose the
+  longest window the disk allows (target 90 d if it fits; otherwise
+  `disk_budget ÷ daily_volume`). The log service stays up; the _oldest_ logs roll
+  off via retention/compaction.
+- **Disk discipline.** The homelab log-disk budget is the key variable; the data dir
+  goes on the largest available volume. High-cardinality labels would balloon it
+  (guarded below).
+- **Single operator** — low tolerance for ops-heavy infra; the log store must run
+  with `restart: unless-stopped`, and must fail safe (drop oldest logs, never crash
+  the bot or fill the disk silently).
 - **Grafana + Prometheus already run on the homelab** — a logs backend that reuses
   that pane is strongly preferred.
 - **Actual INFO log volume is UNMEASURED.**
@@ -59,17 +72,21 @@ but the disk math was speculative and label-cardinality was an unguarded foot-gu
    fields (`guildId`, `requestId`, `trackId`, `userId`) stay in the structured JSON
    **body**, never as Loki labels. Add a guard so drift is caught: a cardinality
    check/alert (Prometheus on Loki's label metrics) or an Alloy relabel allowlist.
-3. **Stand up Loki** with its data dir on attached storage, bounded retention
-   (start ~14–30d), compactor enabled, and a **disk-usage alert at ~80%** so a full
-   disk can't silently break logging during an incident.
+3. **Stand up Loki as a permanent service** — `restart: unless-stopped`, data dir on
+   the largest homelab volume, compactor enabled, retention set to the longest
+   window the log-disk budget allows (target 90 d; floor ~30 d), and a
+   **disk-usage alert at ~80%**. Retention/compaction (not a crash) is what bounds
+   disk, so the service stays up and only the oldest logs roll off.
 4. **Pilot success criteria:** (a) reconstruct the 2026-06-16 incident timeline by
-   querying INFO logs in Grafana; AND (b) measured daily volume × retention fits the
-   attached-disk budget with margin.
+   querying INFO logs in Grafana; (b) measured daily volume × chosen retention fits
+   the log-disk budget with margin; AND (c) Loki survives a bot restart/redeploy and
+   a host reboot (logs remain queryable — "always up").
 
-**Contingency (explicit trigger):** if measured/projected volume makes self-hosted
-retention infeasible on the homelab disk, OR Loki ops prove too costly for one
-operator, ship logs **off-box to Axiom** (free tier ~500GB/mo, 30d, zero-ops). If
-volume also exceeds Axiom's free ceiling, drop INFO retention / sample before paying.
+**Last-resort only (not the default):** the operator requires logs on the homelab,
+so SaaS is **emergency-only** — used solely if the homelab cannot host the store at
+all (e.g. no disk available). In that case ship off-box to **Axiom** (free
+~500 GB/mo, 30 d); exceed that ceiling → sample / shorten retention before paying.
+This is a fallback of last resort, not the planned path.
 
 ## Alternatives considered
 
@@ -101,15 +118,19 @@ volume also exceeds Axiom's free ceiling, drop INFO retention / sample before pa
   (guard added) or disk silently balloons; no HA — if Loki is down during an
   incident, that incident's INFO trail is lost (acceptable at hobby scale; mitigated
   by the disk alert + keeping stdout/Sentry as out-of-band paths).
-- **Neutral:** retention window (14–30d) is a tunable trade, revisited after the
-  volume measurement.
+- **Neutral:** retention window (target ~90 d, floor ~30 d) is a tunable trade set
+  by the log-disk budget after the volume measurement; "always up" is the service +
+  query availability, not unbounded history.
 
 ## Revisit when
 
-- The volume measurement comes back: if daily volume × retention doesn't fit the
-  attached-disk budget → switch to the Axiom contingency before scaling up.
+- The volume measurement comes back: if daily volume × target retention doesn't fit
+  the homelab log-disk budget → keep it on-box by **shortening retention or adding a
+  bigger volume** first (the on-homelab requirement); off-box SaaS only if the box
+  genuinely can't host it.
 - Label cardinality drifts (guard fires) → fix the label set, don't raise disk.
 - The bot's guild count grows materially (volume scales with activity) → re-measure
-  and re-evaluate self-host vs. Axiom.
-- Loki ops burden proves too high for one operator over ~3 months → move to Axiom /
-  Grafana Cloud.
+  and re-tune retention/disk on the homelab.
+- Loki ops burden proves too high for one operator over ~3 months → re-open the
+  on-box-vs-SaaS question (only then does the emergency SaaS fallback become a real
+  candidate).
