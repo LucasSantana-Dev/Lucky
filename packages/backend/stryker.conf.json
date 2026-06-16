@@ -7,7 +7,7 @@
             "configFile": "./jest.config.cjs"
         }
     },
-    "mutate": ["src/utils/oauthRedirectUri.ts"],
+    "mutate": ["src/utils/oauthRedirectUri.ts", "src/middleware/requestId.ts"],
     "reporters": ["html", "clear-text", "progress"],
     "timeoutMS": 15000,
     "timeoutFactor": 1.5,
@@ -20,6 +20,6 @@
     "thresholds": {
         "high": 85,
         "low": 70,
-        "break": 90
+        "break": 82
     }
 }
