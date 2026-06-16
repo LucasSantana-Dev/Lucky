@@ -1,6 +1,7 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import { errorHandler } from '../../../src/middleware/errorHandler'
 import { AppError } from '../../../src/errors/AppError'
+import { ValidationError } from '@lucky/shared/errors'
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
@@ -36,6 +37,10 @@ describe('errorHandler', () => {
         expect(res.json).toHaveBeenCalledWith({
             error: 'Invalid input',
         })
+        // No `details` on this error → the key must be absent, not present
+        // with an undefined value. Pins the `if (err.details)` guard against
+        // a mutant that always attaches details.
+        expect(Object.keys(res.json.mock.calls[0][0])).toEqual(['error'])
         expect(errorLog).not.toHaveBeenCalled()
         // Expected client errors (4xx) must not pollute Sentry.
         expect(captureException).not.toHaveBeenCalled()
@@ -44,6 +49,35 @@ describe('errorHandler', () => {
     test('should include details when present on AppError', () => {
         const details = [{ field: 'name', message: 'required' }]
         const err = AppError.badRequest('Validation failed', details)
+        const res = createRes()
+
+        errorHandler(err, createReq(), res, jest.fn())
+
+        expect(res.json).toHaveBeenCalledWith({
+            error: 'Validation failed',
+            details,
+        })
+    })
+
+    test('should handle ValidationError with 400 and no Sentry capture', () => {
+        const err = new ValidationError('Bad payload')
+        const res = createRes()
+
+        errorHandler(err, createReq(), res, jest.fn())
+
+        expect(res.status).toHaveBeenCalledWith(400)
+        expect(res.json).toHaveBeenCalledWith({ error: 'Bad payload' })
+        // No details → key must be absent (pins the `if (err.details)` guard
+        // on the ValidationError branch).
+        expect(Object.keys(res.json.mock.calls[0][0])).toEqual(['error'])
+        // ValidationError is a known 4xx — it must not log or hit Sentry.
+        expect(errorLog).not.toHaveBeenCalled()
+        expect(captureException).not.toHaveBeenCalled()
+    })
+
+    test('should include details on a ValidationError when present', () => {
+        const details = [{ field: 'email', message: 'invalid' }]
+        const err = new ValidationError('Validation failed', details)
         const res = createRes()
 
         errorHandler(err, createReq(), res, jest.fn())

@@ -7,7 +7,14 @@
             "configFile": "./jest.config.cjs"
         }
     },
-    "mutate": ["src/utils/oauthRedirectUri.ts", "src/middleware/requestId.ts"],
+    "mutate": [
+        "src/utils/oauthRedirectUri.ts",
+        "src/utils/frontendOrigin.ts",
+        "src/utils/prismaErrors.ts",
+        "src/middleware/requestId.ts",
+        "src/middleware/validate.ts",
+        "src/middleware/errorHandler.ts"
+    ],
     "reporters": ["html", "clear-text", "progress"],
     "timeoutMS": 15000,
     "timeoutFactor": 1.5,
