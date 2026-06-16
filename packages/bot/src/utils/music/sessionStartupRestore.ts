@@ -70,6 +70,21 @@ export async function restoreSessionsOnStartup(
                 continue
             }
 
+            // Do not rejoin + auto-play into an empty channel. Mirrors the
+            // orphan-session watchdog's presence guard (watchdog.ts) so the bot
+            // never surprises an empty room after a restart/redeploy.
+            const humansPresent = channel.members.filter(
+                (member) => !member.user.bot,
+            ).size
+            if (humansPresent === 0) {
+                infoLog({
+                    message:
+                        'Startup session sweep: no humans in channel, skipping restore',
+                    data: { guildId, voiceChannelId: snapshot.voiceChannelId },
+                })
+                continue
+            }
+
             const queue = client.player.nodes.create(guild, {
                 metadata: { channel: null, requestedBy: null },
             })
