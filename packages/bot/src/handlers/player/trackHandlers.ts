@@ -40,11 +40,19 @@ export const lastPlayedTracks = new LRUCache<string, Track>({
     updateAgeOnGet: true,
 })
 
-const guildTrackStartTimes = new LRUCache<string, number>({
+// Keyed per TRACK (guildId + track id), not per guild: autoplay track
+// lifecycles overlap — discord-player can emit the next track's playerStart
+// before the previous track's playerFinish/playerSkip. A single per-guild
+// timestamp gets clobbered by that interleaving, making completionRatio ≈ 0
+// for the wrong track and corrupting the accept/reject classification (#1275).
+const trackStartTimes = new LRUCache<string, number>({
     max: MAX_GUILD_ENTRIES,
     ttl: TRACK_STATE_TTL_MS,
     updateAgeOnGet: true,
 })
+
+const trackStartKey = (guildId: string, trackId: string): string =>
+    `${guildId}::${trackId}`
 
 const guildRecentSkipCounts = new LRUCache<string, number>({
     max: MAX_GUILD_ENTRIES,
@@ -231,7 +239,7 @@ const handlePlayerStart = async (
 ): Promise<void> => {
     try {
         evictOldEntries()
-        guildTrackStartTimes.set(queue.guild.id, Date.now())
+        trackStartTimes.set(trackStartKey(queue.guild.id, track.id), Date.now())
         infoLog({
             message: `Started playing "${track.title}" in ${queue.guild.name}`,
         })
@@ -296,7 +304,9 @@ const handlePlayerFinish = async (
         await scrobbleAndRecord(queue, track)
 
         if (track) {
-            const startTime = guildTrackStartTimes.get(queue.guild.id)
+            const startTime = trackStartTimes.get(
+                trackStartKey(queue.guild.id, track.id),
+            )
             if (startTime && track.durationMS) {
                 const completionRatio =
                     (Date.now() - startTime) / track.durationMS
@@ -324,7 +334,7 @@ const handlePlayerFinish = async (
                     })
                 }
             }
-            guildTrackStartTimes.delete(queue.guild.id)
+            trackStartTimes.delete(trackStartKey(queue.guild.id, track.id))
         }
 
         await handleQueueExhaustion(queue, (q, t) =>
@@ -356,7 +366,9 @@ const handlePlayerSkip = async (
         await scrobbleCurrentTrackIfLastFm(queue, track)
 
         if (track) {
-            const startTime = guildTrackStartTimes.get(queue.guild.id)
+            const startTime = trackStartTimes.get(
+                trackStartKey(queue.guild.id, track.id),
+            )
             if (startTime && track.durationMS) {
                 const skipRatio = (Date.now() - startTime) / track.durationMS
                 // Implicit-dislike noise filter: only for tracks long enough that
@@ -387,7 +399,7 @@ const handlePlayerSkip = async (
                     })
                 }
             }
-            guildTrackStartTimes.delete(queue.guild.id)
+            trackStartTimes.delete(trackStartKey(queue.guild.id, track.id))
         }
 
         await handleQueueExhaustion(queue, (q, t) =>
