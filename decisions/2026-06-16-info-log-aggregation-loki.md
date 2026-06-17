@@ -1,7 +1,46 @@
 # Info/usage log storage: self-hosted Grafana Loki, adopted via a measurement-gated pilot
 
-- Status: accepted (adopt Loki; pilot gated on a log-volume measurement + a label-cardinality guard)
+- Status: accepted (adopt Loki) — **implemented; the "stand up Loki" plan was largely moot, see the 2026-06-16 update below**
 - Date: 2026-06-16
+
+## Update (2026-06-16) — homelab reality reversed the build plan
+
+Once homelab SSH access was available, inspection of the box reversed the plan's
+premise (the same "verify before building" lesson as the YouTube ADR):
+
+- **Loki + promtail + Grafana + Prometheus were already running** (6+ days uptime).
+  promtail already scrapes every container's logs to Loki, so **the lucky INFO logs
+  were already in Loki** — the "ephemeral stdout only" premise was false. No Alloy
+  needed; no greenfield stand-up.
+- **Retention was already 30 d** (`720h`) and **disk alerts already existed**
+  (`LowDiskSpace` <20% free, `CriticalDiskSpace` <10%). The ADR's measure-first /
+  retention / alert items were already satisfied.
+
+The real, verified gaps were two bugs, both now fixed:
+
+1. **Loki persistence (P1 data loss).** Loki wrote to `/tmp/loki` (the ephemeral
+   container layer) while the persistent bind mount `appdata/loki → /loki` sat unused
+   (root-owned, unwritable by Loki's uid 10001 — that's why someone redirected to the
+   writable `/tmp`). On any container _recreate_ all logs were lost. Fixed: chown the
+   bind dir to 10001, migrate data, repoint config to `/loki`, restart. SoT in
+   homelab PR #191. This is what actually delivered success criterion (c) "survives
+   restart/redeploy."
+2. **No stable log identity.** `container_name` was empty because the json-file
+   driver only emits `attrs.tag` when given a `tag` log-opt, and the lucky services
+   set none — so logs were findable only by ephemeral container-id `filename`. Fixed
+   by adding `tag: "{{.Name}}"` to each service's `logging.options`
+   (Lucky #1476, merged) → promtail's existing `attrs.tag → container_name`
+   extraction now populates `{container_name="lucky-bot"}` etc.
+
+Measured volume (with labels working): ~172 MB/day across **all** containers;
+lucky-bot+backend ~5k lines/day idle; Loki's own data dir is ~311 MB. The host disk
+sits at 88% but **not because of logs** — so 30 d retention is comfortable and going
+to 90 d (≈+15 GB onto an 88% disk) is the wrong move. The "size to disk, don't keep
+forever" reasoning holds; 30 d stays.
+
+Net: the decision (self-hosted Loki, single Grafana pane, low-cardinality labels) was
+right, but the _work_ was fixing two config bugs in an existing stack, not building a
+new one. Alloy was unnecessary — promtail already does the job.
 
 ## Context
 
