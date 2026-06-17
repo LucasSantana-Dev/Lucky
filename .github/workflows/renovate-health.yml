@@ -52,13 +52,14 @@ jobs:
                   if [ "$dashboard" -eq 0 ] && [ "$recent_prs" -eq 0 ]; then
                       echo "::error::Renovate appears DARK — no Dependency Dashboard and no bot PRs in 21d."
                       if [ -z "$existing" ]; then
+                          body=$(printf '%s\n\n%s\n\n%s' \
+                              "$marker" \
+                              "The \`Renovate Health\` scheduled check found **no open Dependency Dashboard issue** and **no renovate[bot] PR activity in the last 21 days**." \
+                              "Dependency + security-update automation is likely dark again (the #1481 / #1069 failure mode). Verify the Renovate App is still installed for this repo at <https://github.com/apps/renovate>, or switch to the self-hosted Renovate Action fallback documented in \`decisions/2026-06-17-renovate-reactivation.md\`.")
                           gh issue create --repo "$REPO" \
                               --title "ci(deps): Renovate automation appears dark — no Dashboard / recent PRs" \
                               --label "needs-triage" \
-                              --body "$marker
-The \`Renovate Health\` scheduled check found **no open Dependency Dashboard issue** and **no renovate[bot] PR activity in the last 21 days**.
-
-Dependency + security-update automation is likely dark again (the #1481 / #1069 failure mode). Verify the Renovate App is still installed for this repo at <https://github.com/apps/renovate>, or switch to the self-hosted Renovate Action fallback documented in \`decisions/2026-06-17-renovate-reactivation.md\`."
+                              --body "$body"
                       else
                           echo "Tracking issue #$existing already open — not duplicating."
                       fi
