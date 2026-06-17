@@ -36,9 +36,9 @@ export interface RouteMeta {
 export const PUBLIC_ROUTES: RouteMeta[] = [
     {
         path: '/',
-        title: 'Lucky — A Discord bot you can actually self-host',
+        title: 'Lucky — Free Discord music bot with autoplay & dashboard',
         description:
-            'Open-source Discord bot with music, moderation, custom commands, and a web dashboard. Free forever. Run it on your own box.',
+            'YouTube, Spotify, SoundCloud music bot with genre-aware autoplay, smart radio, moderation, and web dashboard. Open-source, self-hostable, free forever.',
     },
     {
         path: '/docs',
