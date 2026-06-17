@@ -192,9 +192,13 @@ export async function sendNowPlayingEmbed(
     const autoplayCount = isAutoplay
         ? await getAutoplayCount(queue.guild.id)
         : null
-    const footer = isAutoplay
+    const baseFooter = isAutoplay
         ? `Autoplay • ${autoplayCount ?? 0}/${constants.MAX_AUTOPLAY_TRACKS ?? 50} songs`
         : requesterInfo
+    const footer =
+        baseFooter && !baseFooter.includes('/invite')
+            ? `${baseFooter} • /invite to add Lucky`
+            : baseFooter
 
     const fields = [
         {
@@ -297,7 +301,12 @@ export async function sendNowPlayingEmbed(
         })
     }
 
-    registerNowPlayingMessage(queue.guild.id, message.id, metadata.channel.id, track.url)
+    registerNowPlayingMessage(
+        queue.guild.id,
+        message.id,
+        metadata.channel.id,
+        track.url,
+    )
 
     debugLog({
         message: 'Sent now playing message to channel',
