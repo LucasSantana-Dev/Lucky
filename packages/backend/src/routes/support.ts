@@ -15,13 +15,21 @@ import { errorLog, debugLog } from '@lucky/shared/utils'
 // Snowflake ID validation (Discord snowflake: 17-20 digits)
 const snowflakeId = z.string().regex(/^\d{17,20}$/)
 
-// Configure multer for single file uploads with 5MB size limit
+// Configure multer for single file uploads with 5MB size limit.
+// fieldNestingDepth defaults to Infinity, so the 2.2.0 bump alone does NOT
+// mitigate the deeply-nested-field-name DoS (GHSA-72gw-mp4g-v24j) — the limit
+// must be set explicitly. This endpoint only sends flat fields (context, cid,
+// guildId, category, sid), so reject any nesting outright. Typed as a variable
+// (not an inline literal) because @types/multer@2.1.0 lags the runtime and has
+// no fieldNestingDepth field yet; the option is honored by multer >= 2.2.0.
+const uploadLimits = {
+    fileSize: 5 * 1024 * 1024, // 5 MB
+    files: 1,
+    fieldNestingDepth: 0,
+}
 const upload: Multer = multer({
     storage: multer.memoryStorage(),
-    limits: {
-        fileSize: 5 * 1024 * 1024, // 5 MB
-        files: 1,
-    },
+    limits: uploadLimits,
 })
 
 /**
