@@ -1,0 +1,81 @@
+name: Renovate Health
+
+# Preventive guard for the failure mode behind #1481: the Renovate App install
+# is invisible + un-versioned, so when it lapsed after the #1069 migration the
+# automation went dark silently for ~3 weeks (a CVE had to be hand-patched).
+# This job makes that lapse self-surfacing: it asserts Renovate is alive by
+# checking for its Dependency Dashboard issue and recent bot PR activity, and
+# files (idempotently) a tracking issue if neither is found.
+# See decisions/2026-06-17-renovate-reactivation.md.
+
+on:
+    schedule:
+        # Tuesday 09:00 UTC — a day after Renovate's "before 6am Monday" run,
+        # so a healthy week has produced its Dashboard / PRs by the time we check.
+        - cron: '0 9 * * 2'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    issues: write
+    pull-requests: read
+
+jobs:
+    check:
+        name: Assert Renovate is alive
+        runs-on: ubuntu-latest
+        steps:
+            - name: Probe Dependency Dashboard + recent Renovate PRs
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  REPO: ${{ github.repository }}
+              run: |
+                  set -euo pipefail
+
+                  # Renovate edits its Dependency Dashboard issue on every run, so a
+                  # recently-updated Dashboard is a liveness signal even when there are
+                  # no open PRs (e.g. everything is already up to date). Existence alone
+                  # is NOT — the issue is long-lived and stays open after the App lapses,
+                  # so checking the count would mask a real outage forever (see #1481).
+                  dashboard_fresh=$(gh issue list --repo "$REPO" --state open \
+                      --search 'in:title "Dependency Dashboard" author:app/renovate' \
+                      --json updatedAt \
+                      --jq "[.[] | select(.updatedAt > (now - 21*86400 | gmtime | strftime(\"%Y-%m-%dT%H:%M:%SZ\")))] | length")
+
+                  # Any renovate[bot] PR (open or merged) updated in the last 21 days.
+                  # sort:updated-desc guarantees the most recent activity is within the
+                  # first --limit results, so the cap can't manufacture a false outage.
+                  recent_prs=$(gh pr list --repo "$REPO" --state all \
+                      --search 'author:app/renovate sort:updated-desc' --limit 20 \
+                      --json updatedAt \
+                      --jq "[.[] | select(.updatedAt > (now - 21*86400 | gmtime | strftime(\"%Y-%m-%dT%H:%M:%SZ\")))] | length")
+
+                  echo "Dependency Dashboard updated in last 21d: $dashboard_fresh"
+                  echo "Renovate PRs updated in last 21d: $recent_prs"
+
+                  marker='<!-- renovate-health-alert -->'
+                  existing=$(gh issue list --repo "$REPO" --state open \
+                      --search "in:body \"$marker\"" --json number --jq '.[0].number // ""')
+
+                  if [ "$dashboard_fresh" -eq 0 ] && [ "$recent_prs" -eq 0 ]; then
+                      echo "::error::Renovate appears DARK — no Dashboard update and no bot PRs in 21d."
+                      if [ -z "$existing" ]; then
+                          body=$(printf '%s\n\n%s\n\n%s' \
+                              "$marker" \
+                              "The \`Renovate Health\` scheduled check found **no open Dependency Dashboard issue** and **no renovate[bot] PR activity in the last 21 days**." \
+                              "Dependency + security-update automation is likely dark again (the #1481 / #1069 failure mode). Verify the Renovate App is still installed for this repo at <https://github.com/apps/renovate>, or switch to the self-hosted Renovate Action fallback documented in \`decisions/2026-06-17-renovate-reactivation.md\`.")
+                          gh issue create --repo "$REPO" \
+                              --title "ci(deps): Renovate automation appears dark — no Dashboard / recent PRs" \
+                              --label "needs-triage" \
+                              --body "$body"
+                      else
+                          echo "Tracking issue #$existing already open — not duplicating."
+                      fi
+                      exit 1
+                  fi
+
+                  echo "Renovate is alive."
+                  if [ -n "$existing" ]; then
+                      gh issue close "$existing" --repo "$REPO" \
+                          --comment "Renovate health restored (Dashboard present and/or recent PR activity). Auto-closing."
+                  fi
