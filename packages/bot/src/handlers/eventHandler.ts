@@ -28,6 +28,10 @@ import {
     recordGuildLeave,
     syncGuildsOnReady,
 } from '../services/guildMembershipService'
+import {
+    guildJoinsTotal,
+    guildLeavesTotal,
+} from '../utils/monitoring/prometheus'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -54,10 +58,17 @@ function handleClientReady(client: Client): void {
 
 function handleGuildCreate(client: Client): void {
     client.on(Events.GuildCreate, (guild) => {
+        const totalGuilds = client.guilds.cache.size
         infoLog({
-            message: 'Joined guild',
-            data: { guildId: guild.id, name: guild.name },
+            message: 'Guild joined',
+            data: {
+                guildId: guild.id,
+                guildName: guild.name,
+                memberCount: guild.memberCount,
+                totalGuilds,
+            },
         })
+        guildJoinsTotal.inc()
         recordGuildJoin(guild).catch((error) => {
             errorLog({
                 message: 'Error recording guild join',
@@ -228,10 +239,17 @@ function handleDebug(client: Client): void {
 
 function handleGuildDelete(client: Client): void {
     client.on(Events.GuildDelete, async (guild) => {
+        const totalGuilds = client.guilds.cache.size
         infoLog({
-            message: 'Left guild',
-            data: { guildId: guild.id, name: guild.name },
+            message: 'Guild left',
+            data: {
+                guildId: guild.id,
+                guildName: guild.name,
+                memberCount: guild.memberCount,
+                totalGuilds,
+            },
         })
+        guildLeavesTotal.inc()
         await recordGuildLeave(guild.id, guild.name).catch((error) => {
             errorLog({
                 message: 'Error recording guild leave',
