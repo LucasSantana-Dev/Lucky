@@ -330,6 +330,68 @@ describe('trackNowPlaying handlers', () => {
             )
             expect(hasWhyField).toBe(false)
         })
+
+        it('appends /invite CTA to footer for non-autoplay tracks', async () => {
+            mockChannel.send = jest.fn().mockResolvedValueOnce({
+                id: 'msg-123',
+                react: jest.fn().mockResolvedValue(undefined),
+            })
+
+            const userTrack = {
+                ...mockTrack,
+                requestedBy: { id: 'user-123', username: 'TestUser' },
+                metadata: {},
+            } as unknown as Track
+
+            await sendNowPlayingEmbed(mockQueue, userTrack, false)
+
+            const embedCall = createEmbedMock.mock.calls[0][0]
+            expect(embedCall.footer).toContain('/invite to add Lucky')
+            expect(embedCall.footer).toContain('TestUser')
+        })
+
+        it('appends /invite CTA to autoplay footer', async () => {
+            getAutoplayCountMock.mockResolvedValueOnce(5)
+            mockChannel.send = jest.fn().mockResolvedValueOnce({
+                id: 'msg-123',
+                react: jest.fn().mockResolvedValue(undefined),
+            })
+
+            const autoplayTrack = {
+                ...mockTrack,
+                requestedBy: undefined,
+                metadata: {},
+            } as unknown as Track
+
+            await sendNowPlayingEmbed(mockQueue, autoplayTrack, true)
+
+            const embedCall = createEmbedMock.mock.calls[0][0]
+            expect(embedCall.footer).toContain('Autoplay')
+            expect(embedCall.footer).toContain('/invite to add Lucky')
+            expect(embedCall.footer).toContain('5/50')
+        })
+
+        it('does not duplicate /invite CTA if already present in footer', async () => {
+            mockChannel.send = jest.fn().mockResolvedValueOnce({
+                id: 'msg-123',
+                react: jest.fn().mockResolvedValue(undefined),
+            })
+
+            const userTrack = {
+                ...mockTrack,
+                requestedBy: { id: 'user-123', username: 'TestUser' },
+                metadata: {},
+            } as unknown as Track
+
+            await sendNowPlayingEmbed(mockQueue, userTrack, false)
+
+            const embedCall = createEmbedMock.mock.calls[0][0]
+            const footer = embedCall.footer
+
+            // Count occurrences of '/invite' in footer
+            const inviteCount = (footer.match(/\/invite/g) || []).length
+            expect(inviteCount).toBe(1)
+        })
     })
 
     describe('updateLastFmNowPlaying', () => {
