@@ -24,6 +24,17 @@ jobs:
         steps:
             - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
               with:
-                  token: ${{ secrets.GITHUB_TOKEN }}
+                  # Must be a PAT (or GitHub App token), NOT the default
+                  # GITHUB_TOKEN. GitHub Actions deliberately does not let events
+                  # raised by GITHUB_TOKEN (e.g. the `release: published` event
+                  # emitted when release-please publishes the GitHub Release)
+                  # trigger further workflow runs — recursion prevention. With
+                  # GITHUB_TOKEN the tag/Release is created but deploy.yml
+                  # (`on: release: [published]`) would never fire, silently
+                  # breaking the prod deploy chain. A PAT makes the published
+                  # Release propagate so deploy.yml runs. The PAT also lets the
+                  # release PR be created without the "Allow Actions to create
+                  # PRs" repo setting. Scope: contents RW + pull-requests RW.
+                  token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
                   config-file: release-please-config.json
                   manifest-file: .release-please-manifest.json
