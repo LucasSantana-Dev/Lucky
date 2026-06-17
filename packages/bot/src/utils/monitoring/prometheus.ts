@@ -64,6 +64,26 @@ export const guildAutomationUsageTotal = new Counter<'operation'>({
 })
 
 /**
+ * Counter: Bot guild joins (GuildCreate events).
+ * Incremented each time the bot is added to a guild.
+ */
+export const guildJoinsTotal = new Counter({
+    name: 'lucky_bot_guild_joins_total',
+    help: 'Total count of Discord guilds the bot has been added to.',
+    registers: [registry],
+})
+
+/**
+ * Counter: Bot guild leaves (GuildDelete events).
+ * Incremented each time the bot is removed from a guild.
+ */
+export const guildLeavesTotal = new Counter({
+    name: 'lucky_bot_guild_leaves_total',
+    help: 'Total count of Discord guilds the bot has been removed from.',
+    registers: [registry],
+})
+
+/**
  * Render the registry as Prometheus text exposition format.
  */
 export async function renderMetrics(): Promise<string> {
