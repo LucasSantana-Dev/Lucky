@@ -66,7 +66,7 @@ function createHelpEmbeds(
                 index === 0
                     ? `${label} (${commands.length})`
                     : `${label} (cont.)`
-            fields.push({ name, value: `​\n${chunk}` })
+            fields.push({ name, value: `\u200B\n${chunk}` })
         })
     }
 
@@ -125,7 +125,7 @@ function createHelpEmbeds(
 
 const MAX_FIELD_VALUE = 1024
 const MAX_EMBED_FIELDS = 25
-// Leave headroom for the `​\n` prefix added to each field value.
+// Leave headroom for the zero-width-space + newline prefix on each field value.
 const FIELD_VALUE_BUDGET = MAX_FIELD_VALUE - 8
 // Discord caps a message at 6000 chars across all embeds; keep headroom for
 // the first page's title, description and footer.
