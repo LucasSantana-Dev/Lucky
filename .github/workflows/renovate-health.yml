@@ -32,25 +32,33 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  dashboard=$(gh issue list --repo "$REPO" --state open \
+                  # Renovate edits its Dependency Dashboard issue on every run, so a
+                  # recently-updated Dashboard is a liveness signal even when there are
+                  # no open PRs (e.g. everything is already up to date). Existence alone
+                  # is NOT — the issue is long-lived and stays open after the App lapses,
+                  # so checking the count would mask a real outage forever (see #1481).
+                  dashboard_fresh=$(gh issue list --repo "$REPO" --state open \
                       --search 'in:title "Dependency Dashboard" author:app/renovate' \
-                      --json number --jq 'length')
-
-                  # Any renovate[bot] PR (open or merged) in the last 21 days.
-                  recent_prs=$(gh pr list --repo "$REPO" --state all \
-                      --search 'author:app/renovate' --limit 20 \
                       --json updatedAt \
                       --jq "[.[] | select(.updatedAt > (now - 21*86400 | gmtime | strftime(\"%Y-%m-%dT%H:%M:%SZ\")))] | length")
 
-                  echo "Dependency Dashboard issues: $dashboard"
+                  # Any renovate[bot] PR (open or merged) updated in the last 21 days.
+                  # sort:updated-desc guarantees the most recent activity is within the
+                  # first --limit results, so the cap can't manufacture a false outage.
+                  recent_prs=$(gh pr list --repo "$REPO" --state all \
+                      --search 'author:app/renovate sort:updated-desc' --limit 20 \
+                      --json updatedAt \
+                      --jq "[.[] | select(.updatedAt > (now - 21*86400 | gmtime | strftime(\"%Y-%m-%dT%H:%M:%SZ\")))] | length")
+
+                  echo "Dependency Dashboard updated in last 21d: $dashboard_fresh"
                   echo "Renovate PRs updated in last 21d: $recent_prs"
 
                   marker='<!-- renovate-health-alert -->'
                   existing=$(gh issue list --repo "$REPO" --state open \
                       --search "in:body \"$marker\"" --json number --jq '.[0].number // ""')
 
-                  if [ "$dashboard" -eq 0 ] && [ "$recent_prs" -eq 0 ]; then
-                      echo "::error::Renovate appears DARK — no Dependency Dashboard and no bot PRs in 21d."
+                  if [ "$dashboard_fresh" -eq 0 ] && [ "$recent_prs" -eq 0 ]; then
+                      echo "::error::Renovate appears DARK — no Dashboard update and no bot PRs in 21d."
                       if [ -z "$existing" ]; then
                           body=$(printf '%s\n\n%s\n\n%s' \
                               "$marker" \

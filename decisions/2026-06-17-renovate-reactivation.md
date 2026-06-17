@@ -7,7 +7,7 @@
 ## Context
 
 Dependency + security-update automation has been **dark since 2026-05-27**. The
-#1069 migration (ADR 2026-05-27) chose **Strict Status Checks + Renovate** and
+`#1069` migration (ADR 2026-05-27) chose **Strict Status Checks + Renovate** and
 deleted `.github/dependabot.yml`, but listed two manual post-merge steps:
 
 1. Enable Merge Queue — **moot** (GitHub Merge Queue is Team/Enterprise-gated; this
