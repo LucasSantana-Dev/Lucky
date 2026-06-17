@@ -585,6 +585,118 @@ describe('trackHandlers autoplay replenishment', () => {
         })
     })
 
+    describe('autoplay outcome diagnostic log (#1275)', () => {
+        const findEvalLog = ():
+            | { data?: Record<string, unknown> }
+            | undefined =>
+            infoLogMock.mock.calls.find(
+                (call) =>
+                    (call[0] as { message?: string } | undefined)?.message ===
+                    'Autoplay outcome eval',
+            )?.[0] as { data?: Record<string, unknown> } | undefined
+
+        it('logs path=skip, recordedOutcome=rejected for an autoplay skip before 30%', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const track = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'diag-skip-reject',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await handlers.playerStart(queue, track)
+            jest.advanceTimersByTime(15000) // 15%
+            await handlers.playerSkip(queue, track)
+
+            expect(findEvalLog()).toMatchObject({
+                data: {
+                    path: 'skip',
+                    trackId: 'diag-skip-reject',
+                    hasStartTime: true,
+                    playedRatio: 0.15,
+                    recordedOutcome: 'rejected',
+                },
+            })
+        })
+
+        it('logs recordedOutcome=ambiguous(dropped) for an autoplay skip after 30%', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const track = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'diag-skip-ambig',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await handlers.playerStart(queue, track)
+            jest.advanceTimersByTime(55000) // 55%
+            await handlers.playerSkip(queue, track)
+
+            expect(findEvalLog()).toMatchObject({
+                data: { path: 'skip', recordedOutcome: 'ambiguous(dropped)' },
+            })
+        })
+
+        it('logs path=finish, recordedOutcome=accepted for an autoplay finish past 30%', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const track = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'diag-finish-accept',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await handlers.playerStart(queue, track)
+            jest.advanceTimersByTime(40000)
+            await handlers.playerFinish(queue, track)
+
+            expect(findEvalLog()).toMatchObject({
+                data: { path: 'finish', recordedOutcome: 'accepted' },
+            })
+        })
+
+        it('flags hasStartTime=false / no-timing when a skip has no recorded start (the H1 race)', async () => {
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const track = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'diag-no-timing',
+                durationMS: 100000,
+            } as unknown as Track
+
+            // No playerStart → no start time recorded for this track.
+            await handlers.playerSkip(queue, track)
+
+            expect(findEvalLog()).toMatchObject({
+                data: {
+                    hasStartTime: false,
+                    playedRatio: null,
+                    recordedOutcome: 'none(no-timing)',
+                },
+            })
+        })
+
+        it('does not emit the diagnostic for non-autoplay tracks', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const track = {
+                ...createTrack('listener-1'),
+                id: 'diag-manual',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await handlers.playerStart(queue, track)
+            jest.advanceTimersByTime(10000)
+            await handlers.playerSkip(queue, track)
+
+            expect(findEvalLog()).toBeUndefined()
+        })
+    })
+
     // #1275 probe: prod shows 0 rejected all-time despite a working accepted
     // path. The isolated tests above pass, so the per-event logic is correct.
     // These exercise the REALISTIC continuous-autoplay sequencing where the

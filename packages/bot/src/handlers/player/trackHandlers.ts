@@ -296,6 +296,48 @@ async function scrobbleAndRecord(
     await addTrackToHistory(trackToRecord, queue.guild.id)
 }
 
+// #1275 diagnostic: the per-event accept/reject logic is correct and
+// unit-tested (incl. the interleaving probe), yet prod records 0 rejected.
+// The existing "Track skipped" log lacks the fields to tell a code issue
+// (missing start time, skips routing through playerFinish, the real skipRatio
+// distribution) from a genuinely-rare signal (most picks are over-queued and
+// never played → 'pending'). Emit the decision inputs for every autoplay
+// terminal event, on both paths, so Loki can disambiguate H1 vs H2.
+const logAutoplayOutcomeEval = (
+    path: 'finish' | 'skip',
+    queue: GuildQueue,
+    track: Track,
+    startTime: number | undefined,
+): void => {
+    const playedRatio =
+        startTime !== undefined && track.durationMS
+            ? (Date.now() - startTime) / track.durationMS
+            : null
+    const recordedOutcome =
+        playedRatio === null
+            ? 'none(no-timing)'
+            : playedRatio < OUTCOME_ACCEPT_PLAY_RATIO
+              ? 'rejected'
+              : path === 'finish'
+                ? 'accepted'
+                : 'ambiguous(dropped)'
+    infoLog({
+        message: 'Autoplay outcome eval',
+        data: {
+            path,
+            guildId: queue.guild.id,
+            trackId: track.id,
+            hasStartTime: startTime !== undefined,
+            durationMS: track.durationMS ?? null,
+            playedRatio:
+                playedRatio === null
+                    ? null
+                    : Math.round(playedRatio * 1000) / 1000,
+            recordedOutcome,
+        },
+    })
+}
+
 const handlePlayerFinish = async (
     queue: GuildQueue,
     track?: Track,
@@ -307,6 +349,9 @@ const handlePlayerFinish = async (
             const startTime = trackStartTimes.get(
                 trackStartKey(queue.guild.id, track.id),
             )
+            if (isRecommendationAutoplay(track)) {
+                logAutoplayOutcomeEval('finish', queue, track, startTime)
+            }
             if (startTime && track.durationMS) {
                 const completionRatio =
                     (Date.now() - startTime) / track.durationMS
@@ -369,6 +414,9 @@ const handlePlayerSkip = async (
             const startTime = trackStartTimes.get(
                 trackStartKey(queue.guild.id, track.id),
             )
+            if (isRecommendationAutoplay(track)) {
+                logAutoplayOutcomeEval('skip', queue, track, startTime)
+            }
             if (startTime && track.durationMS) {
                 const skipRatio = (Date.now() - startTime) / track.durationMS
                 // Implicit-dislike noise filter: only for tracks long enough that
