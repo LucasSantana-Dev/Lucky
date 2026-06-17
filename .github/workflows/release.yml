@@ -39,7 +39,6 @@ jobs:
 
             - name: Run tests
               run: npm run test:ci
-              continue-on-error: true
 
             - name: Extract version from tag
               id: version
