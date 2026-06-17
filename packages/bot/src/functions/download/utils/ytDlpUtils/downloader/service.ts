@@ -57,8 +57,6 @@ export class YtDlpDownloaderService {
         return [
             args.url,
             '--no-playlist',
-            '--extract-flat',
-            'false',
             '--write-info-json',
             '--write-thumbnail',
             '--embed-metadata',
