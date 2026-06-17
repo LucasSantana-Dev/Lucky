@@ -39,15 +39,18 @@ describe('security headers via helmet (#1283)', () => {
         expect(res.headers['strict-transport-security']).toBeUndefined()
     })
 
-    test('ships the CSP in Report-Only mode with the shared template', () => {
-        expect(res.headers['content-security-policy']).toBeUndefined()
+    test('enforces the CSP with the shared template after the report-only window', () => {
+        expect(
+            res.headers['content-security-policy-report-only'],
+        ).toBeUndefined()
 
-        const csp = res.headers['content-security-policy-report-only']
+        const csp = res.headers['content-security-policy']
         expect(csp).toBeDefined()
         expect(csp).toContain("default-src 'self'")
         expect(csp).toContain("frame-ancestors 'none'")
         expect(csp).toContain("object-src 'none'")
         expect(csp).toContain('https://cdn.discordapp.com')
         expect(csp).toContain('https://*.sentry.io')
+        expect(csp).toContain('report-uri /api/security/csp-report')
     })
 })

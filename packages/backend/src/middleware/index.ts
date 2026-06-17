@@ -20,14 +20,17 @@ export function setupMiddleware(app: Express): void {
 
     app.use(
         helmet({
-            // Same Report-Only CSP as the serving edges (vercel.json /
+            // Same enforced CSP as the serving edges (vercel.json /
             // nginx) — the backend serves the SPA index.html fallback in
             // production (server.ts), so it must carry the same policy.
-            // Flips to enforce with PR 2 of #1283 after the measurement
-            // window. See decisions/2026-06-11-security-headers-placement.md
+            // Flipped from Report-Only to enforce (PR 2 of #1283) after a
+            // measurement window with zero violations across Sentry + the
+            // /api/security/csp-report sink. report-uri stays on so blocked
+            // resources keep reporting. See
+            // decisions/2026-06-11-security-headers-placement.md
             contentSecurityPolicy: {
                 useDefaults: false,
-                reportOnly: true,
+                reportOnly: false,
                 directives: {
                     'default-src': ["'self'"],
                     'script-src': ["'self'"],
@@ -59,6 +62,7 @@ export function setupMiddleware(app: Express): void {
                     'base-uri': ["'self'"],
                     'form-action': ["'self'"],
                     'object-src': ["'none'"],
+                    'report-uri': ['/api/security/csp-report'],
                 },
             },
             // TLS terminates at the Cloudflare Tunnel, which owns HSTS;
