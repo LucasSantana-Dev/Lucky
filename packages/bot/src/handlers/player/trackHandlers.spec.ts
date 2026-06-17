@@ -584,4 +584,90 @@ describe('trackHandlers autoplay replenishment', () => {
             expect(recordRecommendationOutcomeMock).not.toHaveBeenCalled()
         })
     })
+
+    // #1275 probe: prod shows 0 rejected all-time despite a working accepted
+    // path. The isolated tests above pass, so the per-event logic is correct.
+    // These exercise the REALISTIC continuous-autoplay sequencing where the
+    // next track's playerStart interleaves with the previous track's terminal
+    // event — guildTrackStartTimes is keyed per-GUILD (one timestamp shared
+    // across overlapping track lifecycles), which the isolated tests never hit.
+    describe('interleaved continuous-autoplay sequencing (#1275 probe)', () => {
+        const autoplay = (id: string) =>
+            ({
+                ...createAutoplayTrack('listener-1'),
+                id,
+                durationMS: 100000,
+            }) as unknown as Track
+
+        it('records rejected for an early skip that follows a completed track (finish→start→skip order)', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const trackA = autoplay('seq-A')
+            const trackB = autoplay('seq-B')
+
+            await handlers.playerStart(queue, trackA)
+            jest.advanceTimersByTime(90000) // A plays to 90%
+            await handlers.playerFinish(queue, trackA) // accepted, clears startTime
+            await handlers.playerStart(queue, trackB) // startTime reset for B
+            jest.advanceTimersByTime(10000) // B plays 10%
+            await handlers.playerSkip(queue, trackB)
+
+            expect(recordRecommendationOutcomeMock).toHaveBeenCalledWith({
+                guildId: 'guild-1',
+                trackId: 'seq-A',
+                outcome: 'accepted',
+            })
+            expect(recordRecommendationOutcomeMock).toHaveBeenCalledWith({
+                guildId: 'guild-1',
+                trackId: 'seq-B',
+                outcome: 'rejected',
+            })
+        })
+
+        it('records rejected when the next track starts BEFORE the skip event fires (start→start→skip order)', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const trackA = autoplay('race-A')
+            const trackB = autoplay('race-B')
+
+            await handlers.playerStart(queue, trackA)
+            jest.advanceTimersByTime(10000) // A plays 10%, user skips
+            // discord-player advances to B before emitting skip for A
+            await handlers.playerStart(queue, trackB)
+            await handlers.playerSkip(queue, trackA)
+
+            // A was skipped early — it must register as a rejection, not vanish.
+            expect(recordRecommendationOutcomeMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    trackId: 'race-A',
+                    outcome: 'rejected',
+                }),
+            )
+        })
+
+        it('does NOT misrecord a completed track as rejected when the next track starts before its finish event (start→start→finish order)', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const trackA = autoplay('mis-A')
+            const trackB = autoplay('mis-B')
+
+            await handlers.playerStart(queue, trackA)
+            jest.advanceTimersByTime(90000) // A plays to 90% — a clear ACCEPT
+            // next track begins before A's (buffered) finish event arrives
+            await handlers.playerStart(queue, trackB)
+            await handlers.playerFinish(queue, trackA)
+
+            // A genuinely completed; the shared per-guild startTime must not
+            // cause it to be misclassified as a rejection.
+            expect(recordRecommendationOutcomeMock).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    trackId: 'mis-A',
+                    outcome: 'rejected',
+                }),
+            )
+        })
+    })
 })
