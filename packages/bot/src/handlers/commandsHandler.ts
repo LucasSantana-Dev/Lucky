@@ -88,6 +88,9 @@ export const executeCommand = async ({
                     missingPerms.reduce((acc, perm) => acc | perm, 0n),
                 ).toArray()
                 const readablePerm = permissionNames.join(', ')
+                const isPlural = permissionNames.length > 1
+                const permNoun = isPlural ? 'permissions' : 'permission'
+                const grantPronoun = isPlural ? 'them' : 'it'
 
                 debugLog({
                     message: `Command ${interaction.commandName} missing permissions: ${readablePerm}`,
@@ -96,7 +99,7 @@ export const executeCommand = async ({
                 await interactionReply({
                     interaction,
                     content: {
-                        content: `I'm missing the **${readablePerm}** permission — ask an admin to grant it or re-invite me.`,
+                        content: `I'm missing the **${readablePerm}** ${permNoun} — ask an admin to grant ${grantPronoun} or re-invite me.`,
                         ephemeral: true,
                     },
                 })
