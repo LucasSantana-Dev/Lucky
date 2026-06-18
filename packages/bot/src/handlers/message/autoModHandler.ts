@@ -1,6 +1,7 @@
-import type { Message } from 'discord.js'
+import type { Message, PermissionResolvable, GuildChannel } from 'discord.js'
+import { PermissionFlagsBits } from 'discord.js'
 import { autoModService, moderationService } from '@lucky/shared/services'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import type {
     MessageContext,
@@ -14,6 +15,38 @@ interface Violation {
     type: string
     reason: string
     action: string
+}
+
+/**
+ * Check if bot has a permission in the guild or channel context.
+ * For channel-scoped perms (like ManageMessages), checks channel permissions.
+ * For member-scoped perms (like ModerateMembers), checks guild permissions.
+ */
+function botHasPermission(
+    message: Message,
+    permission: PermissionResolvable,
+): boolean {
+    const botMember = message.guild?.members.me
+    if (!botMember) return false
+
+    // For message deletion, check channel-level permissions
+    if (permission === PermissionFlagsBits.ManageMessages) {
+        // Ensure channel is guild-based (has permissionsFor method)
+        if (!('permissionsFor' in message.channel)) return false
+        return (
+            (message.channel as GuildChannel)
+                .permissionsFor(
+                    assertDefined(
+                        message.client.user,
+                        'Client user guaranteed when bot is ready',
+                    ),
+                )
+                ?.has(PermissionFlagsBits.ManageMessages) ?? false
+        )
+    }
+
+    // For member actions (timeout, kick, ban), check guild-level permissions
+    return botMember.permissions.has(permission)
 }
 
 export const autoModHandler: MessageHandler = {
@@ -111,9 +144,27 @@ export const autoModHandler: MessageHandler = {
                 return { stop: false }
             }
 
-            await message.delete().catch(() => {})
+            // Check permission for message deletion before attempting
+            if (
+                !botHasPermission(message, PermissionFlagsBits.ManageMessages)
+            ) {
+                warnLog({
+                    message: `[AutoMod] Skipped message delete: bot missing ManageMessages permission`,
+                    data: {
+                        guildId,
+                        channelId: message.channelId,
+                        violations: violations.map((v) => v.type),
+                    },
+                })
+                // Don't delete the message, but continue processing actions
+            } else {
+                await message.delete().catch(() => {})
+            }
 
-            const clientUser = assertDefined(message.client.user, 'Client user guaranteed when bot is ready')
+            const clientUser = assertDefined(
+                message.client.user,
+                'Client user guaranteed when bot is ready',
+            )
             const caseInput = {
                 guildId,
                 userId,
@@ -140,71 +191,119 @@ export const autoModHandler: MessageHandler = {
                             })
                         break
                     case 'mute':
-                        await context.member
-                            .timeout(
-                                AUTOMOD_MUTE_DURATION * 1000,
-                                caseInput.reason,
+                        if (
+                            !botHasPermission(
+                                message,
+                                PermissionFlagsBits.ModerateMembers,
                             )
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to mute user:',
-                                    error: err,
+                        ) {
+                            warnLog({
+                                message: `[AutoMod] Skipped mute action: bot missing ModerateMembers permission`,
+                                data: {
+                                    guildId,
+                                    userId,
+                                    violation: violation.type,
+                                },
+                            })
+                        } else {
+                            await context.member
+                                .timeout(
+                                    AUTOMOD_MUTE_DURATION * 1000,
+                                    caseInput.reason,
+                                )
+                                .catch((err) => {
+                                    errorLog({
+                                        message: 'Failed to mute user:',
+                                        error: err,
+                                    })
                                 })
-                            })
-                        await moderationService
-                            .createCase({
-                                ...caseInput,
-                                type: 'mute',
-                                duration: AUTOMOD_MUTE_DURATION,
-                            })
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to create mute case:',
-                                    error: err,
+                            await moderationService
+                                .createCase({
+                                    ...caseInput,
+                                    type: 'mute',
+                                    duration: AUTOMOD_MUTE_DURATION,
                                 })
-                            })
+                                .catch((err) => {
+                                    errorLog({
+                                        message: 'Failed to create mute case:',
+                                        error: err,
+                                    })
+                                })
+                        }
                         break
                     case 'kick':
-                        await context.member
-                            .kick(caseInput.reason)
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to kick user:',
-                                    error: err,
+                        if (
+                            !botHasPermission(
+                                message,
+                                PermissionFlagsBits.KickMembers,
+                            )
+                        ) {
+                            warnLog({
+                                message: `[AutoMod] Skipped kick action: bot missing KickMembers permission`,
+                                data: {
+                                    guildId,
+                                    userId,
+                                    violation: violation.type,
+                                },
+                            })
+                        } else {
+                            await context.member
+                                .kick(caseInput.reason)
+                                .catch((err) => {
+                                    errorLog({
+                                        message: 'Failed to kick user:',
+                                        error: err,
+                                    })
                                 })
-                            })
-                        await moderationService
-                            .createCase({
-                                ...caseInput,
-                                type: 'kick',
-                            })
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to create kick case:',
-                                    error: err,
+                            await moderationService
+                                .createCase({
+                                    ...caseInput,
+                                    type: 'kick',
                                 })
-                            })
+                                .catch((err) => {
+                                    errorLog({
+                                        message: 'Failed to create kick case:',
+                                        error: err,
+                                    })
+                                })
+                        }
                         break
                     case 'ban':
-                        await context.guild.members
-                            .ban(userId, { reason: caseInput.reason })
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to ban user:',
-                                    error: err,
+                        if (
+                            !botHasPermission(
+                                message,
+                                PermissionFlagsBits.BanMembers,
+                            )
+                        ) {
+                            warnLog({
+                                message: `[AutoMod] Skipped ban action: bot missing BanMembers permission`,
+                                data: {
+                                    guildId,
+                                    userId,
+                                    violation: violation.type,
+                                },
+                            })
+                        } else {
+                            await context.guild.members
+                                .ban(userId, { reason: caseInput.reason })
+                                .catch((err) => {
+                                    errorLog({
+                                        message: 'Failed to ban user:',
+                                        error: err,
+                                    })
                                 })
-                            })
-                        await moderationService
-                            .createCase({
-                                ...caseInput,
-                                type: 'ban',
-                            })
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to create ban case:',
-                                    error: err,
+                            await moderationService
+                                .createCase({
+                                    ...caseInput,
+                                    type: 'ban',
                                 })
-                            })
+                                .catch((err) => {
+                                    errorLog({
+                                        message: 'Failed to create ban case:',
+                                        error: err,
+                                    })
+                                })
+                        }
                         break
                 }
             }

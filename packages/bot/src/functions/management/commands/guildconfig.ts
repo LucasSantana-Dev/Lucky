@@ -108,6 +108,11 @@ export default new Command({
                 ),
         ),
     category: 'management',
+    botPermissions: [
+        PermissionFlagsBits.ManageRoles,
+        PermissionFlagsBits.ManageChannels,
+        PermissionFlagsBits.ManageGuild,
+    ],
     execute: async ({ interaction }) => {
         if (!interaction.guild) {
             await interactionReply({
