@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import {
     Events,
+    ChannelType,
     type ChatInputCommandInteraction,
     type Interaction,
 } from 'discord.js'
@@ -737,6 +738,65 @@ describe('eventHandler', () => {
                         error: dbError,
                     }),
                 )
+            })
+
+            it('posts a utility onboarding message to a postable channel', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = { cache: { size: 5 } } as any
+                const sendMock = jest
+                    .fn<() => Promise<void>>()
+                    .mockResolvedValue(undefined)
+                const systemChannel = {
+                    type: ChannelType.GuildText,
+                    send: sendMock,
+                    permissionsFor: jest.fn(() => ({ has: () => true })),
+                }
+
+                handleEvents(client as unknown as never)
+                getGuildCreateHandler(onMock)?.({
+                    id: 'g-onboard',
+                    name: 'Onboard Guild',
+                    memberCount: 9,
+                    members: { me: { id: 'bot' } },
+                    systemChannel,
+                    channels: { cache: { find: () => undefined } },
+                })
+
+                await new Promise<void>((resolve) => setImmediate(resolve))
+
+                expect(sendMock).toHaveBeenCalledTimes(1)
+                const embed = (
+                    sendMock.mock.calls[0][0] as { embeds: { toJSON(): any }[] }
+                ).embeds[0].toJSON()
+                // verification-safety: pure utility, no invite/vote CTA
+                expect(String(embed.description).toLowerCase()).not.toMatch(
+                    /invite|vote/,
+                )
+            })
+
+            it('skips onboarding when the bot cannot post (no throw)', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = { cache: { size: 5 } } as any
+                const sendMock = jest.fn()
+                const systemChannel = {
+                    type: ChannelType.GuildText,
+                    send: sendMock,
+                    permissionsFor: jest.fn(() => ({ has: () => false })),
+                }
+
+                handleEvents(client as unknown as never)
+                getGuildCreateHandler(onMock)?.({
+                    id: 'g-nopost',
+                    name: 'No Post Guild',
+                    memberCount: 9,
+                    members: { me: { id: 'bot' } },
+                    systemChannel,
+                    channels: { cache: { find: () => undefined } },
+                })
+
+                await new Promise<void>((resolve) => setImmediate(resolve))
+
+                expect(sendMock).not.toHaveBeenCalled()
             })
         })
 
