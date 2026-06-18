@@ -193,6 +193,14 @@ describe('createResilientStream', () => {
         await expect(
             createResilientStream(makeTrack({ title: 'Some Song' })),
         ).rejects.toThrow('Bridge exhausted')
+        // #1500: an unplayable track is an expected outcome → WARN, not
+        // error→Sentry (which produced false "regression" alerts, LUCKY-2T).
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Bridge: all stages exhausted',
+            }),
+        )
+        expect(mockErrorLog).not.toHaveBeenCalled()
     })
 
     it('throws immediately when cleanedTitle is empty after yt-dlp fails', async () => {

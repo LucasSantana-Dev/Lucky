@@ -2,7 +2,7 @@ import { spawn } from 'child_process'
 import { PassThrough } from 'stream'
 import type { Readable } from 'stream'
 import type { Track } from 'discord-player'
-import { errorLog, infoLog, warnLog, debugLog } from '@lucky/shared/utils'
+import { infoLog, warnLog, debugLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import {
     cleanTitle,
@@ -69,19 +69,28 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
         }, 15_000)
 
         const stderrChunks: Buffer[] = []
-        assertDefined(proc.stderr, 'stderr guaranteed by stdio config').on('data', (chunk: Buffer) => stderrChunks.push(chunk))
+        assertDefined(proc.stderr, 'stderr guaranteed by stdio config').on(
+            'data',
+            (chunk: Buffer) => stderrChunks.push(chunk),
+        )
 
         let settled = false
 
-        assertDefined(proc.stdout, 'stdout guaranteed by stdio config').once('data', (firstChunk: Buffer) => {
-            if (settled) return
-            settled = true
-            clearTimeout(timeout)
-            const through = new PassThrough()
-            through.write(firstChunk)
-            assertDefined(proc.stdout, 'stdout guaranteed by stdio config').pipe(through)
-            resolve(through)
-        })
+        assertDefined(proc.stdout, 'stdout guaranteed by stdio config').once(
+            'data',
+            (firstChunk: Buffer) => {
+                if (settled) return
+                settled = true
+                clearTimeout(timeout)
+                const through = new PassThrough()
+                through.write(firstChunk)
+                assertDefined(
+                    proc.stdout,
+                    'stdout guaranteed by stdio config',
+                ).pipe(through)
+                resolve(through)
+            },
+        )
 
         proc.once('error', (err) => {
             if (settled) return
@@ -174,7 +183,7 @@ export async function createResilientStream(
     }
 
     if (!cleanedTitle) {
-        errorLog({
+        warnLog({
             message:
                 'Bridge: yt-dlp failed and title is empty, cannot fallback',
             data: { url: track.url },
@@ -231,7 +240,7 @@ export async function createResilientStream(
         try {
             return await streamViaSoundCloud(coreTitle, track.duration)
         } catch (coreError) {
-            errorLog({
+            warnLog({
                 message: 'Bridge: all stages exhausted',
                 error: coreError,
                 data: {
@@ -249,7 +258,7 @@ export async function createResilientStream(
             })
         }
     } else {
-        errorLog({
+        warnLog({
             message: 'Bridge: all stages exhausted',
             data: {
                 title: track.title,
