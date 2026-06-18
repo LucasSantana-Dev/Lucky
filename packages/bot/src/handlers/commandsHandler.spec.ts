@@ -1,5 +1,9 @@
 import { jest } from '@jest/globals'
-import { Collection } from 'discord.js'
+import {
+    Collection,
+    PermissionFlagsBits,
+    PermissionsBitField,
+} from 'discord.js'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import { executeCommand, setCommands, groupCommands } from './commandsHandler'
 import type { CustomClient } from '../types'
@@ -183,6 +187,135 @@ describe('commandsHandler', () => {
                     context: 'command-execution-failure',
                 }),
             )
+        })
+
+        it('should check bot permissions and block command if missing', async () => {
+            const command = createMockCommand({
+                botPermissions: [PermissionFlagsBits.BanMembers],
+            })
+            const interaction = createMockInteraction({
+                appPermissions: new PermissionsBitField(),
+            })
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({ interaction, client })
+
+            expect(interactionReply).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    content: expect.stringContaining('missing'),
+                    ephemeral: true,
+                },
+            })
+            expect(command.execute).not.toHaveBeenCalled()
+        })
+
+        it('should allow command if bot has required permissions', async () => {
+            const command = createMockCommand({
+                botPermissions: [PermissionFlagsBits.BanMembers],
+            })
+            const interaction = createMockInteraction({
+                appPermissions: new PermissionsBitField(
+                    PermissionFlagsBits.BanMembers,
+                ),
+            })
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({ interaction, client })
+
+            expect(command.execute).toHaveBeenCalledWith({
+                interaction,
+                client,
+            })
+            expect(interactionReply).not.toHaveBeenCalled()
+        })
+
+        it('should allow command without botPermissions check', async () => {
+            const command = createMockCommand({ botPermissions: undefined })
+            const interaction = createMockInteraction({
+                appPermissions: new PermissionsBitField(),
+            })
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({ interaction, client })
+
+            expect(command.execute).toHaveBeenCalledWith({
+                interaction,
+                client,
+            })
+        })
+
+        it('should handle null appPermissions defensively', async () => {
+            const command = createMockCommand({
+                botPermissions: [PermissionFlagsBits.BanMembers],
+            })
+            const interaction = createMockInteraction({
+                appPermissions: null,
+            })
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({ interaction, client })
+
+            expect(interactionReply).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    content: expect.stringContaining('missing'),
+                    ephemeral: true,
+                },
+            })
+            expect(command.execute).not.toHaveBeenCalled()
+        })
+
+        it('should check multiple bot permissions and block if any missing', async () => {
+            const command = createMockCommand({
+                botPermissions: [
+                    PermissionFlagsBits.BanMembers,
+                    PermissionFlagsBits.KickMembers,
+                ],
+            })
+            const interaction = createMockInteraction({
+                appPermissions: new PermissionsBitField(
+                    PermissionFlagsBits.BanMembers,
+                ),
+            })
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({ interaction, client })
+
+            expect(interactionReply).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    content: expect.stringContaining('missing'),
+                    ephemeral: true,
+                },
+            })
+            expect(command.execute).not.toHaveBeenCalled()
+        })
+
+        it('should include permission names in the reply message', async () => {
+            const command = createMockCommand({
+                botPermissions: [PermissionFlagsBits.BanMembers],
+            })
+            const interaction = createMockInteraction({
+                appPermissions: new PermissionsBitField(),
+            })
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({ interaction, client })
+
+            expect(interactionReply).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    content: expect.stringContaining('BanMembers'),
+                    ephemeral: true,
+                },
+            })
         })
     })
 

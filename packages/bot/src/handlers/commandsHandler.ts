@@ -1,4 +1,8 @@
-import { Collection, type ChatInputCommandInteraction } from 'discord.js'
+import {
+    Collection,
+    type ChatInputCommandInteraction,
+    PermissionsBitField,
+} from 'discord.js'
 import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
 import { featureToggleService } from '@lucky/shared/services'
 import type { FeatureToggleName } from '@lucky/shared/types'
@@ -62,6 +66,40 @@ export const executeCommand = async ({
                     interaction,
                     content: {
                         content: 'This feature is currently disabled.',
+                        ephemeral: true,
+                    },
+                })
+                return
+            }
+        }
+
+        if (command.botPermissions?.length) {
+            const appPermissions = interaction.appPermissions
+            const missingPerms: bigint[] = []
+
+            for (const perm of command.botPermissions) {
+                if (!appPermissions?.has(perm)) {
+                    missingPerms.push(perm)
+                }
+            }
+
+            if (missingPerms.length > 0) {
+                const permissionNames = new PermissionsBitField(
+                    missingPerms.reduce((acc, perm) => acc | perm, 0n),
+                ).toArray()
+                const readablePerm = permissionNames.join(', ')
+                const isPlural = permissionNames.length > 1
+                const permNoun = isPlural ? 'permissions' : 'permission'
+                const grantPronoun = isPlural ? 'them' : 'it'
+
+                debugLog({
+                    message: `Command ${interaction.commandName} missing permissions: ${readablePerm}`,
+                })
+
+                await interactionReply({
+                    interaction,
+                    content: {
+                        content: `I'm missing the **${readablePerm}** ${permNoun} — ask an admin to grant ${grantPronoun} or re-invite me.`,
                         ephemeral: true,
                     },
                 })

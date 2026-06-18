@@ -46,6 +46,7 @@ export default new Command({
                 .setRequired(false),
         ),
     category: 'moderation',
+    botPermissions: [PermissionFlagsBits.BanMembers],
     execute: async ({ interaction }) => {
         if (!interaction.guild) {
             await interactionReply({
