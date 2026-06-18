@@ -121,19 +121,23 @@ describe('Landing', () => {
         })
     })
 
-    test('renders disabled Add to Discord buttons when env var not set', () => {
+    test('falls back to the public default client id when env var not set', () => {
         const originalEnv = { ...import.meta.env }
         ;(import.meta.env as Record<string, unknown>).VITE_DISCORD_CLIENT_ID =
             ''
         try {
             render(<Landing />)
-            // Check that disabled buttons are rendered when env is not set
-            const disabledButtons = screen.getAllByRole('button', {
-                name: /Add to Discord \(not configured\)/i,
+            // With no env override, the CTA stays enabled and links to the
+            // bundled public Application ID — no operator config required.
+            const inviteLinks = screen.getAllByRole('link', {
+                name: /Add to Discord/i,
             })
-            expect(disabledButtons.length).toBeGreaterThanOrEqual(2)
-            disabledButtons.forEach((btn) => {
-                expect(btn).toBeDisabled()
+            expect(inviteLinks.length).toBeGreaterThanOrEqual(2)
+            inviteLinks.forEach((link) => {
+                expect(link).toHaveAttribute(
+                    'href',
+                    expect.stringContaining('client_id=962198089161134131'),
+                )
             })
         } finally {
             Object.assign(import.meta.env, originalEnv)

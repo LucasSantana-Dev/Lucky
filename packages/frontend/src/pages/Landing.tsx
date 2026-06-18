@@ -53,8 +53,14 @@ const CLONE_URL = 'https://github.com/LucasSantana-Dev/Lucky.git'
 // the bot needs is safer and converts better with server admins.
 const BOT_INVITE_PERMISSIONS = '3165184'
 
+// Public Discord Application ID (a.k.a. client_id). Safe to ship: it appears in
+// every OAuth invite link and is not a secret. Used as the default so the CTA
+// works out of the box; override via VITE_DISCORD_CLIENT_ID for a fork.
+const DEFAULT_DISCORD_CLIENT_ID = '962198089161134131'
+
 function getBotInviteUrl(): string {
-    const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID || ''
+    const clientId =
+        import.meta.env.VITE_DISCORD_CLIENT_ID || DEFAULT_DISCORD_CLIENT_ID
     return clientId
         ? `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot%20applications.commands&permissions=${BOT_INVITE_PERMISSIONS}`
         : ''
