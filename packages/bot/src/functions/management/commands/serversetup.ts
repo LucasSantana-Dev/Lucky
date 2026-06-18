@@ -288,6 +288,13 @@ export default new Command({
                 ),
         ),
     category: 'management',
+    botPermissions: [
+        PermissionFlagsBits.ManageRoles,
+        PermissionFlagsBits.ManageChannels,
+        // Posts a welcome embed via channel.send() (not interaction reply).
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.EmbedLinks,
+    ],
     execute: async ({ interaction }) => {
         if (!interaction.guild) {
             await interactionReply({

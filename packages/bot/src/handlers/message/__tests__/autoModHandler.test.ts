@@ -18,9 +18,11 @@ jest.mock('@lucky/shared/services', () => ({
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
+    warnLog: jest.fn(),
 }))
 
 import { autoModService, moderationService } from '@lucky/shared/services'
+import { warnLog } from '@lucky/shared/utils'
 
 describe('autoModHandler', () => {
     beforeEach(() => {
@@ -323,6 +325,74 @@ describe('autoModHandler', () => {
 
             const result = await autoModHandler.handle(message, context)
             expect(result.stop).toBe(false)
+        })
+    })
+
+    describe('bot permission gating (event-driven)', () => {
+        const baseSettings = {
+            exemptChannels: [],
+            exemptRoles: [],
+            capsEnabled: true,
+            linksEnabled: false,
+            invitesEnabled: false,
+            wordsEnabled: false,
+        }
+        // Build per-test (after beforeEach's clearAllMocks) so the roles mock
+        // keeps its return value.
+        function makeContext(): MessageContext {
+            return {
+                guild: { id: 'guild1' } as any,
+                member: {
+                    roles: { cache: { map: jest.fn().mockReturnValue([]) } },
+                } as any,
+                featureToggles: { AUTOMOD: true },
+            }
+        }
+        function makeMessage(botCanDelete: boolean): Message {
+            return {
+                author: { id: 'user1', bot: false, tag: 'user#1' },
+                channelId: 'channel1',
+                content: 'HELLO',
+                delete: jest.fn().mockResolvedValue(undefined),
+                client: { user: { id: 'bot1', tag: 'bot#1' } },
+                guild: {
+                    id: 'guild1',
+                    members: { me: { permissions: { has: () => true } } },
+                },
+                channel: {
+                    permissionsFor: jest
+                        .fn()
+                        .mockReturnValue({ has: () => botCanDelete }),
+                },
+            } as unknown as Message
+        }
+
+        it('skips message delete and warns when bot lacks ManageMessages', async () => {
+            ;(autoModService.getSettings as jest.Mock).mockResolvedValue(
+                baseSettings,
+            )
+            ;(autoModService.checkCaps as jest.Mock).mockResolvedValue(true)
+            const message = makeMessage(false)
+            const context = makeContext()
+
+            await autoModHandler.handle(message, context)
+
+            expect(autoModService.checkCaps).toHaveBeenCalled()
+            expect(message.delete).not.toHaveBeenCalled()
+            expect(warnLog).toHaveBeenCalled()
+        })
+
+        it('deletes the message when bot has ManageMessages', async () => {
+            ;(autoModService.getSettings as jest.Mock).mockResolvedValue(
+                baseSettings,
+            )
+            ;(autoModService.checkCaps as jest.Mock).mockResolvedValue(true)
+            const message = makeMessage(true)
+            const context = makeContext()
+
+            await autoModHandler.handle(message, context)
+
+            expect(message.delete).toHaveBeenCalled()
         })
     })
 })
