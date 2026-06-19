@@ -25,6 +25,7 @@ import { handleExternalScrobbler } from './externalScrobbler'
 import { handleReactionEvents } from './reactionHandler'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
 import { reactionRolesService } from '@lucky/shared/services'
+import { syncAllGuildFollowerRoles } from '../twitch/followerRoleSync'
 import { aiDevToolkitService } from '../services/AiDevToolkitService'
 import { namedSessionService } from '../utils/music/namedSessions'
 import { cleanupGuildState } from './player/trackNowPlaying'
@@ -58,6 +59,17 @@ function handleClientReady(client: Client): void {
                 })
             })
         }
+        setInterval(
+            () => {
+                syncAllGuildFollowerRoles(client).catch((error) => {
+                    errorLog({
+                        message: 'Periodic followerRoleSync failed',
+                        error,
+                    })
+                })
+            },
+            60 * 60 * 1000,
+        )
     })
 }
 

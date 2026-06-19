@@ -7,6 +7,8 @@ import { managementSchemas as s } from '../schemas/management'
 import {
     twitchNotificationService,
     twitchControlService,
+    twitchFollowerRoleService,
+    twitchSubscriberRoleService,
 } from '@lucky/shared/services'
 import { warnLog } from '@lucky/shared/utils'
 import { AppError } from '../errors/AppError'
@@ -229,6 +231,43 @@ export function setupTwitchRoutes(app: Express): void {
                 await twitchControlService.publishRefresh()
             }
             res.json({ success })
+        }),
+    )
+
+    app.post(
+        '/api/twitch/follower-link',
+        writeLimiter,
+        asyncHandler(async (req: Request, res: Response) => {
+            const apiKey = req.headers['x-internal-api-key']
+            const expectedKey =
+                process.env.INTERNAL_API_KEY ?? process.env.LUCKY_NOTIFY_API_KEY
+            if (!expectedKey || apiKey !== expectedKey) {
+                res.status(401).json({ error: 'Unauthorized' })
+                return
+            }
+
+            const body = z
+                .object({
+                    discordUserId: z.string().regex(/^\d{17,20}$/),
+                    twitchUserId: z.string().min(1).max(50),
+                    twitchLogin: z.string().min(1).max(50),
+                    guildId: z.string().regex(/^\d{17,20}$/),
+                    isSubscriber: z.boolean().optional(),
+                })
+                .strict()
+                .safeParse(req.body)
+
+            if (!body.success) {
+                res.status(400).json({
+                    error: 'Invalid body',
+                    details: body.error.issues,
+                })
+                return
+            }
+
+            const ok = await twitchFollowerRoleService.linkUser(body.data)
+
+            res.json({ ok })
         }),
     )
 }

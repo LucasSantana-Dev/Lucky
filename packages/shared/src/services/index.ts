@@ -31,6 +31,8 @@ export {
 } from './embedValidation.js'
 export { twitchNotificationService } from './TwitchNotificationService'
 export { TwitchControlService, twitchControlService } from './twitch/index.js'
+export { twitchFollowerRoleService } from './TwitchFollowerRoleService'
+export { twitchSubscriberRoleService } from './TwitchSubscriberRoleService'
 export { lastFmLinkService, type LastFmLinkRow } from './LastFmLinkService'
 export { spotifyLinkService, type SpotifyLinkRow } from './SpotifyLinkService'
 export {
