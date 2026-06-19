@@ -1,0 +1,40 @@
+name: Release Please
+
+# Automates the release step (ADR 2026-06-16): on every push to main,
+# release-please maintains a single open release PR that pre-computes the next
+# semver bump + CHANGELOG from conventional commits. Merging that PR tags v*
+# and publishes a GitHub Release, whose `release: published` event triggers
+# deploy.yml (unchanged 30-min bake → homelab webhook → migrations → rollback).
+# No auto-merge: the one-click human merge is the deliberate "ship to prod"
+# checkpoint. Incident hotfixes still use the workflow_dispatch fast-path.
+
+on:
+    push:
+        branches:
+            - main
+
+permissions:
+    contents: write
+    pull-requests: write
+
+jobs:
+    release-please:
+        name: Maintain release PR
+        runs-on: ubuntu-latest
+        steps:
+            - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+              with:
+                  # Must be a PAT (or GitHub App token), NOT the default
+                  # GITHUB_TOKEN. GitHub Actions deliberately does not let events
+                  # raised by GITHUB_TOKEN (e.g. the `release: published` event
+                  # emitted when release-please publishes the GitHub Release)
+                  # trigger further workflow runs — recursion prevention. With
+                  # GITHUB_TOKEN the tag/Release is created but deploy.yml
+                  # (`on: release: [published]`) would never fire, silently
+                  # breaking the prod deploy chain. A PAT makes the published
+                  # Release propagate so deploy.yml runs. The PAT also lets the
+                  # release PR be created without the "Allow Actions to create
+                  # PRs" repo setting. Scope: contents RW + pull-requests RW.
+                  token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+                  config-file: release-please-config.json
+                  manifest-file: .release-please-manifest.json
