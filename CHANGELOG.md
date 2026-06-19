@@ -5,6 +5,86 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.18.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.17.0...v2.18.0) (2026-06-19)
+
+
+### Features
+
+* **autoplay:** add implicit-dislike-penalty signal ([#1374](https://github.com/LucasSantana-Dev/Lucky/issues/1374)) ([593c0ad](https://github.com/LucasSantana-Dev/Lucky/commit/593c0ada5b732b4a48d63204c8e849c4b5057677))
+* **autoplay:** add recency-decay signal for queue diversity ([#1376](https://github.com/LucasSantana-Dev/Lucky/issues/1376)) ([b85e2a0](https://github.com/LucasSantana-Dev/Lucky/commit/b85e2a0f5d79efd04590d17db58faee5f5a50d38))
+* **autoplay:** boost candidates for frequently replayed tracks ([#1370](https://github.com/LucasSantana-Dev/Lucky/issues/1370)) ([215edea](https://github.com/LucasSantana-Dev/Lucky/commit/215edea22b8e99ab114f3450323a5f5de61ce6fb))
+* **autoplay:** guild opt-out toggle for sertanejo veto ([#1087](https://github.com/LucasSantana-Dev/Lucky/issues/1087)) ([#1373](https://github.com/LucasSantana-Dev/Lucky/issues/1373)) ([6cb5588](https://github.com/LucasSantana-Dev/Lucky/commit/6cb55883f850aca68f4a6d5c2d5a3e5b492df8d5))
+* **autoplay:** instrument outcome eval to disambiguate [#1275](https://github.com/LucasSantana-Dev/Lucky/issues/1275) ([#1491](https://github.com/LucasSantana-Dev/Lucky/issues/1491)) ([1921ab5](https://github.com/LucasSantana-Dev/Lucky/commit/1921ab58ac8de1826fe73a931a02a9a5bf9c7541))
+* **backend:** add zod validation to artists and toggles routes ([#1189](https://github.com/LucasSantana-Dev/Lucky/issues/1189)) ([#1334](https://github.com/LucasSantana-Dev/Lucky/issues/1334)) ([b59fb35](https://github.com/LucasSantana-Dev/Lucky/commit/b59fb35244d9f1712d0730035c154ba471e34544))
+* **backend:** dedup key for support-report intake ([#1319](https://github.com/LucasSantana-Dev/Lucky/issues/1319)) ([#1328](https://github.com/LucasSantana-Dev/Lucky/issues/1328)) ([4d95307](https://github.com/LucasSantana-Dev/Lucky/commit/4d9530762e37c97440e2e6a6957886ff41fcc1b6))
+* **backend:** move session store from Redis to Postgres ([#1111](https://github.com/LucasSantana-Dev/Lucky/issues/1111)) ([#1396](https://github.com/LucasSantana-Dev/Lucky/issues/1396)) ([ff5e0b6](https://github.com/LucasSantana-Dev/Lucky/commit/ff5e0b684aa369a208a3e01d9c9a8c4cc53e4308))
+* **backend:** request-id correlation middleware for [#1286](https://github.com/LucasSantana-Dev/Lucky/issues/1286) ([#1417](https://github.com/LucasSantana-Dev/Lucky/issues/1417)) ([671ed4c](https://github.com/LucasSantana-Dev/Lucky/commit/671ed4c90471670f68346b493eade85d55a92ee9))
+* **bot:** instrument serversetup criativaria invocations ([#1288](https://github.com/LucasSantana-Dev/Lucky/issues/1288)) ([#1390](https://github.com/LucasSantana-Dev/Lucky/issues/1390)) ([c37f021](https://github.com/LucasSantana-Dev/Lucky/commit/c37f021f3c28a13a6a58ed2529dcc5e3269892b1))
+* **bot:** utility join-onboarding message + in-bot growth adr ([#1506](https://github.com/LucasSantana-Dev/Lucky/issues/1506)) ([0a23775](https://github.com/LucasSantana-Dev/Lucky/commit/0a23775cdb458479e0e1b23ad1e42679d6036d57))
+* **db:** add check constraints on guild_settings bounds ([#1124](https://github.com/LucasSantana-Dev/Lucky/issues/1124)) ([#1338](https://github.com/LucasSantana-Dev/Lucky/issues/1338)) ([a7c7400](https://github.com/LucasSantana-Dev/Lucky/commit/a7c74007bbb0df43e45e88de52971e3858ee729a))
+* growth surfaces — /invite, landing SEO + CTA, guild telemetry ([#1494](https://github.com/LucasSantana-Dev/Lucky/issues/1494)) ([205876d](https://github.com/LucasSantana-Dev/Lucky/commit/205876d4ad9ba415840abc4207ca9ac98a99e7f4))
+* **music:** add previous-track command end to end ([#1239](https://github.com/LucasSantana-Dev/Lucky/issues/1239)) ([#1347](https://github.com/LucasSantana-Dev/Lucky/issues/1347)) ([7771167](https://github.com/LucasSantana-Dev/Lucky/commit/7771167e7cc1534c561d6bad3cfbd2bcf85e261f))
+* **observability:** alert on redis control publish failures ([#1401](https://github.com/LucasSantana-Dev/Lucky/issues/1401)) ([6e46cd7](https://github.com/LucasSantana-Dev/Lucky/commit/6e46cd7ab193dedbff4a7b62ac0c6060489a4607))
+* **security:** add security headers + csp report-only ([#1283](https://github.com/LucasSantana-Dev/Lucky/issues/1283)) ([#1315](https://github.com/LucasSantana-Dev/Lucky/issues/1315)) ([7413a1c](https://github.com/LucasSantana-Dev/Lucky/commit/7413a1cebe733cd62f583ed197cd3bba50428e82))
+* **security:** collect CSP violations via report-uri sink ([#1283](https://github.com/LucasSantana-Dev/Lucky/issues/1283)) ([#1415](https://github.com/LucasSantana-Dev/Lucky/issues/1415)) ([6f68aa3](https://github.com/LucasSantana-Dev/Lucky/commit/6f68aa31b8d9a9582e36de85c77e32d58d8adfd5))
+* skip-reason telemetry via emoji reactions on now-playing ([#1377](https://github.com/LucasSantana-Dev/Lucky/issues/1377)) ([5b1959f](https://github.com/LucasSantana-Dev/Lucky/commit/5b1959fd96057c396baf17f9929e6a32f9737eed))
+
+
+### Bug Fixes
+
+* add timeouts to unbounded external fetch calls ([#1333](https://github.com/LucasSantana-Dev/Lucky/issues/1333)) ([38dde55](https://github.com/LucasSantana-Dev/Lucky/commit/38dde55fb8631185fed7e3e025d94362fef68e13))
+* **auth:** log session lookup failures in optional auth ([#1286](https://github.com/LucasSantana-Dev/Lucky/issues/1286)) ([ff2b3ab](https://github.com/LucasSantana-Dev/Lucky/commit/ff2b3ab9f3f06dd3b81194f4e3e3f8a113f523f5))
+* **autoplay:** capture skip rejections (symmetric completion threshold) ([#1276](https://github.com/LucasSantana-Dev/Lucky/issues/1276)) ([c282414](https://github.com/LucasSantana-Dev/Lucky/commit/c282414346bf6c2247ed5d8a22c0c9bfcc5fdeb2))
+* **autoplay:** key track start-time per track, not per guild ([#1275](https://github.com/LucasSantana-Dev/Lucky/issues/1275)) ([#1483](https://github.com/LucasSantana-Dev/Lucky/issues/1483)) ([0853a90](https://github.com/LucasSantana-Dev/Lucky/commit/0853a90412ed64c6e9cec7732311e5648cdb49f1))
+* **autoplay:** provenance-aware genre guards open the seed neighborhood ([#1272](https://github.com/LucasSantana-Dev/Lucky/issues/1272)) ([405af1e](https://github.com/LucasSantana-Dev/Lucky/commit/405af1eae055f661a42310717c39adab6aa220a4))
+* **autoplay:** weight popularity over name similarity in similar mode ([#1273](https://github.com/LucasSantana-Dev/Lucky/issues/1273)) ([cb24a7e](https://github.com/LucasSantana-Dev/Lucky/commit/cb24a7e9c6993b72be780c72710c524459f591d6))
+* **backend:** bound pagination limit on leaderboard + starboard entries ([#1307](https://github.com/LucasSantana-Dev/Lucky/issues/1307)) ([c2b5cbe](https://github.com/LucasSantana-Dev/Lucky/commit/c2b5cbe2beceb2dc5761f74fb63eda03790de5d7))
+* **backend:** degrade gracefully on external fetch timeouts ([#1342](https://github.com/LucasSantana-Dev/Lucky/issues/1342)) ([#1345](https://github.com/LucasSantana-Dev/Lucky/issues/1345)) ([5de7b69](https://github.com/LucasSantana-Dev/Lucky/commit/5de7b694e7215fd979ef506f66cb7d1f91067249))
+* **backend:** log swallowed spotify search errors ([#1285](https://github.com/LucasSantana-Dev/Lucky/issues/1285)) ([#1318](https://github.com/LucasSantana-Dev/Lucky/issues/1318)) ([72a7431](https://github.com/LucasSantana-Dev/Lucky/commit/72a74317105f6ae6aedb817344f79bcf0a16b373))
+* **backend:** replayed named creates return existing row ([#1320](https://github.com/LucasSantana-Dev/Lucky/issues/1320)) ([#1326](https://github.com/LucasSantana-Dev/Lucky/issues/1326)) ([be2b30c](https://github.com/LucasSantana-Dev/Lucky/commit/be2b30cdb69ad8d94665eb8ae2afb93c325bd5ce))
+* **backend:** validate guildId snowflake on all 18 music routes ([#1297](https://github.com/LucasSantana-Dev/Lucky/issues/1297)) ([b93cfb5](https://github.com/LucasSantana-Dev/Lucky/commit/b93cfb565288a36bb9c0cbb36640eadb874505d6))
+* **bot:** accurate reply when previous button has no history ([#1191](https://github.com/LucasSantana-Dev/Lucky/issues/1191)) ([#1331](https://github.com/LucasSantana-Dev/Lucky/issues/1331)) ([eb9b2ea](https://github.com/LucasSantana-Dev/Lucky/commit/eb9b2ea28b1f0581910f73833e09caec41f50f34))
+* **bot:** bound all Spotify API fetches with an 8s abort deadline ([#1302](https://github.com/LucasSantana-Dev/Lucky/issues/1302)) ([b283159](https://github.com/LucasSantana-Dev/Lucky/commit/b2831594ecc1d456d6f683e89a2b22a996b9beb7))
+* **bot:** catch resume errors in skip delayed play ([#1353](https://github.com/LucasSantana-Dev/Lucky/issues/1353)) ([#1354](https://github.com/LucasSantana-Dev/Lucky/issues/1354)) ([c2d2758](https://github.com/LucasSantana-Dev/Lucky/commit/c2d275872fbab168a1e7c603ca415ab3d3284c27))
+* **bot:** catch settings fetch errors in idle disconnect scheduling ([#1361](https://github.com/LucasSantana-Dev/Lucky/issues/1361)) ([61b82e4](https://github.com/LucasSantana-Dev/Lucky/commit/61b82e4ce2f6f016b22ed5b0f6b672a4da55f0cb))
+* **bot:** extend graceful bot-perm guard to mgmt + automod ([#1502](https://github.com/LucasSantana-Dev/Lucky/issues/1502)) ([1ee510d](https://github.com/LucasSantana-Dev/Lucky/commit/1ee510dd3773d7f55d5a0b7d7e2be7bc0e027c17))
+* **bot:** graceful bot-permission guard + moderation pilot ([#1498](https://github.com/LucasSantana-Dev/Lucky/issues/1498)) ([#1499](https://github.com/LucasSantana-Dev/Lucky/issues/1499)) ([e2664ce](https://github.com/LucasSantana-Dev/Lucky/commit/e2664ce97b6d99a63521036d3d4b5dbd0a051878))
+* **bot:** harden youtube extractor registration ([#1468](https://github.com/LucasSantana-Dev/Lucky/issues/1468)) ([#1472](https://github.com/LucasSantana-Dev/Lucky/issues/1472)) ([2e7f1bb](https://github.com/LucasSantana-Dev/Lucky/commit/2e7f1bbec46aab6d68d19aa07a4a503027d304bd))
+* **bot:** queue summary position is milliseconds, not seconds ([#1202](https://github.com/LucasSantana-Dev/Lucky/issues/1202)) ([#1330](https://github.com/LucasSantana-Dev/Lucky/issues/1330)) ([efa9800](https://github.com/LucasSantana-Dev/Lucky/commit/efa98005cafc9e4cbacfcd8cc7f28b7bd5e26b6e))
+* **bot:** skip startup session restore into empty voice channel ([#1469](https://github.com/LucasSantana-Dev/Lucky/issues/1469)) ([dbcc08c](https://github.com/LucasSantana-Dev/Lucky/commit/dbcc08ce511b0f19b1bc2c490c584113485e59b3))
+* **bot:** thread real Client into endGiveaway ([#1383](https://github.com/LucasSantana-Dev/Lucky/issues/1383)) ([#1388](https://github.com/LucasSantana-Dev/Lucky/issues/1388)) ([d3b274a](https://github.com/LucasSantana-Dev/Lucky/commit/d3b274afa694ae8b35e3052ba8a366afee32d98f))
+* **bot:** wire setupwebmusichandler at startup ([#1321](https://github.com/LucasSantana-Dev/Lucky/issues/1321)) ([#1351](https://github.com/LucasSantana-Dev/Lucky/issues/1351)) ([dc68e7e](https://github.com/LucasSantana-Dev/Lucky/commit/dc68e7efce26598161380c60bedb1a728a72748d))
+* **ci:** grant review-tools caller the scopes its reusables require ([#1424](https://github.com/LucasSantana-Dev/Lucky/issues/1424)) ([c215675](https://github.com/LucasSantana-Dev/Lucky/commit/c2156759754ed65cfecb8f8fa9b25f5347522f5c))
+* **ci:** quality/Lint green again — core rules off for bot/shared at root lint ([#1364](https://github.com/LucasSantana-Dev/Lucky/issues/1364)) ([#1365](https://github.com/LucasSantana-Dev/Lucky/issues/1365)) ([cc2322f](https://github.com/LucasSantana-Dev/Lucky/commit/cc2322f0ed999ffe1aabd341b1371260ace718d5))
+* **compose:** tag container logs so loki labels them by name ([#1476](https://github.com/LucasSantana-Dev/Lucky/issues/1476)) ([4e956df](https://github.com/LucasSantana-Dev/Lucky/commit/4e956dfaad3ab88ea4d7d1f2db5874b3535f4cdd))
+* **deps:** bump multer to 2.2.0 to fix high-severity dos advisory ([#1493](https://github.com/LucasSantana-Dev/Lucky/issues/1493)) ([4d57ac8](https://github.com/LucasSantana-Dev/Lucky/commit/4d57ac87b0b016ffd8d79306c0705f1294c9a37a))
+* **deps:** bump qs to 6.15.2 and hono to 4.12.25 (audit) ([#1295](https://github.com/LucasSantana-Dev/Lucky/issues/1295)) ([ae5d949](https://github.com/LucasSantana-Dev/Lucky/commit/ae5d949c2f756eb554a24621c952cd8021b7a580))
+* **deps:** pin piscina 4.9.3 for high-severity rce advisory ([#1504](https://github.com/LucasSantana-Dev/Lucky/issues/1504)) ([10b68e6](https://github.com/LucasSantana-Dev/Lucky/commit/10b68e6597bae7c39286662293f1587780df0a30))
+* **docker:** add C toolchain to deps-production for opus source-build fallback ([#1310](https://github.com/LucasSantana-Dev/Lucky/issues/1310)) ([5ed7f11](https://github.com/LucasSantana-Dev/Lucky/commit/5ed7f11e0747eef6f303d1aa8f3f1fe8889eb351))
+* **download:** drop invalid --extract-flat flag from yt-dlp download ([#1488](https://github.com/LucasSantana-Dev/Lucky/issues/1488)) ([9d29144](https://github.com/LucasSantana-Dev/Lucky/commit/9d291441d59ce7a01e717ad04f6844ac3d8b7947))
+* **frontend:** default add-to-discord cta to public application id ([#1495](https://github.com/LucasSantana-Dev/Lucky/issues/1495)) ([efda71e](https://github.com/LucasSantana-Dev/Lucky/commit/efda71e38c7152abb0d5fca2a708cbe960720ec4))
+* **help:** split large command categories across embed fields ([#1489](https://github.com/LucasSantana-Dev/Lucky/issues/1489)) ([0fa5786](https://github.com/LucasSantana-Dev/Lucky/commit/0fa578646fe0671eda85eb6b36db076c6e0fafb1))
+* **player:** warn not error on bridge exhaustion for unplayable tracks ([#1507](https://github.com/LucasSantana-Dev/Lucky/issues/1507)) ([d7a4a58](https://github.com/LucasSantana-Dev/Lucky/commit/d7a4a5885ffa74fe5cbf22819df08a4dbc53e729))
+* **security:** bump vite 8.0.16 + form-data 4.0.6 for high advisories ([#1457](https://github.com/LucasSantana-Dev/Lucky/issues/1457)) ([58d21d5](https://github.com/LucasSantana-Dev/Lucky/commit/58d21d56ad437bb5526dd5dcc9e5af3603d4b310))
+* **shared:** env-isolate environment.test.ts (no secret dumps) ([#1292](https://github.com/LucasSantana-Dev/Lucky/issues/1292)) ([588037c](https://github.com/LucasSantana-Dev/Lucky/commit/588037cf8b3a7424ad922b15d28aeb8548eb082e))
+* **shared:** log db error in feature-toggle override read ([#1286](https://github.com/LucasSantana-Dev/Lucky/issues/1286)) ([#1411](https://github.com/LucasSantana-Dev/Lucky/issues/1411)) ([0dfc409](https://github.com/LucasSantana-Dev/Lucky/commit/0dfc4091c1e688569f656851b39f06716eecb4a0))
+* **shared:** make read-then-write service paths atomic ([#1199](https://github.com/LucasSantana-Dev/Lucky/issues/1199)) ([#1340](https://github.com/LucasSantana-Dev/Lucky/issues/1340)) ([ba1b840](https://github.com/LucasSantana-Dev/Lucky/commit/ba1b840accb4858837c0b46e8018b4d1bcd53291))
+* **shared:** normalize embed template name on gettemplate ([#1327](https://github.com/LucasSantana-Dev/Lucky/issues/1327)) ([#1350](https://github.com/LucasSantana-Dev/Lucky/issues/1350)) ([d221b57](https://github.com/LucasSantana-Dev/Lucky/commit/d221b577db03473f0930747362c65861aae501fa))
+* **shared:** safe env parsing via parseIntEnv helper ([#1209](https://github.com/LucasSantana-Dev/Lucky/issues/1209)) ([#1335](https://github.com/LucasSantana-Dev/Lucky/issues/1335)) ([32e3684](https://github.com/LucasSantana-Dev/Lucky/commit/32e36849ac0b8c9b3e839fc24a97f1f6c1972376))
+* **shared:** validate guildautomation json on read ([#1194](https://github.com/LucasSantana-Dev/Lucky/issues/1194)) ([#1346](https://github.com/LucasSantana-Dev/Lucky/issues/1346)) ([93d9eea](https://github.com/LucasSantana-Dev/Lucky/commit/93d9eea104c989485b125eb2de494a8032c2f6b4))
+* **spotify:** log oauth token-exchange failures ([#1286](https://github.com/LucasSantana-Dev/Lucky/issues/1286) track b) ([8306c35](https://github.com/LucasSantana-Dev/Lucky/commit/8306c35b19587d5b59e8092c0e245a2ed087b658))
+* **twitch:** re-subscribe to EventSub after unexpected reconnect ([#870](https://github.com/LucasSantana-Dev/Lucky/issues/870)) ([#1395](https://github.com/LucasSantana-Dev/Lucky/issues/1395)) ([78a30f3](https://github.com/LucasSantana-Dev/Lucky/commit/78a30f31b9e97bd9e5fe86397ce5bdca272c0c10))
+* **twitch:** refresh bot subscriptions on web add/remove ([#870](https://github.com/LucasSantana-Dev/Lucky/issues/870)) ([939d4b3](https://github.com/LucasSantana-Dev/Lucky/commit/939d4b3721158d0c52c2f9c7944709baf38d35c0))
+* **web:** clear auth check promise on settle, not via 100ms timer ([#1311](https://github.com/LucasSantana-Dev/Lucky/issues/1311)) ([5cc8eef](https://github.com/LucasSantana-Dev/Lucky/commit/5cc8eefd7d83a5319175b056616ffe097a031299))
+* **web:** report swallowed member-context fetch error to Sentry ([#1286](https://github.com/LucasSantana-Dev/Lucky/issues/1286) B3) ([#1416](https://github.com/LucasSantana-Dev/Lucky/issues/1416)) ([85f141d](https://github.com/LucasSantana-Dev/Lucky/commit/85f141d7926ef9eeec4a1195dda9702df25d7c02))
+* **web:** route handled errors to Sentry, enforce no-console ([#1296](https://github.com/LucasSantana-Dev/Lucky/issues/1296)) ([a34e777](https://github.com/LucasSantana-Dev/Lucky/commit/a34e777d1627ad3a2715b49f211c4b7bd3e74266))
+
+
+### Performance Improvements
+
+* **bot:** bound external scrobbler track cache with lru+ttl ([#1282](https://github.com/LucasSantana-Dev/Lucky/issues/1282)) ([#1316](https://github.com/LucasSantana-Dev/Lucky/issues/1316)) ([7f29efc](https://github.com/LucasSantana-Dev/Lucky/commit/7f29efce0ea9ad0b6ad1dff6edfae57d4f15b2f8))
+* **shared:** batch recommendation telemetry counts in one groupBy ([#1308](https://github.com/LucasSantana-Dev/Lucky/issues/1308)) ([e5a5973](https://github.com/LucasSantana-Dev/Lucky/commit/e5a5973d9c25d5926ab576b13265fe05c2d87032))
+
 ## [Unreleased]
 
 ## [2.17.0] - 2026-06-08
@@ -950,4 +1030,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **deploy pipeline**: Wait for `docker-publish` to complete before firing the homelab webhook. Fail closed when no docker-publish run is found for the commit SHA (opt-out via `FORCE_UNVERIFIED_DEPLOY=true`).
 - **deploy pipeline**: New *Validate deployed version* step polls `/api/health/version` until the deployed `commitSha` matches `github.sha` before proceeding to OAuth smoke checks — eliminates false-positive green deploys against stale images.
 - **docker build**: `COMMIT_SHA` build arg injected in `docker-publish.yml` and set as `ENV` in the backend stage of the Dockerfile.
-
