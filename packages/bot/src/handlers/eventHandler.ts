@@ -1,6 +1,11 @@
 import {
     Events,
+    EmbedBuilder,
+    ChannelType,
+    PermissionFlagsBits,
     type Client,
+    type Guild,
+    type GuildBasedChannel,
     type Interaction,
     type ChatInputCommandInteraction,
 } from 'discord.js'
@@ -28,6 +33,10 @@ import {
     recordGuildLeave,
     syncGuildsOnReady,
 } from '../services/guildMembershipService'
+import {
+    guildJoinsTotal,
+    guildLeavesTotal,
+} from '../utils/monitoring/prometheus'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -52,15 +61,72 @@ function handleClientReady(client: Client): void {
     })
 }
 
+// Pure-utility onboarding embed (no invite/vote CTA — see ADR
+// 2026-06-18-in-bot-growth). Helps a new server start using the bot; keeping it
+// utility-first avoids the Platform-Manipulation flags that jeopardize verification.
+const ONBOARDING_EMBED = new EmbedBuilder()
+    .setColor(0x5865f2)
+    .setTitle('🎵 Thanks for adding Lucky!')
+    .setDescription(
+        [
+            "Here's how to get started:",
+            '',
+            '`/play <song or url>` — play music in your voice channel',
+            '`/queue` — see the current and upcoming tracks',
+            '`/help` — browse every command',
+        ].join('\n'),
+    )
+    .setFooter({ text: 'Lucky' })
+
+// First text channel the bot can actually post to (system channel preferred).
+function findOnboardingChannel(guild: Guild): GuildBasedChannel | null {
+    const me = guild.members?.me
+    if (!me) return null
+    const canPost = (ch: GuildBasedChannel | null): boolean =>
+        ch?.type === ChannelType.GuildText &&
+        (ch
+            .permissionsFor(me)
+            ?.has([
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.EmbedLinks,
+            ]) ??
+            false)
+    if (canPost(guild.systemChannel)) return guild.systemChannel
+    return guild.channels.cache.find((ch) => canPost(ch)) ?? null
+}
+
+async function sendOnboardingMessage(guild: Guild): Promise<void> {
+    const channel = findOnboardingChannel(guild)
+    if (!channel || channel.type !== ChannelType.GuildText) {
+        // No channel the bot can post to — skip silently, never throw.
+        return
+    }
+    await channel.send({ embeds: [ONBOARDING_EMBED] })
+}
+
 function handleGuildCreate(client: Client): void {
     client.on(Events.GuildCreate, (guild) => {
+        const totalGuilds = client.guilds.cache.size
         infoLog({
-            message: 'Joined guild',
-            data: { guildId: guild.id, name: guild.name },
+            message: 'Guild joined',
+            data: {
+                guildId: guild.id,
+                guildName: guild.name,
+                memberCount: guild.memberCount,
+                totalGuilds,
+            },
         })
+        guildJoinsTotal.inc()
         recordGuildJoin(guild).catch((error) => {
             errorLog({
                 message: 'Error recording guild join',
+                error,
+            })
+        })
+        sendOnboardingMessage(guild).catch((error) => {
+            errorLog({
+                message: 'Error sending onboarding message',
                 error,
             })
         })
@@ -228,10 +294,17 @@ function handleDebug(client: Client): void {
 
 function handleGuildDelete(client: Client): void {
     client.on(Events.GuildDelete, async (guild) => {
+        const totalGuilds = client.guilds.cache.size
         infoLog({
-            message: 'Left guild',
-            data: { guildId: guild.id, name: guild.name },
+            message: 'Guild left',
+            data: {
+                guildId: guild.id,
+                guildName: guild.name,
+                memberCount: guild.memberCount,
+                totalGuilds,
+            },
         })
+        guildLeavesTotal.inc()
         await recordGuildLeave(guild.id, guild.name).catch((error) => {
             errorLog({
                 message: 'Error recording guild leave',

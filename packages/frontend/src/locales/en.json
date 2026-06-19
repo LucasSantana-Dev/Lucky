@@ -167,8 +167,8 @@
     },
     "landing": {
         "meta": {
-            "title": "Lucky — A Discord bot you can actually self-host",
-            "description": "Open-source Discord bot with music, moderation, custom commands, and a web dashboard. Free forever. Run it on your own box."
+            "title": "Lucky — Free Discord music bot with autoplay & dashboard",
+            "description": "YouTube, Spotify, SoundCloud music bot with genre-aware autoplay, smart radio, moderation, and web dashboard. Open-source, self-hostable, free forever."
         },
         "hero": {
             "eyebrow": "Open source · Apache 2.0",

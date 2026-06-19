@@ -68,6 +68,7 @@ export default new Command({
                 ),
         ),
     category: 'management',
+    botPermissions: [PermissionFlagsBits.SendMessages],
     execute: async ({ interaction }) => {
         if (!interaction.guild) {
             await interactionReply({

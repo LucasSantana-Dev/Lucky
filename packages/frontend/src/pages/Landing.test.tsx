@@ -68,13 +68,16 @@ describe('Landing', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         setupMocks()
+        // Mock the Discord client ID env var for tests
+        ;(import.meta.env as Record<string, unknown>).VITE_DISCORD_CLIENT_ID =
+            '962198089161134131'
     })
 
     test('sets page metadata on mount', () => {
         render(<Landing />)
         expect(usePageMetadata).toHaveBeenCalledWith({
-            title: expect.stringMatching(/self-host/i),
-            description: expect.stringMatching(/open-source/i),
+            title: expect.stringMatching(/discord music bot/i),
+            description: expect.stringMatching(/autoplay/i),
         })
     })
 
@@ -102,7 +105,7 @@ describe('Landing', () => {
         expect(screen.getByText(/And yours to run\./i)).toBeInTheDocument()
     })
 
-    test('renders Add to Discord primary CTA in hero and nav', () => {
+    test('renders Add to Discord primary CTA in hero and nav when invite URL is set', () => {
         render(<Landing />)
         const inviteLinks = screen.getAllByRole('link', {
             name: /Add to Discord/i,
@@ -116,6 +119,29 @@ describe('Landing', () => {
             expect(link).toHaveAttribute('target', '_blank')
             expect(link).toHaveAttribute('rel', 'noopener noreferrer')
         })
+    })
+
+    test('falls back to the public default client id when env var not set', () => {
+        const originalEnv = { ...import.meta.env }
+        ;(import.meta.env as Record<string, unknown>).VITE_DISCORD_CLIENT_ID =
+            ''
+        try {
+            render(<Landing />)
+            // With no env override, the CTA stays enabled and links to the
+            // bundled public Application ID — no operator config required.
+            const inviteLinks = screen.getAllByRole('link', {
+                name: /Add to Discord/i,
+            })
+            expect(inviteLinks.length).toBeGreaterThanOrEqual(2)
+            inviteLinks.forEach((link) => {
+                expect(link).toHaveAttribute(
+                    'href',
+                    expect.stringContaining('client_id=962198089161134131'),
+                )
+            })
+        } finally {
+            Object.assign(import.meta.env, originalEnv)
+        }
     })
 
     test('renders Self-host on GitHub secondary CTA in hero', () => {

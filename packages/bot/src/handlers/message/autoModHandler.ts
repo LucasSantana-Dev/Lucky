@@ -1,6 +1,7 @@
-import type { Message } from 'discord.js'
+import type { Message, GuildChannel } from 'discord.js'
+import { PermissionFlagsBits } from 'discord.js'
 import { autoModService, moderationService } from '@lucky/shared/services'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import type {
     MessageContext,
@@ -14,6 +15,27 @@ interface Violation {
     type: string
     reason: string
     action: string
+}
+
+/**
+ * Whether the bot can delete messages in this channel — the only privileged
+ * automod action currently wired. (mute/kick/ban cases are dead code; see #1505.)
+ */
+function botCanManageMessages(message: Message): boolean {
+    const botMember = message.guild?.members.me
+    if (!botMember) return false
+    // Message deletion is channel-scoped; check the bot's perms in the channel.
+    if (!('permissionsFor' in message.channel)) return false
+    return (
+        (message.channel as GuildChannel)
+            .permissionsFor(
+                assertDefined(
+                    message.client.user,
+                    'Client user guaranteed when bot is ready',
+                ),
+            )
+            ?.has(PermissionFlagsBits.ManageMessages) ?? false
+    )
 }
 
 export const autoModHandler: MessageHandler = {
@@ -111,9 +133,25 @@ export const autoModHandler: MessageHandler = {
                 return { stop: false }
             }
 
-            await message.delete().catch(() => {})
+            // Check permission for message deletion before attempting
+            if (!botCanManageMessages(message)) {
+                warnLog({
+                    message: `[AutoMod] Skipped message delete: bot missing ManageMessages permission`,
+                    data: {
+                        guildId,
+                        channelId: message.channelId,
+                        violations: violations.map((v) => v.type),
+                    },
+                })
+                // Don't delete the message, but continue processing actions
+            } else {
+                await message.delete().catch(() => {})
+            }
 
-            const clientUser = assertDefined(message.client.user, 'Client user guaranteed when bot is ready')
+            const clientUser = assertDefined(
+                message.client.user,
+                'Client user guaranteed when bot is ready',
+            )
             const caseInput = {
                 guildId,
                 userId,
@@ -174,10 +212,7 @@ export const autoModHandler: MessageHandler = {
                                 })
                             })
                         await moderationService
-                            .createCase({
-                                ...caseInput,
-                                type: 'kick',
-                            })
+                            .createCase({ ...caseInput, type: 'kick' })
                             .catch((err) => {
                                 errorLog({
                                     message: 'Failed to create kick case:',
@@ -195,10 +230,7 @@ export const autoModHandler: MessageHandler = {
                                 })
                             })
                         await moderationService
-                            .createCase({
-                                ...caseInput,
-                                type: 'ban',
-                            })
+                            .createCase({ ...caseInput, type: 'ban' })
                             .catch((err) => {
                                 errorLog({
                                     message: 'Failed to create ban case:',

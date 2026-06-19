@@ -45,10 +45,26 @@ function GithubMark({
     )
 }
 
-const CLIENT_ID = '962198089161134131'
-const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot%20applications.commands&permissions=8`
 const REPO_URL = 'https://github.com/LucasSantana-Dev/Lucky'
 const CLONE_URL = 'https://github.com/LucasSantana-Dev/Lucky.git'
+
+// Minimal permission set (View Channels, Send Messages, Embed Links, Connect,
+// Speak) — matches the /invite command. NOT Administrator: requesting only what
+// the bot needs is safer and converts better with server admins.
+const BOT_INVITE_PERMISSIONS = '3165184'
+
+// Public Discord Application ID (a.k.a. client_id). Safe to ship: it appears in
+// every OAuth invite link and is not a secret. Used as the default so the CTA
+// works out of the box; override via VITE_DISCORD_CLIENT_ID for a fork.
+const DEFAULT_DISCORD_CLIENT_ID = '962198089161134131'
+
+function getBotInviteUrl(): string {
+    const clientId =
+        import.meta.env.VITE_DISCORD_CLIENT_ID || DEFAULT_DISCORD_CLIENT_ID
+    return clientId
+        ? `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot%20applications.commands&permissions=${BOT_INVITE_PERMISSIONS}`
+        : ''
+}
 
 type RepoStats = {
     servers: number
@@ -118,6 +134,7 @@ export default function Landing() {
 }
 
 function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
+    const botInviteUrl = getBotInviteUrl()
     return (
         <header className='sticky top-0 z-30 border-b border-lucky-border-soft bg-lucky-surface-canvas/85 backdrop-blur supports-[backdrop-filter]:bg-lucky-surface-canvas/65'>
             <div className='mx-auto flex h-14 max-w-6xl items-center justify-between px-4 md:px-8'>
@@ -158,14 +175,26 @@ function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
                     >
                         dashboard
                     </button>
-                    <a
-                        href={BOT_INVITE_URL}
-                        target='_blank'
-                        rel='noopener noreferrer'
-                        className='ml-1 inline-flex items-center gap-1 rounded-md bg-lucky-brand px-3 py-1.5 font-semibold text-white hover:bg-lucky-brand-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas'
-                    >
-                        add to discord <ArrowUpRight size={12} aria-hidden />
-                    </a>
+                    {botInviteUrl ? (
+                        <a
+                            href={botInviteUrl}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='ml-1 inline-flex items-center gap-1 rounded-md bg-lucky-brand px-3 py-1.5 font-semibold text-white hover:bg-lucky-brand-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas'
+                        >
+                            add to discord{' '}
+                            <ArrowUpRight size={12} aria-hidden />
+                        </a>
+                    ) : (
+                        <button
+                            disabled
+                            className='ml-1 inline-flex items-center gap-1 rounded-md bg-lucky-border-soft px-3 py-1.5 font-semibold text-lucky-text-muted cursor-not-allowed opacity-50'
+                            aria-label='Add to Discord (not configured)'
+                        >
+                            add to discord{' '}
+                            <ArrowUpRight size={12} aria-hidden />
+                        </button>
+                    )}
                 </nav>
             </div>
         </header>
@@ -180,6 +209,7 @@ type HeroProps = {
 function Hero({ stats, prefersReducedMotion }: HeroProps) {
     const { t, i18n } = useTranslation()
     const locale = i18n.resolvedLanguage ?? i18n.language
+    const botInviteUrl = getBotInviteUrl()
 
     const animProps = prefersReducedMotion
         ? {}
@@ -236,19 +266,34 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
                         {t('landing.hero.subtitle')}
                     </p>
                     <div className='flex flex-col gap-2.5 sm:flex-row sm:items-center'>
-                        <a
-                            href={BOT_INVITE_URL}
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            className='group inline-flex h-11 items-center justify-center gap-2 rounded-md bg-lucky-brand px-5 font-semibold text-white shadow-[0_6px_24px_-8px_rgba(236,72,153,0.55)] hover:bg-lucky-brand-strong transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas active:scale-[0.98]'
-                        >
-                            {t('landing.hero.ctaPrimary')}
-                            <ArrowUpRight
-                                size={15}
-                                className='transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5'
-                                aria-hidden
-                            />
-                        </a>
+                        {botInviteUrl ? (
+                            <a
+                                href={botInviteUrl}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                className='group inline-flex h-11 items-center justify-center gap-2 rounded-md bg-lucky-brand px-5 font-semibold text-white shadow-[0_6px_24px_-8px_rgba(236,72,153,0.55)] hover:bg-lucky-brand-strong transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas active:scale-[0.98]'
+                            >
+                                {t('landing.hero.ctaPrimary')}
+                                <ArrowUpRight
+                                    size={15}
+                                    className='transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5'
+                                    aria-hidden
+                                />
+                            </a>
+                        ) : (
+                            <button
+                                disabled
+                                className='inline-flex h-11 items-center justify-center gap-2 rounded-md bg-lucky-border-soft px-5 font-semibold text-lucky-text-muted cursor-not-allowed opacity-50 shadow-[0_6px_24px_-8px_rgba(236,72,153,0.0)]'
+                                aria-label='Add to Discord (not configured)'
+                            >
+                                {t('landing.hero.ctaPrimary')}
+                                <ArrowUpRight
+                                    size={15}
+                                    className='transition-transform'
+                                    aria-hidden
+                                />
+                            </button>
+                        )}
                         <a
                             href={REPO_URL}
                             target='_blank'

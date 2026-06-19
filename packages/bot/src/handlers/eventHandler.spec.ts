@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import {
     Events,
+    ChannelType,
     type ChatInputCommandInteraction,
     type Interaction,
 } from 'discord.js'
@@ -26,6 +27,8 @@ const handleReactionRolesMock = jest.fn()
 const recordGuildJoinMock = jest.fn(async () => undefined)
 const recordGuildLeaveMock = jest.fn(async () => undefined)
 const syncGuildsOnReadyMock = jest.fn(async () => undefined)
+const guildJoinsTotalIncMock = jest.fn()
+const guildLeavesTotalIncMock = jest.fn()
 
 jest.mock('../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
@@ -102,6 +105,15 @@ jest.mock('../services/guildMembershipService', () => ({
         syncGuildsOnReadyMock(...args),
 }))
 
+jest.mock('../utils/monitoring/prometheus', () => ({
+    guildJoinsTotal: {
+        inc: (...args: unknown[]) => guildJoinsTotalIncMock(...args),
+    },
+    guildLeavesTotal: {
+        inc: (...args: unknown[]) => guildLeavesTotalIncMock(...args),
+    },
+}))
+
 function createMockClient() {
     const onMock = jest.fn()
     const onceMock = jest.fn()
@@ -112,6 +124,9 @@ function createMockClient() {
             string,
             { execute: (...args: unknown[]) => Promise<void> }
         >(),
+        guilds: {
+            cache: { size: 0 },
+        },
     }
 
     return { client, onMock, onceMock }
@@ -318,7 +333,8 @@ describe('eventHandler', () => {
                 guildId: 'guild-123',
             }),
             content: {
-                content: 'An unexpected error occurred. Please try again later.',
+                content:
+                    'An unexpected error occurred. Please try again later.',
                 ephemeral: true,
             },
         })
@@ -603,6 +619,280 @@ describe('eventHandler', () => {
             expect(aiDevToolkitStartMock).toHaveBeenCalled()
 
             delete process.env.AI_DEV_TOOLKIT_BOARD_ENABLED
+        })
+    })
+
+    describe('guild telemetry', () => {
+        function getGuildCreateHandler(
+            onMock: jest.Mock,
+        ): ((guild: unknown) => void) | undefined {
+            const call = onMock.mock.calls.find(
+                (args) => args[0] === Events.GuildCreate,
+            )
+            return call?.[1] as ((guild: unknown) => void) | undefined
+        }
+
+        function getGuildDeleteHandler(
+            onMock: jest.Mock,
+        ): ((guild: unknown) => Promise<void>) | undefined {
+            const call = onMock.mock.calls.find(
+                (args) => args[0] === Events.GuildDelete,
+            )
+            return call?.[1] as ((guild: unknown) => Promise<void>) | undefined
+        }
+
+        describe('handleGuildCreate', () => {
+            it('logs guild join with telemetry data', () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = {
+                    cache: { size: 42 },
+                } as any
+
+                handleEvents(client as unknown as never)
+
+                const handler = getGuildCreateHandler(onMock)
+                expect(handler).toBeDefined()
+
+                handler?.({
+                    id: 'guild-123',
+                    name: 'Test Guild',
+                    memberCount: 500,
+                })
+
+                expect(infoLogMock).toHaveBeenCalledWith({
+                    message: 'Guild joined',
+                    data: {
+                        guildId: 'guild-123',
+                        guildName: 'Test Guild',
+                        memberCount: 500,
+                        totalGuilds: 42,
+                    },
+                })
+            })
+
+            it('increments guild joins counter', () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = {
+                    cache: { size: 10 },
+                } as any
+
+                handleEvents(client as unknown as never)
+
+                const handler = getGuildCreateHandler(onMock)
+                handler?.({
+                    id: 'new-guild',
+                    name: 'New Guild',
+                    memberCount: 100,
+                })
+
+                expect(guildJoinsTotalIncMock).toHaveBeenCalledTimes(1)
+            })
+
+            it('records guild join in the database', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = {
+                    cache: { size: 1 },
+                } as any
+                recordGuildJoinMock.mockResolvedValue(undefined)
+
+                handleEvents(client as unknown as never)
+
+                const handler = getGuildCreateHandler(onMock)
+                handler?.({
+                    id: 'db-test-guild',
+                    name: 'DB Test Guild',
+                    memberCount: 250,
+                })
+
+                await new Promise<void>((resolve) => setImmediate(resolve))
+
+                expect(recordGuildJoinMock).toHaveBeenCalledWith({
+                    id: 'db-test-guild',
+                    name: 'DB Test Guild',
+                    memberCount: 250,
+                })
+            })
+
+            it('logs error if recording guild join fails', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = {
+                    cache: { size: 1 },
+                } as any
+                const dbError = new Error('Database error')
+                recordGuildJoinMock.mockRejectedValueOnce(dbError)
+
+                handleEvents(client as unknown as never)
+
+                const handler = getGuildCreateHandler(onMock)
+                handler?.({
+                    id: 'error-guild',
+                    name: 'Error Guild',
+                    memberCount: 50,
+                })
+
+                await new Promise<void>((resolve) => setImmediate(resolve))
+
+                expect(errorLogMock).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        message: 'Error recording guild join',
+                        error: dbError,
+                    }),
+                )
+            })
+
+            it('posts a utility onboarding message to a postable channel', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = { cache: { size: 5 } } as any
+                const sendMock = jest
+                    .fn<() => Promise<void>>()
+                    .mockResolvedValue(undefined)
+                const systemChannel = {
+                    type: ChannelType.GuildText,
+                    send: sendMock,
+                    permissionsFor: jest.fn(() => ({ has: () => true })),
+                }
+
+                handleEvents(client as unknown as never)
+                getGuildCreateHandler(onMock)?.({
+                    id: 'g-onboard',
+                    name: 'Onboard Guild',
+                    memberCount: 9,
+                    members: { me: { id: 'bot' } },
+                    systemChannel,
+                    channels: { cache: { find: () => undefined } },
+                })
+
+                await new Promise<void>((resolve) => setImmediate(resolve))
+
+                expect(sendMock).toHaveBeenCalledTimes(1)
+                const embed = (
+                    sendMock.mock.calls[0][0] as { embeds: { toJSON(): any }[] }
+                ).embeds[0].toJSON()
+                // verification-safety: pure utility, no invite/vote CTA
+                expect(String(embed.description).toLowerCase()).not.toMatch(
+                    /invite|vote/,
+                )
+            })
+
+            it('skips onboarding when the bot cannot post (no throw)', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = { cache: { size: 5 } } as any
+                const sendMock = jest.fn()
+                const systemChannel = {
+                    type: ChannelType.GuildText,
+                    send: sendMock,
+                    permissionsFor: jest.fn(() => ({ has: () => false })),
+                }
+
+                handleEvents(client as unknown as never)
+                getGuildCreateHandler(onMock)?.({
+                    id: 'g-nopost',
+                    name: 'No Post Guild',
+                    memberCount: 9,
+                    members: { me: { id: 'bot' } },
+                    systemChannel,
+                    channels: { cache: { find: () => undefined } },
+                })
+
+                await new Promise<void>((resolve) => setImmediate(resolve))
+
+                expect(sendMock).not.toHaveBeenCalled()
+            })
+        })
+
+        describe('handleGuildDelete', () => {
+            it('logs guild leave with telemetry data', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = {
+                    cache: { size: 41 },
+                } as any
+
+                handleEvents(client as unknown as never)
+
+                const handler = getGuildDeleteHandler(onMock)
+                expect(handler).toBeDefined()
+
+                await handler?.({
+                    id: 'guild-456',
+                    name: 'Departing Guild',
+                    memberCount: 300,
+                })
+
+                expect(infoLogMock).toHaveBeenCalledWith({
+                    message: 'Guild left',
+                    data: {
+                        guildId: 'guild-456',
+                        guildName: 'Departing Guild',
+                        memberCount: 300,
+                        totalGuilds: 41,
+                    },
+                })
+            })
+
+            it('increments guild leaves counter', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = {
+                    cache: { size: 5 },
+                } as any
+
+                handleEvents(client as unknown as never)
+
+                const handler = getGuildDeleteHandler(onMock)
+                await handler?.({
+                    id: 'remove-guild',
+                    name: 'Remove Guild',
+                    memberCount: 100,
+                })
+
+                expect(guildLeavesTotalIncMock).toHaveBeenCalledTimes(1)
+            })
+
+            it('records guild leave in the database', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = {
+                    cache: { size: 0 },
+                } as any
+                recordGuildLeaveMock.mockResolvedValue(undefined)
+
+                handleEvents(client as unknown as never)
+
+                const handler = getGuildDeleteHandler(onMock)
+                await handler?.({
+                    id: 'db-leave-guild',
+                    name: 'DB Leave Guild',
+                    memberCount: 75,
+                })
+
+                expect(recordGuildLeaveMock).toHaveBeenCalledWith(
+                    'db-leave-guild',
+                    'DB Leave Guild',
+                )
+            })
+
+            it('logs error if recording guild leave fails', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = {
+                    cache: { size: 1 },
+                } as any
+                const dbError = new Error('Database connection lost')
+                recordGuildLeaveMock.mockRejectedValueOnce(dbError)
+
+                handleEvents(client as unknown as never)
+
+                const handler = getGuildDeleteHandler(onMock)
+                await handler?.({
+                    id: 'error-leave-guild',
+                    name: 'Error Leave Guild',
+                    memberCount: 25,
+                })
+
+                expect(errorLogMock).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        message: 'Error recording guild leave',
+                        error: dbError,
+                    }),
+                )
+            })
         })
     })
 })
