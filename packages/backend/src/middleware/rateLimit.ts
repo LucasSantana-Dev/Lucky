@@ -1,7 +1,13 @@
 import rateLimit from 'express-rate-limit'
 import { recordWithCooldown, emitAlert } from '@lucky/shared/utils/alerts'
 
-function maskIp(ip: string): string {
+export function maskIp(ip: string): string {
+    // IPv4-mapped IPv6 (::ffff:a.b.c.d) — extract and mask as IPv4
+    const v4Mapped = ip.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i)
+    if (v4Mapped) {
+        const parts = v4Mapped[1].split('.')
+        return parts.slice(0, 3).join('.') + '.xxx'
+    }
     if (ip.includes(':')) {
         // IPv6 — keep first 4 groups
         const parts = ip.split(':')

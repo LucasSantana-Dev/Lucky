@@ -1,9 +1,15 @@
 const windows = new Map<string, number[]>()
 const cooldowns = new Map<string, number>()
 
-function evictExpiredCooldowns(now: number): void {
+// Conservative max window — longer than any caller's windowMs (max is 1h in this codebase).
+const MAX_WINDOW_TTL_MS = 2 * 60 * 60_000
+
+function evictExpired(now: number): void {
     for (const [k, exp] of cooldowns) {
         if (exp <= now) cooldowns.delete(k)
+    }
+    for (const [k, times] of windows) {
+        if (times.every((t) => now - t >= MAX_WINDOW_TTL_MS)) windows.delete(k)
     }
 }
 
@@ -18,7 +24,7 @@ export function recordWithCooldown(
     cooldownMs: number,
 ): boolean {
     const now = Date.now()
-    evictExpiredCooldowns(now)
+    evictExpired(now)
 
     if ((cooldowns.get(key) ?? 0) > now) return false
 

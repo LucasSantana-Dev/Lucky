@@ -84,11 +84,12 @@ export class LogService {
         if (!this.shouldLog(level)) return
 
         const ctx = getLogContext()
-        const isPlainObject = (v: unknown): v is Record<string, unknown> =>
-            v !== null &&
-            typeof v === 'object' &&
-            !Array.isArray(v) &&
-            !(v instanceof Error)
+        const isPlainObject = (v: unknown): v is Record<string, unknown> => {
+            if (v === null || typeof v !== 'object' || Array.isArray(v))
+                return false
+            const proto = Object.getPrototypeOf(v)
+            return proto === Object.prototype || proto === null
+        }
         const effectiveParams: LogParams = ctx
             ? {
                   ...params,
