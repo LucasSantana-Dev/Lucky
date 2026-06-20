@@ -1,11 +1,18 @@
 import type { Request, Response, NextFunction } from 'express'
 import { infoLog, warnLog, errorLog } from '@lucky/shared/utils'
 
+const SKIP_PATHS = ['/health', '/metrics', '/favicon.ico']
+
 export function requestLogger(
     req: Request,
     res: Response,
     next: NextFunction,
 ): void {
+    if (SKIP_PATHS.some((p) => req.path.startsWith(p))) {
+        next()
+        return
+    }
+
     const start = Date.now()
 
     res.on('finish', () => {

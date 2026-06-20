@@ -7,6 +7,15 @@ jest.mock('../../monitoring', () => ({
     addBreadcrumb: jest.fn(),
 }))
 
+jest.mock('../../alerts', () => ({
+    recordWithCooldown: jest.fn().mockReturnValue(false),
+    emitAlert: jest.fn().mockImplementation(async () => {}),
+}))
+
+jest.mock('./context', () => ({
+    getLogContext: jest.fn().mockReturnValue(undefined),
+}))
+
 jest.mock('chalk', () => {
     const id = (t: string) => t
     return {

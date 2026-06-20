@@ -75,3 +75,5 @@ export const debugLog = (params: LogParams): void => {
 
 export { LogLevel } from './types'
 export type { LogParams, LogConfig }
+export { runWithLogContext, getLogContext } from './context'
+export type { LogContext } from './context'

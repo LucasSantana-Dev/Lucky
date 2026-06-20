@@ -4,6 +4,7 @@ import {
     PermissionsBitField,
 } from 'discord.js'
 import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
+import { recordWithCooldown, emitAlert } from '@lucky/shared/utils/alerts'
 import { featureToggleService } from '@lucky/shared/services'
 import type { FeatureToggleName } from '@lucky/shared/types'
 import type { CustomClient } from '../types'
@@ -37,11 +38,28 @@ export const executeCommand = async ({
     interaction,
     client,
 }: ExecuteCommandParams): Promise<void> => {
+    const guildId = interaction.guild?.id ?? 'dm'
+    const userId = interaction.user.id
+
     monitorCommandExecution(
         interaction.commandName,
-        interaction.user.id,
+        userId,
         interaction.guild?.id,
     )
+
+    const spamKey = `cmd-spam:${guildId}:${userId}`
+    if (recordWithCooldown(spamKey, 10_000, 10, 5 * 60_000)) {
+        emitAlert({
+            title: '⚠️ Command spam detected',
+            description: `User \`${userId}\` triggered 10+ commands in 10 seconds`,
+            color: 'warning',
+            fields: [
+                { name: 'Guild', value: guildId },
+                { name: 'User', value: userId },
+                { name: 'Last command', value: interaction.commandName },
+            ],
+        }).catch(() => {})
+    }
 
     try {
         const command = client.commands.get(interaction.commandName)

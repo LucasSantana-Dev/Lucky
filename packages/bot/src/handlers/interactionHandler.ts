@@ -4,7 +4,12 @@ import {
     type CommandInteractionOptionResolver,
     type Interaction,
 } from 'discord.js'
-import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
+import {
+    errorLog,
+    debugLog,
+    captureException,
+    runWithLogContext,
+} from '@lucky/shared/utils'
 import {
     mintCorrelationId,
     tagCorrelationIdToSentry,
@@ -88,91 +93,81 @@ export async function handleInteraction(
     interaction: Interaction,
     client: CustomClient,
 ): Promise<void> {
-    monitorInteractionHandling(
-        interaction.type.toString(),
-        interaction.user.id,
-        interaction.guild?.id,
-    )
+    const correlationId = mintCorrelationId()
+    const guildId = interaction.guild?.id
+    const userId = interaction.user.id
+    tagCorrelationIdToSentry(correlationId)
 
-    try {
-        if (interaction.isChatInputCommand()) {
-            await executeCommand({ interaction, client })
-            return
-        }
-
-        if (interaction.isButton()) {
-            const id = interaction.customId
-            if (
-                id.startsWith('music_') ||
-                id.startsWith('queue_page') ||
-                id.startsWith('leaderboard_page')
-            ) {
-                await handleMusicButtonInteraction(interaction)
-                return
-            }
-            await reactionRolesService.handleButtonInteraction(interaction)
-        }
-    } catch (error) {
-        const commandName = interaction.isChatInputCommand()
-            ? interaction.commandName
-            : interaction.isButton()
-              ? interaction.customId
-              : 'unknown'
-        // Mint one correlation id for this failure and tag it to Sentry up
-        // front, so it is recorded for every error path — including deferred
-        // or already-replied commands where no user-facing embed is shown.
-        const correlationId = mintCorrelationId()
-        tagCorrelationIdToSentry(correlationId)
-
-        errorLog({
-            message: 'Error handling interaction:',
-            error,
-            data: {
-                commandName,
-                userId: interaction.user.id,
-                guildId: interaction.guild?.id,
-                correlationId,
-            },
-        })
-
-        captureException(
-            error instanceof Error ? error : new Error(String(error)),
-            {
-                context: 'interaction-handling-failure',
-                commandName,
-                userId: interaction.user.id,
-                guildId: interaction.guild?.id ?? undefined,
-                correlationId,
-            },
-        )
+    return runWithLogContext({ correlationId, guildId, userId }, async () => {
+        monitorInteractionHandling(interaction.type.toString(), userId, guildId)
 
         try {
-            if (
-                interaction.isChatInputCommand() &&
-                !interaction.replied &&
-                !interaction.deferred
-            ) {
-                const errorEmbed = buildCommandErrorEmbed(
-                    error,
+            if (interaction.isChatInputCommand()) {
+                await executeCommand({ interaction, client })
+                return
+            }
+
+            if (interaction.isButton()) {
+                const id = interaction.customId
+                if (
+                    id.startsWith('music_') ||
+                    id.startsWith('queue_page') ||
+                    id.startsWith('leaderboard_page')
+                ) {
+                    await handleMusicButtonInteraction(interaction)
+                    return
+                }
+                await reactionRolesService.handleButtonInteraction(interaction)
+            }
+        } catch (error) {
+            const commandName = interaction.isChatInputCommand()
+                ? interaction.commandName
+                : interaction.isButton()
+                  ? interaction.customId
+                  : 'unknown'
+
+            errorLog({
+                message: 'Error handling interaction:',
+                error,
+                data: { commandName, userId, guildId, correlationId },
+            })
+
+            captureException(
+                error instanceof Error ? error : new Error(String(error)),
+                {
+                    context: 'interaction-handling-failure',
+                    commandName,
+                    userId,
+                    guildId: guildId ?? undefined,
                     correlationId,
-                    {
-                        guildId: interaction.guild?.id,
-                        command: commandName,
-                    },
-                )
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [errorEmbed],
-                        ephemeral: true,
-                    },
+                },
+            )
+
+            try {
+                if (
+                    interaction.isChatInputCommand() &&
+                    !interaction.replied &&
+                    !interaction.deferred
+                ) {
+                    const errorEmbed = buildCommandErrorEmbed(
+                        error,
+                        correlationId,
+                        { guildId, command: commandName },
+                    )
+                    await interactionReply({
+                        interaction,
+                        content: {
+                            embeds: [errorEmbed],
+                            ephemeral: true,
+                        },
+                    })
+                }
+            } catch (replyError) {
+                errorLog({
+                    message: 'Error sending error message:',
+                    error: replyError,
                 })
             }
-        } catch (replyError) {
-            errorLog({
-                message: 'Error sending error message:',
-                error: replyError,
-            })
         }
-    }
+    })
 }

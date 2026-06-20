@@ -18,6 +18,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
     captureException: jest.fn(),
+    runWithLogContext: jest.fn((_ctx: unknown, fn: () => unknown) => fn()),
 }))
 
 jest.mock('@lucky/shared/utils/support', () => ({
@@ -51,7 +52,11 @@ jest.mock('../utils/monitoring', () => ({
     monitorInteractionHandling: jest.fn(),
 }))
 
-import { errorLog, captureException } from '@lucky/shared/utils'
+import {
+    errorLog,
+    captureException,
+    runWithLogContext,
+} from '@lucky/shared/utils'
 import { executeCommand } from './commandsHandler'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
 import { reactionRolesService } from '@lucky/shared/services'
@@ -137,6 +142,9 @@ describe('interactionHandler', () => {
         ;(buildCommandErrorEmbed as jest.Mock).mockReturnValue({
             title: 'Error',
         })
+        ;(runWithLogContext as jest.Mock).mockImplementation(
+            (_ctx: unknown, fn: () => unknown) => fn(),
+        )
     })
 
     describe('handleInteractions', () => {})
