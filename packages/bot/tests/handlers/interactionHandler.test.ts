@@ -30,6 +30,7 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     captureException: (...args: unknown[]) => captureExceptionMock(...args),
+    runWithLogContext: (_ctx: unknown, fn: () => unknown) => fn(),
 }))
 
 jest.mock('@lucky/shared/utils/support', () => ({

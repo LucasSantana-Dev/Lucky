@@ -1,5 +1,6 @@
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { delay, withTimeout } from '@lucky/shared/utils/async'
+import { recordWithCooldown, emitAlert } from '@lucky/shared/utils/alerts'
 
 export interface DiscordUser {
     id: string
@@ -254,6 +255,17 @@ class DiscordOAuthService {
                             'Discord rate-limited the user guilds fetch; backing off',
                         data: { endpoint, attempt: attempt + 1, retryAfterMs },
                     })
+                    if (
+                        recordWithCooldown('discord-429', 60_000, 5, 5 * 60_000)
+                    ) {
+                        emitAlert({
+                            title: '🚨 Discord API 429 cascade',
+                            description:
+                                '5+ Discord API rate-limits in 60 seconds',
+                            color: 'danger',
+                            fields: [{ name: 'Endpoint', value: endpoint }],
+                        }).catch(() => {})
+                    }
                     await delay(retryAfterMs)
                     continue
                 }

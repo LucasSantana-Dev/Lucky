@@ -95,6 +95,7 @@ async function fetchLastFmSimilarArtists(
         })
         const res = await fetch(
             `https://ws.audioscrobbler.com/2.0/?${params.toString()}`,
+            { signal: AbortSignal.timeout(15_000) },
         )
         if (!res.ok) return []
         const data = (await res.json().catch(() => null)) as {

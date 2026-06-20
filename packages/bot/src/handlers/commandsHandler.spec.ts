@@ -15,6 +15,11 @@ jest.mock('@lucky/shared/utils', () => ({
     captureException: jest.fn(),
 }))
 
+jest.mock('@lucky/shared/utils/alerts', () => ({
+    recordWithCooldown: jest.fn().mockReturnValue(false),
+    emitAlert: jest.fn().mockImplementation(async () => {}),
+}))
+
 jest.mock('@lucky/shared/services', () => ({
     featureToggleService: {
         isEnabled: jest.fn().mockResolvedValue(true),

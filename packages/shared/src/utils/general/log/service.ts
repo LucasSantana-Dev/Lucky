@@ -1,10 +1,11 @@
-/* eslint-disable no-console */
 import chalk from 'chalk'
 import {
     addBreadcrumb,
     captureException,
     captureMessage,
 } from '../../monitoring'
+import { recordWithCooldown, emitAlert } from '../../alerts'
+import { getLogContext } from './context'
 import type { LogLevelType, LogParams, LogConfig } from './types'
 
 function serializeError(err: unknown): string {
@@ -82,18 +83,30 @@ export class LogService {
     private log(level: LogLevelType, params: LogParams): void {
         if (!this.shouldLog(level)) return
 
-        const formattedMessage = this.formatMessage(params)
+        const ctx = getLogContext()
+        const effectiveParams: LogParams = ctx
+            ? {
+                  ...params,
+                  correlationId: params.correlationId ?? ctx.correlationId,
+                  data: {
+                      ...(ctx as Record<string, unknown>),
+                      ...((params.data ?? {}) as Record<string, unknown>),
+                  },
+              }
+            : params
+
+        const formattedMessage = this.formatMessage(effectiveParams)
         const color = this.getColor(level)
         const coloredMessage = color(formattedMessage)
 
         console.log(coloredMessage)
 
-        if (params.data) {
-            console.log(color(JSON.stringify(params.data, null, 2)))
+        if (effectiveParams.data) {
+            console.log(color(JSON.stringify(effectiveParams.data, null, 2)))
         }
 
-        if (params.error) {
-            console.error(color(serializeError(params.error)))
+        if (effectiveParams.error) {
+            console.error(color(serializeError(effectiveParams.error)))
         }
     }
 
@@ -110,6 +123,14 @@ export class LogService {
         }
 
         addBreadcrumb('error', params.message, 'error')
+
+        if (recordWithCooldown('error-rate', 60_000, 10, 5 * 60_000)) {
+            emitAlert({
+                title: '🚨 Error-rate spike',
+                description: '10+ errors in 60 seconds',
+                color: 'danger',
+            }).catch(() => {})
+        }
     }
 
     warn(params: LogParams): void {
