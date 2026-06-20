@@ -112,7 +112,7 @@ export class TwitchFollowerRoleService {
                 },
             })
             debugLog({
-                message: `TwitchFollowerLink upserted: discord=${data.discordUserId} twitch=${data.twitchUserId} guild=${data.guildId}`,
+                message: `TwitchFollowerLink upserted for guild=${data.guildId}`,
             })
             return true
         } catch (error) {
