@@ -66,6 +66,8 @@ model Guild {
   sessions             GuildSession[]
   trackHistory         TrackHistory[]
   twitchNotifications  TwitchNotification[]
+  twitchFollowerRole   TwitchFollowerRole?
+  twitchSubscriberRole TwitchSubscriberRole?
   featureToggles       GuildFeatureToggle[]
   namedQueues          NamedQueue[]
   sessionSnapshot      MusicSessionSnapshot?
@@ -995,6 +997,52 @@ model TopggVote {
   updatedAt DateTime @updatedAt
 
   @@map("topgg_votes")
+}
+
+model TwitchFollowerRole {
+  id                     String               @id @default(cuid())
+  guildId                String               @unique
+  guild                  Guild                @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  twitchBroadcasterId    String
+  twitchBroadcasterLogin String
+  discordRoleId          String
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  links                  TwitchFollowerLink[]
+
+  @@map("twitch_follower_roles")
+}
+
+model TwitchFollowerLink {
+  id            String             @id @default(cuid())
+  discordUserId String
+  twitchUserId  String
+  twitchLogin   String
+  guildId       String
+  config        TwitchFollowerRole @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  isFollower    Boolean            @default(true)
+  isSubscriber  Boolean            @default(false)
+  lastCheckedAt DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@unique([discordUserId, guildId])
+  @@index([twitchUserId, guildId])
+  @@index([guildId])
+  @@map("twitch_follower_links")
+}
+
+model TwitchSubscriberRole {
+  id                     String   @id @default(cuid())
+  guildId                String   @unique
+  guild                  Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  twitchBroadcasterId    String
+  twitchBroadcasterLogin String
+  discordRoleId          String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@map("twitch_subscriber_roles")
 }
 
 // Web dashboard session store (express-session), moved off Redis per ADR

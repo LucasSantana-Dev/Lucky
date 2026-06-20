@@ -18,6 +18,7 @@ const mockAdd = jest.fn<any>()
 const mockRemove = jest.fn<any>()
 const mockPublishRefresh = jest.fn<any>()
 const mockControlConnect = jest.fn<any>()
+const mockLinkUser = jest.fn<any>()
 
 jest.mock('@lucky/shared/services', () => ({
     twitchNotificationService: {
@@ -28,6 +29,9 @@ jest.mock('@lucky/shared/services', () => ({
     twitchControlService: {
         connect: (...args: any[]) => mockControlConnect(...args),
         publishRefresh: (...args: any[]) => mockPublishRefresh(...args),
+    },
+    twitchFollowerRoleService: {
+        linkUser: (...args: any[]) => mockLinkUser(...args),
     },
 }))
 
@@ -198,5 +202,110 @@ describe('Twitch Routes', () => {
             expect(res.body.success).toBe(false)
             expect(mockPublishRefresh).not.toHaveBeenCalled()
         })
+    })
+})
+
+describe('POST /api/twitch/follower-link', () => {
+    const API_KEY = 'test-internal-key'
+    const VALID_BODY = {
+        discordUserId: '111111111111111111',
+        twitchUserId: 'tw123',
+        twitchLogin: 'streamer1',
+        guildId: '222222222222222222',
+        isSubscriber: false,
+    }
+    let app: express.Express
+
+    beforeEach(() => {
+        app = express()
+        app.use(express.json())
+        setupTwitchRoutes(app)
+        app.use(errorHandler)
+        jest.clearAllMocks()
+        process.env.INTERNAL_API_KEY = API_KEY
+    })
+
+    afterEach(() => {
+        delete process.env.INTERNAL_API_KEY
+    })
+
+    test('links user and returns ok=true with valid key', async () => {
+        mockLinkUser.mockResolvedValue(true)
+
+        const res = await request(app)
+            .post('/api/twitch/follower-link')
+            .set('x-internal-api-key', API_KEY)
+            .send(VALID_BODY)
+
+        expect(res.status).toBe(200)
+        expect(res.body.ok).toBe(true)
+        expect(mockLinkUser).toHaveBeenCalledWith(VALID_BODY)
+    })
+
+    test('accepts isSubscriber=true', async () => {
+        mockLinkUser.mockResolvedValue(true)
+
+        const res = await request(app)
+            .post('/api/twitch/follower-link')
+            .set('x-internal-api-key', API_KEY)
+            .send({ ...VALID_BODY, isSubscriber: true })
+
+        expect(res.status).toBe(200)
+        expect(res.body.ok).toBe(true)
+    })
+
+    test('accepts missing isSubscriber (optional)', async () => {
+        mockLinkUser.mockResolvedValue(true)
+        const { isSubscriber: _, ...bodyWithout } = VALID_BODY
+
+        const res = await request(app)
+            .post('/api/twitch/follower-link')
+            .set('x-internal-api-key', API_KEY)
+            .send(bodyWithout)
+
+        expect(res.status).toBe(200)
+    })
+
+    test('returns 401 with wrong api key', async () => {
+        const res = await request(app)
+            .post('/api/twitch/follower-link')
+            .set('x-internal-api-key', 'wrong-key')
+            .send(VALID_BODY)
+
+        expect(res.status).toBe(401)
+        expect(mockLinkUser).not.toHaveBeenCalled()
+    })
+
+    test('returns 401 with no api key', async () => {
+        const res = await request(app)
+            .post('/api/twitch/follower-link')
+            .send(VALID_BODY)
+
+        expect(res.status).toBe(401)
+    })
+
+    test('returns 400 with invalid body', async () => {
+        const res = await request(app)
+            .post('/api/twitch/follower-link')
+            .set('x-internal-api-key', API_KEY)
+            .send({ discordUserId: 'not-a-snowflake' })
+
+        expect(res.status).toBe(400)
+        expect(mockLinkUser).not.toHaveBeenCalled()
+    })
+
+    test('falls back to LUCKY_NOTIFY_API_KEY when INTERNAL_API_KEY absent', async () => {
+        delete process.env.INTERNAL_API_KEY
+        process.env.LUCKY_NOTIFY_API_KEY = 'fallback-key'
+        mockLinkUser.mockResolvedValue(true)
+
+        const res = await request(app)
+            .post('/api/twitch/follower-link')
+            .set('x-internal-api-key', 'fallback-key')
+            .send(VALID_BODY)
+
+        delete process.env.LUCKY_NOTIFY_API_KEY
+        expect(res.status).toBe(200)
+        expect(res.body.ok).toBe(true)
     })
 })
