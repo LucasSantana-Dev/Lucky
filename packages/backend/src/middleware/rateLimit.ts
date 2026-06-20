@@ -1,6 +1,17 @@
 import rateLimit from 'express-rate-limit'
 import { recordWithCooldown, emitAlert } from '@lucky/shared/utils/alerts'
 
+function maskIp(ip: string): string {
+    if (ip.includes(':')) {
+        // IPv6 — keep first 4 groups
+        const parts = ip.split(':')
+        return parts.slice(0, 4).join(':') + ':xxxx:xxxx:xxxx:xxxx'
+    }
+    // IPv4 — mask last octet
+    const parts = ip.split('.')
+    return parts.slice(0, 3).join('.') + '.xxx'
+}
+
 export const apiLimiter = rateLimit({
     windowMs: 60 * 1000,
     limit: 100,
@@ -17,6 +28,7 @@ export const authLimiter = rateLimit({
     message: { error: 'Too many auth attempts, please try again later' },
     handler(req, res) {
         const ip = req.ip ?? 'unknown'
+        const maskedIp = maskIp(ip)
         if (
             recordWithCooldown(
                 `auth-limit:${ip}`,
@@ -25,12 +37,12 @@ export const authLimiter = rateLimit({
                 4 * 60 * 60_000,
             )
         ) {
-            emitAlert({
+            void emitAlert({
                 title: '⚠️ Auth brute-force detected',
-                description: `IP \`${ip}\` has exhausted the auth rate limit 3+ times in 1 hour`,
+                description: `IP \`${maskedIp}\` has exhausted the auth rate limit 3+ times in 1 hour`,
                 color: 'warning',
-                fields: [{ name: 'IP', value: ip }],
-            }).catch(() => {})
+                fields: [{ name: 'IP', value: maskedIp }],
+            })
         }
         res.status(429).json({
             error: 'Too many auth attempts, please try again later',

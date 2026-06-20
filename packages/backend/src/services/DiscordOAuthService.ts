@@ -245,29 +245,33 @@ class DiscordOAuthService {
 
                 // Honour Discord's Retry-After on 429 with a bounded backoff
                 // before falling through to the error path.
-                if (
-                    response.status === 429 &&
-                    attempt < this.maxRateLimitRetries
-                ) {
-                    const retryAfterMs = this.parseRetryAfterMs(response)
-                    warnLog({
-                        message:
-                            'Discord rate-limited the user guilds fetch; backing off',
-                        data: { endpoint, attempt: attempt + 1, retryAfterMs },
-                    })
+                if (response.status === 429) {
+                    // Count every 429 regardless of whether retries remain.
                     if (
                         recordWithCooldown('discord-429', 60_000, 5, 5 * 60_000)
                     ) {
-                        emitAlert({
+                        void emitAlert({
                             title: '🚨 Discord API 429 cascade',
                             description:
                                 '5+ Discord API rate-limits in 60 seconds',
                             color: 'danger',
                             fields: [{ name: 'Endpoint', value: endpoint }],
-                        }).catch(() => {})
+                        })
                     }
-                    await delay(retryAfterMs)
-                    continue
+                    if (attempt < this.maxRateLimitRetries) {
+                        const retryAfterMs = this.parseRetryAfterMs(response)
+                        warnLog({
+                            message:
+                                'Discord rate-limited the user guilds fetch; backing off',
+                            data: {
+                                endpoint,
+                                attempt: attempt + 1,
+                                retryAfterMs,
+                            },
+                        })
+                        await delay(retryAfterMs)
+                        continue
+                    }
                 }
 
                 if (!response.ok) {

@@ -1,6 +1,12 @@
 const windows = new Map<string, number[]>()
 const cooldowns = new Map<string, number>()
 
+function evictExpiredCooldowns(now: number): void {
+    for (const [k, exp] of cooldowns) {
+        if (exp <= now) cooldowns.delete(k)
+    }
+}
+
 /**
  * Records an event and returns true if the threshold was just crossed.
  * Resets the window and arms a cooldown on trigger to prevent repeat-fire.
@@ -12,6 +18,8 @@ export function recordWithCooldown(
     cooldownMs: number,
 ): boolean {
     const now = Date.now()
+    evictExpiredCooldowns(now)
+
     if ((cooldowns.get(key) ?? 0) > now) return false
 
     const times = (windows.get(key) ?? []).filter((t) => now - t < windowMs)

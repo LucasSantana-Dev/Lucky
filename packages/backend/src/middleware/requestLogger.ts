@@ -8,7 +8,9 @@ export function requestLogger(
     res: Response,
     next: NextFunction,
 ): void {
-    if (SKIP_PATHS.some((p) => req.path.startsWith(p))) {
+    if (
+        SKIP_PATHS.some((p) => req.path === p || req.path.startsWith(`${p}/`))
+    ) {
         next()
         return
     }
