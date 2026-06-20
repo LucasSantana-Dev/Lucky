@@ -1,6 +1,6 @@
 import type { Message, GuildChannel } from 'discord.js'
 import { PermissionFlagsBits } from 'discord.js'
-import { autoModService, moderationService } from '@lucky/shared/services'
+import { autoModService } from '@lucky/shared/services'
 import { errorLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import type {
@@ -9,12 +9,9 @@ import type {
     MessageHandlerResult,
 } from './types'
 
-const AUTOMOD_MUTE_DURATION = 300
-
 interface Violation {
     type: string
     reason: string
-    action: string
 }
 
 /**
@@ -54,7 +51,6 @@ export const autoModHandler: MessageHandler = {
     ): Promise<MessageHandlerResult> {
         try {
             const guildId = context.guild.id
-            const userId = message.author.id
             const memberRoles = context.member.roles.cache.map((r) => r.id)
 
             const settings = await autoModService.getSettings(guildId)
@@ -81,7 +77,6 @@ export const autoModHandler: MessageHandler = {
                     violations.push({
                         type: 'caps',
                         reason: 'Excessive capitalization',
-                        action: 'delete',
                     })
                 }
             }
@@ -96,7 +91,6 @@ export const autoModHandler: MessageHandler = {
                     violations.push({
                         type: 'links',
                         reason: 'Unauthorized link detected',
-                        action: 'delete',
                     })
                 }
             }
@@ -110,7 +104,6 @@ export const autoModHandler: MessageHandler = {
                     violations.push({
                         type: 'invites',
                         reason: 'Invite detected',
-                        action: 'delete',
                     })
                 }
             }
@@ -124,7 +117,6 @@ export const autoModHandler: MessageHandler = {
                     violations.push({
                         type: 'badwords',
                         reason: 'Inappropriate language detected',
-                        action: 'delete',
                     })
                 }
             }
@@ -146,99 +138,6 @@ export const autoModHandler: MessageHandler = {
                 // Don't delete the message, but continue processing actions
             } else {
                 await message.delete().catch(() => {})
-            }
-
-            const clientUser = assertDefined(
-                message.client.user,
-                'Client user guaranteed when bot is ready',
-            )
-            const caseInput = {
-                guildId,
-                userId,
-                username: message.author.tag,
-                moderatorId: clientUser.id,
-                moderatorName: clientUser.tag,
-                reason: `[AutoMod] ${violations[0].reason}`,
-                channelId: message.channelId,
-            }
-
-            for (const violation of violations) {
-                switch (violation.action) {
-                    case 'warn':
-                        await moderationService
-                            .createCase({
-                                ...caseInput,
-                                type: 'warn',
-                            })
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to create warn case:',
-                                    error: err,
-                                })
-                            })
-                        break
-                    case 'mute':
-                        await context.member
-                            .timeout(
-                                AUTOMOD_MUTE_DURATION * 1000,
-                                caseInput.reason,
-                            )
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to mute user:',
-                                    error: err,
-                                })
-                            })
-                        await moderationService
-                            .createCase({
-                                ...caseInput,
-                                type: 'mute',
-                                duration: AUTOMOD_MUTE_DURATION,
-                            })
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to create mute case:',
-                                    error: err,
-                                })
-                            })
-                        break
-                    case 'kick':
-                        await context.member
-                            .kick(caseInput.reason)
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to kick user:',
-                                    error: err,
-                                })
-                            })
-                        await moderationService
-                            .createCase({ ...caseInput, type: 'kick' })
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to create kick case:',
-                                    error: err,
-                                })
-                            })
-                        break
-                    case 'ban':
-                        await context.guild.members
-                            .ban(userId, { reason: caseInput.reason })
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to ban user:',
-                                    error: err,
-                                })
-                            })
-                        await moderationService
-                            .createCase({ ...caseInput, type: 'ban' })
-                            .catch((err) => {
-                                errorLog({
-                                    message: 'Failed to create ban case:',
-                                    error: err,
-                                })
-                            })
-                        break
-                }
             }
 
             return { stop: true }
