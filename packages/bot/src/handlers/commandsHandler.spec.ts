@@ -39,6 +39,7 @@ jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
 }))
 
 import { errorLog, captureException } from '@lucky/shared/utils'
+import { recordWithCooldown, emitAlert } from '@lucky/shared/utils/alerts'
 import { featureToggleService } from '@lucky/shared/services'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
@@ -78,6 +79,8 @@ describe('commandsHandler', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         ;(featureToggleService.isEnabled as jest.Mock).mockResolvedValue(true)
+        ;(recordWithCooldown as jest.Mock).mockReturnValue(false)
+        ;(emitAlert as jest.Mock).mockImplementation(async () => {})
     })
 
     describe('executeCommand', () => {
@@ -321,6 +324,25 @@ describe('commandsHandler', () => {
                     ephemeral: true,
                 },
             })
+        })
+    })
+
+    describe('spam detection', () => {
+        it('fires spam alert when recordWithCooldown threshold is crossed', async () => {
+            ;(recordWithCooldown as jest.Mock).mockReturnValue(true)
+            const command = createMockCommand()
+            const interaction = createMockInteraction()
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({ interaction, client })
+
+            expect(emitAlert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: '⚠️ Command spam detected',
+                    color: 'warning',
+                }),
+            )
         })
     })
 

@@ -1,5 +1,12 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+
+jest.mock('@lucky/shared/utils/alerts', () => ({
+    recordWithCooldown: jest.fn().mockReturnValue(false),
+    emitAlert: jest.fn().mockImplementation(async () => {}),
+}))
+
 import { discordOAuthService } from '../../../src/services/DiscordOAuthService'
+import { recordWithCooldown, emitAlert } from '@lucky/shared/utils/alerts'
 import {
     MOCK_TOKEN_RESPONSE,
     MOCK_DISCORD_USER,
@@ -226,6 +233,40 @@ describe('DiscordOAuthService', () => {
                     MOCK_TOKEN_RESPONSE.access_token,
                 ),
             ).rejects.toThrow()
+        })
+
+        test('fires cascade alert when recordWithCooldown threshold is crossed on 429', async () => {
+            ;(recordWithCooldown as jest.Mock).mockReturnValue(true)
+            const rateLimited = {
+                ok: false,
+                status: 429,
+                headers: {
+                    get: (key: string) =>
+                        key.toLowerCase() === 'retry-after' ? '0.01' : null,
+                },
+                text: jest
+                    .fn<() => Promise<string>>()
+                    .mockResolvedValue('rate limited'),
+            } as unknown as Response
+            const mockFetch = jest.fn<typeof fetch>()
+            mockFetch.mockResolvedValueOnce(rateLimited).mockResolvedValueOnce({
+                ok: true,
+                json: jest
+                    .fn<() => Promise<any>>()
+                    .mockResolvedValue(MOCK_DISCORD_GUILDS),
+                text: jest.fn<() => Promise<string>>(),
+            } as unknown as Response)
+            global.fetch = mockFetch as typeof fetch
+
+            await discordOAuthService.getUserGuilds(
+                MOCK_TOKEN_RESPONSE.access_token,
+            )
+
+            expect(emitAlert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: '🚨 Discord API 429 cascade',
+                }),
+            )
         })
     })
 
