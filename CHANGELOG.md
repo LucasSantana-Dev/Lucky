@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.18.0...v2.19.0) (2026-06-20)
+
+
+### Features
+
+* **logs:** async context propagation, discord alerts, noise filtering ([#1510](https://github.com/LucasSantana-Dev/Lucky/issues/1510)) ([a952c54](https://github.com/LucasSantana-Dev/Lucky/commit/a952c5400518f29c650abb286fada80caf34f2cd))
+* **twitch:** follower and subscriber role sync ([#1509](https://github.com/LucasSantana-Dev/Lucky/issues/1509)) ([d353bc0](https://github.com/LucasSantana-Dev/Lucky/commit/d353bc068614da2310bf50393a3b321842bb8044))
+
+
+### Bug Fixes
+
+* **automod:** remove dead warn/mute/kick/ban switch cases ([#1511](https://github.com/LucasSantana-Dev/Lucky/issues/1511)) ([8ec8ed7](https://github.com/LucasSantana-Dev/Lucky/commit/8ec8ed76cbba1e30442fe17c9f15aa9ccf494dff))
+
 ## [2.18.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.17.0...v2.18.0) (2026-06-19)
 
 
