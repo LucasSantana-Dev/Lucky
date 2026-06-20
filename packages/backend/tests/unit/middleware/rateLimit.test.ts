@@ -9,18 +9,8 @@ jest.mock('@lucky/shared/utils/alerts', () => ({
     emitAlert: jest.fn().mockImplementation(async () => {}),
 }))
 
-// Capture the options passed to express-rate-limit so we can call handler directly.
-jest.mock('express-rate-limit', () => {
-    const capturer = jest.fn((options: Record<string, unknown>) => {
-        ;(capturer as any).__lastOptions = options
-        return (_req: unknown, _res: unknown, next: () => void) => next()
-    })
-    return { __esModule: true, default: capturer }
-})
-
-import { maskIp } from '../../../src/middleware/rateLimit'
+import { maskIp, authRateLimitHandler } from '../../../src/middleware/rateLimit'
 import { recordWithCooldown, emitAlert } from '@lucky/shared/utils/alerts'
-import rateLimit from 'express-rate-limit'
 
 function makeRes(): { res: Response; status: jest.Mock; json: jest.Mock } {
     const json = jest.fn().mockReturnThis()
@@ -56,21 +46,18 @@ describe('maskIp', () => {
     })
 })
 
-describe('authLimiter handler', () => {
-    let handler: (req: Request, res: Response) => void
-
+describe('authRateLimitHandler', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         ;(recordWithCooldown as jest.Mock).mockReturnValue(false)
         ;(emitAlert as jest.Mock).mockImplementation(async () => {})
-        handler = (rateLimit as any).__lastOptions?.handler
     })
 
     test('responds 429 without emitting alert when threshold not crossed', () => {
         const req = { ip: '1.2.3.4' } as unknown as Request
         const { res, status, json } = makeRes()
 
-        handler(req, res)
+        authRateLimitHandler(req, res)
 
         expect(status).toHaveBeenCalledWith(429)
         expect(json).toHaveBeenCalledWith({
@@ -84,7 +71,7 @@ describe('authLimiter handler', () => {
         const req = { ip: '1.2.3.4' } as unknown as Request
         const { res } = makeRes()
 
-        handler(req, res)
+        authRateLimitHandler(req, res)
 
         expect(emitAlert).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -99,7 +86,7 @@ describe('authLimiter handler', () => {
         const req = { ip: '::ffff:203.0.113.8' } as unknown as Request
         const { res } = makeRes()
 
-        handler(req, res)
+        authRateLimitHandler(req, res)
 
         expect(emitAlert).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -112,7 +99,7 @@ describe('authLimiter handler', () => {
         const req = { ip: undefined } as unknown as Request
         const { res, status } = makeRes()
 
-        expect(() => handler(req, res)).not.toThrow()
+        expect(() => authRateLimitHandler(req, res)).not.toThrow()
         expect(status).toHaveBeenCalledWith(429)
     })
 })

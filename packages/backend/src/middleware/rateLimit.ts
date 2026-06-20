@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express'
 import rateLimit from 'express-rate-limit'
 import { recordWithCooldown, emitAlert } from '@lucky/shared/utils/alerts'
 
@@ -26,34 +27,31 @@ export const apiLimiter = rateLimit({
     message: { error: 'Too many requests, please try again later' },
 })
 
+export function authRateLimitHandler(req: Request, res: Response): void {
+    const ip = req.ip ?? 'unknown'
+    const maskedIp = maskIp(ip)
+    if (
+        recordWithCooldown(`auth-limit:${ip}`, 60 * 60_000, 3, 4 * 60 * 60_000)
+    ) {
+        void emitAlert({
+            title: '⚠️ Auth brute-force detected',
+            description: `IP \`${maskedIp}\` has exhausted the auth rate limit 3+ times in 1 hour`,
+            color: 'warning',
+            fields: [{ name: 'IP', value: maskedIp }],
+        })
+    }
+    res.status(429).json({
+        error: 'Too many auth attempts, please try again later',
+    })
+}
+
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 20,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     message: { error: 'Too many auth attempts, please try again later' },
-    handler(req, res) {
-        const ip = req.ip ?? 'unknown'
-        const maskedIp = maskIp(ip)
-        if (
-            recordWithCooldown(
-                `auth-limit:${ip}`,
-                60 * 60_000,
-                3,
-                4 * 60 * 60_000,
-            )
-        ) {
-            void emitAlert({
-                title: '⚠️ Auth brute-force detected',
-                description: `IP \`${maskedIp}\` has exhausted the auth rate limit 3+ times in 1 hour`,
-                color: 'warning',
-                fields: [{ name: 'IP', value: maskedIp }],
-            })
-        }
-        res.status(429).json({
-            error: 'Too many auth attempts, please try again later',
-        })
-    },
+    handler: authRateLimitHandler,
 })
 
 export const writeLimiter = rateLimit({
