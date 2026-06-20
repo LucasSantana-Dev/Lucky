@@ -84,14 +84,19 @@ export class LogService {
         if (!this.shouldLog(level)) return
 
         const ctx = getLogContext()
+        const isPlainObject = (v: unknown): v is Record<string, unknown> => {
+            if (v === null || typeof v !== 'object' || Array.isArray(v))
+                return false
+            const proto = Object.getPrototypeOf(v)
+            return proto === Object.prototype || proto === null
+        }
         const effectiveParams: LogParams = ctx
             ? {
                   ...params,
                   correlationId: params.correlationId ?? ctx.correlationId,
-                  data: {
-                      ...(ctx as Record<string, unknown>),
-                      ...((params.data ?? {}) as Record<string, unknown>),
-                  },
+                  data: isPlainObject(params.data)
+                      ? { ...(ctx as Record<string, unknown>), ...params.data }
+                      : (params.data ?? ctx),
               }
             : params
 
@@ -125,11 +130,11 @@ export class LogService {
         addBreadcrumb('error', params.message, 'error')
 
         if (recordWithCooldown('error-rate', 60_000, 10, 5 * 60_000)) {
-            emitAlert({
+            void emitAlert({
                 title: '🚨 Error-rate spike',
                 description: '10+ errors in 60 seconds',
                 color: 'danger',
-            }).catch(() => {})
+            })
         }
     }
 

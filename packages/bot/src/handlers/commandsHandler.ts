@@ -49,7 +49,7 @@ export const executeCommand = async ({
 
     const spamKey = `cmd-spam:${guildId}:${userId}`
     if (recordWithCooldown(spamKey, 10_000, 10, 5 * 60_000)) {
-        emitAlert({
+        void emitAlert({
             title: '⚠️ Command spam detected',
             description: `User \`${userId}\` triggered 10+ commands in 10 seconds`,
             color: 'warning',
@@ -58,7 +58,7 @@ export const executeCommand = async ({
                 { name: 'User', value: userId },
                 { name: 'Last command', value: interaction.commandName },
             ],
-        }).catch(() => {})
+        })
     }
 
     try {

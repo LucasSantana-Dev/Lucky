@@ -22,7 +22,7 @@ export async function emitAlert(payload: AlertPayload): Promise<void> {
     if (!webhookUrl) return
 
     try {
-        await fetch(webhookUrl, {
+        const res = await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -38,6 +38,7 @@ export async function emitAlert(payload: AlertPayload): Promise<void> {
             }),
             signal: AbortSignal.timeout(5_000),
         })
+        if (!res.ok) throw new Error(`Webhook ${res.status}`)
     } catch {
         // Fire-and-forget — a failed alert must never crash the caller
     }
