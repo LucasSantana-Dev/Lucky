@@ -8,7 +8,6 @@ import {
     twitchNotificationService,
     twitchControlService,
     twitchFollowerRoleService,
-    twitchSubscriberRoleService,
 } from '@lucky/shared/services'
 import { warnLog } from '@lucky/shared/utils'
 import { AppError } from '../errors/AppError'
