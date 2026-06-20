@@ -11,9 +11,6 @@ jest.mock('@lucky/shared/services', () => ({
         checkInvites: jest.fn(),
         checkWords: jest.fn(),
     },
-    moderationService: {
-        createCase: jest.fn(),
-    },
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -21,15 +18,12 @@ jest.mock('@lucky/shared/utils', () => ({
     warnLog: jest.fn(),
 }))
 
-import { autoModService, moderationService } from '@lucky/shared/services'
+import { autoModService } from '@lucky/shared/services'
 import { warnLog } from '@lucky/shared/utils'
 
 describe('autoModHandler', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        ;(moderationService.createCase as jest.Mock).mockResolvedValue(
-            undefined,
-        )
     })
 
     describe('canHandle', () => {
