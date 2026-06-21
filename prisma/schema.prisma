@@ -95,6 +95,7 @@ model Guild {
   memberBirthdays      MemberBirthday[]
   subscription         GuildSubscription?
   reactionRoleMessages ReactionRoleMessage[]
+  forumThreads         GuildForumThread[]
 
   @@map("guilds")
 }
@@ -1057,4 +1058,23 @@ model Session {
 
   @@index([expiresAt], map: "idx_sessions_expires_at")
   @@map("sessions")
+}
+
+// Forum thread ↔ web-slug mapping. Populated by the bot listener when a
+// forum thread tagged `<!-- official:v1:<slug> -->` is created or updated.
+// Used by the web app to render per-guia "Ver discussão no Discord" CTAs.
+model GuildForumThread {
+  id       String  @id @default(cuid())
+  guildId  String
+  guild    Guild   @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  threadId String
+  slug     String
+  title    String
+  archived Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, slug])
+  @@index([guildId])
+  @@map("guild_forum_threads")
 }

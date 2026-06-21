@@ -38,6 +38,7 @@ import {
     guildJoinsTotal,
     guildLeavesTotal,
 } from '../utils/monitoring/prometheus'
+import { handleForumThreadCreate } from './forumThreadHandler'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -373,4 +374,5 @@ export default function handleEvents(client: Client) {
     handleGuildCreate(client)
     handleGuildDelete(client)
     handleChannelDelete(client)
+    handleForumThreadCreate(client)
 }

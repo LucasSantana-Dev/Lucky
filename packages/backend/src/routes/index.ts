@@ -29,6 +29,7 @@ import { errorHandler } from '../middleware/errorHandler'
 import { setupHealthRoutes } from './health'
 import { setupMetricsRoute } from './metrics'
 import { setupStatsRoutes } from './stats'
+import { setupForumsRoutes } from './forums'
 import { setupInviteRoute } from './invite'
 import { setupSupportRoutes } from './support'
 import { setupSecurityRoutes } from './security'
@@ -93,6 +94,7 @@ export function setupRoutes(app: Express): void {
     setupHealthRoutes(app)
     setupMetricsRoute(app)
     setupStatsRoutes(app)
+    setupForumsRoutes(app)
     setupInternalNotifyRoutes(app)
     setupWebhookPublicRoutes(app)
     // Public, unauthenticated CSP report sink — registered before the shared
