@@ -130,6 +130,20 @@ check_env() {
     print_success "Environment configuration validated"
 }
 
+# Resolve the Compose command: prefer the v2 plugin (`docker compose`), fall
+# back to the v1 standalone binary (`docker-compose`). Lets the script run on
+# machines that only have one of the two installed.
+compose_cmd() {
+    if command docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command_exists docker-compose; then
+        echo "docker-compose"
+    else
+        print_error "Neither 'docker compose' (v2 plugin) nor 'docker-compose' (v1) is installed."
+        return 1
+    fi
+}
+
 # Function to check if Docker is available with enhanced error handling
 check_docker() {
     if ! command_exists docker; then
@@ -245,13 +259,13 @@ start() {
     if is_development; then
         print_status "Starting development container..."
         check_docker || exit 1
-        docker compose -f docker-compose.dev.yml up -d
+        $(compose_cmd) -f docker-compose.dev.yml up -d
         print_success "Development container started!"
         print_status "Use 'npm run logs' to view logs"
     else
         print_status "Starting production container..."
         check_docker || exit 1
-        docker compose up -d
+        $(compose_cmd) up -d
         print_success "Production container started!"
         print_status "Use 'npm run logs' to view logs"
     fi
@@ -261,8 +275,8 @@ start() {
 stop() {
     print_status "Stopping containers..."
     if check_docker; then
-        docker compose down
-        docker compose -f docker-compose.dev.yml down
+        $(compose_cmd) down
+        $(compose_cmd) -f docker-compose.dev.yml down
         print_success "All containers stopped!"
     else
         print_status "Stopping local processes..."
@@ -283,7 +297,7 @@ logs() {
     if is_development; then
         print_status "Showing development logs..."
         if check_docker; then
-            docker compose -f docker-compose.dev.yml logs -f
+            $(compose_cmd) -f docker-compose.dev.yml logs -f
         else
             print_warning "Docker not available. Checking local logs..."
             if [ -f "logs/app.log" ]; then
@@ -295,7 +309,7 @@ logs() {
     else
         print_status "Showing production logs..."
         if check_docker; then
-            docker compose logs -f
+            $(compose_cmd) logs -f
         else
             print_warning "Docker not available. Checking local logs..."
             if [ -f "logs/app.log" ]; then
@@ -313,10 +327,10 @@ status() {
     if check_docker; then
         echo ""
         echo "Production containers:"
-        docker compose ps
+        $(compose_cmd) ps
         echo ""
         echo "Development containers:"
-        docker compose -f docker-compose.dev.yml ps
+        $(compose_cmd) -f docker-compose.dev.yml ps
     else
         print_warning "Docker not available. Cannot show container status."
     fi
@@ -326,8 +340,8 @@ status() {
 clean() {
     print_status "Cleaning up resources..."
     if check_docker; then
-        docker compose down --volumes --remove-orphans
-        docker compose -f docker-compose.dev.yml down --volumes --remove-orphans
+        $(compose_cmd) down --volumes --remove-orphans
+        $(compose_cmd) -f docker-compose.dev.yml down --volumes --remove-orphans
         docker system prune -f
         print_success "Docker resources cleaned up!"
     fi

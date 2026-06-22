@@ -1,6 +1,8 @@
 import { createMockInteraction } from '../__mocks__/discord'
 
 const executeCommandMock = jest.fn()
+const executeContextMenuMock = jest.fn()
+const handleMoveMessageSelectMock = jest.fn()
 const handleMusicButtonInteractionMock = jest.fn()
 const monitorInteractionHandlingMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -14,6 +16,13 @@ const handleButtonInteractionMock = jest.fn()
 
 jest.mock('../../src/handlers/commandsHandler', () => ({
     executeCommand: (...args: unknown[]) => executeCommandMock(...args),
+    executeContextMenu: (...args: unknown[]) => executeContextMenuMock(...args),
+}))
+
+jest.mock('../../src/handlers/moveMessageHandler', () => ({
+    handleMoveMessageSelect: (...args: unknown[]) =>
+        handleMoveMessageSelectMock(...args),
+    MOVE_MESSAGE_SELECT_PREFIX: 'movemsg:',
 }))
 
 jest.mock('../../src/handlers/musicButtonHandler', () => ({
@@ -80,6 +89,8 @@ function createButtonInteraction(customId: string) {
         replied: false,
         deferred: false,
         isChatInputCommand: () => false,
+        isMessageContextMenuCommand: () => false,
+        isChannelSelectMenu: () => false,
         isButton: () => true,
     } as any
 }
@@ -92,6 +103,8 @@ function createUnknownInteraction() {
         replied: false,
         deferred: false,
         isChatInputCommand: () => false,
+        isMessageContextMenuCommand: () => false,
+        isChannelSelectMenu: () => false,
         isButton: () => false,
     } as any
 }

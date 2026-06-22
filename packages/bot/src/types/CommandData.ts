@@ -2,9 +2,13 @@ import type {
     SlashCommandBuilder,
     SlashCommandSubcommandsOnlyBuilder,
     SlashCommandOptionsOnlyBuilder,
+    ContextMenuCommandBuilder,
 } from '@discordjs/builders'
 import type { CustomClient } from './CustomClient'
-import type { ChatInputCommandInteraction } from 'discord.js'
+import type {
+    ChatInputCommandInteraction,
+    MessageContextMenuCommandInteraction,
+} from 'discord.js'
 
 export type TCommandData =
     | SlashCommandBuilder
@@ -17,3 +21,14 @@ export type CommandExecuteParams = {
 }
 
 export type TCommandExecute = (_options: CommandExecuteParams) => Promise<void>
+
+export type TContextMenuData = ContextMenuCommandBuilder
+
+export type ContextMenuExecuteParams = {
+    readonly client: CustomClient
+    readonly interaction: MessageContextMenuCommandInteraction
+}
+
+export type TContextMenuExecute = (
+    _options: ContextMenuExecuteParams,
+) => Promise<void>

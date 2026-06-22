@@ -14,13 +14,17 @@ import {
     mintCorrelationId,
     tagCorrelationIdToSentry,
 } from '@lucky/shared/utils/support'
-import { executeCommand } from './commandsHandler'
+import { executeCommand, executeContextMenu } from './commandsHandler'
 import type { CustomClient } from '../types'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorInteractionHandling } from '../utils/monitoring'
 import { buildCommandErrorEmbed } from '../utils/general/errorReportEmbed'
 import { reactionRolesService } from '@lucky/shared/services'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
+import {
+    handleMoveMessageSelect,
+    MOVE_MESSAGE_SELECT_PREFIX,
+} from './moveMessageHandler'
 
 type HandleInteractionsParams = {
     client: CustomClient
@@ -104,6 +108,19 @@ export async function handleInteraction(
         try {
             if (interaction.isChatInputCommand()) {
                 await executeCommand({ interaction, client })
+                return
+            }
+
+            if (interaction.isMessageContextMenuCommand()) {
+                await executeContextMenu({ interaction, client })
+                return
+            }
+
+            if (
+                interaction.isChannelSelectMenu() &&
+                interaction.customId.startsWith(MOVE_MESSAGE_SELECT_PREFIX)
+            ) {
+                await handleMoveMessageSelect(interaction, client)
                 return
             }
 

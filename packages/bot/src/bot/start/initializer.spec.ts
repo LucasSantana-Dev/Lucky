@@ -10,6 +10,8 @@ const startClientMock = jest.fn()
 const createPlayerMock = jest.fn()
 const getCommandsMock = jest.fn()
 const setCommandsMock = jest.fn()
+const getContextMenusMock = jest.fn()
+const setContextMenusMock = jest.fn()
 const handleEventsMock = jest.fn()
 const initProviderHealthMock = jest.fn()
 const redisClientConnectMock = jest.fn()
@@ -45,10 +47,12 @@ jest.mock('../../handlers/playerHandler', () => ({
 
 jest.mock('../../handlers/commandsHandler', () => ({
     setCommands: (...args: unknown[]) => setCommandsMock(...args),
+    setContextMenus: (...args: unknown[]) => setContextMenusMock(...args),
 }))
 
 jest.mock('../../register', () => ({
     getCommands: (...args: unknown[]) => getCommandsMock(...args),
+    getContextMenus: (...args: unknown[]) => getContextMenusMock(...args),
 }))
 
 jest.mock('../../handlers/eventHandler', () => ({
@@ -133,6 +137,8 @@ describe('BotInitializer', () => {
         createPlayerMock.mockResolvedValue({})
         getCommandsMock.mockResolvedValue([])
         setCommandsMock.mockResolvedValue(undefined)
+        getContextMenusMock.mockResolvedValue([])
+        setContextMenusMock.mockResolvedValue(undefined)
         handleEventsMock.mockReturnValue(undefined)
         initProviderHealthMock.mockResolvedValue(undefined)
         startClientMock.mockResolvedValue(undefined)
