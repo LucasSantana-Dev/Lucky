@@ -265,15 +265,29 @@ export const handleMoveMessageSelect = async (
 
         const moved = await destChannel.send({ embeds: [embed], files })
 
-        // Only delete the original once the repost has succeeded.
-        await message.delete()
-
         const linkRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
             new ButtonBuilder()
                 .setStyle(ButtonStyle.Link)
                 .setLabel('Jump to moved message')
                 .setURL(moved.url),
         )
+
+        // The repost already succeeded — delete the original separately so a
+        // delete failure is reported honestly (the copy exists; remove by hand)
+        // rather than as a generic error that implies nothing happened.
+        try {
+            await message.delete()
+        } catch (deleteError) {
+            errorLog({
+                message: 'Moved message reposted but original delete failed',
+                error: deleteError,
+            })
+            await interaction.editReply({
+                content: `⚠️ Reposted to <#${destinationId}>, but I couldn't delete the original (missing **Manage Messages** or already gone). Please remove it manually.`,
+                components: [linkRow],
+            })
+            return
+        }
 
         await interaction.editReply({
             content: `✅ Moved to <#${destinationId}>.`,
