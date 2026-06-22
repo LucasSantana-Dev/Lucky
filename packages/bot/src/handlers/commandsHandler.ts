@@ -1,6 +1,7 @@
 import {
     Collection,
     type ChatInputCommandInteraction,
+    type MessageContextMenuCommandInteraction,
     PermissionsBitField,
 } from 'discord.js'
 import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
@@ -9,6 +10,7 @@ import { featureToggleService } from '@lucky/shared/services'
 import type { FeatureToggleName } from '@lucky/shared/types'
 import type { CustomClient } from '../types'
 import type Command from '../models/Command'
+import type ContextMenuCommand from '../models/ContextMenuCommand'
 import type { CommandCategory } from '../config/constants'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
@@ -30,8 +32,60 @@ type SetCommandsParams = {
     commands: Command[]
 }
 
+type SetContextMenusParams = {
+    client: CustomClient
+    contextMenus: ContextMenuCommand[]
+}
+
+type ExecuteContextMenuParams = {
+    interaction: MessageContextMenuCommandInteraction
+    client: CustomClient
+}
+
 type GroupCommandsParams = {
     commands: Command[]
+}
+
+/**
+ * Verify the bot has every permission the command declares. Replies with an
+ * ephemeral, human-readable error and returns false when any is missing.
+ * Shared by slash commands and context-menu commands so both enforce the
+ * permission contract identically.
+ */
+const enforceBotPermissions = async (
+    interaction:
+        | ChatInputCommandInteraction
+        | MessageContextMenuCommandInteraction,
+    botPermissions: bigint[] | undefined,
+): Promise<boolean> => {
+    if (!botPermissions?.length) return true
+
+    const appPermissions = interaction.appPermissions
+    const missingPerms = botPermissions.filter(
+        (perm) => !appPermissions?.has(perm),
+    )
+    if (missingPerms.length === 0) return true
+
+    const permissionNames = new PermissionsBitField(
+        missingPerms.reduce((acc, perm) => acc | perm, 0n),
+    ).toArray()
+    const readablePerm = permissionNames.join(', ')
+    const isPlural = permissionNames.length > 1
+    const permNoun = isPlural ? 'permissions' : 'permission'
+    const grantPronoun = isPlural ? 'them' : 'it'
+
+    debugLog({
+        message: `Command ${interaction.commandName} missing permissions: ${readablePerm}`,
+    })
+
+    await interactionReply({
+        interaction,
+        content: {
+            content: `I'm missing the **${readablePerm}** ${permNoun} — ask an admin to grant ${grantPronoun} or re-invite me.`,
+            ephemeral: true,
+        },
+    })
+    return false
 }
 
 export const executeCommand = async ({
@@ -91,38 +145,10 @@ export const executeCommand = async ({
             }
         }
 
-        if (command.botPermissions?.length) {
-            const appPermissions = interaction.appPermissions
-            const missingPerms: bigint[] = []
-
-            for (const perm of command.botPermissions) {
-                if (!appPermissions?.has(perm)) {
-                    missingPerms.push(perm)
-                }
-            }
-
-            if (missingPerms.length > 0) {
-                const permissionNames = new PermissionsBitField(
-                    missingPerms.reduce((acc, perm) => acc | perm, 0n),
-                ).toArray()
-                const readablePerm = permissionNames.join(', ')
-                const isPlural = permissionNames.length > 1
-                const permNoun = isPlural ? 'permissions' : 'permission'
-                const grantPronoun = isPlural ? 'them' : 'it'
-
-                debugLog({
-                    message: `Command ${interaction.commandName} missing permissions: ${readablePerm}`,
-                })
-
-                await interactionReply({
-                    interaction,
-                    content: {
-                        content: `I'm missing the **${readablePerm}** ${permNoun} — ask an admin to grant ${grantPronoun} or re-invite me.`,
-                        ephemeral: true,
-                    },
-                })
-                return
-            }
+        if (
+            !(await enforceBotPermissions(interaction, command.botPermissions))
+        ) {
+            return
         }
 
         debugLog({ message: `Executing command: ${interaction.commandName}` })
@@ -156,6 +182,91 @@ export const executeCommand = async ({
     }
 }
 
+export const executeContextMenu = async ({
+    interaction,
+    client,
+}: ExecuteContextMenuParams): Promise<void> => {
+    monitorCommandExecution(
+        interaction.commandName,
+        interaction.user.id,
+        interaction.guild?.id,
+    )
+
+    try {
+        const contextMenu = client.contextMenus.get(interaction.commandName)
+        if (!contextMenu) {
+            debugLog({
+                message: `Context menu not found: ${interaction.commandName}`,
+            })
+            return
+        }
+
+        const categoryFlag = CATEGORY_FLAG_MAP[contextMenu.category]
+        if (categoryFlag) {
+            const isEnabled = await featureToggleService.isEnabled(
+                categoryFlag,
+                {
+                    guildId: interaction.guild?.id ?? undefined,
+                    userId: interaction.user.id,
+                },
+            )
+            if (!isEnabled) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        content: 'This feature is currently disabled.',
+                        ephemeral: true,
+                    },
+                })
+                return
+            }
+        }
+
+        if (
+            !(await enforceBotPermissions(
+                interaction,
+                contextMenu.botPermissions,
+            ))
+        ) {
+            return
+        }
+
+        debugLog({
+            message: `Executing context menu: ${interaction.commandName}`,
+        })
+        await contextMenu.execute({ interaction, client })
+    } catch (error) {
+        errorLog({
+            message: `Error executing context menu ${interaction.commandName}:`,
+            error,
+        })
+        captureException(
+            error instanceof Error ? error : new Error(String(error)),
+            {
+                context: 'context-menu-execution-failure',
+                command: interaction.commandName,
+                guildId: interaction.guild?.id ?? undefined,
+                userId: interaction.user.id,
+            },
+        )
+        try {
+            const userFriendlyError = createUserFriendlyError(error)
+            await interactionReply({
+                interaction,
+                content: {
+                    content: userFriendlyError,
+                    ephemeral: true,
+                },
+            })
+        } catch (replyError) {
+            errorLog({
+                message: 'Error sending error message:',
+                error: replyError,
+            })
+        }
+    }
+}
+
 export async function setCommands({
     client,
     commands,
@@ -174,6 +285,30 @@ export async function setCommands({
         debugLog({ message: `Loaded ${client.commands.size} commands` })
     } catch (error) {
         errorLog({ message: 'Error setting commands:', error })
+        throw error
+    }
+}
+
+export async function setContextMenus({
+    client,
+    contextMenus,
+}: SetContextMenusParams): Promise<void> {
+    try {
+        debugLog({ message: 'Setting context menus in client collection...' })
+
+        client.contextMenus = new Collection()
+
+        for (const contextMenu of contextMenus) {
+            if (contextMenu.data.name) {
+                client.contextMenus.set(contextMenu.data.name, contextMenu)
+            }
+        }
+
+        debugLog({
+            message: `Loaded ${client.contextMenus.size} context menus`,
+        })
+    } catch (error) {
+        errorLog({ message: 'Error setting context menus:', error })
         throw error
     }
 }

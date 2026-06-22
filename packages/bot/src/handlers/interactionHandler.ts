@@ -14,7 +14,7 @@ import {
     mintCorrelationId,
     tagCorrelationIdToSentry,
 } from '@lucky/shared/utils/support'
-import { executeCommand } from './commandsHandler'
+import { executeCommand, executeContextMenu } from './commandsHandler'
 import type { CustomClient } from '../types'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorInteractionHandling } from '../utils/monitoring'
@@ -104,6 +104,11 @@ export async function handleInteraction(
         try {
             if (interaction.isChatInputCommand()) {
                 await executeCommand({ interaction, client })
+                return
+            }
+
+            if (interaction.isMessageContextMenuCommand()) {
+                await executeContextMenu({ interaction, client })
                 return
             }
 

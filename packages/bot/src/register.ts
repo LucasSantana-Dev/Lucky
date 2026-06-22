@@ -5,8 +5,10 @@ import musicCommands from './functions/music/commands/index'
 import automodCommands from './functions/automod/commands/index'
 import managementCommands from './functions/management/commands/index'
 import moderationCommands from './functions/moderation/commands/index'
+import moderationContextMenus from './functions/moderation/contextMenus/index'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 import type Command from './models/Command'
+import type ContextMenuCommand from './models/ContextMenuCommand'
 
 export const getCommands = async (): Promise<Command[]> => {
     try {
@@ -19,15 +21,14 @@ export const getCommands = async (): Promise<Command[]> => {
             automodCommandsList,
             managementCommandsList,
             moderationCommandsList,
-        ] =
-            await Promise.all([
-                downloadCommands(),
-                generalCommands(),
-                musicCommands(),
-                automodCommands(),
-                managementCommands(),
-                moderationCommands(),
-            ])
+        ] = await Promise.all([
+            downloadCommands(),
+            generalCommands(),
+            musicCommands(),
+            automodCommands(),
+            managementCommands(),
+            moderationCommands(),
+        ])
 
         const allCommands = [
             ...downloadCommandsList,
@@ -45,6 +46,19 @@ export const getCommands = async (): Promise<Command[]> => {
         return groupedCommands
     } catch (error) {
         errorLog({ message: 'Error loading commands:', error })
+        return []
+    }
+}
+
+export const getContextMenus = async (): Promise<ContextMenuCommand[]> => {
+    try {
+        debugLog({ message: 'Loading context-menu commands' })
+
+        const [moderationList] = await Promise.all([moderationContextMenus()])
+
+        return [...moderationList]
+    } catch (error) {
+        errorLog({ message: 'Error loading context menus:', error })
         return []
     }
 }

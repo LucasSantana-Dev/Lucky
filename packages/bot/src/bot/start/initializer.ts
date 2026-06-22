@@ -5,14 +5,17 @@ import {
     stopPresenceRotation,
 } from '../../handlers/clientHandler'
 import { createPlayer } from '../../handlers/playerHandler'
-import { setCommands } from '../../handlers/commandsHandler'
-import { getCommands } from '../../register'
+import { setCommands, setContextMenus } from '../../handlers/commandsHandler'
+import { getCommands, getContextMenus } from '../../register'
 import handleEvents from '../../handlers/eventHandler'
 import {
     startMetricsServer,
     stopMetricsServer,
 } from '../../utils/monitoring/metricsServer'
-import { setupWebMusicHandler, stopWebMusicHandler } from '../../handlers/webMusic'
+import {
+    setupWebMusicHandler,
+    stopWebMusicHandler,
+} from '../../handlers/webMusic'
 import type { CustomClient } from '../../types'
 import { ConfigurationError } from '@lucky/shared/types'
 import { redisClient } from '@lucky/shared/services'
@@ -80,6 +83,9 @@ export class BotInitializer {
         if (options.skipCommands !== true && this.client) {
             const commands = await getCommands()
             await setCommands({ client: this.client, commands })
+
+            const contextMenus = await getContextMenus()
+            await setContextMenus({ client: this.client, contextMenus })
         }
     }
 
