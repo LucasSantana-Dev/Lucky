@@ -108,7 +108,9 @@ const fetchAttachments = async (
 ): Promise<AttachmentBuilder[]> => {
     const files: AttachmentBuilder[] = []
     for (const attachment of attachments) {
-        const response = await fetch(attachment.url)
+        const response = await fetch(attachment.url, {
+            signal: AbortSignal.timeout(15_000),
+        })
         if (!response.ok) {
             throw new Error(
                 `Failed to fetch attachment ${attachment.name}: ${response.status}`,
@@ -222,20 +224,9 @@ export const handleMoveMessageSelect = async (
             return
         }
 
-        const destMissing = missingPermNames(destChannel, botMember, [
-            { flag: PermissionFlagsBits.ViewChannel, name: 'View Channel' },
-            { flag: PermissionFlagsBits.SendMessages, name: 'Send Messages' },
-            { flag: PermissionFlagsBits.EmbedLinks, name: 'Embed Links' },
-            { flag: PermissionFlagsBits.AttachFiles, name: 'Attach Files' },
-        ])
-        if (destMissing.length > 0) {
-            await updateEphemeral(
-                interaction,
-                `❌ I can't post in <#${destinationId}> — missing **${destMissing.join(', ')}**.`,
-            )
-            return
-        }
-
+        // Fetch the original before the destination preflight so Attach Files
+        // is only required when there are attachments, and so the send-permission
+        // check can pick the thread-specific flag.
         const message: Message | null = await sourceChannel.messages
             .fetch(messageId)
             .catch(() => null)
@@ -251,6 +242,39 @@ export const handleMoveMessageSelect = async (
             [...message.attachments.values()],
             getUploadLimit(guild.premiumTier),
         )
+
+        const destRequired = [
+            { flag: PermissionFlagsBits.ViewChannel, name: 'View Channel' },
+            destChannel.isThread()
+                ? {
+                      flag: PermissionFlagsBits.SendMessagesInThreads,
+                      name: 'Send Messages in Threads',
+                  }
+                : {
+                      flag: PermissionFlagsBits.SendMessages,
+                      name: 'Send Messages',
+                  },
+            { flag: PermissionFlagsBits.EmbedLinks, name: 'Embed Links' },
+        ]
+        if (toUpload.length > 0) {
+            destRequired.push({
+                flag: PermissionFlagsBits.AttachFiles,
+                name: 'Attach Files',
+            })
+        }
+
+        const destMissing = missingPermNames(
+            destChannel,
+            botMember,
+            destRequired,
+        )
+        if (destMissing.length > 0) {
+            await updateEphemeral(
+                interaction,
+                `❌ I can't post in <#${destinationId}> — missing **${destMissing.join(', ')}**.`,
+            )
+            return
+        }
 
         const embed = buildMoveEmbed({
             author: message.author,

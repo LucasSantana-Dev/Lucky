@@ -4,7 +4,11 @@ jest.mock('@lucky/shared/utils', () => ({
     captureException: jest.fn(),
 }))
 
-import { GuildPremiumTier, type Attachment } from 'discord.js'
+import {
+    GuildPremiumTier,
+    PermissionFlagsBits,
+    type Attachment,
+} from 'discord.js'
 import {
     buildMoveEmbed,
     getUploadLimit,
@@ -215,6 +219,7 @@ describe('handleMoveMessageSelect — full flow', () => {
 
     const makeChannel = (over: Record<string, unknown> = {}) => ({
         isTextBased: () => true,
+        isThread: () => false,
         permissionsFor: () => ({ has: () => true }),
         messages: { fetch: jest.fn() },
         send: jest.fn().mockResolvedValue({ url: 'https://discord/x/1' }),
@@ -304,7 +309,10 @@ describe('handleMoveMessageSelect — full flow', () => {
 
         await handleMoveMessageSelect(interaction as never, client)
 
-        expect(global.fetch).toHaveBeenCalledWith(attachment.url)
+        expect(global.fetch).toHaveBeenCalledWith(
+            attachment.url,
+            expect.objectContaining({ signal: expect.anything() }),
+        )
         const sendArg = (dest.send as jest.Mock).mock.calls[0][0]
         expect(sendArg.files).toHaveLength(1)
         expect(message.delete).toHaveBeenCalled()
@@ -330,6 +338,50 @@ describe('handleMoveMessageSelect — full flow', () => {
                 components: [],
             }),
         )
+    })
+
+    it('requires Send Messages in Threads for a thread destination', async () => {
+        const message = makeMessage()
+        const source = makeChannel({
+            messages: { fetch: jest.fn().mockResolvedValue(message) },
+        })
+        const dest = makeChannel({
+            isThread: () => true,
+            permissionsFor: () => ({
+                has: (flag: bigint) =>
+                    flag !== PermissionFlagsBits.SendMessagesInThreads,
+            }),
+        })
+        const { interaction, editReply } = makeFlow({ source, dest })
+
+        await handleMoveMessageSelect(interaction as never, client)
+
+        expect(dest.send).not.toHaveBeenCalled()
+        expect(message.delete).not.toHaveBeenCalled()
+        expect(editReply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.stringContaining('Send Messages in Threads'),
+            }),
+        )
+    })
+
+    it('does not require Attach Files when there are no attachments', async () => {
+        const message = makeMessage() // empty attachments
+        const source = makeChannel({
+            messages: { fetch: jest.fn().mockResolvedValue(message) },
+        })
+        const dest = makeChannel({
+            permissionsFor: () => ({
+                has: (flag: bigint) => flag !== PermissionFlagsBits.AttachFiles,
+            }),
+        })
+        const { interaction } = makeFlow({ source, dest })
+
+        await handleMoveMessageSelect(interaction as never, client)
+
+        // AttachFiles is missing but unneeded → the move still completes.
+        expect(dest.send).toHaveBeenCalledTimes(1)
+        expect(message.delete).toHaveBeenCalled()
     })
 
     it('aborts when the original message is gone', async () => {
