@@ -21,7 +21,7 @@ export interface RoleUpsertData {
 
 export function createRolesManageApi(client: AxiosInstance) {
     return {
-        list: async (guildId: string): Promise<GuildRoleManage[]> => {
+        list: async (guildId: string): Promise<GuildRoleManage[] | null> => {
             try {
                 const res = await client.get<{ roles: GuildRoleManage[] }>(
                     `/guilds/${guildId}/roles/manage`,
