@@ -29,6 +29,7 @@ import { createStarboardApi } from './starboardApi'
 import { createArtistsApi } from './artistsApi'
 import { createSupportApi } from './supportApi'
 import { inferApiBase } from './apiBase'
+import { createRolesManageApi } from './rolesManageApi'
 
 const browserLocation =
     typeof globalThis !== 'undefined' && 'window' in globalThis
@@ -431,6 +432,7 @@ export const api = {
     serverLogs: createLogsApi(apiClient),
     artists: createArtistsApi(apiClient),
     support: createSupportApi(apiClient, NORMALIZED_API_BASE),
+    rolesManage: createRolesManageApi(apiClient),
 }
 
 export { ApiError } from './ApiError'
