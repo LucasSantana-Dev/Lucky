@@ -824,7 +824,7 @@ class GuildService {
 
         try {
             const response = await fetch(
-                `${DISCORD_API_BASE_URL}/guilds/${guildId}/roles`,
+                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/roles`,
                 {
                     headers: {
                         Authorization: `Bot ${token}`,
@@ -908,7 +908,7 @@ class GuildService {
 
         try {
             const response = await fetch(
-                `${DISCORD_API_BASE_URL}/guilds/${guildId}/roles`,
+                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/roles`,
                 {
                     method: 'POST',
                     headers: {
@@ -1003,7 +1003,7 @@ class GuildService {
 
         try {
             const response = await fetch(
-                `${DISCORD_API_BASE_URL}/guilds/${guildId}/roles/${roleId}`,
+                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/roles/${encodeURIComponent(roleId)}`,
                 {
                     method: 'PATCH',
                     headers: {
@@ -1074,7 +1074,7 @@ class GuildService {
 
         try {
             const response = await fetch(
-                `${DISCORD_API_BASE_URL}/guilds/${guildId}/roles/${roleId}`,
+                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/roles/${encodeURIComponent(roleId)}`,
                 {
                     method: 'DELETE',
                     headers: {
