@@ -73,6 +73,29 @@ const userIdParam = guildIdParam.extend({
     userId: commonUserIdParam.shape.userId,
 })
 
+const roleIdParam = guildIdParam.extend({
+    roleId: z.string().regex(/^\d{17,20}$/),
+})
+
+const roleUpsertBody = z
+    .object({
+        name: z.string().min(1).max(100),
+        color: z.number().int().min(0).max(0xffffff).optional(),
+        hoist: z.boolean().optional(),
+        mentionable: z.boolean().optional(),
+        permissions: z.string().optional(),
+    })
+    .strict()
+
+const bulkDeleteBody = z
+    .object({
+        roleIds: z
+            .array(z.string().regex(/^\d{17,20}$/))
+            .min(1)
+            .max(50),
+    })
+    .strict()
+
 export const managementSchemas = {
     guildIdParam,
     commandNameParam,
@@ -85,4 +108,7 @@ export const managementSchemas = {
     logsQuery,
     logsSearchQuery,
     userIdParam,
+    roleIdParam,
+    roleUpsertBody,
+    bulkDeleteBody,
 }
