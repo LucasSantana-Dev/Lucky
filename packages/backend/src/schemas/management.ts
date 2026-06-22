@@ -83,7 +83,10 @@ const roleUpsertBody = z
         color: z.number().int().min(0).max(0xffffff).optional(),
         hoist: z.boolean().optional(),
         mentionable: z.boolean().optional(),
-        permissions: z.string().optional(),
+        permissions: z
+            .string()
+            .regex(/^\d+$/, 'permissions must be a numeric bitfield string')
+            .optional(),
     })
     .strict()
 

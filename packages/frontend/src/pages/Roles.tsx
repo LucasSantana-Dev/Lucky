@@ -177,13 +177,15 @@ function RoleDialog({
 
                 <DialogFooter>
                     <Button
-                        variant='outline'
+                        variant='secondary'
                         onClick={() => onOpenChange(false)}
                     >
                         {t('common.cancel') || 'Cancel'}
                     </Button>
                     <Button onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? t('common.loading') || 'Saving...' : t('common.save') || 'Save'}
+                        {isSaving
+                            ? t('common.loading') || 'Saving...'
+                            : t('common.save') || 'Save'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -215,7 +217,7 @@ function ConfirmDialog({
                     <DialogDescription>{description}</DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                    <Button variant='outline' onClick={onCancel}>
+                    <Button variant='secondary' onClick={onCancel}>
                         {t('common.cancel') || 'Cancel'}
                     </Button>
                     <Button
@@ -302,7 +304,9 @@ export default function RolesPage() {
                 toast.success(t('roles.created') || 'Role created')
                 setShowCreateDialog(false)
             } else {
-                toast.error(t('roles.failedToCreate') || 'Failed to create role')
+                toast.error(
+                    t('roles.failedToCreate') || 'Failed to create role',
+                )
             }
         } catch (error) {
             if (error instanceof Error) {
@@ -341,7 +345,9 @@ export default function RolesPage() {
                 setShowEditDialog(false)
                 setEditingRole(null)
             } else {
-                toast.error(t('roles.failedToUpdate') || 'Failed to update role')
+                toast.error(
+                    t('roles.failedToUpdate') || 'Failed to update role',
+                )
             }
         } catch (error) {
             if (error instanceof Error) {
@@ -365,14 +371,14 @@ export default function RolesPage() {
                 deletingRole.id,
             )
             if (success) {
-                setRoles((prev) =>
-                    prev.filter((r) => r.id !== deletingRole.id),
-                )
+                setRoles((prev) => prev.filter((r) => r.id !== deletingRole.id))
                 toast.success(t('roles.deleted') || 'Role deleted')
                 setShowDeleteDialog(false)
                 setDeletingRole(null)
             } else {
-                toast.error(t('roles.failedToDelete') || 'Failed to delete role')
+                toast.error(
+                    t('roles.failedToDelete') || 'Failed to delete role',
+                )
             }
         } catch (error) {
             if (error instanceof Error) {
@@ -393,11 +399,15 @@ export default function RolesPage() {
             const duplicated = await api.rolesManage.duplicate(guildId, role.id)
             if (duplicated) {
                 setRoles((prev) =>
-                    [...prev, duplicated].sort((a, b) => b.position - a.position),
+                    [...prev, duplicated].sort(
+                        (a, b) => b.position - a.position,
+                    ),
                 )
                 toast.success(t('roles.duplicated') || 'Role duplicated')
             } else {
-                toast.error(t('roles.failedToDuplicate') || 'Failed to duplicate role')
+                toast.error(
+                    t('roles.failedToDuplicate') || 'Failed to duplicate role',
+                )
             }
         } catch (error) {
             if (error instanceof Error) {
@@ -465,9 +475,10 @@ export default function RolesPage() {
         return (
             <div className='space-y-6'>
                 <SectionHeader
-                    icon={<Users className='h-6 w-6' />}
                     title={t('roles.title') || 'Roles'}
-                    subtitle={t('roles.subtitle') || 'Manage your server roles'}
+                    description={
+                        t('roles.subtitle') || 'Manage your server roles'
+                    }
                 />
                 <div className='grid gap-4'>
                     {SKELETON_KEYS.map((key) => (
@@ -495,9 +506,10 @@ export default function RolesPage() {
         return (
             <div className='space-y-6'>
                 <SectionHeader
-                    icon={<Users className='h-6 w-6' />}
                     title={t('roles.title') || 'Roles'}
-                    subtitle={t('roles.subtitle') || 'Manage your server roles'}
+                    description={
+                        t('roles.subtitle') || 'Manage your server roles'
+                    }
                 />
                 <EmptyState
                     icon={<Users className='h-10 w-10' />}
@@ -506,15 +518,13 @@ export default function RolesPage() {
                         t('roles.noRolesDesc') ||
                         'Create your first role to get started'
                     }
-                >
-                    <Button
-                        onClick={() => setShowCreateDialog(true)}
-                        className='mt-4'
-                    >
+                />
+                <div className='flex justify-center'>
+                    <Button onClick={() => setShowCreateDialog(true)}>
                         <Plus className='mr-2 h-4 w-4' />
                         {t('roles.createRole') || 'Create Role'}
                     </Button>
-                </EmptyState>
+                </div>
 
                 <RoleDialog
                     open={showCreateDialog}
@@ -531,9 +541,10 @@ export default function RolesPage() {
         <div className='space-y-6'>
             <div className='flex items-center justify-between'>
                 <SectionHeader
-                    icon={<Users className='h-6 w-6' />}
                     title={t('roles.title') || 'Roles'}
-                    subtitle={t('roles.subtitle') || 'Manage your server roles'}
+                    description={
+                        t('roles.subtitle') || 'Manage your server roles'
+                    }
                 />
                 <Button
                     onClick={() => setShowCreateDialog(true)}
@@ -544,128 +555,133 @@ export default function RolesPage() {
                 </Button>
             </div>
 
-            {selectedRoleIds.size > 0 && (
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className='fixed bottom-6 left-6 right-6 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 flex items-center justify-between'
-                >
-                    <span className='text-sm font-medium'>
-                        {t('roles.selectedCount', {
-                            count: selectedRoleIds.size,
-                        }) || `${selectedRoleIds.size} roles selected`}
-                    </span>
-                    <Button
-                        variant='destructive'
-                        size='sm'
-                        onClick={() => setShowBulkDeleteDialog(true)}
-                    >
-                        <Trash2 className='mr-2 h-4 w-4' />
-                        {t('roles.delete') || 'Delete'}
-                    </Button>
-                </motion.div>
-            )}
-
-            <div className='space-y-2'>
-                {roles.map((role) => (
+            <AnimatePresence>
+                {selectedRoleIds.size > 0 && (
                     <motion.div
-                        key={role.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className='fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xl bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 flex items-center justify-between z-50'
                     >
-                        <Card className='p-4 flex items-center justify-between hover:bg-zinc-800/50 transition-colors group'>
-                            <div className='flex items-center gap-4 flex-1'>
-                                <Checkbox
-                                    checked={selectedRoleIds.has(role.id)}
-                                    onCheckedChange={() =>
-                                        toggleRoleSelection(role.id)
-                                    }
-                                    disabled={role.managed}
-                                />
-
-                                <div
-                                    className='h-4 w-4 rounded-full border'
-                                    style={{
-                                        backgroundColor:
-                                            role.color === 0
-                                                ? 'rgb(113, 118, 131)'
-                                                : `#${role.color
-                                                      .toString(16)
-                                                      .padStart(6, '0')}`,
-                                    }}
-                                />
-
-                                <div className='flex-1'>
-                                    <div className='font-semibold'>
-                                        {role.name}
-                                    </div>
-                                    <div className='text-xs text-zinc-400'>
-                                        Position: {role.position}
-                                    </div>
-                                </div>
-
-                                <div className='flex items-center gap-2'>
-                                    {role.hoist && (
-                                        <Badge variant='secondary'>
-                                            {t('roles.hoist') || 'Hoist'}
-                                        </Badge>
-                                    )}
-                                    {role.mentionable && (
-                                        <Badge variant='secondary'>
-                                            {t('roles.mentionable') ||
-                                                'Mentionable'}
-                                        </Badge>
-                                    )}
-                                    {role.managed && (
-                                        <Badge
-                                            variant='outline'
-                                            className='bg-amber-500/10 text-amber-400 border-amber-500/30'
-                                        >
-                                            {t('roles.managed') || 'Managed'}
-                                        </Badge>
-                                    )}
-                                </div>
-                            </div>
-
-                            {!role.managed && (
-                                <div className='flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-4'>
-                                    <Button
-                                        size='sm'
-                                        variant='ghost'
-                                        onClick={() => {
-                                            setEditingRole(role)
-                                            setShowEditDialog(true)
-                                        }}
-                                    >
-                                        <Edit2 className='h-4 w-4' />
-                                    </Button>
-                                    <Button
-                                        size='sm'
-                                        variant='ghost'
-                                        onClick={() =>
-                                            handleDuplicateRole(role)
-                                        }
-                                    >
-                                        <Copy className='h-4 w-4' />
-                                    </Button>
-                                    <Button
-                                        size='sm'
-                                        variant='ghost'
-                                        onClick={() => {
-                                            setDeletingRole(role)
-                                            setShowDeleteDialog(true)
-                                        }}
-                                    >
-                                        <Trash2 className='h-4 w-4' />
-                                    </Button>
-                                </div>
-                            )}
-                        </Card>
+                        <span className='text-sm font-medium'>
+                            {t('roles.selectedCount', {
+                                count: selectedRoleIds.size,
+                            }) || `${selectedRoleIds.size} roles selected`}
+                        </span>
+                        <Button
+                            variant='destructive'
+                            size='sm'
+                            onClick={() => setShowBulkDeleteDialog(true)}
+                        >
+                            <Trash2 className='mr-2 h-4 w-4' />
+                            {t('roles.delete') || 'Delete'}
+                        </Button>
                     </motion.div>
-                ))}
-            </div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                <div className='space-y-2'>
+                    {roles.map((role) => (
+                        <motion.div
+                            key={role.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                        >
+                            <Card className='p-4 flex items-center justify-between hover:bg-zinc-800/50 transition-colors group'>
+                                <div className='flex items-center gap-4 flex-1'>
+                                    <Checkbox
+                                        checked={selectedRoleIds.has(role.id)}
+                                        onCheckedChange={() =>
+                                            toggleRoleSelection(role.id)
+                                        }
+                                        disabled={role.managed}
+                                    />
+
+                                    <div
+                                        className='h-4 w-4 rounded-full border'
+                                        style={{
+                                            backgroundColor:
+                                                role.color === 0
+                                                    ? 'rgb(113, 118, 131)'
+                                                    : `#${role.color
+                                                          .toString(16)
+                                                          .padStart(6, '0')}`,
+                                        }}
+                                    />
+
+                                    <div className='flex-1'>
+                                        <div className='font-semibold'>
+                                            {role.name}
+                                        </div>
+                                        <div className='text-xs text-zinc-400'>
+                                            Position: {role.position}
+                                        </div>
+                                    </div>
+
+                                    <div className='flex items-center gap-2'>
+                                        {role.hoist && (
+                                            <Badge variant='secondary'>
+                                                {t('roles.hoist') || 'Hoist'}
+                                            </Badge>
+                                        )}
+                                        {role.mentionable && (
+                                            <Badge variant='secondary'>
+                                                {t('roles.mentionable') ||
+                                                    'Mentionable'}
+                                            </Badge>
+                                        )}
+                                        {role.managed && (
+                                            <Badge
+                                                variant='secondary'
+                                                className='bg-amber-500/10 text-amber-400 border-amber-500/30'
+                                            >
+                                                {t('roles.managed') ||
+                                                    'Managed'}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {!role.managed && (
+                                    <div className='flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-4'>
+                                        <Button
+                                            size='sm'
+                                            variant='ghost'
+                                            onClick={() => {
+                                                setEditingRole(role)
+                                                setShowEditDialog(true)
+                                            }}
+                                        >
+                                            <Edit2 className='h-4 w-4' />
+                                        </Button>
+                                        <Button
+                                            size='sm'
+                                            variant='ghost'
+                                            onClick={() =>
+                                                handleDuplicateRole(role)
+                                            }
+                                        >
+                                            <Copy className='h-4 w-4' />
+                                        </Button>
+                                        <Button
+                                            size='sm'
+                                            variant='ghost'
+                                            onClick={() => {
+                                                setDeletingRole(role)
+                                                setShowDeleteDialog(true)
+                                            }}
+                                        >
+                                            <Trash2 className='h-4 w-4' />
+                                        </Button>
+                                    </div>
+                                )}
+                            </Card>
+                        </motion.div>
+                    ))}
+                </div>
+            </AnimatePresence>
 
             <RoleDialog
                 open={showCreateDialog}

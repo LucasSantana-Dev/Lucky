@@ -129,6 +129,9 @@ export function setupRolesRoutes(app: Express): void {
                     error instanceof Error
                         ? error.message
                         : 'Failed to delete role'
+                if (message === 'Role not found') {
+                    throw AppError.notFound(message)
+                }
                 throw AppError.badRequest(message)
             }
         }),
