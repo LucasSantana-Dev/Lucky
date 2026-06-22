@@ -27,6 +27,10 @@ interface DiscordGuildRole {
     name: string
     color?: number
     position?: number
+    hoist?: boolean
+    mentionable?: boolean
+    permissions?: string
+    managed?: boolean
 }
 
 export interface GuildMemberContext {
@@ -39,6 +43,25 @@ export interface GuildRoleOption {
     name: string
     color: number
     position: number
+}
+
+export interface GuildRoleManage {
+    id: string
+    name: string
+    color: number
+    hoist: boolean
+    mentionable: boolean
+    permissions: string
+    position: number
+    managed: boolean
+}
+
+export interface RoleUpsertData {
+    name: string
+    color?: number
+    hoist?: boolean
+    mentionable?: boolean
+    permissions?: string
 }
 
 export interface GuildChannelOption {
@@ -762,6 +785,316 @@ class GuildService {
                 }
             }),
         )
+    }
+
+    async getFullGuildRoles(guildId: string): Promise<GuildRoleManage[]> {
+        const client = this.getBotClient()
+
+        if (client) {
+            try {
+                const guild =
+                    client.guilds.cache.get(guildId) ??
+                    (await client.guilds.fetch(guildId))
+                const roles = await guild.roles.fetch()
+                return [...roles.values()]
+                    .filter((role) => role.id !== guild.id)
+                    .map((role) => ({
+                        id: role.id,
+                        name: role.name,
+                        color: role.color ?? 0,
+                        hoist: role.hoist ?? false,
+                        mentionable: role.mentionable ?? false,
+                        permissions: role.permissions.bitfield.toString(),
+                        position: role.position ?? 0,
+                        managed: role.managed ?? false,
+                    }))
+                    .sort((a, b) => b.position - a.position)
+            } catch (error) {
+                debugLog({
+                    message: 'Failed to fetch full guild roles from bot client',
+                    error,
+                })
+            }
+        }
+
+        const token = this.getBotToken()
+        if (!token) {
+            return []
+        }
+
+        try {
+            const response = await fetch(
+                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/roles`,
+                {
+                    headers: {
+                        Authorization: `Bot ${token}`,
+                    },
+                    signal: AbortSignal.timeout(10_000),
+                },
+            )
+
+            if (!response.ok) {
+                return []
+            }
+
+            const payload = (await response.json()) as DiscordGuildRole[]
+
+            return payload
+                .filter((role) => role.id !== guildId)
+                .map((role) => ({
+                    id: role.id,
+                    name: role.name,
+                    color: role.color ?? 0,
+                    hoist: role.hoist ?? false,
+                    mentionable: role.mentionable ?? false,
+                    permissions: role.permissions ?? '0',
+                    position: role.position ?? 0,
+                    managed: role.managed ?? false,
+                }))
+                .sort((a, b) => b.position - a.position)
+        } catch (error) {
+            errorLog({
+                message: 'Failed to fetch full guild roles',
+                error,
+            })
+            return []
+        }
+    }
+
+    async createGuildRole(
+        guildId: string,
+        data: RoleUpsertData,
+    ): Promise<GuildRoleManage> {
+        const client = this.getBotClient()
+
+        if (client) {
+            try {
+                const guild =
+                    client.guilds.cache.get(guildId) ??
+                    (await client.guilds.fetch(guildId))
+                const role = await guild.roles.create({
+                    name: data.name,
+                    color: data.color,
+                    hoist: data.hoist,
+                    mentionable: data.mentionable,
+                    permissions:
+                        data.permissions !== undefined
+                            ? BigInt(data.permissions)
+                            : undefined,
+                    reason: 'Created via dashboard',
+                })
+                return {
+                    id: role.id,
+                    name: role.name,
+                    color: role.color ?? 0,
+                    hoist: role.hoist ?? false,
+                    mentionable: role.mentionable ?? false,
+                    permissions: role.permissions.bitfield.toString(),
+                    position: role.position ?? 0,
+                    managed: role.managed ?? false,
+                }
+            } catch (error) {
+                debugLog({
+                    message: 'Failed to create guild role via bot client',
+                    error,
+                })
+            }
+        }
+
+        const token = this.getBotToken()
+        if (!token) {
+            throw new Error('No bot token available')
+        }
+
+        try {
+            const response = await fetch(
+                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/roles`,
+                {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bot ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: data.name,
+                        color: data.color,
+                        hoist: data.hoist,
+                        mentionable: data.mentionable,
+                        permissions: data.permissions,
+                    }),
+                    signal: AbortSignal.timeout(10_000),
+                },
+            )
+
+            if (!response.ok) {
+                const error = await response.text()
+                throw new Error(`Discord API error: ${error}`)
+            }
+
+            const payload = (await response.json()) as DiscordGuildRole
+            return {
+                id: payload.id,
+                name: payload.name,
+                color: payload.color ?? 0,
+                hoist: payload.hoist ?? false,
+                mentionable: payload.mentionable ?? false,
+                permissions: payload.permissions ?? '0',
+                position: payload.position ?? 0,
+                managed: payload.managed ?? false,
+            }
+        } catch (error) {
+            errorLog({
+                message: 'Failed to create guild role via API',
+                error,
+            })
+            throw error
+        }
+    }
+
+    async updateGuildRole(
+        guildId: string,
+        roleId: string,
+        data: RoleUpsertData,
+    ): Promise<GuildRoleManage> {
+        const client = this.getBotClient()
+
+        if (client) {
+            try {
+                const guild =
+                    client.guilds.cache.get(guildId) ??
+                    (await client.guilds.fetch(guildId))
+                const role = await guild.roles.fetch(roleId)
+                if (!role) {
+                    throw new Error('Role not found')
+                }
+                const updated = await role.edit({
+                    name: data.name,
+                    color: data.color,
+                    hoist: data.hoist,
+                    mentionable: data.mentionable,
+                    permissions:
+                        data.permissions !== undefined
+                            ? BigInt(data.permissions)
+                            : undefined,
+                    reason: 'Updated via dashboard',
+                })
+                return {
+                    id: updated.id,
+                    name: updated.name,
+                    color: updated.color ?? 0,
+                    hoist: updated.hoist ?? false,
+                    mentionable: updated.mentionable ?? false,
+                    permissions: updated.permissions.bitfield.toString(),
+                    position: updated.position ?? 0,
+                    managed: updated.managed ?? false,
+                }
+            } catch (error) {
+                debugLog({
+                    message: 'Failed to update guild role via bot client',
+                    error,
+                })
+            }
+        }
+
+        const token = this.getBotToken()
+        if (!token) {
+            throw new Error('No bot token available')
+        }
+
+        try {
+            const response = await fetch(
+                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/roles/${encodeURIComponent(roleId)}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        Authorization: `Bot ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: data.name,
+                        color: data.color,
+                        hoist: data.hoist,
+                        mentionable: data.mentionable,
+                        permissions: data.permissions,
+                    }),
+                    signal: AbortSignal.timeout(10_000),
+                },
+            )
+
+            if (!response.ok) {
+                const error = await response.text()
+                throw new Error(`Discord API error: ${error}`)
+            }
+
+            const payload = (await response.json()) as DiscordGuildRole
+            return {
+                id: payload.id,
+                name: payload.name,
+                color: payload.color ?? 0,
+                hoist: payload.hoist ?? false,
+                mentionable: payload.mentionable ?? false,
+                permissions: payload.permissions ?? '0',
+                position: payload.position ?? 0,
+                managed: payload.managed ?? false,
+            }
+        } catch (error) {
+            errorLog({
+                message: 'Failed to update guild role via API',
+                error,
+            })
+            throw error
+        }
+    }
+
+    async deleteGuildRole(guildId: string, roleId: string): Promise<void> {
+        const client = this.getBotClient()
+
+        if (client) {
+            try {
+                const guild =
+                    client.guilds.cache.get(guildId) ??
+                    (await client.guilds.fetch(guildId))
+                const role = await guild.roles.fetch(roleId)
+                if (role) {
+                    await role.delete('Deleted via dashboard')
+                    return
+                }
+            } catch (error) {
+                debugLog({
+                    message: 'Failed to delete guild role via bot client',
+                    error,
+                })
+            }
+        }
+
+        const token = this.getBotToken()
+        if (!token) {
+            throw new Error('No bot token available')
+        }
+
+        try {
+            const response = await fetch(
+                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/roles/${encodeURIComponent(roleId)}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        Authorization: `Bot ${token}`,
+                    },
+                    signal: AbortSignal.timeout(10_000),
+                },
+            )
+
+            if (!response.ok) {
+                const error = await response.text()
+                throw new Error(`Discord API error: ${error}`)
+            }
+        } catch (error) {
+            errorLog({
+                message: 'Failed to delete guild role via API',
+                error,
+            })
+            throw error
+        }
     }
 }
 

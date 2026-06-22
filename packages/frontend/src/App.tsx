@@ -44,6 +44,7 @@ const PreferredArtistsPage = lazy(() => import('./pages/PreferredArtists'))
 const TwitchNotificationsPage = lazy(
     () => import('./pages/TwitchNotifications'),
 )
+const RolesPage = lazy(() => import('./pages/Roles'))
 const LastFmPage = lazy(() => import('./pages/LastFm'))
 const SpotifyPage = lazy(() => import('./pages/Spotify'))
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfService'))
@@ -175,6 +176,10 @@ function AuthenticatedRoutes() {
             <Route
                 path='/reaction-roles'
                 element={guardedRoute('automation', <ReactionRolesPage />)}
+            />
+            <Route
+                path='/roles'
+                element={guardedRoute('settings', <RolesPage />)}
             />
             <Route
                 path='/guild-automation'
