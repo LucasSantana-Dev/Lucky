@@ -46,7 +46,7 @@ export function setupRolesRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/roles/manage',
         requireAuth,
-        requireGuildModuleAccess('roles', 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -59,7 +59,7 @@ export function setupRolesRoutes(app: Express): void {
         '/api/guilds/:guildId/roles/manage',
         requireAuth,
         writeLimiter,
-        requireGuildModuleAccess('roles', 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         validateParams(s.guildIdParam),
         validateBody(s.roleUpsertBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -83,7 +83,7 @@ export function setupRolesRoutes(app: Express): void {
         '/api/guilds/:guildId/roles/manage/:roleId',
         requireAuth,
         writeLimiter,
-        requireGuildModuleAccess('roles', 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         validateParams(s.roleIdParam),
         validateBody(s.roleUpsertBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -115,7 +115,7 @@ export function setupRolesRoutes(app: Express): void {
         '/api/guilds/:guildId/roles/manage/:roleId',
         requireAuth,
         writeLimiter,
-        requireGuildModuleAccess('roles', 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         validateParams(s.roleIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -138,7 +138,7 @@ export function setupRolesRoutes(app: Express): void {
         '/api/guilds/:guildId/roles/manage/:roleId/duplicate',
         requireAuth,
         writeLimiter,
-        requireGuildModuleAccess('roles', 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         validateParams(s.roleIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -181,7 +181,7 @@ export function setupRolesRoutes(app: Express): void {
         '/api/guilds/:guildId/roles/manage/bulk-delete',
         requireAuth,
         writeLimiter,
-        requireGuildModuleAccess('roles', 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         validateParams(s.guildIdParam),
         validateBody(s.bulkDeleteBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {

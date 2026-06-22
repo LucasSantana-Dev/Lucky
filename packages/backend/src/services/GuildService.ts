@@ -877,7 +877,10 @@ class GuildService {
                     color: data.color,
                     hoist: data.hoist,
                     mentionable: data.mentionable,
-                    permissions: data.permissions,
+                    permissions:
+                        data.permissions !== undefined
+                            ? BigInt(data.permissions)
+                            : undefined,
                     reason: 'Created via dashboard',
                 })
                 return {
@@ -969,7 +972,10 @@ class GuildService {
                     color: data.color,
                     hoist: data.hoist,
                     mentionable: data.mentionable,
-                    permissions: data.permissions,
+                    permissions:
+                        data.permissions !== undefined
+                            ? BigInt(data.permissions)
+                            : undefined,
                     reason: 'Updated via dashboard',
                 })
                 return {
