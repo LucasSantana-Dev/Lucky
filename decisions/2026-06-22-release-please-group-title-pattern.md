@@ -41,33 +41,35 @@ But on merging #1522, release-please **still aborted** with the same `⚠ There 
 ## Alternatives considered
 
 - **`separate-pull-requests: true`** — switches to per-package PRs, which _do_ read `pull-request-title-pattern` (already set), so `${version}` resolves. Rejected as primary: a larger behavioral change (PR structure + reviewer workflow) than needed for a one-package repo. It is the fallback if the group-pattern fix doesn't resolve `${version}`.
-- **CI auto-tag guard alone** — codifies the manual workaround but doesn't fix the root cause; kept as the companion, not the fix.
-- **Replace release-please with tag-on-merge** — reverses ADR 2026-06-16; heavy; rejected.
+- **CI auto-tag guard** — initially considered the companion to the title fix. After the validation outcome below, it was **promoted to the primary durable mechanism** (shipped in `.github/workflows/release-tag-guard.yml`), because the title fix alone did not make release-please tag reliably.
+- **`separate-pull-requests: true`** — still available as a further fallback if even the title generation regresses; not needed, since the guard makes tagging deterministic regardless.
+- **Replace release-please with tag-on-merge** — reverses ADR 2026-06-16; heavy; rejected. (The guard is effectively a narrow tag-on-merge backstop _layered on_ release-please, keeping its version-bump + changelog value.)
 
 ## Consequences
 
 Positive:
 
-- Releases auto-tag → auto-deploy, no manual `git tag` step per release.
-- One-line, reversible config change; no workflow or version-bump/changelog regression.
+- Releases tag + release deterministically: release-please does version-bump + changelog + PR; the **guard guarantees the `v<version>` tag + GitHub Release** (and thus the deploy) on merge. No manual `git tag` per release.
+- The title fix is a one-line, reversible config change with no version-bump/changelog regression; the guard is idempotent (keys on the Release) and a no-op when release-please does tag.
 
 Negative / residual risk:
 
-- `${version}` resolving in the _group_ pattern is verified-by-design (single package, standard interpolation) but **proven only on the next release** — v2.20.1 is the live test. Mitigated by explicitly watching that release (not relying on silent success) + the companion guard.
+- Two mechanisms can now create the release (release-please + guard). The guard's Release-existence check makes this safe (no double-release), but a future release-please that _does_ tag will make the guard a silent no-op — fine, but worth knowing when debugging.
 
 Neutral:
 
-- The stale #1519 (created with the old title) won't be retitled; it must be closed so release-please regenerates a correctly-titled PR (see plan).
+- The stale #1519 (old title) was closed so release-please regenerated a correctly-titled PR (#1522).
 
-## Plan / validation
+## Plan / validation — DONE
 
-1. PR the config change → merge to `main`.
-2. **Close #1519** so release-please regenerates the release PR — it should now be titled `chore: release 2.20.1`.
-3. Merge the regenerated PR → confirm release-please **auto-creates the v2.20.1 tag + GitHub release** (no manual flip) → `release: published` fires the deploy. This both ships v2.20.1 and **validates the fix**.
-4. If step 3 still requires a manual tag → the group-pattern fix didn't take → switch to `separate-pull-requests: true` and build the CI auto-tag guard.
+1. ✅ PR the config change (#1521) → merged.
+2. ✅ Closed #1519 → release-please regenerated #1522 titled **`chore: release 2.20.1`** (title fix confirmed).
+3. ❌ Merged #1522 → release-please **still aborted**, no v2.20.1 tag → title fix necessary but not sufficient (see Validation outcome above).
+4. ✅ Shipped v2.20.1 via the manual workaround one last time; built + shipped the **CI auto-tag guard** (#1523) as the durable fix.
 
 ## Revisit when
 
-- **A release PR again merges without an auto-created tag** → the fix regressed; build the CI auto-tag guard and/or switch to `separate-pull-requests: true`.
-- **A 2nd package is added to the manifest** → `${version}` becomes ambiguous in the combined group PR; move to per-component titles/tags.
-- **release-please major upgrade** changes title-pattern/interpolation semantics → re-verify.
+- **The guard ever creates a release that release-please should have** (check Actions warnings) — expected for now; if release-please starts tagging reliably again (e.g. after an upgrade), the guard becomes a redundant no-op and could be removed.
+- **A release merges with neither release-please nor the guard tagging it** → the guard regressed; debug the workflow (PAT scope, paths filter, manifest key).
+- **A 2nd package is added to the manifest** → `${version}` becomes ambiguous in the combined group PR _and_ the guard's single-version assumption breaks; move to per-component titles/tags.
+- **release-please major upgrade** changes title-pattern/interpolation or release-creation semantics → re-verify and reconsider whether the guard is still needed.

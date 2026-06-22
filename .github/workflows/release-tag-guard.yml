@@ -34,7 +34,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
-      - name: Create tag + release if release-please did not
+      - name: Create release (and tag) if release-please did not
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
@@ -42,15 +42,24 @@ jobs:
           version="$(node -p "require('./.release-please-manifest.json')['.']")"
           tag="v${version}"
 
-          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
-            echo "::notice::${tag} already exists — release-please (or a prior run) tagged it. Nothing to do."
+          # Idempotency keys on the GitHub *Release*, not just the tag — the
+          # Release (`release: published`) is what fires deploy.yml. Checking the
+          # tag alone would skip the partial-failure case (tag pushed but release
+          # creation failed), leaving deploy permanently broken on reruns.
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            echo "::notice::release ${tag} already exists — release-please (or a prior run) created it. Nothing to do."
             exit 0
           fi
 
-          echo "::warning::${tag} missing after a manifest bump — release-please did not auto-tag (see ADR 2026-06-22-release-please-group-title-pattern). Creating it."
-          git tag "${tag}"
-          git push origin "${tag}"
+          echo "::warning::release ${tag} missing after a manifest bump — release-please did not auto-release (see ADR 2026-06-22-release-please-group-title-pattern). Creating it."
+
+          # The tag may already exist from a prior partial run; only create+push if absent.
+          if ! git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            git tag "${tag}"
+            git push origin "${tag}"
+          fi
+
           gh release create "${tag}" \
             --title "${tag}" \
-            --notes "Automated release tag created by release-tag-guard (release-please did not auto-tag). See CHANGELOG.md." \
+            --notes "Automated release created by release-tag-guard (release-please did not auto-release). See CHANGELOG.md." \
             --verify-tag
