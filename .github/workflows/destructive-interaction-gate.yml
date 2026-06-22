@@ -1,0 +1,74 @@
+name: Destructive Interaction Gate
+
+# Enforces decisions/2026-06-21-destructive-interaction-merge-gate.md:
+# a PR that ADDS an irreversible Discord interaction (message delete/move, ban,
+# kick, bulkDelete/purge, timeout, channel/role removal) must carry a live-smoke
+# attestation in its body, or an explicit `non-destructive-confirmed` override
+# label. This is a diff/metadata audit — NOT a Discord gateway test — so it stays
+# consistent with the 2026-05-14 integration-testing ADR.
+
+on:
+    pull_request:
+        types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+        paths:
+            - 'packages/bot/src/**'
+
+permissions:
+    contents: read
+
+jobs:
+    destructive-interaction-gate:
+        name: Destructive interaction gate
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Detect added irreversible Discord interactions
+              id: detect
+              env:
+                  BASE_REF: ${{ github.base_ref }}
+              run: |
+                  set -euo pipefail
+                  git fetch --no-tags --depth=1 origin "$BASE_REF"
+                  # Added (+) lines only, bot source, excluding test files.
+                  added=$(git diff "origin/${BASE_REF}...HEAD" -- \
+                      'packages/bot/src/**/*.ts' \
+                      ':(exclude)*.spec.ts' ':(exclude)*.test.ts' \
+                      | { grep -E '^\+' || true; } | { grep -vE '^\+\+\+' || true; })
+
+                  # Tight allowlist of irreversible Discord APIs, minus known
+                  # false positives (discord-player queue.delete, AbortSignal
+                  # .timeout, interaction/reply deletes — all reversible/unrelated).
+                  hits=$(printf '%s\n' "$added" \
+                      | { grep -En '\.bulkDelete\(|members\.ban\(|members\.kick\(|\.timeout\(|\.delete\(\)|channels\.delete\(|roles\.remove\(' || true; } \
+                      | { grep -vE 'AbortSignal|queue\??\.delete|interaction\.delete|reply\.delete' || true; })
+
+                  if [ -n "$hits" ]; then
+                      echo "destructive=true" >> "$GITHUB_OUTPUT"
+                      echo "Detected added irreversible Discord interaction(s):"
+                      printf '%s\n' "$hits"
+                  else
+                      echo "destructive=false" >> "$GITHUB_OUTPUT"
+                      echo "No added irreversible Discord interactions detected."
+                  fi
+
+            - name: Require live-smoke attestation
+              if: steps.detect.outputs.destructive == 'true'
+              env:
+                  PR_BODY: ${{ github.event.pull_request.body }}
+                  HAS_OVERRIDE: ${{ contains(github.event.pull_request.labels.*.name, 'non-destructive-confirmed') }}
+              run: |
+                  set -euo pipefail
+                  if [ "$HAS_OVERRIDE" = "true" ]; then
+                      echo "::notice::'non-destructive-confirmed' label present — gate overridden by reviewer."
+                      exit 0
+                  fi
+                  # Look for a ticked attestation line in the PR body.
+                  if printf '%s' "$PR_BODY" | grep -qiE '^\s*-?\s*\[[xX]\].*live smoke performed'; then
+                      echo "::notice::Live-smoke attestation found."
+                      exit 0
+                  fi
+                  echo "::error::This PR adds an irreversible Discord interaction (Tier A) but has no live-smoke attestation. Per decisions/2026-06-21-destructive-interaction-merge-gate.md: perform a live on-guild smoke (happy + guard paths) and tick '- [x] Live smoke performed' in the PR body, or add the 'non-destructive-confirmed' label with a justification if this is a false positive."
+                  exit 1
