@@ -204,3 +204,170 @@ describe('handleMoveMessageSelect guards', () => {
         expect(deferUpdate).not.toHaveBeenCalled()
     })
 })
+
+describe('handleMoveMessageSelect — full flow', () => {
+    const client = {} as CustomClient
+    const realFetch = global.fetch
+
+    afterEach(() => {
+        global.fetch = realFetch
+    })
+
+    const makeChannel = (over: Record<string, unknown> = {}) => ({
+        isTextBased: () => true,
+        permissionsFor: () => ({ has: () => true }),
+        messages: { fetch: jest.fn() },
+        send: jest.fn().mockResolvedValue({ url: 'https://discord/x/1' }),
+        ...over,
+    })
+
+    const makeMessage = (over: Record<string, unknown> = {}) => ({
+        author: { username: 'alice', displayAvatarURL: () => 'http://a.png' },
+        content: 'hello',
+        createdAt: new Date('2026-06-21T00:00:00.000Z'),
+        attachments: new Map(),
+        delete: jest.fn().mockResolvedValue(undefined),
+        ...over,
+    })
+
+    const makeFlow = (opts: {
+        source?: ReturnType<typeof makeChannel>
+        dest?: ReturnType<typeof makeChannel>
+        premiumTier?: GuildPremiumTier
+        customId?: string
+        values?: string[]
+    }) => {
+        const source = opts.source ?? makeChannel()
+        const dest = opts.dest ?? makeChannel()
+        const editReply = jest.fn().mockResolvedValue(undefined)
+        const update = jest.fn().mockResolvedValue(undefined)
+        const interaction: Record<string, unknown> = {
+            customId: opts.customId ?? `${MOVE_MESSAGE_SELECT_PREFIX}src:msg`,
+            values: opts.values ?? ['dest'],
+            deferred: false,
+            replied: false,
+            user: { tag: 'mod#0001' },
+            memberPermissions: { has: () => true },
+            editReply,
+            update,
+            guild: {
+                id: 'g1',
+                premiumTier: opts.premiumTier ?? GuildPremiumTier.None,
+                members: { me: {} },
+                channels: {
+                    fetch: jest.fn(async (id: string) =>
+                        id === 'src' ? source : dest,
+                    ),
+                },
+            },
+        }
+        interaction.deferUpdate = jest.fn().mockImplementation(() => {
+            interaction.deferred = true
+            return Promise.resolve()
+        })
+        return { interaction, source, dest, editReply }
+    }
+
+    it('reposts then deletes on the happy path (no attachments)', async () => {
+        const message = makeMessage()
+        const source = makeChannel({
+            messages: { fetch: jest.fn().mockResolvedValue(message) },
+        })
+        const dest = makeChannel()
+        const { interaction, editReply } = makeFlow({ source, dest })
+
+        await handleMoveMessageSelect(interaction as never, client)
+
+        expect(dest.send).toHaveBeenCalledTimes(1)
+        expect(message.delete).toHaveBeenCalledTimes(1)
+        expect(editReply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.stringContaining('Moved to <#dest>'),
+            }),
+        )
+    })
+
+    it('re-uploads an attachment that fits the limit', async () => {
+        const attachment = makeAttachment({ name: 'pic.png', size: ONE_MB })
+        const message = makeMessage({
+            attachments: new Map([['1', attachment]]),
+        })
+        const source = makeChannel({
+            messages: { fetch: jest.fn().mockResolvedValue(message) },
+        })
+        const dest = makeChannel()
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            arrayBuffer: async () => new ArrayBuffer(8),
+        }) as unknown as typeof fetch
+        const { interaction } = makeFlow({ source, dest })
+
+        await handleMoveMessageSelect(interaction as never, client)
+
+        expect(global.fetch).toHaveBeenCalledWith(attachment.url)
+        const sendArg = (dest.send as jest.Mock).mock.calls[0][0]
+        expect(sendArg.files).toHaveLength(1)
+        expect(message.delete).toHaveBeenCalled()
+    })
+
+    it('aborts without deleting when the bot lacks destination perms', async () => {
+        const message = makeMessage()
+        const source = makeChannel({
+            messages: { fetch: jest.fn().mockResolvedValue(message) },
+        })
+        const dest = makeChannel({
+            permissionsFor: () => ({ has: () => false }),
+        })
+        const { interaction, editReply } = makeFlow({ source, dest })
+
+        await handleMoveMessageSelect(interaction as never, client)
+
+        expect(dest.send).not.toHaveBeenCalled()
+        expect(message.delete).not.toHaveBeenCalled()
+        expect(editReply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.stringContaining("can't post"),
+                components: [],
+            }),
+        )
+    })
+
+    it('aborts when the original message is gone', async () => {
+        const source = makeChannel({
+            messages: { fetch: jest.fn().mockResolvedValue(null) },
+        })
+        const dest = makeChannel()
+        const { interaction, editReply } = makeFlow({ source, dest })
+
+        await handleMoveMessageSelect(interaction as never, client)
+
+        expect(dest.send).not.toHaveBeenCalled()
+        expect(editReply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.stringContaining('no longer exists'),
+            }),
+        )
+    })
+
+    it('reports partial success when the original delete fails after repost', async () => {
+        const message = makeMessage({
+            delete: jest.fn().mockRejectedValue(new Error('no perms')),
+        })
+        const source = makeChannel({
+            messages: { fetch: jest.fn().mockResolvedValue(message) },
+        })
+        const dest = makeChannel()
+        const { interaction, editReply } = makeFlow({ source, dest })
+
+        await handleMoveMessageSelect(interaction as never, client)
+
+        expect(dest.send).toHaveBeenCalledTimes(1)
+        expect(editReply).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                content: expect.stringContaining(
+                    "couldn't delete the original",
+                ),
+            }),
+        )
+    })
+})

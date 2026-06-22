@@ -88,6 +88,74 @@ const enforceBotPermissions = async (
     return false
 }
 
+/**
+ * Resolve the feature toggle for a command category. Replies with an ephemeral
+ * "disabled" notice and returns false when the category is gated off; returns
+ * true when enabled or ungated. Shared by slash + context-menu execution.
+ */
+const isFeatureEnabledOrReply = async (
+    category: CommandCategory,
+    interaction:
+        | ChatInputCommandInteraction
+        | MessageContextMenuCommandInteraction,
+): Promise<boolean> => {
+    const categoryFlag = CATEGORY_FLAG_MAP[category]
+    if (!categoryFlag) return true
+
+    const isEnabled = await featureToggleService.isEnabled(categoryFlag, {
+        guildId: interaction.guild?.id ?? undefined,
+        userId: interaction.user.id,
+    })
+    if (!isEnabled) {
+        await interactionReply({
+            interaction,
+            content: {
+                content: 'This feature is currently disabled.',
+                ephemeral: true,
+            },
+        })
+    }
+    return isEnabled
+}
+
+/**
+ * Uniform failure handling for an interaction execution: log, capture to
+ * Sentry with context, and surface a user-friendly ephemeral error. Shared by
+ * slash + context-menu execution.
+ */
+const replyExecutionError = async (
+    error: unknown,
+    interaction:
+        | ChatInputCommandInteraction
+        | MessageContextMenuCommandInteraction,
+    context: string,
+): Promise<void> => {
+    errorLog({
+        message: `Error executing ${interaction.commandName}:`,
+        error,
+    })
+    captureException(
+        error instanceof Error ? error : new Error(String(error)),
+        {
+            context,
+            command: interaction.commandName,
+            guildId: interaction.guild?.id ?? undefined,
+            userId: interaction.user.id,
+        },
+    )
+    try {
+        await interactionReply({
+            interaction,
+            content: {
+                content: createUserFriendlyError(error),
+                ephemeral: true,
+            },
+        })
+    } catch (replyError) {
+        errorLog({ message: 'Error sending error message:', error: replyError })
+    }
+}
+
 export const executeCommand = async ({
     interaction,
     client,
@@ -124,25 +192,8 @@ export const executeCommand = async ({
             return
         }
 
-        const categoryFlag = CATEGORY_FLAG_MAP[command.category]
-        if (categoryFlag) {
-            const isEnabled = await featureToggleService.isEnabled(
-                categoryFlag,
-                {
-                    guildId: interaction.guild?.id ?? undefined,
-                    userId: interaction.user.id,
-                },
-            )
-            if (!isEnabled) {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        content: 'This feature is currently disabled.',
-                        ephemeral: true,
-                    },
-                })
-                return
-            }
+        if (!(await isFeatureEnabledOrReply(command.category, interaction))) {
+            return
         }
 
         if (
@@ -154,31 +205,11 @@ export const executeCommand = async ({
         debugLog({ message: `Executing command: ${interaction.commandName}` })
         await command.execute({ interaction, client })
     } catch (error) {
-        errorLog({
-            message: `Error executing command ${interaction.commandName}:`,
+        await replyExecutionError(
             error,
-        })
-        captureException(
-            error instanceof Error ? error : new Error(String(error)),
-            {
-                context: 'command-execution-failure',
-                command: interaction.commandName,
-                guildId: interaction.guild?.id ?? undefined,
-                userId: interaction.user.id,
-            },
+            interaction,
+            'command-execution-failure',
         )
-        try {
-            const userFriendlyError = createUserFriendlyError(error)
-            await interactionReply({
-                interaction,
-                content: {
-                    content: userFriendlyError,
-                    ephemeral: true,
-                },
-            })
-        } catch (error) {
-            errorLog({ message: 'Error sending error message:', error })
-        }
     }
 }
 
@@ -201,25 +232,10 @@ export const executeContextMenu = async ({
             return
         }
 
-        const categoryFlag = CATEGORY_FLAG_MAP[contextMenu.category]
-        if (categoryFlag) {
-            const isEnabled = await featureToggleService.isEnabled(
-                categoryFlag,
-                {
-                    guildId: interaction.guild?.id ?? undefined,
-                    userId: interaction.user.id,
-                },
-            )
-            if (!isEnabled) {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        content: 'This feature is currently disabled.',
-                        ephemeral: true,
-                    },
-                })
-                return
-            }
+        if (
+            !(await isFeatureEnabledOrReply(contextMenu.category, interaction))
+        ) {
+            return
         }
 
         if (
@@ -236,34 +252,11 @@ export const executeContextMenu = async ({
         })
         await contextMenu.execute({ interaction, client })
     } catch (error) {
-        errorLog({
-            message: `Error executing context menu ${interaction.commandName}:`,
+        await replyExecutionError(
             error,
-        })
-        captureException(
-            error instanceof Error ? error : new Error(String(error)),
-            {
-                context: 'context-menu-execution-failure',
-                command: interaction.commandName,
-                guildId: interaction.guild?.id ?? undefined,
-                userId: interaction.user.id,
-            },
+            interaction,
+            'context-menu-execution-failure',
         )
-        try {
-            const userFriendlyError = createUserFriendlyError(error)
-            await interactionReply({
-                interaction,
-                content: {
-                    content: userFriendlyError,
-                    ephemeral: true,
-                },
-            })
-        } catch (replyError) {
-            errorLog({
-                message: 'Error sending error message:',
-                error: replyError,
-            })
-        }
     }
 }
 
