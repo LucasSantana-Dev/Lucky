@@ -103,6 +103,8 @@ export function createMockInteraction(
         },
         isRepliable: () => true,
         isChatInputCommand: () => true,
+        isMessageContextMenuCommand: () => false,
+        isChannelSelectMenu: () => false,
         ...overrides,
     } as unknown as ChatInputCommandInteraction
 }

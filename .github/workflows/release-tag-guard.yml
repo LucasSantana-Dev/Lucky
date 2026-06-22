@@ -1,0 +1,65 @@
+name: Release Tag Guard
+
+# Deterministic backstop for release-please's auto-tag (ADR 2026-06-22).
+#
+# release-please has repeatedly merged a release PR but NOT created the matching
+# git tag / GitHub Release (it aborts with "untagged, merged release PRs
+# outstanding") — silently breaking the prod deploy, which is gated on
+# `release: published`. The group-pull-request-title-pattern fix got the version
+# into the PR title, but release-please's release-creation step is still
+# unreliable in this single-package manifest setup.
+#
+# This guard runs after a release PR merges (the manifest version bumps) and
+# ensures `v<version>` exists. If release-please already tagged it, this is a
+# no-op. If it didn't, the guard creates the tag + Release so the release can
+# never silently fail to ship again. Uses the PAT (not GITHUB_TOKEN) so the
+# `release: published` event propagates and deploy.yml fires.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.release-please-manifest.json'
+
+permissions:
+  contents: write
+
+jobs:
+  ensure-release-tag:
+    name: Ensure release tag + GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Create release (and tag) if release-please did not
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./.release-please-manifest.json')['.']")"
+          tag="v${version}"
+
+          # Idempotency keys on the GitHub *Release*, not just the tag — the
+          # Release (`release: published`) is what fires deploy.yml. Checking the
+          # tag alone would skip the partial-failure case (tag pushed but release
+          # creation failed), leaving deploy permanently broken on reruns.
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            echo "::notice::release ${tag} already exists — release-please (or a prior run) created it. Nothing to do."
+            exit 0
+          fi
+
+          echo "::warning::release ${tag} missing after a manifest bump — release-please did not auto-release (see ADR 2026-06-22-release-please-group-title-pattern). Creating it."
+
+          # The tag may already exist from a prior partial run; only create+push if absent.
+          if ! git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            git tag "${tag}"
+            git push origin "${tag}"
+          fi
+
+          gh release create "${tag}" \
+            --title "${tag}" \
+            --notes "Automated release created by release-tag-guard (release-please did not auto-release). See CHANGELOG.md." \
+            --verify-tag

@@ -3,6 +3,8 @@
     "release-type": "node",
     "include-component-in-tag": false,
     "separate-pull-requests": false,
+    "pull-request-title-pattern": "chore: release ${version}",
+    "group-pull-request-title-pattern": "chore: release ${version}",
     "packages": {
         ".": {
             "package-name": "lucky-bot",

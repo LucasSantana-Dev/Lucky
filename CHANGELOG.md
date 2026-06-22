@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.20.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.20.0...v2.20.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **moderation:** route context menus in the live event handler ([#1517](https://github.com/LucasSantana-Dev/Lucky/issues/1517)) ([0232237](https://github.com/LucasSantana-Dev/Lucky/commit/0232237d9912dac9281b2e53902c4487542b98ce))
+* **release:** set group-pull-request-title-pattern so releases auto-tag ([#1521](https://github.com/LucasSantana-Dev/Lucky/issues/1521)) ([b0e0f5f](https://github.com/LucasSantana-Dev/Lucky/commit/b0e0f5f40497c4be98135acb66b24a79e6763df2))
+
+## [2.20.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.19.0...v2.20.0) (2026-06-22)
+
+
+### Features
+
+* **moderation:** move a message to another channel via right-click ([#1516](https://github.com/LucasSantana-Dev/Lucky/issues/1516)) ([9822893](https://github.com/LucasSantana-Dev/Lucky/commit/98228930177479a078016c1c20e1ba43d393b7fd))
+
+
+### Bug Fixes
+
+* **release:** set pull-request-title-pattern to include version ([#1514](https://github.com/LucasSantana-Dev/Lucky/issues/1514)) ([cde12ec](https://github.com/LucasSantana-Dev/Lucky/commit/cde12ecc9881b1ca496fb0112e98d3bae2910c8e))
+
 ## [2.19.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.18.0...v2.19.0) (2026-06-20)
 
 

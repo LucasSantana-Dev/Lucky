@@ -8,6 +8,7 @@ import {
     type GuildBasedChannel,
     type Interaction,
     type ChatInputCommandInteraction,
+    type RepliableInteraction,
 } from 'discord.js'
 import type { CustomClient } from '../types'
 import {
@@ -24,6 +25,11 @@ import { handleAuditEvents } from './auditHandler'
 import { handleExternalScrobbler } from './externalScrobbler'
 import { handleReactionEvents } from './reactionHandler'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
+import { executeContextMenu } from './commandsHandler'
+import {
+    handleMoveMessageSelect,
+    MOVE_MESSAGE_SELECT_PREFIX,
+} from './moveMessageHandler'
 import { reactionRolesService } from '@lucky/shared/services'
 import { syncAllGuildFollowerRoles } from '../twitch/followerRoleSync'
 import { aiDevToolkitService } from '../services/AiDevToolkitService'
@@ -183,12 +189,18 @@ async function handleCommandExecution(
 
 async function handleInteractionError(
     error: unknown,
-    interaction: ChatInputCommandInteraction,
+    interaction: RepliableInteraction,
 ): Promise<void> {
     errorLog({ message: 'Error handling interaction:', error })
     if (error instanceof Error) {
+        // Command interactions carry commandName; components/modals (e.g. the
+        // move-message channel select) carry customId instead — don't blindly
+        // read commandName or telemetry logs undefined for those.
+        const label =
+            (interaction as { commandName?: string }).commandName ??
+            (interaction as { customId?: string }).customId
         captureException(error, {
-            command: interaction.commandName,
+            command: label,
             guildId: interaction.guildId ?? undefined,
             userId: interaction.user?.id,
         })
@@ -272,6 +284,22 @@ async function handleInteractionCreate(
             return
         }
 
+        if (interaction.isMessageContextMenuCommand()) {
+            await executeContextMenu({
+                interaction,
+                client: client as CustomClient,
+            })
+            return
+        }
+
+        if (
+            interaction.isChannelSelectMenu() &&
+            interaction.customId.startsWith(MOVE_MESSAGE_SELECT_PREFIX)
+        ) {
+            await handleMoveMessageSelect(interaction, client as CustomClient)
+            return
+        }
+
         if (!interaction.isChatInputCommand()) return
         await handleCommandExecution(
             client,
@@ -281,7 +309,7 @@ async function handleInteractionCreate(
         if (!interaction.isAutocomplete()) {
             await handleInteractionError(
                 error,
-                interaction as ChatInputCommandInteraction,
+                interaction as RepliableInteraction,
             )
         }
     }

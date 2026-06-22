@@ -5,7 +5,13 @@ import {
     PermissionsBitField,
 } from 'discord.js'
 import type { ChatInputCommandInteraction } from 'discord.js'
-import { executeCommand, setCommands, groupCommands } from './commandsHandler'
+import {
+    executeCommand,
+    executeContextMenu,
+    setCommands,
+    setContextMenus,
+    groupCommands,
+} from './commandsHandler'
 import type { CustomClient } from '../types'
 import type Command from '../models/Command'
 
@@ -134,7 +140,7 @@ describe('commandsHandler', () => {
             await executeCommand({ interaction, client })
 
             expect(errorLog).toHaveBeenCalledWith({
-                message: 'Error executing command test:',
+                message: 'Error executing test:',
                 error: expect.any(Error),
             })
             expect(captureException).toHaveBeenCalledWith(
@@ -171,7 +177,7 @@ describe('commandsHandler', () => {
             await executeCommand({ interaction, client })
 
             expect(errorLog).toHaveBeenCalledWith({
-                message: 'Error executing command test:',
+                message: 'Error executing test:',
                 error: expect.any(Error),
             })
             expect(errorLog).toHaveBeenCalledWith({
@@ -519,6 +525,108 @@ describe('commandsHandler', () => {
 
             expect(result).toHaveLength(1)
             expect(result[0].data.name).toBe('valid')
+        })
+    })
+
+    describe('executeContextMenu', () => {
+        const makeContextMenu = (overrides?: Record<string, unknown>) =>
+            ({
+                data: { name: 'Move message' },
+                category: 'moderation',
+                execute: jest.fn().mockResolvedValue(undefined),
+                ...overrides,
+            }) as any
+
+        const makeCtxInteraction = (overrides?: Record<string, unknown>) =>
+            ({
+                commandName: 'Move message',
+                user: { id: 'user-1' },
+                guild: { id: 'guild-1' },
+                appPermissions: { has: () => true },
+                ...overrides,
+            }) as any
+
+        const makeClient = (menu?: unknown) => {
+            const client = createMockClient({
+                contextMenus: new Collection(),
+            } as any)
+            if (menu) client.contextMenus.set('Move message', menu as never)
+            return client
+        }
+
+        it('executes a context menu successfully', async () => {
+            const menu = makeContextMenu()
+            const interaction = makeCtxInteraction()
+            const client = makeClient(menu)
+
+            await executeContextMenu({ interaction, client })
+
+            expect(menu.execute).toHaveBeenCalledWith({ interaction, client })
+        })
+
+        it('returns quietly when the context menu is not found', async () => {
+            const interaction = makeCtxInteraction()
+            const client = makeClient()
+
+            await expect(
+                executeContextMenu({ interaction, client }),
+            ).resolves.toBeUndefined()
+        })
+
+        it('blocks when the category feature is disabled', async () => {
+            ;(featureToggleService.isEnabled as jest.Mock).mockResolvedValue(
+                false,
+            )
+            const menu = makeContextMenu()
+            const interaction = makeCtxInteraction()
+            const client = makeClient(menu)
+
+            await executeContextMenu({ interaction, client })
+
+            expect(menu.execute).not.toHaveBeenCalled()
+            expect(interactionReply).toHaveBeenCalled()
+        })
+
+        it('blocks when the bot is missing a declared permission', async () => {
+            const menu = makeContextMenu({ botPermissions: [8192n] })
+            const interaction = makeCtxInteraction({
+                appPermissions: { has: () => false },
+            })
+            const client = makeClient(menu)
+
+            await executeContextMenu({ interaction, client })
+
+            expect(menu.execute).not.toHaveBeenCalled()
+        })
+
+        it('reports an error when the context menu throws', async () => {
+            const menu = makeContextMenu({
+                execute: jest.fn().mockRejectedValue(new Error('boom')),
+            })
+            const interaction = makeCtxInteraction()
+            const client = makeClient(menu)
+
+            await executeContextMenu({ interaction, client })
+
+            expect(captureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    context: 'context-menu-execution-failure',
+                }),
+            )
+        })
+    })
+
+    describe('setContextMenus', () => {
+        it('loads named context menus into the client collection', async () => {
+            const client = createMockClient({
+                contextMenus: new Collection(),
+            } as any)
+            const menu = { data: { name: 'Move message' } } as any
+
+            await setContextMenus({ client, contextMenus: [menu] })
+
+            expect(client.contextMenus.get('Move message')).toBe(menu)
         })
     })
 })

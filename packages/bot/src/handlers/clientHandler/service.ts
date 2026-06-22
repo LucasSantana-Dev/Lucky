@@ -4,6 +4,7 @@ import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
 import type { CustomClient } from '../../types'
 import { config } from '@lucky/shared/config'
 import type Command from '../../models/Command'
+import type ContextMenuCommand from '../../models/ContextMenuCommand'
 import { startPresenceRotation } from './presence'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
@@ -40,6 +41,7 @@ export async function createClient(): Promise<CustomClient> {
         }) as CustomClient
 
         client.commands = new Collection<string, Command>()
+        client.contextMenus = new Collection<string, ContextMenuCommand>()
         client.player = null as unknown as Player
 
         debugLog({ message: 'Discord client created successfully' })
@@ -73,9 +75,10 @@ export async function startClient({
                 }
 
                 const rest = new REST({ version: '10' }).setToken(TOKEN)
-                const commandsData = client.commands.map((cmd) =>
-                    cmd.data.toJSON(),
-                )
+                const commandsData = [
+                    ...client.commands.map((cmd) => cmd.data.toJSON()),
+                    ...client.contextMenus.map((cmd) => cmd.data.toJSON()),
+                ]
 
                 for (const guild of client.guilds.cache.values()) {
                     await rest.put(
