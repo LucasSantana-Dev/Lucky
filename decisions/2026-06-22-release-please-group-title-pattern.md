@@ -30,6 +30,14 @@ Add **`"group-pull-request-title-pattern": "chore: release ${version}"`** to `re
 
 **Companion guard (per critic — ship as fast-follow):** add a CI step that, when a `release-please` PR merges without producing a tag, surfaces it loudly (or auto-creates the tag). Four prior _silent_ failures mean a regression should not be able to fail quietly again. This is gated by the first revisit trigger below — built immediately if v2.20.1 doesn't auto-tag, and recommended regardless within the release cycle.
 
+## Validation outcome (2026-06-22) — title fix was NECESSARY BUT NOT SUFFICIENT
+
+The group-pattern fix worked **for the title**: after it merged, release-please regenerated the release PR (#1522) titled `chore: release 2.20.1` (version present, no longer `chore: release main`). Confirmed.
+
+But on merging #1522, release-please **still aborted** with the same `⚠ There are untagged, merged release PRs outstanding - aborting` and did **not** create the v2.20.1 tag. With `skip-github-release: false` and the PAT, its release-creation step still failed to associate the squash-merged release PR and tag it — the accumulated manual-tag history + squash-merge association is a deeper release-please reliability problem than the title alone.
+
+**Conclusion:** release-please's auto-tag cannot be relied on in this repo. The title fix is kept (it is a precondition and harmless), but the **durable fix is the CI auto-tag guard** (`.github/workflows/release-tag-guard.yml`), shipped now rather than deferred — exactly the critic's "ship alongside" recommendation, promoted from companion to primary mechanism. The guard fires on a manifest-version bump (release PR merge) and creates `v<version>` + the Release via the PAT if release-please didn't, so a release can never silently fail to ship again. v2.20.1 itself was tagged via the one-last-time manual workaround.
+
 ## Alternatives considered
 
 - **`separate-pull-requests: true`** — switches to per-package PRs, which _do_ read `pull-request-title-pattern` (already set), so `${version}` resolves. Rejected as primary: a larger behavioral change (PR structure + reviewer workflow) than needed for a one-package repo. It is the fallback if the group-pattern fix doesn't resolve `${version}`.
