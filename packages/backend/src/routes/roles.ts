@@ -198,7 +198,7 @@ export function setupRolesRoutes(app: Express): void {
                 try {
                     await guildService.deleteGuildRole(guildId, roleId)
                     deleted.push(roleId)
-                } catch (error) {
+                } catch (_err) {
                     failed.push(roleId)
                 }
             }
