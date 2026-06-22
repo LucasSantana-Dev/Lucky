@@ -6,12 +6,18 @@ name: Destructive Interaction Gate
 # attestation in its body, or an explicit `non-destructive-confirmed` override
 # label. This is a diff/metadata audit — NOT a Discord gateway test — so it stays
 # consistent with the 2026-05-14 integration-testing ADR.
+#
+# NOTE: no `paths:` filter and a `merge_group` trigger on purpose. This is a
+# required check on a repo that uses a merge queue; a path-filtered or
+# merge_group-less required check would stall the queue in "pending" forever.
+# The job always reports a result; the PR-context logic is event-guarded and the
+# merge_group run short-circuits to success (enforcement already happened on the PR).
 
 on:
     pull_request:
-        types: [opened, edited, synchronize, reopened, labeled, unlabeled]
-        paths:
-            - 'packages/bot/src/**'
+        branches: [main, 'release/**']
+    merge_group:
+        branches: [main, 'release/**']
 
 permissions:
     contents: read
@@ -21,17 +27,26 @@ jobs:
         name: Destructive interaction gate
         runs-on: ubuntu-latest
         steps:
+            - name: Merge-queue short-circuit
+              if: github.event_name == 'merge_group'
+              run: echo "::notice::Attestation was enforced when the PR was open; nothing to re-check in the merge queue."
+
             - uses: actions/checkout@v4
+              if: github.event_name == 'pull_request'
               with:
                   fetch-depth: 0
 
             - name: Detect added irreversible Discord interactions
               id: detect
+              if: github.event_name == 'pull_request'
               env:
                   BASE_REF: ${{ github.base_ref }}
               run: |
                   set -euo pipefail
-                  git fetch --no-tags --depth=1 origin "$BASE_REF"
+                  # Full fetch of the base ref (checkout is fetch-depth:0) so the
+                  # three-dot merge-base below is reachable — a shallow base fetch
+                  # would make `origin/BASE...HEAD` compute an empty/wrong diff.
+                  git fetch --no-tags origin "$BASE_REF"
                   # Added (+) lines only, bot source, excluding test files.
                   added=$(git diff "origin/${BASE_REF}...HEAD" -- \
                       'packages/bot/src/**/*.ts' \
@@ -55,7 +70,7 @@ jobs:
                   fi
 
             - name: Require live-smoke attestation
-              if: steps.detect.outputs.destructive == 'true'
+              if: github.event_name == 'pull_request' && steps.detect.outputs.destructive == 'true'
               env:
                   PR_BODY: ${{ github.event.pull_request.body }}
                   HAS_OVERRIDE: ${{ contains(github.event.pull_request.labels.*.name, 'non-destructive-confirmed') }}
