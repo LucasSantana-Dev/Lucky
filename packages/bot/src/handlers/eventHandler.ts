@@ -8,6 +8,7 @@ import {
     type GuildBasedChannel,
     type Interaction,
     type ChatInputCommandInteraction,
+    type RepliableInteraction,
 } from 'discord.js'
 import type { CustomClient } from '../types'
 import {
@@ -188,12 +189,18 @@ async function handleCommandExecution(
 
 async function handleInteractionError(
     error: unknown,
-    interaction: ChatInputCommandInteraction,
+    interaction: RepliableInteraction,
 ): Promise<void> {
     errorLog({ message: 'Error handling interaction:', error })
     if (error instanceof Error) {
+        // Command interactions carry commandName; components/modals (e.g. the
+        // move-message channel select) carry customId instead — don't blindly
+        // read commandName or telemetry logs undefined for those.
+        const label =
+            (interaction as { commandName?: string }).commandName ??
+            (interaction as { customId?: string }).customId
         captureException(error, {
-            command: interaction.commandName,
+            command: label,
             guildId: interaction.guildId ?? undefined,
             userId: interaction.user?.id,
         })
@@ -302,7 +309,7 @@ async function handleInteractionCreate(
         if (!interaction.isAutocomplete()) {
             await handleInteractionError(
                 error,
-                interaction as ChatInputCommandInteraction,
+                interaction as RepliableInteraction,
             )
         }
     }
