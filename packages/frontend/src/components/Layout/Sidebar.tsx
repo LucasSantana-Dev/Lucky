@@ -26,6 +26,7 @@ import {
     ToggleLeft,
     Trophy,
     Tv,
+    Users,
     X,
     Disc3,
 } from 'lucide-react'
@@ -140,6 +141,12 @@ const navSections: NavSection[] = [
                 icon: GitBranch,
                 module: 'settings',
                 requiredMode: 'manage',
+            },
+            {
+                path: '/roles',
+                labelKey: 'sidebar.nav.roles',
+                icon: Users,
+                module: 'settings',
             },
         ],
     },

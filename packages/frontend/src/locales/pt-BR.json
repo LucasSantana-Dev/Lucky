@@ -70,7 +70,8 @@
             "musicalTaste": "Gosto musical",
             "lastFm": "Last.fm",
             "twitch": "Twitch",
-            "features": "Recursos"
+            "features": "Recursos",
+            "roles": "Funções"
         }
     },
     "layout": {
@@ -372,5 +373,32 @@
                 "dismissed": "Descartado"
             }
         }
+    },
+    "roles": {
+        "title": "Funções",
+        "subtitle": "Gerencie as funções do Discord do seu servidor",
+        "createRole": "Criar Função",
+        "noRoles": "Nenhuma função encontrada",
+        "noRolesDesc": "Crie sua primeira função para começar",
+        "deleteConfirm": "Tem certeza de que deseja deletar esta função?",
+        "bulkDeleteConfirm": "Deletar {{count}} funções?",
+        "managed": "Gerenciada",
+        "hoist": "Destacada",
+        "mentionable": "Mencionável",
+        "editRole": "Editar Função",
+        "duplicated": "Função duplicada",
+        "deleted": "Função deletada",
+        "bulkDeleted": "{{count}} funções deletadas",
+        "created": "Função criada",
+        "updated": "Função atualizada",
+        "failedToLoad": "Falha ao carregar funções",
+        "failedToCreate": "Falha ao criar função",
+        "failedToUpdate": "Falha ao atualizar função",
+        "failedToDelete": "Falha ao deletar função",
+        "failedToDuplicate": "Falha ao duplicar função",
+        "bulkDeleteFailed": "Falha ao deletar {{count}} funções",
+        "selectedCount": "{{count}} funções selecionadas",
+        "delete": "Deletar",
+        "roles": "funções"
     }
 }
