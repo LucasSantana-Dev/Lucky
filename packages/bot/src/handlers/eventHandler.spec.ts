@@ -16,6 +16,8 @@ const handleExternalScrobblerMock = jest.fn()
 const handleReactionEventsMock = jest.fn()
 const handleMusicButtonInteractionMock = jest.fn()
 const handleButtonInteractionMock = jest.fn()
+const executeContextMenuMock = jest.fn()
+const handleMoveMessageSelectMock = jest.fn()
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
@@ -65,6 +67,16 @@ jest.mock('./reactionHandler', () => ({
 jest.mock('./musicButtonHandler', () => ({
     handleMusicButtonInteraction: (...args: unknown[]) =>
         handleMusicButtonInteractionMock(...args),
+}))
+
+jest.mock('./commandsHandler', () => ({
+    executeContextMenu: (...args: unknown[]) => executeContextMenuMock(...args),
+}))
+
+jest.mock('./moveMessageHandler', () => ({
+    handleMoveMessageSelect: (...args: unknown[]) =>
+        handleMoveMessageSelectMock(...args),
+    MOVE_MESSAGE_SELECT_PREFIX: 'movemsg:',
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -193,6 +205,8 @@ describe('eventHandler', () => {
         interactionHandler?.({
             isAutocomplete: () => false,
             isButton: () => false,
+            isMessageContextMenuCommand: () => false,
+            isChannelSelectMenu: () => false,
             isChatInputCommand: () => true,
             commandName: 'unknown',
             replied: false,
@@ -210,6 +224,51 @@ describe('eventHandler', () => {
         })
     })
 
+    it('routes a message context-menu interaction to executeContextMenu', async () => {
+        const { client, onMock } = createMockClient()
+        handleEvents(client as unknown as never)
+        const interactionHandler = getInteractionCreateHandler(onMock)
+
+        const interaction = {
+            isAutocomplete: () => false,
+            isButton: () => false,
+            isMessageContextMenuCommand: () => true,
+            isChannelSelectMenu: () => false,
+            isChatInputCommand: () => false,
+        } as unknown as Interaction
+
+        interactionHandler?.(interaction)
+        await flushAsyncHandlers()
+
+        expect(executeContextMenuMock).toHaveBeenCalledWith({
+            interaction,
+            client,
+        })
+    })
+
+    it('routes the move-message channel select to handleMoveMessageSelect', async () => {
+        const { client, onMock } = createMockClient()
+        handleEvents(client as unknown as never)
+        const interactionHandler = getInteractionCreateHandler(onMock)
+
+        const interaction = {
+            isAutocomplete: () => false,
+            isButton: () => false,
+            isMessageContextMenuCommand: () => false,
+            isChannelSelectMenu: () => true,
+            isChatInputCommand: () => false,
+            customId: 'movemsg:src:msg',
+        } as unknown as Interaction
+
+        interactionHandler?.(interaction)
+        await flushAsyncHandlers()
+
+        expect(handleMoveMessageSelectMock).toHaveBeenCalledWith(
+            interaction,
+            client,
+        )
+    })
+
     it('sends user-friendly error reply when command execution fails', async () => {
         const { client, onMock } = createMockClient()
         client.commands.set('broken', {
@@ -223,6 +282,8 @@ describe('eventHandler', () => {
         interactionHandler?.({
             isAutocomplete: () => false,
             isButton: () => false,
+            isMessageContextMenuCommand: () => false,
+            isChannelSelectMenu: () => false,
             isChatInputCommand: () => true,
             commandName: 'broken',
             replied: true,
@@ -260,6 +321,8 @@ describe('eventHandler', () => {
         interactionHandler?.({
             isAutocomplete: () => false,
             isButton: () => false,
+            isMessageContextMenuCommand: () => false,
+            isChannelSelectMenu: () => false,
             isChatInputCommand: () => true,
             commandName: 'broken',
             guildId: 'guild-123',
@@ -310,6 +373,8 @@ describe('eventHandler', () => {
         interactionHandler?.({
             isAutocomplete: () => false,
             isButton: () => false,
+            isMessageContextMenuCommand: () => false,
+            isChannelSelectMenu: () => false,
             isChatInputCommand: () => true,
             commandName: 'broken',
             guildId: 'guild-123',

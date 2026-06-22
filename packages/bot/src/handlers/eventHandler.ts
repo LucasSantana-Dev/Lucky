@@ -24,6 +24,11 @@ import { handleAuditEvents } from './auditHandler'
 import { handleExternalScrobbler } from './externalScrobbler'
 import { handleReactionEvents } from './reactionHandler'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
+import { executeContextMenu } from './commandsHandler'
+import {
+    handleMoveMessageSelect,
+    MOVE_MESSAGE_SELECT_PREFIX,
+} from './moveMessageHandler'
 import { reactionRolesService } from '@lucky/shared/services'
 import { syncAllGuildFollowerRoles } from '../twitch/followerRoleSync'
 import { aiDevToolkitService } from '../services/AiDevToolkitService'
@@ -269,6 +274,22 @@ async function handleInteractionCreate(
                 return
             }
             await reactionRolesService.handleButtonInteraction(interaction)
+            return
+        }
+
+        if (interaction.isMessageContextMenuCommand()) {
+            await executeContextMenu({
+                interaction,
+                client: client as CustomClient,
+            })
+            return
+        }
+
+        if (
+            interaction.isChannelSelectMenu() &&
+            interaction.customId.startsWith(MOVE_MESSAGE_SELECT_PREFIX)
+        ) {
+            await handleMoveMessageSelect(interaction, client as CustomClient)
             return
         }
 
