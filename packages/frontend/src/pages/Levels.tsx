@@ -196,11 +196,11 @@ function Levels() {
         <div className='space-y-6'>
             {/* Leaderboard */}
             <section>
-                <h2 className='text-2xl font-bold text-lucky-text-primary mb-4'>
+                <h2 className='type-title text-lucky-text-primary mb-4'>
                     Leaderboard
                 </h2>
                 {leaderboard.length === 0 ? (
-                    <Card className='p-8 text-center'>
+                    <Card className='p-8 text-center border border-lucky-border'>
                         <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
                             No data yet
                         </p>
@@ -210,24 +210,24 @@ function Levels() {
                         </p>
                     </Card>
                 ) : (
-                    <Card className='overflow-hidden'>
+                    <Card className='overflow-hidden border border-lucky-border'>
                         <div className='divide-y divide-lucky-border'>
                             {leaderboard.map((member) => (
                                 <div
                                     key={member.userId}
-                                    className='flex items-center justify-between p-4 hover:bg-lucky-bg-secondary/50 transition-colors'
+                                    className='flex items-center justify-between px-4 py-3 transition-colors hover:bg-lucky-bg-active/25'
                                 >
                                     <div className='flex-1'>
-                                        <p className='font-medium text-lucky-text-primary'>
+                                        <p className='type-body-sm font-medium text-lucky-text-primary'>
                                             {member.displayName ??
                                                 member.userId}
                                         </p>
-                                        <p className='text-sm text-lucky-text-secondary'>
+                                        <p className='type-body-sm text-lucky-text-secondary'>
                                             Level {member.level}
                                         </p>
                                     </div>
                                     <div className='text-right'>
-                                        <p className='font-semibold text-lucky-accent'>
+                                        <p className='type-body-sm font-semibold text-lucky-accent'>
                                             {member.xp.toLocaleString()} XP
                                         </p>
                                     </div>
@@ -240,8 +240,8 @@ function Levels() {
 
             <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
                 {/* Config Settings */}
-                <Card className='p-6'>
-                    <h3 className='text-lg font-semibold text-lucky-text-primary mb-4'>
+                <Card className='p-6 border border-lucky-border'>
+                    <h3 className='type-body-sm font-semibold text-lucky-text-primary mb-4 uppercase tracking-wide'>
                         Settings
                     </h3>
                     <div className='space-y-4'>
@@ -317,8 +317,8 @@ function Levels() {
                 </Card>
 
                 {/* Rewards */}
-                <Card className='p-6'>
-                    <h3 className='text-lg font-semibold text-lucky-text-primary mb-4'>
+                <Card className='p-6 border border-lucky-border'>
+                    <h3 className='type-body-sm font-semibold text-lucky-text-primary mb-4 uppercase tracking-wide'>
                         Level Rewards
                     </h3>
 

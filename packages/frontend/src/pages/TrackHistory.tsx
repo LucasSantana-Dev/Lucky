@@ -128,9 +128,9 @@ export default function TrackHistoryPage() {
 
     return (
         <div className='space-y-6 px-1 sm:px-0'>
-            <header className='flex items-center justify-between'>
+            <header className='flex items-center justify-between gap-4'>
                 <div className='flex items-center gap-3'>
-                    <History className='h-6 w-6 text-lucky-red' />
+                    <History className='h-6 w-6 text-lucky-error' />
                     <h1 className='type-h2 text-lucky-text-primary'>
                         Track History
                     </h1>
@@ -138,7 +138,7 @@ export default function TrackHistoryPage() {
                 {history.length > 0 && (
                     <button
                         onClick={handleClear}
-                        className='flex items-center gap-2 px-3 min-h-[44px] type-body-sm rounded-lg bg-lucky-error/10 text-lucky-error hover:bg-lucky-error/20 transition-colors'
+                        className='flex items-center gap-2 px-3 min-h-[44px] type-body-sm rounded-sm bg-lucky-error/10 text-lucky-error hover:bg-lucky-error/20 transition-colors font-semibold uppercase'
                     >
                         <Trash2 className='w-4 h-4' />
                         Clear
@@ -213,7 +213,7 @@ export default function TrackHistoryPage() {
 
                     <div className='space-y-1'>
                         <div className='flex items-center justify-between px-1 mb-3'>
-                            <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wider'>
+                            <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
                                 Recent Tracks
                             </h2>
                             {total > 0 && (
@@ -237,13 +237,13 @@ export default function TrackHistoryPage() {
                         ) : (
                             <div className='space-y-1'>
                                 <div
-                                    className='surface-panel rounded-lg border border-lucky-border divide-y divide-lucky-border overflow-hidden'
+                                    className='surface-panel border border-lucky-border divide-y divide-lucky-border overflow-hidden'
                                     role='list'
                                 >
                                     {history.map((track, i) => (
                                         <div
                                             key={`${track.trackId}-${i}`}
-                                            className='flex items-center gap-4 px-4 py-3 hover:bg-lucky-bg-active transition-colors'
+                                            className='flex items-center gap-4 px-4 py-3 transition-colors hover:bg-lucky-bg-active/25'
                                             role='listitem'
                                         >
                                             <span className='type-meta text-lucky-text-tertiary w-6 text-center shrink-0'>
@@ -299,7 +299,7 @@ export default function TrackHistoryPage() {
                                     <button
                                         onClick={handleLoadMore}
                                         disabled={isLoadingMore}
-                                        className='w-full mt-4 px-4 py-3 rounded-lg border border-lucky-border text-lucky-text-secondary type-body-sm font-medium hover:text-lucky-text-primary hover:bg-lucky-bg-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                                        className='w-full mt-4 px-4 py-3 rounded-sm border border-lucky-border text-lucky-text-secondary type-body-sm font-semibold uppercase hover:text-lucky-text-primary hover:bg-lucky-bg-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                                     >
                                         {isLoadingMore
                                             ? 'Loading...'
@@ -324,8 +324,10 @@ function RankingCard({
 }) {
     const max = items[0]?.count ?? 1
     return (
-        <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
-            <h3 className='type-title text-lucky-text-primary mb-3'>{title}</h3>
+        <div className='p-4 rounded-sm bg-lucky-bg-tertiary border border-lucky-border'>
+            <h3 className='type-title text-lucky-text-primary uppercase tracking-wide mb-3 font-semibold'>
+                {title}
+            </h3>
             <div className='space-y-2'>
                 {items.slice(0, 5).map((item, i) => (
                     <div key={item.label} className='flex items-center gap-2'>

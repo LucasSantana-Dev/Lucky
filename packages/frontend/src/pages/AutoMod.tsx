@@ -62,7 +62,7 @@ function FilterRow({
         <div className='border-b border-lucky-border/50 last:border-b-0'>
             <button
                 onClick={() => onToggle(!enabled)}
-                className='w-full flex items-center justify-between px-6 py-3 hover:bg-[rgba(236,72,153,0.02)] transition-colors'
+                className='w-full flex items-center justify-between px-6 py-3 hover:bg-lucky-bg-active/25 transition-colors'
             >
                 <div className='flex items-center gap-3 flex-1 text-left'>
                     <Icon className='w-4 h-4 text-lucky-brand flex-shrink-0' />
@@ -172,7 +172,7 @@ function TagList({
                         <Badge
                             key={item}
                             variant='outline'
-                            className='bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary text-xs gap-1 pr-1'
+                            className='bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary text-xs gap-1 pr-1 rounded-sm uppercase font-semibold'
                         >
                             {item}
                             <button
@@ -230,7 +230,7 @@ function ChannelPicker({
                         <Badge
                             key={id}
                             variant='outline'
-                            className='bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary text-xs gap-1 pr-1'
+                            className='bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary text-xs gap-1 pr-1 rounded-sm uppercase font-semibold'
                         >
                             <Hash className='w-3 h-3' />
                             {getChannelName(id)}
@@ -294,7 +294,7 @@ function RolePicker({
                         <Badge
                             key={id}
                             variant='outline'
-                            className='bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary text-xs gap-1 pr-1'
+                            className='bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary text-xs gap-1 pr-1 rounded-sm uppercase font-semibold'
                         >
                             <Shield className='w-3 h-3' />
                             {getRoleName(id)}
@@ -358,8 +358,10 @@ function normalizeNumber(
     const toValid = (candidate: number): number => {
         if (!Number.isFinite(candidate)) return fallback
         if (options?.integer && !Number.isInteger(candidate)) return fallback
-        if (options?.min !== undefined && candidate < options.min) return fallback
-        if (options?.max !== undefined && candidate > options.max) return fallback
+        if (options?.min !== undefined && candidate < options.min)
+            return fallback
+        if (options?.max !== undefined && candidate > options.max)
+            return fallback
         return candidate
     }
 
@@ -674,7 +676,7 @@ export default function AutoModPage() {
         <div className='space-y-6'>
             <div className='flex items-start justify-between'>
                 <header>
-                    <h1 className='text-2xl font-bold text-white'>
+                    <h1 className='text-2xl font-bold text-white uppercase tracking-wide'>
                         Auto-Moderation
                     </h1>
                     <p className='text-sm text-lucky-text-secondary mt-1'>
@@ -703,10 +705,10 @@ export default function AutoModPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0 }}
                 >
-                    <Card className='p-5 space-y-4'>
+                    <Card className='p-5 space-y-4 border border-lucky-border'>
                         <div className='flex items-center gap-2'>
                             <Sparkles className='w-5 h-5 text-lucky-warning' />
-                            <h2 className='text-base font-semibold text-white'>
+                            <h2 className='text-base font-semibold text-white uppercase tracking-wide'>
                                 Templates
                             </h2>
                         </div>
@@ -724,9 +726,9 @@ export default function AutoModPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.05 }}
                 >
-                    <Card className='overflow-hidden'>
-                        <div className='px-6 py-4 border-b border-lucky-border/50'>
-                            <h2 className='text-base font-semibold text-white'>
+                    <Card className='overflow-hidden border border-lucky-border'>
+                        <div className='px-6 py-4 border-b border-lucky-border'>
+                            <h2 className='text-base font-semibold text-white uppercase tracking-wide'>
                                 Content Filters
                             </h2>
                         </div>
@@ -748,7 +750,9 @@ export default function AutoModPage() {
                                 <NumberInput
                                     label='Time window (s)'
                                     value={settings.spamTimeWindow}
-                                    onChange={(v) => update('spamTimeWindow', v)}
+                                    onChange={(v) =>
+                                        update('spamTimeWindow', v)
+                                    }
                                     min={1}
                                     max={60}
                                 />
@@ -848,11 +852,11 @@ export default function AutoModPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
             >
-                <Card className='overflow-hidden'>
-                    <div className='px-6 py-4 border-b border-lucky-border/50'>
+                <Card className='overflow-hidden border border-lucky-border'>
+                    <div className='px-6 py-4 border-b border-lucky-border'>
                         <div className='flex items-center gap-2 mb-2'>
                             <CheckCircle2 className='w-5 h-5 text-lucky-success' />
-                            <h2 className='text-base font-semibold text-white'>
+                            <h2 className='text-base font-semibold text-white uppercase tracking-wide'>
                                 Exemptions
                             </h2>
                         </div>
@@ -862,7 +866,7 @@ export default function AutoModPage() {
                         </p>
                     </div>
                     <div className='grid grid-cols-1 md:grid-cols-2'>
-                        <div className='p-6 space-y-3 border-r border-lucky-border/50 md:border-r md:border-b-0 border-b md:border-b-0'>
+                        <div className='p-6 space-y-3 border-r border-lucky-border md:border-r md:border-b-0 border-b md:border-b-0'>
                             <Label className='text-xs text-lucky-text-secondary'>
                                 Exempt Channels
                             </Label>

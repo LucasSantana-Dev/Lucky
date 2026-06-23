@@ -197,7 +197,7 @@ export default function CustomCommandsPage() {
                                             : cmd.id,
                                     )
                                 }
-                                className='w-full px-4 py-3 flex items-center gap-3 hover:bg-lucky-surface-elevated transition-colors'
+                                className='w-full px-4 py-3 flex items-center gap-3 transition-colors hover:bg-lucky-bg-active/25'
                             >
                                 <div className='p-2 rounded bg-lucky-bg-active shrink-0'>
                                     <Code className='w-4 h-4 text-lucky-text-secondary' />
@@ -209,7 +209,7 @@ export default function CustomCommandsPage() {
                                         </h3>
                                         <Badge
                                             className={cn(
-                                                'text-[10px] uppercase border shrink-0',
+                                                'text-[10px] uppercase border shrink-0 font-semibold',
                                                 CATEGORY_COLORS[cmd.category] ||
                                                     'bg-lucky-bg-active text-lucky-text-secondary border-lucky-border',
                                             )}

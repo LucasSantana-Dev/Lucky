@@ -260,7 +260,7 @@ export default function ServerLogsPage() {
             </div>
 
             {/* Filters: Linear-density layout */}
-            <Card className='p-4 space-y-3'>
+            <Card className='p-4 space-y-3 border border-lucky-border'>
                 <div className='flex items-center gap-2 text-xs font-semibold text-lucky-text-tertiary uppercase tracking-wider'>
                     <Filter className='w-4 h-4' />
                     Search & Filter
@@ -354,7 +354,7 @@ export default function ServerLogsPage() {
             </div>
 
             {/* Logs List */}
-            <Card className='p-0 overflow-hidden'>
+            <Card className='p-0 overflow-hidden border border-lucky-border'>
                 <div className='divide-y divide-lucky-border/30'>
                     {loading ? (
                         Array.from({ length: 10 }).map((_, i) => (

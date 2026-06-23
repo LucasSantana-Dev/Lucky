@@ -589,7 +589,7 @@ export default function ServerSettingsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0 }}
             >
-                <Card className='p-5 space-y-5'>
+                <Card className='p-5 space-y-5 border border-lucky-border'>
                     <div className='flex items-center gap-2'>
                         <Settings className='w-5 h-5 text-lucky-text-secondary' />
                         <h2 className='type-title text-lucky-text-primary'>
@@ -635,7 +635,7 @@ export default function ServerSettingsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 }}
             >
-                <Card className='p-5 space-y-5'>
+                <Card className='p-5 space-y-5 border border-lucky-border'>
                     <div className='flex items-center gap-2'>
                         <Globe className='w-5 h-5 text-lucky-text-secondary' />
                         <h2 className='type-title text-lucky-text-primary'>
@@ -725,14 +725,14 @@ export default function ServerSettingsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.08 }}
             >
-                <Card className='p-5 space-y-4'>
+                <Card className='p-5 space-y-4 border border-lucky-border'>
                     <div className='flex items-center gap-2'>
                         <Shield className='w-5 h-5 text-lucky-text-secondary' />
                         <div>
                             <h2 className='type-title text-lucky-text-primary'>
                                 Manager Roles
                             </h2>
-                            <p className='type-meta text-lucky-text-tertiary mt-0.5'>
+                            <p className='type-meta text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
                                 Roles that can manage bot settings via commands
                             </p>
                         </div>
@@ -804,7 +804,7 @@ export default function ServerSettingsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
             >
-                <Card className='p-5'>
+                <Card className='p-5 border border-lucky-border'>
                     <div className='flex items-center justify-between'>
                         <div className='flex items-center gap-3'>
                             <div className='p-2 rounded-lg bg-yellow-500/15'>
@@ -814,7 +814,7 @@ export default function ServerSettingsPage() {
                                 <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
                                     Disable Command Warnings
                                 </h3>
-                                <p className='type-meta text-lucky-text-tertiary mt-0.5'>
+                                <p className='type-meta text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
                                     Hide permission and cooldown warnings for
                                     users
                                 </p>
@@ -851,7 +851,7 @@ export default function ServerSettingsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
             >
-                <Card className='p-5 space-y-5'>
+                <Card className='p-5 space-y-5 border border-lucky-border'>
                     <div className='flex items-center justify-between gap-4'>
                         <div className='flex items-center gap-3'>
                             <div className='p-2 rounded-lg bg-lucky-brand/10'>
@@ -861,7 +861,7 @@ export default function ServerSettingsPage() {
                                 <h2 className='type-title text-lucky-text-primary'>
                                     Access Control
                                 </h2>
-                                <p className='type-body-sm text-lucky-text-tertiary mt-0.5'>
+                                <p className='type-body-sm text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
                                     Assign role-based web dashboard permissions
                                 </p>
                             </div>

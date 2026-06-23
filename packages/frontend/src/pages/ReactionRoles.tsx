@@ -138,7 +138,7 @@ function MessageCard({
     }
 
     return (
-        <Card className='space-y-4 p-5'>
+        <Card className='space-y-4 p-5 border border-lucky-border'>
             <div className='flex items-start justify-between gap-3'>
                 <div className='min-w-0 flex-1'>
                     <div className='flex items-center gap-2'>

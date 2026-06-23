@@ -95,7 +95,7 @@ export default function LastFmPage() {
             )}
 
             {!status?.configured ? (
-                <section className='surface-panel space-y-4 rounded-xl border border-lucky-border/20 p-8'>
+                <section className='surface-panel space-y-4 rounded-lg border border-lucky-border p-6'>
                     <div className='flex items-start gap-4'>
                         <div className='rounded-lg bg-lucky-bg-tertiary p-3'>
                             <Music className='h-6 w-6 text-lucky-text-secondary' />
@@ -120,7 +120,7 @@ export default function LastFmPage() {
                     </div>
                 </section>
             ) : status.linked ? (
-                <section className='surface-panel space-y-6 rounded-xl border border-lucky-border/20 p-8'>
+                <section className='surface-panel space-y-6 rounded-lg border border-lucky-border p-6'>
                     <div className='flex items-start gap-4'>
                         <div className='rounded-full bg-lucky-success/20 p-3'>
                             <Check className='h-6 w-6 text-lucky-success' />
@@ -166,7 +166,7 @@ export default function LastFmPage() {
                     </button>
                 </section>
             ) : (
-                <section className='surface-panel space-y-6 rounded-xl border border-lucky-border/20 p-8'>
+                <section className='surface-panel space-y-6 rounded-lg border border-lucky-border p-6'>
                     <div>
                         <h2 className='type-h2 text-lucky-text-primary'>
                             Connect Your Account
@@ -188,7 +188,7 @@ export default function LastFmPage() {
             )}
 
             <div className='grid gap-4 md:grid-cols-2'>
-                <div className='surface-panel rounded-xl border border-lucky-border/20 p-6'>
+                <div className='surface-panel rounded-lg border border-lucky-border p-6'>
                     <div className='flex items-start gap-3'>
                         <Music className='mt-1 h-5 w-5 text-lucky-accent flex-shrink-0' />
                         <div className='flex-1'>
@@ -203,7 +203,7 @@ export default function LastFmPage() {
                     </div>
                 </div>
 
-                <div className='surface-panel rounded-xl border border-lucky-border/20 p-6'>
+                <div className='surface-panel rounded-lg border border-lucky-border p-6'>
                     <div className='flex items-start gap-3'>
                         <Link2 className='mt-1 h-5 w-5 text-lucky-text-tertiary flex-shrink-0' />
                         <div className='flex-1'>
@@ -219,7 +219,7 @@ export default function LastFmPage() {
                 </div>
             </div>
 
-            <section className='surface-panel space-y-4 rounded-xl border border-lucky-border/20 p-8'>
+            <section className='surface-panel space-y-4 rounded-lg border border-lucky-border p-6'>
                 <h3 className='type-title text-lucky-text-primary'>
                     How it works
                 </h3>

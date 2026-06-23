@@ -178,7 +178,7 @@ function NowPlayingHero({
     const progress = duration > 0 ? (position / duration) * 100 : 0
 
     return (
-        <div className='surface-panel rounded-xl overflow-hidden border border-lucky-border'>
+        <div className='surface-panel rounded-xl overflow-hidden border border-lucky-border px-4 sm:px-6'>
             <div className='p-4 sm:p-6'>
                 <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 items-start'>
                     <div className='sm:col-span-1'>
@@ -197,7 +197,7 @@ function NowPlayingHero({
 
                     <div className='sm:col-span-2 flex flex-col justify-between'>
                         <div>
-                            <p className='type-meta text-lucky-text-tertiary uppercase tracking-wider mb-2'>
+                            <p className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold mb-2'>
                                 Now Playing
                             </p>
                             <h2 className='type-h2 text-lucky-text-primary mb-1 line-clamp-2'>

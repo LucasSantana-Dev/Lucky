@@ -447,7 +447,7 @@ export default function ModerationPage() {
             ) : null}
 
             {/* Filters */}
-            <Card className='p-4'>
+            <Card className='p-4 border border-lucky-border'>
                 <div className='flex flex-col sm:flex-row gap-3'>
                     <div className='relative flex-1'>
                         <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lucky-text-tertiary' />
@@ -490,14 +490,14 @@ export default function ModerationPage() {
             </Card>
 
             {/* Cases Table */}
-            <Card className='overflow-hidden p-0'>
+            <Card className='overflow-hidden p-0 border border-lucky-border'>
                 {/* Header */}
                 <div className='hidden md:grid grid-cols-[40px_1fr_1fr_80px_80px_120px] gap-4 px-6 py-3 border-b border-lucky-border bg-lucky-bg-tertiary/20'>
                     {['#', 'User', 'Moderator', 'Type', 'Status', 'Date'].map(
                         (h) => (
                             <span
                                 key={h}
-                                className='type-meta text-lucky-text-tertiary text-xs'
+                                className='type-meta text-lucky-text-tertiary text-xs uppercase font-semibold tracking-wide'
                             >
                                 {h}
                             </span>
@@ -543,10 +543,10 @@ export default function ModerationPage() {
                                                 ? 0
                                                 : i * 0.02,
                                         }}
-                                        className='grid grid-cols-1 md:grid-cols-[40px_1fr_1fr_80px_80px_120px] gap-2 md:gap-4 px-6 py-3 items-center hover:bg-[rgba(236,72,153,0.04)] transition-colors cursor-pointer'
+                                        className='grid grid-cols-1 md:grid-cols-[40px_1fr_1fr_80px_80px_120px] gap-2 md:gap-4 px-6 py-3 items-center transition-colors hover:bg-lucky-bg-active/25 cursor-pointer'
                                         onClick={() => setSelectedCase(c)}
                                     >
-                                        <span className='type-meta font-mono text-lucky-text-tertiary text-xs'>
+                                        <span className='type-meta font-mono text-lucky-text-tertiary text-xs uppercase font-semibold'>
                                             {c.caseNumber}
                                         </span>
                                         <span className='type-body-sm text-lucky-text-primary truncate'>

@@ -53,17 +53,19 @@ export default function LyricsPage() {
         <div className='space-y-6 px-1 sm:px-0'>
             <header className='flex items-center gap-3'>
                 <MicVocal className='h-6 w-6 text-lucky-red' />
-                <h1 className='type-h2 text-lucky-text-primary'>Lyrics Search</h1>
+                <h1 className='type-h2 text-lucky-text-primary'>
+                    Lyrics Search
+                </h1>
             </header>
 
             <form
                 onSubmit={handleSearch}
-                className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border space-y-3'
+                className='surface-panel p-4 rounded-lg border border-lucky-border space-y-3'
             >
                 <div className='space-y-1.5'>
                     <label
                         htmlFor='title'
-                        className='text-sm font-medium text-lucky-text-secondary'
+                        className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'
                     >
                         Song Title <span className='text-lucky-red'>*</span>
                     </label>
@@ -81,7 +83,7 @@ export default function LyricsPage() {
                 <div className='space-y-1.5'>
                     <label
                         htmlFor='artist'
-                        className='text-sm font-medium text-lucky-text-secondary'
+                        className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'
                     >
                         Artist (optional)
                     </label>
@@ -136,17 +138,17 @@ export default function LyricsPage() {
 
             {result && !isLoading && (
                 <div className='space-y-4'>
-                    <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
-                        <h2 className='text-lg font-bold text-white'>
+                    <div className='surface-panel p-4 rounded-lg border border-lucky-border'>
+                        <h2 className='type-body-sm font-bold text-lucky-text-primary'>
                             {result.title}
                         </h2>
-                        <p className='text-sm text-lucky-text-secondary'>
+                        <p className='type-body-sm text-lucky-text-secondary'>
                             {result.artist}
                         </p>
                     </div>
 
-                    <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
-                        <pre className='text-sm text-white whitespace-pre-wrap font-mono leading-relaxed'>
+                    <div className='surface-panel p-4 rounded-lg border border-lucky-border'>
+                        <pre className='type-body-sm text-lucky-text-primary whitespace-pre-wrap font-mono leading-relaxed'>
                             {result.lyrics}
                         </pre>
                     </div>

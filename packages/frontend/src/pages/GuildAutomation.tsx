@@ -365,7 +365,7 @@ export default function GuildAutomation() {
             <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-4'>
                 <div className='flex items-center justify-between'>
                     <div className='flex items-center gap-3'>
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
+                        <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
                             Automation Status
                         </h2>
                         {loading ? (
@@ -442,7 +442,7 @@ export default function GuildAutomation() {
                 <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-3'>
                     <div className='flex items-center gap-2'>
                         <GitBranch className='h-4 w-4 text-lucky-brand' />
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
+                        <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
                             Plan Result
                         </h2>
                     </div>
@@ -454,7 +454,7 @@ export default function GuildAutomation() {
                 <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-3'>
                     <div className='flex items-center gap-2'>
                         <Zap className='h-4 w-4 text-lucky-accent' />
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
+                        <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
                             Plan Record
                         </h2>
                     </div>
@@ -472,7 +472,7 @@ export default function GuildAutomation() {
                 >
                     <div className='flex items-center gap-2'>
                         <FileJson className='h-4 w-4 text-lucky-brand' />
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
+                        <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
                             Manifest
                         </h2>
                         {manifest?.version && (
@@ -541,8 +541,10 @@ export default function GuildAutomation() {
             </div>
 
             {/* Run History */}
-            <div className='space-y-3'>
-                <SectionHeader title='Run History' />
+            <div className='space-y-4'>
+                <h2 className='type-title text-lucky-text-primary'>
+                    Run History
+                </h2>
                 {loading ? (
                     <div className='space-y-2'>
                         {Array.from({ length: 3 }).map((_, i) => (

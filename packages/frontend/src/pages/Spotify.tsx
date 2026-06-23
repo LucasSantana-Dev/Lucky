@@ -95,7 +95,7 @@ export default function SpotifyPage() {
             )}
 
             {!status?.configured ? (
-                <section className='surface-panel space-y-4 rounded-xl border border-lucky-border/20 p-8'>
+                <section className='surface-panel space-y-4 border border-lucky-border p-8'>
                     <div className='flex items-start gap-4'>
                         <div className='rounded-lg bg-lucky-bg-tertiary p-3'>
                             <Music className='h-6 w-6 text-lucky-text-secondary' />
@@ -120,7 +120,7 @@ export default function SpotifyPage() {
                     </div>
                 </section>
             ) : status.linked ? (
-                <section className='surface-panel space-y-6 rounded-xl border border-lucky-border/20 p-8'>
+                <section className='surface-panel space-y-6 border border-lucky-border p-8'>
                     <div className='flex items-start gap-4'>
                         <div className='rounded-full bg-lucky-success/20 p-3'>
                             <Check className='h-6 w-6 text-lucky-success' />
@@ -142,12 +142,12 @@ export default function SpotifyPage() {
                                 </a>
                             </p>
                         </div>
-                        <div className='rounded-full bg-lucky-success/15 px-3 py-1 text-xs font-600 text-lucky-success'>
+                        <div className='rounded-sm bg-lucky-success/15 px-3 py-1 text-xs font-semibold uppercase text-lucky-success'>
                             Active
                         </div>
                     </div>
 
-                    <p className='type-body-sm text-lucky-text-secondary border-t border-lucky-border/20 pt-4'>
+                    <p className='type-body-sm text-lucky-text-secondary border-t border-lucky-border pt-4'>
                         Lucky can access your library and listening history to
                         provide personalized autoplay recommendations.
                     </p>
@@ -166,7 +166,7 @@ export default function SpotifyPage() {
                     </button>
                 </section>
             ) : (
-                <section className='surface-panel space-y-6 rounded-xl border border-lucky-border/20 p-8'>
+                <section className='surface-panel space-y-6 border border-lucky-border p-8'>
                     <div>
                         <h2 className='type-h2 text-lucky-text-primary'>
                             Connect Your Account
@@ -189,7 +189,7 @@ export default function SpotifyPage() {
             )}
 
             <div className='grid gap-4 md:grid-cols-2'>
-                <div className='surface-panel rounded-xl border border-lucky-border/20 p-6'>
+                <div className='surface-panel border border-lucky-border p-6'>
                     <div className='flex items-start gap-3'>
                         <Music className='mt-1 h-5 w-5 text-lucky-accent flex-shrink-0' />
                         <div className='flex-1'>
@@ -204,7 +204,7 @@ export default function SpotifyPage() {
                     </div>
                 </div>
 
-                <div className='surface-panel rounded-xl border border-lucky-border/20 p-6'>
+                <div className='surface-panel border border-lucky-border p-6'>
                     <div className='flex items-start gap-3'>
                         <Link2 className='mt-1 h-5 w-5 text-lucky-text-tertiary flex-shrink-0' />
                         <div className='flex-1'>
@@ -220,7 +220,7 @@ export default function SpotifyPage() {
                 </div>
             </div>
 
-            <section className='surface-panel space-y-4 rounded-xl border border-lucky-border/20 p-8'>
+            <section className='surface-panel space-y-4 border border-lucky-border p-8'>
                 <h3 className='type-title text-lucky-text-primary'>
                     How it works
                 </h3>
@@ -232,7 +232,7 @@ export default function SpotifyPage() {
                         'Your library stays private and is only used for recommendations',
                     ].map((step, i) => (
                         <li key={i} className='flex items-start gap-3'>
-                            <span className='mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-lucky-accent/20 text-xs font-600 text-lucky-accent flex-shrink-0'>
+                            <span className='mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-sm bg-lucky-accent/20 text-xs font-semibold uppercase text-lucky-accent flex-shrink-0'>
                                 {i + 1}
                             </span>
                             <span className='type-body-sm text-lucky-text-secondary'>

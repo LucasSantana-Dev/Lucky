@@ -454,7 +454,7 @@ export default function PreferredArtistsPage() {
             />
 
             {/* Tab Buttons */}
-            <div className='surface-panel p-4'>
+            <div className='surface-panel p-4 border border-lucky-border'>
                 <div className='flex gap-2'>
                     {(['discover', 'preferred', 'blocked'] as const).map(
                         (tab) => {
@@ -500,7 +500,7 @@ export default function PreferredArtistsPage() {
             <div className='space-y-4'>
                 {/* Discover Tab */}
                 {currentTab === 'discover' && (
-                    <div className='surface-panel p-4'>
+                    <div className='surface-panel p-4 border border-lucky-border'>
                         <div className='relative'>
                             <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-lucky-text-subtle' />
                             <input
@@ -670,7 +670,7 @@ export default function PreferredArtistsPage() {
 
                 {/* Preferred Tab */}
                 {currentTab === 'preferred' && (
-                    <div className='surface-panel p-4'>
+                    <div className='surface-panel p-4 border border-lucky-border'>
                         {preferredArtists.length === 0 ? (
                             <EmptyState
                                 icon={
@@ -718,7 +718,7 @@ export default function PreferredArtistsPage() {
 
                 {/* Blocked Tab */}
                 {currentTab === 'blocked' && (
-                    <div className='surface-panel p-4'>
+                    <div className='surface-panel p-4 border border-lucky-border'>
                         {blockedArtists.length === 0 ? (
                             <EmptyState
                                 icon={

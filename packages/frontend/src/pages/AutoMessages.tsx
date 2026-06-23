@@ -352,7 +352,7 @@ export default function AutoMessagesPage() {
                                             : i * 0.03,
                                     }}
                                 >
-                                    <Card className='p-5 hover:border-lucky-border-strong transition-all'>
+                                    <Card className='p-5 border border-lucky-border hover:border-lucky-border-strong transition-all'>
                                         <div className='flex items-start justify-between mb-3'>
                                             <div className='flex items-center gap-2'>
                                                 <div className='p-2 rounded-lg bg-lucky-brand/15'>
@@ -400,7 +400,7 @@ export default function AutoMessagesPage() {
                                         <div className='flex flex-wrap items-center gap-2'>
                                             <Badge
                                                 variant='outline'
-                                                className='type-meta gap-1 normal-case bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary'
+                                                className='type-meta gap-1 uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary rounded-sm'
                                             >
                                                 <Hash
                                                     className='w-3 h-3'
@@ -410,7 +410,7 @@ export default function AutoMessagesPage() {
                                             </Badge>
                                             <Badge
                                                 variant='outline'
-                                                className='type-meta gap-1 normal-case bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary'
+                                                className='type-meta gap-1 uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary rounded-sm'
                                             >
                                                 <Clock
                                                     className='w-3 h-3'
@@ -422,14 +422,14 @@ export default function AutoMessagesPage() {
                                             {msg.isEmbed && (
                                                 <Badge
                                                     variant='outline'
-                                                    className='type-meta normal-case bg-lucky-brand/10 text-lucky-brand border-lucky-brand/20'
+                                                    className='type-meta uppercase font-semibold bg-lucky-brand/10 text-lucky-brand border-lucky-brand/20 rounded-sm'
                                                 >
                                                     Embed
                                                 </Badge>
                                             )}
                                             <Badge
                                                 variant='outline'
-                                                className='type-meta gap-1 normal-case bg-lucky-bg-tertiary border-lucky-border text-lucky-text-tertiary'
+                                                className='type-meta gap-1 uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-tertiary rounded-sm'
                                             >
                                                 <Calendar
                                                     className='w-3 h-3'

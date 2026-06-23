@@ -43,7 +43,7 @@ export default function ServersPage() {
 
     return (
         <main className='space-y-8'>
-            <div className='surface-panel flex flex-wrap items-center gap-6 p-6'>
+            <div className='surface-panel flex flex-wrap items-center gap-6 p-6 border border-lucky-border'>
                 <Avatar className='h-16 w-16 border border-lucky-border flex-shrink-0'>
                     <AvatarImage
                         src={user?.avatar || undefined}
@@ -55,7 +55,7 @@ export default function ServersPage() {
                 </Avatar>
 
                 <div className='space-y-1'>
-                    <p className='text-xs uppercase tracking-wider text-lucky-text-tertiary'>
+                    <p className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
                         Discord Account
                     </p>
                     <p className='text-lg font-semibold text-lucky-text-primary'>
@@ -67,7 +67,7 @@ export default function ServersPage() {
                 </div>
 
                 <div className='ml-auto text-right flex-shrink-0'>
-                    <p className='text-xs uppercase tracking-wider text-lucky-text-tertiary'>
+                    <p className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
                         Total Servers
                     </p>
                     <p className='text-2xl font-bold text-lucky-brand'>
@@ -80,7 +80,7 @@ export default function ServersPage() {
                 <div className='flex items-baseline justify-between'>
                     <div>
                         <div className='flex items-center gap-2'>
-                            <h2 className='text-xs uppercase tracking-wider text-lucky-text-tertiary'>
+                            <h2 className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
                                 Servers
                             </h2>
                         </div>
@@ -138,7 +138,7 @@ export default function ServersPage() {
 
                 {primaryGuild && (
                     <section className='space-y-3'>
-                        <h2 className='text-xs uppercase tracking-wider text-lucky-text-tertiary'>
+                        <h2 className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
                             Recently Active
                         </h2>
                         <button
@@ -146,7 +146,7 @@ export default function ServersPage() {
                                 navigate(`/guild/${primaryGuild.id}`)
                             }
                             className={cn(
-                                'surface-panel w-full p-6 text-left border-2 transition-all hover:border-lucky-brand/50',
+                                'surface-panel w-full p-6 text-left border-2 transition-all hover:bg-lucky-bg-active/25 hover:border-lucky-brand/50',
                                 primaryGuild.botAdded
                                     ? 'border-lucky-border-strong'
                                     : 'border-lucky-border',
@@ -186,7 +186,7 @@ export default function ServersPage() {
 
                 {secondaryGuilds.length > 0 && (
                     <section className='space-y-3'>
-                        <h2 className='text-xs uppercase tracking-wider text-lucky-text-tertiary'>
+                        <h2 className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
                             All Other Servers
                         </h2>
                         <ServerGrid />
@@ -194,7 +194,7 @@ export default function ServersPage() {
                 )}
 
                 {guilds.length === 0 && (
-                    <div className='surface-panel rounded-lg p-12 text-center'>
+                    <div className='surface-panel rounded-lg p-12 text-center border border-lucky-border'>
                         <div className='w-12 h-12 rounded-full bg-lucky-bg-tertiary mx-auto mb-4 flex items-center justify-center'>
                             <LayoutGrid className='h-6 w-6 text-lucky-text-tertiary' />
                         </div>

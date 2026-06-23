@@ -163,11 +163,11 @@ function Starboard() {
         <div className='space-y-6'>
             {/* Entries */}
             <section>
-                <h2 className='text-2xl font-bold text-lucky-text-primary mb-4'>
+                <h2 className='type-title text-lucky-text-primary uppercase tracking-wide mb-4'>
                     Top Starred Messages
                 </h2>
                 {entries.length === 0 ? (
-                    <Card className='p-8 text-center'>
+                    <Card className='border border-lucky-border p-8 text-center'>
                         <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
                             No starred messages yet
                         </p>
@@ -179,7 +179,10 @@ function Starboard() {
                 ) : (
                     <div className='grid grid-cols-1 gap-3'>
                         {entries.map((entry) => (
-                            <Card key={entry.id} className='p-4'>
+                            <Card
+                                key={entry.id}
+                                className='border border-lucky-border p-4'
+                            >
                                 {entry.content && (
                                     <p className='text-sm text-lucky-text-primary mb-3'>
                                         {entry.content}
@@ -203,18 +206,23 @@ function Starboard() {
 
             {/* Settings */}
             <section>
-                <h2 className='text-2xl font-bold text-lucky-text-primary mb-4'>
+                <h2 className='type-title text-lucky-text-primary uppercase tracking-wide mb-4'>
                     Settings
                 </h2>
-                <Card className='p-6 space-y-4'>
+                <Card className='border border-lucky-border p-6 space-y-4'>
                     {config && (
                         <div className='mb-4'>
-                            <Badge className='bg-green-600'>Active</Badge>
+                            <Badge className='rounded-sm bg-lucky-success text-lucky-text-primary uppercase font-semibold text-xs'>
+                                Active
+                            </Badge>
                         </div>
                     )}
 
                     <div>
-                        <Label htmlFor='channel' className='text-sm'>
+                        <Label
+                            htmlFor='channel'
+                            className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold text-sm'
+                        >
                             Channel ID
                         </Label>
                         <Input
@@ -228,7 +236,10 @@ function Starboard() {
                     </div>
 
                     <div>
-                        <Label htmlFor='emoji' className='text-sm'>
+                        <Label
+                            htmlFor='emoji'
+                            className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold text-sm'
+                        >
                             Emoji
                         </Label>
                         <Input
@@ -242,7 +253,10 @@ function Starboard() {
                     </div>
 
                     <div>
-                        <Label htmlFor='threshold' className='text-sm'>
+                        <Label
+                            htmlFor='threshold'
+                            className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold text-sm'
+                        >
                             Star Threshold
                         </Label>
                         <Input
@@ -263,7 +277,10 @@ function Starboard() {
                     </div>
 
                     <div className='flex items-center justify-between pt-2 border-t border-lucky-border'>
-                        <Label htmlFor='selfStar' className='text-sm'>
+                        <Label
+                            htmlFor='selfStar'
+                            className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold text-sm'
+                        >
                             Allow Self-Star
                         </Label>
                         <Switch

@@ -105,7 +105,7 @@ export default function AdminPage() {
     return (
         <main className='bg-lucky-bg-primary min-h-screen'>
             {/* Header — compact, density-first */}
-            <header className='border-b border-lucky-border-soft bg-lucky-surface-sidebar px-4 md:px-6 py-4'>
+            <header className='border-b border-lucky-border bg-lucky-surface-sidebar px-4 md:px-6 py-4'>
                 <div className='flex items-center justify-between gap-3'>
                     <div className='flex items-center gap-3'>
                         <ShieldCheck
@@ -150,7 +150,7 @@ export default function AdminPage() {
                     <div className='space-y-1'>
                         <h2
                             id='global-toggles-heading'
-                            className='text-base font-semibold text-lucky-text-primary'
+                            className='text-base font-semibold text-lucky-text-primary uppercase tracking-wide'
                             style={{ fontFamily: 'Sora' }}
                         >
                             Global Feature Toggles
@@ -178,7 +178,7 @@ export default function AdminPage() {
                     <div className='space-y-1'>
                         <h2
                             id='bot-guilds-heading'
-                            className='text-base font-semibold text-lucky-text-primary'
+                            className='text-base font-semibold text-lucky-text-primary uppercase tracking-wide'
                             style={{ fontFamily: 'Sora' }}
                         >
                             Server Management
