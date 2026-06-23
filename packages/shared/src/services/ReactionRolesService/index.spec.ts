@@ -1819,4 +1819,346 @@ describe('ReactionRolesService', () => {
             expect(payload.attachments).toEqual([])
         })
     })
+
+    describe('addRoleToMessage (DB-first append)', () => {
+        const messageId = '98765432109876543'
+        const guildId = '12345678901234567'
+        const channelId = '11111111111111111'
+        const newRoleId = '22222222222222222'
+        const botToken = 'token-abc'
+
+        beforeEach(() => {
+            ;(global as any).fetch = jest.fn()
+            mockPrisma.$transaction = jest.fn()
+            mockPrisma.reactionRoleMessage = {
+                findUnique: jest.fn(),
+            }
+            mockPrisma.reactionRoleMapping = {
+                create: jest.fn(),
+                deleteMany: jest.fn(),
+            }
+        })
+
+        afterEach(() => {
+            jest.restoreAllMocks()
+        })
+
+        it('happy path: inserts one mapping then PATCHes Discord', async () => {
+            const existingMapping = {
+                id: 'mapping-1',
+                messageId,
+                roleId: '11111111111111111',
+                label: 'Existing',
+                emoji: null,
+                buttonId: 'reactionrole:11111111111111111',
+                type: 'button',
+                style: 'Primary',
+            }
+
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                id: 'msg-id-1',
+                messageId,
+                guildId,
+                channelId,
+                title: 'Test',
+                description: 'Click',
+                imageUrl: null,
+                mappings: [existingMapping],
+            })
+
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) => {
+                    return typeof callback === 'function'
+                        ? callback(mockPrisma)
+                        : {}
+                },
+            )
+
+            mockPrisma.reactionRoleMapping.create.mockResolvedValueOnce({
+                id: 'mapping-2',
+                messageId,
+                roleId: newRoleId,
+                label: 'New',
+                emoji: null,
+                buttonId: `reactionrole:${newRoleId}`,
+                type: 'button',
+                style: 'Secondary',
+            })
+            ;(global as any).fetch.mockResolvedValueOnce({ ok: true })
+
+            const result = await service.addRoleToMessage(
+                messageId,
+                {
+                    roleId: newRoleId,
+                    label: 'New',
+                    emoji: null,
+                    style: 'Secondary' as const,
+                },
+                botToken,
+            )
+
+            expect(result.status).toBe('ok')
+            expect(result.mapping.roleId).toBe(newRoleId)
+        })
+
+        it('DB insert BEFORE Discord PATCH', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                id: 'msg-id-1',
+                messageId,
+                guildId,
+                channelId,
+                title: 'Test',
+                description: 'Click',
+                imageUrl: null,
+                mappings: [
+                    {
+                        id: 'mapping-1',
+                        messageId,
+                        roleId: '11111111111111111',
+                        label: 'Ex',
+                        emoji: null,
+                        buttonId: 'reactionrole:11111111111111111',
+                        type: 'button',
+                        style: 'Primary',
+                    },
+                ],
+            })
+
+            const callOrder: string[] = []
+
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) => {
+                    callOrder.push('tx-start')
+                    const result = await callback(mockPrisma)
+                    callOrder.push('tx-end')
+                    return result
+                },
+            )
+
+            mockPrisma.reactionRoleMapping.create.mockImplementationOnce(
+                async () => {
+                    callOrder.push('db-insert')
+                    return {
+                        id: 'mapping-2',
+                        messageId,
+                        roleId: newRoleId,
+                        label: 'New',
+                        emoji: null,
+                        buttonId: `reactionrole:${newRoleId}`,
+                        type: 'button',
+                        style: 'Secondary',
+                    }
+                },
+            )
+            ;(global as any).fetch.mockImplementationOnce(async () => {
+                callOrder.push('discord-patch')
+                return { ok: true }
+            })
+
+            await service.addRoleToMessage(
+                messageId,
+                {
+                    roleId: newRoleId,
+                    label: 'New',
+                    emoji: null,
+                    style: 'Secondary' as const,
+                },
+                botToken,
+            )
+
+            expect(callOrder.indexOf('db-insert')).toBeLessThan(
+                callOrder.indexOf('discord-patch'),
+            )
+        })
+
+        it('Discord PATCH fails → partial_success', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                id: 'msg-id-1',
+                messageId,
+                guildId,
+                channelId,
+                title: 'Test',
+                description: 'Click',
+                imageUrl: null,
+                mappings: [
+                    {
+                        id: 'mapping-1',
+                        messageId,
+                        roleId: '11111111111111111',
+                        label: 'Ex',
+                        emoji: null,
+                        buttonId: 'reactionrole:11111111111111111',
+                        type: 'button',
+                        style: 'Primary',
+                    },
+                ],
+            })
+
+            const createdMapping = {
+                id: 'mapping-2',
+                messageId,
+                roleId: newRoleId,
+                label: 'New',
+                emoji: null,
+                buttonId: `reactionrole:${newRoleId}`,
+                type: 'button',
+                style: 'Secondary',
+            }
+
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) => callback(mockPrisma),
+            )
+            mockPrisma.reactionRoleMapping.create.mockResolvedValueOnce(
+                createdMapping,
+            )
+            ;(global as any).fetch.mockResolvedValueOnce({
+                ok: false,
+                status: 500,
+                text: jest.fn(),
+            } as any)
+
+            const result = await service.addRoleToMessage(
+                messageId,
+                {
+                    roleId: newRoleId,
+                    label: 'New',
+                    emoji: null,
+                    style: 'Secondary' as const,
+                },
+                botToken,
+            )
+
+            expect(result.status).toBe('partial_success')
+            expect(result.mapping).toEqual(createdMapping)
+        })
+
+        it('25 buttons → rejects', async () => {
+            const mappings = Array.from({ length: 25 }, (_, i) => ({
+                id: `m-${i}`,
+                messageId,
+                roleId: `r-${i}`,
+                label: `L${i}`,
+                emoji: null,
+                buttonId: `b-${i}`,
+                type: 'button',
+                style: 'Primary',
+            }))
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                id: 'msg-id-1',
+                messageId,
+                guildId,
+                channelId,
+                title: 'Test',
+                description: 'Click',
+                imageUrl: null,
+                mappings,
+            })
+
+            await expect(
+                service.addRoleToMessage(
+                    messageId,
+                    {
+                        roleId: newRoleId,
+                        label: 'New',
+                        emoji: null,
+                        style: 'Secondary' as const,
+                    },
+                    botToken,
+                ),
+            ).rejects.toThrow('Message already at capacity')
+            expect(mockPrisma.$transaction).not.toHaveBeenCalled()
+        })
+
+        it('duplicate roleId → conflict', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                id: 'msg-id-1',
+                messageId,
+                guildId,
+                channelId,
+                title: 'Test',
+                description: 'Click',
+                imageUrl: null,
+                mappings: [
+                    {
+                        id: 'mapping-1',
+                        messageId,
+                        roleId: newRoleId,
+                        label: 'Ex',
+                        emoji: null,
+                        buttonId: `reactionrole:${newRoleId}`,
+                        type: 'button',
+                        style: 'Primary',
+                    },
+                ],
+            })
+
+            await expect(
+                service.addRoleToMessage(
+                    messageId,
+                    {
+                        roleId: newRoleId,
+                        label: 'New',
+                        emoji: null,
+                        style: 'Secondary' as const,
+                    },
+                    botToken,
+                ),
+            ).rejects.toThrow('Role already mapped')
+            expect(mockPrisma.$transaction).not.toHaveBeenCalled()
+        })
+
+        it('NO deleteMany called', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                id: 'msg-id-1',
+                messageId,
+                guildId,
+                channelId,
+                title: 'Test',
+                description: 'Click',
+                imageUrl: null,
+                mappings: [
+                    {
+                        id: 'mapping-1',
+                        messageId,
+                        roleId: '11111111111111111',
+                        label: 'Ex',
+                        emoji: null,
+                        buttonId: 'reactionrole:11111111111111111',
+                        type: 'button',
+                        style: 'Primary',
+                    },
+                ],
+            })
+
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) => callback(mockPrisma),
+            )
+            mockPrisma.reactionRoleMapping.create.mockResolvedValueOnce({
+                id: 'mapping-2',
+                messageId,
+                roleId: newRoleId,
+                label: 'New',
+                emoji: null,
+                buttonId: `reactionrole:${newRoleId}`,
+                type: 'button',
+                style: 'Secondary',
+            })
+            ;(global as any).fetch.mockResolvedValueOnce({ ok: true })
+
+            await service.addRoleToMessage(
+                messageId,
+                {
+                    roleId: newRoleId,
+                    label: 'New',
+                    emoji: null,
+                    style: 'Secondary' as const,
+                },
+                botToken,
+            )
+
+            expect(
+                mockPrisma.reactionRoleMapping.deleteMany,
+            ).not.toHaveBeenCalled()
+        })
+    })
 })

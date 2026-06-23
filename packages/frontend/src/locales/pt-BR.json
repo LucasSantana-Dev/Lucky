@@ -824,7 +824,12 @@
         "updateFailedError": "Falha ao atualizar mensagem de cargo por reação",
         "deleteFailedError": "Falha ao excluir mensagem de cargo por reação.",
         "loadFailedError": "Falha ao carregamentar mensagens de cargo por reação.",
-        "noMappings": "Nenhum mapeamento de cargo encontrado para esta mensagem."
+        "noMappings": "Nenhum mapeamento de cargo encontrado para esta mensagem.",
+        "createRoleGroup": "Criar grupo de cargos",
+        "createRoleGroupTitle": "Crie um grupo de cargos para gerenciar cargos estilizados",
+        "addStyledRole": "Adicionar cargo estilizado",
+        "defaultRoleGroupName": "Grupo de Cargos {{timestamp}}",
+        "createRoleGroupError": "Falha ao criar o grupo de cargos."
     },
     "serverLogs": {
         "title": "Logs do Servidor",

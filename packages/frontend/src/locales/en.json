@@ -828,7 +828,12 @@
         "updateFailedError": "Failed to update reaction role message",
         "deleteFailedError": "Failed to delete reaction role message.",
         "loadFailedError": "Failed to load reaction role messages.",
-        "noMappings": "No role mappings found for this message."
+        "noMappings": "No role mappings found for this message.",
+        "createRoleGroup": "Create role group",
+        "createRoleGroupTitle": "Create a role group to manage styled roles",
+        "addStyledRole": "Add styled role",
+        "defaultRoleGroupName": "Role Group {{timestamp}}",
+        "createRoleGroupError": "Failed to create role group."
     },
     "serverLogs": {
         "title": "Server Logs",
