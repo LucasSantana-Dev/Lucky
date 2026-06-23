@@ -18,6 +18,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import Skeleton from '@/components/ui/Skeleton'
 import SectionHeader from '@/components/ui/SectionHeader'
 import { Badge } from '@/components/ui/badge'
+import { AddStyledRoleForm } from '@/components/reactionRoles/AddStyledRoleForm'
 import {
     Dialog,
     DialogContent,
@@ -113,14 +114,22 @@ function MappingPill({
 
 function MessageCard({
     message,
+    guildId,
     onDelete,
     onEdit,
+    onCreateRoleGroup,
+    onRoleAdded,
 }: {
     message: ReactionRoleMessage
+    guildId: string
     onDelete: (messageId: string) => Promise<void>
     onEdit: (message: ReactionRoleMessage) => void
+    onCreateRoleGroup: (messageId: string) => Promise<void>
+    onRoleAdded: () => void
 }) {
     const [deleting, setDeleting] = useState(false)
+    const [creatingGroup, setCreatingGroup] = useState(false)
+    const [showAddRole, setShowAddRole] = useState(false)
     const date = new Date(message.createdAt)
     const dateStr = date.toLocaleDateString(undefined, {
         year: 'numeric',
@@ -134,6 +143,15 @@ function MessageCard({
             await onDelete(message.messageId)
         } finally {
             setDeleting(false)
+        }
+    }
+
+    async function handleCreateRoleGroup() {
+        setCreatingGroup(true)
+        try {
+            await onCreateRoleGroup(message.id)
+        } finally {
+            setCreatingGroup(false)
         }
     }
 
@@ -163,6 +181,18 @@ function MessageCard({
                         {message.mappings.length}{' '}
                         {message.mappings.length === 1 ? 'role' : 'roles'}
                     </Badge>
+                    {!message.groupId && (
+                        <Button
+                            variant='secondary'
+                            size='sm'
+                            onClick={() => void handleCreateRoleGroup()}
+                            disabled={creatingGroup}
+                            className='text-lucky-text-secondary'
+                            title='Create a role group to manage styled roles'
+                        >
+                            Create role group
+                        </Button>
+                    )}
                     <Button
                         variant='secondary'
                         size='sm'
@@ -201,6 +231,27 @@ function MessageCard({
                 <p className='type-body-sm text-lucky-text-tertiary'>
                     No role mappings found for this message.
                 </p>
+            )}
+
+            {message.groupId && (
+                <div className='border-t border-lucky-border pt-4'>
+                    {!showAddRole ? (
+                        <Button
+                            variant='secondary'
+                            size='sm'
+                            onClick={() => setShowAddRole(true)}
+                        >
+                            <Sparkles className='h-3.5 w-3.5' />
+                            Add styled role
+                        </Button>
+                    ) : (
+                        <AddStyledRoleForm
+                            guildId={guildId}
+                            groupId={message.groupId}
+                            onSuccess={onRoleAdded}
+                        />
+                    )}
+                </div>
             )}
         </Card>
     )
@@ -838,6 +889,23 @@ export default function ReactionRoles() {
         void fetchMessages()
     }
 
+    async function handleCreateRoleGroup(messageId: string) {
+        if (!selectedGuild) return
+        try {
+            await api.roleGroups.create(selectedGuild.id, {
+                name: `Role Group ${new Date().toLocaleString()}`,
+                fromMessageId: messageId,
+            })
+            void fetchMessages()
+        } catch (err) {
+            setDeleteError(
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to create role group.',
+            )
+        }
+    }
+
     function handleExport() {
         const exported = serializeReactionRolesToJSON(messages)
         const jsonString = JSON.stringify(exported, null, 2)
@@ -942,8 +1010,11 @@ export default function ReactionRoles() {
                             >
                                 <MessageCard
                                     message={message}
+                                    guildId={selectedGuild!.id}
                                     onDelete={handleDelete}
                                     onEdit={handleEditClick}
+                                    onCreateRoleGroup={handleCreateRoleGroup}
+                                    onRoleAdded={() => void fetchMessages()}
                                 />
                             </motion.div>
                         ))}
