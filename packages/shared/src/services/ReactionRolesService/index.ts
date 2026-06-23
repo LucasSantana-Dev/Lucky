@@ -218,8 +218,11 @@ export class ReactionRolesService {
                 botToken,
             })
 
+            if (!/^\d{17,20}$/.test(channelId)) {
+                throw new Error('Invalid Discord channel id')
+            }
             const resp = await fetch(
-                `${DISCORD_API}/channels/${encodeURIComponent(channelId)}/messages`,
+                `${DISCORD_API}/channels/${channelId}/messages`,
                 {
                     method: 'POST',
                     headers,
@@ -486,8 +489,14 @@ export class ReactionRolesService {
                 includeAttachments: true,
             })
 
+            if (
+                !/^\d{17,20}$/.test(channelId) ||
+                !/^\d{17,20}$/.test(messageId)
+            ) {
+                throw new Error('Invalid Discord channel or message id')
+            }
             const resp = await fetch(
-                `${DISCORD_API}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}`,
+                `${DISCORD_API}/channels/${channelId}/messages/${messageId}`,
                 {
                     method: 'PATCH',
                     headers,
