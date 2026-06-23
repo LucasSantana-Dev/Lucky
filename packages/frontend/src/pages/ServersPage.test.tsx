@@ -12,6 +12,41 @@ vi.mock('@/components/Dashboard/ServerGrid', () => ({
     default: () => <div data-testid='server-grid'>ServerGrid</div>,
 }))
 
+// Translation key to English value mapping
+const translations: Record<string, string> = {
+    discordAccount: 'Discord Account',
+    totalServers: 'Total Servers',
+    serversLabel: 'Servers',
+    yourServers: 'Your Servers',
+    serversWithBot: '{{count}} servers — {{count2}} with Lucky installed',
+    navServers: 'Servers',
+    navPremium: 'Premium',
+    navSettings: 'Settings',
+    recentlyActive: 'Recently Active',
+    allOtherServers: 'All Other Servers',
+    luckyInstalled: 'Lucky installed',
+    inviteLucky: 'Invite Lucky',
+    noServersTitle: 'No servers yet',
+    noServersDescription: 'Join a Discord server and Lucky will appear here.',
+}
+
+vi.mock('react-i18next', () => ({
+    useTranslation: () => ({
+        t: (key: string, options?: Record<string, any>) => {
+            if (options) {
+                // Handle interpolation like {{count}} and {{count2}}
+                let result = translations[key] || key
+                Object.entries(options).forEach(([k, v]) => {
+                    result = result.replace(`{{${k}}}`, String(v))
+                })
+                return result
+            }
+            return translations[key] || key
+        },
+        i18n: { language: 'en' },
+    }),
+}))
+
 const mockUser = { username: 'TestUser', avatar: null }
 const mockGuilds = [
     { id: '1', name: 'Server 1' },

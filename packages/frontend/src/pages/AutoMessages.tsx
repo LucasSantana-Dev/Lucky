@@ -30,6 +30,7 @@ import type {
     CreateAutoMessageInput,
     UpdateAutoMessageInput,
 } from '@/services/autoMessagesApi'
+import { useTranslation } from 'react-i18next'
 
 function formatInterval(seconds: number): string {
     if (seconds < 60) return `${seconds}s`
@@ -63,6 +64,7 @@ function MessageFormDialog({
     onSave,
     onClose,
 }: MessageFormProps) {
+    const { t } = useTranslation()
     const [name, setName] = useState(initial?.name ?? '')
     const [channel, setChannel] = useState(initial?.channel ?? '')
     const [content, setContent] = useState(initial?.content ?? '')
@@ -110,12 +112,12 @@ function MessageFormDialog({
                             htmlFor='am-name'
                             className='type-meta text-lucky-text-secondary'
                         >
-                            Name
+                            {t('autoMessages.name')}
                         </Label>
                         <Input
                             id='am-name'
                             className='bg-lucky-bg-tertiary border-lucky-border text-white placeholder:text-lucky-text-tertiary'
-                            placeholder='e.g. Daily Reminder'
+                            placeholder={t('autoMessages.namePlaceholder')}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
@@ -126,12 +128,12 @@ function MessageFormDialog({
                             htmlFor='am-channel'
                             className='type-meta text-lucky-text-secondary'
                         >
-                            Channel ID
+                            {t('autoMessages.channelId')}
                         </Label>
                         <Input
                             id='am-channel'
                             className='bg-lucky-bg-tertiary border-lucky-border text-white placeholder:text-lucky-text-tertiary'
-                            placeholder='Discord channel ID'
+                            placeholder={t('autoMessages.channelIdPlaceholder')}
                             value={channel}
                             onChange={(e) => setChannel(e.target.value)}
                             required
@@ -142,12 +144,12 @@ function MessageFormDialog({
                             htmlFor='am-content'
                             className='type-meta text-lucky-text-secondary'
                         >
-                            Content
+                            {t('autoMessages.content')}
                         </Label>
                         <textarea
                             id='am-content'
                             className='w-full rounded-lg border border-lucky-border bg-lucky-bg-tertiary px-3 py-2 type-body-sm text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:border-lucky-brand resize-none'
-                            placeholder='Message content...'
+                            placeholder={t('autoMessages.contentPlaceholder')}
                             rows={3}
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
@@ -159,7 +161,7 @@ function MessageFormDialog({
                             htmlFor='am-interval'
                             className='type-meta text-lucky-text-secondary'
                         >
-                            Interval (seconds)
+                            {t('autoMessages.intervalSeconds')}
                         </Label>
                         <Input
                             id='am-interval'
@@ -183,7 +185,7 @@ function MessageFormDialog({
                             htmlFor='am-embed'
                             className='type-body-sm text-lucky-text-secondary cursor-pointer'
                         >
-                            Send as embed
+                            {t('autoMessages.sendAsEmbed')}
                         </Label>
                     </div>
                     <div className='flex justify-end gap-2 pt-2 border-t border-lucky-border'>
@@ -193,14 +195,16 @@ function MessageFormDialog({
                             onClick={onClose}
                             disabled={saving}
                         >
-                            Cancel
+                            {t('autoMessages.cancel')}
                         </Button>
                         <Button
                             variant='primary'
                             type='submit'
                             disabled={saving}
                         >
-                            {saving ? 'Saving…' : 'Save'}
+                            {saving
+                                ? t('autoMessages.saving')
+                                : t('autoMessages.save')}
                         </Button>
                     </div>
                 </form>
@@ -210,6 +214,7 @@ function MessageFormDialog({
 }
 
 export default function AutoMessagesPage() {
+    const { t } = useTranslation()
     const prefersReducedMotion = useReducedMotion()
     const { selectedGuild } = useGuildStore()
     const [messages, setMessages] = useState<AutoMessage[]>([])
@@ -276,10 +281,10 @@ export default function AutoMessagesPage() {
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <MessageSquare className='w-16 h-16 text-lucky-text-tertiary mb-4' />
                 <h2 className='type-h2 text-lucky-text-primary mb-2'>
-                    No Server Selected
+                    {t('autoMessages.noServerSelected')}
                 </h2>
                 <p className='type-body text-lucky-text-secondary'>
-                    Select a server to manage auto messages
+                    {t('autoMessages.selectServerToManage')}
                 </p>
             </div>
         )
@@ -297,10 +302,12 @@ export default function AutoMessagesPage() {
                 <div className='flex items-start justify-between'>
                     <header>
                         <h1 className='type-h1 text-lucky-text-primary'>
-                            Auto Messages
+                            {t('autoMessages.title')}
                         </h1>
                         <p className='type-body text-lucky-text-secondary mt-1'>
-                            Schedule automatic messages for {selectedGuild.name}
+                            {t('autoMessages.subtitle', {
+                                name: selectedGuild.name,
+                            })}
                         </p>
                     </header>
                     <Button
@@ -352,7 +359,7 @@ export default function AutoMessagesPage() {
                                             : i * 0.03,
                                     }}
                                 >
-                                    <Card className='p-5 hover:border-lucky-border-strong transition-all'>
+                                    <Card className='p-5 border border-lucky-border hover:border-lucky-border-strong transition-all'>
                                         <div className='flex items-start justify-between mb-3'>
                                             <div className='flex items-center gap-2'>
                                                 <div className='p-2 rounded-lg bg-lucky-brand/15'>
@@ -400,7 +407,7 @@ export default function AutoMessagesPage() {
                                         <div className='flex flex-wrap items-center gap-2'>
                                             <Badge
                                                 variant='outline'
-                                                className='type-meta gap-1 normal-case bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary'
+                                                className='type-meta gap-1 uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary rounded-sm'
                                             >
                                                 <Hash
                                                     className='w-3 h-3'
@@ -410,7 +417,7 @@ export default function AutoMessagesPage() {
                                             </Badge>
                                             <Badge
                                                 variant='outline'
-                                                className='type-meta gap-1 normal-case bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary'
+                                                className='type-meta gap-1 uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary rounded-sm'
                                             >
                                                 <Clock
                                                     className='w-3 h-3'
@@ -422,14 +429,14 @@ export default function AutoMessagesPage() {
                                             {msg.isEmbed && (
                                                 <Badge
                                                     variant='outline'
-                                                    className='type-meta normal-case bg-lucky-brand/10 text-lucky-brand border-lucky-brand/20'
+                                                    className='type-meta uppercase font-semibold bg-lucky-brand/10 text-lucky-brand border-lucky-brand/20 rounded-sm'
                                                 >
                                                     Embed
                                                 </Badge>
                                             )}
                                             <Badge
                                                 variant='outline'
-                                                className='type-meta gap-1 normal-case bg-lucky-bg-tertiary border-lucky-border text-lucky-text-tertiary'
+                                                className='type-meta gap-1 uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-tertiary rounded-sm'
                                             >
                                                 <Calendar
                                                     className='w-3 h-3'

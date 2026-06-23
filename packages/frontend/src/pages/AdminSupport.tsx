@@ -47,7 +47,7 @@ export default function AdminSupportPage() {
                     <button
                         key={s}
                         onClick={() => setStatus(s)}
-                        className={`px-3 py-1.5 rounded-full type-meta border transition-colors ${
+                        className={`px-3 py-1.5 rounded-sm type-meta uppercase font-semibold border transition-colors ${
                             status === s
                                 ? 'bg-lucky-brand text-lucky-bg-primary border-lucky-brand'
                                 : 'bg-lucky-bg-active text-lucky-text-secondary border-lucky-border hover:text-lucky-text-primary'
@@ -82,7 +82,7 @@ export default function AdminSupportPage() {
                             <li key={r.id}>
                                 <button
                                     onClick={() => setSelectedId(r.id)}
-                                    className={`w-full text-left surface-panel rounded-lg border p-3 transition-colors ${
+                                    className={`w-full text-left surface-panel rounded-lg border p-3 transition-colors hover:bg-lucky-bg-active/25 ${
                                         selectedId === r.id
                                             ? 'border-lucky-brand'
                                             : 'border-lucky-border hover:border-lucky-text-tertiary'
@@ -182,7 +182,7 @@ function StatusBadge({ status }: { status: string }) {
                 : 'bg-lucky-warning/10 text-lucky-warning border-lucky-warning/20'
     return (
         <span
-            className={`inline-block px-2 py-0.5 rounded-full type-meta border ${tone}`}
+            className={`inline-block px-2 py-0.5 rounded-sm type-meta uppercase font-semibold border ${tone}`}
         >
             {t(`support.admin.status.${status}`, { defaultValue: status })}
         </span>

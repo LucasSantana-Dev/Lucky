@@ -10,5 +10,17 @@
             { "source": "header", "name": "X-Webhook-Secret" },
             { "source": "header", "name": "X-Deploy-SHA" }
         ]
+    },
+    {
+        "id": "deploy-staging",
+        "execute-command": "/home/luk-server/Lucky/scripts/deploy-staging-wrapper.sh",
+        "command-working-directory": "/home/luk-server/Lucky",
+        "response-message": "Staging deploy triggered",
+        "include-command-output-in-response": true,
+        "include-command-output-in-response-on-error": true,
+        "pass-arguments-to-command": [
+            { "source": "header", "name": "X-Webhook-Secret" },
+            { "source": "header", "name": "X-Deploy-Ref" }
+        ]
     }
 ]

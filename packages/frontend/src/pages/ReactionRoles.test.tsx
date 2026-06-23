@@ -2267,3 +2267,206 @@ test('submit with empty roles shows error', async () => {
         expect(errorMessages.length).toBeGreaterThan(0)
     })
 })
+
+describe('Role Groups Integration', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    test('displays "Create role group" button for messages without groupId', async () => {
+        mockGuildStore()
+        const messages: ReactionRoleMessage[] = [
+            {
+                id: '1',
+                guildId: '123456',
+                messageId: 'msg-123',
+                channelId: 'channel-456',
+                groupId: undefined,
+                createdAt: new Date('2024-01-15').toISOString(),
+                mappings: [
+                    {
+                        id: 'map-1',
+                        buttonId: '',
+                        type: 'button',
+                        emoji: '🎮',
+                        label: 'Gamer',
+                        style: 'Primary',
+                        roleId: 'role-111',
+                    },
+                ],
+            },
+        ]
+        vi.mocked(api.reactionRoles.list).mockResolvedValue(messages)
+
+        render(<ReactionRoles />)
+
+        await waitFor(() => {
+            expect(api.reactionRoles.list).toHaveBeenCalled()
+        })
+
+        // Should have a button to create a role group
+        const createGroupButton = await screen.findByRole('button', {
+            name: /create role group/i,
+        })
+        expect(createGroupButton).toBeInTheDocument()
+    })
+
+    test('calls api.roleGroups.create with correct arguments when "Create role group" is clicked', async () => {
+        mockGuildStore()
+        const messages: ReactionRoleMessage[] = [
+            {
+                id: 'cuid-msg-1',
+                guildId: '123456',
+                messageId: 'msg-123',
+                channelId: 'channel-456',
+                groupId: undefined,
+                createdAt: new Date('2024-01-15').toISOString(),
+                mappings: [
+                    {
+                        id: 'map-1',
+                        buttonId: '',
+                        type: 'button',
+                        emoji: '🎮',
+                        label: 'Gamer',
+                        style: 'Primary',
+                        roleId: 'role-111',
+                    },
+                ],
+            },
+        ]
+        vi.mocked(api.reactionRoles.list).mockResolvedValue(messages)
+        vi.mocked(api.roleGroups.create).mockResolvedValue({
+            id: 'group-1',
+            guildId: '123456',
+            name: 'Test Group',
+            hoist: false,
+            mentionable: false,
+        } as any)
+
+        render(<ReactionRoles />)
+
+        await waitFor(() => {
+            expect(api.reactionRoles.list).toHaveBeenCalled()
+        })
+
+        const createGroupButton = await screen.findByRole('button', {
+            name: /create role group/i,
+        })
+        fireEvent.click(createGroupButton)
+
+        await waitFor(() => {
+            expect(api.roleGroups.create).toHaveBeenCalledWith(
+                '123456',
+                expect.objectContaining({
+                    fromMessageId: 'cuid-msg-1',
+                    name: expect.any(String),
+                }),
+            )
+        })
+    })
+
+    test('refetches messages after creating a role group', async () => {
+        mockGuildStore()
+        const messages: ReactionRoleMessage[] = [
+            {
+                id: 'cuid-msg-1',
+                guildId: '123456',
+                messageId: 'msg-123',
+                channelId: 'channel-456',
+                groupId: undefined,
+                createdAt: new Date('2024-01-15').toISOString(),
+                mappings: [
+                    {
+                        id: 'map-1',
+                        buttonId: '',
+                        type: 'button',
+                        emoji: '🎮',
+                        label: 'Gamer',
+                        style: 'Primary',
+                        roleId: 'role-111',
+                    },
+                ],
+            },
+        ]
+        const updatedMessages: ReactionRoleMessage[] = [
+            {
+                ...messages[0],
+                groupId: 'group-1',
+            },
+        ]
+
+        vi.mocked(api.reactionRoles.list)
+            .mockResolvedValueOnce(messages)
+            .mockResolvedValueOnce(updatedMessages)
+        vi.mocked(api.roleGroups.create).mockResolvedValue({
+            id: 'group-1',
+            guildId: '123456',
+            name: 'Test Group',
+            hoist: false,
+            mentionable: false,
+        } as any)
+
+        render(<ReactionRoles />)
+
+        await waitFor(() => {
+            expect(api.reactionRoles.list).toHaveBeenCalledTimes(1)
+        })
+
+        const createGroupButton = await screen.findByRole('button', {
+            name: /create role group/i,
+        })
+        fireEvent.click(createGroupButton)
+
+        await waitFor(() => {
+            expect(api.reactionRoles.list).toHaveBeenCalledTimes(2)
+        })
+    })
+
+    test('renders AddStyledRoleForm when message has groupId', async () => {
+        mockGuildStore()
+        const messages: ReactionRoleMessage[] = [
+            {
+                id: '1',
+                guildId: '123456',
+                messageId: 'msg-123',
+                channelId: 'channel-456',
+                groupId: 'group-1',
+                createdAt: new Date('2024-01-15').toISOString(),
+                mappings: [
+                    {
+                        id: 'map-1',
+                        buttonId: '',
+                        type: 'button',
+                        emoji: '🎮',
+                        label: 'Gamer',
+                        style: 'Primary',
+                        roleId: 'role-111',
+                    },
+                ],
+            },
+        ]
+        vi.mocked(api.reactionRoles.list).mockResolvedValue(messages)
+
+        render(<ReactionRoles />)
+
+        await waitFor(() => {
+            expect(api.reactionRoles.list).toHaveBeenCalled()
+        })
+
+        // A grouped message shows the "Add styled role" toggle (and NOT the
+        // "Create role group" button, which is only for ungrouped messages).
+        const toggle = await screen.findByRole('button', {
+            name: /add styled role/i,
+        })
+        expect(
+            screen.queryByRole('button', { name: /create role group/i }),
+        ).not.toBeInTheDocument()
+
+        // Clicking it mounts the AddStyledRoleForm.
+        fireEvent.click(toggle)
+        expect(
+            await screen.findByRole('button', { name: /preview/i }),
+        ).toBeInTheDocument()
+        expect(screen.getByText(/role name/i)).toBeInTheDocument()
+    })
+})

@@ -4,9 +4,12 @@ import { useTranslation } from 'react-i18next'
 import Sidebar from './Sidebar'
 import VoteBadge from './VoteBadge'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
+import { useAuthStore } from '@/stores/authStore'
+import { useGuildStore } from '@/stores/guildStore'
+import { getUserAvatarUrl } from '@/lib/discord'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, LogOut } from 'lucide-react'
 
 interface LayoutProps {
     children: ReactNode
@@ -82,7 +85,9 @@ function GuildChip() {
             type='button'
             onClick={() => navigate('/servers')}
             className='lucky-focus-visible flex items-center gap-2 rounded-md border border-lucky-border bg-lucky-bg-secondary px-3 py-1.5 text-left transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary'
-            aria-label={t('common.activeServerAriaLabel', { name: selectedGuild.name })}
+            aria-label={t('common.activeServerAriaLabel', {
+                name: selectedGuild.name,
+            })}
             title={t('sidebar.switchServer')}
         >
             <Avatar className='h-5 w-5 shrink-0'>
@@ -106,6 +111,41 @@ function GuildChip() {
     )
 }
 
+function UserMenu() {
+    const { user, logout } = useAuthStore()
+    const { memberContext } = useGuildStore()
+    const { t } = useTranslation()
+    const profileName =
+        memberContext?.nickname || user?.globalName || user?.username || 'User'
+    const avatarSrc =
+        user?.avatar && user?.id
+            ? getUserAvatarUrl(user.id, user.avatar)
+            : undefined
+
+    return (
+        <div className='flex items-center gap-2 rounded-md border border-lucky-border bg-lucky-bg-secondary px-2 py-1'>
+            <Avatar className='h-6 w-6 shrink-0'>
+                <AvatarImage src={avatarSrc} alt={profileName} />
+                <AvatarFallback className='bg-lucky-bg-active text-[10px] font-semibold text-lucky-text-primary'>
+                    {(user?.username || 'U').substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+            </Avatar>
+            <span className='type-body-sm hidden max-w-[120px] truncate text-lucky-text-primary sm:block'>
+                {profileName}
+            </span>
+            <button
+                type='button'
+                onClick={logout}
+                className='lucky-focus-visible flex min-h-[28px] min-w-[28px] items-center justify-center rounded-md text-lucky-text-subtle transition-colors hover:bg-lucky-error/10 hover:text-lucky-error'
+                aria-label={t('common.logout')}
+                title={t('common.logout')}
+            >
+                <LogOut className='h-3.5 w-3.5' aria-hidden='true' />
+            </button>
+        </div>
+    )
+}
+
 function Layout({ children }: LayoutProps) {
     const location = useLocation()
     const routeCopy = useRouteCopy(location.pathname)
@@ -118,7 +158,11 @@ function Layout({ children }: LayoutProps) {
 
     return (
         <div className='lucky-shell lucky-shell-authenticated flex min-h-screen'>
-            <a className='lucky-skip-link' href='#lucky-main-content' onClick={handleSkipLinkClick}>
+            <a
+                className='lucky-skip-link'
+                href='#lucky-main-content'
+                onClick={handleSkipLinkClick}
+            >
                 Skip to content
             </a>
             <Sidebar />
@@ -137,12 +181,21 @@ function Layout({ children }: LayoutProps) {
                             <VoteBadge />
                             <LanguageSwitcher />
                             <GuildChip />
+                            <UserMenu />
                         </div>
                     </div>
-                    <div className='lucky-header-accent-line' aria-hidden='true' />
+                    <div
+                        className='lucky-header-accent-line'
+                        aria-hidden='true'
+                    />
                 </header>
 
-                <main ref={mainRef} id='lucky-main-content' className='flex-1 min-w-0 overflow-y-auto' tabIndex={-1}>
+                <main
+                    ref={mainRef}
+                    id='lucky-main-content'
+                    className='flex-1 min-w-0 overflow-y-auto'
+                    tabIndex={-1}
+                >
                     <div className='mx-auto w-full max-w-[1400px] px-4 py-6 md:px-6 lg:px-8 lg:py-7'>
                         {children}
                     </div>

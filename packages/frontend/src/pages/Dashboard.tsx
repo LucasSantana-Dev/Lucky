@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { FolderKanban } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import Button from '@/components/ui/Button'
 import ServerGrid from '@/components/Dashboard/ServerGrid'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
@@ -7,6 +8,7 @@ import { usePageMetadata } from '@/hooks/usePageMetadata'
 
 export default function DashboardPage() {
     const navigate = useNavigate()
+    const { t } = useTranslation()
     const { selectedGuild } = useGuildSelection()
     usePageMetadata({
         title: 'Dashboard - Lucky',
@@ -23,15 +25,13 @@ export default function DashboardPage() {
                     />
                 </div>
                 <h2 className='type-h2 text-lucky-text-primary mb-2'>
-                    No Server Selected
+                    {t('dashboard.noServerSelected')}
                 </h2>
                 <p className='type-body text-lucky-text-secondary mb-4'>
-                    Select a server from the sidebar to manage it
+                    {t('dashboard.selectServerFromSidebar')}
                 </p>
-                <Button
-                    onClick={() => navigate('/servers')}
-                >
-                    View Your Servers
+                <Button onClick={() => navigate('/servers')}>
+                    {t('dashboard.viewYourServers')}
                 </Button>
             </main>
         )
@@ -41,7 +41,7 @@ export default function DashboardPage() {
         <main className='space-y-6'>
             <header>
                 <h1 className='type-h1 text-lucky-text-primary mb-4'>
-                    Dashboard
+                    {t('dashboard.pageTitle')}
                 </h1>
             </header>
             <section aria-labelledby='server-grid-heading'>

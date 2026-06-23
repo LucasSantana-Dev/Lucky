@@ -95,6 +95,7 @@ model Guild {
   memberBirthdays      MemberBirthday[]
   subscription         GuildSubscription?
   reactionRoleMessages ReactionRoleMessage[]
+  roleGroups           RoleGroup[]
   forumThreads         GuildForumThread[]
 
   @@map("guilds")
@@ -559,19 +560,22 @@ model Recommendation {
 
 // Reaction Roles
 model ReactionRoleMessage {
-  id          String   @id @default(cuid())
-  messageId   String   @unique
+  id          String     @id @default(cuid())
+  messageId   String     @unique
   channelId   String
   guildId     String
+  groupId     String?
   title       String?
   description String?
   imageUrl    String?
-  guild       Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  guild       Guild      @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  group       RoleGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   mappings ReactionRoleMapping[]
 
+  @@unique([groupId])
   @@index([guildId])
   @@map("reaction_role_messages")
 }
@@ -591,6 +595,25 @@ model ReactionRoleMapping {
   @@unique([messageId, roleId])
   @@index([messageId])
   @@map("reaction_role_mappings")
+}
+
+model RoleGroup {
+  id           String   @id @default(cuid())
+  guildId      String
+  guild        Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  name         String
+  color        String? // hex "0x5865F2" (matches UserPreferences.embedColor); converted to int for Discord
+  hoist        Boolean  @default(false)
+  mentionable  Boolean  @default(false)
+  buttonStyle  String? // "Primary" | "Secondary" | "Success" | "Danger"
+  defaultEmoji String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  messages ReactionRoleMessage[]
+
+  @@index([guildId])
+  @@map("role_groups")
 }
 
 // Last.fm per-user linking (session key stored per Discord user)
@@ -994,11 +1017,11 @@ model SupportReport {
 // Top.gg vote tracking: dedup (12h TTL) + streak counter (36h reset).
 // One row per Discord user who has ever voted; no FK to users table.
 model TopggVote {
-  id        String   @id @default(cuid())
-  userId    String   @unique // Discord user snowflake
+  id         String   @id @default(cuid())
+  userId     String   @unique // Discord user snowflake
   lastVoteAt DateTime
-  streak    Int      @default(1)
-  updatedAt DateTime @updatedAt
+  streak     Int      @default(1)
+  updatedAt  DateTime @updatedAt
 
   @@map("topgg_votes")
 }
@@ -1067,13 +1090,13 @@ model Session {
 // forum thread tagged `<!-- official:v1:<slug> -->` is created or updated.
 // Used by the web app to render per-guia "Ver discussão no Discord" CTAs.
 model GuildForumThread {
-  id       String  @id @default(cuid())
-  guildId  String
-  guild    Guild   @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
-  threadId String
-  slug     String
-  title    String
-  archived Boolean  @default(false)
+  id        String   @id @default(cuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  threadId  String
+  slug      String
+  title     String
+  archived  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

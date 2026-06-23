@@ -26,6 +26,10 @@
             "types": "./dist/services/guildAutomation/index.d.ts",
             "default": "./dist/services/guildAutomation/index.js"
         },
+        "./services/ReactionRolesService": {
+            "types": "./dist/services/ReactionRolesService/index.d.ts",
+            "default": "./dist/services/ReactionRolesService/index.js"
+        },
         "./services/*": {
             "types": "./dist/services/*.d.ts",
             "default": "./dist/services/*.js"

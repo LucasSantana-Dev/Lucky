@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Users,
@@ -18,6 +19,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import Skeleton from '@/components/ui/Skeleton'
 import SectionHeader from '@/components/ui/SectionHeader'
 import { Badge } from '@/components/ui/badge'
+import { AddStyledRoleForm } from '@/components/reactionRoles/AddStyledRoleForm'
 import {
     Dialog,
     DialogContent,
@@ -113,14 +115,23 @@ function MappingPill({
 
 function MessageCard({
     message,
+    guildId,
     onDelete,
     onEdit,
+    onCreateRoleGroup,
+    onRoleAdded,
 }: {
     message: ReactionRoleMessage
+    guildId: string
     onDelete: (messageId: string) => Promise<void>
     onEdit: (message: ReactionRoleMessage) => void
+    onCreateRoleGroup: (messageId: string) => Promise<void>
+    onRoleAdded: () => void
 }) {
+    const { t } = useTranslation()
     const [deleting, setDeleting] = useState(false)
+    const [creatingGroup, setCreatingGroup] = useState(false)
+    const [showAddRole, setShowAddRole] = useState(false)
     const date = new Date(message.createdAt)
     const dateStr = date.toLocaleDateString(undefined, {
         year: 'numeric',
@@ -137,8 +148,17 @@ function MessageCard({
         }
     }
 
+    async function handleCreateRoleGroup() {
+        setCreatingGroup(true)
+        try {
+            await onCreateRoleGroup(message.id)
+        } finally {
+            setCreatingGroup(false)
+        }
+    }
+
     return (
-        <Card className='space-y-4 p-5'>
+        <Card className='space-y-4 p-5 border border-lucky-border'>
             <div className='flex items-start justify-between gap-3'>
                 <div className='min-w-0 flex-1'>
                     <div className='flex items-center gap-2'>
@@ -163,6 +183,18 @@ function MessageCard({
                         {message.mappings.length}{' '}
                         {message.mappings.length === 1 ? 'role' : 'roles'}
                     </Badge>
+                    {!message.groupId && (
+                        <Button
+                            variant='secondary'
+                            size='sm'
+                            onClick={() => void handleCreateRoleGroup()}
+                            disabled={creatingGroup}
+                            className='text-lucky-text-secondary'
+                            title={t('reactionRoles.createRoleGroupTitle')}
+                        >
+                            {t('reactionRoles.createRoleGroup')}
+                        </Button>
+                    )}
                     <Button
                         variant='secondary'
                         size='sm'
@@ -199,8 +231,38 @@ function MessageCard({
                 </div>
             ) : (
                 <p className='type-body-sm text-lucky-text-tertiary'>
-                    No role mappings found for this message.
+                    {t('reactionRoles.noMappings')}
                 </p>
+            )}
+
+            {message.groupId && (
+                <div className='border-t border-lucky-border pt-4'>
+                    {!showAddRole ? (
+                        <Button
+                            variant='secondary'
+                            size='sm'
+                            onClick={() => setShowAddRole(true)}
+                        >
+                            <Sparkles className='h-3.5 w-3.5' />
+                            {t('reactionRoles.addStyledRole')}
+                        </Button>
+                    ) : (
+                        <div className='space-y-2'>
+                            <Button
+                                variant='secondary'
+                                size='sm'
+                                onClick={() => setShowAddRole(false)}
+                            >
+                                {t('reactionRoles.cancel')}
+                            </Button>
+                            <AddStyledRoleForm
+                                guildId={guildId}
+                                groupId={message.groupId}
+                                onSuccess={onRoleAdded}
+                            />
+                        </div>
+                    )}
+                </div>
             )}
         </Card>
     )
@@ -250,6 +312,7 @@ function MessageForm({
     onClose,
     onSuccess,
 }: MessageFormProps) {
+    const { t } = useTranslation()
     const [channels, setChannels] = useState<GuildChannelOption[]>([])
     const [roles, setRoles] = useState<GuildRoleOption[]>([])
     const [loadingOptions, setLoadingOptions] = useState(false)
@@ -400,20 +463,20 @@ function MessageForm({
     async function handleSubmit() {
         setError(null)
         if (!channelId) {
-            setError('Select a channel')
+            setError(t('reactionRoles.selectChannelError'))
             return
         }
         if (!title.trim()) {
-            setError('Title is required')
+            setError(t('reactionRoles.titleRequiredError'))
             return
         }
         if (!description.trim()) {
-            setError('Description is required')
+            setError(t('reactionRoles.descriptionRequiredError'))
             return
         }
         const validEntries = entries.filter((e) => e.roleId && e.label.trim())
         if (validEntries.length === 0) {
-            setError('Add at least one role with a label')
+            setError(t('reactionRoles.addRoleError'))
             return
         }
 
@@ -465,8 +528,8 @@ function MessageForm({
         } catch (err) {
             const msg =
                 mode === 'create'
-                    ? 'Failed to create reaction role message'
-                    : 'Failed to update reaction role message'
+                    ? t('reactionRoles.createFailedError')
+                    : t('reactionRoles.updateFailedError')
             setError(msg)
         } finally {
             setSubmitting(false)
@@ -479,8 +542,8 @@ function MessageForm({
                 <DialogHeader>
                     <DialogTitle>
                         {mode === 'create'
-                            ? 'Create Reaction Role Message'
-                            : 'Edit Reaction Role Message'}
+                            ? t('reactionRoles.createTitle')
+                            : t('reactionRoles.editTitle')}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -492,14 +555,18 @@ function MessageForm({
                     )}
 
                     <div className='space-y-1.5'>
-                        <Label>Channel</Label>
+                        <Label>{t('reactionRoles.channel')}</Label>
                         <Select
                             value={channelId}
                             onValueChange={setChannelId}
                             disabled={loadingOptions || mode === 'edit'}
                         >
                             <SelectTrigger>
-                                <SelectValue placeholder='Select a channel' />
+                                <SelectValue
+                                    placeholder={t(
+                                        'reactionRoles.selectChannelPlaceholder',
+                                    )}
+                                />
                             </SelectTrigger>
                             <SelectContent>
                                 {channels.map((ch) => (
@@ -511,29 +578,31 @@ function MessageForm({
                         </Select>
                         {mode === 'edit' && (
                             <p className='type-body-sm text-lucky-text-tertiary'>
-                                Channel cannot be changed on edit
+                                {t('reactionRoles.channelCannotChange')}
                             </p>
                         )}
                     </div>
 
                     <div className='space-y-1.5'>
-                        <Label>Title</Label>
+                        <Label>{t('reactionRoles.title')}</Label>
                         <Input
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            placeholder='e.g. Pick your roles'
+                            placeholder={t('reactionRoles.titlePlaceholder')}
                             maxLength={256}
                         />
                     </div>
 
                     <div className='space-y-1.5'>
-                        <Label>Description</Label>
+                        <Label>{t('reactionRoles.description')}</Label>
                         <FormattingToolbar textareaRef={descriptionRef} />
                         <AutoGrowTextarea
                             ref={descriptionRef}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            placeholder='Explain how to use the buttons below…'
+                            placeholder={t(
+                                'reactionRoles.descriptionPlaceholder',
+                            )}
                             maxLength={4096}
                             minRows={3}
                             maxRows={12}
@@ -541,11 +610,11 @@ function MessageForm({
                     </div>
 
                     <div className='space-y-1.5'>
-                        <Label>Image URL (optional)</Label>
+                        <Label>{t('reactionRoles.imageUrlOptional')}</Label>
                         <Input
                             value={imageFile ? '' : imageUrl}
                             onChange={(e) => setImageUrl(e.target.value)}
-                            placeholder='https://example.com/image.png'
+                            placeholder={t('reactionRoles.imageUrlPlaceholder')}
                             maxLength={2048}
                             disabled={!!imageFile}
                         />
@@ -573,7 +642,7 @@ function MessageForm({
                     </div>
 
                     <div className='space-y-1.5'>
-                        <Label>Upload Image (optional)</Label>
+                        <Label>{t('reactionRoles.uploadImageOptional')}</Label>
                         <div className='flex items-center gap-2'>
                             <Button
                                 variant='secondary'
@@ -583,7 +652,7 @@ function MessageForm({
                                 className='relative'
                             >
                                 <Upload className='h-4 w-4' />
-                                Choose Image
+                                {t('reactionRoles.chooseImage')}
                                 <input
                                     ref={fileInputRef}
                                     type='file'
@@ -622,7 +691,9 @@ function MessageForm({
 
                     <div className='sticky top-0 z-10 space-y-2 border-t border-lucky-border bg-lucky-bg-secondary pt-3'>
                         <div className='flex items-center justify-between'>
-                            <Label>Roles ({entries.length}/25)</Label>
+                            <Label>
+                                {t('reactionRoles.roles')} ({entries.length}/25)
+                            </Label>
                             <Button
                                 variant='secondary'
                                 size='sm'
@@ -630,7 +701,7 @@ function MessageForm({
                                 disabled={entries.length >= 25}
                             >
                                 <Plus className='h-3.5 w-3.5' />
-                                Add role
+                                {t('reactionRoles.addRole')}
                             </Button>
                         </div>
 
@@ -658,7 +729,7 @@ function MessageForm({
                                     <div className='grid grid-cols-2 gap-2'>
                                         <div className='space-y-1'>
                                             <Label className='text-xs'>
-                                                Role
+                                                {t('reactionRoles.role')}
                                             </Label>
                                             <Select
                                                 value={entry.roleId}
@@ -668,7 +739,11 @@ function MessageForm({
                                                 disabled={loadingOptions}
                                             >
                                                 <SelectTrigger className='h-8 text-xs'>
-                                                    <SelectValue placeholder='Select role' />
+                                                    <SelectValue
+                                                        placeholder={t(
+                                                            'reactionRoles.selectRolePlaceholder',
+                                                        )}
+                                                    />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {roles.map((r) => (
@@ -684,7 +759,7 @@ function MessageForm({
                                         </div>
                                         <div className='space-y-1'>
                                             <Label className='text-xs'>
-                                                Button label
+                                                {t('reactionRoles.buttonLabel')}
                                             </Label>
                                             <Input
                                                 className='h-8 text-xs'
@@ -696,13 +771,17 @@ function MessageForm({
                                                         e.target.value,
                                                     )
                                                 }
-                                                placeholder='Label'
+                                                placeholder={t(
+                                                    'reactionRoles.buttonLabelPlaceholder',
+                                                )}
                                                 maxLength={80}
                                             />
                                         </div>
                                         <div className='space-y-1'>
                                             <Label className='text-xs'>
-                                                Emoji (optional)
+                                                {t(
+                                                    'reactionRoles.emojiOptional',
+                                                )}
                                             </Label>
                                             <EmojiPicker
                                                 value={entry.emoji}
@@ -718,7 +797,7 @@ function MessageForm({
                                         </div>
                                         <div className='space-y-1'>
                                             <Label className='text-xs'>
-                                                Style
+                                                {t('reactionRoles.style')}
                                             </Label>
                                             <Select
                                                 value={entry.style ?? 'Primary'}
@@ -754,7 +833,7 @@ function MessageForm({
                         onClick={handleClose}
                         disabled={submitting}
                     >
-                        Cancel
+                        {t('reactionRoles.cancel')}
                     </Button>
                     <Button
                         onClick={() => void handleSubmit()}
@@ -762,11 +841,11 @@ function MessageForm({
                     >
                         {submitting
                             ? mode === 'create'
-                                ? 'Creating…'
-                                : 'Updating…'
+                                ? t('reactionRoles.submitCreating')
+                                : t('reactionRoles.submitUpdating')
                             : mode === 'create'
-                              ? 'Create'
-                              : 'Update'}
+                              ? t('reactionRoles.submit')
+                              : t('reactionRoles.submitUpdate')}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -775,6 +854,7 @@ function MessageForm({
 }
 
 export default function ReactionRoles() {
+    const { t } = useTranslation()
     const { selectedGuild } = useGuildStore()
     const [messages, setMessages] = useState<ReactionRoleMessage[]>([])
     const [loading, setLoading] = useState(true)
@@ -795,11 +875,11 @@ export default function ReactionRoles() {
             const data = await api.reactionRoles.list(selectedGuild!.id)
             setMessages(data)
         } catch {
-            setError('Failed to load reaction role messages.')
+            setError(t('reactionRoles.loadFailedError'))
         } finally {
             setLoading(false)
         }
-    }, [selectedGuild])
+    }, [selectedGuild, t])
 
     useEffect(() => {
         void fetchMessages()
@@ -812,7 +892,7 @@ export default function ReactionRoles() {
             await api.reactionRoles.delete(selectedGuild!.id, messageId)
             setMessages((prev) => prev.filter((m) => m.messageId !== messageId))
         } catch {
-            setDeleteError('Failed to delete reaction role message.')
+            setDeleteError(t('reactionRoles.deleteFailedError'))
         }
     }
 
@@ -838,6 +918,26 @@ export default function ReactionRoles() {
         void fetchMessages()
     }
 
+    async function handleCreateRoleGroup(messageId: string) {
+        if (!selectedGuild) return
+        setDeleteError(null)
+        try {
+            await api.roleGroups.create(selectedGuild.id, {
+                name: t('reactionRoles.defaultRoleGroupName', {
+                    timestamp: new Date().toLocaleString(),
+                }),
+                fromMessageId: messageId,
+            })
+            void fetchMessages()
+        } catch (err) {
+            setDeleteError(
+                err instanceof Error
+                    ? err.message
+                    : t('reactionRoles.createRoleGroupError'),
+            )
+        }
+    }
+
     function handleExport() {
         const exported = serializeReactionRolesToJSON(messages)
         const jsonString = JSON.stringify(exported, null, 2)
@@ -860,8 +960,8 @@ export default function ReactionRoles() {
         return (
             <EmptyState
                 icon={<Users className='h-10 w-10' />}
-                title='No server selected'
-                description='Select a server from the sidebar to view reaction roles.'
+                title={t('reactionRoles.noServerSelected')}
+                description={t('reactionRoles.selectServerDescription')}
             />
         )
     }
@@ -879,18 +979,18 @@ export default function ReactionRoles() {
                             variant='secondary'
                         >
                             <Download className='h-4 w-4' />
-                            Export
+                            {t('reactionRoles.export')}
                         </Button>
                         <Button
                             onClick={() => setImportDialogOpen(true)}
                             variant='secondary'
                         >
                             <Upload className='h-4 w-4' />
-                            Import
+                            {t('reactionRoles.import')}
                         </Button>
                         <Button onClick={handleCreateClick}>
                             <Plus className='h-4 w-4' />
-                            Create
+                            {t('reactionRoles.create')}
                         </Button>
                     </div>
                 }
@@ -923,8 +1023,8 @@ export default function ReactionRoles() {
             ) : messages.length === 0 ? (
                 <EmptyState
                     icon={<Sparkles className='h-10 w-10' />}
-                    title='No reaction role messages'
-                    description='Create your first reaction role message to let members self-assign roles with buttons.'
+                    title={t('reactionRoles.noMessagesTitle')}
+                    description={t('reactionRoles.noMessagesDescription')}
                 />
             ) : (
                 <AnimatePresence mode='popLayout'>
@@ -942,8 +1042,11 @@ export default function ReactionRoles() {
                             >
                                 <MessageCard
                                     message={message}
+                                    guildId={selectedGuild!.id}
                                     onDelete={handleDelete}
                                     onEdit={handleEditClick}
+                                    onCreateRoleGroup={handleCreateRoleGroup}
+                                    onRoleAdded={() => void fetchMessages()}
                                 />
                             </motion.div>
                         ))}

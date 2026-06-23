@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Heart, Loader2, Music2, Search, X, Check } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
@@ -169,6 +170,7 @@ function ArtistTile({
 }
 
 export default function PreferredArtistsPage() {
+    const { t } = useTranslation('preferredArtists')
     const { selectedGuild } = useGuildSelection()
     const guildId = selectedGuild?.id
     const prefersReducedMotion = useReducedMotion()
@@ -438,8 +440,8 @@ export default function PreferredArtistsPage() {
         return (
             <EmptyState
                 icon={<Music2 className='h-10 w-10' aria-hidden='true' />}
-                title='No Server Selected'
-                description='Select a server to manage preferred artists'
+                title={t('noServerSelected')}
+                description={t('selectServerToManageArtists')}
             />
         )
     }
@@ -447,14 +449,14 @@ export default function PreferredArtistsPage() {
     return (
         <div className='space-y-6'>
             <SectionHeader
-                eyebrow='Music personalization'
-                title='Musical Taste'
-                description="Choose artists to guide autoplay recommendations. When multiple people are in voice, Lucky blends everyone's preferences."
+                eyebrow={t('musicPersonalization')}
+                title={t('musicalTaste')}
+                description={t('chooseArtistsDescription')}
                 actions={<Heart className='h-5 w-5 text-lucky-accent' />}
             />
 
             {/* Tab Buttons */}
-            <div className='surface-panel p-4'>
+            <div className='surface-panel p-4 border border-lucky-border'>
                 <div className='flex gap-2'>
                     {(['discover', 'preferred', 'blocked'] as const).map(
                         (tab) => {
@@ -476,9 +478,10 @@ export default function PreferredArtistsPage() {
                                     )}
                                 >
                                     <span className='capitalize'>
-                                        {tab === 'discover' && 'Discover'}
-                                        {tab === 'preferred' && 'Preferred'}
-                                        {tab === 'blocked' && 'Blocked'}
+                                        {tab === 'discover' && t('discoverTab')}
+                                        {tab === 'preferred' &&
+                                            t('preferredTab')}
+                                        {tab === 'blocked' && t('blockedTab')}
                                     </span>
                                     <span
                                         className={cn(
@@ -500,14 +503,14 @@ export default function PreferredArtistsPage() {
             <div className='space-y-4'>
                 {/* Discover Tab */}
                 {currentTab === 'discover' && (
-                    <div className='surface-panel p-4'>
+                    <div className='surface-panel p-4 border border-lucky-border'>
                         <div className='relative'>
                             <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-lucky-text-subtle' />
                             <input
                                 type='text'
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
-                                placeholder='Search for an artist...'
+                                placeholder={t('searchForArtist')}
                                 className='lucky-focus-visible w-full rounded-lg border border-lucky-border bg-lucky-bg-tertiary py-2.5 pl-9 pr-10 type-body-sm text-lucky-text-primary placeholder:text-lucky-text-subtle focus:border-lucky-brand focus:bg-lucky-bg-primary'
                             />
                             {query && (
@@ -524,12 +527,15 @@ export default function PreferredArtistsPage() {
                         {searching && (
                             <div className='flex items-center justify-center py-6'>
                                 <Loader2 className='h-5 w-5 animate-spin text-lucky-text-tertiary' />
+                                <span className='text-lucky-text-tertiary text-sm'>
+                                    {t('searching')}
+                                </span>
                             </div>
                         )}
 
                         {searchError && (
                             <p className='mt-3 type-body-sm text-lucky-error'>
-                                {searchError}
+                                {t('failedToSearchArtists')}
                             </p>
                         )}
 
@@ -538,13 +544,16 @@ export default function PreferredArtistsPage() {
                             searchResults.length === 0 &&
                             !searchError && (
                                 <p className='mt-3 type-body-sm text-lucky-text-tertiary'>
-                                    No artists found for "{query}"
+                                    {t('noArtistsFound', { query })}
                                 </p>
                             )}
 
                         {!searching && !query.trim() && suggestionsLoading && (
                             <div className='flex items-center justify-center py-6'>
                                 <Loader2 className='h-5 w-5 animate-spin text-lucky-text-tertiary' />
+                                <span className='text-lucky-text-tertiary text-sm'>
+                                    {t('searching')}
+                                </span>
                             </div>
                         )}
 
@@ -660,8 +669,7 @@ export default function PreferredArtistsPage() {
                             !suggestionsError && (
                                 <div className='py-6 text-center'>
                                     <p className='type-body-sm text-lucky-text-tertiary'>
-                                        No suggestions available. Try searching
-                                        for artists above.
+                                        {t('noSuggestionsAvailable')}
                                     </p>
                                 </div>
                             )}
@@ -670,7 +678,7 @@ export default function PreferredArtistsPage() {
 
                 {/* Preferred Tab */}
                 {currentTab === 'preferred' && (
-                    <div className='surface-panel p-4'>
+                    <div className='surface-panel p-4 border border-lucky-border'>
                         {preferredArtists.length === 0 ? (
                             <EmptyState
                                 icon={
@@ -679,8 +687,8 @@ export default function PreferredArtistsPage() {
                                         aria-hidden='true'
                                     />
                                 }
-                                title='No preferred artists yet'
-                                description='Add some from Discover.'
+                                title={t('noPreferredArtistsYet')}
+                                description={t('addFromDiscover')}
                             />
                         ) : (
                             <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
@@ -718,7 +726,7 @@ export default function PreferredArtistsPage() {
 
                 {/* Blocked Tab */}
                 {currentTab === 'blocked' && (
-                    <div className='surface-panel p-4'>
+                    <div className='surface-panel p-4 border border-lucky-border'>
                         {blockedArtists.length === 0 ? (
                             <EmptyState
                                 icon={
@@ -727,8 +735,8 @@ export default function PreferredArtistsPage() {
                                         aria-hidden='true'
                                     />
                                 }
-                                title='No blocked artists'
-                                description="Block artists you don't want Lucky to autoplay."
+                                title={t('noBlockedArtists')}
+                                description={t('blockArtistsDescription')}
                             />
                         ) : (
                             <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
@@ -779,10 +787,10 @@ export default function PreferredArtistsPage() {
                         {isSaving ? (
                             <div className='flex items-center justify-center gap-2'>
                                 <Loader2 className='h-4 w-4 animate-spin' />
-                                Saving...
+                                {t('saving')}
                             </div>
                         ) : (
-                            `Save Preferences (${unsavedChanges.size})`
+                            t('savePreferences', { count: unsavedChanges.size })
                         )}
                     </button>
                 )}

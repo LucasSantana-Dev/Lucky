@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { History, BarChart3, Music2, User, Trash2, Clock } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { api } from '@/services/api'
 import StatTile from '@/components/ui/StatTile'
@@ -43,6 +44,7 @@ function formatTimeAgo(timestamp: number): string {
 const PAGE_SIZE = 50
 
 export default function TrackHistoryPage() {
+    const { t } = useTranslation()
     const { selectedGuild } = useGuildSelection()
     const guildId = selectedGuild?.id
     const [history, setHistory] = useState<TrackEntry[]>([])
@@ -80,7 +82,7 @@ export default function TrackHistoryPage() {
                 }
                 setTotal(histRes.data.total)
             } catch {
-                setError('Failed to load track history')
+                setError(t('trackHistory.failedToLoadHistory'))
             } finally {
                 setIsLoading(false)
                 setIsLoadingMore(false)
@@ -108,7 +110,7 @@ export default function TrackHistoryPage() {
             setTotal(0)
             setPage(1)
         } catch {
-            setError('Failed to clear history')
+            setError(t('trackHistory.failedToClearHistory'))
         }
     }
 
@@ -120,8 +122,8 @@ export default function TrackHistoryPage() {
         return (
             <EmptyState
                 icon={<History className='h-10 w-10' aria-hidden='true' />}
-                title='No Server Selected'
-                description='Select a server to view track history'
+                title={t('trackHistory.noServerSelected')}
+                description={t('trackHistory.selectServerToViewHistory')}
             />
         )
     }
@@ -130,18 +132,18 @@ export default function TrackHistoryPage() {
         <div className='space-y-6 px-1 sm:px-0'>
             <header className='flex items-center justify-between'>
                 <div className='flex items-center gap-3'>
-                    <History className='h-6 w-6 text-lucky-red' />
+                    <History className='h-6 w-6 text-lucky-error' />
                     <h1 className='type-h2 text-lucky-text-primary'>
-                        Track History
+                        {t('trackHistory.trackHistory')}
                     </h1>
                 </div>
                 {history.length > 0 && (
                     <button
                         onClick={handleClear}
-                        className='flex items-center gap-2 px-3 min-h-[44px] type-body-sm rounded-lg bg-lucky-error/10 text-lucky-error hover:bg-lucky-error/20 transition-colors'
+                        className='flex items-center gap-2 px-3 min-h-[44px] type-body-sm rounded-sm bg-lucky-error/10 text-lucky-error hover:bg-lucky-error/20 transition-colors font-semibold uppercase'
                     >
                         <Trash2 className='w-4 h-4' />
-                        Clear
+                        {t('trackHistory.clear')}
                     </button>
                 )}
             </header>
@@ -167,26 +169,32 @@ export default function TrackHistoryPage() {
                         <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
                             <StatTile
                                 icon={<Music2 className='w-4 h-4' />}
-                                label='Tracks Played'
+                                label={t('trackHistory.tracksPlayed')}
                                 value={stats.totalTracks}
                                 tone='brand'
                             />
                             <StatTile
                                 icon={<Clock className='w-4 h-4' />}
-                                label='Play Time'
+                                label={t('trackHistory.playTime')}
                                 value={formatPlayTime(stats.totalPlayTime)}
                                 tone='neutral'
                             />
                             <StatTile
                                 icon={<User className='w-4 h-4' />}
-                                label='Top Artist'
-                                value={stats.topArtists[0]?.artist ?? 'None'}
+                                label={t('trackHistory.topArtist')}
+                                value={
+                                    stats.topArtists[0]?.artist ??
+                                    t('trackHistory.none')
+                                }
                                 tone='accent'
                             />
                             <StatTile
                                 icon={<BarChart3 className='w-4 h-4' />}
-                                label='Most Played'
-                                value={stats.topTracks[0]?.title ?? 'None'}
+                                label={t('trackHistory.mostPlayed')}
+                                value={
+                                    stats.topTracks[0]?.title ??
+                                    t('trackHistory.none')
+                                }
                                 tone='warning'
                             />
                         </div>
@@ -195,14 +203,14 @@ export default function TrackHistoryPage() {
                     {stats && stats.topTracks.length > 0 && (
                         <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                             <RankingCard
-                                title='Top Tracks'
+                                title={t('trackHistory.topTracks')}
                                 items={stats.topTracks.map((t) => ({
                                     label: t.title,
                                     count: t.plays,
                                 }))}
                             />
                             <RankingCard
-                                title='Top Artists'
+                                title={t('trackHistory.topArtists')}
                                 items={stats.topArtists.map((a) => ({
                                     label: a.artist,
                                     count: a.plays,
@@ -213,12 +221,15 @@ export default function TrackHistoryPage() {
 
                     <div className='space-y-1'>
                         <div className='flex items-center justify-between px-1 mb-3'>
-                            <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wider'>
-                                Recent Tracks
+                            <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
+                                {t('trackHistory.recentTracks')}
                             </h2>
                             {total > 0 && (
                                 <span className='type-body-sm text-lucky-text-tertiary'>
-                                    Showing {history.length} of {total}
+                                    {t('trackHistory.showing', {
+                                        count: history.length,
+                                        total: total,
+                                    })}
                                 </span>
                             )}
                         </div>
@@ -230,20 +241,22 @@ export default function TrackHistoryPage() {
                                         aria-hidden='true'
                                     />
                                 }
-                                title='No tracks played yet'
-                                description='Play some music to see your history here'
+                                title={t('trackHistory.noTracksPlayed')}
+                                description={t(
+                                    'trackHistory.playMusicToSeeHistory',
+                                )}
                                 className='min-h-[180px]'
                             />
                         ) : (
                             <div className='space-y-1'>
                                 <div
-                                    className='surface-panel rounded-lg border border-lucky-border divide-y divide-lucky-border overflow-hidden'
+                                    className='surface-panel border border-lucky-border divide-y divide-lucky-border overflow-hidden'
                                     role='list'
                                 >
                                     {history.map((track, i) => (
                                         <div
                                             key={`${track.trackId}-${i}`}
-                                            className='flex items-center gap-4 px-4 py-3 hover:bg-lucky-bg-active transition-colors'
+                                            className='flex items-center gap-4 px-4 py-3 transition-colors hover:bg-lucky-bg-active/25'
                                             role='listitem'
                                         >
                                             <span className='type-meta text-lucky-text-tertiary w-6 text-center shrink-0'>
@@ -299,11 +312,14 @@ export default function TrackHistoryPage() {
                                     <button
                                         onClick={handleLoadMore}
                                         disabled={isLoadingMore}
-                                        className='w-full mt-4 px-4 py-3 rounded-lg border border-lucky-border text-lucky-text-secondary type-body-sm font-medium hover:text-lucky-text-primary hover:bg-lucky-bg-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                                        className='w-full mt-4 px-4 py-3 rounded-sm border border-lucky-border text-lucky-text-secondary type-body-sm font-semibold uppercase hover:text-lucky-text-primary hover:bg-lucky-bg-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                                     >
                                         {isLoadingMore
-                                            ? 'Loading...'
-                                            : `Load More (${total - history.length} remaining)`}
+                                            ? t('trackHistory.loading')
+                                            : t('trackHistory.loadMore', {
+                                                  remaining:
+                                                      total - history.length,
+                                              })}
                                     </button>
                                 )}
                             </div>
@@ -324,8 +340,10 @@ function RankingCard({
 }) {
     const max = items[0]?.count ?? 1
     return (
-        <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
-            <h3 className='type-title text-lucky-text-primary mb-3'>{title}</h3>
+        <div className='p-4 rounded-sm bg-lucky-bg-tertiary border border-lucky-border'>
+            <h3 className='type-title text-lucky-text-primary uppercase tracking-wide mb-3 font-semibold'>
+                {title}
+            </h3>
             <div className='space-y-2'>
                 {items.slice(0, 5).map((item, i) => (
                     <div key={item.label} className='flex items-center gap-2'>

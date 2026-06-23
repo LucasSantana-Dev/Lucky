@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react'
 import { MicVocal, Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { api } from '@/services/api'
 
@@ -10,6 +11,7 @@ interface LyricsResult {
 }
 
 export default function LyricsPage() {
+    const { t } = useTranslation('lyrics')
     const { selectedGuild } = useGuildSelection()
     const [title, setTitle] = useState('')
     const [artist, setArtist] = useState('')
@@ -34,7 +36,7 @@ export default function LyricsPage() {
             )
             setResult(response.data)
         } catch {
-            setError('Failed to fetch lyrics. Please try again.')
+            setError(t('failedToFetchLyrics'))
         } finally {
             setIsLoading(false)
         }
@@ -44,7 +46,7 @@ export default function LyricsPage() {
         return (
             <div className='flex flex-col items-center justify-center h-64 text-lucky-text-secondary'>
                 <MicVocal className='h-12 w-12 mb-4 opacity-50' />
-                <p className='text-lg'>Select a server to search lyrics</p>
+                <p className='text-lg'>{t('selectServerToSearch')}</p>
             </div>
         )
     }
@@ -53,26 +55,29 @@ export default function LyricsPage() {
         <div className='space-y-6 px-1 sm:px-0'>
             <header className='flex items-center gap-3'>
                 <MicVocal className='h-6 w-6 text-lucky-red' />
-                <h1 className='type-h2 text-lucky-text-primary'>Lyrics Search</h1>
+                <h1 className='type-h2 text-lucky-text-primary'>
+                    {t('lyricsSearch')}
+                </h1>
             </header>
 
             <form
                 onSubmit={handleSearch}
-                className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border space-y-3'
+                className='surface-panel p-4 rounded-lg border border-lucky-border space-y-3'
             >
                 <div className='space-y-1.5'>
                     <label
                         htmlFor='title'
-                        className='text-sm font-medium text-lucky-text-secondary'
+                        className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'
                     >
-                        Song Title <span className='text-lucky-red'>*</span>
+                        {t('songTitle')}{' '}
+                        <span className='text-lucky-red'>{t('required')}</span>
                     </label>
                     <input
                         id='title'
                         type='text'
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        placeholder='Enter song title'
+                        placeholder={t('enterSongTitle')}
                         className='w-full px-3 py-2 rounded-lg bg-lucky-bg-active border border-lucky-border text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:ring-2 focus:ring-lucky-red/50 transition-all'
                         required
                     />
@@ -81,16 +86,16 @@ export default function LyricsPage() {
                 <div className='space-y-1.5'>
                     <label
                         htmlFor='artist'
-                        className='text-sm font-medium text-lucky-text-secondary'
+                        className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'
                     >
-                        Artist (optional)
+                        {t('artist')}
                     </label>
                     <input
                         id='artist'
                         type='text'
                         value={artist}
                         onChange={(e) => setArtist(e.target.value)}
-                        placeholder='Enter artist name'
+                        placeholder={t('enterArtistName')}
                         className='w-full px-3 py-2 rounded-lg bg-lucky-bg-active border border-lucky-border text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:ring-2 focus:ring-lucky-red/50 transition-all'
                     />
                 </div>
@@ -101,7 +106,7 @@ export default function LyricsPage() {
                     className='w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-lucky-red hover:bg-lucky-red/90 disabled:bg-lucky-red/50 disabled:cursor-not-allowed text-white font-medium transition-colors'
                 >
                     <Search className='w-4 h-4' />
-                    {isLoading ? 'Searching...' : 'Search'}
+                    {isLoading ? t('searching') : t('search')}
                 </button>
             </form>
 
@@ -124,29 +129,29 @@ export default function LyricsPage() {
 
             {!isLoading && !result && !error && hasSearched && (
                 <div className='text-center py-12 text-lucky-text-tertiary'>
-                    No lyrics found
+                    {t('noLyricsFound')}
                 </div>
             )}
 
             {!isLoading && !result && !error && !hasSearched && (
                 <div className='text-center py-12 text-lucky-text-tertiary'>
-                    Search for lyrics by entering a song title
+                    {t('searchForLyrics')}
                 </div>
             )}
 
             {result && !isLoading && (
                 <div className='space-y-4'>
-                    <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
-                        <h2 className='text-lg font-bold text-white'>
+                    <div className='surface-panel p-4 rounded-lg border border-lucky-border'>
+                        <h2 className='type-body-sm font-bold text-lucky-text-primary'>
                             {result.title}
                         </h2>
-                        <p className='text-sm text-lucky-text-secondary'>
+                        <p className='type-body-sm text-lucky-text-secondary'>
                             {result.artist}
                         </p>
                     </div>
 
-                    <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
-                        <pre className='text-sm text-white whitespace-pre-wrap font-mono leading-relaxed'>
+                    <div className='surface-panel p-4 rounded-lg border border-lucky-border'>
+                        <pre className='type-body-sm text-lucky-text-primary whitespace-pre-wrap font-mono leading-relaxed'>
                             {result.lyrics}
                         </pre>
                     </div>

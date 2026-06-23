@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.22.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.21.0...v2.22.0) (2026-06-23)
+
+
+### Features
+
+* **dashboard:** refresh, single server switcher, i18n, avatar+cursor ([#1546](https://github.com/LucasSantana-Dev/Lucky/issues/1546)) ([abda321](https://github.com/LucasSantana-Dev/Lucky/commit/abda3219eb4e5fdbb376b619cf3ab99f390fdefc))
+* **infra:** homelab staging environment for visual PR review ([#1547](https://github.com/LucasSantana-Dev/Lucky/issues/1547)) ([c15fa38](https://github.com/LucasSantana-Dev/Lucky/commit/c15fa388a61db9d1c3cfe880885f32d6020a629d))
+* **reaction-roles:** editable form, emoji picker, formatting, media, export/import ([#1544](https://github.com/LucasSantana-Dev/Lucky/issues/1544)) ([ac5e0e9](https://github.com/LucasSantana-Dev/Lucky/commit/ac5e0e988a27468eb75ace887795ed80c2d75b5f))
+
+
+### Bug Fixes
+
+* **backend:** harden role + reaction-role write-path error handling ([#1543](https://github.com/LucasSantana-Dev/Lucky/issues/1543)) ([18a36ba](https://github.com/LucasSantana-Dev/Lucky/commit/18a36ba673ffaa6e5a0f1d35f28bcd62a1c9c64c))
+* **infra:** route staging via host port ([#1548](https://github.com/LucasSantana-Dev/Lucky/issues/1548)) ([fe5b153](https://github.com/LucasSantana-Dev/Lucky/commit/fe5b153b2ebadbfaf20f67c95e964f3f06d443fe))
+* **infra:** staging deploy git ownership ([#1554](https://github.com/LucasSantana-Dev/Lucky/issues/1554)) ([de5a322](https://github.com/LucasSantana-Dev/Lucky/commit/de5a3220dac6bd517280405c69097eaca8885380))
+* **infra:** staging deploy health check ([#1556](https://github.com/LucasSantana-Dev/Lucky/issues/1556)) ([fda6eea](https://github.com/LucasSantana-Dev/Lucky/commit/fda6eea11e2da3f215538850445d4b9dcfd9e394))
+
 ## [2.21.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.20.1...v2.21.0) (2026-06-23)
 
 
