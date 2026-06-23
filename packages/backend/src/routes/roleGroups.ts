@@ -31,14 +31,13 @@ export function setupRoleGroupsRoutes(app: Express): void {
                     style: data.style,
                 })
                 res.status(201).json(group)
-            } catch (error) {
+            } catch (error: unknown) {
                 if (error instanceof AppError) {
-                    throw error
+                    throw error as AppError
                 }
-                const message =
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to create role group'
+                const err =
+                    error instanceof Error ? error : new Error(String(error))
+                const message = err.message || 'Failed to create role group'
                 if (
                     message.includes('not found') ||
                     message.includes('not-found')
@@ -102,14 +101,13 @@ export function setupRoleGroupsRoutes(app: Express): void {
                     throw AppError.notFound('Role group not found')
                 }
                 res.json(group)
-            } catch (error) {
+            } catch (error: unknown) {
                 if (error instanceof AppError) {
-                    throw error
+                    throw error as AppError
                 }
-                const message =
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to update role group'
+                const err =
+                    error instanceof Error ? error : new Error(String(error))
+                const message = err.message || 'Failed to update role group'
                 throw AppError.badRequest(message)
             }
         }),
@@ -132,19 +130,19 @@ export function setupRoleGroupsRoutes(app: Express): void {
 
             try {
                 const result = await roleGroupService.addRoleToGroup(
+                    guildId,
                     id,
                     data,
                     botToken,
                 )
                 res.json(result)
-            } catch (error) {
+            } catch (error: unknown) {
                 if (error instanceof AppError) {
-                    throw error
+                    throw error as AppError
                 }
-                const message =
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to add role to group'
+                const err =
+                    error instanceof Error ? error : new Error(String(error))
+                const message = err.message || 'Failed to add role to group'
 
                 // Check for specific error patterns (from tests and RoleGroupService)
                 if (

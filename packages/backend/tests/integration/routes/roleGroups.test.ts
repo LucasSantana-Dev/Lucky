@@ -60,13 +60,13 @@ jest.mock('@lucky/shared/utils', () => ({
 
 import { setupRoleGroupsRoutes } from '../../../src/routes/roleGroups'
 
-// Mock DISCORD_TOKEN
-process.env.DISCORD_TOKEN = 'test-bot-token'
-
 describe('Role Groups Routes', () => {
     let app: Express
+    const originalDiscordToken = process.env.DISCORD_TOKEN
 
     beforeEach(() => {
+        // Set test token
+        process.env.DISCORD_TOKEN = 'test-bot-token'
         jest.clearAllMocks()
         mockCreateRoleGroup.mockClear()
         mockGetRoleGroup.mockClear()
@@ -77,6 +77,11 @@ describe('Role Groups Routes', () => {
         app = express()
         app.use(express.json())
         setupRoleGroupsRoutes(app)
+    })
+
+    afterAll(() => {
+        // Restore original token
+        process.env.DISCORD_TOKEN = originalDiscordToken
     })
 
     describe('POST /api/guilds/:guildId/role-groups', () => {

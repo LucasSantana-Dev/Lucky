@@ -4,6 +4,7 @@ const mockPrisma: any = {
     roleGroup: {
         create: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         findMany: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
@@ -12,11 +13,13 @@ const mockPrisma: any = {
         findUnique: jest.fn(),
         findMany: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
     },
     reactionRoleMapping: {
         findMany: jest.fn(),
         create: jest.fn(),
     },
+    $transaction: jest.fn((callback: any) => callback(mockPrisma)),
 }
 
 jest.mock('@lucky/shared/utils/database/prismaClient', () => {
@@ -175,7 +178,7 @@ describe('RoleGroupService', () => {
             expect(result.divergence).toBe(true)
         })
 
-        test('defaults buttonStyle to Primary on tie', async () => {
+        test('defaults buttonStyle to Primary on tie (Primary=1 vs Secondary=1)', async () => {
             const mockRoles = [
                 {
                     id: ROLE_ID_A,
@@ -190,9 +193,11 @@ describe('RoleGroupService', () => {
                     mentionable: false,
                 },
             ]
+            // REAL TIE: Secondary and Danger each appear once, Primary doesn't appear
+            // This exercises the tie-breaking logic: non-Primary styles tied -> Primary wins
             const mockMappings = [
-                { id: 'map-1', roleId: ROLE_ID_A, style: 'Primary' },
-                { id: 'map-2', roleId: ROLE_ID_B, style: 'Secondary' },
+                { id: 'map-1', roleId: ROLE_ID_A, style: 'Secondary' },
+                { id: 'map-2', roleId: ROLE_ID_B, style: 'Danger' },
             ]
 
             mockPrisma.reactionRoleMessage.findUnique.mockResolvedValue({
@@ -245,7 +250,7 @@ describe('RoleGroupService', () => {
             expect(mockPrisma.roleGroup.create).toHaveBeenCalled()
         })
 
-        test('seeds style from message and links when fromMessageId provided', async () => {
+        test('seeds style from message and links when fromMessageId provided (transactional)', async () => {
             const mockRoles = [
                 {
                     id: ROLE_ID_A,
@@ -275,9 +280,8 @@ describe('RoleGroupService', () => {
                 mentionable: false,
                 buttonStyle: 'Primary',
             })
-            mockPrisma.reactionRoleMessage.update.mockResolvedValue({
-                id: MESSAGE_ID,
-                groupId: 'group-1',
+            mockPrisma.reactionRoleMessage.updateMany.mockResolvedValue({
+                count: 1,
             })
 
             const { guildService } =
@@ -293,9 +297,11 @@ describe('RoleGroupService', () => {
             })
 
             expect(result.id).toBe('group-1')
-            expect(mockPrisma.reactionRoleMessage.update).toHaveBeenCalledWith(
+            expect(
+                mockPrisma.reactionRoleMessage.updateMany,
+            ).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    where: { id: MESSAGE_ID },
+                    where: { id: MESSAGE_ID, groupId: null },
                     data: { groupId: 'group-1' },
                 }),
             )
@@ -316,11 +322,28 @@ describe('RoleGroupService', () => {
                 }),
             ).rejects.toThrow(/already has a group|conflict/i)
         })
+
+        test('rejects createRoleGroup when fromMessageId belongs to different guild (IDOR)', async () => {
+            const otherGuildId = '999999999999999999'
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValue({
+                id: MESSAGE_ID,
+                guildId: otherGuildId, // message is in different guild
+                groupId: null,
+            })
+
+            await expect(
+                service.createRoleGroup({
+                    guildId: GUILD_ID,
+                    name: 'TestGroup',
+                    fromMessageId: MESSAGE_ID,
+                }),
+            ).rejects.toThrow(/not found/)
+        })
     })
 
     describe('addRoleToGroup', () => {
         test('dryRun returns plan with zero mutations', async () => {
-            mockPrisma.roleGroup.findUnique.mockResolvedValue({
+            mockPrisma.roleGroup.findFirst.mockResolvedValue({
                 id: 'group-1',
                 guildId: GUILD_ID,
                 name: 'TestGroup',
@@ -340,6 +363,7 @@ describe('RoleGroupService', () => {
             ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue([])
 
             const result = await service.addRoleToGroup(
+                GUILD_ID,
                 'group-1',
                 { name: 'NewRole', dryRun: true },
                 BOT_TOKEN,
@@ -379,6 +403,7 @@ describe('RoleGroupService', () => {
 
             await expect(
                 service.addRoleToGroup(
+                    GUILD_ID,
                     'group-1',
                     { name: 'NewRole' },
                     BOT_TOKEN,
@@ -419,6 +444,7 @@ describe('RoleGroupService', () => {
 
             await expect(
                 service.addRoleToGroup(
+                    GUILD_ID,
                     'group-1',
                     { name: 'NewRole' },
                     BOT_TOKEN,
@@ -448,6 +474,7 @@ describe('RoleGroupService', () => {
             const longLabel = 'a'.repeat(81)
             await expect(
                 service.addRoleToGroup(
+                    GUILD_ID,
                     'group-1',
                     { name: 'NewRole', label: longLabel },
                     BOT_TOKEN,
@@ -494,6 +521,7 @@ describe('RoleGroupService', () => {
 
             await expect(
                 service.addRoleToGroup(
+                    GUILD_ID,
                     'group-1',
                     { name: 'ExistingRole' },
                     BOT_TOKEN,
@@ -545,6 +573,7 @@ describe('RoleGroupService', () => {
             })
 
             const result = await service.addRoleToGroup(
+                GUILD_ID,
                 'group-1',
                 { name: 'NewRole' },
                 BOT_TOKEN,
@@ -604,6 +633,7 @@ describe('RoleGroupService', () => {
 
             await expect(
                 service.addRoleToGroup(
+                    GUILD_ID,
                     'group-1',
                     { name: 'NewRole' },
                     BOT_TOKEN,
@@ -656,6 +686,7 @@ describe('RoleGroupService', () => {
 
             await expect(
                 service.addRoleToGroup(
+                    GUILD_ID,
                     'group-1',
                     { name: 'NewRole' },
                     BOT_TOKEN,
@@ -715,6 +746,7 @@ describe('RoleGroupService', () => {
             const { infoLog } = await import('@lucky/shared/utils/general/log')
 
             const result = await service.addRoleToGroup(
+                GUILD_ID,
                 'group-1',
                 { name: 'NewRole' },
                 BOT_TOKEN,
@@ -770,6 +802,7 @@ describe('RoleGroupService', () => {
             })
 
             await service.addRoleToGroup(
+                GUILD_ID,
                 'group-1',
                 { name: 'NewRole', colorOverride: '0xFF0000' },
                 BOT_TOKEN,
@@ -779,6 +812,26 @@ describe('RoleGroupService', () => {
                 GUILD_ID,
                 expect.objectContaining({
                     color: 16711680,
+                }),
+            )
+        })
+
+        test('rejects addRoleToGroup when group belongs to different guild (IDOR)', async () => {
+            mockPrisma.roleGroup.findFirst.mockResolvedValue(null)
+
+            await expect(
+                service.addRoleToGroup(
+                    GUILD_ID,
+                    'group-other-guild',
+                    { name: 'NewRole' },
+                    BOT_TOKEN,
+                ),
+            ).rejects.toThrow(/not found/)
+
+            // Verify findFirst was called with both id AND guildId filter
+            expect(mockPrisma.roleGroup.findFirst).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: 'group-other-guild', guildId: GUILD_ID },
                 }),
             )
         })

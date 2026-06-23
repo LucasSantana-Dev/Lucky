@@ -891,6 +891,7 @@ export default function ReactionRoles() {
 
     async function handleCreateRoleGroup(messageId: string) {
         if (!selectedGuild) return
+        setDeleteError(null)
         try {
             await api.roleGroups.create(selectedGuild.id, {
                 name: `Role Group ${new Date().toLocaleString()}`,

@@ -31,6 +31,7 @@ export interface AddRoleToGroupPlan {
 export interface AddRoleToGroupResult {
     status: 'ok' | 'partial_success'
     role: GuildRoleManage
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mapping: any
 }
 
@@ -126,14 +127,28 @@ export class RoleGroupService {
             const count = styleCounts.get(style) ?? 0
             styleCounts.set(style, count + 1)
         }
-        let modeStyle = 'Primary'
-        let modeCount = 0
+        // Find the maximum count
+        let maxCount = 0
+        for (const count of styleCounts.values()) {
+            if (count > maxCount) maxCount = count
+        }
+        // Count how many styles have the max count
+        let maxCountStyles = 0
+        let maxNonPrimaryStyle = ''
+        const primaryCount = styleCounts.get('Primary') ?? 0
         for (const [style, count] of styleCounts.entries()) {
-            if (count > modeCount) {
-                modeStyle = style
-                modeCount = count
+            if (count === maxCount) {
+                maxCountStyles++
+                if (style !== 'Primary') {
+                    maxNonPrimaryStyle = style
+                }
             }
         }
+        // Decision: if Primary is at max OR there's a tie OR no mappings, use Primary
+        const modeStyle =
+            primaryCount === maxCount || maxCountStyles > 1 || maxCount === 0
+                ? 'Primary'
+                : maxNonPrimaryStyle
 
         // Divergence: colors differ OR hoist differs OR mentionable differs
         const divergence =
@@ -145,7 +160,11 @@ export class RoleGroupService {
             color: colorHex,
             hoist: modalHoist,
             mentionable: modalMentionable,
-            buttonStyle: modeStyle,
+            buttonStyle: modeStyle as
+                | 'Primary'
+                | 'Secondary'
+                | 'Success'
+                | 'Danger',
             divergence,
         }
     }
@@ -160,7 +179,7 @@ export class RoleGroupService {
         name: string
         fromMessageId?: string
         style?: StyleTemplate
-    }): Promise<any> {
+    }) {
         let style: StyleTemplate
 
         if (req.fromMessageId) {
@@ -169,6 +188,12 @@ export class RoleGroupService {
                 where: { id: req.fromMessageId },
             })
             if (!message) {
+                throw AppError.notFound(
+                    `Message ${req.fromMessageId} not found`,
+                )
+            }
+            // Verify message belongs to the guild (IDOR protection)
+            if (message.guildId !== req.guildId) {
                 throw AppError.notFound(
                     `Message ${req.fromMessageId} not found`,
                 )
@@ -184,26 +209,50 @@ export class RoleGroupService {
             style = req.style ?? {}
         }
 
-        const group = await this.prisma.roleGroup.create({
-            data: {
-                guildId: req.guildId,
-                name: req.name,
-                color: style.color,
-                hoist: style.hoist ?? false,
-                mentionable: style.mentionable ?? false,
-                buttonStyle: style.buttonStyle,
-            },
-        })
-
-        // If seeded from message, link it
+        // If seeded from message, wrap in transaction to link atomically
         if (req.fromMessageId) {
-            await this.prisma.reactionRoleMessage.update({
-                where: { id: req.fromMessageId },
-                data: { groupId: group.id },
+            const result = await this.prisma.$transaction(async (tx) => {
+                const newGroup = await tx.roleGroup.create({
+                    data: {
+                        guildId: req.guildId,
+                        name: req.name,
+                        color: style.color,
+                        hoist: style.hoist ?? false,
+                        mentionable: style.mentionable ?? false,
+                        buttonStyle: style.buttonStyle,
+                    },
+                })
+
+                // Conditional update: only link if message still has groupId = null
+                const linked = await tx.reactionRoleMessage.updateMany({
+                    where: {
+                        id: req.fromMessageId,
+                        groupId: null,
+                    },
+                    data: { groupId: newGroup.id },
+                })
+
+                if (linked.count === 0) {
+                    throw AppError.conflict(
+                        `Message already has a group; conflict during transaction link`,
+                    )
+                }
+
+                return newGroup
+            })
+            return result
+        } else {
+            return await this.prisma.roleGroup.create({
+                data: {
+                    guildId: req.guildId,
+                    name: req.name,
+                    color: style.color,
+                    hoist: style.hoist ?? false,
+                    mentionable: style.mentionable ?? false,
+                    buttonStyle: style.buttonStyle,
+                },
             })
         }
-
-        return group
     }
 
     /**
@@ -211,6 +260,7 @@ export class RoleGroupService {
      * and role-only compensation on failure.
      */
     async addRoleToGroup(
+        guildId: string,
         groupId: string,
         req: AddRoleToGroupRequest,
         botToken: string,
@@ -218,11 +268,12 @@ export class RoleGroupService {
         plan?: AddRoleToGroupPlan
         status?: 'ok' | 'partial_success'
         role?: GuildRoleManage
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         mapping?: any
     }> {
-        // Load group
-        const group = await this.prisma.roleGroup.findUnique({
-            where: { id: groupId },
+        // Load group and verify it belongs to the guild (IDOR protection)
+        const group = await this.prisma.roleGroup.findFirst({
+            where: { id: groupId, guildId },
         })
         if (!group) {
             throw AppError.notFound(`Group ${groupId} not found`)
@@ -324,6 +375,7 @@ export class RoleGroupService {
         }
 
         // Add to message (DB-first)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let addResult: any
         try {
             addResult = await reactionRolesService.addRoleToMessage(
@@ -357,6 +409,7 @@ export class RoleGroupService {
         }
 
         // Handle partial_success
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         if (addResult.status === 'partial_success') {
             infoLog({
                 message: `Added role to group ${groupId} but Discord PATCH failed; data is consistent, visuals will re-sync (roleId: ${createdRole.id}, messageId: ${message.id})`,
@@ -364,8 +417,10 @@ export class RoleGroupService {
         }
 
         return {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
             status: addResult.status,
             role: createdRole,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
             mapping: addResult.mapping,
         }
     }
@@ -373,7 +428,7 @@ export class RoleGroupService {
     /**
      * List all role groups for a guild.
      */
-    async listRoleGroups(guildId: string): Promise<any[]> {
+    async listRoleGroups(guildId: string) {
         return this.prisma.roleGroup.findMany({
             where: { guildId },
             orderBy: { createdAt: 'desc' },
@@ -383,7 +438,7 @@ export class RoleGroupService {
     /**
      * Get a role group by ID and guild ID.
      */
-    async getRoleGroup(id: string, guildId: string): Promise<any | null> {
+    async getRoleGroup(id: string, guildId: string) {
         return this.prisma.roleGroup.findFirst({
             where: { id, guildId },
         })
@@ -401,7 +456,7 @@ export class RoleGroupService {
             mentionable?: boolean
             buttonStyle?: string | null
         },
-    ): Promise<any | null> {
+    ) {
         const group = await this.getRoleGroup(id, guildId)
         if (!group) return null
 

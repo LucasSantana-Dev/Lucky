@@ -162,10 +162,7 @@ const colorHex = z
 const createRoleGroupBody = z
     .object({
         name: z.string().min(1, 'Name is required').max(100),
-        fromMessageId: z
-            .string()
-            .regex(/^\d{17,20}$/, 'Invalid message ID')
-            .optional(),
+        fromMessageId: z.string().min(1, 'Message ID is required').optional(),
         style: z
             .object({
                 color: colorHex,
