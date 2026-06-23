@@ -191,7 +191,7 @@ describe('ReactionRoles', () => {
         ).toBeInTheDocument()
         expect(
             screen.getByText(
-                'Use /reactionrole in Discord to set up button-based role assignment messages. They will appear here once created.',
+                'Create your first reaction role message to let members self-assign roles with buttons.',
             ),
         ).toBeInTheDocument()
     })
@@ -450,7 +450,7 @@ describe('ReactionRoles', () => {
         expect(screen.getByText('Reaction Roles')).toBeInTheDocument()
         expect(
             screen.getByText(
-                'View Discord messages that have reaction role buttons configured. Use the /reactionrole command in Discord to create and manage these.',
+                'Create Discord messages with button-based role assignment directly from the dashboard.',
             ),
         ).toBeInTheDocument()
     })
