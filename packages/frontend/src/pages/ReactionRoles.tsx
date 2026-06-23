@@ -190,9 +190,9 @@ function MessageCard({
                             onClick={() => void handleCreateRoleGroup()}
                             disabled={creatingGroup}
                             className='text-lucky-text-secondary'
-                            title='Create a role group to manage styled roles'
+                            title={t('reactionRoles.createRoleGroupTitle')}
                         >
-                            Create role group
+                            {t('reactionRoles.createRoleGroup')}
                         </Button>
                     )}
                     <Button
@@ -244,14 +244,23 @@ function MessageCard({
                             onClick={() => setShowAddRole(true)}
                         >
                             <Sparkles className='h-3.5 w-3.5' />
-                            Add styled role
+                            {t('reactionRoles.addStyledRole')}
                         </Button>
                     ) : (
-                        <AddStyledRoleForm
-                            guildId={guildId}
-                            groupId={message.groupId}
-                            onSuccess={onRoleAdded}
-                        />
+                        <div className='space-y-2'>
+                            <Button
+                                variant='secondary'
+                                size='sm'
+                                onClick={() => setShowAddRole(false)}
+                            >
+                                {t('reactionRoles.cancel')}
+                            </Button>
+                            <AddStyledRoleForm
+                                guildId={guildId}
+                                groupId={message.groupId}
+                                onSuccess={onRoleAdded}
+                            />
+                        </div>
                     )}
                 </div>
             )}
@@ -914,7 +923,9 @@ export default function ReactionRoles() {
         setDeleteError(null)
         try {
             await api.roleGroups.create(selectedGuild.id, {
-                name: `Role Group ${new Date().toLocaleString()}`,
+                name: t('reactionRoles.defaultRoleGroupName', {
+                    timestamp: new Date().toLocaleString(),
+                }),
                 fromMessageId: messageId,
             })
             void fetchMessages()
@@ -922,7 +933,7 @@ export default function ReactionRoles() {
             setDeleteError(
                 err instanceof Error
                     ? err.message
-                    : 'Failed to create role group.',
+                    : t('reactionRoles.createRoleGroupError'),
             )
         }
     }
