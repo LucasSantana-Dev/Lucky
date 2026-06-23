@@ -105,6 +105,19 @@ class GuildService {
         return getClient()
     }
 
+    private async getServableGuild(guildId: string): Promise<Guild | null> {
+        const client = this.getBotClient()
+        if (!client) return null
+        try {
+            return (
+                client.guilds.cache.get(guildId) ??
+                (await client.guilds.fetch(guildId))
+            )
+        } catch {
+            return null
+        }
+    }
+
     clearBotGuildCache(): void {
         this.botGuildIdsCache = null
         this.botGuildIdsInFlight = null
@@ -865,39 +878,29 @@ class GuildService {
         guildId: string,
         data: RoleUpsertData,
     ): Promise<GuildRoleManage> {
-        const client = this.getBotClient()
+        const guild = await this.getServableGuild(guildId)
 
-        if (client) {
-            try {
-                const guild =
-                    client.guilds.cache.get(guildId) ??
-                    (await client.guilds.fetch(guildId))
-                const role = await guild.roles.create({
-                    name: data.name,
-                    color: data.color,
-                    hoist: data.hoist,
-                    mentionable: data.mentionable,
-                    permissions:
-                        data.permissions !== undefined
-                            ? BigInt(data.permissions)
-                            : undefined,
-                    reason: 'Created via dashboard',
-                })
-                return {
-                    id: role.id,
-                    name: role.name,
-                    color: role.color ?? 0,
-                    hoist: role.hoist ?? false,
-                    mentionable: role.mentionable ?? false,
-                    permissions: role.permissions.bitfield.toString(),
-                    position: role.position ?? 0,
-                    managed: role.managed ?? false,
-                }
-            } catch (error) {
-                debugLog({
-                    message: 'Failed to create guild role via bot client',
-                    error,
-                })
+        if (guild) {
+            const role = await guild.roles.create({
+                name: data.name,
+                color: data.color,
+                hoist: data.hoist,
+                mentionable: data.mentionable,
+                permissions:
+                    data.permissions !== undefined
+                        ? BigInt(data.permissions)
+                        : undefined,
+                reason: 'Created via dashboard',
+            })
+            return {
+                id: role.id,
+                name: role.name,
+                color: role.color ?? 0,
+                hoist: role.hoist ?? false,
+                mentionable: role.mentionable ?? false,
+                permissions: role.permissions.bitfield.toString(),
+                position: role.position ?? 0,
+                managed: role.managed ?? false,
             }
         }
 
@@ -956,43 +959,33 @@ class GuildService {
         roleId: string,
         data: RoleUpsertData,
     ): Promise<GuildRoleManage> {
-        const client = this.getBotClient()
+        const guild = await this.getServableGuild(guildId)
 
-        if (client) {
-            try {
-                const guild =
-                    client.guilds.cache.get(guildId) ??
-                    (await client.guilds.fetch(guildId))
-                const role = await guild.roles.fetch(roleId)
-                if (!role) {
-                    throw new Error('Role not found')
-                }
-                const updated = await role.edit({
-                    name: data.name,
-                    color: data.color,
-                    hoist: data.hoist,
-                    mentionable: data.mentionable,
-                    permissions:
-                        data.permissions !== undefined
-                            ? BigInt(data.permissions)
-                            : undefined,
-                    reason: 'Updated via dashboard',
-                })
-                return {
-                    id: updated.id,
-                    name: updated.name,
-                    color: updated.color ?? 0,
-                    hoist: updated.hoist ?? false,
-                    mentionable: updated.mentionable ?? false,
-                    permissions: updated.permissions.bitfield.toString(),
-                    position: updated.position ?? 0,
-                    managed: updated.managed ?? false,
-                }
-            } catch (error) {
-                debugLog({
-                    message: 'Failed to update guild role via bot client',
-                    error,
-                })
+        if (guild) {
+            const role = await guild.roles.fetch(roleId)
+            if (!role) {
+                throw new Error('Role not found')
+            }
+            const updated = await role.edit({
+                name: data.name,
+                color: data.color,
+                hoist: data.hoist,
+                mentionable: data.mentionable,
+                permissions:
+                    data.permissions !== undefined
+                        ? BigInt(data.permissions)
+                        : undefined,
+                reason: 'Updated via dashboard',
+            })
+            return {
+                id: updated.id,
+                name: updated.name,
+                color: updated.color ?? 0,
+                hoist: updated.hoist ?? false,
+                mentionable: updated.mentionable ?? false,
+                permissions: updated.permissions.bitfield.toString(),
+                position: updated.position ?? 0,
+                managed: updated.managed ?? false,
             }
         }
 
@@ -1047,24 +1040,15 @@ class GuildService {
     }
 
     async deleteGuildRole(guildId: string, roleId: string): Promise<void> {
-        const client = this.getBotClient()
+        const guild = await this.getServableGuild(guildId)
 
-        if (client) {
-            try {
-                const guild =
-                    client.guilds.cache.get(guildId) ??
-                    (await client.guilds.fetch(guildId))
-                const role = await guild.roles.fetch(roleId)
-                if (role) {
-                    await role.delete('Deleted via dashboard')
-                    return
-                }
-            } catch (error) {
-                debugLog({
-                    message: 'Failed to delete guild role via bot client',
-                    error,
-                })
+        if (guild) {
+            const role = await guild.roles.fetch(roleId)
+            if (!role) {
+                throw new Error('Role not found')
             }
+            await role.delete('Deleted via dashboard')
+            return
         }
 
         const token = this.getBotToken()
