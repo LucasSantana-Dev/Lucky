@@ -240,6 +240,9 @@ services:
             # the webhook on a stale hooks.json. The directory mount updates live,
             # so -hotreload picks up changes (e.g. new pass-arguments entries).
             - .:/home/luk-server/Lucky
+            # Staging checkout, so the deploy-staging hook can build + run the
+            # isolated lucky-staging stack from this same webhook container.
+            - ${STAGING_DIR:-/home/luk-server/lucky-staging}:/home/luk-server/lucky-staging
             - ${CLOUDFLARED_CONFIG_DIR:-/home/luk-server/.cloudflared}:${CLOUDFLARED_CONFIG_DIR:-/home/luk-server/.cloudflared}:ro
             - /var/run/docker.sock:/var/run/docker.sock
         working_dir: /home/luk-server/Lucky

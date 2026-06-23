@@ -1,0 +1,186 @@
+# Staging stack — an isolated, dashboard-only mirror of production for visually
+# verifying frontend/dashboard changes on a real branch before they reach prod.
+#
+# Differences vs docker-compose.yml (production):
+#   - NO bot service (the dashboard reads guild data via Discord REST; it does
+#     not need a running gateway bot — and two bots cannot share one token).
+#   - NO webhook / cloudflared services (staging reuses the PRODUCTION tunnel;
+#     an ingress rule in config-lucky.yml routes lucky-staging.* → this nginx's
+#     published host port 8093).
+#   - Its own project (`lucky-staging`), container names, network, and volumes
+#     so it never touches production data.
+#   - Service names stay `backend`/`frontend`/`nginx`/`postgres`/`redis` so the
+#     image-baked nginx upstreams (http://backend:3000, http://frontend:8080)
+#     resolve to THESE staging containers on the isolated staging network.
+#
+# Driven by .env.staging on the host (WEBAPP_* point at the staging domains).
+# Deployed by scripts/deploy-staging.sh (builds locally from the branch).
+
+name: lucky-staging
+
+x-small-svc: &small-svc
+    mem_limit: 128m
+    cpus: 0.25
+    restart: unless-stopped
+
+x-medium-svc: &medium-svc
+    mem_limit: 512m
+    cpus: 0.5
+    restart: unless-stopped
+
+x-large-svc: &large-svc
+    mem_limit: 1g
+    cpus: 1.0
+    restart: unless-stopped
+
+x-common-app-env: &common-app-env
+    NODE_ENV: production
+    DISCORD_TOKEN: ${DISCORD_TOKEN}
+    CLIENT_ID: ${CLIENT_ID}
+    SENTRY_DSN: ${SENTRY_DSN:-}
+    SENTRY_ENABLED: ${SENTRY_ENABLED:-false}
+    SENTRY_ENVIRONMENT: staging
+    DATABASE_URL: postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    REDIS_DB: ${REDIS_DB:-0}
+    LASTFM_API_KEY: ${LASTFM_API_KEY:-}
+    LASTFM_API_SECRET: ${LASTFM_API_SECRET:-}
+    LASTFM_LINK_SECRET: ${LASTFM_LINK_SECRET:-}
+    SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
+    SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+    SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI:-}
+    SPOTIFY_LINK_SECRET: ${SPOTIFY_LINK_SECRET:-}
+    WEBAPP_REDIRECT_URI: ${WEBAPP_REDIRECT_URI:-}
+    WEBAPP_SESSION_SECRET: ${WEBAPP_SESSION_SECRET:-}
+
+services:
+    postgres:
+        <<: *large-svc
+        image: postgres:18-alpine
+        container_name: lucky-staging-postgres
+        environment:
+            POSTGRES_DB: discordbot
+            POSTGRES_USER: discordbot
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}
+            PGDATA: /var/lib/postgresql/data
+        volumes:
+            - staging_postgres_data:/var/lib/postgresql/data
+        networks:
+            - lucky-staging-network
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U discordbot -d discordbot"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    redis:
+        <<: *medium-svc
+        image: redis:8-alpine
+        container_name: lucky-staging-redis
+        command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+        volumes:
+            - staging_redis_data:/data
+        networks:
+            - lucky-staging-network
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    backend:
+        <<: *medium-svc
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-backend:${IMAGE_TAG:-staging}
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: production-backend
+            args:
+                SERVICE: backend
+                NODE_ENV: production
+        container_name: lucky-staging-backend
+        env_file:
+            - .env.staging
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        environment:
+            <<: *common-app-env
+            SENTRY_SERVICE_NAME: ${SENTRY_SERVICE_NAME:-backend}
+            LUCKY_NOTIFY_API_KEY: ${LUCKY_NOTIFY_API_KEY:-}
+            CLIENT_SECRET: ${CLIENT_SECRET}
+            WEBAPP_PORT: 3000
+            DEVELOPER_USER_IDS: ${DEVELOPER_USER_IDS:-}
+            WEBAPP_FRONTEND_URL: ${WEBAPP_FRONTEND_URL:-}
+            WEBAPP_BACKEND_URL: ${WEBAPP_BACKEND_URL:-}
+        networks:
+            - lucky-staging-network
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    frontend:
+        <<: *small-svc
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-frontend:${IMAGE_TAG:-staging}
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: production-frontend
+        container_name: lucky-staging-frontend
+        networks:
+            - lucky-staging-network
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    nginx:
+        <<: *small-svc
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-nginx:${IMAGE_TAG:-staging}
+        build:
+            context: .
+            dockerfile: Dockerfile.nginx
+        container_name: lucky-staging-nginx
+        depends_on:
+            - backend
+            - frontend
+        ports:
+            # Published on the host so the production cloudflared tunnel can
+            # route lucky-staging.* → http://100.95.204.103:8093 (config-lucky.yml).
+            - "${NGINX_PORT:-8093}:8080"
+        networks:
+            - lucky-staging-network
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+volumes:
+    staging_postgres_data:
+    staging_redis_data:
+
+networks:
+    lucky-staging-network:
+        driver: bridge
