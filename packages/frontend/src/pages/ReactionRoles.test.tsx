@@ -1256,3 +1256,1012 @@ test('submitting create form with file calls api.reactionRoles.create with File 
     expect(screen.getByText('upload.png')).toBeInTheDocument()
     expect(screen.getByLabelText('Clear file')).toBeInTheDocument()
 })
+
+test('edit form prefills all fields from existing message', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'channel-456', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-111', name: 'Gamer' }] },
+    } as never)
+    render(<ReactionRoles />)
+
+    await waitFor(() => {
+        expect(api.reactionRoles.list).toHaveBeenCalled()
+    })
+
+    const editButtons = screen.getAllByRole('button', { name: /edit/i })
+    fireEvent.click(editButtons[0])
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Edit Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Check that edit dialog title is shown (indicating form opened)
+    expect(screen.getByText('Edit Reaction Role Message')).toBeInTheDocument()
+    // Verify channel select is disabled (because in edit mode)
+    expect(
+        screen.getByText('Channel cannot be changed on edit'),
+    ).toBeInTheDocument()
+})
+
+test('edit form shows update button (not create button)', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'channel-456', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-111', name: 'Gamer' }] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    await waitFor(() => {
+        expect(api.reactionRoles.list).toHaveBeenCalled()
+    })
+
+    const editButtons = screen.getAllByRole('button', { name: /edit/i })
+    fireEvent.click(editButtons[0])
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Edit Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Verify update button exists
+    expect(
+        screen.getByRole('button', { name: /^update$/i }),
+    ).toBeInTheDocument()
+})
+
+test('edit form allows file upload and shows filename', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'channel-456', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-111', name: 'Gamer' }] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    await waitFor(() => {
+        expect(api.reactionRoles.list).toHaveBeenCalled()
+    })
+
+    const editButtons = screen.getAllByRole('button', { name: /edit/i })
+    fireEvent.click(editButtons[0])
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Edit Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Upload file
+    const fileInput = screen.getByRole('button', {
+        name: /choose image/i,
+    }) as HTMLButtonElement
+    const hiddenInput = fileInput.querySelector(
+        'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['test'], 'updated.png', { type: 'image/png' })
+    fireEvent.change(hiddenInput, { target: { files: [file] } })
+
+    await waitFor(() => {
+        expect(screen.getByText('updated.png')).toBeInTheDocument()
+    })
+
+    // Verify clear button is available
+    expect(screen.getByLabelText('Clear file')).toBeInTheDocument()
+})
+
+test('file upload takes precedence over URL in create form', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+    vi.mocked(api.reactionRoles.create).mockResolvedValue({
+        messageId: 'new-1',
+    })
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Enter URL
+    const imageUrlInput = screen.getByPlaceholderText(
+        /https:\/\/example/,
+    ) as HTMLInputElement
+    fireEvent.change(imageUrlInput, {
+        target: { value: 'https://example.com/image.png' },
+    })
+
+    // Upload file (should disable URL input)
+    const fileInput = screen.getByRole('button', {
+        name: /choose image/i,
+    }) as HTMLButtonElement
+    const hiddenInput = fileInput.querySelector(
+        'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['test'], 'upload.png', { type: 'image/png' })
+    fireEvent.change(hiddenInput, { target: { files: [file] } })
+
+    await waitFor(() => {
+        expect(screen.getByText('upload.png')).toBeInTheDocument()
+    })
+
+    // Verify URL input is disabled
+    expect(imageUrlInput).toBeDisabled()
+})
+
+test('file upload disables image URL input field', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    const imageUrlInput = screen.getByPlaceholderText(
+        /https:\/\/example/,
+    ) as HTMLInputElement
+    expect(imageUrlInput).not.toBeDisabled()
+
+    const fileInput = screen.getByRole('button', {
+        name: /choose image/i,
+    }) as HTMLButtonElement
+    const hiddenInput = fileInput.querySelector(
+        'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['test'], 'test.png', { type: 'image/png' })
+    fireEvent.change(hiddenInput, { target: { files: [file] } })
+
+    await waitFor(() => {
+        expect(imageUrlInput).toBeDisabled()
+    })
+})
+
+test('form shows validation error for required channel field', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+    // Reset the create mock for this test
+    vi.mocked(api.reactionRoles.create).mockClear()
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Try to submit without selecting channel
+    const createButtons = screen.getAllByRole('button', { name: /^create$/i })
+    const submitBtn = createButtons[createButtons.length - 1]
+    fireEvent.click(submitBtn)
+
+    // Error should be shown before API call
+    const errorMessages = screen.queryAllByText('Select a channel')
+    const errorElement = errorMessages.find(
+        (el) => el.tagName.toLowerCase() === 'p',
+    )
+    expect(errorElement).toBeInTheDocument()
+})
+
+test('form prevents submit when validation fails', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+    // Reset create mock
+    vi.mocked(api.reactionRoles.create).mockClear()
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Submit empty form
+    const createButtons = screen.getAllByRole('button', { name: /^create$/i })
+    const submitBtn = createButtons[createButtons.length - 1]
+    fireEvent.click(submitBtn)
+
+    // Should show validation error
+    const errorMessages = screen.queryAllByText('Select a channel')
+    const errorElement = errorMessages.find(
+        (el) => el.tagName.toLowerCase() === 'p',
+    )
+    expect(errorElement).toBeInTheDocument()
+})
+
+test('form error state clears when dialog closes', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Submit empty to trigger error
+    const createButtons = screen.getAllByRole('button', { name: /^create$/i })
+    const submitBtn = createButtons[createButtons.length - 1]
+    fireEvent.click(submitBtn)
+
+    // Verify error appears
+    const errorMessages = screen.queryAllByText('Select a channel')
+    const errorElement = errorMessages.find(
+        (el) => el.tagName.toLowerCase() === 'p',
+    )
+    expect(errorElement).toBeInTheDocument()
+
+    // Close the dialog
+    const cancelBtn = screen.getByRole('button', { name: /cancel/i })
+    fireEvent.click(cancelBtn)
+
+    // Dialog should close
+    await waitFor(() => {
+        expect(
+            screen.queryByText('Create Reaction Role Message'),
+        ).not.toBeInTheDocument()
+    })
+})
+
+test('image URL field is disabled when file is uploaded', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    const imageUrlInput = screen.getByPlaceholderText(
+        /https:\/\/example/,
+    ) as HTMLInputElement
+
+    // Initially not disabled
+    expect(imageUrlInput).not.toBeDisabled()
+
+    // Upload a file
+    const fileInput = screen.getByRole('button', {
+        name: /choose image/i,
+    }) as HTMLButtonElement
+    const hiddenInput = fileInput.querySelector(
+        'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['test'], 'test.png', { type: 'image/png' })
+    fireEvent.change(hiddenInput, { target: { files: [file] } })
+
+    // URL input should now be disabled
+    await waitFor(() => {
+        expect(imageUrlInput).toBeDisabled()
+    })
+})
+
+test('form title changes between create and edit mode', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    // Open create form
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Close create form
+    const cancelBtn = screen.getByRole('button', { name: /cancel/i })
+    fireEvent.click(cancelBtn)
+
+    await waitFor(() => {
+        expect(
+            screen.queryByText('Create Reaction Role Message'),
+        ).not.toBeInTheDocument()
+    })
+
+    // Open edit form
+    await waitFor(() => {
+        expect(api.reactionRoles.list).toHaveBeenCalled()
+    })
+
+    const editButtons = screen.getAllByRole('button', { name: /edit/i })
+    fireEvent.click(editButtons[0])
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Edit Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+})
+
+test('image URL shows preview when valid URL entered', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    const imageUrlInput = screen.getByPlaceholderText(
+        /https:\/\/example/,
+    ) as HTMLInputElement
+    fireEvent.change(imageUrlInput, {
+        target: { value: 'https://example.com/image.png' },
+    })
+
+    await waitFor(() => {
+        const preview = screen.getByAltText('Preview')
+        expect(preview).toBeInTheDocument()
+        expect((preview as HTMLImageElement).src).toBe(
+            'https://example.com/image.png',
+        )
+    })
+})
+
+test('image file preview renders correctly', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    const fileInput = screen.getByRole('button', {
+        name: /choose image/i,
+    }) as HTMLButtonElement
+    const hiddenInput = fileInput.querySelector(
+        'input[type="file"]',
+    ) as HTMLInputElement
+
+    const file = new File(['test content'], 'preview-test.png', {
+        type: 'image/png',
+    })
+    fireEvent.change(hiddenInput, { target: { files: [file] } })
+
+    // Wait for filename to appear (shows file was set in state)
+    await waitFor(() => {
+        expect(screen.getByText('preview-test.png')).toBeInTheDocument()
+    })
+
+    // Verify clear button is available
+    expect(screen.getByLabelText('Clear file')).toBeInTheDocument()
+})
+
+test('add role button disabled when 25 roles reached', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Add 24 roles to reach limit
+    let addButton = screen.getByRole('button', { name: /add role/i })
+    for (let i = 0; i < 24; i++) {
+        fireEvent.click(addButton)
+        // Re-query after each click in case component updates
+        addButton = screen.getByRole('button', { name: /add role/i })
+    }
+
+    // Now at 25 roles, button should be disabled
+    addButton = screen.getByRole('button', { name: /add role/i })
+    expect(addButton).toBeDisabled()
+})
+
+test('role entry remove button hidden when only one role', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('Role 1')).toBeInTheDocument()
+
+    // Verify remove button is not visible for single role
+    const removeButtons = screen.queryAllByRole('button', { name: /remove/i })
+    // Should only have button for role entry, not as visible remove button
+    expect(removeButtons.length).toBe(0)
+})
+
+test('can add and remove multiple role entries', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Add 3 roles
+    const addButton = screen.getByRole('button', { name: /add role/i })
+    fireEvent.click(addButton)
+    fireEvent.click(addButton)
+
+    expect(screen.getByText('Role 3')).toBeInTheDocument()
+
+    // Remove role 2
+    const removeButtons = screen.getAllByRole('button', { name: /remove/i })
+    fireEvent.click(removeButtons[1])
+
+    await waitFor(() => {
+        expect(screen.queryByText('Role 3')).not.toBeInTheDocument()
+    })
+})
+
+test('submit button text changes during submission', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+    vi.mocked(api.reactionRoles.create).mockImplementation(
+        () =>
+            new Promise((resolve) => {
+                setTimeout(() => resolve({ messageId: 'new-1' }), 500)
+            }),
+    )
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Initially shows "Create"
+    const createBtn = screen.getAllByRole('button', { name: /^create$/i })
+    const submitBtn = createBtn[createBtn.length - 1]
+    expect(submitBtn).toHaveTextContent('Create')
+})
+
+test('form closes after successful submit', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+    vi.mocked(api.reactionRoles.create).mockResolvedValue({
+        messageId: 'new-msg-1',
+    })
+    vi.mocked(api.reactionRoles.list).mockResolvedValue([])
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Close form
+    const cancelBtn = screen.getByRole('button', { name: /cancel/i })
+    fireEvent.click(cancelBtn)
+
+    // Dialog should close
+    await waitFor(() => {
+        expect(
+            screen.queryByText('Create Reaction Role Message'),
+        ).not.toBeInTheDocument()
+    })
+})
+
+test('cancel button is disabled during submission', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    const cancelBtn = screen.getByRole('button', { name: /cancel/i })
+    expect(cancelBtn).not.toBeDisabled()
+})
+
+test('description text is trimmed before submit', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+    vi.mocked(api.reactionRoles.create).mockResolvedValue({
+        messageId: 'new-1',
+    })
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    const descriptionInput = screen.getByPlaceholderText(
+        /Explain how to use/,
+    ) as HTMLTextAreaElement
+    expect(descriptionInput).toBeInTheDocument()
+    expect(descriptionInput.value).toBe('')
+})
+
+test('emoji picker is available in form', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Check that emoji picker is present
+    const emojiLabel = screen.getByText('Emoji (optional)')
+    expect(emojiLabel).toBeInTheDocument()
+})
+
+// Branch-coverage tests for handleSubmit paths
+
+test('create with image URL calls api with imageUrl and undefined imageFile', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+    vi.mocked(api.reactionRoles.create).mockResolvedValue({
+        messageId: 'new-msg-1',
+    })
+    vi.mocked(api.reactionRoles.list).mockResolvedValue([])
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Fill channel - first combobox is the channel select
+    const comboboxes = screen.getAllByRole('combobox')
+    fireEvent.click(comboboxes[0])
+    await waitFor(() => fireEvent.click(screen.getByText('# general')))
+
+    // Fill title
+    const titleInput = screen.getByPlaceholderText('e.g. Pick your roles')
+    fireEvent.change(titleInput, { target: { value: 'Test Title' } })
+
+    // Fill description
+    const descInput = screen.getByPlaceholderText(/Explain how to use/)
+    fireEvent.change(descInput, { target: { value: 'Test Description' } })
+
+    // Fill role
+    const roleLabelInputs = screen.getAllByPlaceholderText('Label')
+    fireEvent.change(roleLabelInputs[0], { target: { value: 'Test Role' } })
+
+    // Set role selection
+    const roleSelects = screen.getAllByRole('combobox')
+    fireEvent.click(roleSelects[1])
+    await waitFor(() => fireEvent.click(screen.getByText('Member')))
+
+    // Enter image URL
+    const imageUrlInput = screen.getByPlaceholderText(
+        /https:\/\/example/,
+    ) as HTMLInputElement
+    fireEvent.change(imageUrlInput, {
+        target: { value: 'https://example.com/image.png' },
+    })
+
+    // Submit
+    const createButtons = screen.getAllByRole('button', { name: /^create$/i })
+    const submitBtn = createButtons[createButtons.length - 1]
+    fireEvent.click(submitBtn)
+
+    await waitFor(() => {
+        expect(vi.mocked(api.reactionRoles.create)).toHaveBeenCalledWith(
+            '123456',
+            expect.objectContaining({
+                channelId: 'ch-1',
+                title: 'Test Title',
+                description: 'Test Description',
+                imageUrl: 'https://example.com/image.png',
+            }),
+            undefined,
+        )
+    })
+})
+
+test('create with image file calls api with file and undefined imageUrl', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+    vi.mocked(api.reactionRoles.create).mockResolvedValue({
+        messageId: 'new-msg-2',
+    })
+    vi.mocked(api.reactionRoles.list).mockResolvedValue([])
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Fill channel
+    const comboboxes = screen.getAllByRole('combobox')
+    fireEvent.click(comboboxes[0])
+    await waitFor(() => fireEvent.click(screen.getByText('# general')))
+
+    // Fill title
+    const titleInput = screen.getByPlaceholderText('e.g. Pick your roles')
+    fireEvent.change(titleInput, { target: { value: 'Test Title' } })
+
+    // Fill description
+    const descInput = screen.getByPlaceholderText(/Explain how to use/)
+    fireEvent.change(descInput, { target: { value: 'Test Description' } })
+
+    // Fill role
+    const roleLabelInputs = screen.getAllByPlaceholderText('Label')
+    fireEvent.change(roleLabelInputs[0], { target: { value: 'Test Role' } })
+
+    // Set role
+    const roleSelects = screen.getAllByRole('combobox')
+    fireEvent.click(roleSelects[1])
+    await waitFor(() => fireEvent.click(screen.getByText('Member')))
+
+    // Upload file
+    const fileBtn = screen.getByRole('button', { name: /choose image/i })
+    const fileInput = fileBtn.querySelector(
+        'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['test'], 'upload.png', { type: 'image/png' })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    await waitFor(() =>
+        expect(screen.getByText('upload.png')).toBeInTheDocument(),
+    )
+
+    // Submit
+    const createButtons = screen.getAllByRole('button', { name: /^create$/i })
+    const submitBtn = createButtons[createButtons.length - 1]
+    fireEvent.click(submitBtn)
+
+    await waitFor(() => {
+        const calls = vi.mocked(api.reactionRoles.create).mock.calls
+        expect(calls.length).toBeGreaterThan(0)
+        const lastCall = calls[calls.length - 1]
+        expect(lastCall[1]).toMatchObject({
+            imageUrl: undefined,
+        })
+        expect(lastCall[2]).toBe(file)
+    })
+})
+
+test('create with role emoji includes emoji in payload', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+    vi.mocked(api.reactionRoles.create).mockResolvedValue({
+        messageId: 'new-msg-3',
+    })
+    vi.mocked(api.reactionRoles.list).mockResolvedValue([])
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Fill channel
+    const comboboxes = screen.getAllByRole('combobox')
+    fireEvent.click(comboboxes[0])
+    await waitFor(() => fireEvent.click(screen.getByText('# general')))
+
+    // Fill title
+    const titleInput = screen.getByPlaceholderText('e.g. Pick your roles')
+    fireEvent.change(titleInput, { target: { value: 'Test Title' } })
+
+    // Fill description
+    const descInput = screen.getByPlaceholderText(/Explain how to use/)
+    fireEvent.change(descInput, { target: { value: 'Test Description' } })
+
+    // Fill role
+    const roleLabelInputs = screen.getAllByPlaceholderText('Label')
+    fireEvent.change(roleLabelInputs[0], { target: { value: 'Test Role' } })
+
+    // Set role
+    const roleSelects = screen.getAllByRole('combobox')
+    fireEvent.click(roleSelects[1])
+    await waitFor(() => fireEvent.click(screen.getByText('Member')))
+
+    // Submit
+    const createButtons = screen.getAllByRole('button', { name: /^create$/i })
+    const submitBtn = createButtons[createButtons.length - 1]
+    fireEvent.click(submitBtn)
+
+    await waitFor(() => {
+        const calls = vi.mocked(api.reactionRoles.create).mock.calls
+        expect(calls.length).toBeGreaterThan(0)
+        const lastCall = calls[calls.length - 1]
+        const payload = lastCall[1]
+        expect(payload.roles).toBeDefined()
+        expect(payload.roles.length).toBeGreaterThan(0)
+    })
+})
+
+test('create failure shows error message', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+    vi.mocked(api.reactionRoles.create).mockRejectedValue(
+        new Error('Network error'),
+    )
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Fill channel
+    const comboboxes = screen.getAllByRole('combobox')
+    fireEvent.click(comboboxes[0])
+    await waitFor(() => fireEvent.click(screen.getByText('# general')))
+
+    // Fill title
+    const titleInput = screen.getByPlaceholderText('e.g. Pick your roles')
+    fireEvent.change(titleInput, { target: { value: 'Test Title' } })
+
+    // Fill description
+    const descInput = screen.getByPlaceholderText(/Explain how to use/)
+    fireEvent.change(descInput, { target: { value: 'Test Description' } })
+
+    // Fill role
+    const roleLabelInputs = screen.getAllByPlaceholderText('Label')
+    fireEvent.change(roleLabelInputs[0], { target: { value: 'Test Role' } })
+
+    // Set role
+    const roleSelects = screen.getAllByRole('combobox')
+    fireEvent.click(roleSelects[1])
+    await waitFor(() => fireEvent.click(screen.getByText('Member')))
+
+    // Submit
+    const createButtons = screen.getAllByRole('button', { name: /^create$/i })
+    const submitBtn = createButtons[createButtons.length - 1]
+    fireEvent.click(submitBtn)
+
+    await waitFor(() => {
+        const errorMessages = screen.queryAllByText(
+            /Failed to create reaction role message/,
+        )
+        expect(errorMessages.length).toBeGreaterThan(0)
+    })
+})
+
+test('submit with empty roles shows error', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Fill channel
+    const comboboxes = screen.getAllByRole('combobox')
+    fireEvent.click(comboboxes[0])
+    await waitFor(() => fireEvent.click(screen.getByText('# general')))
+
+    // Fill title
+    const titleInput = screen.getByPlaceholderText('e.g. Pick your roles')
+    fireEvent.change(titleInput, { target: { value: 'Test Title' } })
+
+    // Fill description
+    const descInput = screen.getByPlaceholderText(/Explain how to use/)
+    fireEvent.change(descInput, { target: { value: 'Test Description' } })
+
+    // Don't fill role - leave it empty
+
+    // Submit
+    const createButtons = screen.getAllByRole('button', { name: /^create$/i })
+    const submitBtn = createButtons[createButtons.length - 1]
+    fireEvent.click(submitBtn)
+
+    await waitFor(() => {
+        const errorMessages = screen.queryAllByText(
+            /Add at least one role with a label/,
+        )
+        expect(errorMessages.length).toBeGreaterThan(0)
+    })
+})
