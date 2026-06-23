@@ -1749,7 +1749,9 @@ test('add role button disabled when 25 roles reached', async () => {
     // Now at 25 roles, button should be disabled
     addButton = screen.getByRole('button', { name: /add role/i })
     expect(addButton).toBeDisabled()
-})
+    // 24 add-role clicks each re-render the growing (heavy) role list, which is
+    // slow on CI — give it headroom over the 5s default.
+}, 20000)
 
 test('role entry remove button hidden when only one role', async () => {
     mockGuildStore()
