@@ -6,7 +6,6 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { managementSchemas as s } from '../schemas/management'
 import { writeLimiter } from '../middleware/rateLimit'
-import { AppError } from '../errors/AppError'
 import {
     reactionRolesService,
     roleManagementService,

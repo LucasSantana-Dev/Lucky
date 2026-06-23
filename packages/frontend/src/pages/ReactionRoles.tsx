@@ -108,7 +108,7 @@ function MessageCard({
     onDelete,
 }: {
     message: ReactionRoleMessage
-    onDelete: (messageId: string) => void
+    onDelete: (messageId: string) => Promise<void>
 }) {
     const [deleting, setDeleting] = useState(false)
     const date = new Date(message.createdAt)
@@ -121,7 +121,7 @@ function MessageCard({
     async function handleDelete() {
         setDeleting(true)
         try {
-            onDelete(message.messageId)
+            await onDelete(message.messageId)
         } finally {
             setDeleting(false)
         }
@@ -629,9 +629,7 @@ export default function ReactionRoles() {
                             >
                                 <MessageCard
                                     message={message}
-                                    onDelete={(msgId) =>
-                                        void handleDelete(msgId)
-                                    }
+                                    onDelete={handleDelete}
                                 />
                             </motion.div>
                         ))}
