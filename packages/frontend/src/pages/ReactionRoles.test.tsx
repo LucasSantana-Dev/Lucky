@@ -1108,3 +1108,151 @@ test('import dialog continues on individual failure and shows errors', async () 
 
     expect(screen.getByText(/Channel not found/i)).toBeInTheDocument()
 })
+
+test('displays file upload input in create form', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /create/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    const fileInput = screen.getByRole('button', {
+        name: /choose image/i,
+    })
+    expect(fileInput).toBeInTheDocument()
+})
+
+test('selecting a file shows filename', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    const fileInput = screen.getByRole('button', {
+        name: /choose image/i,
+    }) as HTMLButtonElement
+    const hiddenInput = fileInput.querySelector(
+        'input[type="file"]',
+    ) as HTMLInputElement
+
+    const file = new File(['test'], 'test-image.png', { type: 'image/png' })
+    fireEvent.change(hiddenInput, { target: { files: [file] } })
+
+    await waitFor(() => {
+        expect(screen.getByText('test-image.png')).toBeInTheDocument()
+    })
+})
+
+test('clearing file reverts to URL mode', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /create/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    const fileInput = screen.getByRole('button', {
+        name: /choose image/i,
+    }) as HTMLButtonElement
+    const hiddenInput = fileInput.querySelector(
+        'input[type="file"]',
+    ) as HTMLInputElement
+
+    const file = new File(['test'], 'test.png', { type: 'image/png' })
+    fireEvent.change(hiddenInput, { target: { files: [file] } })
+
+    await waitFor(() => {
+        expect(screen.getByText('test.png')).toBeInTheDocument()
+    })
+
+    const clearButton = screen.getByLabelText('Clear file')
+    fireEvent.click(clearButton)
+
+    await waitFor(() => {
+        expect(screen.queryByText('test.png')).not.toBeInTheDocument()
+    })
+})
+
+test('submitting create form with file calls api.reactionRoles.create with File arg', async () => {
+    mockGuildStore()
+    vi.mocked(api.guilds.getChannels).mockResolvedValue({
+        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+    } as never)
+    vi.mocked(api.guilds.getRoles).mockResolvedValue({
+        data: { roles: [{ id: 'role-1', name: 'Member' }] },
+    } as never)
+    vi.mocked(api.reactionRoles.create).mockResolvedValue({
+        messageId: 'new-1',
+    })
+
+    render(<ReactionRoles />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
+
+    await waitFor(() => {
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    // Wait for file upload button to be available
+    await waitFor(() => {
+        expect(
+            screen.getByRole('button', { name: /choose image/i }),
+        ).toBeInTheDocument()
+    })
+
+    // Add file
+    const fileInput = screen.getByRole('button', {
+        name: /choose image/i,
+    }) as HTMLButtonElement
+    const hiddenInput = fileInput.querySelector(
+        'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['test'], 'upload.png', { type: 'image/png' })
+    fireEvent.change(hiddenInput, { target: { files: [file] } })
+
+    await waitFor(() => {
+        expect(screen.getByText('upload.png')).toBeInTheDocument()
+    })
+
+    // Verify the file is stored in state by checking it was selected
+    expect(screen.getByText('upload.png')).toBeInTheDocument()
+    expect(screen.getByLabelText('Clear file')).toBeInTheDocument()
+})

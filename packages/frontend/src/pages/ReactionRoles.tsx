@@ -258,12 +258,15 @@ function MessageForm({
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
     const [imageUrl, setImageUrl] = useState('')
+    const [imageFile, setImageFile] = useState<File | null>(null)
+    const [imageFilePreviewUrl, setImageFilePreviewUrl] = useState<string>('')
     const [entries, setEntries] = useState<MessageFormEntry[]>([
         { ...DEFAULT_ROLE_ENTRY },
     ])
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const descriptionRef = useRef<HTMLTextAreaElement | null>(null)
+    const fileInputRef = useRef<HTMLInputElement | null>(null)
 
     useEffect(() => {
         if (!open) {
@@ -291,6 +294,8 @@ function MessageForm({
             setTitle(initialMessage.title || '')
             setDescription(initialMessage.description || '')
             setImageUrl(initialMessage.imageUrl || '')
+            setImageFile(null)
+            setImageFilePreviewUrl('')
             const newEntries = initialMessage.mappings.map((m) => ({
                 roleId: m.roleId,
                 label: m.label,
@@ -313,6 +318,8 @@ function MessageForm({
             setTitle('')
             setDescription('')
             setImageUrl('')
+            setImageFile(null)
+            setImageFilePreviewUrl('')
             setEntries([{ ...DEFAULT_ROLE_ENTRY }])
         }
         setError(null)
@@ -323,11 +330,36 @@ function MessageForm({
         setTitle('')
         setDescription('')
         setImageUrl('')
+        setImageFile(null)
+        setImageFilePreviewUrl('')
         setEntries([{ ...DEFAULT_ROLE_ENTRY }])
         setError(null)
     }
 
+    function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0]
+        if (file) {
+            setImageFile(file)
+            const previewUrl = URL.createObjectURL(file)
+            setImageFilePreviewUrl(previewUrl)
+        }
+    }
+
+    function handleFileClear() {
+        setImageFile(null)
+        if (imageFilePreviewUrl) {
+            URL.revokeObjectURL(imageFilePreviewUrl)
+        }
+        setImageFilePreviewUrl('')
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+        }
+    }
+
     function handleClose() {
+        if (imageFilePreviewUrl) {
+            URL.revokeObjectURL(imageFilePreviewUrl)
+        }
         resetForm()
         onClose()
     }
@@ -374,26 +406,16 @@ function MessageForm({
         setSubmitting(true)
         try {
             if (mode === 'create') {
-                await api.reactionRoles.create(guildId, {
-                    channelId,
-                    title: title.trim(),
-                    description: description.trim(),
-                    imageUrl: imageUrl.trim() || undefined,
-                    roles: validEntries.map((e) => ({
-                        roleId: e.roleId,
-                        label: e.label.trim(),
-                        emoji: e.emoji?.trim() || undefined,
-                        style: e.style,
-                    })),
-                })
-            } else if (mode === 'edit' && initialMessage) {
-                await api.reactionRoles.update(
+                await api.reactionRoles.create(
                     guildId,
-                    initialMessage.messageId,
                     {
+                        channelId,
                         title: title.trim(),
                         description: description.trim(),
-                        imageUrl: imageUrl.trim() || undefined,
+                        imageUrl:
+                            !imageFile && imageUrl.trim()
+                                ? imageUrl.trim()
+                                : undefined,
                         roles: validEntries.map((e) => ({
                             roleId: e.roleId,
                             label: e.label.trim(),
@@ -401,6 +423,27 @@ function MessageForm({
                             style: e.style,
                         })),
                     },
+                    imageFile || undefined,
+                )
+            } else if (mode === 'edit' && initialMessage) {
+                await api.reactionRoles.update(
+                    guildId,
+                    initialMessage.messageId,
+                    {
+                        title: title.trim(),
+                        description: description.trim(),
+                        imageUrl:
+                            !imageFile && imageUrl.trim()
+                                ? imageUrl.trim()
+                                : undefined,
+                        roles: validEntries.map((e) => ({
+                            roleId: e.roleId,
+                            label: e.label.trim(),
+                            emoji: e.emoji?.trim() || undefined,
+                            style: e.style,
+                        })),
+                    },
+                    imageFile || undefined,
                 )
             }
             resetForm()
@@ -486,12 +529,13 @@ function MessageForm({
                     <div className='space-y-1.5'>
                         <Label>Image URL (optional)</Label>
                         <Input
-                            value={imageUrl}
+                            value={imageFile ? '' : imageUrl}
                             onChange={(e) => setImageUrl(e.target.value)}
                             placeholder='https://example.com/image.png'
                             maxLength={2048}
+                            disabled={!!imageFile}
                         />
-                        {imageUrl.trim() && (
+                        {!imageFile && imageUrl.trim() && (
                             <div className='mt-2 overflow-hidden rounded-md border border-lucky-border'>
                                 <img
                                     src={imageUrl}
@@ -506,6 +550,54 @@ function MessageForm({
                                             'text-lucky-text-tertiary',
                                         )
                                     }}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className='space-y-1.5'>
+                        <Label>Upload Image (optional)</Label>
+                        <div className='flex items-center gap-2'>
+                            <Button
+                                variant='secondary'
+                                size='sm'
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={submitting}
+                                className='relative'
+                            >
+                                <Upload className='h-4 w-4' />
+                                Choose Image
+                                <input
+                                    ref={fileInputRef}
+                                    type='file'
+                                    accept='image/*'
+                                    onChange={handleFileSelect}
+                                    className='hidden'
+                                    aria-label='Upload image file'
+                                />
+                            </Button>
+                            {imageFile && (
+                                <div className='flex flex-1 items-center justify-between rounded-md border border-lucky-border bg-lucky-bg-tertiary/40 px-3 py-2'>
+                                    <span className='type-body-sm truncate text-lucky-text-primary'>
+                                        {imageFile.name}
+                                    </span>
+                                    <button
+                                        type='button'
+                                        onClick={handleFileClear}
+                                        className='ml-2 text-lucky-text-tertiary hover:text-lucky-error'
+                                        aria-label='Clear file'
+                                    >
+                                        <X className='h-3.5 w-3.5' />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        {imageFile && imageFilePreviewUrl && (
+                            <div className='mt-2 overflow-hidden rounded-md border border-lucky-border'>
+                                <img
+                                    src={imageFilePreviewUrl}
+                                    alt='File preview'
+                                    className='max-h-40 w-full object-cover'
                                 />
                             </div>
                         )}
