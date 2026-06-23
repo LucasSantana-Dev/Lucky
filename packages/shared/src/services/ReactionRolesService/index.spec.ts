@@ -205,6 +205,42 @@ describe('ReactionRolesService', () => {
             ).rejects.toThrow('Channel is deleted')
         })
 
+        it('deletes message and rejects when prisma.create fails after channel.send succeeds (orphan cleanup)', async () => {
+            const mockMessage: any = { id: 'msg-orphan', delete: jest.fn() }
+            mockMessage.delete.mockResolvedValueOnce(undefined)
+            mockChannel.send.mockResolvedValueOnce(mockMessage)
+
+            const dbError = new Error('DB constraint violation')
+            mockPrisma.reactionRoleMessage.create.mockRejectedValueOnce(dbError)
+
+            const options = {
+                ...baseOptions,
+                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+            }
+
+            await expect(
+                service.createReactionRoleMessage(options),
+            ).rejects.toThrow('DB constraint violation')
+
+            expect(mockMessage.delete).toHaveBeenCalledTimes(1)
+        })
+
+        it('does not call message.delete on successful create', async () => {
+            const mockMessage: any = { id: 'msg-789', delete: jest.fn() }
+            mockChannel.send.mockResolvedValueOnce(mockMessage)
+            mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({
+                messageId: 'msg-789',
+            })
+
+            const options = {
+                ...baseOptions,
+                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+            }
+            await service.createReactionRoleMessage(options)
+
+            expect(mockMessage.delete).not.toHaveBeenCalled()
+        })
+
         it('succeeds with 25 roles exactly (max)', async () => {
             const mockMessage: any = { id: 'msg-789' }
             mockChannel.send.mockResolvedValueOnce(mockMessage)
@@ -730,7 +766,7 @@ describe('ReactionRolesService', () => {
             expect(mockPrisma.reactionRoleMessage.delete).not.toHaveBeenCalled()
         })
 
-        it('returns false when prisma delete fails', async () => {
+        it('rejects when prisma delete fails', async () => {
             mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
                 messageId: 'msg-123',
                 guildId: 'guild-456',
@@ -739,25 +775,19 @@ describe('ReactionRolesService', () => {
                 new Error('DB error'),
             )
 
-            const result = await service.deleteReactionRoleMessage(
-                'msg-123',
-                'guild-456',
-            )
-
-            expect(result).toBe(false)
+            await expect(
+                service.deleteReactionRoleMessage('msg-123', 'guild-456'),
+            ).rejects.toThrow('DB error')
         })
 
-        it('returns false when findUnique throws', async () => {
+        it('rejects when findUnique throws', async () => {
             mockPrisma.reactionRoleMessage.findUnique.mockRejectedValueOnce(
                 new Error('DB connection lost'),
             )
 
-            const result = await service.deleteReactionRoleMessage(
-                'msg-123',
-                'guild-456',
-            )
-
-            expect(result).toBe(false)
+            await expect(
+                service.deleteReactionRoleMessage('msg-123', 'guild-456'),
+            ).rejects.toThrow('DB connection lost')
         })
     })
 
@@ -792,14 +822,14 @@ describe('ReactionRolesService', () => {
             expect(result).toEqual([])
         })
 
-        it('returns empty array when prisma throws', async () => {
+        it('rejects when prisma throws (does not swallow errors)', async () => {
             mockPrisma.reactionRoleMessage.findMany.mockRejectedValueOnce(
-                new Error('DB error'),
+                new Error('DB connection lost'),
             )
 
-            const result = await service.listReactionRoleMessages('guild-123')
-
-            expect(result).toEqual([])
+            await expect(
+                service.listReactionRoleMessages('guild-123'),
+            ).rejects.toThrow('DB connection lost')
         })
 
         it('includes mappings in result', async () => {

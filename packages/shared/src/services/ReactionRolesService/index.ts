@@ -107,23 +107,29 @@ export class ReactionRolesService {
             })
 
             const prisma = getPrismaClient()
-            await prisma.reactionRoleMessage.create({
-                data: {
-                    messageId: message.id,
-                    channelId: channel.id,
-                    guildId: guild.id,
-                    mappings: {
-                        create: roles.map((role) => ({
-                            roleId: role.roleId,
-                            buttonId: `reactionrole:${role.roleId}`,
-                            type: 'button',
-                            label: role.label,
-                            style: role.style?.toString() ?? 'Primary',
-                            emoji: role.emoji ?? null,
-                        })),
+            try {
+                await prisma.reactionRoleMessage.create({
+                    data: {
+                        messageId: message.id,
+                        channelId: channel.id,
+                        guildId: guild.id,
+                        mappings: {
+                            create: roles.map((role) => ({
+                                roleId: role.roleId,
+                                buttonId: `reactionrole:${role.roleId}`,
+                                type: 'button',
+                                label: role.label,
+                                style: role.style?.toString() ?? 'Primary',
+                                emoji: role.emoji ?? null,
+                            })),
+                        },
                     },
-                },
-            })
+                })
+            } catch (dbError) {
+                // DB write failed — delete the Discord message to avoid orphan
+                await message.delete().catch(() => undefined)
+                throw dbError
+            }
 
             debugLog({
                 message: `Created reaction role message ${message.id} in guild ${guild.id}`,
@@ -293,33 +299,25 @@ export class ReactionRolesService {
         messageId: string,
         guildId: string,
     ): Promise<boolean> {
-        try {
-            const prisma = getPrismaClient()
-            const message = await prisma.reactionRoleMessage.findUnique({
-                where: { messageId },
-                include: { mappings: true },
-            })
+        const prisma = getPrismaClient()
+        const message = await prisma.reactionRoleMessage.findUnique({
+            where: { messageId },
+            include: { mappings: true },
+        })
 
-            if (!message || message.guildId !== guildId) {
-                return false
-            }
-
-            await prisma.reactionRoleMessage.delete({
-                where: { messageId },
-            })
-
-            debugLog({
-                message: `Deleted reaction role message ${messageId} from guild ${guildId}`,
-            })
-
-            return true
-        } catch (error) {
-            errorLog({
-                message: 'Failed to delete reaction role message:',
-                error,
-            })
+        if (!message || message.guildId !== guildId) {
             return false
         }
+
+        await prisma.reactionRoleMessage.delete({
+            where: { messageId },
+        })
+
+        debugLog({
+            message: `Deleted reaction role message ${messageId} from guild ${guildId}`,
+        })
+
+        return true
     }
 
     /** Lists all reaction role messages for a guild. */
@@ -337,7 +335,7 @@ export class ReactionRolesService {
                 message: 'Failed to list reaction role messages:',
                 error,
             })
-            return []
+            throw error
         }
     }
 
