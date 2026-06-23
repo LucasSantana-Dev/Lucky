@@ -103,6 +103,19 @@ fi
 log "Rolling out staging services..."
 dc up -d --remove-orphans backend frontend nginx
 
+# Ensure the production cloudflared tunnel can resolve this staging nginx. The
+# tunnel's remote ingress routes lucky-staging.* -> http://lucky-staging-nginx:8080,
+# which only resolves if lucky-tunnel is attached to the staging network. Re-apply
+# each deploy: a prod deploy that recreates lucky-tunnel drops the attachment.
+STAGING_NET="$(docker network ls --format '{{.Name}}' | grep -E 'lucky-staging.*network' | head -1)"
+if [[ -n "$STAGING_NET" ]] && docker ps --format '{{.Names}}' | grep -qx lucky-tunnel; then
+    if docker network connect "$STAGING_NET" lucky-tunnel 2>/dev/null; then
+        log "Connected lucky-tunnel -> $STAGING_NET"
+    else
+        log "lucky-tunnel already on $STAGING_NET (ok)"
+    fi
+fi
+
 # --- health check --------------------------------------------------------------
 log "Health-checking staging (http://localhost:${HEALTH_PORT})..."
 ok=""
