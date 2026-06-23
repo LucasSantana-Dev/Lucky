@@ -163,7 +163,10 @@ export default function ConfigPage() {
                                                     'cubic-bezier(0.2, 0, 0, 1)',
                                             }}
                                         >
-                                            <ChevronRight className='w-4 h-4' />
+                                            <ChevronRight
+                                                className='w-4 h-4'
+                                                aria-hidden='true'
+                                            />
                                         </div>
                                     </button>
                                 )
@@ -180,7 +183,10 @@ export default function ConfigPage() {
                                 onClick={() => setSelectedModule(null)}
                                 className='gap-2 text-lucky-text-secondary hover:text-lucky-text-primary'
                             >
-                                <ArrowLeft className='w-4 h-4' />{' '}
+                                <ArrowLeft
+                                    className='w-4 h-4'
+                                    aria-hidden='true'
+                                />{' '}
                                 {t('config.back')}
                             </Button>
                         </div>
