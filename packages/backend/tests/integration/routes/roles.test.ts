@@ -23,11 +23,17 @@ jest.mock('../../../src/services/GuildAccessService', () => ({
 
 const mockListReactionRoles = jest.fn<any>()
 const mockListExclusiveRoles = jest.fn<any>()
+const mockCreateReactionRole = jest.fn<any>()
+const mockDeleteReactionRole = jest.fn<any>()
 
 jest.mock('@lucky/shared/services', () => ({
     reactionRolesService: {
         listReactionRoleMessages: (...args: any[]) =>
             mockListReactionRoles(...args),
+        createReactionRoleMessageFromDashboard: (...args: any[]) =>
+            mockCreateReactionRole(...args),
+        deleteReactionRoleMessage: (...args: any[]) =>
+            mockDeleteReactionRole(...args),
     },
     roleManagementService: {
         listExclusiveRoles: (...args: any[]) => mockListExclusiveRoles(...args),
@@ -52,7 +58,9 @@ describe('Roles Routes', () => {
         const sessionMock = sessionService as jest.Mocked<typeof sessionService>
         sessionMock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
-        const accessMock = guildAccessService as jest.Mocked<typeof guildAccessService>
+        const accessMock = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
         accessMock.resolveGuildContext.mockResolvedValue({
             guildId: GUILD_ID,
             userId: MOCK_SESSION_DATA.userId,
@@ -99,6 +107,244 @@ describe('Roles Routes', () => {
             )
 
             expect(res.status).toBe(401)
+        })
+    })
+
+    describe('POST /api/guilds/:guildId/reaction-roles', () => {
+        const CHANNEL_ID = '222222222222222222'
+        const ROLE_ID = '333333333333333333'
+        const validPayload = {
+            channelId: CHANNEL_ID,
+            title: 'Test Roles',
+            description: 'Test description',
+            roles: [
+                {
+                    roleId: ROLE_ID,
+                    label: 'Test Role',
+                    emoji: '✅',
+                    style: 'Primary' as const,
+                },
+            ],
+        }
+
+        test('should create reaction role message when authenticated with valid payload', async () => {
+            authed()
+            const createdMessage = {
+                id: 'rrm-created',
+                messageId: '444444444444444444',
+                channelId: CHANNEL_ID,
+                guildId: GUILD_ID,
+                mappings: [
+                    {
+                        roleId: ROLE_ID,
+                        label: 'Test Role',
+                    },
+                ],
+            }
+            mockCreateReactionRole.mockResolvedValue(createdMessage)
+            process.env.DISCORD_TOKEN = 'test-token'
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/reaction-roles`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send(validPayload)
+
+            expect(res.status).toBe(201)
+            expect(res.body).toEqual(createdMessage)
+            expect(mockCreateReactionRole).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    guildId: GUILD_ID,
+                    channelId: CHANNEL_ID,
+                    title: 'Test Roles',
+                    description: 'Test description',
+                    botToken: 'test-token',
+                    roles: expect.any(Array),
+                }),
+            )
+        })
+
+        test('should return 401 without auth', async () => {
+            const mock = sessionService as jest.Mocked<typeof sessionService>
+            mock.getSession.mockResolvedValue(null)
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/reaction-roles`)
+                .send(validPayload)
+
+            expect(res.status).toBe(401)
+        })
+
+        test('should return 400 with missing channel ID', async () => {
+            authed()
+            const invalidPayload = {
+                title: 'Test Roles',
+                description: 'Test description',
+                roles: [
+                    {
+                        roleId: ROLE_ID,
+                        label: 'Test Role',
+                    },
+                ],
+            }
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/reaction-roles`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send(invalidPayload)
+
+            expect(res.status).toBe(400)
+        })
+
+        test('should return 400 with empty roles array', async () => {
+            authed()
+            const invalidPayload = {
+                channelId: CHANNEL_ID,
+                title: 'Test Roles',
+                description: 'Test description',
+                roles: [],
+            }
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/reaction-roles`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send(invalidPayload)
+
+            expect(res.status).toBe(400)
+        })
+
+        test('should return 400 with duplicate role IDs', async () => {
+            authed()
+            const invalidPayload = {
+                channelId: CHANNEL_ID,
+                title: 'Test Roles',
+                description: 'Test description',
+                roles: [
+                    {
+                        roleId: ROLE_ID,
+                        label: 'Test Role',
+                    },
+                    {
+                        roleId: ROLE_ID,
+                        label: 'Duplicate Role',
+                    },
+                ],
+            }
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/reaction-roles`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send(invalidPayload)
+
+            expect(res.status).toBe(400)
+        })
+
+        test('should return 503 when bot token is not configured', async () => {
+            authed()
+            process.env.DISCORD_TOKEN = ''
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/reaction-roles`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send(validPayload)
+
+            expect(res.status).toBe(503)
+        })
+
+        test('should return 400 with invalid role ID format', async () => {
+            authed()
+            const invalidPayload = {
+                channelId: CHANNEL_ID,
+                title: 'Test Roles',
+                description: 'Test description',
+                roles: [
+                    {
+                        roleId: 'invalid-id',
+                        label: 'Test Role',
+                    },
+                ],
+            }
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/reaction-roles`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send(invalidPayload)
+
+            expect(res.status).toBe(400)
+        })
+
+        test('should return 400 with title exceeding max length', async () => {
+            authed()
+            const invalidPayload = {
+                channelId: CHANNEL_ID,
+                title: 'a'.repeat(257),
+                description: 'Test description',
+                roles: [
+                    {
+                        roleId: ROLE_ID,
+                        label: 'Test Role',
+                    },
+                ],
+            }
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/reaction-roles`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send(invalidPayload)
+
+            expect(res.status).toBe(400)
+        })
+    })
+
+    describe('DELETE /api/guilds/:guildId/reaction-roles/:messageId', () => {
+        const MESSAGE_ID = '555555555555555555'
+
+        test('should delete reaction role message when authenticated', async () => {
+            authed()
+            mockDeleteReactionRole.mockResolvedValue(true)
+
+            const res = await request(app)
+                .delete(`/api/guilds/${GUILD_ID}/reaction-roles/${MESSAGE_ID}`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(200)
+            expect(res.body).toEqual({ success: true })
+            expect(mockDeleteReactionRole).toHaveBeenCalledWith(
+                MESSAGE_ID,
+                GUILD_ID,
+            )
+        })
+
+        test('should return 401 without auth', async () => {
+            const mock = sessionService as jest.Mocked<typeof sessionService>
+            mock.getSession.mockResolvedValue(null)
+
+            const res = await request(app).delete(
+                `/api/guilds/${GUILD_ID}/reaction-roles/${MESSAGE_ID}`,
+            )
+
+            expect(res.status).toBe(401)
+        })
+
+        test('should return 404 when message not found', async () => {
+            authed()
+            mockDeleteReactionRole.mockResolvedValue(false)
+
+            const res = await request(app)
+                .delete(`/api/guilds/${GUILD_ID}/reaction-roles/${MESSAGE_ID}`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(404)
+            expect(res.body.error).toBe('Reaction role message not found')
+        })
+
+        test('should return 400 with invalid message ID format', async () => {
+            authed()
+
+            const res = await request(app)
+                .delete(`/api/guilds/${GUILD_ID}/reaction-roles/invalid-id`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(400)
         })
     })
 

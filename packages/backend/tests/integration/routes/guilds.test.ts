@@ -22,6 +22,7 @@ jest.mock('../../../src/services/GuildService', () => ({
     guildService: {
         generateBotInviteUrl: jest.fn(),
         getGuildTextChannelOptions: jest.fn(),
+        getGuildRoleOptions: jest.fn(),
     },
 }))
 
@@ -301,6 +302,86 @@ describe('Guilds Routes Integration', () => {
             expect(response.body).toEqual({
                 error: 'Not authenticated',
             })
+        })
+    })
+
+    describe('GET /api/guilds/:guildId/roles', () => {
+        test('should return guild role options when authenticated', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockGuildService = guildService as jest.Mocked<
+                typeof guildService
+            >
+            mockGuildService.getGuildRoleOptions.mockResolvedValue([
+                { id: '777777777777777777', name: '@Admin' },
+                { id: '888888888888888888', name: '@Moderator' },
+                { id: '999999999999999999', name: '@Member' },
+            ])
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/roles')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(response.body).toEqual({
+                roles: [
+                    { id: '777777777777777777', name: '@Admin' },
+                    { id: '888888888888888888', name: '@Moderator' },
+                    { id: '999999999999999999', name: '@Member' },
+                ],
+            })
+            expect(mockGuildService.getGuildRoleOptions).toHaveBeenCalledWith(
+                '111111111111111111',
+            )
+        })
+
+        test('should return empty array when guild has no roles', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockGuildService = guildService as jest.Mocked<
+                typeof guildService
+            >
+            mockGuildService.getGuildRoleOptions.mockResolvedValue([])
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/roles')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(response.body).toEqual({ roles: [] })
+        })
+
+        test('should return 401 when not authenticated', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(null)
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/roles')
+                .expect(401)
+
+            expect(response.body).toEqual({
+                error: 'Not authenticated',
+            })
+        })
+
+        test('should return 400 with invalid guild ID', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const response = await request(app)
+                .get('/api/guilds/invalid-id/roles')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(400)
         })
     })
 

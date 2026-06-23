@@ -168,6 +168,19 @@ export class ReactionRolesService {
             throw new Error('Maximum 25 roles per message')
         }
 
+        // Validate Discord snowflake IDs before they are interpolated into the
+        // request URL — defense-in-depth against SSRF / path traversal from
+        // user-provided values (rejects anything non-numeric).
+        const SNOWFLAKE = /^\d{17,20}$/
+        if (!SNOWFLAKE.test(guildId)) {
+            throw new Error('Invalid guildId: expected a Discord snowflake ID')
+        }
+        if (!SNOWFLAKE.test(channelId)) {
+            throw new Error(
+                'Invalid channelId: expected a Discord snowflake ID',
+            )
+        }
+
         try {
             const styleMap: Record<string, number> = {
                 Primary: 1,

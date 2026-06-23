@@ -102,7 +102,12 @@ export class LogService {
 
         const formattedMessage = this.formatMessage(effectiveParams)
         const color = this.getColor(level)
-        const coloredMessage = color(formattedMessage)
+        // Strip control characters (CR/LF/etc.) so user-provided values in the
+        // message can't forge additional log lines (log injection).
+
+        const coloredMessage = color(
+            formattedMessage.replace(/[\x00-\x1f\x7f]/g, ' '),
+        )
 
         console.log(coloredMessage)
 
