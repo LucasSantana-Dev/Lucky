@@ -559,13 +559,16 @@ model Recommendation {
 
 // Reaction Roles
 model ReactionRoleMessage {
-  id        String   @id @default(cuid())
-  messageId String   @unique
-  channelId String
-  guildId   String
-  guild     Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  messageId   String   @unique
+  channelId   String
+  guildId     String
+  title       String?
+  description String?
+  imageUrl    String?
+  guild       Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   mappings ReactionRoleMapping[]
 

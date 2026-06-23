@@ -32,6 +32,24 @@ export interface DashboardCreateReactionRoleOptions {
     channelId: string
     title: string
     description: string
+    imageUrl?: string
+    imageFile?: { buffer: Buffer; filename: string; contentType: string }
+    botToken: string
+    roles: Array<{
+        roleId: string
+        label: string
+        emoji?: string
+        style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
+    }>
+}
+
+export interface DashboardUpdateReactionRoleOptions {
+    guildId: string
+    messageId: string
+    title: string
+    description: string
+    imageUrl?: string
+    imageFile?: { buffer: Buffer; filename: string; contentType: string }
     botToken: string
     roles: Array<{
         roleId: string
@@ -159,8 +177,16 @@ export class ReactionRolesService {
     async createReactionRoleMessageFromDashboard(
         options: DashboardCreateReactionRoleOptions,
     ): Promise<{ messageId: string }> {
-        const { guildId, channelId, title, description, botToken, roles } =
-            options
+        const {
+            guildId,
+            channelId,
+            title,
+            description,
+            imageUrl,
+            imageFile,
+            botToken,
+            roles,
+        } = options
 
         if (!(await this.isEnabled(guildId))) {
             throw new Error('Reaction roles are disabled for this guild')
@@ -177,64 +203,30 @@ export class ReactionRolesService {
         // Validate Discord snowflake IDs before they are interpolated into the
         // request URL — defense-in-depth against SSRF / path traversal from
         // user-provided values (rejects anything non-numeric).
-        const SNOWFLAKE = /^\d{17,20}$/
-        if (!SNOWFLAKE.test(guildId)) {
-            throw new Error('Invalid guildId: expected a Discord snowflake ID')
-        }
-        if (!SNOWFLAKE.test(channelId)) {
-            throw new Error(
-                'Invalid channelId: expected a Discord snowflake ID',
-            )
-        }
+        this.assertSnowflakes(guildId, channelId)
 
         try {
-            const styleMap: Record<string, number> = {
-                Primary: 1,
-                Secondary: 2,
-                Success: 3,
-                Danger: 4,
-            }
-
-            const actionRows: object[] = []
-            let currentButtons: object[] = []
-
-            for (const role of roles) {
-                const button: Record<string, unknown> = {
-                    type: 2,
-                    custom_id: `reactionrole:${role.roleId}`,
-                    label: role.label,
-                    style: styleMap[role.style ?? 'Primary'] ?? 1,
-                }
-
-                if (role.emoji) {
-                    button.emoji = this.parseEmoji(role.emoji)
-                }
-
-                if (currentButtons.length >= 5) {
-                    actionRows.push({ type: 1, components: currentButtons })
-                    currentButtons = []
-                }
-
-                currentButtons.push(button)
-            }
-
-            if (currentButtons.length > 0) {
-                actionRows.push({ type: 1, components: currentButtons })
-            }
+            const actionRows = this.buildButtonRows(roles)
 
             const DISCORD_API = 'https://discord.com/api/v10'
+            const { headers, body } = this.buildDiscordMessageRequest({
+                title,
+                description,
+                imageUrl,
+                imageFile,
+                actionRows,
+                botToken,
+            })
+
+            if (!/^\d{17,20}$/.test(channelId)) {
+                throw new Error('Invalid Discord channel id')
+            }
             const resp = await fetch(
                 `${DISCORD_API}/channels/${channelId}/messages`,
                 {
                     method: 'POST',
-                    headers: {
-                        Authorization: `Bot ${botToken}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        embeds: [{ title, description, color: 5793266 }],
-                        components: actionRows,
-                    }),
+                    headers,
+                    body,
                     signal: AbortSignal.timeout(10_000),
                 },
             )
@@ -254,6 +246,9 @@ export class ReactionRolesService {
                         messageId,
                         channelId,
                         guildId,
+                        title,
+                        description,
+                        imageUrl: imageFile ? null : (imageUrl ?? null),
                         mappings: {
                             create: roles.map((role) => ({
                                 roleId: role.roleId,
@@ -269,7 +264,7 @@ export class ReactionRolesService {
             } catch (dbError) {
                 // DB write failed — delete the Discord message to avoid orphan
                 await fetch(
-                    `${DISCORD_API}/channels/${channelId}/messages/${messageId}`,
+                    `${DISCORD_API}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}`,
                     {
                         method: 'DELETE',
                         headers: { Authorization: `Bot ${botToken}` },
@@ -288,6 +283,266 @@ export class ReactionRolesService {
             errorLog({
                 message:
                     'Failed to create reaction role message from dashboard:',
+                error,
+            })
+            throw error
+        }
+    }
+
+    private buildDiscordMessageRequest(options: {
+        title: string
+        description: string
+        imageUrl?: string
+        imageFile?: { buffer: Buffer; filename: string; contentType: string }
+        actionRows: object[]
+        botToken: string
+        includeAttachments?: boolean
+    }): { headers: Record<string, string>; body: FormData | string } {
+        const {
+            title,
+            description,
+            imageUrl,
+            imageFile,
+            actionRows,
+            botToken,
+            includeAttachments = false,
+        } = options
+
+        const embed: Record<string, any> = {
+            title,
+            description,
+            color: 5793266,
+        }
+
+        if (imageFile) {
+            // Attachment reference for file upload
+            embed.image = { url: `attachment://${imageFile.filename}` }
+        } else if (imageUrl) {
+            // HTTP URL
+            embed.image = { url: imageUrl }
+        }
+
+        if (imageFile) {
+            // Multipart FormData for file
+            const formData = new FormData()
+            const payload: Record<string, any> = {
+                embeds: [embed],
+                components: actionRows,
+            }
+            if (includeAttachments) {
+                payload.attachments = []
+            }
+            formData.append('payload_json', JSON.stringify(payload))
+            formData.append(
+                'files[0]',
+                new Blob([new Uint8Array(imageFile.buffer)], {
+                    type: imageFile.contentType,
+                }),
+                imageFile.filename,
+            )
+            return {
+                headers: {
+                    Authorization: `Bot ${botToken}`,
+                },
+                body: formData,
+            }
+        } else {
+            // JSON for URL or no image
+            return {
+                headers: {
+                    Authorization: `Bot ${botToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    embeds: [embed],
+                    components: actionRows,
+                }),
+            }
+        }
+    }
+
+    private buildButtonRows(
+        roles: Array<{
+            roleId: string
+            label: string
+            emoji?: string
+            style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
+        }>,
+    ): object[] {
+        const styleMap: Record<string, number> = {
+            Primary: 1,
+            Secondary: 2,
+            Success: 3,
+            Danger: 4,
+        }
+
+        const actionRows: object[] = []
+        let currentButtons: object[] = []
+
+        for (const role of roles) {
+            const button: Record<string, unknown> = {
+                type: 2,
+                custom_id: `reactionrole:${role.roleId}`,
+                label: role.label,
+                style: styleMap[role.style ?? 'Primary'] ?? 1,
+            }
+
+            if (role.emoji) {
+                button.emoji = this.parseEmoji(role.emoji)
+            }
+
+            if (currentButtons.length >= 5) {
+                actionRows.push({ type: 1, components: currentButtons })
+                currentButtons = []
+            }
+
+            currentButtons.push(button)
+        }
+
+        if (currentButtons.length > 0) {
+            actionRows.push({ type: 1, components: currentButtons })
+        }
+
+        return actionRows
+    }
+
+    private assertSnowflakes(
+        guildId: string,
+        channelId?: string,
+        messageId?: string,
+    ): void {
+        const SNOWFLAKE = /^\d{17,20}$/
+        if (!SNOWFLAKE.test(guildId)) {
+            throw new Error('Invalid guildId: expected a Discord snowflake ID')
+        }
+        if (channelId && !SNOWFLAKE.test(channelId)) {
+            throw new Error(
+                'Invalid channelId: expected a Discord snowflake ID',
+            )
+        }
+        if (messageId && !SNOWFLAKE.test(messageId)) {
+            throw new Error(
+                'Invalid messageId: expected a Discord snowflake ID',
+            )
+        }
+    }
+
+    /** Updates an existing reaction role message with new title, description, roles, and optional image. */
+    async updateReactionRoleMessage(
+        options: DashboardUpdateReactionRoleOptions,
+    ): Promise<{ messageId: string }> {
+        const {
+            guildId,
+            messageId,
+            title,
+            description,
+            imageUrl,
+            imageFile,
+            botToken,
+            roles,
+        } = options
+
+        if (!(await this.isEnabled(guildId))) {
+            throw new Error('Reaction roles are disabled for this guild')
+        }
+
+        if (roles.length === 0) {
+            throw new Error('At least one role is required')
+        }
+
+        if (roles.length > 25) {
+            throw new Error('Maximum 25 roles per message')
+        }
+
+        try {
+            // Validate IDs early for security (SSRF prevention)
+            this.assertSnowflakes(guildId, undefined, messageId)
+
+            const prisma = getPrismaClient()
+            const message = await prisma.reactionRoleMessage.findUnique({
+                where: { messageId },
+            })
+
+            if (!message || message.guildId !== guildId) {
+                throw new Error('Reaction role message not found')
+            }
+
+            // Now validate roleIds
+            for (const role of roles) {
+                this.assertSnowflakes(guildId, undefined, role.roleId)
+            }
+
+            // Validate the channel ID from the stored message
+            const channelId = message.channelId
+            this.assertSnowflakes(guildId, channelId)
+
+            const actionRows = this.buildButtonRows(roles)
+
+            const DISCORD_API = 'https://discord.com/api/v10'
+            const { headers, body } = this.buildDiscordMessageRequest({
+                title,
+                description,
+                imageUrl,
+                imageFile,
+                actionRows,
+                botToken,
+                includeAttachments: true,
+            })
+
+            if (
+                !/^\d{17,20}$/.test(channelId) ||
+                !/^\d{17,20}$/.test(messageId)
+            ) {
+                throw new Error('Invalid Discord channel or message id')
+            }
+            const resp = await fetch(
+                `${DISCORD_API}/channels/${channelId}/messages/${messageId}`,
+                {
+                    method: 'PATCH',
+                    headers,
+                    body,
+                    signal: AbortSignal.timeout(10_000),
+                },
+            )
+
+            if (!resp.ok) {
+                const text = await resp.text().catch(() => '')
+                throw new Error(`Discord API error ${resp.status}: ${text}`)
+            }
+
+            // Update the database with new mappings
+            await prisma.$transaction([
+                prisma.reactionRoleMapping.deleteMany({
+                    where: { messageId },
+                }),
+                prisma.reactionRoleMessage.update({
+                    where: { messageId },
+                    data: {
+                        title,
+                        description,
+                        imageUrl: imageFile ? null : (imageUrl ?? null),
+                        mappings: {
+                            create: roles.map((role) => ({
+                                roleId: role.roleId,
+                                buttonId: `reactionrole:${role.roleId}`,
+                                type: 'button',
+                                label: role.label,
+                                style: role.style ?? 'Primary',
+                                emoji: role.emoji ?? null,
+                            })),
+                        },
+                    },
+                }),
+            ])
+
+            debugLog({
+                message: `Updated reaction role message ${messageId} in guild ${guildId}`,
+            })
+
+            return { messageId }
+        } catch (error) {
+            errorLog({
+                message: 'Failed to update reaction role message:',
                 error,
             })
             throw error

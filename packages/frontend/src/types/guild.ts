@@ -45,6 +45,12 @@ export interface GuildChannelOption {
     name: string
 }
 
+export interface GuildEmojiOption {
+    id: string
+    name: string
+    animated: boolean
+}
+
 export interface ActivityLog {
     id: string
     timestamp: Date

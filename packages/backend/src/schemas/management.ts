@@ -111,6 +111,24 @@ const createReactionRoleBody = z
         channelId: z.string().regex(/^\d{17,20}$/, 'Invalid channel ID'),
         title: z.string().min(1).max(256),
         description: z.string().min(1).max(4096),
+        imageUrl: z.string().url().max(2048).optional(),
+        roles: z.array(reactionRoleEntrySchema).min(1).max(25),
+    })
+    .strict()
+    .refine(
+        (data) =>
+            new Set(data.roles.map((r) => r.roleId)).size === data.roles.length,
+        {
+            message: 'Duplicate roleId entries are not allowed',
+            path: ['roles'],
+        },
+    )
+
+const updateReactionRoleBody = z
+    .object({
+        title: z.string().min(1).max(256),
+        description: z.string().min(1).max(4096),
+        imageUrl: z.string().url().max(2048).optional(),
         roles: z.array(reactionRoleEntrySchema).min(1).max(25),
     })
     .strict()
@@ -143,5 +161,6 @@ export const managementSchemas = {
     roleUpsertBody,
     bulkDeleteBody,
     createReactionRoleBody,
+    updateReactionRoleBody,
     messageIdParam,
 }

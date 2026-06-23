@@ -69,6 +69,12 @@ export interface GuildChannelOption {
     name: string
 }
 
+export interface GuildEmojiOption {
+    id: string
+    name: string
+    animated: boolean
+}
+
 export function setBotClient(client: Client | null): void {
     botClient = client
     guildService.clearBotGuildCache()
@@ -654,6 +660,83 @@ class GuildService {
                 error,
             })
             return []
+        }
+    }
+
+    async getGuildEmojis(guildId: string): Promise<GuildEmojiOption[]> {
+        const client = this.getBotClient()
+
+        if (client) {
+            try {
+                const guild = await this.getServableGuild(guildId)
+                if (guild) {
+                    return [...guild.emojis.cache.values()].map((emoji) => ({
+                        id: emoji.id,
+                        name: emoji.name ?? '',
+                        animated: emoji.animated ?? false,
+                    }))
+                }
+            } catch (error) {
+                debugLog({
+                    message: 'Failed to fetch guild emojis from bot client',
+                    error,
+                })
+            }
+        }
+
+        const token = this.getBotToken()
+        if (!token) {
+            return []
+        }
+
+        // Reject anything that is not a Discord snowflake before it reaches the
+        // request URL — validated inline at the sink so the ID cannot forge the
+        // request (SSRF / path-traversal guard).
+        if (!/^\d{17,20}$/.test(guildId)) {
+            throw new Error('Invalid Discord guild id')
+        }
+
+        try {
+            const response = await fetch(
+                `${DISCORD_API_BASE_URL}/guilds/${guildId}/emojis`,
+                {
+                    headers: {
+                        Authorization: `Bot ${token}`,
+                    },
+                    signal: AbortSignal.timeout(10_000),
+                },
+            )
+
+            if (!response.ok) {
+                throw new Error(`Discord API error: ${response.status}`)
+            }
+
+            const payload = (await response.json()) as unknown[]
+
+            return payload
+                .filter(
+                    (
+                        emoji,
+                    ): emoji is {
+                        id: string
+                        name?: string
+                        animated?: boolean
+                    } =>
+                        typeof emoji === 'object' &&
+                        emoji !== null &&
+                        typeof (emoji as { id?: unknown }).id === 'string',
+                )
+                .map((emoji) => ({
+                    id: emoji.id,
+                    name: emoji.name ?? '',
+                    animated: emoji.animated ?? false,
+                }))
+        } catch (error) {
+            errorLog({
+                message: 'Failed to fetch guild emojis',
+                error,
+            })
+            throw error
         }
     }
 

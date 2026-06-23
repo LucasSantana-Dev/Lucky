@@ -32,6 +32,10 @@ export class AppError extends Error {
         return new AppError(415, message)
     }
 
+    static badGateway(message = 'Bad gateway'): AppError {
+        return new AppError(502, message)
+    }
+
     static serviceUnavailable(message = 'Service unavailable'): AppError {
         return new AppError(503, message)
     }

@@ -140,4 +140,16 @@ export function setupGuildRoutes(app: Express): void {
             res.json({ roles })
         }),
     )
+
+    app.get(
+        '/api/guilds/:guildId/emojis',
+        requireAuth,
+        validateParams(guildIdParam),
+        requireGuildModuleAccess('overview'),
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const guildId = getGuildId(req)
+            const emojis = await guildService.getGuildEmojis(guildId)
+            res.json({ emojis })
+        }),
+    )
 }

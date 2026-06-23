@@ -98,7 +98,7 @@ describe('ReactionRolesService', () => {
             mockIsEnabled.mockResolvedValueOnce(false)
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessage(options),
@@ -132,7 +132,7 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             const result = await service.createReactionRoleMessage(options)
 
@@ -198,7 +198,7 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessage(options),
@@ -215,7 +215,7 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
 
             await expect(
@@ -234,7 +234,7 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await service.createReactionRoleMessage(options)
 
@@ -278,7 +278,7 @@ describe('ReactionRolesService', () => {
             const options = {
                 ...baseOptions,
                 guildId: 'not-a-snowflake',
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessageFromDashboard(options),
@@ -291,7 +291,7 @@ describe('ReactionRolesService', () => {
             const options = {
                 ...baseOptions,
                 guildId: '123456789012345',
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessageFromDashboard(options),
@@ -304,7 +304,7 @@ describe('ReactionRolesService', () => {
             const options = {
                 ...baseOptions,
                 guildId: '123456789012345678901',
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessageFromDashboard(options),
@@ -317,7 +317,7 @@ describe('ReactionRolesService', () => {
             const options = {
                 ...baseOptions,
                 guildId: '1234567890123456a',
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessageFromDashboard(options),
@@ -330,7 +330,7 @@ describe('ReactionRolesService', () => {
             const options = {
                 ...baseOptions,
                 channelId: 'not-a-snowflake',
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessageFromDashboard(options),
@@ -343,7 +343,7 @@ describe('ReactionRolesService', () => {
             const options = {
                 ...baseOptions,
                 channelId: '123456789012345',
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessageFromDashboard(options),
@@ -366,7 +366,7 @@ describe('ReactionRolesService', () => {
                 ...baseOptions,
                 guildId: validGuildId,
                 channelId: validChannelId,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             const result =
                 await service.createReactionRoleMessageFromDashboard(options)
@@ -387,7 +387,7 @@ describe('ReactionRolesService', () => {
                 ...baseOptions,
                 guildId: validGuildId,
                 channelId: validChannelId,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             const result =
                 await service.createReactionRoleMessageFromDashboard(options)
@@ -398,7 +398,7 @@ describe('ReactionRolesService', () => {
             mockIsEnabled.mockResolvedValueOnce(false)
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessageFromDashboard(options),
@@ -434,7 +434,7 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -464,7 +464,7 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             const result =
                 await service.createReactionRoleMessageFromDashboard(options)
@@ -528,7 +528,7 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessageFromDashboard(options),
@@ -547,7 +547,7 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessageFromDashboard(options),
@@ -574,7 +574,7 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessageFromDashboard(options),
@@ -607,7 +607,7 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             }
             await expect(
                 service.createReactionRoleMessageFromDashboard(options),
@@ -1210,7 +1210,7 @@ describe('ReactionRolesService', () => {
                 guild: mockGuild,
                 channel: mockChannel,
                 embed: new EmbedBuilder(),
-                roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
             })
 
             expect(created).toEqual(mockMessage)
@@ -1237,7 +1237,7 @@ describe('ReactionRolesService', () => {
                     title: 'Test',
                     description: 'Test',
                     botToken: 'token',
-                    roles: [{ roleId: 'role-1', label: 'Role 1' }],
+                    roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
                 })
 
             expect(created.messageId).toBe('msg-rest')
@@ -1261,6 +1261,562 @@ describe('ReactionRolesService', () => {
                 '12345678901234567',
             )
             expect(deleted).toBe(true)
+        })
+    })
+    describe('updateReactionRoleMessage (REST edit path)', () => {
+        const baseOptions = {
+            guildId: '12345678901234567',
+            messageId: '98765432109876543',
+            title: 'Updated Title',
+            description: 'Updated description',
+            botToken: 'token-abc',
+            roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
+        }
+
+        beforeEach(() => {
+            ;(global as any).fetch = jest.fn()
+            mockPrisma.$transaction = jest.fn()
+            mockPrisma.reactionRoleMapping = {
+                deleteMany: jest.fn(),
+            }
+            mockPrisma.reactionRoleMessage = {
+                update: jest.fn(),
+                findUnique: jest.fn(),
+                create: jest.fn(),
+                delete: jest.fn(),
+                findMany: jest.fn(),
+            }
+        })
+
+        afterEach(() => {
+            jest.restoreAllMocks()
+        })
+
+        it('throws "Reaction role message not found" when message does not exist', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce(
+                null,
+            )
+
+            await expect(
+                service.updateReactionRoleMessage(baseOptions),
+            ).rejects.toThrow('Reaction role message not found')
+        })
+
+        it('throws "Reaction role message not found" when guildId does not match stored message', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: '98765432109876543',
+                guildId: 'different-guild',
+                channelId: '12345',
+            })
+
+            await expect(
+                service.updateReactionRoleMessage(baseOptions),
+            ).rejects.toThrow('Reaction role message not found')
+        })
+
+        it('calls fetch with PATCH method to Discord API messages URL', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+                mappings: [],
+            })
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({
+                    id: '98765432109876543',
+                }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+
+            await service.updateReactionRoleMessage(baseOptions)
+
+            expect(global.fetch).toHaveBeenCalledWith(
+                'https://discord.com/api/v10/channels/11111111111111111/messages/98765432109876543',
+                expect.objectContaining({
+                    method: 'PATCH',
+                    headers: expect.objectContaining({
+                        Authorization: 'Bot token-abc',
+                    }),
+                }),
+            )
+        })
+
+        it('includes imageUrl in PATCH body embed when provided', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+            })
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({
+                    id: '98765432109876543',
+                }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+
+            const optionsWithImage = {
+                ...baseOptions,
+                imageUrl: 'https://example.com/image.png',
+            }
+            await service.updateReactionRoleMessage(optionsWithImage)
+
+            const callBody = JSON.parse(
+                ((global.fetch as any).mock.calls[0][1] as any).body,
+            )
+            expect(callBody.embeds[0].image).toEqual({
+                url: 'https://example.com/image.png',
+            })
+            // persists the embed content so the edit form can prefill it later
+            expect(mockPrisma.reactionRoleMessage.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        title: optionsWithImage.title,
+                        description: optionsWithImage.description,
+                        imageUrl: 'https://example.com/image.png',
+                    }),
+                }),
+            )
+        })
+
+        it('does not include image in PATCH body embed when imageUrl not provided', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+            })
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({
+                    id: '98765432109876543',
+                }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+
+            await service.updateReactionRoleMessage(baseOptions)
+
+            const callBody = JSON.parse(
+                ((global.fetch as any).mock.calls[0][1] as any).body,
+            )
+            expect(callBody.embeds[0].image).toBeUndefined()
+        })
+
+        it('invokes $transaction with deleteMany and update', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+            })
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({
+                    id: '98765432109876543',
+                }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+
+            await service.updateReactionRoleMessage(baseOptions)
+
+            expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+            const txnArg = mockPrisma.$transaction.mock.calls[0][0]
+            expect(txnArg).toBeInstanceOf(Array)
+            expect(txnArg.length).toBeGreaterThanOrEqual(2)
+        })
+
+        it('throws when Discord API returns !ok', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+            })
+            const mockResponse: any = {
+                ok: false,
+                status: 404,
+                text: (jest.fn() as any).mockResolvedValue('Message not found'),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+
+            await expect(
+                service.updateReactionRoleMessage(baseOptions),
+            ).rejects.toThrow(/Discord API error 404/)
+        })
+
+        it('returns { messageId } on success', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+            })
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({
+                    id: '98765432109876543',
+                }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+
+            const result = await service.updateReactionRoleMessage(baseOptions)
+
+            expect(result).toEqual({ messageId: '98765432109876543' })
+        })
+
+        it('validates snowflake IDs before fetch (guildId check)', async () => {
+            const optionsWithBadGuildId = {
+                ...baseOptions,
+                guildId: 'not-a-snowflake',
+            }
+
+            await expect(
+                service.updateReactionRoleMessage(optionsWithBadGuildId),
+            ).rejects.toThrow(/Invalid guildId/)
+        })
+
+        it('validates snowflake IDs before fetch (messageId check)', async () => {
+            const optionsWithBadMessageId = {
+                ...baseOptions,
+                messageId: 'not-a-snowflake',
+            }
+
+            await expect(
+                service.updateReactionRoleMessage(optionsWithBadMessageId),
+            ).rejects.toThrow(/Invalid messageId/)
+        })
+
+        it('builds button rows and includes in PATCH body components', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+            })
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({
+                    id: '98765432109876543',
+                }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+
+            const multiRoleOptions = {
+                ...baseOptions,
+                roles: [
+                    { roleId: '22222222222222222', label: 'Role 1' },
+                    { roleId: '33333333333333333', label: 'Role 2' },
+                ],
+            }
+            await service.updateReactionRoleMessage(multiRoleOptions)
+
+            const callBody = JSON.parse(
+                ((global.fetch as any).mock.calls[0][1] as any).body,
+            )
+            expect(callBody.components).toBeDefined()
+            expect(callBody.components.length).toBeGreaterThan(0)
+            expect(callBody.components[0].components).toBeDefined()
+            expect(callBody.components[0].components.length).toBeGreaterThan(0)
+        })
+    })
+
+    describe('createReactionRoleMessageFromDashboard with imageUrl', () => {
+        const baseOptions = {
+            guildId: '12345678901234567',
+            channelId: '98765432109876543',
+            title: 'Test Roles',
+            description: 'Click to assign',
+            botToken: 'token-abc',
+        }
+
+        beforeEach(() => {
+            ;(global as any).fetch = jest.fn()
+        })
+
+        afterEach(() => {
+            jest.restoreAllMocks()
+        })
+
+        it('includes imageUrl in POST body embed when provided', async () => {
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({ id: 'msg-123' }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({})
+
+            const optionsWithImage = {
+                ...baseOptions,
+                imageUrl: 'https://example.com/image.jpg',
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
+            }
+            await service.createReactionRoleMessageFromDashboard(
+                optionsWithImage,
+            )
+
+            const callBody = JSON.parse(
+                ((global.fetch as any).mock.calls[0][1] as any).body,
+            )
+            expect(callBody.embeds[0].image).toEqual({
+                url: 'https://example.com/image.jpg',
+            })
+        })
+
+        it('does not include image in POST body when imageUrl not provided', async () => {
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({ id: 'msg-123' }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({})
+
+            const options = {
+                ...baseOptions,
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
+            }
+            await service.createReactionRoleMessageFromDashboard(options)
+
+            const callBody = JSON.parse(
+                ((global.fetch as any).mock.calls[0][1] as any).body,
+            )
+            expect(callBody.embeds[0].image).toBeUndefined()
+        })
+    })
+
+    describe('createReactionRoleMessageFromDashboard with file upload', () => {
+        const baseOptions = {
+            guildId: '12345678901234567',
+            channelId: '98765432109876543',
+            title: 'Test Roles',
+            description: 'Click to assign',
+            botToken: 'token-abc',
+        }
+
+        beforeEach(() => {
+            ;(global as any).fetch = jest.fn()
+        })
+
+        afterEach(() => {
+            jest.restoreAllMocks()
+        })
+
+        it('sends multipart request with file when imageFile provided', async () => {
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({ id: 'msg-123' }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({})
+
+            const imageFile = {
+                buffer: Buffer.from('fake-image-data'),
+                filename: 'test-image.png',
+                contentType: 'image/png',
+            }
+
+            const optionsWithFile = {
+                ...baseOptions,
+                imageFile,
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
+            }
+
+            await service.createReactionRoleMessageFromDashboard(
+                optionsWithFile as any,
+            )
+
+            const fetchCall = (global.fetch as any).mock.calls[0]
+            const headers = fetchCall[1].headers
+
+            // Multipart request should NOT have Content-Type: application/json
+            expect(headers['Content-Type']).toBeUndefined()
+
+            // Body should be FormData, not a string
+            const body = fetchCall[1].body
+            expect(body).toBeInstanceOf(FormData)
+        })
+
+        it('includes attachment:// reference in embed image when file provided', async () => {
+            const imageFile = {
+                buffer: Buffer.from('fake-image-data'),
+                filename: 'test-image.png',
+                contentType: 'image/png',
+            }
+
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({ id: 'msg-123' }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({})
+
+            const optionsWithFile = {
+                ...baseOptions,
+                imageFile,
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
+            }
+
+            await service.createReactionRoleMessageFromDashboard(
+                optionsWithFile as any,
+            )
+
+            const fetchCall = (global.fetch as any).mock.calls[0]
+            const body = fetchCall[1].body as FormData
+            const entries = Array.from(body.entries())
+
+            // Verify payload_json contains attachment:// reference
+            const payloadEntry = entries.find((e) => e[0] === 'payload_json')
+            expect(payloadEntry).toBeDefined()
+            const payload = JSON.parse(payloadEntry![1] as string)
+            expect(payload.embeds[0].image.url).toBe(
+                'attachment://test-image.png',
+            )
+
+            // Verify files part exists (FormData converts it to File/Blob)
+            const fileEntry = entries.find((e) => e[0] === 'files[0]')
+            expect(fileEntry).toBeDefined()
+            const uploadedFile = fileEntry![1] as any
+            expect(uploadedFile.name).toBe('test-image.png')
+            expect(uploadedFile.type).toBe('image/png')
+        })
+
+        it('stores null imageUrl when file is used (not an http URL)', async () => {
+            const imageFile = {
+                buffer: Buffer.from('fake-image-data'),
+                filename: 'test-image.png',
+                contentType: 'image/png',
+            }
+
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({ id: 'msg-123' }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({})
+
+            const optionsWithFile = {
+                ...baseOptions,
+                imageFile,
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
+            }
+
+            await service.createReactionRoleMessageFromDashboard(
+                optionsWithFile as any,
+            )
+
+            // Prisma create should be called with imageUrl: null (no URL to store)
+            expect(mockPrisma.reactionRoleMessage.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        imageUrl: null,
+                    }),
+                }),
+            )
+        })
+    })
+
+    describe('updateReactionRoleMessage with file upload', () => {
+        const baseOptions = {
+            guildId: '12345678901234567',
+            messageId: '98765432109876543',
+            title: 'Updated Title',
+            description: 'Updated description',
+            botToken: 'token-abc',
+            roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
+        }
+
+        beforeEach(() => {
+            ;(global as any).fetch = jest.fn()
+            mockPrisma.$transaction = jest.fn()
+            mockPrisma.reactionRoleMapping = {
+                deleteMany: jest.fn(),
+            }
+            mockPrisma.reactionRoleMessage = {
+                update: jest.fn(),
+                findUnique: jest.fn(),
+                create: jest.fn(),
+                delete: jest.fn(),
+                findMany: jest.fn(),
+            }
+        })
+
+        afterEach(() => {
+            jest.restoreAllMocks()
+        })
+
+        it('sends multipart request with file for PATCH when imageFile provided', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+            })
+
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({
+                    id: '98765432109876543',
+                }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+
+            const imageFile = {
+                buffer: Buffer.from('updated-image-data'),
+                filename: 'updated-image.jpg',
+                contentType: 'image/jpeg',
+            }
+
+            const optionsWithFile = {
+                ...baseOptions,
+                imageFile,
+            }
+
+            await service.updateReactionRoleMessage(optionsWithFile as any)
+
+            const fetchCall = (global.fetch as any).mock.calls[0]
+            const method = fetchCall[1].method
+            expect(method).toBe('PATCH')
+
+            const body = fetchCall[1].body
+            expect(body).toBeInstanceOf(FormData)
+        })
+
+        it('sets attachments: [] in PATCH body when replacing file', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+            })
+
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({
+                    id: '98765432109876543',
+                }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+
+            const imageFile = {
+                buffer: Buffer.from('updated-image-data'),
+                filename: 'updated-image.jpg',
+                contentType: 'image/jpeg',
+            }
+
+            const optionsWithFile = {
+                ...baseOptions,
+                imageFile,
+            }
+
+            await service.updateReactionRoleMessage(optionsWithFile as any)
+
+            const fetchCall = (global.fetch as any).mock.calls[0]
+            const body = fetchCall[1].body as FormData
+            const entries = Array.from(body.entries())
+            const payloadEntry = entries.find((e) => e[0] === 'payload_json')
+            const payload = JSON.parse(payloadEntry![1] as string)
+            expect(payload.attachments).toEqual([])
         })
     })
 })

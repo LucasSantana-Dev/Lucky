@@ -14,6 +14,7 @@ import type {
     RoleGrant,
     ModuleKey,
     GuildChannelOption,
+    GuildEmojiOption,
 } from '@/types'
 import { ApiError } from './ApiError'
 import { createMusicApi } from './musicApi'
@@ -174,6 +175,10 @@ export const api = {
             ),
         getRoles: (id: string) =>
             apiClient.get<{ roles: GuildRoleOption[] }>(`/guilds/${id}/roles`),
+        getEmojis: (id: string) =>
+            apiClient.get<{ emojis: GuildEmojiOption[] }>(
+                `/guilds/${id}/emojis`,
+            ),
         getRbac: (id: string) =>
             apiClient.get<{
                 guildId: string

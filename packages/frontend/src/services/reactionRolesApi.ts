@@ -15,6 +15,9 @@ export interface ReactionRoleMessage {
     messageId: string
     channelId: string
     guildId: string
+    title?: string
+    description?: string
+    imageUrl?: string
     createdAt: string
     mappings: ReactionRoleMapping[]
 }
@@ -37,6 +40,14 @@ export interface CreateReactionRolePayload {
     channelId: string
     title: string
     description: string
+    imageUrl?: string
+    roles: CreateReactionRoleEntry[]
+}
+
+export interface UpdateReactionRolePayload {
+    title: string
+    description: string
+    imageUrl?: string
     roles: CreateReactionRoleEntry[]
 }
 
@@ -51,10 +62,18 @@ export function createReactionRolesApi(client: AxiosInstance) {
         create: async (
             guildId: string,
             payload: CreateReactionRolePayload,
+            imageFile?: File,
         ): Promise<{ messageId: string }> => {
+            let data: CreateReactionRolePayload | FormData = payload
+            if (imageFile) {
+                const fd = new FormData()
+                fd.append('image', imageFile)
+                fd.append('payload', JSON.stringify(payload))
+                data = fd
+            }
             const res = await client.post<{ messageId: string }>(
                 `/guilds/${guildId}/reaction-roles`,
-                payload,
+                data,
             )
             return res.data
         },
@@ -62,6 +81,25 @@ export function createReactionRolesApi(client: AxiosInstance) {
             await client.delete(
                 `/guilds/${guildId}/reaction-roles/${messageId}`,
             )
+        },
+        update: async (
+            guildId: string,
+            messageId: string,
+            payload: UpdateReactionRolePayload,
+            imageFile?: File,
+        ): Promise<{ messageId: string }> => {
+            let data: UpdateReactionRolePayload | FormData = payload
+            if (imageFile) {
+                const fd = new FormData()
+                fd.append('image', imageFile)
+                fd.append('payload', JSON.stringify(payload))
+                data = fd
+            }
+            const res = await client.put<{ messageId: string }>(
+                `/guilds/${guildId}/reaction-roles/${messageId}`,
+                data,
+            )
+            return res.data
         },
         listExclusions: async (guildId: string): Promise<RoleExclusion[]> => {
             const res = await client.get<{ exclusions: RoleExclusion[] }>(
