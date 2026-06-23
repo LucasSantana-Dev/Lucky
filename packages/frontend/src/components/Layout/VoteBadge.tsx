@@ -1,3 +1,4 @@
+import { Heart, ThumbsUp } from 'lucide-react'
 import { useVoteStatus } from '@/hooks/useVoteStatus'
 
 const TIER_STYLES: Record<string, string> = {
@@ -28,7 +29,7 @@ export function VoteBadge() {
                 className='lucky-focus-visible hidden sm:inline-flex items-center gap-1.5 rounded-md border border-lucky-border bg-lucky-bg-secondary px-2.5 py-1.5 type-body-sm text-lucky-text-secondary hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary transition-colors'
                 title='Vote for Lucky on top.gg to unlock perks'
             >
-                <span aria-hidden='true'>🗳️</span>
+                <ThumbsUp aria-hidden='true' className='h-3.5 w-3.5' />
                 <span>Vote</span>
             </a>
         )
@@ -45,7 +46,7 @@ export function VoteBadge() {
             className={`lucky-focus-visible hidden sm:inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 type-body-sm transition-colors hover:brightness-110 ${style}`}
             title={`${status.tier.label} — ${status.streak}-vote streak. Click to vote again.`}
         >
-            <span aria-hidden='true'>💛</span>
+            <Heart aria-hidden='true' className='h-3.5 w-3.5 shrink-0' />
             <span className='truncate max-w-[140px]'>{status.tier.label}</span>
             <span className='type-meta opacity-70'>· {status.streak}</span>
         </a>

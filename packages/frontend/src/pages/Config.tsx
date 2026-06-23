@@ -1,6 +1,12 @@
 import { useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Music, MessageSquare, Shield, ArrowLeft } from 'lucide-react'
+import {
+    Music,
+    MessageSquare,
+    Shield,
+    ArrowLeft,
+    ChevronRight,
+} from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
@@ -155,7 +161,7 @@ export default function ConfigPage() {
                                                     'cubic-bezier(0.2, 0, 0, 1)',
                                             }}
                                         >
-                                            →
+                                            <ChevronRight className='w-4 h-4' />
                                         </div>
                                     </button>
                                 )
@@ -172,7 +178,7 @@ export default function ConfigPage() {
                                 onClick={() => setSelectedModule(null)}
                                 className='gap-2 text-lucky-text-secondary hover:text-lucky-text-primary'
                             >
-                                <ArrowLeft className='w-4 h-4' />← Back
+                                <ArrowLeft className='w-4 h-4' /> Back
                             </Button>
                         </div>
                         <Suspense
