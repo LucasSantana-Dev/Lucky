@@ -26,6 +26,10 @@ COMPOSE_FILE="${STAGING_COMPOSE_FILE:-/home/luk-server/Lucky/docker-compose.stag
 ENV_FILE=".env.staging"
 PROJECT="lucky-staging"
 HEALTH_PORT="${NGINX_PORT:-8093}"
+# Health-check via the host IP, not localhost: this runs inside the webhook
+# container, whose localhost is NOT the host where the staging nginx port is
+# published. The host IP is reachable from the container's network.
+HEALTH_HOST="${STAGING_HOST_IP:-100.95.204.103}"
 
 # --- secret gate ---------------------------------------------------------------
 if [[ -z "${DEPLOY_WEBHOOK_SECRET:-}" ]]; then
@@ -116,10 +120,10 @@ dc up -d --remove-orphans backend frontend nginx
 # nothing to wire here.
 
 # --- health check --------------------------------------------------------------
-log "Health-checking staging (http://localhost:${HEALTH_PORT})..."
+log "Health-checking staging (http://${HEALTH_HOST}:${HEALTH_PORT})..."
 ok=""
 for _ in $(seq 1 30); do
-    if curl -fsS --max-time 4 "http://localhost:${HEALTH_PORT}/api/health" >/dev/null 2>&1; then
+    if wget -q -O /dev/null --timeout=4 "http://${HEALTH_HOST}:${HEALTH_PORT}/api/health" 2>/dev/null; then
         ok="1"; break
     fi
     sleep 3
@@ -132,7 +136,7 @@ if [[ -z "$ok" ]]; then
 fi
 
 # Verify the OAuth contract endpoint too (the dashboard depends on it).
-if ! curl -fsS --max-time 4 "http://localhost:${HEALTH_PORT}/api/health/auth-config" >/dev/null 2>&1; then
+if ! wget -q -O /dev/null --timeout=4 "http://${HEALTH_HOST}:${HEALTH_PORT}/api/health/auth-config" 2>/dev/null; then
     log "WARN: auth-config endpoint not ready (dashboard login may fail)"
 fi
 
