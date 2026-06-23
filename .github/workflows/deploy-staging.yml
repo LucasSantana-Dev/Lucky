@@ -37,11 +37,15 @@ jobs:
         steps:
             - name: Resolve ref to deploy
               id: ref
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  INPUT_REF: ${{ github.event.inputs.ref }}
+                  PR_REF: ${{ github.event.pull_request.head.ref }}
               run: |
-                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-                      echo "ref=${{ github.event.inputs.ref }}" >> "$GITHUB_OUTPUT"
+                  if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+                      echo "ref=$INPUT_REF" >> "$GITHUB_OUTPUT"
                   else
-                      echo "ref=${{ github.event.pull_request.head.ref }}" >> "$GITHUB_OUTPUT"
+                      echo "ref=$PR_REF" >> "$GITHUB_OUTPUT"
                   fi
 
             - name: Trigger staging deploy webhook
@@ -50,6 +54,7 @@ jobs:
                   WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
                   DEPLOY_REF: ${{ steps.ref.outputs.ref }}
               run: |
+                  # shellcheck disable=SC2016  # ${...} below is JS, evaluated by node, not bash
                   set -euo pipefail
                   # Derive the staging hook URL (origin + /webhook/deploy-staging)
                   # from the prod webhook secret, keeping the curl injection-safe.
