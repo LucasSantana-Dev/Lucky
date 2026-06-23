@@ -37,7 +37,7 @@ export interface DashboardCreateReactionRoleOptions {
         roleId: string
         label: string
         emoji?: string
-        style?: string
+        style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
     }>
 }
 
