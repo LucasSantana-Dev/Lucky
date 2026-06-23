@@ -1370,6 +1370,16 @@ describe('ReactionRolesService', () => {
             expect(callBody.embeds[0].image).toEqual({
                 url: 'https://example.com/image.png',
             })
+            // persists the embed content so the edit form can prefill it later
+            expect(mockPrisma.reactionRoleMessage.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        title: optionsWithImage.title,
+                        description: optionsWithImage.description,
+                        imageUrl: 'https://example.com/image.png',
+                    }),
+                }),
+            )
         })
 
         it('does not include image in PATCH body embed when imageUrl not provided', async () => {

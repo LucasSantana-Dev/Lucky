@@ -246,6 +246,9 @@ export class ReactionRolesService {
                         messageId,
                         channelId,
                         guildId,
+                        title,
+                        description,
+                        imageUrl: imageUrl ?? null,
                         mappings: {
                             create: roles.map((role) => ({
                                 roleId: role.roleId,
@@ -441,6 +444,9 @@ export class ReactionRolesService {
                 prisma.reactionRoleMessage.update({
                     where: { messageId },
                     data: {
+                        title,
+                        description,
+                        imageUrl: imageUrl ?? null,
                         mappings: {
                             create: roles.map((role) => ({
                                 roleId: role.roleId,
