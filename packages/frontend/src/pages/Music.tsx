@@ -178,7 +178,7 @@ function NowPlayingHero({
     const progress = duration > 0 ? (position / duration) * 100 : 0
 
     return (
-        <div className='surface-panel rounded-xl overflow-hidden border border-lucky-border px-4 sm:px-6'>
+        <div className='surface-panel rounded-xl overflow-hidden border border-lucky-border'>
             <div className='p-4 sm:p-6'>
                 <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 items-start'>
                     <div className='sm:col-span-1'>

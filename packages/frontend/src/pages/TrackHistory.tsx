@@ -128,7 +128,7 @@ export default function TrackHistoryPage() {
 
     return (
         <div className='space-y-6 px-1 sm:px-0'>
-            <header className='flex items-center justify-between gap-4'>
+            <header className='flex items-center justify-between'>
                 <div className='flex items-center gap-3'>
                     <History className='h-6 w-6 text-lucky-error' />
                     <h1 className='type-h2 text-lucky-text-primary'>

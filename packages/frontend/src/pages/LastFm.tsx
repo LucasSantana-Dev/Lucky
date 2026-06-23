@@ -95,7 +95,7 @@ export default function LastFmPage() {
             )}
 
             {!status?.configured ? (
-                <section className='surface-panel space-y-4 rounded-lg border border-lucky-border p-6'>
+                <section className='surface-panel space-y-4 rounded-lg border border-lucky-border p-8'>
                     <div className='flex items-start gap-4'>
                         <div className='rounded-lg bg-lucky-bg-tertiary p-3'>
                             <Music className='h-6 w-6 text-lucky-text-secondary' />
@@ -120,7 +120,7 @@ export default function LastFmPage() {
                     </div>
                 </section>
             ) : status.linked ? (
-                <section className='surface-panel space-y-6 rounded-lg border border-lucky-border p-6'>
+                <section className='surface-panel space-y-6 rounded-lg border border-lucky-border p-8'>
                     <div className='flex items-start gap-4'>
                         <div className='rounded-full bg-lucky-success/20 p-3'>
                             <Check className='h-6 w-6 text-lucky-success' />
@@ -166,7 +166,7 @@ export default function LastFmPage() {
                     </button>
                 </section>
             ) : (
-                <section className='surface-panel space-y-6 rounded-lg border border-lucky-border p-6'>
+                <section className='surface-panel space-y-6 rounded-lg border border-lucky-border p-8'>
                     <div>
                         <h2 className='type-h2 text-lucky-text-primary'>
                             Connect Your Account
@@ -219,7 +219,7 @@ export default function LastFmPage() {
                 </div>
             </div>
 
-            <section className='surface-panel space-y-4 rounded-lg border border-lucky-border p-6'>
+            <section className='surface-panel space-y-4 rounded-lg border border-lucky-border p-8'>
                 <h3 className='type-title text-lucky-text-primary'>
                     How it works
                 </h3>

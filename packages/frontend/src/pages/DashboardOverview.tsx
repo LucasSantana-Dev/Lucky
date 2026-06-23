@@ -99,7 +99,7 @@ function CompactStat({
                 {icon && (
                     <span
                         className={cn(
-                            'flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-xs',
+                            'flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-xs',
                             compactToneClass[tone],
                         )}
                         aria-hidden='true'
@@ -115,7 +115,7 @@ function CompactStat({
                 {delta !== undefined && (
                     <span
                         className={cn(
-                            'rounded-sm px-2 py-1 text-[11px] font-semibold uppercase tracking-wider',
+                            'rounded-sm px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider',
                             delta >= 0
                                 ? 'bg-lucky-success/20 text-lucky-success'
                                 : 'bg-lucky-error/20 text-lucky-error',

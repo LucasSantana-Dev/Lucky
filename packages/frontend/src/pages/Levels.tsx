@@ -215,7 +215,7 @@ function Levels() {
                             {leaderboard.map((member) => (
                                 <div
                                     key={member.userId}
-                                    className='flex items-center justify-between px-4 py-3 transition-colors hover:bg-lucky-bg-active/25'
+                                    className='flex items-center justify-between p-4 transition-colors hover:bg-lucky-bg-active/25'
                                 >
                                     <div className='flex-1'>
                                         <p className='type-body-sm font-medium text-lucky-text-primary'>
