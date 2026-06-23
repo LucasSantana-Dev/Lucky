@@ -819,3 +819,292 @@ describe('ReactionRoles', () => {
         expect(imageUrlInput.value).toBe('https://example.com/image.png')
     })
 })
+
+test('export button is present and disabled when no messages', async () => {
+    mockGuildStore()
+    vi.mocked(api.reactionRoles.list).mockResolvedValue([])
+    render(<ReactionRoles />)
+
+    await waitFor(() => {
+        expect(screen.getByText('Reaction Roles')).toBeInTheDocument()
+    })
+
+    const exportButton = screen.getByRole('button', { name: /export/i })
+    expect(exportButton).toBeDisabled()
+})
+
+test('export button is enabled when messages exist', async () => {
+    mockGuildStore()
+    vi.mocked(api.reactionRoles.list).mockResolvedValue(mockMessages)
+    render(<ReactionRoles />)
+
+    await waitFor(() => {
+        expect(screen.getByText('msg-123')).toBeInTheDocument()
+    })
+
+    const exportButton = screen.getByRole('button', { name: /export/i })
+    expect(exportButton).not.toBeDisabled()
+})
+
+test('export button triggers download with correct JSON format', async () => {
+    mockGuildStore()
+    vi.mocked(api.reactionRoles.list).mockResolvedValue(mockMessages)
+
+    const createObjectURLMock = vi.fn(() => 'blob:mock-url')
+    const createElementMock = vi.spyOn(document, 'createElement')
+    const appendChildMock = vi.spyOn(document.body, 'appendChild')
+    const removeChildMock = vi.spyOn(document.body, 'removeChild')
+
+    globalThis.URL.createObjectURL = createObjectURLMock
+    globalThis.URL.revokeObjectURL = vi.fn()
+
+    render(<ReactionRoles />)
+
+    await waitFor(() => {
+        expect(screen.getByText('msg-123')).toBeInTheDocument()
+    })
+
+    const exportButton = screen.getByRole('button', { name: /export/i })
+    fireEvent.click(exportButton)
+
+    await waitFor(() => {
+        const anchor = createElementMock.mock.results.find(
+            (r) => r.value?.tagName === 'A',
+        )?.value
+        expect(anchor).toBeDefined()
+        expect(appendChildMock).toHaveBeenCalledWith(anchor)
+        expect(removeChildMock).toHaveBeenCalledWith(anchor)
+    })
+
+    globalThis.URL.createObjectURL = vi.fn()
+})
+
+test('import button is present', async () => {
+    mockGuildStore()
+    vi.mocked(api.reactionRoles.list).mockResolvedValue(mockMessages)
+    render(<ReactionRoles />)
+
+    await waitFor(() => {
+        expect(screen.getByText('Reaction Roles')).toBeInTheDocument()
+    })
+
+    const importButton = screen.getByRole('button', { name: /import/i })
+    expect(importButton).toBeInTheDocument()
+})
+
+test('import dialog opens on click', async () => {
+    mockGuildStore()
+    vi.mocked(api.reactionRoles.list).mockResolvedValue(mockMessages)
+    render(<ReactionRoles />)
+
+    await waitFor(() => {
+        expect(screen.getByText('Reaction Roles')).toBeInTheDocument()
+    })
+
+    const importButton = screen.getByRole('button', { name: /import/i })
+    fireEvent.click(importButton)
+
+    await waitFor(() => {
+        expect(screen.getByText(/Import Reaction Roles/i)).toBeInTheDocument()
+    })
+})
+
+test('import dialog rejects invalid JSON', async () => {
+    mockGuildStore()
+    vi.mocked(api.reactionRoles.list).mockResolvedValue(mockMessages)
+    render(<ReactionRoles />)
+
+    await waitFor(() => {
+        expect(screen.getByText('Reaction Roles')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+
+    await waitFor(() => {
+        expect(screen.getByText(/Import Reaction Roles/i)).toBeInTheDocument()
+    })
+
+    const textarea = screen.getByPlaceholderText(
+        /Paste JSON/i,
+    ) as HTMLTextAreaElement
+    fireEvent.change(textarea, { target: { value: '{ invalid json }' } })
+
+    const dialogButtons = screen.getAllByRole('button', { name: /import/i })
+    const submitButton = dialogButtons[dialogButtons.length - 1]
+    fireEvent.click(submitButton)
+
+    await waitFor(() => {
+        expect(screen.getByText(/Invalid JSON format/i)).toBeInTheDocument()
+    })
+
+    expect(vi.mocked(api.reactionRoles.create)).not.toHaveBeenCalled()
+})
+
+test('import dialog shows validation errors before network call', async () => {
+    mockGuildStore()
+    vi.mocked(api.reactionRoles.list).mockResolvedValue(mockMessages)
+    render(<ReactionRoles />)
+
+    await waitFor(() => {
+        expect(screen.getByText('Reaction Roles')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+
+    await waitFor(() => {
+        expect(screen.getByText(/Import Reaction Roles/i)).toBeInTheDocument()
+    })
+
+    const textarea = screen.getByPlaceholderText(
+        /Paste JSON/i,
+    ) as HTMLTextAreaElement
+    const validJson = JSON.stringify([
+        {
+            channelId: '123456789012345678',
+            title: 'Test',
+            description: 'Missing roles',
+            roles: [],
+        },
+    ])
+    fireEvent.change(textarea, { target: { value: validJson } })
+
+    const dialogButtons = screen.getAllByRole('button', { name: /import/i })
+    const submitButton = dialogButtons[dialogButtons.length - 1]
+    fireEvent.click(submitButton)
+
+    await waitFor(() => {
+        expect(screen.getByText(/roles must have 1-25/i)).toBeInTheDocument()
+    })
+
+    expect(vi.mocked(api.reactionRoles.create)).not.toHaveBeenCalled()
+})
+
+test('import dialog creates messages sequentially from valid JSON', async () => {
+    mockGuildStore()
+    vi.mocked(api.reactionRoles.list).mockResolvedValue(mockMessages)
+    vi.mocked(api.reactionRoles.create).mockResolvedValue({
+        messageId: 'new-msg-1',
+    })
+
+    render(<ReactionRoles />)
+
+    await waitFor(() => {
+        expect(screen.getByText('Reaction Roles')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+
+    await waitFor(() => {
+        expect(screen.getByText(/Import Reaction Roles/i)).toBeInTheDocument()
+    })
+
+    const textarea = screen.getByPlaceholderText(
+        /Paste JSON/i,
+    ) as HTMLTextAreaElement
+    const validJson = JSON.stringify([
+        {
+            channelId: '123456789012345678',
+            title: 'Test',
+            description: 'Test',
+            roles: [
+                {
+                    roleId: '111111111111111111',
+                    label: 'Test Role',
+                },
+            ],
+        },
+        {
+            channelId: '987654321098765432',
+            title: 'Test 2',
+            description: 'Test 2',
+            roles: [
+                {
+                    roleId: '222222222222222222',
+                    label: 'Another Role',
+                },
+            ],
+        },
+    ])
+    fireEvent.change(textarea, { target: { value: validJson } })
+
+    const submitButton = screen.getByRole('button', { name: /import/i })
+    fireEvent.click(submitButton)
+
+    await waitFor(() => {
+        expect(vi.mocked(api.reactionRoles.create)).toHaveBeenCalledTimes(2)
+    })
+})
+
+test('import dialog continues on individual failure and shows errors', async () => {
+    mockGuildStore()
+    vi.mocked(api.reactionRoles.list).mockResolvedValue(mockMessages)
+    vi.mocked(api.reactionRoles.create)
+        .mockResolvedValueOnce({ messageId: 'new-msg-1' })
+        .mockRejectedValueOnce(new Error('Channel not found'))
+        .mockResolvedValueOnce({ messageId: 'new-msg-3' })
+
+    render(<ReactionRoles />)
+
+    await waitFor(() => {
+        expect(screen.getByText('Reaction Roles')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+
+    await waitFor(() => {
+        expect(screen.getByText(/Import Reaction Roles/i)).toBeInTheDocument()
+    })
+
+    const textarea = screen.getByPlaceholderText(
+        /Paste JSON/i,
+    ) as HTMLTextAreaElement
+    const validJson = JSON.stringify([
+        {
+            channelId: '123456789012345678',
+            title: 'Test 1',
+            description: 'Test 1',
+            roles: [
+                {
+                    roleId: '111111111111111111',
+                    label: 'Role 1',
+                },
+            ],
+        },
+        {
+            channelId: '987654321098765432',
+            title: 'Test 2',
+            description: 'Test 2',
+            roles: [
+                {
+                    roleId: '222222222222222222',
+                    label: 'Role 2',
+                },
+            ],
+        },
+        {
+            channelId: '111222333444555666',
+            title: 'Test 3',
+            description: 'Test 3',
+            roles: [
+                {
+                    roleId: '333333333333333333',
+                    label: 'Role 3',
+                },
+            ],
+        },
+    ])
+    fireEvent.change(textarea, { target: { value: validJson } })
+
+    const dialogButtons = screen.getAllByRole('button', { name: /import/i })
+    const submitButton = dialogButtons[dialogButtons.length - 1]
+    fireEvent.click(submitButton)
+
+    await waitFor(
+        () => {
+            expect(vi.mocked(api.reactionRoles.create)).toHaveBeenCalledTimes(3)
+        },
+        { timeout: 2000 },
+    )
+
+    expect(screen.getByText(/Channel not found/i)).toBeInTheDocument()
+})

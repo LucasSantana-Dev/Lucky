@@ -9,6 +9,8 @@ import {
     Trash2,
     X,
     Pencil,
+    Download,
+    Upload,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -43,6 +45,8 @@ import type {
 } from '@/services/reactionRolesApi'
 import type { GuildRoleOption } from '@/types/rbac'
 import type { GuildChannelOption } from '@/types/guild'
+import { serializeReactionRolesToJSON } from '@/utils/reactionRolesExport'
+import { ImportDialog } from '@/components/reactionRoles/ImportDialog'
 
 const BUTTON_STYLE_LABELS: Record<string, string> = {
     '1': 'Primary',
@@ -672,13 +676,14 @@ export default function ReactionRoles() {
         ReactionRoleMessage | undefined
     >()
     const [deleteError, setDeleteError] = useState<string | null>(null)
+    const [importDialogOpen, setImportDialogOpen] = useState(false)
 
     const fetchMessages = useCallback(async () => {
         if (!selectedGuild) return
         setLoading(true)
         setError(null)
         try {
-            const data = await api.reactionRoles.list(selectedGuild.id)
+            const data = await api.reactionRoles.list(selectedGuild!.id)
             setMessages(data)
         } catch {
             setError('Failed to load reaction role messages.')
@@ -695,7 +700,7 @@ export default function ReactionRoles() {
         if (!selectedGuild) return
         setDeleteError(null)
         try {
-            await api.reactionRoles.delete(selectedGuild.id, messageId)
+            await api.reactionRoles.delete(selectedGuild!.id, messageId)
             setMessages((prev) => prev.filter((m) => m.messageId !== messageId))
         } catch {
             setDeleteError('Failed to delete reaction role message.')
@@ -724,6 +729,24 @@ export default function ReactionRoles() {
         void fetchMessages()
     }
 
+    function handleExport() {
+        const exported = serializeReactionRolesToJSON(messages)
+        const jsonString = JSON.stringify(exported, null, 2)
+        const blob = new Blob([jsonString], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const anchor = document.createElement('a')
+        anchor.href = url
+        anchor.download = `reaction-roles-${selectedGuild!.id}.json`
+        document.body.appendChild(anchor)
+        anchor.click()
+        document.body.removeChild(anchor)
+        URL.revokeObjectURL(url)
+    }
+
+    function handleImportSuccess() {
+        void fetchMessages()
+    }
+
     if (!selectedGuild) {
         return (
             <EmptyState
@@ -740,10 +763,27 @@ export default function ReactionRoles() {
                 title='Reaction Roles'
                 description='Create Discord messages with button-based role assignment directly from the dashboard.'
                 actions={
-                    <Button onClick={handleCreateClick}>
-                        <Plus className='h-4 w-4' />
-                        Create
-                    </Button>
+                    <div className='flex gap-2'>
+                        <Button
+                            onClick={handleExport}
+                            disabled={messages.length === 0}
+                            variant='secondary'
+                        >
+                            <Download className='h-4 w-4' />
+                            Export
+                        </Button>
+                        <Button
+                            onClick={() => setImportDialogOpen(true)}
+                            variant='secondary'
+                        >
+                            <Upload className='h-4 w-4' />
+                            Import
+                        </Button>
+                        <Button onClick={handleCreateClick}>
+                            <Plus className='h-4 w-4' />
+                            Create
+                        </Button>
+                    </div>
                 }
             />
 
@@ -803,12 +843,19 @@ export default function ReactionRoles() {
             )}
 
             <MessageForm
-                guildId={selectedGuild.id}
+                guildId={selectedGuild!.id}
                 open={formOpen}
                 mode={formMode}
                 initialMessage={selectedMessage}
                 onClose={handleFormClose}
                 onSuccess={handleFormSuccess}
+            />
+
+            <ImportDialog
+                isOpen={importDialogOpen}
+                onClose={() => setImportDialogOpen(false)}
+                guildId={selectedGuild!.id}
+                onSuccess={handleImportSuccess}
             />
         </div>
     )
