@@ -15,6 +15,7 @@ const setupTrackHistoryRoutes = jest.fn()
 const setupTwitchRoutes = jest.fn()
 const setupLyricsRoutes = jest.fn()
 const setupRolesRoutes = jest.fn()
+const setupRoleGroupsRoutes = jest.fn()
 const setupRbacRoutes = jest.fn()
 const setupGuildAutomationRoutes = jest.fn()
 const setupLevelsRoutes = jest.fn()
@@ -90,6 +91,10 @@ jest.mock('../../../src/routes/lyrics', () => ({
 
 jest.mock('../../../src/routes/roles', () => ({
     setupRolesRoutes,
+}))
+
+jest.mock('../../../src/routes/roleGroups', () => ({
+    setupRoleGroupsRoutes,
 }))
 
 jest.mock('../../../src/routes/rbac', () => ({
@@ -225,6 +230,11 @@ describe('setupRoutes', () => {
             requireAuth,
             'automation:view',
         )
+        expect(app.use).toHaveBeenCalledWith(
+            '/api/guilds/:guildId/role-groups',
+            requireAuth,
+            'settings:manage',
+        )
 
         expect(setupAuthRoutes).toHaveBeenCalledWith(app)
         expect(setupToggleRoutes).toHaveBeenCalledWith(app)
@@ -237,6 +247,7 @@ describe('setupRoutes', () => {
         expect(setupTwitchRoutes).toHaveBeenCalledWith(app)
         expect(setupLyricsRoutes).toHaveBeenCalledWith(app)
         expect(setupRolesRoutes).toHaveBeenCalledWith(app)
+        expect(setupRoleGroupsRoutes).toHaveBeenCalledWith(app)
         expect(setupRbacRoutes).toHaveBeenCalledWith(app)
         expect(setupGuildAutomationRoutes).toHaveBeenCalledWith(app)
         expect(setupLevelsRoutes).toHaveBeenCalledWith(app)

@@ -2,6 +2,7 @@ import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
 import { guildService, type GuildRoleManage } from './GuildService'
 import { reactionRolesService } from '@lucky/shared/services/ReactionRolesService'
 import { infoLog, errorLog } from '@lucky/shared/utils/general/log'
+import { AppError } from '../errors/AppError'
 
 export interface StyleTemplate {
     color?: string | null // hex '0x5865F2'
@@ -72,7 +73,7 @@ export class RoleGroupService {
             where: { id: messageId },
         })
         if (!message) {
-            throw new Error(`Message ${messageId} not found`)
+            throw AppError.notFound(`Message ${messageId} not found`)
         }
 
         const mappings = await this.prisma.reactionRoleMapping.findMany({
@@ -168,11 +169,13 @@ export class RoleGroupService {
                 where: { id: req.fromMessageId },
             })
             if (!message) {
-                throw new Error(`Message ${req.fromMessageId} not found`)
+                throw AppError.notFound(
+                    `Message ${req.fromMessageId} not found`,
+                )
             }
             if (message.groupId) {
-                throw new Error(
-                    `Message already has a group (groupId: ${message.groupId}); conflict due to @@unique([groupId])`,
+                throw AppError.conflict(
+                    `Message already has a group; conflict due to 1:1 constraint`,
                 )
             }
 
@@ -222,7 +225,7 @@ export class RoleGroupService {
             where: { id: groupId },
         })
         if (!group) {
-            throw new Error(`Group ${groupId} not found`)
+            throw AppError.notFound(`Group ${groupId} not found`)
         }
 
         // Load the linked message
@@ -230,7 +233,7 @@ export class RoleGroupService {
             where: { groupId },
         })
         if (!message) {
-            throw new Error(`No message linked to group ${groupId}`)
+            throw AppError.notFound(`No message linked to group ${groupId}`)
         }
 
         // Load current mappings for this message
@@ -241,7 +244,7 @@ export class RoleGroupService {
         // Preflight checks (no mutations)
         // 1. Message button count < 25
         if (currentMappings.length >= 25) {
-            throw new Error(
+            throw AppError.conflict(
                 `Cannot add role: message has 25 buttons (Discord limit reached)`,
             )
         }
@@ -251,7 +254,7 @@ export class RoleGroupService {
             group.guildId,
         )
         if (allGuildRoles.length >= 250) {
-            throw new Error(
+            throw AppError.conflict(
                 `Cannot add role: guild has 250 roles (Discord limit)`,
             )
         }
@@ -259,7 +262,9 @@ export class RoleGroupService {
         // 3. Label length <= 80
         const label = req.label ?? req.name
         if (label.length > 80) {
-            throw new Error(`Label too long (${label.length} chars, max 80)`)
+            throw AppError.badRequest(
+                `Label too long (${label.length} chars, max 80)`,
+            )
         }
 
         // 4. Role name not already mapped in this message
@@ -272,7 +277,7 @@ export class RoleGroupService {
                 (r) => r.name.toLowerCase() === req.name.toLowerCase(),
             )
         ) {
-            throw new Error(
+            throw AppError.conflict(
                 `A role named "${req.name}" is already mapped in this message (double-submit guard)`,
             )
         }
@@ -364,4 +369,86 @@ export class RoleGroupService {
             mapping: addResult.mapping,
         }
     }
+
+    /**
+     * List all role groups for a guild.
+     */
+    async listRoleGroups(guildId: string): Promise<any[]> {
+        return this.prisma.roleGroup.findMany({
+            where: { guildId },
+            orderBy: { createdAt: 'desc' },
+        })
+    }
+
+    /**
+     * Get a role group by ID and guild ID.
+     */
+    async getRoleGroup(id: string, guildId: string): Promise<any | null> {
+        return this.prisma.roleGroup.findFirst({
+            where: { id, guildId },
+        })
+    }
+
+    /**
+     * Update a role group's style template.
+     */
+    async updateRoleGroup(
+        id: string,
+        guildId: string,
+        updates: {
+            color?: string | null
+            hoist?: boolean
+            mentionable?: boolean
+            buttonStyle?: string | null
+        },
+    ): Promise<any | null> {
+        const group = await this.getRoleGroup(id, guildId)
+        if (!group) return null
+
+        return this.prisma.roleGroup.update({
+            where: { id },
+            data: {
+                ...(updates.color !== undefined && { color: updates.color }),
+                ...(updates.hoist !== undefined && { hoist: updates.hoist }),
+                ...(updates.mentionable !== undefined && {
+                    mentionable: updates.mentionable,
+                }),
+                ...(updates.buttonStyle !== undefined && {
+                    buttonStyle: updates.buttonStyle,
+                }),
+            },
+        })
+    }
+
+    /**
+     * Detach a role from a group's message (remove mapping, keep Discord role).
+     */
+    async detachRoleFromGroup(
+        groupId: string,
+        roleId: string,
+        guildId: string,
+    ): Promise<boolean> {
+        // Verify group exists and belongs to guild
+        const group = await this.getRoleGroup(groupId, guildId)
+        if (!group) return false
+
+        // Load the linked message
+        const message = await this.prisma.reactionRoleMessage.findUnique({
+            where: { groupId },
+        })
+        if (!message) return false
+
+        // Delete the mapping
+        const deleted = await this.prisma.reactionRoleMapping.deleteMany({
+            where: {
+                messageId: message.id,
+                roleId,
+            },
+        })
+
+        // Return true if at least one mapping was deleted
+        return deleted.count > 0
+    }
 }
+
+export const roleGroupService = new RoleGroupService()

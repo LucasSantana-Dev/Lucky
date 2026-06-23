@@ -43,4 +43,8 @@ export class AppError extends Error {
     static gatewayTimeout(message = 'Gateway timeout'): AppError {
         return new AppError(504, message)
     }
+
+    static conflict(message: string): AppError {
+        return new AppError(409, message)
+    }
 }

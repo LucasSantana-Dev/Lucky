@@ -145,6 +145,66 @@ const messageIdParam = guildIdParam.extend({
     messageId: z.string().regex(/^\d{17,20}$/, 'Invalid message ID'),
 })
 
+const roleGroupIdParam = guildIdParam.extend({
+    id: z.string().min(1, 'Role group ID is required'),
+})
+
+const roleGroupRoleIdParam = roleGroupIdParam.extend({
+    roleId: z.string().regex(/^\d{17,20}$/, 'Invalid role ID'),
+})
+
+const colorHex = z
+    .string()
+    .regex(/^0x[0-9A-Fa-f]{6}$/, 'Color must be hex format: 0xRRGGBB')
+    .optional()
+    .nullable()
+
+const createRoleGroupBody = z
+    .object({
+        name: z.string().min(1, 'Name is required').max(100),
+        fromMessageId: z
+            .string()
+            .regex(/^\d{17,20}$/, 'Invalid message ID')
+            .optional(),
+        style: z
+            .object({
+                color: colorHex,
+                hoist: z.boolean().optional(),
+                mentionable: z.boolean().optional(),
+                buttonStyle: z
+                    .enum(['Primary', 'Secondary', 'Success', 'Danger'])
+                    .optional(),
+            })
+            .strict()
+            .optional(),
+    })
+    .strict()
+
+const updateRoleGroupBody = z
+    .object({
+        color: colorHex,
+        hoist: z.boolean().optional(),
+        mentionable: z.boolean().optional(),
+        buttonStyle: z
+            .enum(['Primary', 'Secondary', 'Success', 'Danger'])
+            .optional()
+            .nullable(),
+    })
+    .strict()
+
+const addRoleToGroupBody = z
+    .object({
+        name: z.string().min(1, 'Role name is required').max(100),
+        label: z.string().max(80, 'Label must be 80 chars or less').optional(),
+        emoji: z.string().max(100).optional(),
+        colorOverride: z
+            .string()
+            .regex(/^0x[0-9A-Fa-f]{6}$/, 'Color must be hex format: 0xRRGGBB')
+            .optional(),
+        dryRun: z.boolean().optional(),
+    })
+    .strict()
+
 export const managementSchemas = {
     guildIdParam,
     commandNameParam,
@@ -163,4 +223,9 @@ export const managementSchemas = {
     createReactionRoleBody,
     updateReactionRoleBody,
     messageIdParam,
+    roleGroupIdParam,
+    roleGroupRoleIdParam,
+    createRoleGroupBody,
+    updateRoleGroupBody,
+    addRoleToGroupBody,
 }
