@@ -31,6 +31,7 @@ import { createArtistsApi } from './artistsApi'
 import { createSupportApi } from './supportApi'
 import { inferApiBase } from './apiBase'
 import { createRolesManageApi } from './rolesManageApi'
+import { createRoleGroupsApi } from './roleGroupsApi'
 
 const browserLocation =
     typeof globalThis !== 'undefined' && 'window' in globalThis
@@ -430,6 +431,7 @@ export const api = {
     autoMessages: createAutoMessagesApi(apiClient),
     embeds: createEmbedsApi(apiClient),
     reactionRoles: createReactionRolesApi(apiClient),
+    roleGroups: createRoleGroupsApi(apiClient),
     automation: createAutomationApi(apiClient),
     levels: createLevelsApi(apiClient),
     starboard: createStarboardApi(apiClient),
