@@ -94,12 +94,12 @@ function CompactStat({
     delta?: number
 }) {
     return (
-        <div className='flex items-center justify-between gap-3 px-4 py-3'>
+        <div className='flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-lucky-bg-active/25'>
             <div className='flex items-center gap-2.5 min-w-0'>
                 {icon && (
                     <span
                         className={cn(
-                            'flex h-7 w-7 shrink-0 items-center justify-center rounded-md',
+                            'flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-xs',
                             compactToneClass[tone],
                         )}
                         aria-hidden='true'
@@ -107,16 +107,18 @@ function CompactStat({
                         {icon}
                     </span>
                 )}
-                <p className='type-meta truncate text-lucky-text-tertiary'>{label}</p>
+                <p className='type-meta truncate text-lucky-text-tertiary uppercase tracking-wide'>
+                    {label}
+                </p>
             </div>
             <div className='flex items-center gap-2'>
                 {delta !== undefined && (
                     <span
                         className={cn(
-                            'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                            'rounded-sm px-2 py-1 text-[11px] font-semibold uppercase tracking-wider',
                             delta >= 0
-                                ? 'bg-lucky-success/10 text-lucky-success'
-                                : 'bg-lucky-error/10 text-lucky-error',
+                                ? 'bg-lucky-success/20 text-lucky-success'
+                                : 'bg-lucky-error/20 text-lucky-error',
                         )}
                     >
                         {delta >= 0 ? '+' : ''}
@@ -139,7 +141,10 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
         <motion.div
             initial={prefersReducedMotion ? false : { opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.2, delay: prefersReducedMotion ? 0 : index * 0.05 }}
+            transition={{
+                duration: 0.2,
+                delay: prefersReducedMotion ? 0 : index * 0.05,
+            }}
             className='grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-lucky-bg-tertiary/50'
         >
             <p className='text-xs font-mono text-lucky-text-tertiary'>
@@ -182,16 +187,12 @@ export default function DashboardOverview() {
         selectedGuild?.id,
         { limit: 8 },
     )
-    const { data: recentTracksData, isLoading: tracksLoading } = useRecentTracks(
-        selectedGuild?.id,
-        5,
-    )
+    const { data: recentTracksData, isLoading: tracksLoading } =
+        useRecentTracks(selectedGuild?.id, 5)
     const { data: leaderboardData, isLoading: leaderboardLoading } =
         useLevelLeaderboard(selectedGuild?.id, 5)
-    const { data: starboardData, isLoading: starboardLoading } = useStarboardTop(
-        selectedGuild?.id,
-        3,
-    )
+    const { data: starboardData, isLoading: starboardLoading } =
+        useStarboardTop(selectedGuild?.id, 3)
 
     const recentCases = casesData?.cases ?? []
     const loading = statsLoading || casesLoading
@@ -289,7 +290,10 @@ export default function DashboardOverview() {
                         </div>
                         <div className='surface-panel divide-y divide-lucky-border/40'>
                             {Array.from({ length: 3 }).map((_, i) => (
-                                <div key={i} className='flex items-center justify-between px-4 py-3'>
+                                <div
+                                    key={i}
+                                    className='flex items-center justify-between px-4 py-3'
+                                >
                                     <Skeleton className='h-3 w-24' />
                                     <Skeleton className='h-5 w-12' />
                                 </div>
@@ -298,23 +302,31 @@ export default function DashboardOverview() {
                     </>
                 ) : (
                     <>
-                        <article className='surface-panel flex flex-col justify-between gap-6 p-6'>
+                        <article className='surface-panel flex flex-col justify-between gap-6 p-6 border border-lucky-border'>
                             <div className='flex items-center justify-between gap-3'>
-                                <p className='type-meta text-lucky-text-tertiary'>Total Members</p>
-                                <span className='rounded-lg bg-lucky-brand/15 p-2.5 text-lucky-brand'>
-                                    <Users className='h-4 w-4' aria-hidden='true' />
+                                <p className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
+                                    Total Members
+                                </p>
+                                <span className='flex h-8 w-8 items-center justify-center rounded-md bg-lucky-brand/15 text-lucky-brand'>
+                                    <Users
+                                        className='h-4 w-4'
+                                        aria-hidden='true'
+                                    />
                                 </span>
                             </div>
-                            <p className='font-[var(--font-lucky-display)] text-5xl font-semibold leading-none tracking-tight text-lucky-text-strong'>
-                                {typeof selectedGuild.memberCount === 'number'
-                                    ? selectedGuild.memberCount.toLocaleString()
-                                    : '0'}
-                            </p>
+                            <div>
+                                <p className='font-[var(--font-lucky-display)] text-5xl font-semibold leading-none tracking-tight text-lucky-text-strong'>
+                                    {typeof selectedGuild.memberCount ===
+                                    'number'
+                                        ? selectedGuild.memberCount.toLocaleString()
+                                        : '0'}
+                                </p>
+                            </div>
                             <p className='type-body-sm text-lucky-text-tertiary'>
                                 Active members across {selectedGuild.name}
                             </p>
                         </article>
-                        <div className='surface-panel divide-y divide-lucky-border/40'>
+                        <div className='surface-panel divide-y divide-lucky-border/40 border border-lucky-border'>
                             <CompactStat
                                 label='Active Cases'
                                 value={stats?.activeCases || 0}
@@ -340,14 +352,19 @@ export default function DashboardOverview() {
 
             <div className='grid grid-cols-1 gap-6 lg:grid-cols-3'>
                 <motion.section
-                    className='surface-panel overflow-hidden lg:col-span-2'
-                    initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                    className='surface-panel overflow-hidden border border-lucky-border lg:col-span-2'
+                    initial={
+                        prefersReducedMotion ? false : { opacity: 0, y: 12 }
+                    }
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.2 }}
+                    transition={{
+                        duration: 0.3,
+                        delay: prefersReducedMotion ? 0 : 0.2,
+                    }}
                 >
                     <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
                         <div>
-                            <h2 className='type-title text-lucky-text-primary'>
+                            <h2 className='type-title text-lucky-text-primary uppercase tracking-wide'>
                                 Recent Cases
                             </h2>
                             <p className='type-body-sm text-lucky-text-tertiary'>
@@ -403,9 +420,14 @@ export default function DashboardOverview() {
 
                 <motion.section
                     className='space-y-3'
-                    initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                    initial={
+                        prefersReducedMotion ? false : { opacity: 0, y: 12 }
+                    }
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.3 }}
+                    transition={{
+                        duration: 0.3,
+                        delay: prefersReducedMotion ? 0 : 0.3,
+                    }}
                     aria-labelledby='quick-actions-heading'
                 >
                     <h2
@@ -414,12 +436,12 @@ export default function DashboardOverview() {
                     >
                         Quick Actions
                     </h2>
-                    <nav className='surface-panel divide-y divide-lucky-border/40 overflow-hidden'>
+                    <nav className='surface-panel divide-y divide-lucky-border/40 overflow-hidden border border-lucky-border'>
                         {visibleQuickActions.map((action) => (
                             <Link
                                 key={action.href}
                                 to={action.href}
-                                className='group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-lucky-bg-tertiary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand/60'
+                                className='group flex items-center gap-3 border-l-2 border-l-transparent px-4 py-2.5 transition-all hover:border-l-lucky-brand hover:bg-lucky-bg-active/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-lucky-brand/60'
                             >
                                 <span
                                     className='flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-lucky-bg-tertiary text-lucky-text-secondary transition-colors group-hover:bg-lucky-brand/15 group-hover:text-lucky-brand'
@@ -436,7 +458,7 @@ export default function DashboardOverview() {
                                     </p>
                                 </div>
                                 <ArrowRight
-                                    className='h-3.5 w-3.5 shrink-0 text-lucky-text-tertiary opacity-0 transition-opacity group-hover:opacity-100'
+                                    className='h-3.5 w-3.5 shrink-0 text-lucky-text-tertiary opacity-0 transition-all group-hover:opacity-100 group-hover:text-lucky-brand group-hover:translate-x-1'
                                     aria-hidden='true'
                                 />
                             </Link>
@@ -447,10 +469,15 @@ export default function DashboardOverview() {
 
             {hasModuleAccess(effectiveAccess, 'music', 'view') && (
                 <motion.section
-                    className='surface-panel overflow-hidden'
-                    initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                    className='surface-panel overflow-hidden border border-lucky-border'
+                    initial={
+                        prefersReducedMotion ? false : { opacity: 0, y: 12 }
+                    }
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.4 }}
+                    transition={{
+                        duration: 0.3,
+                        delay: prefersReducedMotion ? 0 : 0.4,
+                    }}
                 >
                     <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
                         <div>
@@ -538,17 +565,22 @@ export default function DashboardOverview() {
             {hasModuleAccess(effectiveAccess, 'settings', 'view') && (
                 <motion.section
                     className='space-y-4'
-                    initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                    initial={
+                        prefersReducedMotion ? false : { opacity: 0, y: 12 }
+                    }
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.5 }}
+                    transition={{
+                        duration: 0.3,
+                        delay: prefersReducedMotion ? 0 : 0.5,
+                    }}
                 >
                     <h2 className='type-title text-lucky-text-primary'>
                         Community
                     </h2>
                     <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
-                        <div className='surface-panel overflow-hidden'>
+                        <div className='surface-panel overflow-hidden border border-lucky-border'>
                             <div className='border-b border-lucky-border px-4 py-3'>
-                                <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
+                                <h3 className='type-body-sm font-semibold text-lucky-text-primary uppercase tracking-wide'>
                                     Level Leaderboard
                                 </h3>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
@@ -597,7 +629,7 @@ export default function DashboardOverview() {
                                             </p>
                                             <p className='text-xs text-lucky-text-tertiary text-right'>
                                                 {member.xp.toLocaleString()}
-                                                 XP
+                                                XP
                                             </p>
                                         </motion.div>
                                     ))
@@ -612,9 +644,9 @@ export default function DashboardOverview() {
                             </div>
                         </div>
 
-                        <div className='surface-panel overflow-hidden'>
+                        <div className='surface-panel overflow-hidden border border-lucky-border'>
                             <div className='border-b border-lucky-border px-4 py-3'>
-                                <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
+                                <h3 className='type-body-sm font-semibold text-lucky-text-primary uppercase tracking-wide'>
                                     Starboard Highlights
                                 </h3>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
@@ -692,7 +724,10 @@ export default function DashboardOverview() {
                             ([type, value]) => (
                                 <StatTile
                                     key={type}
-                                    label={type.charAt(0).toUpperCase() + type.slice(1)}
+                                    label={
+                                        type.charAt(0).toUpperCase() +
+                                        type.slice(1)
+                                    }
                                     value={value as number}
                                     tone='neutral'
                                 />
