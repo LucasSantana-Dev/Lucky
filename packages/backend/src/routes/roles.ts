@@ -61,6 +61,54 @@ export function setupRolesRoutes(app: Express): void {
         }),
     )
 
+    app.put(
+        '/api/guilds/:guildId/reaction-roles/:messageId',
+        requireAuth,
+        writeLimiter,
+        requireGuildModuleAccess('overview', 'manage'),
+        validateParams(s.messageIdParam),
+        validateBody(s.updateReactionRoleBody),
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const guildId = p(req.params.guildId)
+            const messageId = p(req.params.messageId)
+            const botToken = process.env.DISCORD_TOKEN?.trim()
+            if (!botToken) {
+                throw AppError.serviceUnavailable('Bot token not configured')
+            }
+            const { title, description, imageUrl, roles } = req.body as {
+                title: string
+                description: string
+                imageUrl?: string
+                roles: Array<{
+                    roleId: string
+                    label: string
+                    emoji?: string
+                    style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
+                }>
+            }
+            try {
+                const result =
+                    await reactionRolesService.updateReactionRoleMessage({
+                        guildId,
+                        messageId,
+                        title,
+                        description,
+                        imageUrl,
+                        botToken,
+                        roles,
+                    })
+                res.json(result)
+            } catch (error) {
+                const message =
+                    error instanceof Error ? error.message : 'Unknown error'
+                if (message === 'Reaction role message not found') {
+                    throw AppError.notFound('Reaction role message not found')
+                }
+                throw AppError.badRequest(message)
+            }
+        }),
+    )
+
     app.delete(
         '/api/guilds/:guildId/reaction-roles/:messageId',
         requireAuth,

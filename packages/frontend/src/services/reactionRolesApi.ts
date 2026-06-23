@@ -37,6 +37,14 @@ export interface CreateReactionRolePayload {
     channelId: string
     title: string
     description: string
+    imageUrl?: string
+    roles: CreateReactionRoleEntry[]
+}
+
+export interface UpdateReactionRolePayload {
+    title: string
+    description: string
+    imageUrl?: string
     roles: CreateReactionRoleEntry[]
 }
 
@@ -62,6 +70,17 @@ export function createReactionRolesApi(client: AxiosInstance) {
             await client.delete(
                 `/guilds/${guildId}/reaction-roles/${messageId}`,
             )
+        },
+        update: async (
+            guildId: string,
+            messageId: string,
+            payload: UpdateReactionRolePayload,
+        ): Promise<{ messageId: string }> => {
+            const res = await client.put<{ messageId: string }>(
+                `/guilds/${guildId}/reaction-roles/${messageId}`,
+                payload,
+            )
+            return res.data
         },
         listExclusions: async (guildId: string): Promise<RoleExclusion[]> => {
             const res = await client.get<{ exclusions: RoleExclusion[] }>(
