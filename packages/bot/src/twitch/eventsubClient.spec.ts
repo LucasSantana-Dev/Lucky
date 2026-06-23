@@ -11,6 +11,12 @@ import type { Client } from 'discord.js'
 const getTwitchUserAccessTokenMock = jest.fn()
 const subscribeToStreamOnlineMock = jest.fn()
 const handleStreamOnlineMock = jest.fn()
+const subscribeToStreamOfflineMock = jest.fn()
+const handleStreamOfflineMock = jest.fn()
+const subscribeToChannelUpdateMock = jest.fn()
+const handleChannelUpdateMock = jest.fn()
+const subscribeToChannelRaidMock = jest.fn()
+const handleChannelRaidMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -41,6 +47,12 @@ jest.mock('./token', () => ({
 jest.mock('./eventsubSubscriptions', () => ({
     subscribeToStreamOnline: subscribeToStreamOnlineMock,
     handleStreamOnline: handleStreamOnlineMock,
+    subscribeToStreamOffline: subscribeToStreamOfflineMock,
+    handleStreamOffline: handleStreamOfflineMock,
+    subscribeToChannelUpdate: subscribeToChannelUpdateMock,
+    handleChannelUpdate: handleChannelUpdateMock,
+    subscribeToChannelRaid: subscribeToChannelRaidMock,
+    handleChannelRaid: handleChannelRaidMock,
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
