@@ -9,6 +9,46 @@ import { useGuildStore } from '@/stores/guildStore'
 vi.mock('@/services/api')
 vi.mock('@/stores/guildStore')
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('react-i18next', () => ({
+    useTranslation: (_namespace?: string) => {
+        const keyMap: { [key: string]: string } = {
+            title: 'Server Logs',
+            subtitle: 'Activity and moderation logs for {{name}}',
+            export: 'Export',
+            searchAndFilter: 'Search & Filter',
+            searchPlaceholder: 'Search logs…',
+            allLevels: 'All levels',
+            info: 'Info',
+            warnings: 'Warnings',
+            errors: 'Errors',
+            moderation: 'Moderation',
+            autoMod: 'Auto-Mod',
+            system: 'System',
+            noServerSelected: 'No Server Selected',
+            selectServerDescription: 'Select a server to view logs',
+            noLogsFound: 'No logs found',
+            adjustFilters: 'Try adjusting your filters',
+            logsWillAppear: 'Logs will appear here as events occur',
+            exportSuccess: 'Logs exported!',
+            loadError: 'Failed to load logs. Please try again.',
+            userLabel: 'User:',
+            channelLabel: 'Channel:',
+        }
+
+        return {
+            t: (key: string, options?: { [key: string]: any }) => {
+                let result = keyMap[key] || key
+
+                // Handle interpolation for {{name}}
+                if (options && options.name) {
+                    result = result.replace('{{name}}', options.name)
+                }
+
+                return result
+            },
+        }
+    },
+}))
 
 const mockGuild = { id: '123', name: 'Test Guild' }
 
@@ -184,9 +224,7 @@ describe('ServerLogsPage', () => {
             () => new Promise(() => {}),
         )
         renderPage()
-        expect(
-            screen.getByPlaceholderText('Search logs...'),
-        ).toBeInTheDocument()
+        expect(screen.getByPlaceholderText('Search logs…')).toBeInTheDocument()
     })
 
     test('renders level summary chips', async () => {
@@ -219,7 +257,7 @@ describe('ServerLogsPage', () => {
             ).toBeInTheDocument(),
         )
 
-        const searchInput = screen.getByPlaceholderText('Search logs...')
+        const searchInput = screen.getByPlaceholderText('Search logs…')
         await user.type(searchInput, 'hello')
 
         expect(searchInput).toHaveValue('hello')
@@ -239,7 +277,7 @@ describe('ServerLogsPage', () => {
             ).toBeInTheDocument(),
         )
 
-        const searchInput = screen.getByPlaceholderText('Search logs...')
+        const searchInput = screen.getByPlaceholderText('Search logs…')
         await user.type(searchInput, 'test')
         expect(searchInput).toHaveValue('test')
 

@@ -2,12 +2,75 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { I18nextProvider } from 'react-i18next'
+import i18n from 'i18next'
 import ModerationPage from './Moderation'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 
 vi.mock('@/services/api')
 vi.mock('@/stores/guildStore')
+
+// Initialize i18n for testing
+i18n.init({
+    lng: 'en',
+    fallbackLng: 'en',
+    ns: ['moderation'],
+    defaultNS: 'moderation',
+    interpolation: {
+        escapeValue: false,
+    },
+    resources: {
+        en: {
+            moderation: {
+                noServerSelected: 'No Server Selected',
+                selectServerToViewCases:
+                    'Select a server to view moderation cases',
+                moderationCases: 'Moderation Cases',
+                manageWarningsAndBans:
+                    'Manage warnings, mutes, kicks, and bans',
+                totalCases: 'Total Cases',
+                activeCases: 'Active Cases',
+                warnings: 'Warnings',
+                bans: 'Bans',
+                searchByUserModeratorOrReason:
+                    'Search by user, moderator, or reason...',
+                allTypes: 'All types',
+                mutes: 'Mutes',
+                kicks: 'Kicks',
+                unbans: 'Unbans',
+                unmutes: 'Unmutes',
+                tableHeaderCase: '#',
+                tableHeaderUser: 'User',
+                tableHeaderModerator: 'Moderator',
+                tableHeaderType: 'Type',
+                tableHeaderStatus: 'Status',
+                tableHeaderDate: 'Date',
+                noCasesFound: 'No cases found',
+                tryAdjustingFilters: 'Try adjusting your filters',
+                moderationCasesWillAppearHere:
+                    'Moderation cases will appear here',
+                showingToOf: 'Showing {{from}} to {{to}} of {{total}}',
+                caseDetailTitle: 'Case #{{number}}',
+                caseUser: 'User',
+                caseModerator: 'Moderator',
+                caseAction: 'Action',
+                caseDate: 'Date',
+                caseReason: 'Reason',
+                caseDuration: 'Duration',
+                durationMinutes: 'Duration: {{minutes}} minutes',
+                noReasonProvided: 'No reason provided',
+                active: 'Active',
+                expired: 'Expired',
+                appealed: 'Appealed',
+                deactivateCase: 'Deactivate Case',
+                deactivating: 'Deactivating...',
+                caseDeactivated: 'Case deactivated',
+                failedToDeactivateCase: 'Failed to deactivate case',
+            },
+        },
+    },
+})
 
 const mockGuild = { id: '123', name: 'Test Server', botAdded: true }
 
@@ -72,19 +135,25 @@ function mockGuildStore(guild: typeof mockGuild | null) {
 
 function renderPage() {
     return render(
-        <MemoryRouter>
-            <ModerationPage />
-        </MemoryRouter>,
+        <I18nextProvider i18n={i18n}>
+            <MemoryRouter>
+                <ModerationPage />
+            </MemoryRouter>
+        </I18nextProvider>,
     )
 }
 
 describe('ModerationPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        Object.defineProperty(globalThis.HTMLElement.prototype, 'scrollIntoView', {
-            configurable: true,
-            value: vi.fn(),
-        })
+        Object.defineProperty(
+            globalThis.HTMLElement.prototype,
+            'scrollIntoView',
+            {
+                configurable: true,
+                value: vi.fn(),
+            },
+        )
     })
 
     test('shows no server selected message when no guild selected', () => {

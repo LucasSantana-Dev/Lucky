@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Layers, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import EmptyState from '@/components/ui/EmptyState'
@@ -43,7 +44,9 @@ function EmbedPreview({ form }: { form: FormState }) {
         >
             <div className='bg-lucky-bg-tertiary p-4 space-y-2'>
                 {form.title && (
-                    <p className='type-title text-lucky-text-primary'>{form.title}</p>
+                    <p className='type-title text-lucky-text-primary'>
+                        {form.title}
+                    </p>
                 )}
                 {form.description && (
                     <p className='type-body-sm text-lucky-text-secondary whitespace-pre-wrap'>
@@ -55,10 +58,16 @@ function EmbedPreview({ form }: { form: FormState }) {
                         {form.fields.map((field, i) => (
                             <div
                                 key={i}
-                                className={field.inline ? 'col-span-1' : 'col-span-3'}
+                                className={
+                                    field.inline ? 'col-span-1' : 'col-span-3'
+                                }
                             >
-                                <p className='type-body-sm text-lucky-text-primary'>{field.name}</p>
-                                <p className='type-meta text-lucky-text-secondary'>{field.value}</p>
+                                <p className='type-body-sm text-lucky-text-primary'>
+                                    {field.name}
+                                </p>
+                                <p className='type-meta text-lucky-text-secondary'>
+                                    {field.value}
+                                </p>
                             </div>
                         ))}
                     </div>
@@ -69,12 +78,15 @@ function EmbedPreview({ form }: { form: FormState }) {
                         alt='embed'
                         className='rounded mt-2 max-w-full'
                         onError={(e) => {
-                            ;(e.target as HTMLImageElement).style.display = 'none'
+                            ;(e.target as HTMLImageElement).style.display =
+                                'none'
                         }}
                     />
                 )}
                 {form.footer && (
-                    <p className='type-meta text-lucky-text-tertiary mt-2'>{form.footer}</p>
+                    <p className='type-meta text-lucky-text-tertiary mt-2'>
+                        {form.footer}
+                    </p>
                 )}
             </div>
         </div>
@@ -88,23 +100,29 @@ function FieldEditor({
     fields: EmbedField[]
     onChange: (fields: EmbedField[]) => void
 }) {
+    const { t } = useTranslation()
     const addField = () =>
         onChange([...fields, { name: '', value: '', inline: false }])
 
     const updateField = (i: number, patch: Partial<EmbedField>) => {
-        const updated = fields.map((f, idx) => (idx === i ? { ...f, ...patch } : f))
+        const updated = fields.map((f, idx) =>
+            idx === i ? { ...f, ...patch } : f,
+        )
         onChange(updated)
     }
 
-    const removeField = (i: number) => onChange(fields.filter((_, idx) => idx !== i))
+    const removeField = (i: number) =>
+        onChange(fields.filter((_, idx) => idx !== i))
 
     return (
         <div className='space-y-3'>
             <div className='flex items-center justify-between'>
-                <p className='type-body-sm text-lucky-text-secondary'>Fields</p>
+                <p className='type-body-sm text-lucky-text-secondary'>
+                    {t('embedBuilder.fields')}
+                </p>
                 <Button variant='secondary' size='sm' onClick={addField}>
                     <Plus className='h-3 w-3 mr-1' />
-                    Add Field
+                    {t('embedBuilder.addField')}
                 </Button>
             </div>
             {fields.map((field, i) => (
@@ -112,23 +130,29 @@ function FieldEditor({
                     <div className='flex gap-2'>
                         <Input
                             type='text'
-                            placeholder='Field name'
+                            placeholder={t('embedBuilder.fieldName')}
                             value={field.name}
-                            onChange={(e) => updateField(i, { name: e.target.value })}
+                            onChange={(e) =>
+                                updateField(i, { name: e.target.value })
+                            }
                             className='flex-1 bg-lucky-bg-tertiary border-lucky-border'
                         />
                         <button
                             onClick={() => removeField(i)}
                             className='min-h-[44px] min-w-[44px] flex items-center justify-center text-lucky-text-secondary hover:text-red-400 rounded transition-colors'
-                            aria-label={`Remove field ${i + 1}`}
+                            aria-label={t('embedBuilder.removeFieldAriaLabel', {
+                                index: i + 1,
+                            })}
                         >
                             <Trash2 className='h-4 w-4' />
                         </button>
                     </div>
                     <textarea
-                        placeholder='Field value'
+                        placeholder={t('embedBuilder.fieldValue')}
                         value={field.value}
-                        onChange={(e) => updateField(i, { value: e.target.value })}
+                        onChange={(e) =>
+                            updateField(i, { value: e.target.value })
+                        }
                         rows={2}
                         className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-md px-3 py-2 type-body-sm text-lucky-text-primary resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
                     />
@@ -136,10 +160,12 @@ function FieldEditor({
                         <input
                             type='checkbox'
                             checked={field.inline ?? false}
-                            onChange={(e) => updateField(i, { inline: e.target.checked })}
+                            onChange={(e) =>
+                                updateField(i, { inline: e.target.checked })
+                            }
                             className='rounded'
                         />
-                        Inline
+                        {t('embedBuilder.inline')}
                     </Label>
                 </div>
             ))}
@@ -156,6 +182,7 @@ function EmbedFormModal({
     onClose: () => void
     onSave: (form: FormState) => Promise<void>
 }) {
+    const { t } = useTranslation()
     const isEdit = template !== null
     const [form, setForm] = useState<FormState>(() => {
         if (!template) return DEFAULT_FORM
@@ -176,8 +203,10 @@ function EmbedFormModal({
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-        setForm((prev) => ({ ...prev, [key]: e.target.value }))
+    const set =
+        (key: keyof FormState) =>
+        (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+            setForm((prev) => ({ ...prev, [key]: e.target.value }))
 
     const handleSave = async () => {
         if (!form.name.trim()) {
@@ -206,10 +235,12 @@ function EmbedFormModal({
             >
                 <div className='flex items-center justify-between p-5 border-b border-lucky-border'>
                     <h2 className='type-title text-lucky-text-primary'>
-                        {isEdit ? 'Edit Embed Template' : 'New Embed Template'}
+                        {isEdit
+                            ? t('embedBuilder.editEmbedTemplate')
+                            : t('embedBuilder.newEmbedTemplate')}
                     </h2>
                     <Button variant='secondary' size='sm' onClick={onClose}>
-                        Cancel
+                        {t('embedBuilder.cancel')}
                     </Button>
                 </div>
 
@@ -223,21 +254,23 @@ function EmbedFormModal({
 
                         <div className='grid grid-cols-2 gap-4'>
                             <div className='space-y-1.5'>
-                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
-                                    Template Name *
+                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
+                                    {t('embedBuilder.templateName')}
                                 </Label>
                                 <Input
                                     type='text'
                                     value={form.name}
                                     onChange={set('name')}
                                     disabled={isEdit}
-                                    placeholder='e.g. welcome-message'
+                                    placeholder={t(
+                                        'embedBuilder.templateNamePlaceholder',
+                                    )}
                                     className='bg-lucky-bg-tertiary border-lucky-border'
                                 />
                             </div>
                             <div className='space-y-1.5'>
-                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
-                                    Color
+                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
+                                    {t('embedBuilder.color')}
                                 </Label>
                                 <div className='flex gap-2 items-center'>
                                     <input
@@ -250,7 +283,9 @@ function EmbedFormModal({
                                         type='text'
                                         value={form.color}
                                         onChange={set('color')}
-                                        placeholder='#5865F2'
+                                        placeholder={t(
+                                            'embedBuilder.urlPlaceholder',
+                                        )}
                                         className='flex-1 bg-lucky-bg-tertiary border-lucky-border font-mono'
                                     />
                                 </div>
@@ -259,25 +294,27 @@ function EmbedFormModal({
 
                         <div className='space-y-1.5'>
                             <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
-                                Title
+                                {t('embedBuilder.title')}
                             </Label>
                             <Input
                                 type='text'
                                 value={form.title}
                                 onChange={set('title')}
-                                placeholder='Embed title'
+                                placeholder={t('embedBuilder.titlePlaceholder')}
                                 className='bg-lucky-bg-tertiary border-lucky-border'
                             />
                         </div>
 
                         <div className='space-y-1.5'>
                             <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
-                                Description
+                                {t('embedBuilder.description')}
                             </Label>
                             <textarea
                                 value={form.description}
                                 onChange={set('description')}
-                                placeholder='Embed description (supports markdown)'
+                                placeholder={t(
+                                    'embedBuilder.descriptionPlaceholder',
+                                )}
                                 rows={4}
                                 className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-md px-3 py-2 type-body-sm text-lucky-text-primary resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
                             />
@@ -285,26 +322,30 @@ function EmbedFormModal({
 
                         <div className='grid grid-cols-2 gap-4'>
                             <div className='space-y-1.5'>
-                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
-                                    Thumbnail URL
+                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
+                                    {t('embedBuilder.thumbnailUrl')}
                                 </Label>
                                 <Input
                                     type='url'
                                     value={form.thumbnail}
                                     onChange={set('thumbnail')}
-                                    placeholder='https://...'
+                                    placeholder={t(
+                                        'embedBuilder.urlPlaceholder',
+                                    )}
                                     className='bg-lucky-bg-tertiary border-lucky-border'
                                 />
                             </div>
                             <div className='space-y-1.5'>
-                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
-                                    Image URL
+                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
+                                    {t('embedBuilder.imageUrl')}
                                 </Label>
                                 <Input
                                     type='url'
                                     value={form.image}
                                     onChange={set('image')}
-                                    placeholder='https://...'
+                                    placeholder={t(
+                                        'embedBuilder.urlPlaceholder',
+                                    )}
                                     className='bg-lucky-bg-tertiary border-lucky-border'
                                 />
                             </div>
@@ -312,32 +353,38 @@ function EmbedFormModal({
 
                         <div className='space-y-1.5'>
                             <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
-                                Footer
+                                {t('embedBuilder.footer')}
                             </Label>
                             <Input
                                 type='text'
                                 value={form.footer}
                                 onChange={set('footer')}
-                                placeholder='Footer text'
+                                placeholder={t(
+                                    'embedBuilder.footerPlaceholder',
+                                )}
                                 className='bg-lucky-bg-tertiary border-lucky-border'
                             />
                         </div>
 
                         <FieldEditor
                             fields={form.fields}
-                            onChange={(fields) => setForm((prev) => ({ ...prev, fields }))}
+                            onChange={(fields) =>
+                                setForm((prev) => ({ ...prev, fields }))
+                            }
                         />
                     </div>
 
                     <div className='w-80 border-l border-lucky-border p-5 space-y-3 overflow-y-auto bg-lucky-bg-primary/30'>
                         <p className='type-meta text-lucky-text-tertiary uppercase tracking-wide'>
-                            Preview
+                            {t('embedBuilder.preview')}
                         </p>
-                        {form.title || form.description || form.fields.length > 0 ? (
+                        {form.title ||
+                        form.description ||
+                        form.fields.length > 0 ? (
                             <EmbedPreview form={form} />
                         ) : (
                             <p className='type-body-sm text-lucky-text-tertiary'>
-                                Fill in the fields to see a preview
+                                {t('embedBuilder.fillFieldsToSeePreview')}
                             </p>
                         )}
                     </div>
@@ -345,10 +392,14 @@ function EmbedFormModal({
 
                 <div className='flex justify-end gap-3 p-5 border-t border-lucky-border'>
                     <Button variant='secondary' onClick={onClose}>
-                        Cancel
+                        {t('embedBuilder.cancel')}
                     </Button>
                     <Button onClick={handleSave} disabled={saving}>
-                        {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Template'}
+                        {saving
+                            ? t('embedBuilder.saving')
+                            : isEdit
+                              ? t('embedBuilder.saveChanges')
+                              : t('embedBuilder.createTemplate')}
                     </Button>
                 </div>
             </motion.div>
@@ -357,12 +408,13 @@ function EmbedFormModal({
 }
 
 export default function EmbedBuilder() {
+    const { t } = useTranslation()
     const { selectedGuild } = useGuildStore()
     const [templates, setTemplates] = useState<EmbedTemplate[]>([])
     const [loading, setLoading] = useState(true)
-    const [modalTemplate, setModalTemplate] = useState<EmbedTemplate | null | undefined>(
-        undefined,
-    )
+    const [modalTemplate, setModalTemplate] = useState<
+        EmbedTemplate | null | undefined
+    >(undefined)
     const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
     const fetchTemplates = useCallback(async () => {
@@ -425,12 +477,12 @@ export default function EmbedBuilder() {
         <div className='space-y-6'>
             <div className='flex items-center justify-between'>
                 <SectionHeader
-                    title='Embed Builder'
-                    description='Create and manage reusable Discord embed templates'
+                    title={t('embedBuilder.pageTitle')}
+                    description={t('embedBuilder.pageDescription')}
                 />
                 <Button onClick={() => setModalTemplate(null)}>
                     <Plus className='h-4 w-4 mr-2' />
-                    New Template
+                    {t('embedBuilder.newTemplate')}
                 </Button>
             </div>
 
@@ -443,12 +495,12 @@ export default function EmbedBuilder() {
             ) : templates.length === 0 ? (
                 <EmptyState
                     icon={<Layers className='h-10 w-10' />}
-                    title='No embed templates'
-                    description='Create your first embed template to use in bot commands'
+                    title={t('embedBuilder.noEmbedTemplates')}
+                    description={t('embedBuilder.createFirstEmbedTemplate')}
                     action={
                         <Button onClick={() => setModalTemplate(null)}>
                             <Plus className='h-4 w-4 mr-2' />
-                            Create Template
+                            {t('embedBuilder.createTemplate')}
                         </Button>
                     }
                 />
@@ -471,7 +523,9 @@ export default function EmbedBuilder() {
                                             <div
                                                 className='h-3 w-3 rounded-full flex-shrink-0'
                                                 style={{
-                                                    backgroundColor: template.color ?? '#5865F2',
+                                                    backgroundColor:
+                                                        template.color ??
+                                                        '#5865F2',
                                                 }}
                                             />
                                             <p className='type-body text-lucky-text-primary truncate'>
@@ -480,16 +534,28 @@ export default function EmbedBuilder() {
                                         </div>
                                         <div className='flex gap-1 flex-shrink-0'>
                                             <button
-                                                onClick={() => setModalTemplate(template)}
+                                                onClick={() =>
+                                                    setModalTemplate(template)
+                                                }
                                                 className='flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-lucky-text-secondary hover:text-lucky-brand hover:bg-lucky-bg-active/50 transition-colors'
-                                                aria-label={`Edit ${template.name}`}
+                                                aria-label={t(
+                                                    'embedBuilder.editAriaLabel',
+                                                    { name: template.name },
+                                                )}
                                             >
                                                 <Pencil className='h-4 w-4' />
                                             </button>
                                             <button
-                                                onClick={() => setDeleteTarget(template.name)}
+                                                onClick={() =>
+                                                    setDeleteTarget(
+                                                        template.name,
+                                                    )
+                                                }
                                                 className='flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-lucky-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors'
-                                                aria-label={`Delete ${template.name}`}
+                                                aria-label={t(
+                                                    'embedBuilder.deleteAriaLabel',
+                                                    { name: template.name },
+                                                )}
                                             >
                                                 <Trash2 className='h-4 w-4' />
                                             </button>
@@ -508,10 +574,22 @@ export default function EmbedBuilder() {
                                     )}
 
                                     <div className='mt-auto pt-2 flex items-center justify-between type-meta text-lucky-text-tertiary'>
-                                        <span>Used {template.useCount ?? 0}×</span>
+                                        <span>
+                                            {t('embedBuilder.used', {
+                                                count: template.useCount ?? 0,
+                                            })}
+                                        </span>
                                         {Array.isArray(template.fields) &&
                                             template.fields.length > 0 && (
-                                                <span>{template.fields.length} field{template.fields.length !== 1 ? 's' : ''}</span>
+                                                <span>
+                                                    {template.fields.length}{' '}
+                                                    {t(
+                                                        template.fields
+                                                            .length === 1
+                                                            ? 'embedBuilder.field'
+                                                            : 'embedBuilder.fields_plural',
+                                                    )}
+                                                </span>
                                             )}
                                     </div>
                                 </Card>
@@ -524,7 +602,9 @@ export default function EmbedBuilder() {
             <AnimatePresence>
                 {isModalOpen && (
                     <EmbedFormModal
-                        template={isNew ? null : (modalTemplate as EmbedTemplate)}
+                        template={
+                            isNew ? null : (modalTemplate as EmbedTemplate)
+                        }
                         onClose={() => setModalTemplate(undefined)}
                         onSave={handleSave}
                     />
@@ -540,23 +620,28 @@ export default function EmbedBuilder() {
                             exit={{ opacity: 0, scale: 0.96 }}
                             className='surface-card rounded-xl p-6 max-w-sm w-full space-y-4'
                         >
-                            <h3 className='type-title text-lucky-text-primary'>Delete Template</h3>
+                            <h3 className='type-title text-lucky-text-primary'>
+                                {t('embedBuilder.deleteTemplate')}
+                            </h3>
                             <p className='type-body-sm text-lucky-text-secondary'>
-                                Delete <span className='font-mono text-lucky-brand'>"{deleteTarget}"</span>? This
-                                cannot be undone.
+                                {t('embedBuilder.deleteTemplateConfirm', {
+                                    name: deleteTarget,
+                                })}
                             </p>
                             <div className='flex gap-3 justify-end'>
                                 <Button
                                     variant='secondary'
                                     onClick={() => setDeleteTarget(null)}
                                 >
-                                    Cancel
+                                    {t('embedBuilder.cancel')}
                                 </Button>
                                 <Button
                                     variant='destructive'
-                                    onClick={() => void handleDelete(deleteTarget)}
+                                    onClick={() =>
+                                        void handleDelete(deleteTarget)
+                                    }
                                 >
-                                    Delete
+                                    {t('embedBuilder.delete')}
                                 </Button>
                             </div>
                         </motion.div>

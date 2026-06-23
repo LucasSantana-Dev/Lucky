@@ -45,7 +45,6 @@ describe('VoteBadge', () => {
             'Vote for Lucky on top.gg to unlock perks',
         )
         expect(screen.getByText('Vote')).toBeInTheDocument()
-        expect(screen.getByText('🗳️')).toBeInTheDocument()
     })
 
     test('renders tier badge when user has Lucky Supporter tier', () => {
@@ -65,7 +64,6 @@ describe('VoteBadge', () => {
         const link = screen.getByRole('link')
         expect(link).toBeInTheDocument()
         expect(screen.getByText('Lucky Supporter')).toBeInTheDocument()
-        expect(screen.getByText('💛')).toBeInTheDocument()
         expect(screen.getByText('· 1')).toBeInTheDocument()
     })
 
@@ -180,9 +178,8 @@ describe('VoteBadge', () => {
 
         const link = screen.getByRole('link')
         expect(link).toHaveClass('lucky-focus-visible')
-        // Emoji should have aria-hidden
-        const emoji = screen.getByText('💛')
-        expect(emoji).toHaveAttribute('aria-hidden', 'true')
+        // The leading icon should be decorative (aria-hidden)
+        expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     })
 
     test('vote CTA has correct accessibility attributes', () => {
@@ -201,8 +198,7 @@ describe('VoteBadge', () => {
 
         const link = screen.getByRole('link')
         expect(link).toHaveClass('lucky-focus-visible')
-        const emoji = screen.getByText('🗳️')
-        expect(emoji).toHaveAttribute('aria-hidden', 'true')
+        expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     })
 
     test('tier label is truncated with max-width constraint', () => {

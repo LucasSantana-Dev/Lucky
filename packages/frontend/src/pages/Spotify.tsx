@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Check, ExternalLink, Link2, Loader2, Music, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { api } from '@/services/api'
 import SectionHeader from '@/components/ui/SectionHeader'
 
@@ -10,6 +11,7 @@ interface SpotifyStatus {
 }
 
 export default function SpotifyPage() {
+    const { t } = useTranslation('spotify')
     const [status, setStatus] = useState<SpotifyStatus | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -23,7 +25,7 @@ export default function SpotifyPage() {
             const response = await api.spotify.status()
             setStatus(response.data)
         } catch {
-            setError('Failed to load Spotify status')
+            setError(t('failedToLoadStatus'))
         } finally {
             setIsLoading(false)
         }
@@ -38,7 +40,7 @@ export default function SpotifyPage() {
     }
 
     const handleUnlink = async () => {
-        if (!confirm('Disconnect your Spotify account?')) return
+        if (!confirm(t('confirmDisconnect'))) return
 
         setIsUnlinking(true)
 
@@ -50,7 +52,7 @@ export default function SpotifyPage() {
                     : previous,
             )
         } catch {
-            setError('Failed to unlink account')
+            setError(t('failedToUnlink'))
         } finally {
             setIsUnlinking(false)
         }
@@ -60,9 +62,9 @@ export default function SpotifyPage() {
         return (
             <div className='space-y-6'>
                 <SectionHeader
-                    eyebrow='Music personalization'
-                    title='Spotify'
-                    description='Connect your Spotify account for personalized autoplay recommendations'
+                    eyebrow={t('eyebrow')}
+                    title={t('title')}
+                    description={t('description')}
                     actions={<Music className='h-5 w-5 text-lucky-accent' />}
                 />
                 <div className='surface-panel space-y-4 p-8'>
@@ -77,9 +79,9 @@ export default function SpotifyPage() {
     return (
         <div className='space-y-6'>
             <SectionHeader
-                eyebrow='Music personalization'
-                title='Spotify'
-                description='Connect your Spotify account for personalized autoplay recommendations'
+                eyebrow={t('eyebrow')}
+                title={t('title')}
+                description={t('description')}
                 actions={<Music className='h-5 w-5 text-lucky-accent' />}
             />
 
@@ -95,18 +97,17 @@ export default function SpotifyPage() {
             )}
 
             {!status?.configured ? (
-                <section className='surface-panel space-y-4 rounded-xl border border-lucky-border/20 p-8'>
+                <section className='surface-panel space-y-4 border border-lucky-border p-8'>
                     <div className='flex items-start gap-4'>
                         <div className='rounded-lg bg-lucky-bg-tertiary p-3'>
                             <Music className='h-6 w-6 text-lucky-text-secondary' />
                         </div>
                         <div className='flex-1'>
                             <h2 className='type-h2 text-lucky-text-primary'>
-                                Not Configured
+                                {t('notConfigured')}
                             </h2>
                             <p className='type-body-sm text-lucky-text-secondary mt-2'>
-                                Spotify integration is not configured. Ask the
-                                server owner to set:
+                                {t('notConfiguredDesc')}
                             </p>
                             <div className='mt-3 space-y-2 text-xs'>
                                 <code className='block rounded bg-lucky-bg-active px-2 py-1 text-lucky-text-body font-600'>
@@ -120,17 +121,17 @@ export default function SpotifyPage() {
                     </div>
                 </section>
             ) : status.linked ? (
-                <section className='surface-panel space-y-6 rounded-xl border border-lucky-border/20 p-8'>
+                <section className='surface-panel space-y-6 border border-lucky-border p-8'>
                     <div className='flex items-start gap-4'>
                         <div className='rounded-full bg-lucky-success/20 p-3'>
                             <Check className='h-6 w-6 text-lucky-success' />
                         </div>
                         <div className='flex-1'>
                             <h2 className='type-h2 text-lucky-text-primary'>
-                                Connected
+                                {t('connected')}
                             </h2>
                             <p className='type-body-sm text-lucky-text-secondary mt-1'>
-                                Linked as{' '}
+                                {t('linkedAs')}{' '}
                                 <a
                                     href={`https://open.spotify.com/user/${status.username}`}
                                     target='_blank'
@@ -142,14 +143,13 @@ export default function SpotifyPage() {
                                 </a>
                             </p>
                         </div>
-                        <div className='rounded-full bg-lucky-success/15 px-3 py-1 text-xs font-600 text-lucky-success'>
-                            Active
+                        <div className='rounded-sm bg-lucky-success/15 px-3 py-1 text-xs font-semibold uppercase text-lucky-success'>
+                            {t('active')}
                         </div>
                     </div>
 
-                    <p className='type-body-sm text-lucky-text-secondary border-t border-lucky-border/20 pt-4'>
-                        Lucky can access your library and listening history to
-                        provide personalized autoplay recommendations.
+                    <p className='type-body-sm text-lucky-text-secondary border-t border-lucky-border pt-4'>
+                        {t('accessExplanation')}
                     </p>
 
                     <button
@@ -162,19 +162,17 @@ export default function SpotifyPage() {
                         ) : (
                             <X className='h-4 w-4' />
                         )}
-                        Disconnect
+                        {t('disconnect')}
                     </button>
                 </section>
             ) : (
-                <section className='surface-panel space-y-6 rounded-xl border border-lucky-border/20 p-8'>
+                <section className='surface-panel space-y-6 border border-lucky-border p-8'>
                     <div>
                         <h2 className='type-h2 text-lucky-text-primary'>
-                            Connect Your Account
+                            {t('connectYourAccount')}
                         </h2>
                         <p className='type-body-sm text-lucky-text-secondary mt-2'>
-                            Link your Spotify account so Lucky can learn your
-                            music preferences and provide personalized autoplay
-                            recommendations.
+                            {t('connectDescription')}
                         </p>
                     </div>
 
@@ -183,63 +181,58 @@ export default function SpotifyPage() {
                         className='inline-flex items-center gap-2 rounded-lg bg-lucky-accent px-6 py-3 type-body-sm font-600 text-white transition-all hover:bg-lucky-accent-soft active:scale-95 lucky-focus-visible'
                     >
                         <Link2 className='h-4 w-4' />
-                        Connect with Spotify
+                        {t('connectWithSpotify')}
                     </button>
                 </section>
             )}
 
             <div className='grid gap-4 md:grid-cols-2'>
-                <div className='surface-panel rounded-xl border border-lucky-border/20 p-6'>
+                <div className='surface-panel border border-lucky-border p-6'>
                     <div className='flex items-start gap-3'>
                         <Music className='mt-1 h-5 w-5 text-lucky-accent flex-shrink-0' />
                         <div className='flex-1'>
                             <h3 className='type-title text-lucky-text-primary'>
-                                Smarter autoplay
+                                {t('smarterAutoplay')}
                             </h3>
                             <p className='type-body-sm text-lucky-text-secondary mt-2'>
-                                Lucky learns from your library, top tracks, and
-                                recent listening.
+                                {t('smarterAutoplayDesc')}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                <div className='surface-panel rounded-xl border border-lucky-border/20 p-6'>
+                <div className='surface-panel border border-lucky-border p-6'>
                     <div className='flex items-start gap-3'>
                         <Link2 className='mt-1 h-5 w-5 text-lucky-text-tertiary flex-shrink-0' />
                         <div className='flex-1'>
                             <h3 className='type-title text-lucky-text-primary'>
-                                Privacy control
+                                {t('privacyControl')}
                             </h3>
                             <p className='type-body-sm text-lucky-text-secondary mt-2'>
-                                Disconnect anytime without affecting server
-                                playback.
+                                {t('privacyControlDesc')}
                             </p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <section className='surface-panel space-y-4 rounded-xl border border-lucky-border/20 p-8'>
+            <section className='surface-panel space-y-4 border border-lucky-border p-8'>
                 <h3 className='type-title text-lucky-text-primary'>
-                    How it works
+                    {t('howItWorks')}
                 </h3>
                 <ol className='space-y-3 text-sm'>
-                    {[
-                        'Connect your Spotify account above',
-                        'Lucky accesses your library, top tracks, and recent listening',
-                        'When autoplay is active, Lucky recommends similar tracks based on your preferences',
-                        'Your library stays private and is only used for recommendations',
-                    ].map((step, i) => (
-                        <li key={i} className='flex items-start gap-3'>
-                            <span className='mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-lucky-accent/20 text-xs font-600 text-lucky-accent flex-shrink-0'>
-                                {i + 1}
-                            </span>
-                            <span className='type-body-sm text-lucky-text-secondary'>
-                                {step}
-                            </span>
-                        </li>
-                    ))}
+                    {[t('step1'), t('step2'), t('step3'), t('step4')].map(
+                        (step, i) => (
+                            <li key={i} className='flex items-start gap-3'>
+                                <span className='mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-sm bg-lucky-accent/20 text-xs font-semibold uppercase text-lucky-accent flex-shrink-0'>
+                                    {i + 1}
+                                </span>
+                                <span className='type-body-sm text-lucky-text-secondary'>
+                                    {step}
+                                </span>
+                            </li>
+                        ),
+                    )}
                 </ol>
             </section>
         </div>

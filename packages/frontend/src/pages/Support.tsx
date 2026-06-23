@@ -131,7 +131,7 @@ export default function SupportPage() {
                 </header>
 
                 {cid && (
-                    <div className='type-body-sm text-lucky-text-secondary bg-lucky-bg-active border border-lucky-border rounded-lg p-3'>
+                    <div className='type-body-sm text-lucky-text-secondary bg-lucky-bg-active border border-lucky-border rounded-sm p-3'>
                         {t('support.referenceId')}:{' '}
                         <code className='text-lucky-text-primary'>{cid}</code>
                     </div>
@@ -141,7 +141,7 @@ export default function SupportPage() {
                     <div className='space-y-1.5'>
                         <label
                             htmlFor='support-context'
-                            className='type-body-sm text-lucky-text-primary'
+                            className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'
                         >
                             {t('support.form.contextLabel')}
                         </label>
@@ -152,14 +152,14 @@ export default function SupportPage() {
                             required
                             rows={6}
                             placeholder={t('support.form.contextPlaceholder')}
-                            className='w-full rounded-lg bg-lucky-bg-active border border-lucky-border text-lucky-text-primary type-body p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand'
+                            className='w-full rounded-sm bg-lucky-bg-active border border-lucky-border text-lucky-text-primary type-body p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand'
                         />
                     </div>
 
                     <div className='space-y-1.5'>
                         <label
                             htmlFor='support-image'
-                            className='type-body-sm text-lucky-text-primary'
+                            className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'
                         >
                             {t('support.form.imageLabel')}
                         </label>
@@ -182,7 +182,7 @@ export default function SupportPage() {
 
                     {state === 'error' && errorMessage && (
                         <div
-                            className='flex items-center gap-2 type-body-sm text-lucky-error bg-lucky-error/10 border border-lucky-error/20 rounded-lg p-3'
+                            className='flex items-center gap-2 type-body-sm text-lucky-error bg-lucky-error/10 border border-lucky-error/20 rounded-sm p-3'
                             role='alert'
                         >
                             <AlertCircle

@@ -9,6 +9,7 @@ import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 import { cn } from '@/lib/utils'
 import type { Command } from '@/types'
+import { useTranslation } from 'react-i18next'
 
 const CATEGORY_COLORS: Record<string, string> = {
     Manager: 'bg-red-500/10 text-red-400 border-red-500/20',
@@ -24,6 +25,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 }
 
 export default function CustomCommandsPage() {
+    const { t } = useTranslation()
     const { selectedGuild } = useGuildStore()
     const [commands, setCommands] = useState<Command[]>([])
     const [loading, setLoading] = useState(true)
@@ -80,10 +82,10 @@ export default function CustomCommandsPage() {
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <Code className='w-16 h-16 text-lucky-text-tertiary mb-4' />
                 <h2 className='type-h2 text-lucky-text-primary mb-2'>
-                    No Server Selected
+                    {t('customCommands.noServerSelected')}
                 </h2>
                 <p className='text-lucky-text-secondary text-sm'>
-                    Select a server to manage commands
+                    {t('customCommands.selectServerToManage')}
                 </p>
             </div>
         )
@@ -94,10 +96,10 @@ export default function CustomCommandsPage() {
             {/* Header */}
             <header>
                 <h1 className='type-h1 text-lucky-text-primary'>
-                    Custom Commands
+                    {t('customCommands.title')}
                 </h1>
                 <p className='text-sm text-lucky-text-secondary mt-1'>
-                    Manage and configure commands for {selectedGuild.name}
+                    {t('customCommands.subtitle', { name: selectedGuild.name })}
                 </p>
             </header>
 
@@ -106,7 +108,9 @@ export default function CustomCommandsPage() {
                 <div className='relative'>
                     <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lucky-text-tertiary' />
                     <Input
-                        placeholder='Search commands...'
+                        placeholder={t(
+                            'customCommands.searchCommandsPlaceholder',
+                        )}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className='pl-9 bg-lucky-bg-tertiary border-lucky-border text-lucky-text-primary placeholder:text-lucky-text-tertiary'
@@ -197,7 +201,7 @@ export default function CustomCommandsPage() {
                                             : cmd.id,
                                     )
                                 }
-                                className='w-full px-4 py-3 flex items-center gap-3 hover:bg-lucky-surface-elevated transition-colors'
+                                className='w-full px-4 py-3 flex items-center gap-3 transition-colors hover:bg-lucky-bg-active/25'
                             >
                                 <div className='p-2 rounded bg-lucky-bg-active shrink-0'>
                                     <Code className='w-4 h-4 text-lucky-text-secondary' />
@@ -209,7 +213,7 @@ export default function CustomCommandsPage() {
                                         </h3>
                                         <Badge
                                             className={cn(
-                                                'text-[10px] uppercase border shrink-0',
+                                                'text-[10px] uppercase border shrink-0 font-semibold',
                                                 CATEGORY_COLORS[cmd.category] ||
                                                     'bg-lucky-bg-active text-lucky-text-secondary border-lucky-border',
                                             )}
@@ -243,7 +247,7 @@ export default function CustomCommandsPage() {
                                 <div className='border-t border-lucky-border px-4 py-3 bg-lucky-bg-tertiary/30 text-xs text-lucky-text-secondary space-y-2'>
                                     <div>
                                         <p className='font-medium text-lucky-text-primary mb-1'>
-                                            Description
+                                            {t('customCommands.description')}
                                         </p>
                                         <p>{cmd.description}</p>
                                     </div>
@@ -255,12 +259,12 @@ export default function CustomCommandsPage() {
                     <div className='surface-panel rounded-lg p-12 border border-lucky-border text-center'>
                         <Code className='w-12 h-12 text-lucky-text-tertiary mx-auto mb-3' />
                         <p className='text-sm text-lucky-text-secondary mb-1'>
-                            No commands found
+                            {t('customCommands.noCommandsFound')}
                         </p>
                         <p className='text-xs text-lucky-text-tertiary'>
                             {searchQuery || selectedCategory
-                                ? 'Try adjusting your filters'
-                                : 'Commands will appear here'}
+                                ? t('customCommands.tryAdjustingFilters')
+                                : t('customCommands.commandsWillAppearHere')}
                         </p>
                     </div>
                 )}

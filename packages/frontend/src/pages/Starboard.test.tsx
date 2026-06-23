@@ -15,6 +15,46 @@ vi.mock('sonner', () => ({
     },
 }))
 
+// Translation key to English value mapping for starboard namespace
+const translations: Record<string, string> = {
+    noServerSelected: 'No server selected',
+    selectServerToView: 'Select a server to view starboard settings',
+    topStarredMessages: 'Top Starred Messages',
+    noStarredMessages: 'No starred messages yet',
+    noStarredMessagesDesc:
+        'Configure the starboard below and members can start starring messages',
+    settings: 'Settings',
+    active: 'Active',
+    channelId: 'Channel ID',
+    emoji: 'Emoji',
+    starThreshold: 'Star Threshold',
+    allowSelfStar: 'Allow Self-Star',
+    save: 'Save',
+    saving: 'Saving...',
+    disableStarboard: 'Disable Starboard',
+    starboardSettingsSaved: 'Starboard settings saved',
+    failedToLoadSettings: 'Failed to load starboard settings',
+    failedToSaveSettings: 'Failed to save settings',
+    starboardDisabled: 'Starboard disabled',
+    failedToDeleteConfig: 'Failed to delete starboard config',
+}
+
+vi.mock('react-i18next', () => ({
+    useTranslation: () => ({
+        t: (key: string, options?: Record<string, any>) => {
+            if (options) {
+                let result = translations[key] || key
+                Object.entries(options).forEach(([k, v]) => {
+                    result = result.replace(`{{${k}}}`, String(v))
+                })
+                return result
+            }
+            return translations[key] || key
+        },
+        i18n: { language: 'en' },
+    }),
+}))
+
 const mockGuild = {
     id: '123456',
     name: 'Test Guild',

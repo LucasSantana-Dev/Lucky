@@ -1,6 +1,7 @@
 import { reportError } from '@/lib/sentry'
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import {
     ScrollText,
     Search,
@@ -79,6 +80,7 @@ function formatTimestamp(dateStr: string): string {
 }
 
 function LogEntry({ log, index }: { log: ServerLog; index: number }) {
+    const { t } = useTranslation('serverLogs')
     const config = LEVEL_CONFIG[log.level] || LEVEL_CONFIG.info
     const Icon = config.icon
 
@@ -123,7 +125,7 @@ function LogEntry({ log, index }: { log: ServerLog; index: number }) {
                         {log.userName && (
                             <span>
                                 <span className='text-lucky-text-tertiary'>
-                                    User:
+                                    {t('userLabel')}
                                 </span>{' '}
                                 <span className='text-lucky-text-secondary font-medium'>
                                     {log.userName}
@@ -133,7 +135,7 @@ function LogEntry({ log, index }: { log: ServerLog; index: number }) {
                         {log.channelName && (
                             <span>
                                 <span className='text-lucky-text-tertiary'>
-                                    Channel:
+                                    {t('channelLabel')}
                                 </span>{' '}
                                 <span className='text-lucky-text-secondary font-medium'>
                                     #{log.channelName}
@@ -152,6 +154,7 @@ function LogEntry({ log, index }: { log: ServerLog; index: number }) {
 }
 
 export default function ServerLogsPage() {
+    const { t } = useTranslation('serverLogs')
     const { selectedGuild } = useGuildStore()
     const [logs, setLogs] = useState<ServerLog[]>([])
     const [total, setTotal] = useState(0)
@@ -191,7 +194,7 @@ export default function ServerLogsPage() {
                 component: 'ServerLogs',
                 action: 'loadLogs',
             })
-            toast.error('Failed to load logs. Please try again.')
+            toast.error(t('loadError'))
             setLogs([])
             setTotal(0)
         } finally {
@@ -219,7 +222,7 @@ export default function ServerLogsPage() {
         a.download = `${selectedGuild.name}-logs.json`
         a.click()
         window.URL.revokeObjectURL(url)
-        toast.success('Logs exported!')
+        toast.success(t('exportSuccess'))
     }
 
     if (!selectedGuild) {
@@ -227,10 +230,10 @@ export default function ServerLogsPage() {
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <ScrollText className='w-16 h-16 text-lucky-text-tertiary mb-4' />
                 <h2 className='type-h2 text-lucky-text-primary mb-2'>
-                    No Server Selected
+                    {t('noServerSelected')}
                 </h2>
                 <p className='text-lucky-text-secondary text-sm'>
-                    Select a server to view logs
+                    {t('selectServerDescription')}
                 </p>
             </div>
         )
@@ -241,10 +244,10 @@ export default function ServerLogsPage() {
             <div className='flex items-start justify-between flex-wrap gap-3'>
                 <header>
                     <h1 className='type-h1 text-lucky-text-primary'>
-                        Server Logs
+                        {t('title')}
                     </h1>
                     <p className='text-sm text-lucky-text-secondary mt-1'>
-                        Activity and moderation logs for {selectedGuild.name}
+                        {t('subtitle', { name: selectedGuild.name })}
                     </p>
                 </header>
                 <div className='flex items-center gap-2'>
@@ -254,22 +257,22 @@ export default function ServerLogsPage() {
                         onClick={handleExport}
                         className='gap-1.5 border border-lucky-border text-lucky-text-secondary hover:text-white'
                     >
-                        <Download className='w-3.5 h-3.5' /> Export
+                        <Download className='w-3.5 h-3.5' /> {t('export')}
                     </Button>
                 </div>
             </div>
 
             {/* Filters: Linear-density layout */}
-            <Card className='p-4 space-y-3'>
+            <Card className='p-4 space-y-3 border border-lucky-border'>
                 <div className='flex items-center gap-2 text-xs font-semibold text-lucky-text-tertiary uppercase tracking-wider'>
                     <Filter className='w-4 h-4' />
-                    Search & Filter
+                    {t('searchAndFilter')}
                 </div>
                 <div className='flex flex-col sm:flex-row gap-3'>
                     <div className='relative flex-1'>
                         <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lucky-text-tertiary' />
                         <Input
-                            placeholder='Search logs...'
+                            placeholder={t('searchPlaceholder')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className='pl-9 bg-lucky-bg-tertiary border-lucky-border text-lucky-text-primary placeholder:text-lucky-text-tertiary'
@@ -285,18 +288,26 @@ export default function ServerLogsPage() {
                     </div>
                     <Select value={levelFilter} onValueChange={setLevelFilter}>
                         <SelectTrigger className='sm:w-[140px] bg-lucky-bg-tertiary border-lucky-border text-lucky-text-primary'>
-                            <SelectValue placeholder='All levels' />
+                            <SelectValue placeholder={t('allLevels')} />
                         </SelectTrigger>
                         <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
-                            <SelectItem value='all'>All levels</SelectItem>
-                            <SelectItem value='info'>Info</SelectItem>
-                            <SelectItem value='warn'>Warnings</SelectItem>
-                            <SelectItem value='error'>Errors</SelectItem>
-                            <SelectItem value='moderation'>
-                                Moderation
+                            <SelectItem value='all'>
+                                {t('allLevels')}
                             </SelectItem>
-                            <SelectItem value='automod'>Auto-Mod</SelectItem>
-                            <SelectItem value='system'>System</SelectItem>
+                            <SelectItem value='info'>{t('info')}</SelectItem>
+                            <SelectItem value='warn'>
+                                {t('warnings')}
+                            </SelectItem>
+                            <SelectItem value='error'>{t('errors')}</SelectItem>
+                            <SelectItem value='moderation'>
+                                {t('moderation')}
+                            </SelectItem>
+                            <SelectItem value='automod'>
+                                {t('autoMod')}
+                            </SelectItem>
+                            <SelectItem value='system'>
+                                {t('system')}
+                            </SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -354,7 +365,7 @@ export default function ServerLogsPage() {
             </div>
 
             {/* Logs List */}
-            <Card className='p-0 overflow-hidden'>
+            <Card className='p-0 overflow-hidden border border-lucky-border'>
                 <div className='divide-y divide-lucky-border/30'>
                     {loading ? (
                         Array.from({ length: 10 }).map((_, i) => (
@@ -380,12 +391,12 @@ export default function ServerLogsPage() {
                         <div className='py-16 text-center'>
                             <ScrollText className='w-12 h-12 text-lucky-text-tertiary mx-auto mb-3' />
                             <p className='text-sm text-lucky-text-secondary'>
-                                No logs found
+                                {t('noLogsFound')}
                             </p>
                             <p className='text-xs text-lucky-text-tertiary mt-1'>
                                 {searchQuery || levelFilter !== 'all'
-                                    ? 'Try adjusting your filters'
-                                    : 'Logs will appear here as events occur'}
+                                    ? t('adjustFilters')
+                                    : t('logsWillAppear')}
                             </p>
                         </div>
                     )}

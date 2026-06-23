@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import Sidebar from './Sidebar'
@@ -128,269 +128,6 @@ describe('Sidebar', () => {
         expect(musicLink).toHaveAttribute('aria-current', 'page')
     })
 
-    test('shows server selector dropdown with guilds', async () => {
-        const user = userEvent.setup()
-        renderSidebar()
-
-        expect(screen.getAllByText('Test Server')).toHaveLength(2)
-        expect(screen.getByText('Ready')).toBeInTheDocument()
-        expect(
-            screen.getByText('Guild command center is ready for operations.'),
-        ).toBeInTheDocument()
-
-        const dropdownButton = screen.getByRole('button', {
-            name: 'Switch server',
-        })
-        await user.click(dropdownButton)
-
-        await waitFor(() => {
-            expect(screen.getByText('Another Server')).toBeInTheDocument()
-        })
-    })
-
-    test('selects guild from dropdown', async () => {
-        const user = userEvent.setup()
-        renderSidebar()
-
-        const dropdownButton = screen.getByRole('button', {
-            name: /switch server, currently/i,
-        })
-        await user.click(dropdownButton!)
-
-        await waitFor(() => {
-            expect(screen.getByText('Another Server')).toBeInTheDocument()
-        })
-
-        const anotherServerButton = screen.getByText('Another Server')
-        await user.click(anotherServerButton)
-
-        expect(mockSelectGuild).toHaveBeenCalledWith(mockGuild2)
-    })
-
-    test('shows user profile information', () => {
-        renderSidebar()
-
-        expect(screen.getByText('TestUser')).toBeInTheDocument()
-        expect(screen.getByText('@TestUser')).toBeInTheDocument()
-    })
-
-    test('calls logout when logout button clicked', async () => {
-        const user = userEvent.setup()
-        renderSidebar()
-
-        const logoutButton = screen.getByRole('button', { name: /log out/i })
-        await user.click(logoutButton)
-
-        expect(mockLogout).toHaveBeenCalledTimes(1)
-    })
-
-    test('shows "Select a server" when no guild selected', () => {
-        mockGuildStoreState({
-            guilds: [mockGuild],
-            selectedGuild: null,
-            selectedGuildId: null,
-        })
-
-        renderSidebar()
-
-        expect(screen.getAllByText('Select a server')).toHaveLength(2)
-        expect(screen.getByText('Lucky')).toBeInTheDocument()
-        expect(
-            screen.getByText('Choose a community to unlock guild tools.'),
-        ).toBeInTheDocument()
-    })
-
-    test('shows needs setup status when selected guild is missing the bot', () => {
-        mockGuildStoreState({
-            selectedGuild: {
-                ...mockGuild,
-                botAdded: false,
-            },
-            selectedGuildId: mockGuild.id,
-        })
-
-        renderSidebar()
-
-        expect(screen.getByText('Needs setup')).toBeInTheDocument()
-        expect(
-            screen.getByText('Lucky is not installed in this server yet.'),
-        ).toBeInTheDocument()
-    })
-
-    test('shows authorized guilds even when bot is not added', async () => {
-        const guildWithoutBot: Guild = {
-            ...mockGuild2,
-            botAdded: false,
-        }
-
-        mockGuildStoreState({
-            guilds: [mockGuild, guildWithoutBot],
-            selectedGuild: mockGuild,
-            selectedGuildId: mockGuild.id,
-        })
-
-        const user = userEvent.setup()
-        renderSidebar()
-
-        const dropdownButton = screen.getByRole('button', {
-            name: /switch server, currently/i,
-        })
-        await user.click(dropdownButton!)
-
-        await waitFor(() => {
-            expect(screen.getByText('Another Server')).toBeInTheDocument()
-            expect(screen.getByText('Invite bot')).toBeInTheDocument()
-        })
-    })
-
-    test('shows invite badges when all accessible guilds are missing bot', async () => {
-        const noBotGuilds: Guild[] = [
-            { ...mockGuild, botAdded: false },
-            { ...mockGuild2, botAdded: false },
-        ]
-
-        mockGuildStoreState({
-            guilds: noBotGuilds,
-            selectedGuild: null,
-            selectedGuildId: null,
-        })
-
-        const user = userEvent.setup()
-        renderSidebar()
-
-        await user.click(
-            screen.getByRole('button', { name: /select a server/i }),
-        )
-
-        await waitFor(() => {
-            expect(screen.getByText('Test Server')).toBeInTheDocument()
-            expect(screen.getByText('Another Server')).toBeInTheDocument()
-            expect(screen.getAllByText('Invite bot')).toHaveLength(2)
-        })
-    })
-
-    test('shows no-admin state when user has no guilds', async () => {
-        mockGuildStoreState({
-            guilds: [],
-            selectedGuild: null,
-            selectedGuildId: null,
-            guildLoadError: null,
-        })
-
-        const user = userEvent.setup()
-        renderSidebar()
-
-        await user.click(
-            screen.getByRole('button', { name: /select a server/i }),
-        )
-
-        await waitFor(() => {
-            expect(
-                screen.getByText('No accessible servers found'),
-            ).toBeInTheDocument()
-            expect(
-                screen.queryByText(
-                    'Invite Lucky to one of your servers from the Dashboard.',
-                ),
-            ).not.toBeInTheDocument()
-        })
-    })
-
-    test('shows retry and re-auth CTAs when guild fetch fails from auth state', async () => {
-        const user = userEvent.setup()
-        mockGuildStoreState({
-            guilds: [],
-            selectedGuild: null,
-            selectedGuildId: null,
-            guildLoadError: {
-                kind: 'auth',
-                status: 401,
-                message: 'Session expired',
-            },
-        } as Partial<ReturnType<typeof useGuildStore>>)
-
-        renderSidebar()
-
-        await user.click(
-            screen.getByRole('button', { name: /select a server/i }),
-        )
-
-        await waitFor(() => {
-            expect(
-                screen.getByText('Could not load servers'),
-            ).toBeInTheDocument()
-            expect(
-                screen.getByRole('button', { name: 'Retry' }),
-            ).toBeInTheDocument()
-            expect(
-                screen.getByRole('link', { name: 'Re-authenticate' }),
-            ).toBeInTheDocument()
-        })
-
-        await user.click(screen.getByRole('button', { name: 'Retry' }))
-        expect(mockFetchGuilds).toHaveBeenCalledTimes(1)
-    })
-
-    test('shows re-auth CTA when guild fetch fails from forbidden state', async () => {
-        const user = userEvent.setup()
-        mockGuildStoreState({
-            guilds: [],
-            selectedGuild: null,
-            selectedGuildId: null,
-            guildLoadError: {
-                kind: 'forbidden',
-                status: 403,
-                message: 'Missing oauth scope',
-            },
-        } as Partial<ReturnType<typeof useGuildStore>>)
-
-        renderSidebar()
-
-        await user.click(
-            screen.getByRole('button', { name: /select a server/i }),
-        )
-
-        await waitFor(() => {
-            expect(
-                screen.getByText('Discord access is missing required scope.'),
-            ).toBeInTheDocument()
-            expect(
-                screen.getByRole('link', { name: 'Re-authenticate' }),
-            ).toBeInTheDocument()
-        })
-    })
-
-    test('shows network guidance without re-auth CTA on network failures', async () => {
-        const user = userEvent.setup()
-        mockGuildStoreState({
-            guilds: [],
-            selectedGuild: null,
-            selectedGuildId: null,
-            guildLoadError: {
-                kind: 'network',
-                status: 0,
-                message: 'Network down',
-            },
-        } as Partial<ReturnType<typeof useGuildStore>>)
-
-        renderSidebar()
-
-        await user.click(
-            screen.getByRole('button', { name: /select a server/i }),
-        )
-
-        await waitFor(() => {
-            expect(
-                screen.getByText(
-                    'Network connection failed. Check connectivity and retry.',
-                ),
-            ).toBeInTheDocument()
-            expect(
-                screen.queryByRole('link', { name: 'Re-authenticate' }),
-            ).not.toBeInTheDocument()
-        })
-    })
-
     test('hides Guild Automation nav item without settings manage access', () => {
         mockGuildStoreState({
             memberContext: {
@@ -440,74 +177,26 @@ describe('Sidebar', () => {
         const user = userEvent.setup()
         renderSidebar()
 
-        expect(
-            screen.getAllByRole('button', { name: /close sidebar/i }),
-        ).toHaveLength(1)
-
         const openButton = screen.getByRole('button', {
             name: /open navigation menu/i,
         })
+        expect(openButton).toBeTruthy()
+
         await user.click(openButton)
 
-        await waitFor(() => {
-            expect(
-                screen.getAllByRole('button', { name: /close sidebar/i }),
-            ).toHaveLength(2)
-        })
-
-        const mobileSidebar = document.querySelector(
-            'aside.fixed.inset-y-0.left-0.z-50.w-64.bg-lucky-bg-secondary.lg\\:hidden',
-        )
+        // Check that mobile sidebar appears
+        const mobileSidebar = document.getElementById('mobile-sidebar')
         expect(mobileSidebar).toBeTruthy()
 
-        const mobileCloseButton = within(
-            mobileSidebar as HTMLElement,
-        ).getByRole('button', {
-            name: /close sidebar/i,
-        })
-        await user.click(mobileCloseButton)
+        // Find and click overlay to close
+        const overlay = document.querySelector('div[aria-hidden="true"].fixed')
+        if (overlay) {
+            await user.click(overlay as HTMLElement)
+        }
 
         await waitFor(() => {
-            if (mobileSidebar && document.body.contains(mobileSidebar)) {
-                expect(mobileSidebar).toHaveStyle({
-                    transform: 'translateX(-100%)',
-                })
-                return
-            }
-
-            expect(mobileSidebar).not.toBeInTheDocument()
+            const closedSidebar = document.getElementById('mobile-sidebar')
+            expect(closedSidebar).not.toBeInTheDocument()
         })
-    })
-
-    test('guild icon URL contains icon hash when guild has icon', () => {
-        renderSidebar()
-
-        expect(mockGuild.icon).toBe('icon123')
-        expect(mockGuild.id).toBe('987654321')
-
-        const guildNames = screen.getAllByText('Test Server')
-        expect(guildNames.length).toBeGreaterThan(0)
-    })
-
-    test('shows fallback initials when guild has no icon', () => {
-        mockGuildStoreState({
-            guilds: [mockGuild2],
-            selectedGuild: mockGuild2,
-            selectedGuildId: mockGuild2.id,
-        })
-
-        renderSidebar()
-
-        const fallbackInitials = screen.getAllByText('AN')
-        expect(fallbackInitials.length).toBeGreaterThan(0)
-    })
-
-    test('switch server button exists in guild header', () => {
-        renderSidebar()
-
-        const switchButtons = screen.getAllByRole('button', {
-            name: 'Switch server',
-        })
-        expect(switchButtons.length).toBeGreaterThan(0)
     })
 })

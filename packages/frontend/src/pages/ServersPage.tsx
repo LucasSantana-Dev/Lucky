@@ -1,5 +1,6 @@
 import { Crown, LayoutGrid, Settings, ExternalLink } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Skeleton from '@/components/ui/Skeleton'
 import ServerGrid from '@/components/Dashboard/ServerGrid'
@@ -7,8 +8,10 @@ import { useGuildStore } from '@/stores/guildStore'
 import { useAuthStore } from '@/stores/authStore'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { cn } from '@/lib/utils'
+import { getUserAvatarUrl } from '@/lib/discord'
 
 export default function ServersPage() {
+    const { t } = useTranslation('servers')
     const guilds = useGuildStore((state) => state.guilds)
     const isLoading = useGuildStore((state) => state.isLoading)
     const user = useAuthStore((state) => state.user)
@@ -43,10 +46,14 @@ export default function ServersPage() {
 
     return (
         <main className='space-y-8'>
-            <div className='surface-panel flex flex-wrap items-center gap-6 p-6'>
+            <div className='surface-panel flex flex-wrap items-center gap-6 p-6 border border-lucky-border'>
                 <Avatar className='h-16 w-16 border border-lucky-border flex-shrink-0'>
                     <AvatarImage
-                        src={user?.avatar || undefined}
+                        src={
+                            user?.avatar && user?.id
+                                ? getUserAvatarUrl(user.id, user.avatar)
+                                : undefined
+                        }
                         alt={user?.username || 'User avatar'}
                     />
                     <AvatarFallback className='bg-lucky-brand/20 font-semibold text-lucky-brand'>
@@ -55,8 +62,8 @@ export default function ServersPage() {
                 </Avatar>
 
                 <div className='space-y-1'>
-                    <p className='text-xs uppercase tracking-wider text-lucky-text-tertiary'>
-                        Discord Account
+                    <p className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
+                        {t('discordAccount')}
                     </p>
                     <p className='text-lg font-semibold text-lucky-text-primary'>
                         {user?.username}
@@ -67,8 +74,8 @@ export default function ServersPage() {
                 </div>
 
                 <div className='ml-auto text-right flex-shrink-0'>
-                    <p className='text-xs uppercase tracking-wider text-lucky-text-tertiary'>
-                        Total Servers
+                    <p className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
+                        {t('totalServers')}
                     </p>
                     <p className='text-2xl font-bold text-lucky-brand'>
                         {guilds.length}
@@ -80,38 +87,40 @@ export default function ServersPage() {
                 <div className='flex items-baseline justify-between'>
                     <div>
                         <div className='flex items-center gap-2'>
-                            <h2 className='text-xs uppercase tracking-wider text-lucky-text-tertiary'>
-                                Servers
+                            <h2 className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
+                                {t('serversLabel')}
                             </h2>
                         </div>
                         <h1
                             className='text-3xl font-bold text-lucky-text-primary mt-2'
                             style={{ fontFamily: 'var(--font-lucky-display)' }}
                         >
-                            Your Servers
+                            {t('yourServers')}
                         </h1>
                         <p className='text-sm text-lucky-text-tertiary mt-2'>
-                            {guilds.length} servers — {withBotCount} with Lucky
-                            installed
+                            {t('serversWithBot', {
+                                count: guilds.length,
+                                count2: withBotCount,
+                            })}
                         </p>
                     </div>
                     <nav className='flex gap-2'>
                         {(
                             [
                                 {
-                                    label: 'Servers',
+                                    label: t('navServers'),
                                     icon: LayoutGrid,
                                     active: true,
                                     onClick: undefined,
                                 },
                                 {
-                                    label: 'Premium',
+                                    label: t('navPremium'),
                                     icon: Crown,
                                     active: false,
                                     onClick: () => navigate('/features'),
                                 },
                                 {
-                                    label: 'Settings',
+                                    label: t('navSettings'),
                                     icon: Settings,
                                     active: false,
                                     onClick: () => navigate('/settings'),
@@ -138,15 +147,15 @@ export default function ServersPage() {
 
                 {primaryGuild && (
                     <section className='space-y-3'>
-                        <h2 className='text-xs uppercase tracking-wider text-lucky-text-tertiary'>
-                            Recently Active
+                        <h2 className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
+                            {t('recentlyActive')}
                         </h2>
                         <button
                             onClick={() =>
                                 navigate(`/guild/${primaryGuild.id}`)
                             }
                             className={cn(
-                                'surface-panel w-full p-6 text-left border-2 transition-all hover:border-lucky-brand/50',
+                                'surface-panel w-full p-6 text-left border-2 transition-all hover:bg-lucky-bg-active/25 hover:border-lucky-brand/50',
                                 primaryGuild.botAdded
                                     ? 'border-lucky-border-strong'
                                     : 'border-lucky-border',
@@ -170,11 +179,11 @@ export default function ServersPage() {
                                     </h3>
                                     {primaryGuild.botAdded ? (
                                         <p className='text-xs text-lucky-success mt-1 inline-block'>
-                                            Lucky installed
+                                            {t('luckyInstalled')}
                                         </p>
                                     ) : (
                                         <p className='text-xs text-lucky-text-tertiary mt-1'>
-                                            Invite Lucky
+                                            {t('inviteLucky')}
                                         </p>
                                     )}
                                 </div>
@@ -186,23 +195,23 @@ export default function ServersPage() {
 
                 {secondaryGuilds.length > 0 && (
                     <section className='space-y-3'>
-                        <h2 className='text-xs uppercase tracking-wider text-lucky-text-tertiary'>
-                            All Other Servers
+                        <h2 className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
+                            {t('allOtherServers')}
                         </h2>
                         <ServerGrid />
                     </section>
                 )}
 
                 {guilds.length === 0 && (
-                    <div className='surface-panel rounded-lg p-12 text-center'>
+                    <div className='surface-panel rounded-lg p-12 text-center border border-lucky-border'>
                         <div className='w-12 h-12 rounded-full bg-lucky-bg-tertiary mx-auto mb-4 flex items-center justify-center'>
                             <LayoutGrid className='h-6 w-6 text-lucky-text-tertiary' />
                         </div>
                         <p className='text-lucky-text-primary font-medium mb-2'>
-                            No servers yet
+                            {t('noServersTitle')}
                         </p>
                         <p className='text-sm text-lucky-text-secondary'>
-                            Join a Discord server and Lucky will appear here.
+                            {t('noServersDescription')}
                         </p>
                     </div>
                 )}

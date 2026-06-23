@@ -70,7 +70,9 @@ describe('ConfigPage', () => {
         const musicCard = screen.getByRole('button', { name: /Music Module/i })
         await user.click(musicCard)
 
-        expect(screen.getByText('← Back')).toBeInTheDocument()
+        expect(
+            screen.getByRole('button', { name: /back/i }),
+        ).toBeInTheDocument()
     })
 
     test('clicking back returns to module selection', async () => {
@@ -87,7 +89,7 @@ describe('ConfigPage', () => {
         const musicCard = screen.getByRole('button', { name: /Music Module/i })
         await user.click(musicCard)
 
-        const backButton = screen.getByText('← Back')
+        const backButton = screen.getByRole('button', { name: /back/i })
         await user.click(backButton)
 
         expect(screen.getByText('Music Module')).toBeInTheDocument()
