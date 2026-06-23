@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Users,
@@ -8,6 +8,7 @@ import {
     Plus,
     Trash2,
     X,
+    Pencil,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -31,6 +32,9 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea'
+import FormattingToolbar from '@/components/ui/FormattingToolbar'
+import EmojiPicker from '@/components/ui/EmojiPicker'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 import type {
@@ -106,9 +110,11 @@ function MappingPill({
 function MessageCard({
     message,
     onDelete,
+    onEdit,
 }: {
     message: ReactionRoleMessage
     onDelete: (messageId: string) => Promise<void>
+    onEdit: (message: ReactionRoleMessage) => void
 }) {
     const [deleting, setDeleting] = useState(false)
     const date = new Date(message.createdAt)
@@ -153,6 +159,15 @@ function MessageCard({
                         {message.mappings.length}{' '}
                         {message.mappings.length === 1 ? 'role' : 'roles'}
                     </Badge>
+                    <Button
+                        variant='secondary'
+                        size='sm'
+                        aria-label='Edit'
+                        onClick={() => onEdit(message)}
+                        className='text-lucky-text-secondary'
+                    >
+                        <Pencil className='h-3.5 w-3.5' />
+                    </Button>
                     <Button
                         variant='secondary'
                         size='sm'
@@ -212,17 +227,25 @@ const DEFAULT_ROLE_ENTRY: CreateReactionRoleEntry = {
     style: 'Primary',
 }
 
-function CreateDialog({
-    guildId,
-    open,
-    onClose,
-    onCreated,
-}: {
+interface MessageFormEntry extends CreateReactionRoleEntry {}
+
+interface MessageFormProps {
     guildId: string
     open: boolean
+    mode: 'create' | 'edit'
+    initialMessage?: ReactionRoleMessage
     onClose: () => void
-    onCreated: () => void
-}) {
+    onSuccess: () => void
+}
+
+function MessageForm({
+    guildId,
+    open,
+    mode,
+    initialMessage,
+    onClose,
+    onSuccess,
+}: MessageFormProps) {
     const [channels, setChannels] = useState<GuildChannelOption[]>([])
     const [roles, setRoles] = useState<GuildRoleOption[]>([])
     const [loadingOptions, setLoadingOptions] = useState(false)
@@ -230,11 +253,13 @@ function CreateDialog({
     const [channelId, setChannelId] = useState('')
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
-    const [entries, setEntries] = useState<CreateReactionRoleEntry[]>([
+    const [imageUrl, setImageUrl] = useState('')
+    const [entries, setEntries] = useState<MessageFormEntry[]>([
         { ...DEFAULT_ROLE_ENTRY },
     ])
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const descriptionRef = useRef<HTMLTextAreaElement | null>(null)
 
     useEffect(() => {
         if (!open) {
@@ -255,10 +280,45 @@ function CreateDialog({
             .finally(() => setLoadingOptions(false))
     }, [open, guildId])
 
+    useEffect(() => {
+        if (mode === 'edit' && initialMessage) {
+            // Prefill edit form
+            setChannelId(initialMessage.channelId)
+            setTitle(initialMessage.title || '')
+            setDescription(initialMessage.description || '')
+            setImageUrl(initialMessage.imageUrl || '')
+            const newEntries = initialMessage.mappings.map((m) => ({
+                roleId: m.roleId,
+                label: m.label,
+                emoji: m.emoji || '',
+                style:
+                    (m.style as
+                        | 'Primary'
+                        | 'Secondary'
+                        | 'Success'
+                        | 'Danger') || 'Primary',
+            }))
+            setEntries(
+                newEntries.length > 0
+                    ? newEntries
+                    : [{ ...DEFAULT_ROLE_ENTRY }],
+            )
+        } else {
+            // Reset for create mode
+            setChannelId('')
+            setTitle('')
+            setDescription('')
+            setImageUrl('')
+            setEntries([{ ...DEFAULT_ROLE_ENTRY }])
+        }
+        setError(null)
+    }, [mode, initialMessage, open])
+
     function resetForm() {
         setChannelId('')
         setTitle('')
         setDescription('')
+        setImageUrl('')
         setEntries([{ ...DEFAULT_ROLE_ENTRY }])
         setError(null)
     }
@@ -270,7 +330,7 @@ function CreateDialog({
 
     function updateEntry(
         index: number,
-        field: keyof CreateReactionRoleEntry,
+        field: keyof MessageFormEntry,
         value: string,
     ) {
         setEntries((prev) =>
@@ -309,21 +369,44 @@ function CreateDialog({
 
         setSubmitting(true)
         try {
-            await api.reactionRoles.create(guildId, {
-                channelId,
-                title: title.trim(),
-                description: description.trim(),
-                roles: validEntries.map((e) => ({
-                    roleId: e.roleId,
-                    label: e.label.trim(),
-                    emoji: e.emoji?.trim() || undefined,
-                    style: e.style,
-                })),
-            })
+            if (mode === 'create') {
+                await api.reactionRoles.create(guildId, {
+                    channelId,
+                    title: title.trim(),
+                    description: description.trim(),
+                    imageUrl: imageUrl.trim() || undefined,
+                    roles: validEntries.map((e) => ({
+                        roleId: e.roleId,
+                        label: e.label.trim(),
+                        emoji: e.emoji?.trim() || undefined,
+                        style: e.style,
+                    })),
+                })
+            } else if (mode === 'edit' && initialMessage) {
+                await api.reactionRoles.update(
+                    guildId,
+                    initialMessage.messageId,
+                    {
+                        title: title.trim(),
+                        description: description.trim(),
+                        imageUrl: imageUrl.trim() || undefined,
+                        roles: validEntries.map((e) => ({
+                            roleId: e.roleId,
+                            label: e.label.trim(),
+                            emoji: e.emoji?.trim() || undefined,
+                            style: e.style,
+                        })),
+                    },
+                )
+            }
             resetForm()
-            onCreated()
-        } catch {
-            setError('Failed to create reaction role message')
+            onSuccess()
+        } catch (err) {
+            const msg =
+                mode === 'create'
+                    ? 'Failed to create reaction role message'
+                    : 'Failed to update reaction role message'
+            setError(msg)
         } finally {
             setSubmitting(false)
         }
@@ -333,7 +416,11 @@ function CreateDialog({
         <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
             <DialogContent className='max-h-[90vh] overflow-y-auto sm:max-w-lg'>
                 <DialogHeader>
-                    <DialogTitle>Create Reaction Role Message</DialogTitle>
+                    <DialogTitle>
+                        {mode === 'create'
+                            ? 'Create Reaction Role Message'
+                            : 'Edit Reaction Role Message'}
+                    </DialogTitle>
                 </DialogHeader>
 
                 <div className='space-y-4 py-2'>
@@ -348,7 +435,7 @@ function CreateDialog({
                         <Select
                             value={channelId}
                             onValueChange={setChannelId}
-                            disabled={loadingOptions}
+                            disabled={loadingOptions || mode === 'edit'}
                         >
                             <SelectTrigger>
                                 <SelectValue placeholder='Select a channel' />
@@ -361,6 +448,11 @@ function CreateDialog({
                                 ))}
                             </SelectContent>
                         </Select>
+                        {mode === 'edit' && (
+                            <p className='type-body-sm text-lucky-text-tertiary'>
+                                Channel cannot be changed on edit
+                            </p>
+                        )}
                     </div>
 
                     <div className='space-y-1.5'>
@@ -375,17 +467,47 @@ function CreateDialog({
 
                     <div className='space-y-1.5'>
                         <Label>Description</Label>
-                        <textarea
+                        <FormattingToolbar textareaRef={descriptionRef} />
+                        <AutoGrowTextarea
+                            ref={descriptionRef}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder='Explain how to use the buttons below…'
                             maxLength={4096}
-                            rows={3}
-                            className='w-full resize-none rounded-md border border-lucky-border bg-lucky-bg-tertiary px-3 py-2 text-sm text-lucky-text-primary placeholder:text-lucky-text-tertiary focus:outline-none focus:ring-1 focus:ring-lucky-accent'
+                            minRows={3}
+                            maxRows={12}
                         />
                     </div>
 
-                    <div className='space-y-2'>
+                    <div className='space-y-1.5'>
+                        <Label>Image URL (optional)</Label>
+                        <Input
+                            value={imageUrl}
+                            onChange={(e) => setImageUrl(e.target.value)}
+                            placeholder='https://example.com/image.png'
+                            maxLength={2048}
+                        />
+                        {imageUrl.trim() && (
+                            <div className='mt-2 overflow-hidden rounded-md border border-lucky-border'>
+                                <img
+                                    src={imageUrl}
+                                    alt='Preview'
+                                    className='max-h-40 w-full object-cover'
+                                    onError={(e) => {
+                                        const img = e.target as HTMLImageElement
+                                        img.src =
+                                            'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"%3E%3Crect x="3" y="3" width="18" height="18" rx="2"/%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"/%3E%3Cpath d="m21 15-5-5L5 21"/%3E%3C/svg%3E'
+                                        img.classList.add(
+                                            'p-4',
+                                            'text-lucky-text-tertiary',
+                                        )
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className='sticky top-0 z-10 space-y-2 border-t border-lucky-border bg-lucky-bg-secondary pt-3'>
                         <div className='flex items-center justify-between'>
                             <Label>Roles ({entries.length}/25)</Label>
                             <Button
@@ -399,113 +521,117 @@ function CreateDialog({
                             </Button>
                         </div>
 
-                        {entries.map((entry, i) => (
-                            <div
-                                key={i}
-                                className='space-y-2 rounded-lg border border-lucky-border bg-lucky-bg-tertiary/40 p-3'
-                            >
-                                <div className='flex items-center justify-between'>
-                                    <span className='type-body-sm font-medium text-lucky-text-secondary'>
-                                        Role {i + 1}
-                                    </span>
-                                    {entries.length > 1 && (
-                                        <button
-                                            type='button'
-                                            aria-label='Remove'
-                                            onClick={() => removeEntry(i)}
-                                            className='text-lucky-text-tertiary hover:text-lucky-error'
-                                        >
-                                            <X className='h-3.5 w-3.5' />
-                                        </button>
-                                    )}
+                        <div className='space-y-2 overflow-y-auto'>
+                            {entries.map((entry, i) => (
+                                <div
+                                    key={i}
+                                    className='space-y-2 rounded-lg border border-lucky-border bg-lucky-bg-tertiary/40 p-3'
+                                >
+                                    <div className='flex items-center justify-between'>
+                                        <span className='type-body-sm font-medium text-lucky-text-secondary'>
+                                            Role {i + 1}
+                                        </span>
+                                        {entries.length > 1 && (
+                                            <button
+                                                type='button'
+                                                aria-label='Remove'
+                                                onClick={() => removeEntry(i)}
+                                                className='text-lucky-text-tertiary hover:text-lucky-error'
+                                            >
+                                                <X className='h-3.5 w-3.5' />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className='grid grid-cols-2 gap-2'>
+                                        <div className='space-y-1'>
+                                            <Label className='text-xs'>
+                                                Role
+                                            </Label>
+                                            <Select
+                                                value={entry.roleId}
+                                                onValueChange={(v) =>
+                                                    updateEntry(i, 'roleId', v)
+                                                }
+                                                disabled={loadingOptions}
+                                            >
+                                                <SelectTrigger className='h-8 text-xs'>
+                                                    <SelectValue placeholder='Select role' />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {roles.map((r) => (
+                                                        <SelectItem
+                                                            key={r.id}
+                                                            value={r.id}
+                                                        >
+                                                            {r.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className='space-y-1'>
+                                            <Label className='text-xs'>
+                                                Button label
+                                            </Label>
+                                            <Input
+                                                className='h-8 text-xs'
+                                                value={entry.label}
+                                                onChange={(e) =>
+                                                    updateEntry(
+                                                        i,
+                                                        'label',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                placeholder='Label'
+                                                maxLength={80}
+                                            />
+                                        </div>
+                                        <div className='space-y-1'>
+                                            <Label className='text-xs'>
+                                                Emoji (optional)
+                                            </Label>
+                                            <EmojiPicker
+                                                value={entry.emoji}
+                                                onChange={(emoji) =>
+                                                    updateEntry(
+                                                        i,
+                                                        'emoji',
+                                                        emoji,
+                                                    )
+                                                }
+                                                guildId={guildId}
+                                            />
+                                        </div>
+                                        <div className='space-y-1'>
+                                            <Label className='text-xs'>
+                                                Style
+                                            </Label>
+                                            <Select
+                                                value={entry.style ?? 'Primary'}
+                                                onValueChange={(v) =>
+                                                    updateEntry(i, 'style', v)
+                                                }
+                                            >
+                                                <SelectTrigger className='h-8 text-xs'>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {BUTTON_STYLES.map((s) => (
+                                                        <SelectItem
+                                                            key={s}
+                                                            value={s}
+                                                        >
+                                                            {s}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className='grid grid-cols-2 gap-2'>
-                                    <div className='space-y-1'>
-                                        <Label className='text-xs'>Role</Label>
-                                        <Select
-                                            value={entry.roleId}
-                                            onValueChange={(v) =>
-                                                updateEntry(i, 'roleId', v)
-                                            }
-                                            disabled={loadingOptions}
-                                        >
-                                            <SelectTrigger className='h-8 text-xs'>
-                                                <SelectValue placeholder='Select role' />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {roles.map((r) => (
-                                                    <SelectItem
-                                                        key={r.id}
-                                                        value={r.id}
-                                                    >
-                                                        {r.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className='space-y-1'>
-                                        <Label className='text-xs'>
-                                            Button label
-                                        </Label>
-                                        <Input
-                                            className='h-8 text-xs'
-                                            value={entry.label}
-                                            onChange={(e) =>
-                                                updateEntry(
-                                                    i,
-                                                    'label',
-                                                    e.target.value,
-                                                )
-                                            }
-                                            placeholder='Label'
-                                            maxLength={80}
-                                        />
-                                    </div>
-                                    <div className='space-y-1'>
-                                        <Label className='text-xs'>
-                                            Emoji (optional)
-                                        </Label>
-                                        <Input
-                                            className='h-8 text-xs'
-                                            value={entry.emoji ?? ''}
-                                            onChange={(e) =>
-                                                updateEntry(
-                                                    i,
-                                                    'emoji',
-                                                    e.target.value,
-                                                )
-                                            }
-                                            placeholder='🎮'
-                                            maxLength={100}
-                                        />
-                                    </div>
-                                    <div className='space-y-1'>
-                                        <Label className='text-xs'>Style</Label>
-                                        <Select
-                                            value={entry.style ?? 'Primary'}
-                                            onValueChange={(v) =>
-                                                updateEntry(i, 'style', v)
-                                            }
-                                        >
-                                            <SelectTrigger className='h-8 text-xs'>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {BUTTON_STYLES.map((s) => (
-                                                    <SelectItem
-                                                        key={s}
-                                                        value={s}
-                                                    >
-                                                        {s}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -521,7 +647,13 @@ function CreateDialog({
                         onClick={() => void handleSubmit()}
                         disabled={submitting}
                     >
-                        {submitting ? 'Creating…' : 'Create'}
+                        {submitting
+                            ? mode === 'create'
+                                ? 'Creating…'
+                                : 'Updating…'
+                            : mode === 'create'
+                              ? 'Create'
+                              : 'Update'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -534,7 +666,11 @@ export default function ReactionRoles() {
     const [messages, setMessages] = useState<ReactionRoleMessage[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [showCreate, setShowCreate] = useState(false)
+    const [formOpen, setFormOpen] = useState(false)
+    const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
+    const [selectedMessage, setSelectedMessage] = useState<
+        ReactionRoleMessage | undefined
+    >()
     const [deleteError, setDeleteError] = useState<string | null>(null)
 
     const fetchMessages = useCallback(async () => {
@@ -566,6 +702,28 @@ export default function ReactionRoles() {
         }
     }
 
+    function handleEditClick(message: ReactionRoleMessage) {
+        setSelectedMessage(message)
+        setFormMode('edit')
+        setFormOpen(true)
+    }
+
+    function handleCreateClick() {
+        setSelectedMessage(undefined)
+        setFormMode('create')
+        setFormOpen(true)
+    }
+
+    function handleFormClose() {
+        setFormOpen(false)
+        setSelectedMessage(undefined)
+    }
+
+    function handleFormSuccess() {
+        handleFormClose()
+        void fetchMessages()
+    }
+
     if (!selectedGuild) {
         return (
             <EmptyState
@@ -582,7 +740,7 @@ export default function ReactionRoles() {
                 title='Reaction Roles'
                 description='Create Discord messages with button-based role assignment directly from the dashboard.'
                 actions={
-                    <Button onClick={() => setShowCreate(true)}>
+                    <Button onClick={handleCreateClick}>
                         <Plus className='h-4 w-4' />
                         Create
                     </Button>
@@ -636,6 +794,7 @@ export default function ReactionRoles() {
                                 <MessageCard
                                     message={message}
                                     onDelete={handleDelete}
+                                    onEdit={handleEditClick}
                                 />
                             </motion.div>
                         ))}
@@ -643,14 +802,13 @@ export default function ReactionRoles() {
                 </AnimatePresence>
             )}
 
-            <CreateDialog
+            <MessageForm
                 guildId={selectedGuild.id}
-                open={showCreate}
-                onClose={() => setShowCreate(false)}
-                onCreated={() => {
-                    setShowCreate(false)
-                    void fetchMessages()
-                }}
+                open={formOpen}
+                mode={formMode}
+                initialMessage={selectedMessage}
+                onClose={handleFormClose}
+                onSuccess={handleFormSuccess}
             />
         </div>
     )

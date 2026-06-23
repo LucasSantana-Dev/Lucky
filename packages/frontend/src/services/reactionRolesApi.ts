@@ -15,6 +15,9 @@ export interface ReactionRoleMessage {
     messageId: string
     channelId: string
     guildId: string
+    title?: string
+    description?: string
+    imageUrl?: string
     createdAt: string
     mappings: ReactionRoleMapping[]
 }

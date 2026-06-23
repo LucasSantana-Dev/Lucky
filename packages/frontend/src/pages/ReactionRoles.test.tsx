@@ -680,4 +680,142 @@ describe('ReactionRoles', () => {
         fireEvent.change(labelInput, { target: { value: 'My Role' } })
         expect(labelInput).toHaveValue('My Role')
     })
+
+    test('edit button opens edit dialog with prefilled data', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [{ id: 'ch-1', name: 'general' }] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getChannels>>)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: { roles: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getRoles>>)
+        render(<ReactionRoles />)
+
+        await waitFor(() => {
+            expect(api.reactionRoles.list).toHaveBeenCalled()
+        })
+
+        const editButtons = screen.getAllByRole('button', { name: /edit/i })
+        fireEvent.click(editButtons[0])
+
+        expect(
+            screen.getByText('Edit Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    test('edit dialog cannot change channel', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [{ id: 'ch-1', name: 'general' }] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getChannels>>)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: { roles: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getRoles>>)
+        render(<ReactionRoles />)
+
+        await waitFor(() => {
+            expect(api.reactionRoles.list).toHaveBeenCalled()
+        })
+
+        const editButtons = screen.getAllByRole('button', { name: /edit/i })
+        fireEvent.click(editButtons[0])
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Edit Reaction Role Message'),
+            ).toBeInTheDocument()
+        })
+
+        expect(
+            screen.getByText('Channel cannot be changed on edit'),
+        ).toBeInTheDocument()
+    })
+
+    test('edit dialog shows update button instead of create button', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [{ id: 'ch-1', name: 'general' }] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getChannels>>)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: { roles: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getRoles>>)
+        render(<ReactionRoles />)
+
+        await waitFor(() => {
+            expect(api.reactionRoles.list).toHaveBeenCalled()
+        })
+
+        const editButtons = screen.getAllByRole('button', { name: /edit/i })
+        fireEvent.click(editButtons[0])
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Edit Reaction Role Message'),
+            ).toBeInTheDocument()
+        })
+
+        expect(
+            screen.getByRole('button', { name: /^update$/i }),
+        ).toBeInTheDocument()
+        expect(
+            screen.queryByRole('button', { name: /^create$/i }),
+        ).not.toBeInTheDocument()
+    })
+
+    test('auto-grow textarea expands with content', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [{ id: 'ch-1', name: 'general' }] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getChannels>>)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: { roles: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getRoles>>)
+        render(<ReactionRoles />)
+
+        fireEvent.click(screen.getByRole('button', { name: /create/i }))
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Create Reaction Role Message'),
+            ).toBeInTheDocument()
+        })
+
+        const descriptionInput =
+            screen.getByPlaceholderText(/Explain how to use/)
+        fireEvent.change(descriptionInput, {
+            target: {
+                value: 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6',
+            },
+        })
+        expect(descriptionInput).toHaveValue(
+            'Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6',
+        )
+    })
+
+    test('image URL input and preview shown when valid URL entered', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [{ id: 'ch-1', name: 'general' }] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getChannels>>)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: { roles: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getRoles>>)
+        render(<ReactionRoles />)
+
+        fireEvent.click(screen.getByRole('button', { name: /create/i }))
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Create Reaction Role Message'),
+            ).toBeInTheDocument()
+        })
+
+        const imageUrlInput = screen.getByPlaceholderText(
+            /https:\/\/example/,
+        ) as HTMLInputElement
+        fireEvent.change(imageUrlInput, {
+            target: { value: 'https://example.com/image.png' },
+        })
+        expect(imageUrlInput.value).toBe('https://example.com/image.png')
+    })
 })
