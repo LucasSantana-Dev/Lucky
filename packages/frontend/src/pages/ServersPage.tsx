@@ -7,6 +7,7 @@ import { useGuildStore } from '@/stores/guildStore'
 import { useAuthStore } from '@/stores/authStore'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { cn } from '@/lib/utils'
+import { getUserAvatarUrl } from '@/lib/discord'
 
 export default function ServersPage() {
     const guilds = useGuildStore((state) => state.guilds)
@@ -46,7 +47,11 @@ export default function ServersPage() {
             <div className='surface-panel flex flex-wrap items-center gap-6 p-6 border border-lucky-border'>
                 <Avatar className='h-16 w-16 border border-lucky-border flex-shrink-0'>
                     <AvatarImage
-                        src={user?.avatar || undefined}
+                        src={
+                            user?.avatar && user?.id
+                                ? getUserAvatarUrl(user.id, user.avatar)
+                                : undefined
+                        }
                         alt={user?.username || 'User avatar'}
                     />
                     <AvatarFallback className='bg-lucky-brand/20 font-semibold text-lucky-brand'>
