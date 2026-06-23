@@ -11,6 +11,8 @@ const STREAM_OFFLINE_TYPE = 'stream.offline'
 const STREAM_OFFLINE_VERSION = '1'
 const CHANNEL_UPDATE_TYPE = 'channel.update'
 const CHANNEL_UPDATE_VERSION = '2'
+const CHANNEL_RAID_TYPE = 'channel.raid'
+const CHANNEL_RAID_VERSION = '1'
 
 export type NotificationPayload = {
     subscription: { type: string; condition: { broadcaster_user_id: string } }
@@ -43,6 +45,22 @@ export type ChannelUpdatePayload = {
         category_id: string
         category_name: string
         content_classification_labels: string[]
+    }
+}
+
+export type ChannelRaidPayload = {
+    subscription: {
+        type: string
+        condition: { to_broadcaster_user_id: string }
+    }
+    event: {
+        from_broadcaster_user_id: string
+        from_broadcaster_user_login: string
+        from_broadcaster_user_name: string
+        to_broadcaster_user_id: string
+        to_broadcaster_user_login: string
+        to_broadcaster_user_name: string
+        viewers: number
     }
 }
 
@@ -130,6 +148,35 @@ export async function subscribeToChannelUpdate(
     }
 }
 
+export async function subscribeToChannelRaid(
+    sessionId: string,
+    clientId: string,
+    subscribedRaidIds: Set<string>,
+): Promise<void> {
+    const token = await getTwitchUserAccessToken()
+    if (!token) return
+
+    const userIds = await twitchNotificationService.getDistinctTwitchUserIds()
+    if (userIds.length === 0) {
+        debugLog({ message: 'Twitch EventSub: no streamers to subscribe to' })
+        return
+    }
+
+    for (const broadcasterUserId of userIds) {
+        if (subscribedRaidIds.has(broadcasterUserId)) continue
+        const ok = await createSubscription(
+            broadcasterUserId,
+            token,
+            sessionId,
+            clientId,
+            CHANNEL_RAID_TYPE,
+            CHANNEL_RAID_VERSION,
+            'to_broadcaster_user_id',
+        )
+        if (ok) subscribedRaidIds.add(broadcasterUserId)
+    }
+}
+
 async function createSubscription(
     broadcasterUserId: string,
     accessToken: string,
@@ -137,6 +184,7 @@ async function createSubscription(
     clientId: string,
     type: string,
     version: string,
+    conditionKey: string = 'broadcaster_user_id',
 ): Promise<boolean> {
     try {
         const res = await fetch(EVENTSUB_API_URL, {
@@ -149,7 +197,7 @@ async function createSubscription(
             body: JSON.stringify({
                 type,
                 version,
-                condition: { broadcaster_user_id: broadcasterUserId },
+                condition: { [conditionKey]: broadcasterUserId },
                 transport: { method: 'websocket', session_id: sessionId },
             }),
             signal: AbortSignal.timeout(10_000),
@@ -341,6 +389,77 @@ export async function handleChannelUpdate(
         .addFields(
             { name: 'Title', value: title, inline: false },
             { name: 'Category', value: category_name || '—', inline: true },
+        )
+        .setTimestamp()
+        .setFooter({ text: 'Twitch' })
+
+    for (const notif of notifications) {
+        try {
+            const channel = await client.channels.fetch(notif.discordChannelId)
+            if (!channel) {
+                warnLog({
+                    message:
+                        'Twitch EventSub: channel not found (may be deleted or inaccessible)',
+                    data: {
+                        discordChannelId: notif.discordChannelId,
+                        twitchLogin: notif.twitchLogin,
+                    },
+                })
+                continue
+            }
+            if (!channel.isTextBased()) {
+                warnLog({
+                    message: 'Twitch EventSub: channel is not a text channel',
+                    data: {
+                        discordChannelId: notif.discordChannelId,
+                        twitchLogin: notif.twitchLogin,
+                    },
+                })
+                continue
+            }
+            if (channel.isDMBased()) {
+                warnLog({
+                    message:
+                        'Twitch EventSub: channel is a DM channel, skipping',
+                    data: {
+                        discordChannelId: notif.discordChannelId,
+                        twitchLogin: notif.twitchLogin,
+                    },
+                })
+                continue
+            }
+            await channel.send({ embeds: [embed] })
+        } catch (err) {
+            errorLog({
+                message: `Twitch EventSub: failed to send notification to channel ${notif.discordChannelId}`,
+                error: err,
+            })
+        }
+    }
+}
+
+export async function handleChannelRaid(
+    payload: ChannelRaidPayload,
+    client: Client,
+): Promise<void> {
+    const {
+        from_broadcaster_user_name: fromName,
+        to_broadcaster_user_id: toUserId,
+        to_broadcaster_user_login: toLogin,
+        to_broadcaster_user_name: toName,
+        viewers,
+    } = payload.event
+
+    const notifications =
+        await twitchNotificationService.getNotificationsByTwitchUserId(toUserId)
+    if (notifications.length === 0) return
+
+    const embed = new EmbedBuilder()
+        .setColor(0x9146ff)
+        .setTitle(`Raid incoming on ${toName}!`)
+        .setURL(`https://twitch.tv/${toLogin}`)
+        .setDescription(
+            `**${fromName}** is raiding **${toName}** with **${viewers.toLocaleString()}** viewers!`,
         )
         .setTimestamp()
         .setFooter({ text: 'Twitch' })
