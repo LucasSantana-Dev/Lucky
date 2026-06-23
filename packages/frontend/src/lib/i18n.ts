@@ -11,9 +11,12 @@ void i18n
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
+        // Each top-level group is exposed BOTH under the default `translation`
+        // namespace (pages call t('group.key')) AND as its own namespace (pages
+        // using useTranslation('group') + t('key')). Both conventions are in use.
         resources: {
-            en: { translation: en },
-            'pt-BR': { translation: ptBR },
+            en: { translation: en, ...en },
+            'pt-BR': { translation: ptBR, ...ptBR },
         },
         fallbackLng: 'en',
         supportedLngs: SUPPORTED_LANGUAGES,

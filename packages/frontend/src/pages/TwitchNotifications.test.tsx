@@ -2,9 +2,51 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { I18nextProvider } from 'react-i18next'
+import i18next from 'i18next'
 import TwitchNotificationsPage from './TwitchNotifications'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
+import * as en from '@/locales/en.json'
+import * as ptBR from '@/locales/pt-BR.json'
+
+// Create a test i18n instance
+const testI18n = i18next.createInstance()
+testI18n.init({
+    lng: 'en',
+    fallbackLng: 'en',
+    ns: ['translation', 'twitch'],
+    defaultNS: 'translation',
+    resources: {
+        en: {
+            translation: en,
+            twitch: (en as any).twitch,
+        },
+        'pt-BR': {
+            translation: ptBR,
+            twitch: (ptBR as any).twitch,
+        },
+    },
+    interpolation: { escapeValue: false },
+    returnNull: false,
+})
+
+vi.mock('react-i18next', async () => {
+    const actual = await vi.importActual('react-i18next')
+    return {
+        ...actual,
+        useTranslation: (ns?: string) => {
+            const namespace = ns || 'translation'
+            return {
+                t: (key: string, options?: any) => {
+                    const fullKey = namespace ? `${namespace}:${key}` : key
+                    return testI18n.t(fullKey, options)
+                },
+                i18n: testI18n,
+            }
+        },
+    }
+})
 
 vi.mock('@/services/api')
 vi.mock('@/hooks/useGuildSelection')
@@ -61,9 +103,11 @@ function mockGuildSelection(guild: typeof mockGuild | null) {
 
 function renderPage() {
     return render(
-        <MemoryRouter>
-            <TwitchNotificationsPage />
-        </MemoryRouter>,
+        <I18nextProvider i18n={testI18n}>
+            <MemoryRouter>
+                <TwitchNotificationsPage />
+            </MemoryRouter>
+        </I18nextProvider>,
     )
 }
 
@@ -86,6 +130,7 @@ async function fillNotificationForm(
 describe('TwitchNotificationsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        void testI18n.changeLanguage('en')
         Object.defineProperty(
             globalThis.HTMLElement.prototype,
             'scrollIntoView',

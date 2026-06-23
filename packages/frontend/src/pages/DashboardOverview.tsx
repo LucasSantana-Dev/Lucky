@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import {
     Activity,
     AlertTriangle,
@@ -94,12 +95,12 @@ function CompactStat({
     delta?: number
 }) {
     return (
-        <div className='flex items-center justify-between gap-3 px-4 py-3'>
+        <div className='flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-lucky-bg-active/25'>
             <div className='flex items-center gap-2.5 min-w-0'>
                 {icon && (
                     <span
                         className={cn(
-                            'flex h-7 w-7 shrink-0 items-center justify-center rounded-md',
+                            'flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-xs',
                             compactToneClass[tone],
                         )}
                         aria-hidden='true'
@@ -107,16 +108,18 @@ function CompactStat({
                         {icon}
                     </span>
                 )}
-                <p className='type-meta truncate text-lucky-text-tertiary'>{label}</p>
+                <p className='type-meta truncate text-lucky-text-tertiary uppercase tracking-wide'>
+                    {label}
+                </p>
             </div>
             <div className='flex items-center gap-2'>
                 {delta !== undefined && (
                     <span
                         className={cn(
-                            'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                            'rounded-sm px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider',
                             delta >= 0
-                                ? 'bg-lucky-success/10 text-lucky-success'
-                                : 'bg-lucky-error/10 text-lucky-error',
+                                ? 'bg-lucky-success/20 text-lucky-success'
+                                : 'bg-lucky-error/20 text-lucky-error',
                         )}
                     >
                         {delta >= 0 ? '+' : ''}
@@ -139,7 +142,10 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
         <motion.div
             initial={prefersReducedMotion ? false : { opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.2, delay: prefersReducedMotion ? 0 : index * 0.05 }}
+            transition={{
+                duration: 0.2,
+                delay: prefersReducedMotion ? 0 : index * 0.05,
+            }}
             className='grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-lucky-bg-tertiary/50'
         >
             <p className='text-xs font-mono text-lucky-text-tertiary'>
@@ -173,6 +179,7 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
 }
 
 export default function DashboardOverview() {
+    const { t } = useTranslation()
     const prefersReducedMotion = useReducedMotion()
     const { selectedGuild, memberContext } = useGuildStore()
     const { data: stats, isLoading: statsLoading } = useModerationStats(
@@ -182,16 +189,12 @@ export default function DashboardOverview() {
         selectedGuild?.id,
         { limit: 8 },
     )
-    const { data: recentTracksData, isLoading: tracksLoading } = useRecentTracks(
-        selectedGuild?.id,
-        5,
-    )
+    const { data: recentTracksData, isLoading: tracksLoading } =
+        useRecentTracks(selectedGuild?.id, 5)
     const { data: leaderboardData, isLoading: leaderboardLoading } =
         useLevelLeaderboard(selectedGuild?.id, 5)
-    const { data: starboardData, isLoading: starboardLoading } = useStarboardTop(
-        selectedGuild?.id,
-        3,
-    )
+    const { data: starboardData, isLoading: starboardLoading } =
+        useStarboardTop(selectedGuild?.id, 3)
 
     const recentCases = casesData?.cases ?? []
     const loading = statsLoading || casesLoading
@@ -205,50 +208,54 @@ export default function DashboardOverview() {
         module: ModuleKey
     }> = [
         {
-            title: 'Moderation Cases',
-            description: 'Review warnings, mutes, kicks, and bans.',
+            title: t('dashboardOverview.moderationCases'),
+            description: t('dashboardOverview.reviewWarningsMutesKicksBans'),
             icon: <Shield className='h-4 w-4' />,
             href: '/moderation',
             module: 'moderation',
         },
         {
-            title: 'Auto-Moderation',
-            description: 'Tune filters and anti-spam automation.',
+            title: t('dashboardOverview.autoModeration'),
+            description: t('dashboardOverview.tuneFiltersAntiSpamAutomation'),
             icon: <ShieldAlert className='h-4 w-4' />,
             href: '/automod',
             module: 'moderation',
         },
         {
-            title: 'Server Logs',
-            description: 'Audit events and moderation activity.',
+            title: t('dashboardOverview.serverLogs'),
+            description: t(
+                'dashboardOverview.auditEventsAndModerationActivity',
+            ),
             icon: <ScrollText className='h-4 w-4' />,
             href: '/logs',
             module: 'moderation',
         },
         {
-            title: 'Custom Commands',
-            description: 'Manage scripted server shortcuts.',
+            title: t('dashboardOverview.customCommands'),
+            description: t('dashboardOverview.manageScriptedServerShortcuts'),
             icon: <MessageSquare className='h-4 w-4' />,
             href: '/commands',
             module: 'automation',
         },
         {
-            title: 'Music Player',
-            description: 'View queue, playback, and track history.',
+            title: t('dashboardOverview.musicPlayer'),
+            description: t('dashboardOverview.viewQueuePlaybackTrackHistory'),
             icon: <Music className='h-4 w-4' />,
             href: '/music',
             module: 'music',
         },
         {
-            title: 'Levels & XP',
-            description: 'Configure XP, level rewards, and leaderboards.',
+            title: t('dashboardOverview.levelsAndXP'),
+            description: t(
+                'dashboardOverview.configureXPLevelRewardsLeaderboards',
+            ),
             icon: <TrendingUp className='h-4 w-4' />,
             href: '/levels',
             module: 'settings',
         },
         {
-            title: 'Starboard',
-            description: 'Manage community highlights.',
+            title: t('dashboardOverview.starboard'),
+            description: t('dashboardOverview.manageCommunityHighlights'),
             icon: <Star className='h-4 w-4' />,
             href: '/starboard',
             module: 'settings',
@@ -265,8 +272,8 @@ export default function DashboardOverview() {
         return (
             <EmptyState
                 icon={<Activity className='h-10 w-10' />}
-                title='Select a Server'
-                description='Choose a server from the sidebar to view its dashboard'
+                title={t('dashboardOverview.selectAServer')}
+                description={t('dashboardOverview.chooseServerFromSidebar')}
             />
         )
     }
@@ -274,9 +281,11 @@ export default function DashboardOverview() {
     return (
         <div className='space-y-6'>
             <SectionHeader
-                title='Dashboard'
-                description={`Overview of ${selectedGuild.name}`}
-                eyebrow='Server analytics'
+                title={t('dashboardOverview.dashboardTitle')}
+                description={t('dashboardOverview.overviewOf', {
+                    name: selectedGuild.name,
+                })}
+                eyebrow={t('dashboardOverview.serverAnalytics')}
             />
 
             <div className='grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]'>
@@ -289,7 +298,10 @@ export default function DashboardOverview() {
                         </div>
                         <div className='surface-panel divide-y divide-lucky-border/40'>
                             {Array.from({ length: 3 }).map((_, i) => (
-                                <div key={i} className='flex items-center justify-between px-4 py-3'>
+                                <div
+                                    key={i}
+                                    className='flex items-center justify-between px-4 py-3'
+                                >
                                     <Skeleton className='h-3 w-24' />
                                     <Skeleton className='h-5 w-12' />
                                 </div>
@@ -298,37 +310,47 @@ export default function DashboardOverview() {
                     </>
                 ) : (
                     <>
-                        <article className='surface-panel flex flex-col justify-between gap-6 p-6'>
+                        <article className='surface-panel flex flex-col justify-between gap-6 p-6 border border-lucky-border'>
                             <div className='flex items-center justify-between gap-3'>
-                                <p className='type-meta text-lucky-text-tertiary'>Total Members</p>
-                                <span className='rounded-lg bg-lucky-brand/15 p-2.5 text-lucky-brand'>
-                                    <Users className='h-4 w-4' aria-hidden='true' />
+                                <p className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
+                                    {t('dashboardOverview.totalMembers')}
+                                </p>
+                                <span className='flex h-8 w-8 items-center justify-center rounded-md bg-lucky-brand/15 text-lucky-brand'>
+                                    <Users
+                                        className='h-4 w-4'
+                                        aria-hidden='true'
+                                    />
                                 </span>
                             </div>
-                            <p className='font-[var(--font-lucky-display)] text-5xl font-semibold leading-none tracking-tight text-lucky-text-strong'>
-                                {typeof selectedGuild.memberCount === 'number'
-                                    ? selectedGuild.memberCount.toLocaleString()
-                                    : '0'}
-                            </p>
+                            <div>
+                                <p className='font-[var(--font-lucky-display)] text-5xl font-semibold leading-none tracking-tight text-lucky-text-strong'>
+                                    {typeof selectedGuild.memberCount ===
+                                    'number'
+                                        ? selectedGuild.memberCount.toLocaleString()
+                                        : '0'}
+                                </p>
+                            </div>
                             <p className='type-body-sm text-lucky-text-tertiary'>
-                                Active members across {selectedGuild.name}
+                                {t('dashboardOverview.activeMembersAcross', {
+                                    name: selectedGuild.name,
+                                })}
                             </p>
                         </article>
-                        <div className='surface-panel divide-y divide-lucky-border/40'>
+                        <div className='surface-panel divide-y divide-lucky-border/40 border border-lucky-border'>
                             <CompactStat
-                                label='Active Cases'
+                                label={t('dashboardOverview.activeCases')}
                                 value={stats?.activeCases || 0}
                                 icon={<Shield className='h-3.5 w-3.5' />}
                                 tone='accent'
                             />
                             <CompactStat
-                                label='Total Cases'
+                                label={t('dashboardOverview.totalCases')}
                                 value={stats?.totalCases || 0}
                                 icon={<MessageSquare className='h-3.5 w-3.5' />}
                                 tone='neutral'
                             />
                             <CompactStat
-                                label='Auto-Mod Actions'
+                                label={t('dashboardOverview.autoModActions')}
                                 value={stats?.casesByType?.warn || 0}
                                 icon={<ShieldAlert className='h-3.5 w-3.5' />}
                                 tone='warning'
@@ -340,25 +362,30 @@ export default function DashboardOverview() {
 
             <div className='grid grid-cols-1 gap-6 lg:grid-cols-3'>
                 <motion.section
-                    className='surface-panel overflow-hidden lg:col-span-2'
-                    initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                    className='surface-panel overflow-hidden border border-lucky-border lg:col-span-2'
+                    initial={
+                        prefersReducedMotion ? false : { opacity: 0, y: 12 }
+                    }
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.2 }}
+                    transition={{
+                        duration: 0.3,
+                        delay: prefersReducedMotion ? 0 : 0.2,
+                    }}
                 >
                     <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
                         <div>
-                            <h2 className='type-title text-lucky-text-primary'>
-                                Recent Cases
+                            <h2 className='type-title text-lucky-text-primary uppercase tracking-wide'>
+                                {t('dashboardOverview.recentCases')}
                             </h2>
                             <p className='type-body-sm text-lucky-text-tertiary'>
-                                Latest moderation actions
+                                {t('dashboardOverview.latestModerationActions')}
                             </p>
                         </div>
                         <Link
                             to='/moderation'
                             className='type-body-sm inline-flex items-center gap-1 text-lucky-brand transition-colors hover:text-lucky-brand-strong'
                         >
-                            View all
+                            {t('dashboardOverview.viewAll')}
                             <ArrowRight className='h-3.5 w-3.5' />
                         </Link>
                     </div>
@@ -390,11 +417,12 @@ export default function DashboardOverview() {
                             <div className='px-4 py-10 text-center'>
                                 <Shield className='mx-auto mb-3 h-10 w-10 text-lucky-text-tertiary' />
                                 <p className='type-body text-lucky-text-secondary'>
-                                    No moderation cases yet
+                                    {t('dashboardOverview.noModerationCases')}
                                 </p>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
-                                    Cases will appear here when moderators take
-                                    action
+                                    {t(
+                                        'dashboardOverview.casesCasesWillAppear',
+                                    )}
                                 </p>
                             </div>
                         )}
@@ -403,23 +431,28 @@ export default function DashboardOverview() {
 
                 <motion.section
                     className='space-y-3'
-                    initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                    initial={
+                        prefersReducedMotion ? false : { opacity: 0, y: 12 }
+                    }
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.3 }}
+                    transition={{
+                        duration: 0.3,
+                        delay: prefersReducedMotion ? 0 : 0.3,
+                    }}
                     aria-labelledby='quick-actions-heading'
                 >
                     <h2
                         id='quick-actions-heading'
                         className='type-title text-lucky-text-primary'
                     >
-                        Quick Actions
+                        {t('dashboardOverview.quickActions')}
                     </h2>
-                    <nav className='surface-panel divide-y divide-lucky-border/40 overflow-hidden'>
+                    <nav className='surface-panel divide-y divide-lucky-border/40 overflow-hidden border border-lucky-border'>
                         {visibleQuickActions.map((action) => (
                             <Link
                                 key={action.href}
                                 to={action.href}
-                                className='group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-lucky-bg-tertiary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand/60'
+                                className='group flex items-center gap-3 border-l-2 border-l-transparent px-4 py-2.5 transition-all hover:border-l-lucky-brand hover:bg-lucky-bg-active/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-lucky-brand/60'
                             >
                                 <span
                                     className='flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-lucky-bg-tertiary text-lucky-text-secondary transition-colors group-hover:bg-lucky-brand/15 group-hover:text-lucky-brand'
@@ -436,7 +469,7 @@ export default function DashboardOverview() {
                                     </p>
                                 </div>
                                 <ArrowRight
-                                    className='h-3.5 w-3.5 shrink-0 text-lucky-text-tertiary opacity-0 transition-opacity group-hover:opacity-100'
+                                    className='h-3.5 w-3.5 shrink-0 text-lucky-text-tertiary opacity-0 transition-all group-hover:opacity-100 group-hover:text-lucky-brand group-hover:translate-x-1'
                                     aria-hidden='true'
                                 />
                             </Link>
@@ -447,25 +480,30 @@ export default function DashboardOverview() {
 
             {hasModuleAccess(effectiveAccess, 'music', 'view') && (
                 <motion.section
-                    className='surface-panel overflow-hidden'
-                    initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                    className='surface-panel overflow-hidden border border-lucky-border'
+                    initial={
+                        prefersReducedMotion ? false : { opacity: 0, y: 12 }
+                    }
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.4 }}
+                    transition={{
+                        duration: 0.3,
+                        delay: prefersReducedMotion ? 0 : 0.4,
+                    }}
                 >
                     <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
                         <div>
                             <h2 className='type-title text-lucky-text-primary'>
-                                Recent Music
+                                {t('dashboardOverview.recentMusic')}
                             </h2>
                             <p className='type-body-sm text-lucky-text-tertiary'>
-                                Latest tracks played
+                                {t('dashboardOverview.latestTracksPlayed')}
                             </p>
                         </div>
                         <Link
                             to='/music/history'
                             className='type-body-sm inline-flex items-center gap-1 text-lucky-brand transition-colors hover:text-lucky-brand-strong'
                         >
-                            View all
+                            {t('dashboardOverview.viewAll')}
                             <ArrowRight className='h-3.5 w-3.5' />
                         </Link>
                     </div>
@@ -523,11 +561,12 @@ export default function DashboardOverview() {
                             <div className='px-4 py-10 text-center'>
                                 <Music className='mx-auto mb-3 h-10 w-10 text-lucky-text-tertiary' />
                                 <p className='type-body text-lucky-text-secondary'>
-                                    No tracks played yet
+                                    {t('dashboardOverview.noTracksPlayedYet')}
                                 </p>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
-                                    Track history will appear here when music is
-                                    played
+                                    {t(
+                                        'dashboardOverview.trackHistoryWillAppearWhenMusicPlayed',
+                                    )}
                                 </p>
                             </div>
                         )}
@@ -538,21 +577,26 @@ export default function DashboardOverview() {
             {hasModuleAccess(effectiveAccess, 'settings', 'view') && (
                 <motion.section
                     className='space-y-4'
-                    initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                    initial={
+                        prefersReducedMotion ? false : { opacity: 0, y: 12 }
+                    }
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.5 }}
+                    transition={{
+                        duration: 0.3,
+                        delay: prefersReducedMotion ? 0 : 0.5,
+                    }}
                 >
                     <h2 className='type-title text-lucky-text-primary'>
-                        Community
+                        {t('dashboardOverview.community')}
                     </h2>
                     <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
-                        <div className='surface-panel overflow-hidden'>
+                        <div className='surface-panel overflow-hidden border border-lucky-border'>
                             <div className='border-b border-lucky-border px-4 py-3'>
-                                <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
-                                    Level Leaderboard
+                                <h3 className='type-body-sm font-semibold text-lucky-text-primary uppercase tracking-wide'>
+                                    {t('dashboardOverview.levelLeaderboard')}
                                 </h3>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
-                                    Top members by XP
+                                    {t('dashboardOverview.topMembersByXP')}
                                 </p>
                             </div>
 
@@ -597,7 +641,7 @@ export default function DashboardOverview() {
                                             </p>
                                             <p className='text-xs text-lucky-text-tertiary text-right'>
                                                 {member.xp.toLocaleString()}
-                                                 XP
+                                                XP
                                             </p>
                                         </motion.div>
                                     ))
@@ -605,20 +649,22 @@ export default function DashboardOverview() {
                                     <div className='px-4 py-8 text-center'>
                                         <TrendingUp className='mx-auto mb-2 h-8 w-8 text-lucky-text-tertiary' />
                                         <p className='type-body-sm text-lucky-text-secondary'>
-                                            No leaderboard data
+                                            {t(
+                                                'dashboardOverview.noLeaderboardData',
+                                            )}
                                         </p>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        <div className='surface-panel overflow-hidden'>
+                        <div className='surface-panel overflow-hidden border border-lucky-border'>
                             <div className='border-b border-lucky-border px-4 py-3'>
-                                <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
-                                    Starboard Highlights
+                                <h3 className='type-body-sm font-semibold text-lucky-text-primary uppercase tracking-wide'>
+                                    {t('dashboardOverview.starboardHighlights')}
                                 </h3>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
-                                    Top starred messages
+                                    {t('dashboardOverview.topStarredMessages')}
                                 </p>
                             </div>
 
@@ -672,7 +718,9 @@ export default function DashboardOverview() {
                                     <div className='px-4 py-8 text-center'>
                                         <Star className='mx-auto mb-2 h-8 w-8 text-lucky-text-tertiary' />
                                         <p className='type-body-sm text-lucky-text-secondary'>
-                                            No starred messages
+                                            {t(
+                                                'dashboardOverview.noStarredMessages',
+                                            )}
                                         </p>
                                     </div>
                                 )}
@@ -685,14 +733,17 @@ export default function DashboardOverview() {
             {Object.keys(stats?.casesByType ?? {}).length > 0 && (
                 <section className='space-y-4'>
                     <h2 className='type-title text-lucky-text-primary'>
-                        Cases by Type
+                        {t('dashboardOverview.casesByType')}
                     </h2>
                     <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
                         {Object.entries(stats?.casesByType ?? {}).map(
                             ([type, value]) => (
                                 <StatTile
                                     key={type}
-                                    label={type.charAt(0).toUpperCase() + type.slice(1)}
+                                    label={
+                                        type.charAt(0).toUpperCase() +
+                                        type.slice(1)
+                                    }
                                     value={value as number}
                                     tone='neutral'
                                 />

@@ -78,6 +78,51 @@ vi.mock('@/components/ui/EmptyState', () => ({
     ),
 }))
 
+vi.mock('react-i18next', () => ({
+    useTranslation: () => ({
+        t: (key: string, options?: Record<string, any>) => {
+            // Map keys to English values for testing
+            const translations: Record<string, string> = {
+                noServerSelected: 'No Server Selected',
+                selectServerToManageArtists:
+                    'Select a server to manage preferred artists',
+                musicPersonalization: 'Music personalization',
+                musicalTaste: 'Musical Taste',
+                chooseArtistsDescription:
+                    "Choose artists to guide autoplay recommendations. When multiple people are in voice, Lucky blends everyone's preferences.",
+                discoverTab: 'Discover',
+                preferredTab: 'Preferred',
+                blockedTab: 'Blocked',
+                searchForArtist: 'Search for an artist...',
+                searching: 'Searching...',
+                failedToSearchArtists: 'Failed to search artists',
+                noArtistsFound: 'No artists found',
+                noSuggestionsAvailable:
+                    'No suggestions available. Try searching for artists above.',
+                noPreferredArtistsYet: 'No preferred artists yet',
+                addFromDiscover: 'Add some from Discover.',
+                noBlockedArtists: 'No blocked artists',
+                blockArtistsDescription:
+                    "Block artists you don't want Lucky to autoplay.",
+                savePreferences: 'Save Preferences',
+                saving: 'Saving...',
+            }
+
+            // Handle interpolation
+            if (options) {
+                if (key === 'noArtistsFound' && options.query) {
+                    return `No artists found for "${options.query}"`
+                }
+                if (key === 'savePreferences' && options.count !== undefined) {
+                    return `Save Preferences (${options.count})`
+                }
+            }
+
+            return translations[key] || key
+        },
+    }),
+}))
+
 const mockGuild = { id: 'guild-1', name: 'Test Server' }
 
 const mockArtist = {

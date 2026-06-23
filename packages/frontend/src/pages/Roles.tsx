@@ -589,7 +589,7 @@ export default function RolesPage() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                         >
-                            <Card className='p-4 flex items-center justify-between hover:bg-zinc-800/50 transition-colors group'>
+                            <Card className='p-4 flex items-center justify-between border border-lucky-border transition-colors hover:bg-lucky-bg-active/25 group'>
                                 <div className='flex items-center gap-4 flex-1'>
                                     <Checkbox
                                         checked={selectedRoleIds.has(role.id)}

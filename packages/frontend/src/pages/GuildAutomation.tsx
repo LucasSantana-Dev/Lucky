@@ -13,6 +13,7 @@ import {
     Loader2,
     Zap,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useGuildStore } from '@/stores/guildStore'
 import { api } from '@/services/api'
 import Button from '@/components/ui/Button'
@@ -200,6 +201,7 @@ function ApplyResultView({ result }: { result: ApplyResult }) {
 }
 
 export default function GuildAutomation() {
+    const { t } = useTranslation('guildAutomation')
     const { selectedGuild } = useGuildStore()
     const [status, setStatus] = useState<string | null>(null)
     const [runs, setRuns] = useState<AutomationRun[]>([])
@@ -257,9 +259,7 @@ export default function GuildAutomation() {
         try {
             parsed = JSON.parse(manifestJson) as GuildAutomationManifest
         } catch {
-            setManifestError(
-                'Invalid JSON — please fix syntax errors before saving.',
-            )
+            setManifestError(t('invalidJsonError'))
             return
         }
         setActionLoading('save')
@@ -332,8 +332,8 @@ export default function GuildAutomation() {
         return (
             <EmptyState
                 icon={<GitBranch className='h-10 w-10' />}
-                title='No server selected'
-                description='Select a server to manage Guild Automation.'
+                title={t('noServerSelected')}
+                description={t('selectServerToManage')}
             />
         )
     }
@@ -341,22 +341,21 @@ export default function GuildAutomation() {
     return (
         <div className='space-y-6 p-6'>
             <SectionHeader
-                title='Guild Automation'
-                description='Manage your guild configuration as code — plan, apply, and track changes.'
+                title={t('pageTitle')}
+                description={t('pageDescription')}
             />
 
             {loadError && !loading && (
                 <div className='surface-panel rounded-lg border border-lucky-error/40 p-4 flex items-center justify-between gap-4'>
                     <p className='text-sm text-lucky-error'>
-                        Couldn&apos;t load automation status or manifest — the
-                        API may be unavailable.
+                        {t('loadErrorMessage')}
                     </p>
                     <Button
                         variant='secondary'
                         onClick={() => void fetchData()}
                         disabled={loading}
                     >
-                        Retry
+                        {t('retry')}
                     </Button>
                 </div>
             )}
@@ -365,8 +364,8 @@ export default function GuildAutomation() {
             <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-4'>
                 <div className='flex items-center justify-between'>
                     <div className='flex items-center gap-3'>
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
-                            Automation Status
+                        <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
+                            {t('automationStatus')}
                         </h2>
                         {loading ? (
                             <Skeleton className='h-5 w-20 rounded' />
@@ -386,7 +385,7 @@ export default function GuildAutomation() {
                         onClick={() => void fetchData()}
                         disabled={loading}
                         className='text-lucky-text-muted hover:text-lucky-text-body disabled:opacity-40 transition-colors'
-                        title='Refresh status'
+                        title={t('refreshStatusTitle')}
                     >
                         <RefreshCw
                             className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
@@ -406,7 +405,7 @@ export default function GuildAutomation() {
                         ) : (
                             <GitBranch className='h-3 w-3' />
                         )}
-                        Plan
+                        {t('plan')}
                     </Button>
                     <Button
                         variant='primary'
@@ -419,7 +418,7 @@ export default function GuildAutomation() {
                         ) : (
                             <Play className='h-3 w-3' />
                         )}
-                        Record Plan
+                        {t('recordPlan')}
                     </Button>
                     <Button
                         variant='secondary'
@@ -432,7 +431,7 @@ export default function GuildAutomation() {
                         ) : (
                             <RefreshCw className='h-3 w-3' />
                         )}
-                        Reconcile
+                        {t('reconcile')}
                     </Button>
                 </div>
             </div>
@@ -442,8 +441,8 @@ export default function GuildAutomation() {
                 <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-3'>
                     <div className='flex items-center gap-2'>
                         <GitBranch className='h-4 w-4 text-lucky-brand' />
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
-                            Plan Result
+                        <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
+                            {t('planResult')}
                         </h2>
                     </div>
                     <div className='border-t border-lucky-border' />
@@ -454,8 +453,8 @@ export default function GuildAutomation() {
                 <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-3'>
                     <div className='flex items-center gap-2'>
                         <Zap className='h-4 w-4 text-lucky-accent' />
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
-                            Plan Record
+                        <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
+                            {t('planRecord')}
                         </h2>
                     </div>
                     <div className='border-t border-lucky-border' />
@@ -472,8 +471,8 @@ export default function GuildAutomation() {
                 >
                     <div className='flex items-center gap-2'>
                         <FileJson className='h-4 w-4 text-lucky-brand' />
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>
-                            Manifest
+                        <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
+                            {t('manifest')}
                         </h2>
                         {manifest?.version && (
                             <Badge className='text-xs border bg-lucky-bg-active/60 text-lucky-text-muted border-lucky-border'>
@@ -498,8 +497,7 @@ export default function GuildAutomation() {
                                     {!manifest && (
                                         <p className='text-sm text-lucky-text-muted flex items-center gap-2'>
                                             <AlertTriangle className='h-4 w-4 text-yellow-400' />
-                                            No manifest found. Paste or write a
-                                            manifest below to get started.
+                                            {t('noManifestFound')}
                                         </p>
                                     )}
                                     <textarea
@@ -510,7 +508,7 @@ export default function GuildAutomation() {
                                         rows={16}
                                         spellCheck={false}
                                         className='w-full rounded-lg bg-lucky-bg-primary/80 border border-lucky-border text-lucky-text-body font-mono text-xs p-3 resize-y focus:outline-none focus:border-lucky-brand transition-colors'
-                                        placeholder='{ "guildId": "...", "version": "1", "roles": {}, "channels": {} }'
+                                        placeholder={t('manifestPlaceholder')}
                                     />
                                     {manifestError && (
                                         <p className='text-xs text-red-400 flex items-center gap-1'>
@@ -530,7 +528,7 @@ export default function GuildAutomation() {
                                             {actionLoading === 'save' ? (
                                                 <Loader2 className='h-3 w-3 animate-spin' />
                                             ) : null}
-                                            Save Manifest
+                                            {t('saveManifest')}
                                         </Button>
                                     </div>
                                 </>
@@ -542,7 +540,7 @@ export default function GuildAutomation() {
 
             {/* Run History */}
             <div className='space-y-3'>
-                <SectionHeader title='Run History' />
+                <SectionHeader title={t('runHistory')} />
                 {loading ? (
                     <div className='space-y-2'>
                         {Array.from({ length: 3 }).map((_, i) => (
@@ -555,8 +553,8 @@ export default function GuildAutomation() {
                 ) : runs.length === 0 ? (
                     <EmptyState
                         icon={<Clock className='h-8 w-8' />}
-                        title='No runs yet'
-                        description='Run a plan or apply to see results here.'
+                        title={t('noRunsYet')}
+                        description={t('runPlanOrApply')}
                     />
                 ) : (
                     <div className='space-y-2'>
