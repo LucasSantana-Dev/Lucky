@@ -236,7 +236,11 @@ function CreateDialog({
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        if (!open) return
+        if (!open) {
+            setChannels([])
+            setRoles([])
+            return
+        }
         setLoadingOptions(true)
         Promise.all([
             api.guilds.getChannels(guildId),

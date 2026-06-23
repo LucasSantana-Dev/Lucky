@@ -114,6 +114,14 @@ const createReactionRoleBody = z
         roles: z.array(reactionRoleEntrySchema).min(1).max(25),
     })
     .strict()
+    .refine(
+        (data) =>
+            new Set(data.roles.map((r) => r.roleId)).size === data.roles.length,
+        {
+            message: 'Duplicate roleId entries are not allowed',
+            path: ['roles'],
+        },
+    )
 
 const messageIdParam = guildIdParam.extend({
     messageId: z.string().regex(/^\d{17,20}$/, 'Invalid message ID'),

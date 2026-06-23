@@ -229,23 +229,36 @@ export class ReactionRolesService {
             const messageId = discordMessage.id
 
             const prisma = getPrismaClient()
-            await prisma.reactionRoleMessage.create({
-                data: {
-                    messageId,
-                    channelId,
-                    guildId,
-                    mappings: {
-                        create: roles.map((role) => ({
-                            roleId: role.roleId,
-                            buttonId: `reactionrole:${role.roleId}`,
-                            type: 'button',
-                            label: role.label,
-                            style: role.style ?? 'Primary',
-                            emoji: role.emoji ?? null,
-                        })),
+            try {
+                await prisma.reactionRoleMessage.create({
+                    data: {
+                        messageId,
+                        channelId,
+                        guildId,
+                        mappings: {
+                            create: roles.map((role) => ({
+                                roleId: role.roleId,
+                                buttonId: `reactionrole:${role.roleId}`,
+                                type: 'button',
+                                label: role.label,
+                                style: role.style ?? 'Primary',
+                                emoji: role.emoji ?? null,
+                            })),
+                        },
                     },
-                },
-            })
+                })
+            } catch (dbError) {
+                // DB write failed — delete the Discord message to avoid orphan
+                await fetch(
+                    `${DISCORD_API}/channels/${channelId}/messages/${messageId}`,
+                    {
+                        method: 'DELETE',
+                        headers: { Authorization: `Bot ${botToken}` },
+                        signal: AbortSignal.timeout(5_000),
+                    },
+                ).catch(() => undefined)
+                throw dbError
+            }
 
             debugLog({
                 message: `Created reaction role message ${messageId} in guild ${guildId} from dashboard`,
