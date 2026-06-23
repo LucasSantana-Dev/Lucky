@@ -99,6 +99,26 @@ const bulkDeleteBody = z
     })
     .strict()
 
+const reactionRoleEntrySchema = z.object({
+    roleId: z.string().regex(/^\d{17,20}$/, 'Invalid role ID'),
+    label: z.string().min(1).max(80),
+    emoji: z.string().max(100).optional(),
+    style: z.enum(['Primary', 'Secondary', 'Success', 'Danger']).optional(),
+})
+
+const createReactionRoleBody = z
+    .object({
+        channelId: z.string().regex(/^\d{17,20}$/, 'Invalid channel ID'),
+        title: z.string().min(1).max(256),
+        description: z.string().min(1).max(4096),
+        roles: z.array(reactionRoleEntrySchema).min(1).max(25),
+    })
+    .strict()
+
+const messageIdParam = guildIdParam.extend({
+    messageId: z.string().regex(/^\d{17,20}$/, 'Invalid message ID'),
+})
+
 export const managementSchemas = {
     guildIdParam,
     commandNameParam,
@@ -114,4 +134,6 @@ export const managementSchemas = {
     roleIdParam,
     roleUpsertBody,
     bulkDeleteBody,
+    createReactionRoleBody,
+    messageIdParam,
 }

@@ -26,6 +26,20 @@ export interface RoleExclusion {
     groupId: string
 }
 
+export interface CreateReactionRoleEntry {
+    roleId: string
+    label: string
+    emoji?: string
+    style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
+}
+
+export interface CreateReactionRolePayload {
+    channelId: string
+    title: string
+    description: string
+    roles: CreateReactionRoleEntry[]
+}
+
 export function createReactionRolesApi(client: AxiosInstance) {
     return {
         list: async (guildId: string): Promise<ReactionRoleMessage[]> => {
@@ -33,6 +47,21 @@ export function createReactionRolesApi(client: AxiosInstance) {
                 `/guilds/${guildId}/reaction-roles`,
             )
             return res.data.messages
+        },
+        create: async (
+            guildId: string,
+            payload: CreateReactionRolePayload,
+        ): Promise<{ messageId: string }> => {
+            const res = await client.post<{ messageId: string }>(
+                `/guilds/${guildId}/reaction-roles`,
+                payload,
+            )
+            return res.data
+        },
+        delete: async (guildId: string, messageId: string): Promise<void> => {
+            await client.delete(
+                `/guilds/${guildId}/reaction-roles/${messageId}`,
+            )
         },
         listExclusions: async (guildId: string): Promise<RoleExclusion[]> => {
             const res = await client.get<{ exclusions: RoleExclusion[] }>(
