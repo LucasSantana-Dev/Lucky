@@ -411,6 +411,7 @@ function CreateDialog({
                                     {entries.length > 1 && (
                                         <button
                                             type='button'
+                                            aria-label='Remove'
                                             onClick={() => removeEntry(i)}
                                             className='text-lucky-text-tertiary hover:text-lucky-error'
                                         >

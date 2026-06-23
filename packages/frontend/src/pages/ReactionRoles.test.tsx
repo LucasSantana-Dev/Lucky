@@ -598,4 +598,86 @@ describe('ReactionRoles', () => {
                 .some((el) => el.tagName.toLowerCase() === 'p'),
         ).toBe(true)
     })
+
+    test('create dialog adds and removes role entries', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getChannels>>)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: { roles: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getRoles>>)
+        render(<ReactionRoles />)
+
+        fireEvent.click(screen.getByRole('button', { name: /create/i }))
+
+        await waitFor(() =>
+            expect(
+                screen.getByText('Create Reaction Role Message'),
+            ).toBeInTheDocument(),
+        )
+
+        expect(screen.getByText('Role 1')).toBeInTheDocument()
+        expect(screen.queryByText('Role 2')).not.toBeInTheDocument()
+
+        fireEvent.click(screen.getByRole('button', { name: /add role/i }))
+        expect(screen.getByText('Role 2')).toBeInTheDocument()
+
+        const removeButtons = screen.getAllByRole('button', { name: /remove/i })
+        fireEvent.click(removeButtons[removeButtons.length - 1])
+
+        await waitFor(() =>
+            expect(screen.queryByText('Role 2')).not.toBeInTheDocument(),
+        )
+    })
+
+    test('create dialog closes on cancel', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getChannels>>)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: { roles: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getRoles>>)
+        render(<ReactionRoles />)
+
+        fireEvent.click(screen.getByRole('button', { name: /create/i }))
+
+        await waitFor(() =>
+            expect(
+                screen.getByText('Create Reaction Role Message'),
+            ).toBeInTheDocument(),
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: /cancel/i }))
+
+        await waitFor(() =>
+            expect(
+                screen.queryByText('Create Reaction Role Message'),
+            ).not.toBeInTheDocument(),
+        )
+    })
+
+    test('create dialog updates entry label', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getChannels>>)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: { roles: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getRoles>>)
+        render(<ReactionRoles />)
+
+        fireEvent.click(screen.getByRole('button', { name: /create/i }))
+
+        await waitFor(() =>
+            expect(
+                screen.getByText('Create Reaction Role Message'),
+            ).toBeInTheDocument(),
+        )
+
+        const labelInput = screen.getByPlaceholderText('Label')
+        fireEvent.change(labelInput, { target: { value: 'My Role' } })
+        expect(labelInput).toHaveValue('My Role')
+    })
 })
