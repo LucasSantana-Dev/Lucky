@@ -80,8 +80,13 @@ describe('Role Groups Routes', () => {
     })
 
     afterAll(() => {
-        // Restore original token
-        process.env.DISCORD_TOKEN = originalDiscordToken
+        // Restore original token (delete when it was unset, to avoid storing
+        // the literal string "undefined" in process.env).
+        if (originalDiscordToken === undefined) {
+            delete process.env.DISCORD_TOKEN
+        } else {
+            process.env.DISCORD_TOKEN = originalDiscordToken
+        }
     })
 
     describe('POST /api/guilds/:guildId/role-groups', () => {
