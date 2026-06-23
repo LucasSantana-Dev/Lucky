@@ -309,9 +309,19 @@ export class ReactionRolesService {
             return false
         }
 
-        await prisma.reactionRoleMessage.delete({
-            where: { messageId },
-        })
+        try {
+            await prisma.reactionRoleMessage.delete({
+                where: { messageId },
+            })
+        } catch (error) {
+            // P2025: row vanished between the findUnique check and the delete
+            // (concurrent delete) — preserve the not-found contract instead of
+            // throwing. Any other DB error still propagates.
+            if ((error as { code?: string }).code === 'P2025') {
+                return false
+            }
+            throw error
+        }
 
         debugLog({
             message: `Deleted reaction role message ${messageId} from guild ${guildId}`,

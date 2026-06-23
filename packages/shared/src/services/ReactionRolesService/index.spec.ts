@@ -780,6 +780,24 @@ describe('ReactionRolesService', () => {
             ).rejects.toThrow('DB error')
         })
 
+        it('returns false when delete races to P2025 (already deleted)', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: 'msg-123',
+                guildId: 'guild-456',
+            })
+            const p2025 = Object.assign(
+                new Error('Record to delete does not exist'),
+                {
+                    code: 'P2025',
+                },
+            )
+            mockPrisma.reactionRoleMessage.delete.mockRejectedValueOnce(p2025)
+
+            await expect(
+                service.deleteReactionRoleMessage('msg-123', 'guild-456'),
+            ).resolves.toBe(false)
+        })
+
         it('rejects when findUnique throws', async () => {
             mockPrisma.reactionRoleMessage.findUnique.mockRejectedValueOnce(
                 new Error('DB connection lost'),
