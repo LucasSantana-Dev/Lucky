@@ -697,6 +697,106 @@ export class ReactionRolesService {
             return true
         }
     }
+
+    async addRoleToMessage(
+        messageId: string,
+        newMapping: {
+            roleId: string
+            label: string
+            emoji?: string | null
+            style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
+        },
+        botToken: string,
+    ): Promise<{ status: 'ok' | 'partial_success'; mapping: any }> {
+        const prisma = getPrismaClient()
+
+        // Load the message and its existing mappings
+        const message = await prisma.reactionRoleMessage.findUnique({
+            where: { messageId },
+            include: { mappings: true },
+        })
+
+        if (!message) {
+            throw new Error('Reaction role message not found')
+        }
+
+        // Guard: capacity check (max 25 buttons)
+        if (message.mappings.length >= 25) {
+            throw new Error('Message already at capacity')
+        }
+
+        // Guard: duplicate roleId check
+        if (message.mappings.some((m) => m.roleId === newMapping.roleId)) {
+            throw new Error('Role already mapped')
+        }
+
+        // DB-first: Insert the mapping in a transaction
+        const createdMapping = await prisma.$transaction(async (tx) => {
+            return tx.reactionRoleMapping.create({
+                data: {
+                    messageId,
+                    roleId: newMapping.roleId,
+                    buttonId: `reactionrole:${newMapping.roleId}`,
+                    type: 'button',
+                    label: newMapping.label,
+                    style: newMapping.style ?? 'Primary',
+                    emoji: newMapping.emoji ?? null,
+                },
+            })
+        })
+
+        // After DB insert, PATCH Discord with the full button set (existing + new)
+        try {
+            const allMappings = [...message.mappings, createdMapping]
+            const actionRows = this.buildButtonRows(
+                allMappings.map((m) => ({
+                    roleId: m.roleId,
+                    label: m.label ?? '',
+                    emoji: m.emoji ?? undefined,
+                    style: (m.style ?? 'Primary') as
+                        | 'Primary'
+                        | 'Secondary'
+                        | 'Success'
+                        | 'Danger',
+                })),
+            )
+
+            this.assertSnowflakes(message.guildId, message.channelId, messageId)
+
+            const DISCORD_API = 'https://discord.com/api/v10'
+            const { headers, body } = this.buildDiscordMessageRequest({
+                title: message.title ?? '',
+                description: message.description ?? '',
+                imageUrl: message.imageUrl ?? undefined,
+                actionRows,
+                botToken,
+            })
+
+            const resp = await fetch(
+                `${DISCORD_API}/channels/${message.channelId}/messages/${messageId}`,
+                {
+                    method: 'PATCH',
+                    headers,
+                    body,
+                    signal: AbortSignal.timeout(10_000),
+                },
+            )
+
+            if (!resp.ok) {
+                return {
+                    status: 'partial_success' as const,
+                    mapping: createdMapping,
+                }
+            }
+
+            return { status: 'ok' as const, mapping: createdMapping }
+        } catch (discordError) {
+            return {
+                status: 'partial_success' as const,
+                mapping: createdMapping,
+            }
+        }
+    }
 }
 
 /** Singleton instance of ReactionRolesService. */
