@@ -156,6 +156,7 @@ function MessageCard({
                     <Button
                         variant='secondary'
                         size='sm'
+                        aria-label='Delete'
                         onClick={() => void handleDelete()}
                         disabled={deleting}
                         className='text-lucky-error hover:border-lucky-error/40 hover:bg-lucky-error/10'

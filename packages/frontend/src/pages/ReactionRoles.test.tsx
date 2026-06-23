@@ -505,4 +505,97 @@ describe('ReactionRoles', () => {
         const cards = screen.getAllByText(/msg-/)
         expect(cards.length).toBe(2)
     })
+
+    test('delete button calls api and removes message optimistically', async () => {
+        mockGuildStore()
+        vi.mocked(api.reactionRoles.delete).mockResolvedValue(undefined)
+        render(<ReactionRoles />)
+
+        expect(await screen.findByText('msg-123')).toBeInTheDocument()
+
+        const deleteButtons = screen.getAllByRole('button', { name: /delete/i })
+        fireEvent.click(deleteButtons[0])
+
+        await waitFor(() => {
+            expect(api.reactionRoles.delete).toHaveBeenCalledWith(
+                '123456',
+                'msg-123',
+            )
+        })
+        await waitFor(() => {
+            expect(screen.queryByText('msg-123')).not.toBeInTheDocument()
+        })
+    })
+
+    test('delete error shows error message', async () => {
+        mockGuildStore()
+        vi.mocked(api.reactionRoles.delete).mockRejectedValue(
+            new Error('Delete failed'),
+        )
+        render(<ReactionRoles />)
+
+        await waitFor(() => {
+            expect(api.reactionRoles.list).toHaveBeenCalled()
+        })
+
+        const deleteButtons = await screen.findAllByRole('button', {
+            name: /delete/i,
+        })
+        fireEvent.click(deleteButtons[0])
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Failed to delete reaction role message.'),
+            ).toBeInTheDocument()
+        })
+    })
+
+    test('create dialog opens when Create button is clicked', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [{ id: 'ch-1', name: 'general' }] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getChannels>>)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: {
+                roles: [{ id: 'r-1', name: 'Member', color: 0, position: 1 }],
+            },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getRoles>>)
+        render(<ReactionRoles />)
+
+        const createBtn = screen.getByRole('button', { name: /create/i })
+        fireEvent.click(createBtn)
+
+        expect(
+            screen.getByText('Create Reaction Role Message'),
+        ).toBeInTheDocument()
+    })
+
+    test('create dialog shows validation error when channel not selected', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getChannels>>)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: { roles: [] },
+        } as unknown as Awaited<ReturnType<typeof api.guilds.getRoles>>)
+        render(<ReactionRoles />)
+
+        fireEvent.click(screen.getByRole('button', { name: /create/i }))
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Create Reaction Role Message'),
+            ).toBeInTheDocument()
+        })
+
+        const submitBtn = screen.getByRole('button', { name: /^create$/i })
+        fireEvent.click(submitBtn)
+
+        expect(api.reactionRoles.create).not.toHaveBeenCalled()
+        expect(
+            screen
+                .getAllByText('Select a channel')
+                .some((el) => el.tagName.toLowerCase() === 'p'),
+        ).toBe(true)
+    })
 })
