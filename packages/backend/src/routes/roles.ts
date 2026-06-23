@@ -3,9 +3,9 @@ import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { validateParams, validateBody } from '../middleware/validate'
 import { asyncHandler } from '../middleware/asyncHandler'
+import { AppError } from '../errors/AppError'
 import { managementSchemas as s } from '../schemas/management'
 import { writeLimiter } from '../middleware/rateLimit'
-import { AppError } from '../errors/AppError'
 import {
     reactionRolesService,
     roleManagementService,
@@ -27,6 +27,57 @@ export function setupRolesRoutes(app: Express): void {
             const messages =
                 await reactionRolesService.listReactionRoleMessages(guildId)
             res.json({ messages })
+        }),
+    )
+
+    app.post(
+        '/api/guilds/:guildId/reaction-roles',
+        requireAuth,
+        requireGuildModuleAccess('overview', 'manage'),
+        validateParams(s.guildIdParam),
+        validateBody(s.createReactionRoleBody),
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const guildId = p(req.params.guildId)
+            const botToken = process.env.DISCORD_TOKEN?.trim()
+            if (!botToken) {
+                throw AppError.serviceUnavailable('Bot token not configured')
+            }
+            const { channelId, title, description, roles } = req.body as {
+                channelId: string
+                title: string
+                description: string
+                roles: Array<{
+                    roleId: string
+                    label: string
+                    emoji?: string
+                    style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
+                }>
+            }
+            const result =
+                await reactionRolesService.createReactionRoleMessageFromDashboard(
+                    { guildId, channelId, title, description, botToken, roles },
+                )
+            res.status(201).json(result)
+        }),
+    )
+
+    app.delete(
+        '/api/guilds/:guildId/reaction-roles/:messageId',
+        requireAuth,
+        requireGuildModuleAccess('overview', 'manage'),
+        validateParams(s.messageIdParam),
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const guildId = p(req.params.guildId)
+            const messageId = p(req.params.messageId)
+            const deleted =
+                await reactionRolesService.deleteReactionRoleMessage(
+                    messageId,
+                    guildId,
+                )
+            if (!deleted) {
+                throw AppError.notFound('Reaction role message not found')
+            }
+            res.json({ success: true })
         }),
     )
 

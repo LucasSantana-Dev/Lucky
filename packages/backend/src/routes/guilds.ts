@@ -128,4 +128,16 @@ export function setupGuildRoutes(app: Express): void {
             res.json({ channels })
         }),
     )
+
+    app.get(
+        '/api/guilds/:guildId/roles',
+        requireAuth,
+        validateParams(guildIdParam),
+        requireGuildModuleAccess('overview'),
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const guildId = getGuildId(req)
+            const roles = await guildService.getGuildRoleOptions(guildId)
+            res.json({ roles })
+        }),
+    )
 }

@@ -172,6 +172,8 @@ export const api = {
             apiClient.get<{ channels: GuildChannelOption[] }>(
                 `/guilds/${id}/channels`,
             ),
+        getRoles: (id: string) =>
+            apiClient.get<{ roles: GuildRoleOption[] }>(`/guilds/${id}/roles`),
         getRbac: (id: string) =>
             apiClient.get<{
                 guildId: string
