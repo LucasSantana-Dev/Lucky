@@ -1,0 +1,92 @@
+name: Deploy Staging
+
+# Visually verify a branch on the shared homelab staging environment
+# (https://lucky-staging.lucassantana.tech) before it merges to main.
+#
+# Staging is a SINGLE shared stack, so it hosts one PR at a time. Opt a PR in by
+# adding the `staging` label; every subsequent push to that PR redeploys it.
+# Manual deploys of any ref are available via workflow_dispatch.
+
+on:
+    pull_request:
+        types: [labeled, synchronize, reopened]
+    workflow_dispatch:
+        inputs:
+            ref:
+                description: Branch or commit SHA to deploy to staging
+                required: true
+                default: main
+
+concurrency:
+    group: deploy-staging
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+    pull-requests: write
+
+jobs:
+    deploy-staging:
+        # Skip forks (no secrets, shouldn't deploy). For pull_request events only
+        # run when the PR carries the `staging` label.
+        if: >-
+            github.event_name == 'workflow_dispatch' ||
+            (github.event.pull_request.head.repo.full_name == github.repository &&
+             contains(github.event.pull_request.labels.*.name, 'staging'))
+        runs-on: ubuntu-latest
+        steps:
+            - name: Resolve ref to deploy
+              id: ref
+              run: |
+                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                      echo "ref=${{ github.event.inputs.ref }}" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "ref=${{ github.event.pull_request.head.ref }}" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Trigger staging deploy webhook
+              env:
+                  WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+                  WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+                  DEPLOY_REF: ${{ steps.ref.outputs.ref }}
+              run: |
+                  set -euo pipefail
+                  # Derive the staging hook URL (origin + /webhook/deploy-staging)
+                  # from the prod webhook secret, keeping the curl injection-safe.
+                  STAGING_URL=$(node -e '
+                      const raw = (process.env.WEBHOOK_URL ?? "").trim();
+                      if (!raw) { console.error("DEPLOY_WEBHOOK_URL not set"); process.exit(1); }
+                      const u = new URL(raw);
+                      console.log(`${u.protocol}//${u.host}/webhook/deploy-staging`);
+                  ')
+                  echo "POST $STAGING_URL (ref=$DEPLOY_REF)"
+                  code=$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
+                      -X POST \
+                      -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
+                      -H "X-Deploy-Ref: $DEPLOY_REF" \
+                      --max-time 30 \
+                      "$STAGING_URL" || echo "000")
+                  echo "HTTP $code"; cat /tmp/resp.txt || true
+                  if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+                      echo "::error::Staging webhook returned HTTP $code"
+                      exit 1
+                  fi
+
+            - name: Comment staging URL on PR
+              if: github.event_name == 'pull_request'
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const url = 'https://lucky-staging.lucassantana.tech';
+                      const sha = context.payload.pull_request.head.sha.slice(0, 7);
+                      const marker = '<!-- lucky-staging-deploy -->';
+                      const body = `${marker}\n🧪 **Staging deploy triggered** — building \`${sha}\` on the homelab.\n\nOnce it's up (~2-3 min for the image build), review it at **${url}**.\n\n_Single shared environment — the most-recently-labeled PR occupies it. The build runs locally on the homelab; watch the deploy log there if it doesn't come up._`;
+                      const { owner, repo } = context.repo;
+                      const issue_number = context.payload.pull_request.number;
+                      const comments = await github.rest.issues.listComments({ owner, repo, issue_number });
+                      const existing = comments.data.find(c => c.body && c.body.includes(marker));
+                      if (existing) {
+                          await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+                      } else {
+                          await github.rest.issues.createComment({ owner, repo, issue_number, body });
+                      }
