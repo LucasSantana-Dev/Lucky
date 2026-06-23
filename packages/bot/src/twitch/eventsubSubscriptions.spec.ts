@@ -34,7 +34,13 @@ jest.mock('@lucky/shared/utils', () => ({
 
 import {
     subscribeToStreamOnline,
+    subscribeToStreamOffline,
+    subscribeToChannelUpdate,
+    subscribeToChannelRaid,
     handleStreamOnline,
+    handleStreamOffline,
+    handleChannelUpdate,
+    handleChannelRaid,
 } from './eventsubSubscriptions'
 
 describe('eventsubSubscriptions', () => {
@@ -495,6 +501,442 @@ describe('eventsubSubscriptions', () => {
                 }),
             )
             expect(mockChannel.send).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('handleStreamOffline', () => {
+        let mockClient: Partial<Client>
+        let mockChannel: Partial<TextBasedChannel>
+
+        beforeEach(() => {
+            mockChannel = {
+                isTextBased: jest.fn().mockReturnValue(true),
+                isDMBased: jest.fn().mockReturnValue(false),
+                send: jest.fn().mockResolvedValue({}),
+            }
+
+            mockClient = {
+                channels: {
+                    fetch: jest.fn().mockResolvedValue(mockChannel),
+                },
+            }
+        })
+
+        it('should send notification to all subscribed channels', async () => {
+            const notifications = [
+                { discordChannelId: 'channel1', twitchLogin: 'testuser' },
+                { discordChannelId: 'channel2', twitchLogin: 'testuser' },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'stream.offline',
+                    condition: { broadcaster_user_id: 'twitch123' },
+                },
+                event: {
+                    broadcaster_user_id: 'twitch123',
+                    broadcaster_user_login: 'testuser',
+                    broadcaster_user_name: 'Test User',
+                },
+            }
+
+            await handleStreamOffline(payload as any, mockClient as Client)
+
+            expect(mockClient.channels!.fetch).toHaveBeenCalledTimes(2)
+            expect(mockChannel.send).toHaveBeenCalledTimes(2)
+        })
+
+        it('should create embed with offline color and title', async () => {
+            const notifications = [
+                { discordChannelId: 'channel1', twitchLogin: 'testuser' },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'stream.offline',
+                    condition: { broadcaster_user_id: 'twitch123' },
+                },
+                event: {
+                    broadcaster_user_id: 'twitch123',
+                    broadcaster_user_login: 'testuser',
+                    broadcaster_user_name: 'Test User',
+                },
+            }
+
+            await handleStreamOffline(payload as any, mockClient as Client)
+
+            const sendCall = jest.mocked(mockChannel.send).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+
+            expect(embed.data.color).toBe(0x6b7280)
+            expect(embed.data.title).toContain('Test User')
+            expect(embed.data.title).toContain('offline')
+            expect(embed.data.url).toBe('https://twitch.tv/testuser')
+            expect(embed.data.description).toContain('ended')
+        })
+    })
+
+    describe('handleChannelUpdate', () => {
+        let mockClient: Partial<Client>
+        let mockChannel: Partial<TextBasedChannel>
+
+        beforeEach(() => {
+            mockChannel = {
+                isTextBased: jest.fn().mockReturnValue(true),
+                isDMBased: jest.fn().mockReturnValue(false),
+                send: jest.fn().mockResolvedValue({}),
+            }
+
+            mockClient = {
+                channels: {
+                    fetch: jest.fn().mockResolvedValue(mockChannel),
+                },
+            }
+        })
+
+        it('should create embed with update color and title', async () => {
+            const notifications = [
+                { discordChannelId: 'channel1', twitchLogin: 'testuser' },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'channel.update',
+                    condition: { broadcaster_user_id: 'twitch123' },
+                },
+                event: {
+                    broadcaster_user_id: 'twitch123',
+                    broadcaster_user_login: 'testuser',
+                    broadcaster_user_name: 'Test User',
+                    title: 'New Stream Title',
+                    category_id: 'cat123',
+                    category_name: 'Just Chatting',
+                    content_classification_labels: [],
+                },
+            }
+
+            await handleChannelUpdate(payload as any, mockClient as Client)
+
+            const sendCall = jest.mocked(mockChannel.send).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+
+            expect(embed.data.color).toBe(0x9146ff)
+            expect(embed.data.title).toContain('Test User')
+            expect(embed.data.title).toContain('updated')
+            expect(embed.data.url).toBe('https://twitch.tv/testuser')
+        })
+
+        it('should include title and category in fields', async () => {
+            const notifications = [
+                { discordChannelId: 'channel1', twitchLogin: 'testuser' },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'channel.update',
+                    condition: { broadcaster_user_id: 'twitch123' },
+                },
+                event: {
+                    broadcaster_user_id: 'twitch123',
+                    broadcaster_user_login: 'testuser',
+                    broadcaster_user_name: 'Test User',
+                    title: 'Awesome New Title',
+                    category_id: 'cat123',
+                    category_name: 'Just Chatting',
+                    content_classification_labels: [],
+                },
+            }
+
+            await handleChannelUpdate(payload as any, mockClient as Client)
+
+            const sendCall = jest.mocked(mockChannel.send).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const titleField = embed.data.fields!.find(
+                (f: any) => f.name === 'Title',
+            )
+            const categoryField = embed.data.fields!.find(
+                (f: any) => f.name === 'Category',
+            )
+
+            expect(titleField).toBeDefined()
+            expect(titleField?.value).toBe('Awesome New Title')
+            expect(categoryField).toBeDefined()
+            expect(categoryField?.value).toBe('Just Chatting')
+        })
+
+        it('should use em-dash fallback when title is empty', async () => {
+            const notifications = [
+                { discordChannelId: 'channel1', twitchLogin: 'testuser' },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'channel.update',
+                    condition: { broadcaster_user_id: 'twitch123' },
+                },
+                event: {
+                    broadcaster_user_id: 'twitch123',
+                    broadcaster_user_login: 'testuser',
+                    broadcaster_user_name: 'Test User',
+                    title: '',
+                    category_id: 'cat123',
+                    category_name: 'Just Chatting',
+                    content_classification_labels: [],
+                },
+            }
+
+            await handleChannelUpdate(payload as any, mockClient as Client)
+
+            const sendCall = jest.mocked(mockChannel.send).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const titleField = embed.data.fields!.find(
+                (f: any) => f.name === 'Title',
+            )
+
+            expect(titleField?.value).toBe('—')
+        })
+
+        it('should use em-dash fallback when category is empty', async () => {
+            const notifications = [
+                { discordChannelId: 'channel1', twitchLogin: 'testuser' },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'channel.update',
+                    condition: { broadcaster_user_id: 'twitch123' },
+                },
+                event: {
+                    broadcaster_user_id: 'twitch123',
+                    broadcaster_user_login: 'testuser',
+                    broadcaster_user_name: 'Test User',
+                    title: 'Some Title',
+                    category_id: 'cat123',
+                    category_name: '',
+                    content_classification_labels: [],
+                },
+            }
+
+            await handleChannelUpdate(payload as any, mockClient as Client)
+
+            const sendCall = jest.mocked(mockChannel.send).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const categoryField = embed.data.fields!.find(
+                (f: any) => f.name === 'Category',
+            )
+
+            expect(categoryField?.value).toBe('—')
+        })
+    })
+
+    describe('handleChannelRaid', () => {
+        let mockClient: Partial<Client>
+        let mockChannel: Partial<TextBasedChannel>
+
+        beforeEach(() => {
+            mockChannel = {
+                isTextBased: jest.fn().mockReturnValue(true),
+                isDMBased: jest.fn().mockReturnValue(false),
+                send: jest.fn().mockResolvedValue({}),
+            }
+
+            mockClient = {
+                channels: {
+                    fetch: jest.fn().mockResolvedValue(mockChannel),
+                },
+            }
+        })
+
+        it('should lookup notifications by to_broadcaster_user_id', async () => {
+            const notifications = [
+                { discordChannelId: 'channel1', twitchLogin: 'targetuser' },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'channel.raid',
+                    condition: { to_broadcaster_user_id: 'to-user-id' },
+                },
+                event: {
+                    from_broadcaster_user_id: 'from-user-id',
+                    from_broadcaster_user_login: 'fromuser',
+                    from_broadcaster_user_name: 'From User',
+                    to_broadcaster_user_id: 'to-user-id',
+                    to_broadcaster_user_login: 'touser',
+                    to_broadcaster_user_name: 'To User',
+                    viewers: 100,
+                },
+            }
+
+            await handleChannelRaid(payload as any, mockClient as Client)
+
+            expect(getNotificationsByTwitchUserIdMock).toHaveBeenCalledWith(
+                'to-user-id',
+            )
+        })
+
+        it('should create embed with raid color and title', async () => {
+            const notifications = [
+                { discordChannelId: 'channel1', twitchLogin: 'touser' },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'channel.raid',
+                    condition: { to_broadcaster_user_id: 'to-user-id' },
+                },
+                event: {
+                    from_broadcaster_user_id: 'from-user-id',
+                    from_broadcaster_user_login: 'fromuser',
+                    from_broadcaster_user_name: 'From User',
+                    to_broadcaster_user_id: 'to-user-id',
+                    to_broadcaster_user_login: 'touser',
+                    to_broadcaster_user_name: 'To User',
+                    viewers: 100,
+                },
+            }
+
+            await handleChannelRaid(payload as any, mockClient as Client)
+
+            const sendCall = jest.mocked(mockChannel.send).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+
+            expect(embed.data.color).toBe(0x9146ff)
+            expect(embed.data.title).toContain('To User')
+            expect(embed.data.title).toContain('Raid')
+            expect(embed.data.url).toBe('https://twitch.tv/touser')
+        })
+
+        it('should include raider name and formatted viewer count in description', async () => {
+            const notifications = [
+                { discordChannelId: 'channel1', twitchLogin: 'touser' },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'channel.raid',
+                    condition: { to_broadcaster_user_id: 'to-user-id' },
+                },
+                event: {
+                    from_broadcaster_user_id: 'from-user-id',
+                    from_broadcaster_user_login: 'fromuser',
+                    from_broadcaster_user_name: 'From User',
+                    to_broadcaster_user_id: 'to-user-id',
+                    to_broadcaster_user_login: 'touser',
+                    to_broadcaster_user_name: 'To User',
+                    viewers: 1234,
+                },
+            }
+
+            await handleChannelRaid(payload as any, mockClient as Client)
+
+            const sendCall = jest.mocked(mockChannel.send).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+
+            expect(embed.data.description).toContain('From User')
+            expect(embed.data.description).toContain('To User')
+            expect(embed.data.description).toContain('1,234')
+        })
+    })
+
+    describe('subscribeToStreamOffline', () => {
+        beforeEach(() => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+            getDistinctTwitchUserIdsMock.mockResolvedValue(['twitch123'])
+        })
+
+        it('should send correct API request format for stream.offline', async () => {
+            const mockResponse = {
+                ok: true,
+                text: jest.fn().mockResolvedValue(''),
+            }
+            fetchSpy.mockResolvedValue(mockResponse as any)
+
+            await subscribeToStreamOffline('session123', 'client-id', new Set())
+
+            const callBody = JSON.parse(
+                jest.mocked(global.fetch).mock.calls[0][1]?.body as string,
+            )
+
+            expect(callBody.type).toBe('stream.offline')
+            expect(callBody.version).toBe('1')
+        })
+    })
+
+    describe('subscribeToChannelUpdate', () => {
+        beforeEach(() => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+            getDistinctTwitchUserIdsMock.mockResolvedValue(['twitch123'])
+        })
+
+        it('should send correct API request format for channel.update', async () => {
+            const mockResponse = {
+                ok: true,
+                text: jest.fn().mockResolvedValue(''),
+            }
+            fetchSpy.mockResolvedValue(mockResponse as any)
+
+            await subscribeToChannelUpdate('session123', 'client-id', new Set())
+
+            const callBody = JSON.parse(
+                jest.mocked(global.fetch).mock.calls[0][1]?.body as string,
+            )
+
+            expect(callBody.type).toBe('channel.update')
+            expect(callBody.version).toBe('2')
+        })
+    })
+
+    describe('subscribeToChannelRaid', () => {
+        beforeEach(() => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+            getDistinctTwitchUserIdsMock.mockResolvedValue(['twitch123'])
+        })
+
+        it('should send correct API request format for channel.raid with to_broadcaster_user_id', async () => {
+            const mockResponse = {
+                ok: true,
+                text: jest.fn().mockResolvedValue(''),
+            }
+            fetchSpy.mockResolvedValue(mockResponse as any)
+
+            await subscribeToChannelRaid('session123', 'client-id', new Set())
+
+            const callBody = JSON.parse(
+                jest.mocked(global.fetch).mock.calls[0][1]?.body as string,
+            )
+
+            expect(callBody.type).toBe('channel.raid')
+            expect(callBody.version).toBe('1')
+            expect(callBody.condition).toHaveProperty('to_broadcaster_user_id')
+            expect(callBody.condition.to_broadcaster_user_id).toBe('twitch123')
         })
     })
 })

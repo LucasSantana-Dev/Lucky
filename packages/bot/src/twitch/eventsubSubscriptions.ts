@@ -317,7 +317,7 @@ export async function handleChannelUpdate(
         .setTitle(`${name} updated their stream`)
         .setURL(`https://twitch.tv/${login}`)
         .addFields(
-            { name: 'Title', value: title, inline: false },
+            { name: 'Title', value: title || '—', inline: false },
             { name: 'Category', value: category_name || '—', inline: true },
         )
         .setTimestamp()
