@@ -63,6 +63,10 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 log "Fetching + checking out ref: $DEPLOY_REF"
+# This runs inside the webhook container, whose git user differs from the
+# bind-mounted checkout's owner (luk-server); without this, git aborts with
+# "detected dubious ownership in repository".
+git config --global --add safe.directory "$STAGING_DIR" 2>/dev/null || true
 git fetch --prune --quiet origin
 # Resolve the ref to a concrete SHA (works for branch names or SHAs).
 RESOLVED_SHA="$(git rev-parse --verify --quiet "origin/$DEPLOY_REF^{commit}" \
