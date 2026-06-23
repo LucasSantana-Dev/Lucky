@@ -1,4 +1,4 @@
-import type { Express, Response } from 'express'
+import type { Express, Response, NextFunction } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { validateParams, validateBody } from '../middleware/validate'
@@ -53,9 +53,9 @@ const handleImageUpload = imageUpload.single('image')
 const imageUploadHandler = (
     req: AuthenticatedRequest,
     res: Response,
-    next: any,
+    next: NextFunction,
 ) => {
-    handleImageUpload(req, res, (err: any) => {
+    handleImageUpload(req, res, (err: unknown) => {
         if (err instanceof multer.MulterError) {
             if (err.code === 'LIMIT_FILE_SIZE') {
                 return next(
@@ -64,10 +64,33 @@ const imageUploadHandler = (
             }
             return next(AppError.badRequest(err.message))
         } else if (err) {
-            return next(AppError.badRequest(err.message))
+            return next(
+                AppError.badRequest(
+                    err instanceof Error ? err.message : 'Image upload failed',
+                ),
+            )
         }
         next()
     })
+}
+
+// Parse the reaction-role payload from either a JSON body or the `payload`
+// field of a multipart (file-upload) request.
+function parseReactionRolePayload(req: AuthenticatedRequest): unknown {
+    if (req.is('multipart/form-data')) {
+        const raw = (req.body as Record<string, unknown>).payload
+        if (typeof raw !== 'string') {
+            throw AppError.badRequest(
+                'Missing payload field in multipart request',
+            )
+        }
+        try {
+            return JSON.parse(raw) as unknown
+        } catch {
+            throw AppError.badRequest('Invalid JSON in payload field')
+        }
+    }
+    return req.body
 }
 
 export function setupRolesRoutes(app: Express): void {
@@ -97,22 +120,7 @@ export function setupRolesRoutes(app: Express): void {
                 throw AppError.serviceUnavailable('Bot token not configured')
             }
 
-            // Parse payload based on content type
-            let payload: any
-            if (req.is('multipart/form-data')) {
-                if (!req.body.payload) {
-                    throw AppError.badRequest(
-                        'Missing payload field in multipart request',
-                    )
-                }
-                try {
-                    payload = JSON.parse(req.body.payload)
-                } catch (e) {
-                    throw AppError.badRequest('Invalid JSON in payload field')
-                }
-            } else {
-                payload = req.body
-            }
+            const payload = parseReactionRolePayload(req)
 
             // Validate parsed payload with schema
             const validationResult = s.createReactionRoleBody.safeParse(payload)
@@ -166,22 +174,7 @@ export function setupRolesRoutes(app: Express): void {
                 throw AppError.serviceUnavailable('Bot token not configured')
             }
 
-            // Parse payload based on content type
-            let payload: any
-            if (req.is('multipart/form-data')) {
-                if (!req.body.payload) {
-                    throw AppError.badRequest(
-                        'Missing payload field in multipart request',
-                    )
-                }
-                try {
-                    payload = JSON.parse(req.body.payload)
-                } catch (e) {
-                    throw AppError.badRequest('Invalid JSON in payload field')
-                }
-            } else {
-                payload = req.body
-            }
+            const payload = parseReactionRolePayload(req)
 
             // Validate parsed payload with schema
             const validationResult = s.updateReactionRoleBody.safeParse(payload)
