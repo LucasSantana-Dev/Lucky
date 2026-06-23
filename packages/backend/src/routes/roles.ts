@@ -20,7 +20,15 @@ function p(val: string | string[]): string {
 // File upload middleware for reaction roles images
 const imageUpload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 8 * 1024 * 1024 }, // 8MB limit
+    // Bound every multipart dimension, not just the file, so a malformed/hostile
+    // request can't exhaust memory (DoS): one 8MB image + the small JSON payload.
+    limits: {
+        fileSize: 8 * 1024 * 1024, // 8MB per file
+        files: 1,
+        fields: 20,
+        fieldSize: 256 * 1024, // the `payload` JSON field
+        parts: 25,
+    },
     fileFilter: (req, file, cb) => {
         const validMimetypes = [
             'image/png',
