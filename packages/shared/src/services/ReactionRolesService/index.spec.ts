@@ -1584,4 +1584,239 @@ describe('ReactionRolesService', () => {
             expect(callBody.embeds[0].image).toBeUndefined()
         })
     })
+
+    describe('createReactionRoleMessageFromDashboard with file upload', () => {
+        const baseOptions = {
+            guildId: '12345678901234567',
+            channelId: '98765432109876543',
+            title: 'Test Roles',
+            description: 'Click to assign',
+            botToken: 'token-abc',
+        }
+
+        beforeEach(() => {
+            ;(global as any).fetch = jest.fn()
+        })
+
+        afterEach(() => {
+            jest.restoreAllMocks()
+        })
+
+        it('sends multipart request with file when imageFile provided', async () => {
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({ id: 'msg-123' }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({})
+
+            const imageFile = {
+                buffer: Buffer.from('fake-image-data'),
+                filename: 'test-image.png',
+                contentType: 'image/png',
+            }
+
+            const optionsWithFile = {
+                ...baseOptions,
+                imageFile,
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
+            }
+
+            await service.createReactionRoleMessageFromDashboard(
+                optionsWithFile as any,
+            )
+
+            const fetchCall = (global.fetch as any).mock.calls[0]
+            const headers = fetchCall[1].headers
+
+            // Multipart request should NOT have Content-Type: application/json
+            expect(headers['Content-Type']).toBeUndefined()
+
+            // Body should be FormData, not a string
+            const body = fetchCall[1].body
+            expect(body).toBeInstanceOf(FormData)
+        })
+
+        it('includes attachment:// reference in embed image when file provided', async () => {
+            const imageFile = {
+                buffer: Buffer.from('fake-image-data'),
+                filename: 'test-image.png',
+                contentType: 'image/png',
+            }
+
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({ id: 'msg-123' }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({})
+
+            const optionsWithFile = {
+                ...baseOptions,
+                imageFile,
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
+            }
+
+            await service.createReactionRoleMessageFromDashboard(
+                optionsWithFile as any,
+            )
+
+            const fetchCall = (global.fetch as any).mock.calls[0]
+            const body = fetchCall[1].body as FormData
+            const entries = Array.from(body.entries())
+
+            // Verify payload_json contains attachment:// reference
+            const payloadEntry = entries.find((e) => e[0] === 'payload_json')
+            expect(payloadEntry).toBeDefined()
+            const payload = JSON.parse(payloadEntry![1] as string)
+            expect(payload.embeds[0].image.url).toBe(
+                'attachment://test-image.png',
+            )
+
+            // Verify files part exists (FormData converts it to File/Blob)
+            const fileEntry = entries.find((e) => e[0] === 'files[0]')
+            expect(fileEntry).toBeDefined()
+            const uploadedFile = fileEntry![1] as any
+            expect(uploadedFile.name).toBe('test-image.png')
+            expect(uploadedFile.type).toBe('image/png')
+        })
+
+        it('stores null imageUrl when file is used (not an http URL)', async () => {
+            const imageFile = {
+                buffer: Buffer.from('fake-image-data'),
+                filename: 'test-image.png',
+                contentType: 'image/png',
+            }
+
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({ id: 'msg-123' }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({})
+
+            const optionsWithFile = {
+                ...baseOptions,
+                imageFile,
+                roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
+            }
+
+            await service.createReactionRoleMessageFromDashboard(
+                optionsWithFile as any,
+            )
+
+            // Prisma create should be called with imageUrl: null (no URL to store)
+            expect(mockPrisma.reactionRoleMessage.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        imageUrl: null,
+                    }),
+                }),
+            )
+        })
+    })
+
+    describe('updateReactionRoleMessage with file upload', () => {
+        const baseOptions = {
+            guildId: '12345678901234567',
+            messageId: '98765432109876543',
+            title: 'Updated Title',
+            description: 'Updated description',
+            botToken: 'token-abc',
+            roles: [{ roleId: '11111111111111111', label: 'Role 1' }],
+        }
+
+        beforeEach(() => {
+            ;(global as any).fetch = jest.fn()
+            mockPrisma.$transaction = jest.fn()
+            mockPrisma.reactionRoleMapping = {
+                deleteMany: jest.fn(),
+            }
+            mockPrisma.reactionRoleMessage = {
+                update: jest.fn(),
+                findUnique: jest.fn(),
+                create: jest.fn(),
+                delete: jest.fn(),
+                findMany: jest.fn(),
+            }
+        })
+
+        afterEach(() => {
+            jest.restoreAllMocks()
+        })
+
+        it('sends multipart request with file for PATCH when imageFile provided', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+            })
+
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({
+                    id: '98765432109876543',
+                }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+
+            const imageFile = {
+                buffer: Buffer.from('updated-image-data'),
+                filename: 'updated-image.jpg',
+                contentType: 'image/jpeg',
+            }
+
+            const optionsWithFile = {
+                ...baseOptions,
+                imageFile,
+            }
+
+            await service.updateReactionRoleMessage(optionsWithFile as any)
+
+            const fetchCall = (global.fetch as any).mock.calls[0]
+            const method = fetchCall[1].method
+            expect(method).toBe('PATCH')
+
+            const body = fetchCall[1].body
+            expect(body).toBeInstanceOf(FormData)
+        })
+
+        it('sets attachments: [] in PATCH body when replacing file', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+            })
+
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({
+                    id: '98765432109876543',
+                }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+
+            const imageFile = {
+                buffer: Buffer.from('updated-image-data'),
+                filename: 'updated-image.jpg',
+                contentType: 'image/jpeg',
+            }
+
+            const optionsWithFile = {
+                ...baseOptions,
+                imageFile,
+            }
+
+            await service.updateReactionRoleMessage(optionsWithFile as any)
+
+            const fetchCall = (global.fetch as any).mock.calls[0]
+            const body = fetchCall[1].body as FormData
+            const entries = Array.from(body.entries())
+            const payloadEntry = entries.find((e) => e[0] === 'payload_json')
+            const payload = JSON.parse(payloadEntry![1] as string)
+            expect(payload.attachments).toEqual([])
+        })
+    })
 })

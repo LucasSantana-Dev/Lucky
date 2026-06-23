@@ -33,6 +33,7 @@ export interface DashboardCreateReactionRoleOptions {
     title: string
     description: string
     imageUrl?: string
+    imageFile?: { buffer: Buffer; filename: string; contentType: string }
     botToken: string
     roles: Array<{
         roleId: string
@@ -48,6 +49,7 @@ export interface DashboardUpdateReactionRoleOptions {
     title: string
     description: string
     imageUrl?: string
+    imageFile?: { buffer: Buffer; filename: string; contentType: string }
     botToken: string
     roles: Array<{
         roleId: string
@@ -181,6 +183,7 @@ export class ReactionRolesService {
             title,
             description,
             imageUrl,
+            imageFile,
             botToken,
             roles,
         } = options
@@ -206,29 +209,62 @@ export class ReactionRolesService {
             const actionRows = this.buildButtonRows(roles)
 
             const DISCORD_API = 'https://discord.com/api/v10'
-            const resp = await fetch(
-                `${DISCORD_API}/channels/${channelId}/messages`,
-                {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bot ${botToken}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        embeds: [
-                            {
-                                title,
-                                description,
-                                color: 5793266,
-                                ...(imageUrl
-                                    ? { image: { url: imageUrl } }
-                                    : {}),
-                            },
-                        ],
+            const fetchOpts: RequestInit = {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bot ${botToken}`,
+                },
+                signal: AbortSignal.timeout(10_000),
+            }
+
+            // Prepare payload with embed (may have image URL or attachment reference)
+            const embed: Record<string, any> = {
+                title,
+                description,
+                color: 5793266,
+            }
+
+            if (imageFile) {
+                // Attachment reference for file upload
+                embed.image = { url: `attachment://${imageFile.filename}` }
+            } else if (imageUrl) {
+                // HTTP URL
+                embed.image = { url: imageUrl }
+            }
+
+            if (imageFile) {
+                // Multipart FormData for file
+                const formData = new FormData()
+                formData.append(
+                    'payload_json',
+                    JSON.stringify({
+                        embeds: [embed],
                         components: actionRows,
                     }),
-                    signal: AbortSignal.timeout(10_000),
-                },
+                )
+                formData.append(
+                    'files[0]',
+                    new Blob([new Uint8Array(imageFile.buffer)], {
+                        type: imageFile.contentType,
+                    }),
+                    imageFile.filename,
+                )
+                fetchOpts.body = formData
+            } else {
+                // JSON for URL or no image
+                fetchOpts.headers = {
+                    ...fetchOpts.headers,
+                    'Content-Type': 'application/json',
+                }
+                fetchOpts.body = JSON.stringify({
+                    embeds: [embed],
+                    components: actionRows,
+                })
+            }
+
+            const resp = await fetch(
+                `${DISCORD_API}/channels/${channelId}/messages`,
+                fetchOpts,
             )
 
             if (!resp.ok) {
@@ -248,7 +284,7 @@ export class ReactionRolesService {
                         guildId,
                         title,
                         description,
-                        imageUrl: imageUrl ?? null,
+                        imageUrl: imageFile ? null : (imageUrl ?? null),
                         mappings: {
                             create: roles.map((role) => ({
                                 roleId: role.roleId,
@@ -365,6 +401,7 @@ export class ReactionRolesService {
             title,
             description,
             imageUrl,
+            imageFile,
             botToken,
             roles,
         } = options
@@ -406,29 +443,63 @@ export class ReactionRolesService {
             const actionRows = this.buildButtonRows(roles)
 
             const DISCORD_API = 'https://discord.com/api/v10'
+            const fetchOpts: RequestInit = {
+                method: 'PATCH',
+                headers: {
+                    Authorization: `Bot ${botToken}`,
+                },
+                signal: AbortSignal.timeout(10_000),
+            }
+
+            // Prepare payload with embed (may have image URL or attachment reference)
+            const embed: Record<string, any> = {
+                title,
+                description,
+                color: 5793266,
+            }
+
+            if (imageFile) {
+                // Attachment reference for file upload
+                embed.image = { url: `attachment://${imageFile.filename}` }
+            } else if (imageUrl) {
+                // HTTP URL
+                embed.image = { url: imageUrl }
+            }
+
+            if (imageFile) {
+                // Multipart FormData for file
+                const formData = new FormData()
+                formData.append(
+                    'payload_json',
+                    JSON.stringify({
+                        embeds: [embed],
+                        components: actionRows,
+                        attachments: [],
+                    }),
+                )
+                formData.append(
+                    'files[0]',
+                    new Blob([new Uint8Array(imageFile.buffer)], {
+                        type: imageFile.contentType,
+                    }),
+                    imageFile.filename,
+                )
+                fetchOpts.body = formData
+            } else {
+                // JSON for URL or no image
+                fetchOpts.headers = {
+                    ...fetchOpts.headers,
+                    'Content-Type': 'application/json',
+                }
+                fetchOpts.body = JSON.stringify({
+                    embeds: [embed],
+                    components: actionRows,
+                })
+            }
+
             const resp = await fetch(
                 `${DISCORD_API}/channels/${channelId}/messages/${messageId}`,
-                {
-                    method: 'PATCH',
-                    headers: {
-                        Authorization: `Bot ${botToken}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        embeds: [
-                            {
-                                title,
-                                description,
-                                color: 5793266,
-                                ...(imageUrl
-                                    ? { image: { url: imageUrl } }
-                                    : {}),
-                            },
-                        ],
-                        components: actionRows,
-                    }),
-                    signal: AbortSignal.timeout(10_000),
-                },
+                fetchOpts,
             )
 
             if (!resp.ok) {
@@ -446,7 +517,7 @@ export class ReactionRolesService {
                     data: {
                         title,
                         description,
-                        imageUrl: imageUrl ?? null,
+                        imageUrl: imageFile ? null : (imageUrl ?? null),
                         mappings: {
                             create: roles.map((role) => ({
                                 roleId: role.roleId,

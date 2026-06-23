@@ -50,6 +50,7 @@ describe('Roles Routes', () => {
         setupRolesRoutes(app)
         app.use(errorHandler)
         jest.clearAllMocks()
+        process.env.DISCORD_TOKEN = 'test-token-default'
     })
 
     const GUILD_ID = '111111111111111111'
@@ -380,6 +381,192 @@ describe('Roles Routes', () => {
 
             expect(res.status).toBe(200)
             expect(res.body.exclusions).toHaveLength(0)
+        })
+    })
+
+    describe('POST /api/guilds/:guildId/reaction-roles with file upload', () => {
+        const CHANNEL_ID = '222222222222222222'
+        const ROLE_ID = '333333333333333333'
+
+        test('should create reaction role message with multipart file upload', async () => {
+            authed()
+            const fakeImageBuffer = Buffer.from('fake-png-data')
+            const createdMessage = {
+                id: 'rrm-created',
+                messageId: '444444444444444444',
+                channelId: CHANNEL_ID,
+                guildId: GUILD_ID,
+                mappings: [],
+            }
+            mockCreateReactionRole.mockResolvedValue(createdMessage)
+            process.env.DISCORD_TOKEN = 'test-token'
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/reaction-roles`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .field(
+                    'payload',
+                    JSON.stringify({
+                        channelId: CHANNEL_ID,
+                        title: 'Test Roles',
+                        description: 'Test description',
+                        roles: [
+                            {
+                                roleId: ROLE_ID,
+                                label: 'Test Role',
+                                emoji: '✅',
+                                style: 'Primary',
+                            },
+                        ],
+                    }),
+                )
+                .attach('image', fakeImageBuffer, 'test-image.png')
+
+            expect(res.status).toBe(201)
+            expect(res.body).toEqual(createdMessage)
+            expect(mockCreateReactionRole).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    guildId: GUILD_ID,
+                    channelId: CHANNEL_ID,
+                    imageFile: expect.objectContaining({
+                        filename: 'test-image.png',
+                    }),
+                }),
+            )
+        })
+
+        test('should reject multipart POST with oversized file', async () => {
+            authed()
+            // Create an 9MB buffer (exceeds 8MB limit)
+            const largeBuffer = Buffer.alloc(9 * 1024 * 1024)
+            process.env.DISCORD_TOKEN = 'test-token'
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/reaction-roles`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .field(
+                    'payload',
+                    JSON.stringify({
+                        channelId: CHANNEL_ID,
+                        title: 'Test Roles',
+                        description: 'Test description',
+                        roles: [
+                            {
+                                roleId: ROLE_ID,
+                                label: 'Test Role',
+                            },
+                        ],
+                    }),
+                )
+                .attach('image', largeBuffer, 'big-file.png')
+
+            expect(res.status).toBe(413)
+        })
+
+        test('should reject multipart POST with invalid image mimetype', async () => {
+            authed()
+            const textBuffer = Buffer.from('not an image')
+            process.env.DISCORD_TOKEN = 'test-token'
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/reaction-roles`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .field(
+                    'payload',
+                    JSON.stringify({
+                        channelId: CHANNEL_ID,
+                        title: 'Test Roles',
+                        description: 'Test description',
+                        roles: [
+                            {
+                                roleId: ROLE_ID,
+                                label: 'Test Role',
+                            },
+                        ],
+                    }),
+                )
+                .attach('image', textBuffer, 'not-an-image.txt')
+
+            expect(res.status).toBe(400)
+        })
+
+        test('should still accept normal JSON POST without file', async () => {
+            authed()
+            const createdMessage = {
+                id: 'rrm-created',
+                messageId: '444444444444444444',
+                channelId: CHANNEL_ID,
+                guildId: GUILD_ID,
+                mappings: [],
+            }
+            mockCreateReactionRole.mockResolvedValue(createdMessage)
+            process.env.DISCORD_TOKEN = 'test-token'
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/reaction-roles`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({
+                    channelId: CHANNEL_ID,
+                    title: 'Test Roles',
+                    description: 'Test description',
+                    roles: [
+                        {
+                            roleId: ROLE_ID,
+                            label: 'Test Role',
+                        },
+                    ],
+                })
+
+            expect(res.status).toBe(201)
+            expect(mockCreateReactionRole).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    guildId: GUILD_ID,
+                    channelId: CHANNEL_ID,
+                    imageFile: undefined,
+                }),
+            )
+        })
+    })
+
+    describe('PUT /api/guilds/:guildId/reaction-roles/:messageId with file upload', () => {
+        const MESSAGE_ID = '555555555555555555'
+        const CHANNEL_ID = '222222222222222222'
+        const ROLE_ID = '333333333333333333'
+
+        test('should update reaction role message with multipart file upload', async () => {
+            authed()
+            const fakeImageBuffer = Buffer.from('updated-png-data')
+            process.env.DISCORD_TOKEN = 'test-token'
+
+            const mockUpdateReactionRole = jest.fn()
+            ;(
+                jest.mocked(
+                    require('@lucky/shared/services').reactionRolesService,
+                ) as any
+            ).updateReactionRoleMessage = mockUpdateReactionRole
+
+            mockUpdateReactionRole.mockResolvedValue({ messageId: MESSAGE_ID })
+
+            const res = await request(app)
+                .put(`/api/guilds/${GUILD_ID}/reaction-roles/${MESSAGE_ID}`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .field(
+                    'payload',
+                    JSON.stringify({
+                        title: 'Updated Roles',
+                        description: 'Updated description',
+                        roles: [
+                            {
+                                roleId: ROLE_ID,
+                                label: 'Updated Role',
+                            },
+                        ],
+                    }),
+                )
+                .attach('image', fakeImageBuffer, 'updated-image.png')
+
+            expect(res.status).toBe(200)
+            expect(res.body).toEqual({ messageId: MESSAGE_ID })
         })
     })
 })

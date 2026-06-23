@@ -11,9 +11,55 @@ import {
     roleManagementService,
 } from '@lucky/shared/services'
 import { guildService } from '../services/GuildService'
+import multer from 'multer'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
+}
+
+// File upload middleware for reaction roles images
+const imageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 8 * 1024 * 1024 }, // 8MB limit
+    fileFilter: (req, file, cb) => {
+        const validMimetypes = [
+            'image/png',
+            'image/jpeg',
+            'image/gif',
+            'image/webp',
+        ]
+        if (validMimetypes.includes(file.mimetype)) {
+            cb(null, true)
+        } else {
+            cb(
+                new Error(
+                    'Invalid image file type. Only PNG, JPEG, GIF, and WebP are allowed',
+                ),
+            )
+        }
+    },
+})
+
+// Wrapper to handle multer errors
+const handleImageUpload = imageUpload.single('image')
+const imageUploadHandler = (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: any,
+) => {
+    handleImageUpload(req, res, (err: any) => {
+        if (err instanceof multer.MulterError) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return next(
+                    AppError.payloadTooLarge('File size exceeds 8MB limit'),
+                )
+            }
+            return next(AppError.badRequest(err.message))
+        } else if (err) {
+            return next(AppError.badRequest(err.message))
+        }
+        next()
+    })
 }
 
 export function setupRolesRoutes(app: Express): void {
@@ -35,27 +81,63 @@ export function setupRolesRoutes(app: Express): void {
         requireAuth,
         requireGuildModuleAccess('overview', 'manage'),
         validateParams(s.guildIdParam),
-        validateBody(s.createReactionRoleBody),
+        imageUploadHandler,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const botToken = process.env.DISCORD_TOKEN?.trim()
             if (!botToken) {
                 throw AppError.serviceUnavailable('Bot token not configured')
             }
-            const { channelId, title, description, roles } = req.body as {
-                channelId: string
-                title: string
-                description: string
-                roles: Array<{
-                    roleId: string
-                    label: string
-                    emoji?: string
-                    style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
-                }>
+
+            // Parse payload based on content type
+            let payload: any
+            if (req.is('multipart/form-data')) {
+                if (!req.body.payload) {
+                    throw AppError.badRequest(
+                        'Missing payload field in multipart request',
+                    )
+                }
+                try {
+                    payload = JSON.parse(req.body.payload)
+                } catch (e) {
+                    throw AppError.badRequest('Invalid JSON in payload field')
+                }
+            } else {
+                payload = req.body
             }
+
+            // Validate parsed payload with schema
+            const validationResult = s.createReactionRoleBody.safeParse(payload)
+            if (!validationResult.success) {
+                const errors = validationResult.error.flatten()
+                throw AppError.badRequest(
+                    `Validation failed: ${JSON.stringify(errors)}`,
+                )
+            }
+
+            const { channelId, title, description, imageUrl, roles } =
+                validationResult.data
+
+            const imageFile = req.file
+                ? {
+                      buffer: req.file.buffer,
+                      filename: req.file.originalname,
+                      contentType: req.file.mimetype,
+                  }
+                : undefined
+
             const result =
                 await reactionRolesService.createReactionRoleMessageFromDashboard(
-                    { guildId, channelId, title, description, botToken, roles },
+                    {
+                        guildId,
+                        channelId,
+                        title,
+                        description,
+                        imageUrl,
+                        imageFile,
+                        botToken,
+                        roles,
+                    },
                 )
             res.status(201).json(result)
         }),
@@ -67,7 +149,7 @@ export function setupRolesRoutes(app: Express): void {
         writeLimiter,
         requireGuildModuleAccess('overview', 'manage'),
         validateParams(s.messageIdParam),
-        validateBody(s.updateReactionRoleBody),
+        imageUploadHandler,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const messageId = p(req.params.messageId)
@@ -75,17 +157,44 @@ export function setupRolesRoutes(app: Express): void {
             if (!botToken) {
                 throw AppError.serviceUnavailable('Bot token not configured')
             }
-            const { title, description, imageUrl, roles } = req.body as {
-                title: string
-                description: string
-                imageUrl?: string
-                roles: Array<{
-                    roleId: string
-                    label: string
-                    emoji?: string
-                    style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
-                }>
+
+            // Parse payload based on content type
+            let payload: any
+            if (req.is('multipart/form-data')) {
+                if (!req.body.payload) {
+                    throw AppError.badRequest(
+                        'Missing payload field in multipart request',
+                    )
+                }
+                try {
+                    payload = JSON.parse(req.body.payload)
+                } catch (e) {
+                    throw AppError.badRequest('Invalid JSON in payload field')
+                }
+            } else {
+                payload = req.body
             }
+
+            // Validate parsed payload with schema
+            const validationResult = s.updateReactionRoleBody.safeParse(payload)
+            if (!validationResult.success) {
+                const errors = validationResult.error.flatten()
+                throw AppError.badRequest(
+                    `Validation failed: ${JSON.stringify(errors)}`,
+                )
+            }
+
+            const { title, description, imageUrl, roles } =
+                validationResult.data
+
+            const imageFile = req.file
+                ? {
+                      buffer: req.file.buffer,
+                      filename: req.file.originalname,
+                      contentType: req.file.mimetype,
+                  }
+                : undefined
+
             try {
                 const result =
                     await reactionRolesService.updateReactionRoleMessage({
@@ -94,6 +203,7 @@ export function setupRolesRoutes(app: Express): void {
                         title,
                         description,
                         imageUrl,
+                        imageFile,
                         botToken,
                         roles,
                     })
