@@ -382,7 +382,7 @@ describe('RoleGroupService', () => {
         })
 
         test('preflight rejects when message has >= 25 buttons', async () => {
-            mockPrisma.roleGroup.findUnique.mockResolvedValue({
+            mockPrisma.roleGroup.findFirst.mockResolvedValue({
                 id: 'group-1',
                 guildId: GUILD_ID,
                 color: '0x5865F2',
@@ -412,7 +412,7 @@ describe('RoleGroupService', () => {
         })
 
         test('preflight rejects when guild has >= 250 roles', async () => {
-            mockPrisma.roleGroup.findUnique.mockResolvedValue({
+            mockPrisma.roleGroup.findFirst.mockResolvedValue({
                 id: 'group-1',
                 guildId: GUILD_ID,
                 color: '0x5865F2',
@@ -453,7 +453,7 @@ describe('RoleGroupService', () => {
         })
 
         test('preflight rejects when label > 80 chars', async () => {
-            mockPrisma.roleGroup.findUnique.mockResolvedValue({
+            mockPrisma.roleGroup.findFirst.mockResolvedValue({
                 id: 'group-1',
                 guildId: GUILD_ID,
                 color: '0x5865F2',
@@ -483,7 +483,7 @@ describe('RoleGroupService', () => {
         })
 
         test('preflight rejects when role name already exists in group message', async () => {
-            mockPrisma.roleGroup.findUnique.mockResolvedValue({
+            mockPrisma.roleGroup.findFirst.mockResolvedValue({
                 id: 'group-1',
                 guildId: GUILD_ID,
                 color: '0x5865F2',
@@ -530,7 +530,7 @@ describe('RoleGroupService', () => {
         })
 
         test('applies role creation and button add on success', async () => {
-            mockPrisma.roleGroup.findUnique.mockResolvedValue({
+            mockPrisma.roleGroup.findFirst.mockResolvedValue({
                 id: 'group-1',
                 guildId: GUILD_ID,
                 color: '0x5865F2',
@@ -594,7 +594,7 @@ describe('RoleGroupService', () => {
         })
 
         test('compensation: deletes created role if addRoleToMessage fails', async () => {
-            mockPrisma.roleGroup.findUnique.mockResolvedValue({
+            mockPrisma.roleGroup.findFirst.mockResolvedValue({
                 id: 'group-1',
                 guildId: GUILD_ID,
                 color: '0x5865F2',
@@ -647,7 +647,7 @@ describe('RoleGroupService', () => {
         })
 
         test('handles deleteGuildRole 404 as success during compensation', async () => {
-            mockPrisma.roleGroup.findUnique.mockResolvedValue({
+            mockPrisma.roleGroup.findFirst.mockResolvedValue({
                 id: 'group-1',
                 guildId: GUILD_ID,
                 color: '0x5865F2',
@@ -701,7 +701,7 @@ describe('RoleGroupService', () => {
         })
 
         test('returns partial_success when addRoleToMessage succeeds but Discord PATCH fails', async () => {
-            mockPrisma.roleGroup.findUnique.mockResolvedValue({
+            mockPrisma.roleGroup.findFirst.mockResolvedValue({
                 id: 'group-1',
                 guildId: GUILD_ID,
                 color: '0x5865F2',
@@ -759,7 +759,7 @@ describe('RoleGroupService', () => {
         })
 
         test('respects colorOverride when provided', async () => {
-            mockPrisma.roleGroup.findUnique.mockResolvedValue({
+            mockPrisma.roleGroup.findFirst.mockResolvedValue({
                 id: 'group-1',
                 guildId: GUILD_ID,
                 color: '0x5865F2',

@@ -12,15 +12,20 @@ const mockUpdateRoleGroup = jest.fn()
 const mockDetachRoleFromGroup = jest.fn()
 const mockAddRoleToGroup = jest.fn()
 
+const mockService = {
+    createRoleGroup: mockCreateRoleGroup,
+    getRoleGroup: mockGetRoleGroup,
+    listRoleGroups: mockListRoleGroups,
+    updateRoleGroup: mockUpdateRoleGroup,
+    detachRoleFromGroup: mockDetachRoleFromGroup,
+    addRoleToGroup: mockAddRoleToGroup,
+}
+
 jest.mock('../../../src/services/RoleGroupService', () => ({
-    RoleGroupService: jest.fn().mockImplementation(() => ({
-        createRoleGroup: mockCreateRoleGroup,
-        getRoleGroup: mockGetRoleGroup,
-        listRoleGroups: mockListRoleGroups,
-        updateRoleGroup: mockUpdateRoleGroup,
-        detachRoleFromGroup: mockDetachRoleFromGroup,
-        addRoleToGroup: mockAddRoleToGroup,
-    })),
+    // The route imports the exported singleton; keep the class mock too for any
+    // callers that still construct it.
+    RoleGroupService: jest.fn().mockImplementation(() => mockService),
+    roleGroupService: mockService,
 }))
 
 jest.mock('../../../src/services/GuildService', () => ({

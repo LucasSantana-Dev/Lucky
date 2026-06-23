@@ -708,6 +708,10 @@ export class ReactionRolesService {
         },
         botToken: string,
     ): Promise<{ status: 'ok' | 'partial_success'; mapping: any }> {
+        if (!/^\d{17,20}$/.test(newMapping.roleId)) {
+            throw new Error('Invalid roleId: expected a Discord snowflake ID')
+        }
+
         const prisma = getPrismaClient()
 
         // Load the message and its existing mappings
@@ -720,7 +724,10 @@ export class ReactionRolesService {
             throw new Error('Reaction role message not found')
         }
 
-        // Guard: capacity check (max 25 buttons)
+        // Guard: capacity check (max 25 buttons). Capacity is not DB-constrained,
+        // so highly-concurrent appends can still race past this — full
+        // serialization is tracked as v2 hardening (issue #1558). Duplicate
+        // roleIds are enforced atomically by the @@unique([messageId, roleId]) index.
         if (message.mappings.length >= 25) {
             throw new Error('Message already at capacity')
         }

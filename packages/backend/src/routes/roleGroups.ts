@@ -5,13 +5,11 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { managementSchemas as s } from '../schemas/management'
 import { writeLimiter } from '../middleware/rateLimit'
-import { RoleGroupService } from '../services/RoleGroupService'
+import { roleGroupService } from '../services/RoleGroupService'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
 }
-
-const roleGroupService = new RoleGroupService()
 
 export function setupRoleGroupsRoutes(app: Express): void {
     app.post(
