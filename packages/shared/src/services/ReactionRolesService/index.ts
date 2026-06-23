@@ -209,62 +209,23 @@ export class ReactionRolesService {
             const actionRows = this.buildButtonRows(roles)
 
             const DISCORD_API = 'https://discord.com/api/v10'
-            const fetchOpts: RequestInit = {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bot ${botToken}`,
-                },
-                signal: AbortSignal.timeout(10_000),
-            }
-
-            // Prepare payload with embed (may have image URL or attachment reference)
-            const embed: Record<string, any> = {
+            const { headers, body } = this.buildDiscordMessageRequest({
                 title,
                 description,
-                color: 5793266,
-            }
-
-            if (imageFile) {
-                // Attachment reference for file upload
-                embed.image = { url: `attachment://${imageFile.filename}` }
-            } else if (imageUrl) {
-                // HTTP URL
-                embed.image = { url: imageUrl }
-            }
-
-            if (imageFile) {
-                // Multipart FormData for file
-                const formData = new FormData()
-                formData.append(
-                    'payload_json',
-                    JSON.stringify({
-                        embeds: [embed],
-                        components: actionRows,
-                    }),
-                )
-                formData.append(
-                    'files[0]',
-                    new Blob([new Uint8Array(imageFile.buffer)], {
-                        type: imageFile.contentType,
-                    }),
-                    imageFile.filename,
-                )
-                fetchOpts.body = formData
-            } else {
-                // JSON for URL or no image
-                fetchOpts.headers = {
-                    ...fetchOpts.headers,
-                    'Content-Type': 'application/json',
-                }
-                fetchOpts.body = JSON.stringify({
-                    embeds: [embed],
-                    components: actionRows,
-                })
-            }
+                imageUrl,
+                imageFile,
+                actionRows,
+                botToken,
+            })
 
             const resp = await fetch(
-                `${DISCORD_API}/channels/${channelId}/messages`,
-                fetchOpts,
+                `${DISCORD_API}/channels/${encodeURIComponent(channelId)}/messages`,
+                {
+                    method: 'POST',
+                    headers,
+                    body,
+                    signal: AbortSignal.timeout(10_000),
+                },
             )
 
             if (!resp.ok) {
@@ -300,7 +261,7 @@ export class ReactionRolesService {
             } catch (dbError) {
                 // DB write failed — delete the Discord message to avoid orphan
                 await fetch(
-                    `${DISCORD_API}/channels/${channelId}/messages/${messageId}`,
+                    `${DISCORD_API}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}`,
                     {
                         method: 'DELETE',
                         headers: { Authorization: `Bot ${botToken}` },
@@ -322,6 +283,78 @@ export class ReactionRolesService {
                 error,
             })
             throw error
+        }
+    }
+
+    private buildDiscordMessageRequest(options: {
+        title: string
+        description: string
+        imageUrl?: string
+        imageFile?: { buffer: Buffer; filename: string; contentType: string }
+        actionRows: object[]
+        botToken: string
+        includeAttachments?: boolean
+    }): { headers: Record<string, string>; body: FormData | string } {
+        const {
+            title,
+            description,
+            imageUrl,
+            imageFile,
+            actionRows,
+            botToken,
+            includeAttachments = false,
+        } = options
+
+        const embed: Record<string, any> = {
+            title,
+            description,
+            color: 5793266,
+        }
+
+        if (imageFile) {
+            // Attachment reference for file upload
+            embed.image = { url: `attachment://${imageFile.filename}` }
+        } else if (imageUrl) {
+            // HTTP URL
+            embed.image = { url: imageUrl }
+        }
+
+        if (imageFile) {
+            // Multipart FormData for file
+            const formData = new FormData()
+            const payload: Record<string, any> = {
+                embeds: [embed],
+                components: actionRows,
+            }
+            if (includeAttachments) {
+                payload.attachments = []
+            }
+            formData.append('payload_json', JSON.stringify(payload))
+            formData.append(
+                'files[0]',
+                new Blob([new Uint8Array(imageFile.buffer)], {
+                    type: imageFile.contentType,
+                }),
+                imageFile.filename,
+            )
+            return {
+                headers: {
+                    Authorization: `Bot ${botToken}`,
+                },
+                body: formData,
+            }
+        } else {
+            // JSON for URL or no image
+            return {
+                headers: {
+                    Authorization: `Bot ${botToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    embeds: [embed],
+                    components: actionRows,
+                }),
+            }
         }
     }
 
@@ -443,63 +476,24 @@ export class ReactionRolesService {
             const actionRows = this.buildButtonRows(roles)
 
             const DISCORD_API = 'https://discord.com/api/v10'
-            const fetchOpts: RequestInit = {
-                method: 'PATCH',
-                headers: {
-                    Authorization: `Bot ${botToken}`,
-                },
-                signal: AbortSignal.timeout(10_000),
-            }
-
-            // Prepare payload with embed (may have image URL or attachment reference)
-            const embed: Record<string, any> = {
+            const { headers, body } = this.buildDiscordMessageRequest({
                 title,
                 description,
-                color: 5793266,
-            }
-
-            if (imageFile) {
-                // Attachment reference for file upload
-                embed.image = { url: `attachment://${imageFile.filename}` }
-            } else if (imageUrl) {
-                // HTTP URL
-                embed.image = { url: imageUrl }
-            }
-
-            if (imageFile) {
-                // Multipart FormData for file
-                const formData = new FormData()
-                formData.append(
-                    'payload_json',
-                    JSON.stringify({
-                        embeds: [embed],
-                        components: actionRows,
-                        attachments: [],
-                    }),
-                )
-                formData.append(
-                    'files[0]',
-                    new Blob([new Uint8Array(imageFile.buffer)], {
-                        type: imageFile.contentType,
-                    }),
-                    imageFile.filename,
-                )
-                fetchOpts.body = formData
-            } else {
-                // JSON for URL or no image
-                fetchOpts.headers = {
-                    ...fetchOpts.headers,
-                    'Content-Type': 'application/json',
-                }
-                fetchOpts.body = JSON.stringify({
-                    embeds: [embed],
-                    components: actionRows,
-                })
-            }
+                imageUrl,
+                imageFile,
+                actionRows,
+                botToken,
+                includeAttachments: true,
+            })
 
             const resp = await fetch(
-                `${DISCORD_API}/channels/${channelId}/messages/${messageId}`,
-                fetchOpts,
+                `${DISCORD_API}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}`,
+                {
+                    method: 'PATCH',
+                    headers,
+                    body,
+                    signal: AbortSignal.timeout(10_000),
+                },
             )
 
             if (!resp.ok) {

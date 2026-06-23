@@ -214,6 +214,9 @@ export function setupRolesRoutes(app: Express): void {
                 if (message === 'Reaction role message not found') {
                     throw AppError.notFound('Reaction role message not found')
                 }
+                if (message.startsWith('Discord API error')) {
+                    throw AppError.badGateway(message)
+                }
                 throw AppError.badRequest(message)
             }
         }),
@@ -283,6 +286,12 @@ export function setupRolesRoutes(app: Express): void {
                     error instanceof Error
                         ? error.message
                         : 'Failed to create role'
+                if (
+                    message.startsWith('Discord API error') ||
+                    message === 'No bot token available'
+                ) {
+                    throw AppError.badGateway(message)
+                }
                 throw AppError.badRequest(message)
             }
         }),
@@ -315,6 +324,12 @@ export function setupRolesRoutes(app: Express): void {
                 if (message === 'Role not found') {
                     throw AppError.notFound('Role not found')
                 }
+                if (
+                    message.startsWith('Discord API error') ||
+                    message === 'No bot token available'
+                ) {
+                    throw AppError.badGateway(message)
+                }
                 throw AppError.badRequest(message)
             }
         }),
@@ -340,6 +355,12 @@ export function setupRolesRoutes(app: Express): void {
                         : 'Failed to delete role'
                 if (message === 'Role not found') {
                     throw AppError.notFound(message)
+                }
+                if (
+                    message.startsWith('Discord API error') ||
+                    message === 'No bot token available'
+                ) {
+                    throw AppError.badGateway(message)
                 }
                 throw AppError.badRequest(message)
             }

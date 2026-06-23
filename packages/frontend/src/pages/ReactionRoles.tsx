@@ -296,16 +296,24 @@ function MessageForm({
             setImageUrl(initialMessage.imageUrl || '')
             setImageFile(null)
             setImageFilePreviewUrl('')
+            const NORMALIZED_STYLE: Record<
+                string,
+                'Primary' | 'Secondary' | 'Success' | 'Danger'
+            > = {
+                '1': 'Primary',
+                '2': 'Secondary',
+                '3': 'Success',
+                '4': 'Danger',
+                Primary: 'Primary',
+                Secondary: 'Secondary',
+                Success: 'Success',
+                Danger: 'Danger',
+            }
             const newEntries = initialMessage.mappings.map((m) => ({
                 roleId: m.roleId,
                 label: m.label,
                 emoji: m.emoji || '',
-                style:
-                    (m.style as
-                        | 'Primary'
-                        | 'Secondary'
-                        | 'Success'
-                        | 'Danger') || 'Primary',
+                style: NORMALIZED_STYLE[m.style] ?? 'Primary',
             }))
             setEntries(
                 newEntries.length > 0
@@ -326,12 +334,18 @@ function MessageForm({
     }, [mode, initialMessage, open])
 
     function resetForm() {
+        if (imageFilePreviewUrl) {
+            URL.revokeObjectURL(imageFilePreviewUrl)
+        }
         setChannelId('')
         setTitle('')
         setDescription('')
         setImageUrl('')
         setImageFile(null)
         setImageFilePreviewUrl('')
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+        }
         setEntries([{ ...DEFAULT_ROLE_ENTRY }])
         setError(null)
     }
@@ -535,24 +549,27 @@ function MessageForm({
                             maxLength={2048}
                             disabled={!!imageFile}
                         />
-                        {!imageFile && imageUrl.trim() && (
-                            <div className='mt-2 overflow-hidden rounded-md border border-lucky-border'>
-                                <img
-                                    src={imageUrl}
-                                    alt='Preview'
-                                    className='max-h-40 w-full object-cover'
-                                    onError={(e) => {
-                                        const img = e.target as HTMLImageElement
-                                        img.src =
-                                            'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"%3E%3Crect x="3" y="3" width="18" height="18" rx="2"/%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"/%3E%3Cpath d="m21 15-5-5L5 21"/%3E%3C/svg%3E'
-                                        img.classList.add(
-                                            'p-4',
-                                            'text-lucky-text-tertiary',
-                                        )
-                                    }}
-                                />
-                            </div>
-                        )}
+                        {!imageFile &&
+                            imageUrl.trim() &&
+                            /^https?:\/\//i.test(imageUrl.trim()) && (
+                                <div className='mt-2 overflow-hidden rounded-md border border-lucky-border'>
+                                    <img
+                                        src={imageUrl}
+                                        alt='Preview'
+                                        className='max-h-40 w-full object-cover'
+                                        onError={(e) => {
+                                            const img =
+                                                e.target as HTMLImageElement
+                                            img.src =
+                                                'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"%3E%3Crect x="3" y="3" width="18" height="18" rx="2"/%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"/%3E%3Cpath d="m21 15-5-5L5 21"/%3E%3C/svg%3E'
+                                            img.classList.add(
+                                                'p-4',
+                                                'text-lucky-text-tertiary',
+                                            )
+                                        }}
+                                    />
+                                </div>
+                            )}
                     </div>
 
                     <div className='space-y-1.5'>

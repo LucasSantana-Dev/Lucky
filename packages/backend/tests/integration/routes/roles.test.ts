@@ -530,7 +530,6 @@ describe('Roles Routes', () => {
 
     describe('PUT /api/guilds/:guildId/reaction-roles/:messageId with file upload', () => {
         const MESSAGE_ID = '555555555555555555'
-        const CHANNEL_ID = '222222222222222222'
         const ROLE_ID = '333333333333333333'
 
         test('should update reaction role message with multipart file upload', async () => {

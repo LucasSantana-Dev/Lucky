@@ -691,7 +691,7 @@ class GuildService {
 
         try {
             const response = await fetch(
-                `${DISCORD_API_BASE_URL}/guilds/${guildId}/emojis`,
+                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/emojis`,
                 {
                     headers: {
                         Authorization: `Bot ${token}`,
