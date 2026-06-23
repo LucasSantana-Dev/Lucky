@@ -48,15 +48,35 @@ Implement Tier 1 EventSub expansion in a single PR:
 - Rationale: highest engagement event on Twitch; no auth needed for incoming-raid detection
 
 **Architecture approach:**
-Refactor `subscribeToStreamOnline` into `subscribeToAllEvents` that atomically subscribes
-all 4 event types per broadcaster in a single pass. The `subscribedUserIds` set continues
-to track which broadcasters have been fully subscribed. `eventsubClient.ts` dispatch branch
-expanded with 3 new event types. No Prisma schema change required.
+Each event type keeps a dedicated public subscribe function (`subscribeToStreamOnline`,
+`subscribeToStreamOffline`, `subscribeToChannelUpdate`, `subscribeToChannelRaid`) and handler
+(`handleStreamOnline`, `handleStreamOffline`, `handleChannelUpdate`, `handleChannelRaid`), so
+`eventsubClient.ts` can wire and dispatch each independently. To avoid the copy-paste this
+otherwise invites, the shared mechanics are factored into two private helpers in
+`eventsubSubscriptions.ts`:
+
+- `subscribeToEvent(sessionId, clientId, subscribedIds, type, version, conditionKey)` — the
+  single subscription driver (token fetch → distinct broadcaster IDs → `createSubscription`
+  per id, tracking the per-event `Set`). The 4 public subscribe functions are thin delegators;
+  `channel.raid` passes `conditionKey = 'to_broadcaster_user_id'` for incoming raids.
+- `dispatchToChannels(twitchUserId, embed, client)` — the single notification-dispatch path
+  (fetch notifications → per-channel null / non-text / DM guards → `channel.send`). The 4
+  handlers build only their event-specific embed, then delegate here.
+
+Each event type tracks its own `Set<string>` of subscribed broadcaster IDs in
+`eventsubClient.ts` (`subscribedUserIds`, `subscribedOfflineIds`, `subscribedUpdateIds`,
+`subscribedRaidIds`); the dispatch branch routes all 4 notification types; `refreshSubscriptions()`
+clears and re-subscribes all 4 on reconnect. No Prisma schema change required.
+
+`channel.update` embeds apply a `title || '—'` fallback so an empty stream title cannot make
+Discord reject the embed (mirrors the existing `category_name` fallback).
 
 ## Consequences
 
-- `eventsubSubscriptions.ts`: ~80 new lines; 3 new subscribe calls + 3 handlers
-- `eventsubClient.ts`: ~15 new lines; dispatch branch + import additions
+- `eventsubSubscriptions.ts`: 3 new handlers + 3 new subscribe functions, with the shared
+  subscribe/dispatch logic extracted into `subscribeToEvent` + `dispatchToChannels` (one place
+  to fix per-event behavior — e.g. the title fallback above)
+- `eventsubClient.ts`: dispatch branch + import additions + 3 new per-event subscription Sets
 - No DB migration, no new OAuth scope, no new environment variables
 - `refreshSubscriptions()` transparently subscribes all 4 events on reconnect
 
