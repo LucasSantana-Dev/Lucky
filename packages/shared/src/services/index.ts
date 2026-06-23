@@ -114,3 +114,17 @@ export {
     type CreateReportInput,
     type ListReportsFilter,
 } from './SupportReportService.js'
+
+export {
+    matchesScope,
+    ProgressReporter,
+    checkBatchPermissions,
+    batchJobService,
+    BatchJobService,
+    type ScopeConfig,
+    type BatchJobType,
+    type BatchJobStatus,
+    type BatchProgress,
+    type BatchJobExecutor,
+    type PermissionCheckResult,
+} from './batch/index.js'

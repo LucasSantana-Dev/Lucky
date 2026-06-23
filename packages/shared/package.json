@@ -86,6 +86,7 @@
         "@prisma/client": "^7.8.0",
         "@sentry/node": "^10.53.1",
         "axios": "^1.16.1",
+        "bullmq": "^5.79.1",
         "chalk": "^5.6.2",
         "dotenv": "^17.4.2",
         "ioredis": "^5.10.1",

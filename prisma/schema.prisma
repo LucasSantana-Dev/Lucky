@@ -97,6 +97,7 @@ model Guild {
   reactionRoleMessages ReactionRoleMessage[]
   roleGroups           RoleGroup[]
   forumThreads         GuildForumThread[]
+  batchJobs            BatchJob[]
 
   @@map("guilds")
 }
@@ -1103,4 +1104,67 @@ model GuildForumThread {
   @@unique([guildId, slug])
   @@index([guildId])
   @@map("guild_forum_threads")
+}
+
+// Batch / bulk-operation jobs (e.g. bulk-move-messages). Executed by an
+// in-process BullMQ worker; `nextCursor` makes long jobs resumable. See
+// decisions/2026-06-23-batch-operations-bullmq.md.
+model BatchJob {
+  id        String @id @default(cuid())
+  guildId   String
+  guild     Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+
+  jobType     String // channel_move_batch | bulk_ban | bulk_kick | bulk_warn | ...
+  status      String @default("pending") // pending|in_progress|paused|completed|failed|cancelled
+  initiatedBy String // Discord user id
+
+  // Scope & options (immutable after creation)
+  sourceChannelId String?
+  targetChannelId String?
+  scope           Json // { type: all|count|user|date_range|contains, config: {...} }
+  options         Json? // { reason?, silent?, deleteMessageSeconds?, ... }
+
+  // Progress (mutable)
+  totalItems       Int  @default(0)
+  processedItems   Int  @default(0)
+  failedItems      Int  @default(0)
+  skippedItems     Int  @default(0)
+  estimatedMinutes Int?
+
+  // Resumability
+  nextCursor      String? // last processed target id; null = from start
+  checkpointState Json?
+
+  // Audit
+  summary  Json?
+  errorLog String?
+
+  createdAt      DateTime  @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  lastProgressAt DateTime  @updatedAt
+
+  items BatchJobItem[]
+
+  @@index([guildId, status, createdAt])
+  @@index([status])
+  @@index([initiatedBy])
+  @@map("batch_jobs")
+}
+
+model BatchJobItem {
+  id    String   @id @default(cuid())
+  jobId String
+  job   BatchJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  targetId String // Discord id: messageId | userId | roleId | channelId
+  status   String @default("pending") // pending|success|skipped|failed
+  error    String?
+
+  attemptedAt    DateTime?
+  resultMetadata Json? // { movedToUrl?, caseNumber?, ... }
+
+  @@index([jobId, status])
+  @@index([jobId, attemptedAt])
+  @@map("batch_job_items")
 }

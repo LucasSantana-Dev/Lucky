@@ -45,6 +45,7 @@ import {
     guildLeavesTotal,
 } from '../utils/monitoring/prometheus'
 import { handleForumThreadCreate } from './forumThreadHandler'
+import { startBatchJobWorker } from '../workers/batchJobWorker'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -66,6 +67,12 @@ function handleClientReady(client: Client): void {
                 })
             })
         }
+        startBatchJobWorker().catch((error) => {
+            errorLog({
+                message: 'Failed to start batch job worker',
+                error,
+            })
+        })
         setInterval(
             () => {
                 syncAllGuildFollowerRoles(client).catch((error) => {

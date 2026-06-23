@@ -1,0 +1,204 @@
+/**
+ * BullMQ worker for batch job processing.
+ * Loads jobs from the queue, resolves executors, and runs them with progress tracking.
+ */
+
+import { Worker, type Job } from 'bullmq'
+import { redisClient } from '@lucky/shared/services'
+import { batchJobService } from '@lucky/shared/services/batch'
+import type { BatchProgress, BatchJobType } from '@lucky/shared/services/batch'
+import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
+import { getExecutor } from './executorRegistry'
+
+const QUEUE_NAME = 'batch-jobs'
+let worker: Worker | null = null
+
+/**
+ * Progress callback that checkpoints to the database and publishes to Redis.
+ * Called by executors to report live progress.
+ */
+async function onProgress(
+    jobId: string,
+    progress: BatchProgress,
+): Promise<void> {
+    try {
+        // Checkpoint to database — persists nextCursor BEFORE the executor's
+        // destructive step (executors await this first), so a crash resumes cleanly.
+        await batchJobService.checkpoint(jobId, {
+            processedItems: progress.processed,
+            failedItems: progress.failed,
+            skippedItems: progress.skipped,
+            nextCursor: progress.nextCursor,
+        })
+
+        // Publish progress update to Redis (format: job:<id>:progress)
+        const redis = redisClient.getClient()
+        if (redis) {
+            const key = `job:${jobId}:progress`
+            const payload = JSON.stringify(progress)
+            await redis.setex(key, 300, payload) // 5-minute TTL
+        }
+
+        debugLog({
+            message: 'Batch job progress checkpointed',
+            data: { jobId, progress },
+        })
+    } catch (error) {
+        errorLog({
+            message: 'Failed to checkpoint batch job progress',
+            error,
+            data: { jobId },
+        })
+    }
+}
+
+/**
+ * Processes a single batch job.
+ * Loads the job from the database, resolves the executor, and runs it.
+ */
+async function processBatchJob(job: Job): Promise<Record<string, unknown>> {
+    const jobId = job.data.jobId as string
+
+    try {
+        debugLog({
+            message: 'Starting batch job processing',
+            data: { jobId },
+        })
+
+        // Load the job from the database
+        const dbJob = await batchJobService.getById(jobId)
+        if (!dbJob) {
+            throw new Error(`Batch job not found: ${jobId}`)
+        }
+
+        // Mark as in-progress
+        await batchJobService.markInProgress(jobId)
+
+        // Resolve the executor
+        const executor = getExecutor(dbJob.jobType as BatchJobType)
+        if (!executor) {
+            throw new Error(
+                `No executor registered for job type: ${dbJob.jobType}`,
+            )
+        }
+
+        // Create a bound progress callback for this job
+        const boundOnProgress = (progress: BatchProgress) =>
+            onProgress(jobId, progress)
+
+        // Run the executor
+        const summary = await executor.execute(
+            {
+                id: dbJob.id,
+                guildId: dbJob.guildId,
+                totalItems: dbJob.totalItems,
+                sourceChannelId: dbJob.sourceChannelId ?? undefined,
+                targetChannelId: dbJob.targetChannelId ?? undefined,
+                options: dbJob.options as Record<string, unknown>,
+            },
+            boundOnProgress,
+        )
+
+        // Mark as completed and store summary
+        await batchJobService.markCompleted(jobId)
+        await batchJobService.setSummary(jobId, summary)
+
+        infoLog({
+            message: 'Batch job completed successfully',
+            data: { jobId, summary },
+        })
+
+        return summary
+    } catch (error) {
+        const errorMessage =
+            error instanceof Error ? error.message : String(error)
+
+        errorLog({
+            message: 'Batch job failed',
+            error,
+            data: { jobId },
+        })
+
+        // Guard the failure-marking itself: if it throws, log separately so the
+        // original executor error is not obscured.
+        try {
+            await batchJobService.markFailed(jobId, errorMessage)
+        } catch (markError) {
+            errorLog({
+                message: 'Failed to mark batch job as failed',
+                error: markError,
+                data: { jobId, originalError: errorMessage },
+            })
+        }
+
+        // Re-throw to signal job failure to BullMQ
+        throw error
+    }
+}
+
+/**
+ * Starts the batch job worker (concurrency 1).
+ * Must be called with an active Redis connection.
+ * Gracefully handles Redis unavailability without crashing.
+ */
+export async function startBatchJobWorker(): Promise<void> {
+    const redis = redisClient.getClient()
+    if (!redis) {
+        errorLog({
+            message:
+                'Cannot start batch job worker: Redis client not available',
+        })
+        return
+    }
+
+    try {
+        worker = new Worker(QUEUE_NAME, processBatchJob, {
+            connection: redis,
+            concurrency: 1,
+        })
+
+        worker.on('completed', (job) => {
+            debugLog({
+                message: 'Batch job completed',
+                data: { jobId: job.id },
+            })
+        })
+
+        worker.on('failed', (job, error) => {
+            errorLog({
+                message: 'Batch job failed in worker',
+                error,
+                data: { jobId: job?.id },
+            })
+        })
+
+        infoLog({
+            message: 'Batch job worker started',
+        })
+    } catch (error) {
+        errorLog({
+            message: 'Failed to start batch job worker',
+            error,
+        })
+    }
+}
+
+/**
+ * Stops the batch job worker gracefully.
+ */
+export async function stopBatchJobWorker(): Promise<void> {
+    if (worker) {
+        try {
+            await worker.close()
+            worker = null
+            infoLog({
+                message: 'Batch job worker stopped',
+            })
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping batch job worker',
+                error,
+            })
+        }
+    }
+}
