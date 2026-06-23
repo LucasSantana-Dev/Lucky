@@ -6,6 +6,7 @@ export * from './moderation'
 export * from './automod'
 export * from './logs'
 export * from './rbac'
+export * from './batchJobs'
 
 export interface Module {
     id: string

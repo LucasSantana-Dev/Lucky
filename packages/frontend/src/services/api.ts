@@ -32,6 +32,7 @@ import { createSupportApi } from './supportApi'
 import { inferApiBase } from './apiBase'
 import { createRolesManageApi } from './rolesManageApi'
 import { createRoleGroupsApi } from './roleGroupsApi'
+import { createBatchJobsApi } from './batchJobsApi'
 
 const browserLocation =
     typeof globalThis !== 'undefined' && 'window' in globalThis
@@ -442,6 +443,7 @@ export const api = {
     artists: createArtistsApi(apiClient),
     support: createSupportApi(apiClient, NORMALIZED_API_BASE),
     rolesManage: createRolesManageApi(apiClient),
+    batchJobs: createBatchJobsApi(apiClient),
 }
 
 export { ApiError } from './ApiError'

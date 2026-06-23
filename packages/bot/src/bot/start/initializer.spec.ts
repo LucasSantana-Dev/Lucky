@@ -55,6 +55,14 @@ jest.mock('../../register', () => ({
     getContextMenus: (...args: unknown[]) => getContextMenusMock(...args),
 }))
 
+// Mock the batch worker — its real module pulls in BatchJobService → prismaClient
+// (which uses import.meta) and is irrelevant to initializer lifecycle.
+jest.mock('../../workers/batchJobWorker', () => ({
+    // Plain functions (not jest.fn) so resetMocks doesn't wipe the Promise return.
+    startBatchJobWorker: () => Promise.resolve(),
+    stopBatchJobWorker: () => Promise.resolve(),
+}))
+
 jest.mock('../../handlers/eventHandler', () => ({
     __esModule: true,
     default: (...args: unknown[]) => handleEventsMock(...args),

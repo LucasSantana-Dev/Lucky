@@ -34,6 +34,7 @@ import { setupForumsRoutes } from './forums'
 import { setupInviteRoute } from './invite'
 import { setupSupportRoutes } from './support'
 import { setupSecurityRoutes } from './security'
+import { setupBatchJobRoutes } from './batchJobs'
 
 type GuildGuardConfig = {
     path: string
@@ -70,6 +71,7 @@ const guildGuardConfigs: GuildGuardConfig[] = [
         module: 'settings',
         mode: 'manage',
     },
+    { path: '/api/guilds/:guildId/batch-jobs', module: 'moderation' },
 ]
 
 const routeSetups = [
@@ -94,6 +96,7 @@ const routeSetups = [
     setupMusicRoutes,
     setupArtistsRoutes,
     setupSupportRoutes,
+    setupBatchJobRoutes,
 ]
 
 export function setupRoutes(app: Express): void {

@@ -8,7 +8,7 @@ import { redisClient } from '@lucky/shared/services'
 import { batchJobService } from '@lucky/shared/services/batch'
 import type { BatchProgress, BatchJobType } from '@lucky/shared/services/batch'
 import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
-import { getExecutor } from './executorRegistry'
+import { getExecutor, registerExecutor } from './executorRegistry'
 
 const QUEUE_NAME = 'batch-jobs'
 let worker: Worker | null = null
@@ -149,6 +149,19 @@ export async function startBatchJobWorker(): Promise<void> {
                 'Cannot start batch job worker: Redis client not available',
         })
         return
+    }
+
+    // Register batch executors before consuming jobs. A lazy import keeps the
+    // executor — which statically pulls in the bot client (bot/start) and DB
+    // services — out of this module's static graph: it avoids an import cycle
+    // (worker → executor → bot/start → initializer → worker) and keeps the
+    // executor's import.meta-using deps out of unit-test import chains.
+    try {
+        const { ChannelMoveBatchExecutor } =
+            await import('../functions/moderation/batch/channelMoveExecutor')
+        registerExecutor(new ChannelMoveBatchExecutor())
+    } catch (error) {
+        errorLog({ message: 'Failed to register batch executors', error })
     }
 
     try {

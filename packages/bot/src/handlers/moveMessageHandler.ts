@@ -103,7 +103,7 @@ export const buildMoveEmbed = (params: {
 }
 
 /** Fetch each attachment and wrap it as an uploadable file, preserving name + spoiler. */
-const fetchAttachments = async (
+export const fetchAttachments = async (
     attachments: Attachment[],
 ): Promise<AttachmentBuilder[]> => {
     const files: AttachmentBuilder[] = []
