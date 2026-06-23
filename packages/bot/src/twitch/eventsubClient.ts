@@ -4,12 +4,24 @@ import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
 import { getTwitchUserAccessToken } from './token'
 import {
     type NotificationPayload,
+    type StreamOfflinePayload,
+    type ChannelUpdatePayload,
+    type ChannelRaidPayload,
     subscribeToStreamOnline,
     handleStreamOnline,
+    subscribeToStreamOffline,
+    handleStreamOffline,
+    subscribeToChannelUpdate,
+    handleChannelUpdate,
+    subscribeToChannelRaid,
+    handleChannelRaid,
 } from './eventsubSubscriptions'
 
 const EVENTSUB_WS_URL = 'wss://eventsub.wss.twitch.tv/ws'
 const STREAM_ONLINE_TYPE = 'stream.online'
+const STREAM_OFFLINE_TYPE = 'stream.offline'
+const CHANNEL_UPDATE_TYPE = 'channel.update'
+const CHANNEL_RAID_TYPE = 'channel.raid'
 
 type WelcomePayload = {
     session: {
@@ -33,6 +45,9 @@ export class TwitchEventSubClient {
     private clientId: string = ''
     private keepaliveTimeout: ReturnType<typeof setTimeout> | null = null
     private subscribedUserIds: Set<string> = new Set()
+    private subscribedOfflineIds: Set<string> = new Set()
+    private subscribedUpdateIds: Set<string> = new Set()
+    private subscribedRaidIds: Set<string> = new Set()
 
     async start(discordClient: Client): Promise<void> {
         this.clientId = process.env.TWITCH_CLIENT_ID ?? ''
@@ -83,11 +98,14 @@ export class TwitchEventSubClient {
                 if (code !== 1000 && this.client) {
                     // Unexpected close: the old session and its subscriptions are
                     // gone, so the reconnect gets a brand-new session. Clear the
-                    // dedupe set or subscribeToStreamOnline would skip every id and
+                    // dedupe sets or subscription functions would skip every id and
                     // register zero subscriptions, silently killing notifications.
                     // (session_reconnect migration closes with code 1000 and keeps
                     // its subscriptions, so it intentionally bypasses this reset.)
                     this.subscribedUserIds.clear()
+                    this.subscribedOfflineIds.clear()
+                    this.subscribedUpdateIds.clear()
+                    this.subscribedRaidIds.clear()
                     setTimeout(() => this.connect(EVENTSUB_WS_URL), 5000)
                 }
             })
@@ -110,11 +128,28 @@ export class TwitchEventSubClient {
                 this.scheduleKeepalive(
                     p.session.keepalive_timeout_seconds * 1000,
                 )
-                void subscribeToStreamOnline(
-                    this.sessionId,
-                    this.clientId,
-                    this.subscribedUserIds,
-                ).catch((error) =>
+                void Promise.all([
+                    subscribeToStreamOnline(
+                        this.sessionId,
+                        this.clientId,
+                        this.subscribedUserIds,
+                    ),
+                    subscribeToStreamOffline(
+                        this.sessionId,
+                        this.clientId,
+                        this.subscribedOfflineIds,
+                    ),
+                    subscribeToChannelUpdate(
+                        this.sessionId,
+                        this.clientId,
+                        this.subscribedUpdateIds,
+                    ),
+                    subscribeToChannelRaid(
+                        this.sessionId,
+                        this.clientId,
+                        this.subscribedRaidIds,
+                    ),
+                ]).catch((error) =>
                     errorLog({
                         message:
                             'Twitch EventSub: subscribe on session_welcome failed',
@@ -127,9 +162,40 @@ export class TwitchEventSubClient {
                 this.scheduleKeepalive(10000)
                 break
             case 'notification': {
-                const p = msg.payload as NotificationPayload
-                if (p.subscription.type === STREAM_ONLINE_TYPE && this.client) {
-                    handleStreamOnline(p, this.client)
+                const p = msg.payload as
+                    | NotificationPayload
+                    | StreamOfflinePayload
+                    | ChannelUpdatePayload
+                    | ChannelRaidPayload
+                switch (p.subscription.type) {
+                    case STREAM_ONLINE_TYPE:
+                        if (this.client)
+                            handleStreamOnline(
+                                p as NotificationPayload,
+                                this.client,
+                            )
+                        break
+                    case STREAM_OFFLINE_TYPE:
+                        if (this.client)
+                            handleStreamOffline(
+                                p as StreamOfflinePayload,
+                                this.client,
+                            )
+                        break
+                    case CHANNEL_UPDATE_TYPE:
+                        if (this.client)
+                            handleChannelUpdate(
+                                p as ChannelUpdatePayload,
+                                this.client,
+                            )
+                        break
+                    case CHANNEL_RAID_TYPE:
+                        if (this.client)
+                            handleChannelRaid(
+                                p as ChannelRaidPayload,
+                                this.client,
+                            )
+                        break
                 }
                 break
             }
@@ -172,12 +238,33 @@ export class TwitchEventSubClient {
 
     async refreshSubscriptions(): Promise<void> {
         this.subscribedUserIds.clear()
-        if (this.sessionId)
-            await subscribeToStreamOnline(
-                this.sessionId,
-                this.clientId,
-                this.subscribedUserIds,
-            )
+        this.subscribedOfflineIds.clear()
+        this.subscribedUpdateIds.clear()
+        this.subscribedRaidIds.clear()
+        if (this.sessionId) {
+            await Promise.all([
+                subscribeToStreamOnline(
+                    this.sessionId,
+                    this.clientId,
+                    this.subscribedUserIds,
+                ),
+                subscribeToStreamOffline(
+                    this.sessionId,
+                    this.clientId,
+                    this.subscribedOfflineIds,
+                ),
+                subscribeToChannelUpdate(
+                    this.sessionId,
+                    this.clientId,
+                    this.subscribedUpdateIds,
+                ),
+                subscribeToChannelRaid(
+                    this.sessionId,
+                    this.clientId,
+                    this.subscribedRaidIds,
+                ),
+            ])
+        }
     }
 
     stop(): void {
@@ -189,6 +276,9 @@ export class TwitchEventSubClient {
         this.sessionId = null
         this.client = null
         this.subscribedUserIds.clear()
+        this.subscribedOfflineIds.clear()
+        this.subscribedUpdateIds.clear()
+        this.subscribedRaidIds.clear()
         infoLog({ message: 'Twitch EventSub: client stopped' })
     }
 }
