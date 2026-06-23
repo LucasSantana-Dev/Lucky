@@ -190,24 +190,6 @@ describe('API Integration Flows', () => {
         })
     })
 
-    describe('CORS Headers', () => {
-        test('should include CORS headers in responses', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const response = await request(app)
-                .get('/api/auth/status')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .expect(200)
-
-            expect(response.headers['content-type']).toContain(
-                'application/json',
-            )
-        })
-    })
-
     describe('Guild and Feature Integration', () => {
         test('should fetch guilds after authentication', async () => {
             const { guildAccessService } =

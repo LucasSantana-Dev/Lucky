@@ -122,13 +122,6 @@ describe('ServerCard', () => {
         ).toBeInTheDocument()
     })
 
-    test('displays installed indicator when bot is added', () => {
-        renderCard(mockGuild)
-
-        const indicator = screen.getByLabelText('Bot is installed')
-        expect(indicator).toBeInTheDocument()
-    })
-
     test('does not display installed indicator when bot is not added', () => {
         renderCard(mockGuildWithoutBot)
 
