@@ -26,6 +26,21 @@ export interface CreateReactionRoleOptions {
     }>
 }
 
+/** Options for creating a reaction role message from the dashboard using REST API. */
+export interface DashboardCreateReactionRoleOptions {
+    guildId: string
+    channelId: string
+    title: string
+    description: string
+    botToken: string
+    roles: Array<{
+        roleId: string
+        label: string
+        emoji?: string
+        style?: string
+    }>
+}
+
 /** Manages reaction role messages with button-based role assignment. */
 export class ReactionRolesService {
     /** Checks if reaction roles feature is enabled for a guild or user. */
@@ -118,6 +133,119 @@ export class ReactionRolesService {
         } catch (error) {
             errorLog({
                 message: 'Failed to create reaction role message:',
+                error,
+            })
+            throw error
+        }
+    }
+
+    /** Creates a reaction role message from the dashboard using the Discord REST API. */
+    async createReactionRoleMessageFromDashboard(
+        options: DashboardCreateReactionRoleOptions,
+    ): Promise<{ messageId: string }> {
+        const { guildId, channelId, title, description, botToken, roles } =
+            options
+
+        if (!(await this.isEnabled(guildId))) {
+            throw new Error('Reaction roles are disabled for this guild')
+        }
+
+        if (roles.length === 0) {
+            throw new Error('At least one role is required')
+        }
+
+        if (roles.length > 25) {
+            throw new Error('Maximum 25 roles per message')
+        }
+
+        try {
+            const styleMap: Record<string, number> = {
+                Primary: 1,
+                Secondary: 2,
+                Success: 3,
+                Danger: 4,
+            }
+
+            const actionRows: object[] = []
+            let currentButtons: object[] = []
+
+            for (const role of roles) {
+                const button: Record<string, unknown> = {
+                    type: 2,
+                    custom_id: `reactionrole:${role.roleId}`,
+                    label: role.label,
+                    style: styleMap[role.style ?? 'Primary'] ?? 1,
+                }
+
+                if (role.emoji) {
+                    button.emoji = { name: role.emoji }
+                }
+
+                if (currentButtons.length >= 5) {
+                    actionRows.push({ type: 1, components: currentButtons })
+                    currentButtons = []
+                }
+
+                currentButtons.push(button)
+            }
+
+            if (currentButtons.length > 0) {
+                actionRows.push({ type: 1, components: currentButtons })
+            }
+
+            const DISCORD_API = 'https://discord.com/api/v10'
+            const resp = await fetch(
+                `${DISCORD_API}/channels/${channelId}/messages`,
+                {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bot ${botToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        embeds: [{ title, description, color: 5793266 }],
+                        components: actionRows,
+                    }),
+                    signal: AbortSignal.timeout(10_000),
+                },
+            )
+
+            if (!resp.ok) {
+                const text = await resp.text().catch(() => '')
+                throw new Error(`Discord API error ${resp.status}: ${text}`)
+            }
+
+            const discordMessage = (await resp.json()) as { id: string }
+            const messageId = discordMessage.id
+
+            const prisma = getPrismaClient()
+            await prisma.reactionRoleMessage.create({
+                data: {
+                    messageId,
+                    channelId,
+                    guildId,
+                    mappings: {
+                        create: roles.map((role) => ({
+                            roleId: role.roleId,
+                            buttonId: `reactionrole:${role.roleId}`,
+                            type: 'button',
+                            label: role.label,
+                            style: role.style ?? 'Primary',
+                            emoji: role.emoji ?? null,
+                        })),
+                    },
+                },
+            })
+
+            debugLog({
+                message: `Created reaction role message ${messageId} in guild ${guildId} from dashboard`,
+            })
+
+            return { messageId }
+        } catch (error) {
+            errorLog({
+                message:
+                    'Failed to create reaction role message from dashboard:',
                 error,
             })
             throw error
