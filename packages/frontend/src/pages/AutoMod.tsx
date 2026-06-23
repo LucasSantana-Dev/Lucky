@@ -40,6 +40,7 @@ import type {
     GuildChannelOption,
     GuildRoleOption,
 } from '@/types'
+import { useTranslation } from 'react-i18next'
 
 interface FilterRowProps {
     title: string
@@ -200,6 +201,7 @@ function ChannelPicker({
     onAdd: (id: string) => void
     onRemove: (id: string) => void
 }) {
+    const { t } = useTranslation()
     const available = channels.filter((c) => !selectedIds.includes(c.id))
 
     const getChannelName = (id: string) =>
@@ -210,7 +212,9 @@ function ChannelPicker({
             {available.length > 0 && (
                 <Select onValueChange={onAdd}>
                     <SelectTrigger className='h-9 bg-lucky-bg-tertiary border-lucky-border text-white text-sm'>
-                        <SelectValue placeholder='Select a channel...' />
+                        <SelectValue
+                            placeholder={t('autoMod.selectChannelPlaceholder')}
+                        />
                     </SelectTrigger>
                     <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
                         {available.map((channel) => (
@@ -264,6 +268,7 @@ function RolePicker({
     onAdd: (id: string) => void
     onRemove: (id: string) => void
 }) {
+    const { t } = useTranslation()
     const available = roles.filter((r) => !selectedIds.includes(r.id))
 
     const getRoleName = (id: string) =>
@@ -274,7 +279,9 @@ function RolePicker({
             {available.length > 0 && (
                 <Select onValueChange={onAdd}>
                     <SelectTrigger className='h-9 bg-lucky-bg-tertiary border-lucky-border text-white text-sm'>
-                        <SelectValue placeholder='Select a role...' />
+                        <SelectValue
+                            placeholder={t('autoMod.selectRolePlaceholder')}
+                        />
                     </SelectTrigger>
                     <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
                         {available.map((role) => (
@@ -460,6 +467,7 @@ function normalizeAutoModSettings(
 }
 
 export default function AutoModPage() {
+    const { t } = useTranslation()
     const { selectedGuild } = useGuildStore()
     const [settings, setSettings] = useState<AutoModSettings>(DEFAULT_SETTINGS)
     const [templates, setTemplates] = useState<AutoModTemplate[]>([])
@@ -800,7 +808,7 @@ export default function AutoModPage() {
                                             ),
                                         )
                                     }
-                                    placeholder='e.g. youtube.com'
+                                    placeholder={t('autoMod.domainPlaceholder')}
                                 />
                             </div>
                         </FilterRow>
@@ -838,7 +846,9 @@ export default function AutoModPage() {
                                             ),
                                         )
                                     }
-                                    placeholder='Add a word to ban...'
+                                    placeholder={t(
+                                        'autoMod.bannedWordsPlaceholder',
+                                    )}
                                 />
                             </div>
                         </FilterRow>

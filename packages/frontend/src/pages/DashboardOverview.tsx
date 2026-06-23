@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import {
     Activity,
     AlertTriangle,
@@ -178,6 +179,7 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
 }
 
 export default function DashboardOverview() {
+    const { t } = useTranslation()
     const prefersReducedMotion = useReducedMotion()
     const { selectedGuild, memberContext } = useGuildStore()
     const { data: stats, isLoading: statsLoading } = useModerationStats(
@@ -206,50 +208,54 @@ export default function DashboardOverview() {
         module: ModuleKey
     }> = [
         {
-            title: 'Moderation Cases',
-            description: 'Review warnings, mutes, kicks, and bans.',
+            title: t('dashboardOverview.moderationCases'),
+            description: t('dashboardOverview.reviewWarningsMutesKicksBans'),
             icon: <Shield className='h-4 w-4' />,
             href: '/moderation',
             module: 'moderation',
         },
         {
-            title: 'Auto-Moderation',
-            description: 'Tune filters and anti-spam automation.',
+            title: t('dashboardOverview.autoModeration'),
+            description: t('dashboardOverview.tuneFiltersAntiSpamAutomation'),
             icon: <ShieldAlert className='h-4 w-4' />,
             href: '/automod',
             module: 'moderation',
         },
         {
-            title: 'Server Logs',
-            description: 'Audit events and moderation activity.',
+            title: t('dashboardOverview.serverLogs'),
+            description: t(
+                'dashboardOverview.auditEventsAndModerationActivity',
+            ),
             icon: <ScrollText className='h-4 w-4' />,
             href: '/logs',
             module: 'moderation',
         },
         {
-            title: 'Custom Commands',
-            description: 'Manage scripted server shortcuts.',
+            title: t('dashboardOverview.customCommands'),
+            description: t('dashboardOverview.manageScriptedServerShortcuts'),
             icon: <MessageSquare className='h-4 w-4' />,
             href: '/commands',
             module: 'automation',
         },
         {
-            title: 'Music Player',
-            description: 'View queue, playback, and track history.',
+            title: t('dashboardOverview.musicPlayer'),
+            description: t('dashboardOverview.viewQueuePlaybackTrackHistory'),
             icon: <Music className='h-4 w-4' />,
             href: '/music',
             module: 'music',
         },
         {
-            title: 'Levels & XP',
-            description: 'Configure XP, level rewards, and leaderboards.',
+            title: t('dashboardOverview.levelsAndXP'),
+            description: t(
+                'dashboardOverview.configureXPLevelRewardsLeaderboards',
+            ),
             icon: <TrendingUp className='h-4 w-4' />,
             href: '/levels',
             module: 'settings',
         },
         {
-            title: 'Starboard',
-            description: 'Manage community highlights.',
+            title: t('dashboardOverview.starboard'),
+            description: t('dashboardOverview.manageCommunityHighlights'),
             icon: <Star className='h-4 w-4' />,
             href: '/starboard',
             module: 'settings',
@@ -266,8 +272,8 @@ export default function DashboardOverview() {
         return (
             <EmptyState
                 icon={<Activity className='h-10 w-10' />}
-                title='Select a Server'
-                description='Choose a server from the sidebar to view its dashboard'
+                title={t('dashboardOverview.selectAServer')}
+                description={t('dashboardOverview.chooseServerFromSidebar')}
             />
         )
     }
@@ -275,9 +281,11 @@ export default function DashboardOverview() {
     return (
         <div className='space-y-6'>
             <SectionHeader
-                title='Dashboard'
-                description={`Overview of ${selectedGuild.name}`}
-                eyebrow='Server analytics'
+                title={t('dashboardOverview.dashboardTitle')}
+                description={t('dashboardOverview.overviewOf', {
+                    name: selectedGuild.name,
+                })}
+                eyebrow={t('dashboardOverview.serverAnalytics')}
             />
 
             <div className='grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]'>
@@ -305,7 +313,7 @@ export default function DashboardOverview() {
                         <article className='surface-panel flex flex-col justify-between gap-6 p-6 border border-lucky-border'>
                             <div className='flex items-center justify-between gap-3'>
                                 <p className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
-                                    Total Members
+                                    {t('dashboardOverview.totalMembers')}
                                 </p>
                                 <span className='flex h-8 w-8 items-center justify-center rounded-md bg-lucky-brand/15 text-lucky-brand'>
                                     <Users
@@ -323,24 +331,26 @@ export default function DashboardOverview() {
                                 </p>
                             </div>
                             <p className='type-body-sm text-lucky-text-tertiary'>
-                                Active members across {selectedGuild.name}
+                                {t('dashboardOverview.activeMembersAcross', {
+                                    name: selectedGuild.name,
+                                })}
                             </p>
                         </article>
                         <div className='surface-panel divide-y divide-lucky-border/40 border border-lucky-border'>
                             <CompactStat
-                                label='Active Cases'
+                                label={t('dashboardOverview.activeCases')}
                                 value={stats?.activeCases || 0}
                                 icon={<Shield className='h-3.5 w-3.5' />}
                                 tone='accent'
                             />
                             <CompactStat
-                                label='Total Cases'
+                                label={t('dashboardOverview.totalCases')}
                                 value={stats?.totalCases || 0}
                                 icon={<MessageSquare className='h-3.5 w-3.5' />}
                                 tone='neutral'
                             />
                             <CompactStat
-                                label='Auto-Mod Actions'
+                                label={t('dashboardOverview.autoModActions')}
                                 value={stats?.casesByType?.warn || 0}
                                 icon={<ShieldAlert className='h-3.5 w-3.5' />}
                                 tone='warning'
@@ -365,17 +375,17 @@ export default function DashboardOverview() {
                     <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
                         <div>
                             <h2 className='type-title text-lucky-text-primary uppercase tracking-wide'>
-                                Recent Cases
+                                {t('dashboardOverview.recentCases')}
                             </h2>
                             <p className='type-body-sm text-lucky-text-tertiary'>
-                                Latest moderation actions
+                                {t('dashboardOverview.latestModerationActions')}
                             </p>
                         </div>
                         <Link
                             to='/moderation'
                             className='type-body-sm inline-flex items-center gap-1 text-lucky-brand transition-colors hover:text-lucky-brand-strong'
                         >
-                            View all
+                            {t('dashboardOverview.viewAll')}
                             <ArrowRight className='h-3.5 w-3.5' />
                         </Link>
                     </div>
@@ -407,11 +417,12 @@ export default function DashboardOverview() {
                             <div className='px-4 py-10 text-center'>
                                 <Shield className='mx-auto mb-3 h-10 w-10 text-lucky-text-tertiary' />
                                 <p className='type-body text-lucky-text-secondary'>
-                                    No moderation cases yet
+                                    {t('dashboardOverview.noModerationCases')}
                                 </p>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
-                                    Cases will appear here when moderators take
-                                    action
+                                    {t(
+                                        'dashboardOverview.casesCasesWillAppear',
+                                    )}
                                 </p>
                             </div>
                         )}
@@ -434,7 +445,7 @@ export default function DashboardOverview() {
                         id='quick-actions-heading'
                         className='type-title text-lucky-text-primary'
                     >
-                        Quick Actions
+                        {t('dashboardOverview.quickActions')}
                     </h2>
                     <nav className='surface-panel divide-y divide-lucky-border/40 overflow-hidden border border-lucky-border'>
                         {visibleQuickActions.map((action) => (
@@ -482,17 +493,17 @@ export default function DashboardOverview() {
                     <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
                         <div>
                             <h2 className='type-title text-lucky-text-primary'>
-                                Recent Music
+                                {t('dashboardOverview.recentMusic')}
                             </h2>
                             <p className='type-body-sm text-lucky-text-tertiary'>
-                                Latest tracks played
+                                {t('dashboardOverview.latestTracksPlayed')}
                             </p>
                         </div>
                         <Link
                             to='/music/history'
                             className='type-body-sm inline-flex items-center gap-1 text-lucky-brand transition-colors hover:text-lucky-brand-strong'
                         >
-                            View all
+                            {t('dashboardOverview.viewAll')}
                             <ArrowRight className='h-3.5 w-3.5' />
                         </Link>
                     </div>
@@ -550,11 +561,12 @@ export default function DashboardOverview() {
                             <div className='px-4 py-10 text-center'>
                                 <Music className='mx-auto mb-3 h-10 w-10 text-lucky-text-tertiary' />
                                 <p className='type-body text-lucky-text-secondary'>
-                                    No tracks played yet
+                                    {t('dashboardOverview.noTracksPlayedYet')}
                                 </p>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
-                                    Track history will appear here when music is
-                                    played
+                                    {t(
+                                        'dashboardOverview.trackHistoryWillAppearWhenMusicPlayed',
+                                    )}
                                 </p>
                             </div>
                         )}
@@ -575,16 +587,16 @@ export default function DashboardOverview() {
                     }}
                 >
                     <h2 className='type-title text-lucky-text-primary'>
-                        Community
+                        {t('dashboardOverview.community')}
                     </h2>
                     <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
                         <div className='surface-panel overflow-hidden border border-lucky-border'>
                             <div className='border-b border-lucky-border px-4 py-3'>
                                 <h3 className='type-body-sm font-semibold text-lucky-text-primary uppercase tracking-wide'>
-                                    Level Leaderboard
+                                    {t('dashboardOverview.levelLeaderboard')}
                                 </h3>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
-                                    Top members by XP
+                                    {t('dashboardOverview.topMembersByXP')}
                                 </p>
                             </div>
 
@@ -637,7 +649,9 @@ export default function DashboardOverview() {
                                     <div className='px-4 py-8 text-center'>
                                         <TrendingUp className='mx-auto mb-2 h-8 w-8 text-lucky-text-tertiary' />
                                         <p className='type-body-sm text-lucky-text-secondary'>
-                                            No leaderboard data
+                                            {t(
+                                                'dashboardOverview.noLeaderboardData',
+                                            )}
                                         </p>
                                     </div>
                                 )}
@@ -647,10 +661,10 @@ export default function DashboardOverview() {
                         <div className='surface-panel overflow-hidden border border-lucky-border'>
                             <div className='border-b border-lucky-border px-4 py-3'>
                                 <h3 className='type-body-sm font-semibold text-lucky-text-primary uppercase tracking-wide'>
-                                    Starboard Highlights
+                                    {t('dashboardOverview.starboardHighlights')}
                                 </h3>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
-                                    Top starred messages
+                                    {t('dashboardOverview.topStarredMessages')}
                                 </p>
                             </div>
 
@@ -704,7 +718,9 @@ export default function DashboardOverview() {
                                     <div className='px-4 py-8 text-center'>
                                         <Star className='mx-auto mb-2 h-8 w-8 text-lucky-text-tertiary' />
                                         <p className='type-body-sm text-lucky-text-secondary'>
-                                            No starred messages
+                                            {t(
+                                                'dashboardOverview.noStarredMessages',
+                                            )}
                                         </p>
                                     </div>
                                 )}
@@ -717,7 +733,7 @@ export default function DashboardOverview() {
             {Object.keys(stats?.casesByType ?? {}).length > 0 && (
                 <section className='space-y-4'>
                     <h2 className='type-title text-lucky-text-primary'>
-                        Cases by Type
+                        {t('dashboardOverview.casesByType')}
                     </h2>
                     <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
                         {Object.entries(stats?.casesByType ?? {}).map(

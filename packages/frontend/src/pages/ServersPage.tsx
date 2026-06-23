@@ -1,5 +1,6 @@
 import { Crown, LayoutGrid, Settings, ExternalLink } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Skeleton from '@/components/ui/Skeleton'
 import ServerGrid from '@/components/Dashboard/ServerGrid'
@@ -10,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { getUserAvatarUrl } from '@/lib/discord'
 
 export default function ServersPage() {
+    const { t } = useTranslation('servers')
     const guilds = useGuildStore((state) => state.guilds)
     const isLoading = useGuildStore((state) => state.isLoading)
     const user = useAuthStore((state) => state.user)
@@ -61,7 +63,7 @@ export default function ServersPage() {
 
                 <div className='space-y-1'>
                     <p className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
-                        Discord Account
+                        {t('discordAccount')}
                     </p>
                     <p className='text-lg font-semibold text-lucky-text-primary'>
                         {user?.username}
@@ -73,7 +75,7 @@ export default function ServersPage() {
 
                 <div className='ml-auto text-right flex-shrink-0'>
                     <p className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
-                        Total Servers
+                        {t('totalServers')}
                     </p>
                     <p className='text-2xl font-bold text-lucky-brand'>
                         {guilds.length}
@@ -86,37 +88,39 @@ export default function ServersPage() {
                     <div>
                         <div className='flex items-center gap-2'>
                             <h2 className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
-                                Servers
+                                {t('serversLabel')}
                             </h2>
                         </div>
                         <h1
                             className='text-3xl font-bold text-lucky-text-primary mt-2'
                             style={{ fontFamily: 'var(--font-lucky-display)' }}
                         >
-                            Your Servers
+                            {t('yourServers')}
                         </h1>
                         <p className='text-sm text-lucky-text-tertiary mt-2'>
-                            {guilds.length} servers — {withBotCount} with Lucky
-                            installed
+                            {t('serversWithBot', {
+                                count: guilds.length,
+                                count2: withBotCount,
+                            })}
                         </p>
                     </div>
                     <nav className='flex gap-2'>
                         {(
                             [
                                 {
-                                    label: 'Servers',
+                                    label: t('navServers'),
                                     icon: LayoutGrid,
                                     active: true,
                                     onClick: undefined,
                                 },
                                 {
-                                    label: 'Premium',
+                                    label: t('navPremium'),
                                     icon: Crown,
                                     active: false,
                                     onClick: () => navigate('/features'),
                                 },
                                 {
-                                    label: 'Settings',
+                                    label: t('navSettings'),
                                     icon: Settings,
                                     active: false,
                                     onClick: () => navigate('/settings'),
@@ -144,7 +148,7 @@ export default function ServersPage() {
                 {primaryGuild && (
                     <section className='space-y-3'>
                         <h2 className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
-                            Recently Active
+                            {t('recentlyActive')}
                         </h2>
                         <button
                             onClick={() =>
@@ -175,11 +179,11 @@ export default function ServersPage() {
                                     </h3>
                                     {primaryGuild.botAdded ? (
                                         <p className='text-xs text-lucky-success mt-1 inline-block'>
-                                            Lucky installed
+                                            {t('luckyInstalled')}
                                         </p>
                                     ) : (
                                         <p className='text-xs text-lucky-text-tertiary mt-1'>
-                                            Invite Lucky
+                                            {t('inviteLucky')}
                                         </p>
                                     )}
                                 </div>
@@ -192,7 +196,7 @@ export default function ServersPage() {
                 {secondaryGuilds.length > 0 && (
                     <section className='space-y-3'>
                         <h2 className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
-                            All Other Servers
+                            {t('allOtherServers')}
                         </h2>
                         <ServerGrid />
                     </section>
@@ -204,10 +208,10 @@ export default function ServersPage() {
                             <LayoutGrid className='h-6 w-6 text-lucky-text-tertiary' />
                         </div>
                         <p className='text-lucky-text-primary font-medium mb-2'>
-                            No servers yet
+                            {t('noServersTitle')}
                         </p>
                         <p className='text-sm text-lucky-text-secondary'>
-                            Join a Discord server and Lucky will appear here.
+                            {t('noServersDescription')}
                         </p>
                     </div>
                 )}

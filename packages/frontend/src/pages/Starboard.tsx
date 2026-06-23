@@ -1,5 +1,6 @@
 import { reportError } from '@/lib/sentry'
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +15,7 @@ import { useGuildStore } from '@/stores/guildStore'
 import type { StarboardConfig, StarboardEntry } from '@/services/starboardApi'
 
 function Starboard() {
+    const { t } = useTranslation('starboard')
     const { selectedGuild } = useGuildStore()
     const [loading, setLoading] = useState(true)
     const [entries, setEntries] = useState<StarboardEntry[]>([])
@@ -64,7 +66,7 @@ function Starboard() {
                         component: 'Starboard',
                         action: 'loadData',
                     })
-                    toast.error('Failed to load starboard settings')
+                    toast.error(t('failedToLoadSettings'))
                 }
             } finally {
                 if (mounted) setLoading(false)
@@ -90,13 +92,13 @@ function Starboard() {
                 threshold: threshold || 3,
                 selfStar,
             })
-            toast.success('Starboard settings saved')
+            toast.success(t('starboardSettingsSaved'))
         } catch (error) {
             reportError('Failed to save starboard settings:', error, {
                 component: 'Starboard',
                 action: 'saveSettings',
             })
-            toast.error('Failed to save settings')
+            toast.error(t('failedToSaveSettings'))
         } finally {
             setSaving(false)
         }
@@ -113,13 +115,13 @@ function Starboard() {
             setEmoji('⭐')
             setThreshold(3)
             setSelfStar(false)
-            toast.success('Starboard disabled')
+            toast.success(t('starboardDisabled'))
         } catch (error) {
             reportError('Failed to disable starboard:', error, {
                 component: 'Starboard',
                 action: 'disable',
             })
-            toast.error('Failed to delete starboard config')
+            toast.error(t('failedToDeleteConfig'))
         } finally {
             setSaving(false)
         }
@@ -130,10 +132,10 @@ function Starboard() {
             <div className='flex flex-col items-center justify-center py-12'>
                 <div className='text-center'>
                     <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
-                        No server selected
+                        {t('noServerSelected')}
                     </p>
                     <p className='text-sm text-lucky-text-secondary'>
-                        Select a server to view starboard settings
+                        {t('selectServerToView')}
                     </p>
                 </div>
             </div>
@@ -164,16 +166,15 @@ function Starboard() {
             {/* Entries */}
             <section>
                 <h2 className='type-title text-lucky-text-primary uppercase tracking-wide mb-4'>
-                    Top Starred Messages
+                    {t('topStarredMessages')}
                 </h2>
                 {entries.length === 0 ? (
                     <Card className='border border-lucky-border p-8 text-center'>
                         <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
-                            No starred messages yet
+                            {t('noStarredMessages')}
                         </p>
                         <p className='text-sm text-lucky-text-secondary'>
-                            Configure the starboard below and members can start
-                            starring messages
+                            {t('noStarredMessagesDesc')}
                         </p>
                     </Card>
                 ) : (
@@ -207,13 +208,13 @@ function Starboard() {
             {/* Settings */}
             <section>
                 <h2 className='type-title text-lucky-text-primary uppercase tracking-wide mb-4'>
-                    Settings
+                    {t('settings')}
                 </h2>
                 <Card className='border border-lucky-border p-6 space-y-4'>
                     {config && (
                         <div className='mb-4'>
                             <Badge className='rounded-sm bg-lucky-success text-lucky-text-primary uppercase font-semibold text-xs'>
-                                Active
+                                {t('active')}
                             </Badge>
                         </div>
                     )}
@@ -223,7 +224,7 @@ function Starboard() {
                             htmlFor='channel'
                             className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold text-sm'
                         >
-                            Channel ID
+                            {t('channelId')}
                         </Label>
                         <Input
                             id='channel'
@@ -240,7 +241,7 @@ function Starboard() {
                             htmlFor='emoji'
                             className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold text-sm'
                         >
-                            Emoji
+                            {t('emoji')}
                         </Label>
                         <Input
                             id='emoji'
@@ -257,7 +258,7 @@ function Starboard() {
                             htmlFor='threshold'
                             className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold text-sm'
                         >
-                            Star Threshold
+                            {t('starThreshold')}
                         </Label>
                         <Input
                             id='threshold'
@@ -281,7 +282,7 @@ function Starboard() {
                             htmlFor='selfStar'
                             className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold text-sm'
                         >
-                            Allow Self-Star
+                            {t('allowSelfStar')}
                         </Label>
                         <Switch
                             id='selfStar'
@@ -297,7 +298,7 @@ function Starboard() {
                             disabled={saving}
                             className='flex-1'
                         >
-                            {saving ? 'Saving...' : 'Save'}
+                            {saving ? t('saving') : t('save')}
                         </Button>
                         {config && (
                             <Button
@@ -305,7 +306,7 @@ function Starboard() {
                                 disabled={saving}
                                 variant='secondary'
                             >
-                                Disable Starboard
+                                {t('disableStarboard')}
                             </Button>
                         )}
                     </div>

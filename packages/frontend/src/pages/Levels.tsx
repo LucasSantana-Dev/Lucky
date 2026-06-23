@@ -1,5 +1,6 @@
 import { reportError } from '@/lib/sentry'
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
@@ -15,6 +16,7 @@ import type { MemberXP, LevelReward } from '@/services/levelsApi'
 import type { GuildRoleOption } from '@/types'
 
 function Levels() {
+    const { t } = useTranslation()
     const { selectedGuild } = useGuildStore()
     const [loading, setLoading] = useState(true)
     const [leaderboard, setLeaderboard] = useState<MemberXP[]>([])
@@ -83,7 +85,7 @@ function Levels() {
                         component: 'Levels',
                         action: 'loadData',
                     })
-                    toast.error('Failed to load level settings')
+                    toast.error(t('levels.failedToLoadSettings'))
                 }
             } finally {
                 if (mounted) setLoading(false)
@@ -107,7 +109,7 @@ function Levels() {
                 xpCooldownMs,
                 announceChannel: announceChannel || null,
             })
-            toast.success('Level settings saved')
+            toast.success(t('levels.levelSettingsSaved'))
         } catch (error) {
             reportError('Failed to save level settings:', error, {
                 component: 'Levels',
@@ -134,13 +136,13 @@ function Levels() {
             setRewards([...rewards, reward])
             setNewLevel('')
             setNewRoleId('')
-            toast.success(`Reward added for level ${levelNum}`)
+            toast.success(t('levels.rewardAdded', { level: levelNum }))
         } catch (error) {
             reportError('Failed to add level reward:', error, {
                 component: 'Levels',
                 action: 'addReward',
             })
-            toast.error('Failed to add reward')
+            toast.error(t('levels.failedToAddReward'))
         } finally {
             setAdding(false)
         }
@@ -152,13 +154,13 @@ function Levels() {
         try {
             await api.levels.removeReward(selectedGuild.id, level)
             setRewards(rewards.filter((r) => r.level !== level))
-            toast.success('Reward removed')
+            toast.success(t('levels.rewardRemoved'))
         } catch (error) {
             reportError('Failed to remove level reward:', error, {
                 component: 'Levels',
                 action: 'removeReward',
             })
-            toast.error('Failed to remove reward')
+            toast.error(t('levels.failedToRemoveReward'))
         }
     }
 
@@ -167,10 +169,10 @@ function Levels() {
             <div className='flex flex-col items-center justify-center py-12'>
                 <div className='text-center'>
                     <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
-                        No server selected
+                        {t('levels.noServerSelected')}
                     </p>
                     <p className='text-sm text-lucky-text-secondary'>
-                        Select a server to view level settings
+                        {t('levels.selectServerToView')}
                     </p>
                 </div>
             </div>
@@ -197,16 +199,15 @@ function Levels() {
             {/* Leaderboard */}
             <section>
                 <h2 className='type-title text-lucky-text-primary mb-4'>
-                    Leaderboard
+                    {t('levels.leaderboard')}
                 </h2>
                 {leaderboard.length === 0 ? (
                     <Card className='p-8 text-center border border-lucky-border'>
                         <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
-                            No data yet
+                            {t('levels.noDataYet')}
                         </p>
                         <p className='text-sm text-lucky-text-secondary'>
-                            Members gain XP by chatting once the level system is
-                            enabled
+                            {t('levels.membersGainXp')}
                         </p>
                     </Card>
                 ) : (
@@ -223,12 +224,13 @@ function Levels() {
                                                 member.userId}
                                         </p>
                                         <p className='type-body-sm text-lucky-text-secondary'>
-                                            Level {member.level}
+                                            {t('levels.level')} {member.level}
                                         </p>
                                     </div>
                                     <div className='text-right'>
                                         <p className='type-body-sm font-semibold text-lucky-accent'>
-                                            {member.xp.toLocaleString()} XP
+                                            {member.xp.toLocaleString()}{' '}
+                                            {t('levels.xp')}
                                         </p>
                                     </div>
                                 </div>
@@ -242,13 +244,13 @@ function Levels() {
                 {/* Config Settings */}
                 <Card className='p-6 border border-lucky-border'>
                     <h3 className='type-body-sm font-semibold text-lucky-text-primary mb-4 uppercase tracking-wide'>
-                        Settings
+                        {t('levels.settings')}
                     </h3>
                     <div className='space-y-4'>
                         <div className='flex items-center justify-between'>
-                            <Label>Enable XP</Label>
+                            <Label>{t('levels.enableXp')}</Label>
                             <Switch
-                                aria-label='Enable XP'
+                                aria-label={t('levels.enableXp')}
                                 checked={enabled}
                                 onCheckedChange={setEnabled}
                             />
@@ -256,7 +258,7 @@ function Levels() {
 
                         <div>
                             <Label htmlFor='xpPerMsg' className='text-sm'>
-                                XP Per Message
+                                {t('levels.xpPerMessage')}
                             </Label>
                             <Input
                                 id='xpPerMsg'
@@ -275,7 +277,7 @@ function Levels() {
 
                         <div>
                             <Label htmlFor='cooldown' className='text-sm'>
-                                Cooldown (ms)
+                                {t('levels.cooldown')}
                             </Label>
                             <Input
                                 id='cooldown'
@@ -292,7 +294,7 @@ function Levels() {
 
                         <div>
                             <Label htmlFor='channel' className='text-sm'>
-                                Announce Channel
+                                {t('levels.announceChannel')}
                             </Label>
                             <Input
                                 id='channel'
@@ -301,7 +303,7 @@ function Levels() {
                                 onChange={(e) =>
                                     setAnnounceChannel(e.target.value)
                                 }
-                                placeholder='Channel ID (optional)'
+                                placeholder={t('levels.channelIdOptional')}
                                 className='mt-1.5'
                             />
                         </div>
@@ -311,7 +313,9 @@ function Levels() {
                             disabled={saving}
                             className='w-full'
                         >
-                            {saving ? 'Saving...' : 'Save Settings'}
+                            {saving
+                                ? t('levels.saving')
+                                : t('levels.saveSettings')}
                         </Button>
                     </div>
                 </Card>
@@ -319,20 +323,19 @@ function Levels() {
                 {/* Rewards */}
                 <Card className='p-6 border border-lucky-border'>
                     <h3 className='type-body-sm font-semibold text-lucky-text-primary mb-4 uppercase tracking-wide'>
-                        Level Rewards
+                        {t('levels.levelRewards')}
                     </h3>
 
                     {rolesError && (
                         <p className='text-sm text-lucky-error mb-4'>
-                            Couldn&apos;t load this server&apos;s roles — reward
-                            role names may show as raw IDs. Refresh to retry.
+                            {t('levels.couldNotLoadRoles')}
                         </p>
                     )}
 
                     <div className='space-y-3 mb-4'>
                         {rewards.length === 0 ? (
                             <p className='text-sm text-lucky-text-secondary'>
-                                No rewards configured
+                                {t('levels.noRewardsConfigured')}
                             </p>
                         ) : (
                             rewards.map((reward) => (
@@ -364,12 +367,12 @@ function Levels() {
                     <div className='space-y-3 pt-4 border-t border-lucky-border'>
                         <div>
                             <Label htmlFor='newLevel' className='text-sm'>
-                                Level
+                                {t('levels.levelLabel')}
                             </Label>
                             <Input
                                 id='newLevel'
                                 type='number'
-                                placeholder='e.g. 5'
+                                placeholder={t('levels.levelPlaceholder')}
                                 value={newLevel}
                                 onChange={(e) => setNewLevel(e.target.value)}
                                 className='mt-1.5'
@@ -378,12 +381,12 @@ function Levels() {
 
                         <div>
                             <Label htmlFor='newRole' className='text-sm'>
-                                Role ID
+                                {t('levels.roleIdLabel')}
                             </Label>
                             <Input
                                 id='newRole'
                                 type='text'
-                                placeholder='Role ID'
+                                placeholder={t('levels.roleIdPlaceholder')}
                                 value={newRoleId}
                                 onChange={(e) => setNewRoleId(e.target.value)}
                                 className='mt-1.5'
@@ -395,7 +398,9 @@ function Levels() {
                             disabled={adding || !newLevel || !newRoleId}
                             className='w-full'
                         >
-                            {adding ? 'Adding...' : 'Add Reward'}
+                            {adding
+                                ? t('levels.adding')
+                                : t('levels.addReward')}
                         </Button>
                     </div>
                 </Card>

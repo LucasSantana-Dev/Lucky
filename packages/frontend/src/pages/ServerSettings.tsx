@@ -6,6 +6,7 @@ import {
     useRef,
     type ReactElement,
 } from 'react'
+import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import {
     Settings,
@@ -81,33 +82,35 @@ const DEFAULT_SETTINGS: ServerSettings = {
     disableWarnings: false,
 }
 
-function classifySettingsLoadError(error: unknown): SettingsLoadError {
+function classifySettingsLoadError(
+    error: unknown,
+    t: (key: string) => string,
+): SettingsLoadError {
     if (error instanceof ApiError) {
         if (error.status === 401) {
             return {
                 kind: 'auth',
-                message: 'Session expired. Please sign in again.',
+                message: t('serverSettings.sessionExpired'),
             }
         }
 
         if (error.status === 403) {
             return {
                 kind: 'forbidden',
-                message: 'You no longer have access to this server settings.',
+                message: t('serverSettings.accessDenied'),
             }
         }
 
         if (error.status === 0) {
             return {
                 kind: 'network',
-                message:
-                    'Unable to reach API. Check your connection and retry.',
+                message: t('serverSettings.networkError'),
             }
         }
 
         return {
             kind: 'upstream',
-            message: error.message || 'Failed to load server settings.',
+            message: error.message || t('serverSettings.unableToLoadMessage'),
         }
     }
 
@@ -117,11 +120,12 @@ function classifySettingsLoadError(error: unknown): SettingsLoadError {
 
     return {
         kind: 'upstream',
-        message: 'Failed to load server settings.',
+        message: t('serverSettings.unableToLoadMessage'),
     }
 }
 
 export default function ServerSettingsPage() {
+    const { t } = useTranslation()
     const { selectedGuild, memberContext } = useGuildStore()
     const [settings, setSettings] = useState<ServerSettings>(DEFAULT_SETTINGS)
     const [loading, setLoading] = useState(true)
@@ -158,9 +162,7 @@ export default function ServerSettingsPage() {
             setRbacRoles(res.data.roles)
             setRbacGrants(res.data.grants)
             if (res.data.roles.length === 0) {
-                setRbacRolesError(
-                    'No assignable roles found for this server yet.',
-                )
+                setRbacRolesError(t('serverSettings.noAssignableRoles'))
             }
         } catch (error) {
             reportError('Failed to load server roles:', error, {
@@ -204,7 +206,7 @@ export default function ServerSettingsPage() {
                 return
             }
             setSettings(DEFAULT_SETTINGS)
-            setSettingsLoadError(classifySettingsLoadError(error))
+            setSettingsLoadError(classifySettingsLoadError(error, t))
         } finally {
             if (!isStaleRequest()) {
                 setLoading(false)
@@ -270,9 +272,9 @@ export default function ServerSettingsPage() {
         setSaving(true)
         try {
             await api.guilds.updateSettings(selectedGuild.id, settings)
-            toast.success('Server settings saved!')
+            toast.success(t('serverSettings.settingsSaved'))
         } catch {
-            toast.error('Failed to save settings')
+            toast.error(t('serverSettings.settingsSaveFailed'))
         } finally {
             setSaving(false)
         }
@@ -280,14 +282,13 @@ export default function ServerSettingsPage() {
 
     const addRbacGrant = () => {
         if (rbacLoading) {
-            toast.error('Still loading role options. Try again in a moment.')
+            toast.error(t('serverSettings.stillLoadingRoles'))
             return
         }
 
         if (rbacRoles.length === 0) {
             toast.error(
-                rbacRolesError ??
-                    'Role options are not available yet. Retry loading roles.',
+                rbacRolesError ?? t('serverSettings.roleOptionsNotAvailable'),
             )
             return
         }
@@ -333,9 +334,9 @@ export default function ServerSettingsPage() {
                 rbacGrants,
             )
             setRbacGrants(response.data.grants)
-            toast.success('Access control policy saved')
+            toast.success(t('serverSettings.accessControlSaved'))
         } catch {
-            toast.error('Failed to save access control policy')
+            toast.error(t('serverSettings.accessControlFailed'))
         } finally {
             setRbacSaving(false)
         }
@@ -346,10 +347,10 @@ export default function ServerSettingsPage() {
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <Settings className='w-16 h-16 text-lucky-text-tertiary mb-4' />
                 <h2 className='type-h2 text-lucky-text-primary mb-2'>
-                    No Server Selected
+                    {t('serverSettings.noServerSelected')}
                 </h2>
                 <p className='type-body text-lucky-text-secondary'>
-                    Select a server to manage settings
+                    {t('serverSettings.selectServerDescription')}
                 </p>
             </div>
         )
@@ -378,17 +379,19 @@ export default function ServerSettingsPage() {
             <div className='space-y-6'>
                 <header>
                     <h1 className='type-h1 text-lucky-text-primary'>
-                        Server Settings
+                        {t('serverSettings.title')}
                     </h1>
                     <p className='type-body text-lucky-text-secondary mt-1'>
-                        General configuration for {selectedGuild.name}
+                        {t('serverSettings.description', {
+                            name: selectedGuild.name,
+                        })}
                     </p>
                 </header>
                 <Card className='p-5 space-y-4'>
                     <div className='flex items-center gap-2 text-lucky-yellow'>
                         <AlertTriangle className='w-5 h-5' />
                         <h2 className='type-title text-lucky-text-primary'>
-                            Unable to load server settings
+                            {t('serverSettings.unableToLoadTitle')}
                         </h2>
                     </div>
                     <p className='type-body text-lucky-text-secondary'>
@@ -404,7 +407,7 @@ export default function ServerSettingsPage() {
                                 void loadSettings(selectedGuild.id)
                             }}
                         >
-                            Retry
+                            {t('serverSettings.retryButtonLabel')}
                         </Button>
                         {(settingsLoadError.kind === 'auth' ||
                             settingsLoadError.kind === 'forbidden') && (
@@ -412,7 +415,7 @@ export default function ServerSettingsPage() {
                                 href={api.auth.getDiscordLoginUrl()}
                                 className='type-body-sm text-lucky-text-secondary hover:text-lucky-text-primary'
                             >
-                                Re-authenticate
+                                {t('serverSettings.reAuthenticateLink')}
                             </a>
                         )}
                     </div>
@@ -426,8 +429,7 @@ export default function ServerSettingsPage() {
         rbacContent = (
             <div className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-4'>
                 <p className='type-body text-lucky-text-secondary'>
-                    Only server owner or users with Administrator/Manage Server
-                    permission can manage RBAC policy.
+                    {t('serverSettings.rbacCannotManage')}
                 </p>
             </div>
         )
@@ -459,7 +461,7 @@ export default function ServerSettingsPage() {
                                     }}
                                 >
                                     <RotateCcw className='w-4 h-4' />
-                                    Retry Roles
+                                    {t('serverSettings.retryRoles')}
                                 </Button>
                             )}
                         </div>
@@ -467,8 +469,7 @@ export default function ServerSettingsPage() {
                 )}
                 {rbacGrants.length === 0 ? (
                     <p className='type-body-sm text-lucky-text-tertiary'>
-                        No RBAC rules configured. Add a rule to grant module
-                        access.
+                        {t('serverSettings.noRbacRules')}
                     </p>
                 ) : (
                     rbacGrants.map((grant, index) => (
@@ -485,7 +486,11 @@ export default function ServerSettingsPage() {
                                 }
                             >
                                 <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border/60 text-lucky-text-primary text-sm'>
-                                    <SelectValue placeholder='Role' />
+                                    <SelectValue
+                                        placeholder={t(
+                                            'serverSettings.roleSelectPlaceholder',
+                                        )}
+                                    />
                                 </SelectTrigger>
                                 <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
                                     {rbacRoles.map((role) => (
@@ -508,7 +513,11 @@ export default function ServerSettingsPage() {
                                 }
                             >
                                 <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border/60 text-lucky-text-primary text-sm'>
-                                    <SelectValue placeholder='Module' />
+                                    <SelectValue
+                                        placeholder={t(
+                                            'serverSettings.moduleSelectPlaceholder',
+                                        )}
+                                    />
                                 </SelectTrigger>
                                 <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
                                     {RBAC_MODULES.map((module) => (
@@ -528,12 +537,18 @@ export default function ServerSettingsPage() {
                                 }
                             >
                                 <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border/60 text-lucky-text-primary text-sm'>
-                                    <SelectValue placeholder='Mode' />
+                                    <SelectValue
+                                        placeholder={t(
+                                            'serverSettings.modeSelectPlaceholder',
+                                        )}
+                                    />
                                 </SelectTrigger>
                                 <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
-                                    <SelectItem value='view'>view</SelectItem>
+                                    <SelectItem value='view'>
+                                        {t('serverSettings.modeView')}
+                                    </SelectItem>
                                     <SelectItem value='manage'>
-                                        manage
+                                        {t('serverSettings.modeManage')}
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
@@ -544,7 +559,7 @@ export default function ServerSettingsPage() {
                                 size='sm'
                                 className='text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors'
                                 onClick={() => removeRbacGrant(index)}
-                                title='Remove rule'
+                                title={t('serverSettings.removeRuleTitle')}
                             >
                                 <Trash2 className='w-4 h-4' />
                             </Button>
@@ -564,9 +579,11 @@ export default function ServerSettingsPage() {
     return (
         <div className='space-y-6 lg:pb-0 pb-24'>
             <SectionHeader
-                eyebrow='Configuration'
-                title='Server Settings'
-                description={`General configuration for ${selectedGuild.name}`}
+                eyebrow={t('serverSettings.eyebrow')}
+                title={t('serverSettings.title')}
+                description={t('serverSettings.description', {
+                    name: selectedGuild.name,
+                })}
                 actions={
                     <Button
                         onClick={handleSave}
@@ -578,7 +595,7 @@ export default function ServerSettingsPage() {
                         ) : (
                             <Save className='w-4 h-4' />
                         )}
-                        Save Changes
+                        {t('serverSettings.saveChanges')}
                     </Button>
                 }
             />
@@ -593,34 +610,40 @@ export default function ServerSettingsPage() {
                     <div className='flex items-center gap-2'>
                         <Settings className='w-5 h-5 text-lucky-text-secondary' />
                         <h2 className='type-title text-lucky-text-primary'>
-                            General
+                            {t('serverSettings.general')}
                         </h2>
                     </div>
 
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                         <div className='space-y-2'>
                             <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <UserCog className='w-3 h-3' /> Bot Nickname
+                                <UserCog className='w-3 h-3' />{' '}
+                                {t('serverSettings.botNickname')}
                             </Label>
                             <Input
                                 value={settings.nickname}
                                 onChange={(e) =>
                                     update('nickname', e.target.value)
                                 }
-                                placeholder='Lucky'
+                                placeholder={t(
+                                    'serverSettings.botNicknamePlaceholder',
+                                )}
                                 className='bg-lucky-bg-tertiary border-lucky-border text-white'
                             />
                         </div>
                         <div className='space-y-2'>
                             <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <Hash className='w-3 h-3' /> Command Prefix
+                                <Hash className='w-3 h-3' />{' '}
+                                {t('serverSettings.commandPrefix')}
                             </Label>
                             <Input
                                 value={settings.commandPrefix}
                                 onChange={(e) =>
                                     update('commandPrefix', e.target.value)
                                 }
-                                placeholder='!'
+                                placeholder={t(
+                                    'serverSettings.commandPrefixPlaceholder',
+                                )}
                                 maxLength={3}
                                 className='bg-lucky-bg-tertiary border-lucky-border text-white w-24'
                             />
@@ -639,14 +662,15 @@ export default function ServerSettingsPage() {
                     <div className='flex items-center gap-2'>
                         <Globe className='w-5 h-5 text-lucky-text-secondary' />
                         <h2 className='type-title text-lucky-text-primary'>
-                            Region & Notifications
+                            {t('serverSettings.regionNotifications')}
                         </h2>
                     </div>
 
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                         <div className='space-y-2'>
                             <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <Clock className='w-3 h-3' /> Timezone
+                                <Clock className='w-3 h-3' />{' '}
+                                {t('serverSettings.timezone')}
                             </Label>
                             <Select
                                 value={settings.timezone}
@@ -668,7 +692,8 @@ export default function ServerSettingsPage() {
                         </div>
                         <div className='space-y-2'>
                             <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <Bell className='w-3 h-3' /> Updates Channel
+                                <Bell className='w-3 h-3' />{' '}
+                                {t('serverSettings.updatesChannel')}
                             </Label>
                             {channels.length > 0 ? (
                                 <Select
@@ -683,12 +708,16 @@ export default function ServerSettingsPage() {
                                     }
                                 >
                                     <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white'>
-                                        <SelectValue placeholder='Select a channel...' />
+                                        <SelectValue
+                                            placeholder={t(
+                                                'serverSettings.selectChannelPlaceholder',
+                                            )}
+                                        />
                                     </SelectTrigger>
                                     <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
                                         <SelectItem value='__none__'>
                                             <span className='text-lucky-text-tertiary'>
-                                                None
+                                                {t('serverSettings.none')}
                                             </span>
                                         </SelectItem>
                                         {channels.map((ch) => (
@@ -710,7 +739,9 @@ export default function ServerSettingsPage() {
                                     onChange={(e) =>
                                         update('updatesChannel', e.target.value)
                                     }
-                                    placeholder='Channel ID for bot updates'
+                                    placeholder={t(
+                                        'serverSettings.channelIdPlaceholder',
+                                    )}
                                     className='bg-lucky-bg-tertiary border-lucky-border text-white'
                                 />
                             )}
@@ -730,10 +761,10 @@ export default function ServerSettingsPage() {
                         <Shield className='w-5 h-5 text-lucky-text-secondary' />
                         <div>
                             <h2 className='type-title text-lucky-text-primary'>
-                                Manager Roles
+                                {t('serverSettings.managerRoles')}
                             </h2>
                             <p className='type-meta text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
-                                Roles that can manage bot settings via commands
+                                {t('serverSettings.managerRolesDescription')}
                             </p>
                         </div>
                     </div>
@@ -748,7 +779,11 @@ export default function ServerSettingsPage() {
                                 }}
                             >
                                 <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white h-9 text-sm'>
-                                    <SelectValue placeholder='Add a manager role...' />
+                                    <SelectValue
+                                        placeholder={t(
+                                            'serverSettings.addManagerRolePlaceholder',
+                                        )}
+                                    />
                                 </SelectTrigger>
                                 <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
                                     {availableManagerRoles.map((role) => (
@@ -792,7 +827,7 @@ export default function ServerSettingsPage() {
                         </div>
                     ) : (
                         <p className='type-body-sm text-lucky-text-tertiary'>
-                            No manager roles configured.
+                            {t('serverSettings.noManagerRoles')}
                         </p>
                     )}
                 </Card>
@@ -812,11 +847,12 @@ export default function ServerSettingsPage() {
                             </div>
                             <div>
                                 <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
-                                    Disable Command Warnings
+                                    {t('serverSettings.disableCommandWarnings')}
                                 </h3>
                                 <p className='type-meta text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
-                                    Hide permission and cooldown warnings for
-                                    users
+                                    {t(
+                                        'serverSettings.disableWarningsDescription',
+                                    )}
                                 </p>
                             </div>
                         </div>
@@ -842,7 +878,7 @@ export default function ServerSettingsPage() {
                     ) : (
                         <Save className='w-4 h-4' />
                     )}
-                    Save Changes
+                    {t('serverSettings.saveChanges')}
                 </Button>
             </div>
 
@@ -859,10 +895,12 @@ export default function ServerSettingsPage() {
                             </div>
                             <div>
                                 <h2 className='type-title text-lucky-text-primary'>
-                                    Access Control
+                                    {t('serverSettings.accessControl')}
                                 </h2>
                                 <p className='type-body-sm text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
-                                    Assign role-based web dashboard permissions
+                                    {t(
+                                        'serverSettings.accessControlDescription',
+                                    )}
                                 </p>
                             </div>
                         </div>
@@ -877,12 +915,14 @@ export default function ServerSettingsPage() {
                                     title={
                                         !rbacLoading && rbacRoles.length === 0
                                             ? (rbacRolesError ??
-                                              'No assignable roles available right now.')
+                                              t(
+                                                  'serverSettings.noAssignableRoles',
+                                              ))
                                             : undefined
                                     }
                                 >
                                     <Plus className='w-4 h-4' />
-                                    Add Rule
+                                    {t('serverSettings.addRuleLabel')}
                                 </Button>
                                 <Button
                                     type='button'
@@ -895,7 +935,7 @@ export default function ServerSettingsPage() {
                                     ) : (
                                         <Save className='w-4 h-4' />
                                     )}
-                                    Save Policy
+                                    {t('serverSettings.saveAccessControl')}
                                 </Button>
                             </div>
                         )}

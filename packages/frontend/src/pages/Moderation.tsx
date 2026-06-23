@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import {
     Shield,
     Search,
@@ -122,6 +123,7 @@ function CaseDetailPanel({
     onDeactivate: (caseId: string) => Promise<void>
     deactivating: boolean
 }) {
+    const { t } = useTranslation('moderation')
     if (!caseData) return null
     const style = ACTION_STYLES[caseData.type] || ACTION_STYLES.warn
     const ActionIcon = ACTION_ICONS[caseData.type] || Shield
@@ -170,7 +172,7 @@ function CaseDetailPanel({
                         <div className='flex-1 overflow-y-auto p-6 space-y-4'>
                             <div className='space-y-1'>
                                 <p className='type-meta text-lucky-text-tertiary'>
-                                    User
+                                    {t('caseUser')}
                                 </p>
                                 <p className='type-body text-lucky-text-primary'>
                                     {caseData.userName || caseData.userId}
@@ -179,7 +181,7 @@ function CaseDetailPanel({
 
                             <div className='space-y-1'>
                                 <p className='type-meta text-lucky-text-tertiary'>
-                                    Moderator
+                                    {t('caseModerator')}
                                 </p>
                                 <p className='type-body text-lucky-text-primary'>
                                     {caseData.moderatorName ||
@@ -189,7 +191,7 @@ function CaseDetailPanel({
 
                             <div className='space-y-1'>
                                 <p className='type-meta text-lucky-text-tertiary'>
-                                    Action
+                                    {t('caseAction')}
                                 </p>
                                 <Badge
                                     variant='outline'
@@ -206,7 +208,7 @@ function CaseDetailPanel({
 
                             <div className='space-y-1'>
                                 <p className='type-meta text-lucky-text-tertiary'>
-                                    Date
+                                    {t('caseDate')}
                                 </p>
                                 <p className='type-body-sm text-lucky-text-secondary'>
                                     {formatDate(caseData.createdAt)}
@@ -215,22 +217,24 @@ function CaseDetailPanel({
 
                             <div className='space-y-1 pt-2'>
                                 <p className='type-meta text-lucky-text-tertiary mb-2'>
-                                    Reason
+                                    {t('caseReason')}
                                 </p>
                                 <p className='type-body-sm text-lucky-text-secondary bg-lucky-bg-tertiary border border-lucky-border rounded-lg p-3'>
-                                    {caseData.reason || 'No reason provided'}
+                                    {caseData.reason || t('noReasonProvided')}
                                 </p>
                             </div>
 
                             {caseData.duration && (
                                 <div className='space-y-1'>
                                     <p className='type-meta text-lucky-text-tertiary'>
-                                        Duration
+                                        {t('caseDuration')}
                                     </p>
                                     <p className='type-body-sm text-lucky-text-secondary'>
-                                        Duration:{' '}
-                                        {Math.floor(caseData.duration / 60)}{' '}
-                                        minutes
+                                        {t('durationMinutes', {
+                                            minutes: Math.floor(
+                                                caseData.duration / 60,
+                                            ),
+                                        })}
                                     </p>
                                 </div>
                             )}
@@ -252,11 +256,13 @@ function CaseDetailPanel({
                                                 : 'bg-lucky-text-disabled',
                                         )}
                                     />
-                                    {caseData.active ? 'Active' : 'Expired'}
+                                    {caseData.active
+                                        ? t('active')
+                                        : t('expired')}
                                 </div>
                                 {caseData.appealed && (
                                     <div className='flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'>
-                                        Appealed
+                                        {t('appealed')}
                                     </div>
                                 )}
                             </div>
@@ -271,8 +277,8 @@ function CaseDetailPanel({
                                     className='w-full'
                                 >
                                     {deactivating
-                                        ? 'Deactivating...'
-                                        : 'Deactivate Case'}
+                                        ? t('deactivating')
+                                        : t('deactivateCase')}
                                 </Button>
                             </div>
                         )}
@@ -287,6 +293,7 @@ function CaseDetailPanel({
 const CaseDetailModal = CaseDetailPanel
 
 export default function ModerationPage() {
+    const { t } = useTranslation('moderation')
     const prefersReducedMotion = useReducedMotion()
     const { selectedGuild } = useGuildStore()
     const [cases, setCases] = useState<ModerationCase[]>([])
@@ -355,13 +362,13 @@ export default function ModerationPage() {
             setDeactivatingCaseId(caseId)
             try {
                 await api.moderation.deactivateCase(selectedGuild.id, caseId)
-                toast.success('Case deactivated')
+                toast.success(t('caseDeactivated'))
                 await Promise.all([fetchCases(), fetchStats()])
                 setSelectedCase((prev) =>
                     prev ? { ...prev, active: false } : prev,
                 )
             } catch {
-                toast.error('Failed to deactivate case')
+                toast.error(t('failedToDeactivateCase'))
             } finally {
                 setDeactivatingCaseId(null)
             }
@@ -388,10 +395,10 @@ export default function ModerationPage() {
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <Shield className='w-16 h-16 text-lucky-text-tertiary mb-4' />
                 <h2 className='type-h2 text-lucky-text-primary mb-2'>
-                    No Server Selected
+                    {t('noServerSelected')}
                 </h2>
                 <p className='type-body text-lucky-text-secondary'>
-                    Select a server to view moderation cases
+                    {t('selectServerToViewCases')}
                 </p>
             </div>
         )
@@ -401,10 +408,10 @@ export default function ModerationPage() {
         <div className='space-y-6'>
             <header>
                 <h1 className='type-h1 text-lucky-text-primary'>
-                    Moderation Cases
+                    {t('moderationCases')}
                 </h1>
                 <p className='type-body text-lucky-text-secondary mt-1'>
-                    Manage warnings, mutes, kicks, and bans
+                    {t('manageWarningsAndBans')}
                 </p>
             </header>
 
@@ -420,25 +427,25 @@ export default function ModerationPage() {
             ) : stats ? (
                 <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3'>
                     <StatTile
-                        label='Total Cases'
+                        label={t('totalCases')}
                         value={stats.totalCases}
                         icon={<BarChart3 className='w-4 h-4' />}
                         tone='brand'
                     />
                     <StatTile
-                        label='Active Cases'
+                        label={t('activeCases')}
                         value={stats.activeCases}
                         icon={<Shield className='w-4 h-4' />}
                         tone='success'
                     />
                     <StatTile
-                        label='Warnings'
+                        label={t('warnings')}
                         value={stats.casesByType.warn ?? 0}
                         icon={<AlertTriangle className='w-4 h-4' />}
                         tone='warning'
                     />
                     <StatTile
-                        label='Bans'
+                        label={t('bans')}
                         value={stats.casesByType.ban ?? 0}
                         icon={<Ban className='w-4 h-4' />}
                         tone='accent'
@@ -452,7 +459,7 @@ export default function ModerationPage() {
                     <div className='relative flex-1'>
                         <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lucky-text-tertiary' />
                         <Input
-                            placeholder='Search by user, moderator, or reason...'
+                            placeholder={t('searchByUserModeratorOrReason')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className='pl-9 bg-lucky-bg-tertiary border-lucky-border text-white placeholder:text-lucky-text-tertiary'
@@ -473,16 +480,28 @@ export default function ModerationPage() {
                             onValueChange={setTypeFilter}
                         >
                             <SelectTrigger className='w-[140px] bg-lucky-bg-tertiary border-lucky-border text-white'>
-                                <SelectValue placeholder='All types' />
+                                <SelectValue placeholder={t('allTypes')} />
                             </SelectTrigger>
                             <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
-                                <SelectItem value='all'>All types</SelectItem>
-                                <SelectItem value='warn'>Warnings</SelectItem>
-                                <SelectItem value='mute'>Mutes</SelectItem>
-                                <SelectItem value='kick'>Kicks</SelectItem>
-                                <SelectItem value='ban'>Bans</SelectItem>
-                                <SelectItem value='unban'>Unbans</SelectItem>
-                                <SelectItem value='unmute'>Unmutes</SelectItem>
+                                <SelectItem value='all'>
+                                    {t('allTypes')}
+                                </SelectItem>
+                                <SelectItem value='warn'>
+                                    {t('warnings')}
+                                </SelectItem>
+                                <SelectItem value='mute'>
+                                    {t('mutes')}
+                                </SelectItem>
+                                <SelectItem value='kick'>
+                                    {t('kicks')}
+                                </SelectItem>
+                                <SelectItem value='ban'>{t('bans')}</SelectItem>
+                                <SelectItem value='unban'>
+                                    {t('unbans')}
+                                </SelectItem>
+                                <SelectItem value='unmute'>
+                                    {t('unmutes')}
+                                </SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -493,16 +512,21 @@ export default function ModerationPage() {
             <Card className='overflow-hidden p-0 border border-lucky-border'>
                 {/* Header */}
                 <div className='hidden md:grid grid-cols-[40px_1fr_1fr_80px_80px_120px] gap-4 px-6 py-3 border-b border-lucky-border bg-lucky-bg-tertiary/20'>
-                    {['#', 'User', 'Moderator', 'Type', 'Status', 'Date'].map(
-                        (h) => (
-                            <span
-                                key={h}
-                                className='type-meta text-lucky-text-tertiary text-xs uppercase font-semibold tracking-wide'
-                            >
-                                {h}
-                            </span>
-                        ),
-                    )}
+                    {[
+                        t('tableHeaderCase'),
+                        t('tableHeaderUser'),
+                        t('tableHeaderModerator'),
+                        t('tableHeaderType'),
+                        t('tableHeaderStatus'),
+                        t('tableHeaderDate'),
+                    ].map((h) => (
+                        <span
+                            key={h}
+                            className='type-meta text-lucky-text-tertiary text-xs uppercase font-semibold tracking-wide'
+                        >
+                            {h}
+                        </span>
+                    ))}
                 </div>
 
                 {/* Rows */}
@@ -585,8 +609,8 @@ export default function ModerationPage() {
                                             />
                                             <span className='text-xs'>
                                                 {c.active
-                                                    ? 'Active'
-                                                    : 'Expired'}
+                                                    ? t('active')
+                                                    : t('expired')}
                                             </span>
                                         </div>
                                         <span className='type-body-sm text-lucky-text-tertiary text-xs'>
@@ -604,11 +628,11 @@ export default function ModerationPage() {
                                     aria-hidden='true'
                                 />
                             }
-                            title='No cases found'
+                            title={t('noCasesFound')}
                             description={
                                 searchQuery || typeFilter !== 'all'
-                                    ? 'Try adjusting your filters'
-                                    : 'Moderation cases will appear here'
+                                    ? t('tryAdjustingFilters')
+                                    : t('moderationCasesWillAppearHere')
                             }
                             className='rounded-none border-0 min-h-[240px]'
                         />
@@ -619,8 +643,11 @@ export default function ModerationPage() {
                 {total > limit && (
                     <div className='flex items-center justify-between px-5 py-3 border-t border-lucky-border'>
                         <span className='type-body-sm text-lucky-text-tertiary'>
-                            Showing {(page - 1) * limit + 1} to
-                            {Math.min(page * limit, total)} of {total}
+                            {t('showingToOf', {
+                                from: (page - 1) * limit + 1,
+                                to: Math.min(page * limit, total),
+                                total: total,
+                            })}
                         </span>
                         <div className='flex items-center gap-1'>
                             <Button

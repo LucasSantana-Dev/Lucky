@@ -7,8 +7,10 @@ import FeatureErrorBanner from '@/components/Features/FeatureErrorBanner'
 import { useAuthStore } from '@/stores/authStore'
 import { useFeatures } from '@/hooks/useFeatures'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
+import { useTranslation } from 'react-i18next'
 
 export default function AdminPage() {
+    const { t } = useTranslation()
     const isDeveloper = useAuthStore((state) => state.isDeveloper)
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
     const login = useAuthStore((state) => state.login)
@@ -41,13 +43,13 @@ export default function AdminPage() {
                             className='text-xl font-semibold text-lucky-text-primary'
                             style={{ fontFamily: 'Sora' }}
                         >
-                            Admin Panel
+                            {t('admin.adminPanel')}
                         </h1>
                         <p
                             className='text-sm text-lucky-text-secondary'
                             style={{ fontFamily: 'Manrope' }}
                         >
-                            Sign in with Discord to access the admin panel.
+                            {t('admin.signInWithDiscord')}
                         </p>
                     </div>
                 </div>
@@ -73,13 +75,13 @@ export default function AdminPage() {
                             className='text-xl font-semibold text-lucky-text-primary'
                             style={{ fontFamily: 'Sora' }}
                         >
-                            Access Denied
+                            {t('admin.accessDenied')}
                         </h1>
                         <p
                             className='text-sm text-lucky-text-secondary'
                             style={{ fontFamily: 'Manrope' }}
                         >
-                            This page is restricted to bot administrators.
+                            {t('admin.accessDeniedDesc')}
                         </p>
                     </div>
                 </div>
@@ -116,7 +118,7 @@ export default function AdminPage() {
                             className='text-lg font-semibold text-lucky-text-primary'
                             style={{ fontFamily: 'Sora' }}
                         >
-                            Admin Panel
+                            {t('admin.adminPanel')}
                         </h1>
                     </div>
                     {loadError && (
@@ -153,13 +155,13 @@ export default function AdminPage() {
                             className='text-base font-semibold text-lucky-text-primary uppercase tracking-wide'
                             style={{ fontFamily: 'Sora' }}
                         >
-                            Global Feature Toggles
+                            {t('admin.globalFeatureToggles')}
                         </h2>
                         <p
                             className='text-xs text-lucky-text-tertiary'
                             style={{ fontFamily: 'Manrope' }}
                         >
-                            Manage feature flags across all servers
+                            {t('admin.manageFeatureFlags')}
                         </p>
                     </div>
                     <GlobalTogglesSection
@@ -181,13 +183,13 @@ export default function AdminPage() {
                             className='text-base font-semibold text-lucky-text-primary uppercase tracking-wide'
                             style={{ fontFamily: 'Sora' }}
                         >
-                            Server Management
+                            {t('admin.serverManagement')}
                         </h2>
                         <p
                             className='text-xs text-lucky-text-tertiary'
                             style={{ fontFamily: 'Manrope' }}
                         >
-                            View and manage bot activity across all servers
+                            {t('admin.viewAndManageBotActivity')}
                         </p>
                     </div>
                     <BotGuildsSection />

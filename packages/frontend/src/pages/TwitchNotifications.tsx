@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Tv, Plus, Trash2, Hash } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
@@ -31,6 +32,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 export default function TwitchNotificationsPage() {
+    const { t } = useTranslation('twitch')
     const { selectedGuild } = useGuildSelection()
     const guildId = selectedGuild?.id
     const [notifications, setNotifications] = useState<TwitchNotification[]>([])
@@ -90,7 +92,10 @@ export default function TwitchNotificationsPage() {
             ) {
                 return
             }
-            setError('Failed to load Twitch notifications')
+            setError(
+                t('failedToLoadNotifications') ||
+                    'Failed to load Twitch notifications',
+            )
         } finally {
             if (
                 requestId === notificationsRequestIdRef.current &&
@@ -122,7 +127,9 @@ export default function TwitchNotificationsPage() {
                 return
             }
             setChannels([])
-            setChannelsError('Failed to load Discord channels')
+            setChannelsError(
+                t('failedToLoadChannels') || 'Failed to load Discord channels',
+            )
         }
     }, [])
 
@@ -178,7 +185,7 @@ export default function TwitchNotificationsPage() {
         const requestGuildId = guildId
         const login = parseTwitchLogin(newTwitchInput)
         if (!login) {
-            setError('Enter a valid Twitch URL or login')
+            setError(t('invalidTwitchInput'))
             return
         }
 
@@ -189,7 +196,7 @@ export default function TwitchNotificationsPage() {
                     (item) => item.twitchUserId === lookup.data.id,
                 )
             ) {
-                setError('This Twitch channel is already configured')
+                setError(t('alreadyConfigured'))
                 return
             }
 
@@ -205,7 +212,7 @@ export default function TwitchNotificationsPage() {
                 await loadNotifications(requestGuildId)
             }
         } catch (error) {
-            setError(getErrorMessage(error, 'Failed to add notification'))
+            setError(getErrorMessage(error, t('failedToAddNotification')))
         }
     }
 
@@ -217,7 +224,7 @@ export default function TwitchNotificationsPage() {
                 prev.filter((n) => n.twitchUserId !== twitchUserId),
             )
         } catch (error) {
-            setError(getErrorMessage(error, 'Failed to remove notification'))
+            setError(getErrorMessage(error, t('failedToRemoveNotification')))
         }
     }
 
@@ -238,7 +245,7 @@ export default function TwitchNotificationsPage() {
         if (notifications.length === 0) {
             return (
                 <div className='text-center py-12 text-lucky-text-tertiary'>
-                    No Twitch notifications configured
+                    {t('noNotificationsConfigured')}
                 </div>
             )
         }
@@ -266,7 +273,9 @@ export default function TwitchNotificationsPage() {
                         <button
                             onClick={() => handleRemove(notif.twitchUserId)}
                             className='lucky-focus-visible p-1.5 rounded-sm text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 cursor-pointer'
-                            aria-label={`Remove ${notif.twitchLogin}`}
+                            aria-label={t('removeAriaLabel', {
+                                login: notif.twitchLogin,
+                            })}
                         >
                             <Trash2 className='w-4 h-4' />
                         </button>
@@ -280,9 +289,7 @@ export default function TwitchNotificationsPage() {
         return (
             <div className='flex flex-col items-center justify-center h-64 text-lucky-text-secondary'>
                 <Tv className='h-12 w-12 mb-4 opacity-50' />
-                <p className='text-lg'>
-                    Select a server to manage Twitch notifications
-                </p>
+                <p className='text-lg'>{t('selectServerToManage')}</p>
             </div>
         )
     }
@@ -293,17 +300,14 @@ export default function TwitchNotificationsPage() {
                 <header className='flex items-center gap-3'>
                     <Tv className='h-6 w-6 text-purple-500' />
                     <h1 className='type-title text-lucky-text-primary uppercase tracking-wide'>
-                        Twitch Notifications
+                        {t('twitchNotifications')}
                     </h1>
                 </header>
                 <div className='p-4 rounded-sm bg-lucky-error/10 border border-lucky-error text-lucky-error'>
                     <p className='font-semibold uppercase tracking-wide mb-1'>
-                        Not Configured
+                        {t('notConfigured')}
                     </p>
-                    <p className='text-sm'>
-                        Twitch API is not configured on this server. Contact the
-                        server administrator to set up Twitch credentials.
-                    </p>
+                    <p className='text-sm'>{t('notConfiguredDesc')}</p>
                 </div>
             </div>
         )
@@ -315,7 +319,7 @@ export default function TwitchNotificationsPage() {
                 <div className='flex items-center gap-3'>
                     <Tv className='h-6 w-6 text-purple-500' />
                     <h1 className='type-title text-lucky-text-primary uppercase tracking-wide'>
-                        Twitch Notifications
+                        {t('twitchNotifications')}
                     </h1>
                     <span className='text-sm text-lucky-text-tertiary'>
                         ({notifications.length})
@@ -327,7 +331,7 @@ export default function TwitchNotificationsPage() {
                     className='flex cursor-pointer items-center gap-2 rounded-sm bg-purple-600/10 px-3 py-1.5 text-sm text-purple-400 font-semibold uppercase transition-colors hover:bg-purple-600/20 disabled:opacity-50 disabled:cursor-not-allowed'
                 >
                     <Plus className='w-4 h-4' />
-                    Add
+                    {t('add')}
                 </button>
             </header>
 
@@ -340,17 +344,17 @@ export default function TwitchNotificationsPage() {
             {showAdd && (
                 <div className='p-4 rounded-sm bg-lucky-bg-tertiary border border-lucky-border space-y-3'>
                     <h3 className='type-body-sm font-semibold text-lucky-text-primary uppercase tracking-wide'>
-                        Add Twitch Notification
+                        {t('addTwitchNotification')}
                     </h3>
                     <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                         <label htmlFor='twitch-login-input' className='sr-only'>
-                            Twitch URL or login
+                            {t('twitchUrlOrLogin')}
                         </label>
                         <input
                             id='twitch-login-input'
                             type='text'
-                            aria-label='Twitch URL or login'
-                            placeholder='Twitch URL or login (e.g. https://twitch.tv/luk)'
+                            aria-label={t('twitchUrlOrLogin')}
+                            placeholder={t('twitchUrlPlaceholder')}
                             value={newTwitchInput}
                             onChange={(e) => setNewTwitchInput(e.target.value)}
                             className='px-3 py-2 text-sm rounded-sm bg-lucky-bg-active border border-lucky-border text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:border-purple-500'
@@ -362,7 +366,9 @@ export default function TwitchNotificationsPage() {
                             }
                         >
                             <SelectTrigger className='bg-lucky-bg-active border-lucky-border text-white'>
-                                <SelectValue placeholder='Select Discord channel' />
+                                <SelectValue
+                                    placeholder={t('selectDiscordChannel')}
+                                />
                             </SelectTrigger>
                             <SelectContent className='bg-lucky-bg-secondary border-lucky-border text-white'>
                                 {channels.map((channel) => (
@@ -391,13 +397,13 @@ export default function TwitchNotificationsPage() {
                             }
                             className='px-4 py-1.5 text-sm font-semibold uppercase rounded-sm bg-purple-600 text-white hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
                         >
-                            Save
+                            {t('save')}
                         </button>
                         <button
                             onClick={() => setShowAdd(false)}
                             className='px-4 py-1.5 text-sm font-semibold uppercase rounded-sm bg-lucky-bg-active text-lucky-text-secondary hover:text-white transition-colors cursor-pointer'
                         >
-                            Cancel
+                            {t('cancel')}
                         </button>
                     </div>
                 </div>

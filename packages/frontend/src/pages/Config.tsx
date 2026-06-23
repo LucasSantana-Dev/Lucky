@@ -11,11 +11,13 @@ import Button from '@/components/ui/Button'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import { useTranslation } from 'react-i18next'
 
 const MusicConfig = lazy(() => import('@/components/Config/MusicConfig'))
 const CommandsConfig = lazy(() => import('@/components/Config/CommandsConfig'))
 
 export default function ConfigPage() {
+    const { t } = useTranslation()
     usePageMetadata({
         title: 'Configuration - Lucky',
         description: 'Configure modules and commands for your Discord servers',
@@ -27,20 +29,20 @@ export default function ConfigPage() {
     const modules = [
         {
             id: 'music',
-            name: 'Music Module',
+            name: t('config.musicModule'),
             description:
                 'Configure music playback, queue management, and audio settings',
             icon: Music,
         },
         {
             id: 'commands',
-            name: 'Commands',
-            description: 'Manage command permissions, aliases, and behavior',
+            name: t('config.commands'),
+            description: t('config.manageCommandPermissions'),
             icon: MessageSquare,
         },
         {
             id: 'moderation',
-            name: 'Moderation',
+            name: t('config.moderation'),
             description:
                 'Set up auto-moderation, filters, and moderation actions',
             icon: Shield,
@@ -64,13 +66,13 @@ export default function ConfigPage() {
                             className='text-2xl font-semibold text-lucky-text-primary uppercase tracking-wide'
                             style={{ fontFamily: 'Sora' }}
                         >
-                            Configuration
+                            {t('config.configuration')}
                         </h1>
                         <p
                             className='text-sm text-lucky-text-secondary'
                             style={{ fontFamily: 'Manrope' }}
                         >
-                            Please select a server to configure
+                            {t('config.selectServerToConfigure')}
                         </p>
                     </div>
                 </header>
@@ -107,7 +109,7 @@ export default function ConfigPage() {
                     /* Module selection grid — Polaris resource-list density */
                     <section aria-labelledby='modules-heading'>
                         <h2 id='modules-heading' className='sr-only'>
-                            Available Configuration Modules
+                            {t('config.availableConfigurationModules')}
                         </h2>
                         <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                             {modules.map((module) => {
@@ -178,7 +180,8 @@ export default function ConfigPage() {
                                 onClick={() => setSelectedModule(null)}
                                 className='gap-2 text-lucky-text-secondary hover:text-lucky-text-primary'
                             >
-                                <ArrowLeft className='w-4 h-4' /> Back
+                                <ArrowLeft className='w-4 h-4' />{' '}
+                                {t('config.back')}
                             </Button>
                         </div>
                         <Suspense

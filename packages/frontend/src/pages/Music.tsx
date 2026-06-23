@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
     Music2,
     Wifi,
@@ -22,6 +23,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import type { QueueState } from '@/types'
 
 export default function MusicPage() {
+    const { t } = useTranslation()
     const { selectedGuild } = useGuildSelection()
     const guildId = selectedGuild?.id
     const player = useMusicPlayer(guildId)
@@ -58,8 +60,8 @@ export default function MusicPage() {
         return (
             <EmptyState
                 icon={<Music2 className='h-10 w-10' aria-hidden='true' />}
-                title='No Server Selected'
-                description='Select a server to control music playback'
+                title={t('music.noServerSelected')}
+                description={t('music.selectServerToControlMusic')}
             />
         )
     }
@@ -74,12 +76,14 @@ export default function MusicPage() {
                     />
                     <div className='min-w-0'>
                         <h1 className='type-h1 text-lucky-text-primary truncate'>
-                            Music Player
+                            {t('music.musicPlayer')}
                         </h1>
                         <p className='type-body-sm text-lucky-text-secondary truncate'>
                             {player.state.voiceChannelName
-                                ? `Connected to ${player.state.voiceChannelName}`
-                                : 'Not connected to a voice channel'}
+                                ? t('music.connectedToVoiceChannel', {
+                                      channel: player.state.voiceChannelName,
+                                  })
+                                : t('music.notConnectedToVoiceChannel')}
                         </p>
                     </div>
                 </div>
@@ -113,7 +117,7 @@ export default function MusicPage() {
 
             <div>
                 <h2 className='type-title text-lucky-text-primary mb-3 px-1'>
-                    Queue
+                    {t('music.queue')}
                 </h2>
                 <QueueList
                     tracks={player.state.tracks}
@@ -152,6 +156,7 @@ function NowPlayingHero({
     onRepeatCycle: () => void
     onVolumeChange: (v: number) => void
 }) {
+    const { t } = useTranslation()
     const currentTrack = state.tracks[0]
 
     if (!currentTrack) {
@@ -163,10 +168,10 @@ function NowPlayingHero({
                         aria-hidden='true'
                     />
                     <p className='type-body text-lucky-text-secondary'>
-                        Nothing playing
+                        {t('music.nothingPlaying')}
                     </p>
                     <p className='type-body-sm text-lucky-text-tertiary mt-1'>
-                        Search or import to get started
+                        {t('music.searchOrImportToGetStarted')}
                     </p>
                 </div>
             </div>
@@ -198,13 +203,13 @@ function NowPlayingHero({
                     <div className='sm:col-span-2 flex flex-col justify-between'>
                         <div>
                             <p className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold mb-2'>
-                                Now Playing
+                                {t('music.nowPlaying')}
                             </p>
                             <h2 className='type-h2 text-lucky-text-primary mb-1 line-clamp-2'>
-                                {currentTrack.title || 'Unknown'}
+                                {currentTrack.title || t('music.unknown')}
                             </h2>
                             <p className='type-body text-lucky-text-secondary mb-4'>
-                                {currentTrack.author || 'Unknown'}
+                                {currentTrack.author || t('music.unknown')}
                             </p>
                         </div>
 
@@ -240,7 +245,7 @@ function NowPlayingHero({
                                 onVolumeChange(parseInt(e.target.value, 10))
                             }
                             className='flex-1 h-1 bg-lucky-bg-active rounded-full appearance-none cursor-pointer'
-                            aria-label='Volume'
+                            aria-label={t('music.volume')}
                         />
                     </div>
 
@@ -249,17 +254,21 @@ function NowPlayingHero({
                             icon={<Shuffle className='h-4 w-4' />}
                             onClick={onShuffle}
                             active={state.shuffled}
-                            aria-label='Shuffle'
+                            aria-label={t('music.shuffle')}
                         />
                         <ControlButton
                             icon={<SkipBack className='h-5 w-5' />}
                             onClick={onPrevious}
-                            aria-label='Previous track'
+                            aria-label={t('music.previousTrack')}
                         />
                         <button
                             onClick={onPlayPause}
                             className='h-12 w-12 rounded-full bg-lucky-brand text-lucky-bg-primary flex items-center justify-center hover:bg-lucky-brand-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-panel'
-                            aria-label={state.isPlaying ? 'Pause' : 'Play'}
+                            aria-label={
+                                state.isPlaying
+                                    ? t('music.pause')
+                                    : t('music.play')
+                            }
                         >
                             {state.isPlaying ? (
                                 <Pause className='h-5 w-5' />
@@ -270,13 +279,15 @@ function NowPlayingHero({
                         <ControlButton
                             icon={<SkipForward className='h-5 w-5' />}
                             onClick={onSkip}
-                            aria-label='Next track'
+                            aria-label={t('music.nextTrack')}
                         />
                         <ControlButton
                             icon={getRepeatIcon(state.repeatMode)}
                             onClick={onRepeatCycle}
                             active={state.repeatMode !== 'off'}
-                            aria-label={`Repeat: ${state.repeatMode}`}
+                            aria-label={t('music.repeatMode', {
+                                mode: state.repeatMode,
+                            })}
                         />
                     </div>
                 </div>
@@ -330,6 +341,7 @@ function formatSeconds(seconds: number): string {
 }
 
 function ConnectionBadge({ connected }: { connected: boolean }) {
+    const { t } = useTranslation()
     return (
         <div
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full type-meta shrink-0 border transition-colors ${
@@ -340,8 +352,8 @@ function ConnectionBadge({ connected }: { connected: boolean }) {
             role='status'
             aria-label={
                 connected
-                    ? 'Connected to live updates'
-                    : 'Reconnecting to live updates'
+                    ? t('music.connectedToLiveUpdates')
+                    : t('music.reconnectingToLiveUpdates')
             }
         >
             {connected ? (
@@ -350,7 +362,7 @@ function ConnectionBadge({ connected }: { connected: boolean }) {
                 <WifiOff className='h-3 w-3' aria-hidden='true' />
             )}
             <span className='hidden sm:inline'>
-                {connected ? 'Live' : 'Reconnecting'}
+                {connected ? t('music.connected') : t('music.reconnecting')}
             </span>
         </div>
     )
