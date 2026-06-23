@@ -49,7 +49,7 @@ via Discord REST API.
 
 ### New: `packages/shared/src/services/ReactionRolesService/index.ts`
 
-- Add `DashboardCreateOptions` interface (no Discord.js types)
+- Add `DashboardCreateReactionRoleOptions` interface (no Discord.js types)
 - Add `createReactionRoleMessageFromDashboard(options, botToken)` — REST API call + Prisma write
 
 ### New: `packages/backend/src/routes/roles.ts`

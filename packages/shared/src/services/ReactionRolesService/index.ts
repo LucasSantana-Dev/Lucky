@@ -139,6 +139,16 @@ export class ReactionRolesService {
         }
     }
 
+    private parseEmoji(
+        emoji: string,
+    ): { id?: string; name: string; animated?: boolean } | null {
+        const match = emoji.match(/^<(a)?:([^:]+):(\d+)>$/)
+        if (match) {
+            return { id: match[3], name: match[2], animated: match[1] === 'a' }
+        }
+        return { name: emoji }
+    }
+
     /** Creates a reaction role message from the dashboard using the Discord REST API. */
     async createReactionRoleMessageFromDashboard(
         options: DashboardCreateReactionRoleOptions,
@@ -178,7 +188,7 @@ export class ReactionRolesService {
                 }
 
                 if (role.emoji) {
-                    button.emoji = { name: role.emoji }
+                    button.emoji = this.parseEmoji(role.emoji)
                 }
 
                 if (currentButtons.length >= 5) {
