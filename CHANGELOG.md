@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.25.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.24.0...v2.25.0) (2026-06-24)
+
+
+### Features
+
+* **autoplay:** guild-scope implicit dislike for autoplay skips ([#1578](https://github.com/LucasSantana-Dev/Lucky/issues/1578)) ([70b8596](https://github.com/LucasSantana-Dev/Lucky/commit/70b8596e7d4a0de5468e701f111c288aef9abe35))
+
 ## [2.24.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.23.0...v2.24.0) (2026-06-24)
 
 
