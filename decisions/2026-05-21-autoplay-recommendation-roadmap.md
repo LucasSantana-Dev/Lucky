@@ -1,6 +1,6 @@
 # ADR 2026-05-21 — Autoplay recommendation system: telemetry-first roadmap
 
-**Status:** Accepted (sequencing decision; individual phases each ship behind their own PR)
+**Status:** Accepted — **Roadmap completed at Phase C (2026-06-24); coherence/personalization layer (Phase D) deferred.** Phase-C baseline showed >85% per-source acceptance (the pre-committed defer condition); see `decisions/2026-06-24-autoplay-phase-c-baseline-defer-coherence-layer.md`. (Original: sequencing decision; individual phases each ship behind their own PR.)
 **Context-Pack:** Session 2026-05-21 — `/research-and-decide` on "improve the music recommendation system and fix any existent errors"
 **Supersedes:** None (first ADR for this surface)
 **Decision discipline:** critic-flipped (Phase 2 reversed the originally-proposed pair; see Alternatives)
