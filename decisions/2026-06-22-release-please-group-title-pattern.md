@@ -56,6 +56,8 @@ Negative / residual risk:
 
 - Two mechanisms can now create the release (release-please + guard). The guard's Release-existence check makes this safe (no double-release), but a future release-please that _does_ tag will make the guard a silent no-op — fine, but worth knowing when debugging.
 
+**Follow-up (2026-06-24, #1561):** the guard created the Release but did **not** flip the merged release PR's `autorelease: pending → tagged` label, so release-please still saw an "untagged, merged release PR outstanding" and aborted the _next_ release. This recurred at **v2.24.0 → v2.25.0**, again forcing a manual relabel. Fixed by adding a **label-reconcile step** to `release-tag-guard.yml` — a _separate_ step (not gated by the create-step's early-exit), idempotent, that flips `autorelease: pending → tagged` on the merged release PR for the current version. The guard now reconciles **both** the Release _and_ the label state release-please tracks, so the next release can never silently block. The original "Negative / residual risk" above (release-please's label tracking) is thereby closed.
+
 Neutral:
 
 - The stale #1519 (old title) was closed so release-please regenerated a correctly-titled PR (#1522).
