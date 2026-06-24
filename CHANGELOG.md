@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.23.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.22.0...v2.23.0) (2026-06-24)
+
+
+### Features
+
+* **role-groups:** composite add-styled-role v1 ([#1557](https://github.com/LucasSantana-Dev/Lucky/issues/1557)) ([c869811](https://github.com/LucasSantana-Dev/Lucky/commit/c8698117666b066f4f7aa5ad5bc38602321e6cd7))
+
 ## [2.22.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.21.0...v2.22.0) (2026-06-23)
 
 
