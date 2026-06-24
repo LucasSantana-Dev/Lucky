@@ -21,7 +21,7 @@ import {
 } from '../../utils/music/idleDisconnect'
 import { clearVotes } from '../../utils/music/voteSkipStore'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
-import { cleanTitle, cleanAuthor } from '../../utils/music/searchQueryCleaner'
+import { normalizeTrackKey } from '../../utils/music/autoplay/scoringUtils'
 import { isReplenishSuppressed } from '../../utils/music/replenishSuppressionStore'
 import { handleQueueExhaustion } from './queueExhaustion'
 import { recordRecommendationOutcome } from '../../services/musicRecommendation/recommendationTelemetry'
@@ -95,17 +95,6 @@ function isRecommendationAutoplay(track: Track): boolean {
     return metadata?.isAutoplay === true
 }
 
-function normalizeTrackKeyForFeedback(title: string, author: string): string {
-    const normalizedTitle = cleanTitle(title)
-        .toLowerCase()
-        .replaceAll(/[^a-z0-9]+/g, '')
-        .trim()
-    const normalizedAuthor = cleanAuthor(author)
-        .toLowerCase()
-        .replaceAll(/[^a-z0-9]+/g, '')
-        .trim()
-    return `${normalizedTitle}::${normalizedAuthor}`
-}
 
 async function recordImplicitTrackFeedback(
     track: Track,
@@ -116,7 +105,7 @@ async function recordImplicitTrackFeedback(
         (track.metadata as { requestedById?: string } | undefined)
             ?.requestedById
     if (!requesterId) return
-    const trackKey = normalizeTrackKeyForFeedback(track.title, track.author)
+    const trackKey = normalizeTrackKey(track.title, track.author)
     await recommendationFeedbackService.recordImplicitFeedback(
         requesterId,
         trackKey,
@@ -433,7 +422,7 @@ const handlePlayerSkip = async (
                     // Guild-scope dislike for autoplay tracks: ensures the signal reaches the
                     // scorer even when requestedBy is null/undefined in the replenisher context.
                     if (isRecommendationAutoplay(track)) {
-                        const trackKey = normalizeTrackKeyForFeedback(
+                        const trackKey = normalizeTrackKey(
                             track.title,
                             track.author,
                         )
