@@ -39,6 +39,7 @@ jest.mock('../../../services/musicRecommendation/feedbackService', () => ({
         getImplicitLikeKeys: jest.fn(),
         getPreferredArtistKeys: jest.fn(),
         getBlockedArtistKeys: jest.fn(),
+        getGuildImplicitDislikeKeys: jest.fn(),
     },
 }))
 
@@ -124,6 +125,7 @@ describe('replenishQueue', () => {
         feedbackSvc.getImplicitLikeKeys.mockResolvedValue(new Set())
         feedbackSvc.getPreferredArtistKeys.mockResolvedValue(new Set())
         feedbackSvc.getBlockedArtistKeys.mockResolvedValue(new Set())
+        feedbackSvc.getGuildImplicitDislikeKeys.mockReturnValue(new Set())
 
         const {
             trackHistoryService,

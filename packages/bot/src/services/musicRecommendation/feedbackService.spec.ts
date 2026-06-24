@@ -567,4 +567,65 @@ describe('implicit feedback', () => {
             expect(result.size).toBe(0)
         })
     })
+
+    describe('guild-scope implicit dislike', () => {
+        it('recordGuildImplicitDislike stores entry for guild', () => {
+            const service = new RecommendationFeedbackService(30)
+
+            service.recordGuildImplicitDislike('guild1', 'trackkey1')
+            const result = service.getGuildImplicitDislikeKeys('guild1')
+
+            expect(result.has('trackkey1')).toBe(true)
+        })
+
+        it('getGuildImplicitDislikeKeys returns empty set for unknown guild', () => {
+            const service = new RecommendationFeedbackService(30)
+
+            const result = service.getGuildImplicitDislikeKeys('nonexistent-guild')
+
+            expect(result.size).toBe(0)
+        })
+
+        it('expired entries are not returned', () => {
+            const service = new RecommendationFeedbackService(30)
+            const now = 1000
+            const oldTime = now - 15 * 24 * 60 * 60 * 1000 // 15 days ago (past 14-day TTL)
+
+            // Record with old timestamp
+            service.recordGuildImplicitDislike('guild1', 'trackkey1', oldTime)
+
+            // Fetch with current time (15 days later)
+            const result = service.getGuildImplicitDislikeKeys('guild1', now)
+
+            expect(result.size).toBe(0)
+        })
+
+        it('removes guild bucket from outer map when all entries expire', () => {
+            const service = new RecommendationFeedbackService(30)
+            const now = 1000
+            const oldTime = now - 15 * 24 * 60 * 60 * 1000
+
+            service.recordGuildImplicitDislike('guild1', 'trackkey1', oldTime)
+            service.getGuildImplicitDislikeKeys('guild1', now) // triggers prune
+
+            // Verify outer map no longer holds an empty bucket for this guild
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect((service as any).guildImplicitDislikeCache.has('guild1')).toBe(false)
+        })
+
+        it('two guilds do not cross-contaminate', () => {
+            const service = new RecommendationFeedbackService(30)
+
+            service.recordGuildImplicitDislike('guild1', 'trackA')
+            service.recordGuildImplicitDislike('guild2', 'trackB')
+
+            const guild1Keys = service.getGuildImplicitDislikeKeys('guild1')
+            const guild2Keys = service.getGuildImplicitDislikeKeys('guild2')
+
+            expect(guild1Keys.has('trackA')).toBe(true)
+            expect(guild1Keys.has('trackB')).toBe(false)
+            expect(guild2Keys.has('trackB')).toBe(true)
+            expect(guild2Keys.has('trackA')).toBe(false)
+        })
+    })
 })
