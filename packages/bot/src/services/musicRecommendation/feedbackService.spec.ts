@@ -600,6 +600,19 @@ describe('implicit feedback', () => {
             expect(result.size).toBe(0)
         })
 
+        it('removes guild bucket from outer map when all entries expire', () => {
+            const service = new RecommendationFeedbackService(30)
+            const now = 1000
+            const oldTime = now - 15 * 24 * 60 * 60 * 1000
+
+            service.recordGuildImplicitDislike('guild1', 'trackkey1', oldTime)
+            service.getGuildImplicitDislikeKeys('guild1', now) // triggers prune
+
+            // Second call should return empty without the guild bucket in memory
+            const result = service.getGuildImplicitDislikeKeys('guild1', now)
+            expect(result.size).toBe(0)
+        })
+
         it('two guilds do not cross-contaminate', () => {
             const service = new RecommendationFeedbackService(30)
 

@@ -531,6 +531,8 @@ export class RecommendationFeedbackService {
             }
         }
 
+        if (cache.size === 0) this.guildImplicitDislikeCache.delete(guildId)
+
         return result
     }
 }
