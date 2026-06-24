@@ -8,6 +8,8 @@ import type { VoiceBasedChannel } from 'discord.js'
 import { warnLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
 
+const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
+
 export type PlayResolutionArm =
     | 'primary'
     | 'youtube-fallback'
@@ -62,10 +64,13 @@ export async function resolveQueryWithFallbacks(
             })
 
             try {
-                // Attempt YouTube fallback
+                // Attempt YouTube fallback — block SpotifyExtractor so it
+                // cannot intercept text queries (its validate() ignores queryType
+                // and would capture YOUTUBE_SEARCH/SOUNDCLOUD_SEARCH too).
                 const result = await player.play(voiceChannel, query, {
                     ...playOptions,
                     searchEngine: QueryType.YOUTUBE_SEARCH,
+                    blockExtractors: [SPOTIFY_EXTRACTOR_ID],
                 })
                 telemetry.latencyMs = Date.now() - startTime
                 telemetry.resolvedVia = 'youtube-fallback'
@@ -74,14 +79,15 @@ export async function resolveQueryWithFallbacks(
                 warnLog({
                     message:
                         'YouTube search failed, falling back to SoundCloud',
-                    data: { query },
+                    data: { query, error: String(_youtubeError) },
                 })
 
                 try {
-                    // Attempt SoundCloud fallback
+                    // Attempt SoundCloud fallback — same block reason as above
                     const result = await player.play(voiceChannel, query, {
                         ...playOptions,
                         searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                        blockExtractors: [SPOTIFY_EXTRACTOR_ID],
                     })
                     telemetry.latencyMs = Date.now() - startTime
                     telemetry.resolvedVia = 'soundcloud-fallback'

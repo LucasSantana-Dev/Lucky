@@ -1,5 +1,7 @@
 import { QueryType } from 'discord-player'
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
+
+const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
 import type { CustomClient } from '../../../../types'
 import {
     requireVoiceChannel,
@@ -177,7 +179,10 @@ export async function executePlayAtTop({
     if (!(await requireVoiceChannel(interaction))) return
     if (!(await requireDJRole(interaction, interaction.guildId))) return
 
-    const voiceChannel = assertDefined(member.voice.channel, 'voice channel present after requireVoiceChannel guard')
+    const voiceChannel = assertDefined(
+        member.voice.channel,
+        'voice channel present after requireVoiceChannel guard',
+    )
 
     try {
         await interaction.deferReply()
@@ -208,6 +213,7 @@ export async function executePlayAtTop({
                 try {
                     result = await client.player.play(voiceChannel, query, {
                         searchEngine: QueryType.YOUTUBE_SEARCH,
+                        blockExtractors: [SPOTIFY_EXTRACTOR_ID],
                     })
                 } catch (youtubeError) {
                     warnLog({
@@ -217,6 +223,7 @@ export async function executePlayAtTop({
                     })
                     result = await client.player.play(voiceChannel, query, {
                         searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                        blockExtractors: [SPOTIFY_EXTRACTOR_ID],
                     })
                 }
             } else {
