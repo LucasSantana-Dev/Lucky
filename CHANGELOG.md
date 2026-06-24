@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.23.0...v2.24.0) (2026-06-24)
+
+
+### Features
+
+* **autoplay:** hit@k eval harness for recommendation scoring ([#1577](https://github.com/LucasSantana-Dev/Lucky/issues/1577)) ([2a0c6c4](https://github.com/LucasSantana-Dev/Lucky/commit/2a0c6c43f83fc5bf2f552549f3dfc832aeb8a95f))
+
+
+### Bug Fixes
+
+* **deploy:** verify + cache-correct the frontend so deploys actually reach users ([#1576](https://github.com/LucasSantana-Dev/Lucky/issues/1576)) ([9178576](https://github.com/LucasSantana-Dev/Lucky/commit/9178576c2c3d9b2743b5417f2516f6d9208cacd8))
+
 ## [2.23.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.22.0...v2.23.0) (2026-06-24)
 
 
