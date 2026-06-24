@@ -608,9 +608,9 @@ describe('implicit feedback', () => {
             service.recordGuildImplicitDislike('guild1', 'trackkey1', oldTime)
             service.getGuildImplicitDislikeKeys('guild1', now) // triggers prune
 
-            // Second call should return empty without the guild bucket in memory
-            const result = service.getGuildImplicitDislikeKeys('guild1', now)
-            expect(result.size).toBe(0)
+            // Verify outer map no longer holds an empty bucket for this guild
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect((service as any).guildImplicitDislikeCache.has('guild1')).toBe(false)
         })
 
         it('two guilds do not cross-contaminate', () => {
