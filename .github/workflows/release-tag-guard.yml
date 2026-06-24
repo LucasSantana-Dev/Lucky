@@ -14,6 +14,10 @@ name: Release Tag Guard
 # no-op. If it didn't, the guard creates the tag + Release so the release can
 # never silently fail to ship again. Uses the PAT (not GITHUB_TOKEN) so the
 # `release: published` event propagates and deploy.yml fires.
+#
+# It also reconciles the merged release PR's `autorelease: pending -> tagged`
+# label (#1561): when the guard creates the Release, release-please never flips
+# that label, so its NEXT run aborts ("untagged, merged release PR outstanding").
 
 on:
   push:
@@ -63,3 +67,25 @@ jobs:
             --title "${tag}" \
             --notes "Automated release created by release-tag-guard (release-please did not auto-release). See CHANGELOG.md." \
             --verify-tag
+
+      - name: Reconcile release PR label (autorelease pending -> tagged, #1561)
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./.release-please-manifest.json')['.']")"
+          # release-please flips this label to 'tagged' when IT creates the Release.
+          # When this guard creates the Release instead (the common case here), the
+          # label stays 'autorelease: pending', so release-please's NEXT run sees an
+          # "untagged, merged release PR outstanding" and aborts the next release
+          # (#1561). Separate step (not gated by the early-exit above) so it always
+          # reconciles, idempotently, and the next release can never silently block.
+          pr="$(gh pr list --state merged --label 'autorelease: pending' \
+                  --search "chore: release ${version} in:title" \
+                  --json number --jq '.[0].number // empty')"
+          if [ -n "${pr}" ]; then
+            echo "::notice::flipping release PR #${pr} label autorelease: pending -> tagged (#1561 backstop)"
+            gh pr edit "${pr}" --add-label 'autorelease: tagged' --remove-label 'autorelease: pending'
+          else
+            echo "::notice::no merged 'autorelease: pending' release PR for ${version} — already reconciled."
+          fi
