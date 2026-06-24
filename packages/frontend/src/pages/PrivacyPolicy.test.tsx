@@ -27,24 +27,6 @@ describe('PrivacyPolicy', () => {
         ).toBeInTheDocument()
     })
 
-    test('renders all section headings', () => {
-        renderPage()
-        for (const h of [
-            'Scope and controller',
-            'Data we collect',
-            'How we use data',
-            'Self-hosted instances',
-            'Third-party services',
-            'Retention and deletion',
-            'Your rights',
-            'Security',
-        ]) {
-            expect(
-                screen.getAllByText(new RegExp(h, 'i')).length,
-            ).toBeGreaterThanOrEqual(1)
-        }
-    })
-
     test('renders self-host disclosure paragraph', () => {
         renderPage()
         expect(

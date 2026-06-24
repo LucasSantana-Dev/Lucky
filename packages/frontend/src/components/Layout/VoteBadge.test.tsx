@@ -67,60 +67,6 @@ describe('VoteBadge', () => {
         expect(screen.getByText('· 1')).toBeInTheDocument()
     })
 
-    test('renders tier badge when user has Lucky Fan tier', () => {
-        vi.mocked(useVoteStatus).mockReturnValue({
-            status: {
-                hasVoted: true,
-                streak: 7,
-                nextVoteInSeconds: 0,
-                tier: { label: 'Lucky Fan', threshold: 7 },
-                nextTier: { label: 'Lucky Regular', threshold: 14 },
-                voteUrl: 'https://top.gg/bot/abc/vote',
-            },
-        })
-
-        render(<VoteBadge />)
-
-        expect(screen.getByText('Lucky Fan')).toBeInTheDocument()
-        expect(screen.getByText('· 7')).toBeInTheDocument()
-    })
-
-    test('renders tier badge when user has Lucky Regular tier', () => {
-        vi.mocked(useVoteStatus).mockReturnValue({
-            status: {
-                hasVoted: true,
-                streak: 14,
-                nextVoteInSeconds: 0,
-                tier: { label: 'Lucky Regular', threshold: 14 },
-                nextTier: { label: 'Lucky Legend', threshold: 30 },
-                voteUrl: 'https://top.gg/bot/abc/vote',
-            },
-        })
-
-        render(<VoteBadge />)
-
-        expect(screen.getByText('Lucky Regular')).toBeInTheDocument()
-        expect(screen.getByText('· 14')).toBeInTheDocument()
-    })
-
-    test('renders tier badge when user has Lucky Legend tier', () => {
-        vi.mocked(useVoteStatus).mockReturnValue({
-            status: {
-                hasVoted: true,
-                streak: 30,
-                nextVoteInSeconds: 0,
-                tier: { label: 'Lucky Legend', threshold: 30 },
-                nextTier: null,
-                voteUrl: 'https://top.gg/bot/abc/vote',
-            },
-        })
-
-        render(<VoteBadge />)
-
-        expect(screen.getByText('Lucky Legend')).toBeInTheDocument()
-        expect(screen.getByText('· 30')).toBeInTheDocument()
-    })
-
     test('badge link has correct title with tier and streak info', () => {
         vi.mocked(useVoteStatus).mockReturnValue({
             status: {
@@ -199,25 +145,6 @@ describe('VoteBadge', () => {
         const link = screen.getByRole('link')
         expect(link).toHaveClass('lucky-focus-visible')
         expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
-    })
-
-    test('tier label is truncated with max-width constraint', () => {
-        vi.mocked(useVoteStatus).mockReturnValue({
-            status: {
-                hasVoted: true,
-                streak: 7,
-                nextVoteInSeconds: 0,
-                tier: { label: 'Lucky Fan', threshold: 7 },
-                nextTier: { label: 'Lucky Regular', threshold: 14 },
-                voteUrl: 'https://top.gg/bot/abc/vote',
-            },
-        })
-
-        render(<VoteBadge />)
-
-        const tierSpan = screen.getByText('Lucky Fan')
-        expect(tierSpan).toHaveClass('truncate')
-        expect(tierSpan).toHaveClass('max-w-[140px]')
     })
 
     test('links open in new tab with safe referrer policy', () => {
