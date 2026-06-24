@@ -108,8 +108,8 @@ notify() {
 }
 
 print_targeted_logs() {
-    log "Collecting backend/nginx/postgres/redis logs..."
-    docker_compose logs --tail=80 --no-color backend nginx postgres redis || true
+    log "Collecting backend/frontend/bot/nginx/postgres/redis logs..."
+    docker_compose logs --tail=80 --no-color backend frontend bot nginx postgres redis || true
 }
 
 verify_cloudflared_config() {
@@ -146,7 +146,7 @@ verify_cloudflared_config() {
 
 require_running_containers() {
     local required
-    required=(lucky-backend lucky-nginx lucky-postgres lucky-redis lucky-bot)
+    required=(lucky-backend lucky-frontend lucky-nginx lucky-postgres lucky-redis lucky-bot)
     local missing=()
     local not_running=()
     local container running
@@ -391,6 +391,20 @@ run_health_checks() {
         '"auth"[[:space:]]*:'; then
         print_targeted_logs
         log "HEALTH: Auth config endpoint did not become ready"
+        return 1
+    fi
+
+    # Frontend dashboard: the SPA is served by the long-running lucky-frontend
+    # container (nginx) and reverse-proxied at "/". Previously the deploy started
+    # lucky-frontend but never verified it, so a down/broken frontend (the surface
+    # hosting the dashboard features) passed as a successful deploy. Verify the
+    # SPA actually renders by matching the React mount point in the served HTML.
+    if ! wait_for_http_ready \
+        "Frontend dashboard" \
+        "http://nginx:8080/" \
+        'id="root"'; then
+        print_targeted_logs
+        log "HEALTH: frontend dashboard did not serve the SPA (lucky-frontend down or stale image?)"
         return 1
     fi
 

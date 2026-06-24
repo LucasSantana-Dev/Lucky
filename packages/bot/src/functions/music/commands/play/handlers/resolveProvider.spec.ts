@@ -89,6 +89,34 @@ describe('resolveQueryWithFallbacks', () => {
             )
         })
 
+        it('should block SpotifyExtractor in YouTube fallback so it cannot intercept text queries', async () => {
+            const primaryError = new Error(
+                'No results found (Spotify extractor)',
+            )
+            const mockTrack = { title: 'Test Song' }
+
+            mockPlayer.play
+                .mockRejectedValueOnce(primaryError)
+                .mockResolvedValueOnce(mockTrack)
+
+            await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'pink floyd wish you were here',
+                'spotify',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            const youtubeFallbackCall = mockPlayer.play.mock.calls[1]
+            expect(youtubeFallbackCall[2]).toMatchObject({
+                searchEngine: QueryType.YOUTUBE_SEARCH,
+                blockExtractors: expect.arrayContaining([
+                    'com.discord-player.itsmaat.spotifyextractor',
+                ]),
+            })
+        })
+
         it('should fallback to SoundCloud when YouTube also fails', async () => {
             const primaryError = new Error('Primary failed')
             const youtubeError = new Error('YouTube failed')
@@ -111,6 +139,36 @@ describe('resolveQueryWithFallbacks', () => {
             expect(result).toEqual(mockTrack)
             expect(telemetry.resolvedVia).toBe('soundcloud-fallback')
             expect(warnLogMock).toHaveBeenCalledTimes(2)
+        })
+
+        it('should block SpotifyExtractor in SoundCloud fallback so it cannot intercept text queries', async () => {
+            const primaryError = new Error(
+                'No results found (Spotify extractor)',
+            )
+            const youtubeError = new Error('YouTube failed')
+            const mockTrack = { title: 'Test Song' }
+
+            mockPlayer.play
+                .mockRejectedValueOnce(primaryError)
+                .mockRejectedValueOnce(youtubeError)
+                .mockResolvedValueOnce(mockTrack)
+
+            await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'pink floyd wish you were here',
+                'spotify',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            const soundcloudFallbackCall = mockPlayer.play.mock.calls[2]
+            expect(soundcloudFallbackCall[2]).toMatchObject({
+                searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                blockExtractors: expect.arrayContaining([
+                    'com.discord-player.itsmaat.spotifyextractor',
+                ]),
+            })
         })
     })
 
