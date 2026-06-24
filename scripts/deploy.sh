@@ -108,8 +108,8 @@ notify() {
 }
 
 print_targeted_logs() {
-    log "Collecting backend/nginx/postgres/redis logs..."
-    docker_compose logs --tail=80 --no-color backend nginx postgres redis || true
+    log "Collecting backend/frontend/bot/nginx/postgres/redis logs..."
+    docker_compose logs --tail=80 --no-color backend frontend bot nginx postgres redis || true
 }
 
 verify_cloudflared_config() {
