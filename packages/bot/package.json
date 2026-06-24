@@ -23,6 +23,7 @@
         "@discordjs/opus": "^0.10.0",
         "@lucky/shared": "file:../shared",
         "@sentry/node": "^10.53.1",
+        "@snazzah/davey": "^0.1.12",
         "chalk": "^5.6.2",
         "discord-player": "^7.1.0",
         "discord-player-spotify": "^1.1.9",

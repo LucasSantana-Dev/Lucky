@@ -25,6 +25,11 @@ export class RecommendationFeedbackService {
     private implicitFeedbackCache = new Map<string, ImplicitFeedbackMap>()
     private implicitCacheTTL = 14 * 24 * 60 * 60 * 1000 // 14 days in ms
 
+    // Guild-scoped implicit dislike cache for autoplay tracks.
+    // Maps guildId -> (trackKey -> updatedAt timestamp).
+    // Ensures skip signals reach the scorer even when requestedBy is undefined.
+    private guildImplicitDislikeCache = new Map<string, Map<string, number>>()
+
     constructor(private readonly ttlDays = 30) {}
 
     buildTrackKey(title: string, author: string): string {
@@ -493,6 +498,40 @@ export class RecommendationFeedbackService {
 
     async getImplicitLikeKeys(userId: string): Promise<Set<string>> {
         return this.getImplicitKeysByType(userId, 'implicit_like')
+    }
+
+    recordGuildImplicitDislike(guildId: string, trackKey: string, now = Date.now()): void {
+        if (!guildId || !trackKey) return
+
+        let cache = this.guildImplicitDislikeCache.get(guildId)
+        if (!cache) {
+            cache = new Map()
+            this.guildImplicitDislikeCache.set(guildId, cache)
+        }
+
+        cache.set(trackKey, now)
+
+        // Cap at 200 most recent entries per guild (same as user-level cap)
+        if (cache.size > 200) {
+            const oldest = [...cache.entries()].sort((a, b) => a[1] - b[1])[0][0]
+            cache.delete(oldest)
+        }
+    }
+
+    getGuildImplicitDislikeKeys(guildId: string, now = Date.now()): Set<string> {
+        const cache = this.guildImplicitDislikeCache.get(guildId)
+        if (!cache) return new Set()
+
+        const result = new Set<string>()
+        for (const [key, updatedAt] of cache) {
+            if (now - updatedAt < this.implicitCacheTTL) {
+                result.add(key)
+            } else {
+                cache.delete(key) // lazy prune
+            }
+        }
+
+        return result
     }
 }
 

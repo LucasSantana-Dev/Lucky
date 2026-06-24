@@ -429,6 +429,19 @@ const handlePlayerSkip = async (
                     const current =
                         guildRecentSkipCounts.get(queue.guild.id) ?? 0
                     guildRecentSkipCounts.set(queue.guild.id, current + 1)
+
+                    // Guild-scope dislike for autoplay tracks: ensures the signal reaches the
+                    // scorer even when requestedBy is null/undefined in the replenisher context.
+                    if (isRecommendationAutoplay(track)) {
+                        const trackKey = normalizeTrackKeyForFeedback(
+                            track.title,
+                            track.author,
+                        )
+                        recommendationFeedbackService.recordGuildImplicitDislike(
+                            queue.guild.id,
+                            trackKey,
+                        )
+                    }
                 }
                 // Record the autoplay recommendation outcome on skip — duration-
                 // agnostic, consistent with the playerFinish path: a skip before
