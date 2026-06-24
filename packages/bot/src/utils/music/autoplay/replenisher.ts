@@ -246,6 +246,17 @@ async function _replenishQueue(
             })(),
         ])
 
+        // Merge guild-scoped implicit dislike keys with user-level keys so skip
+        // signals always reach the scorer, even when requestedBy is undefined.
+        const guildImplicitDislikeKeys =
+            recommendationFeedbackService.getGuildImplicitDislikeKeys(
+                queue.guild.id,
+            )
+        const mergedImplicitDislikeKeys = new Set([
+            ...implicitDislikeKeys,
+            ...guildImplicitDislikeKeys,
+        ])
+
         const preferredArtistKeys = new Set(
             allPreferredSets.flatMap((s) => [...s]),
         )
@@ -363,7 +374,7 @@ async function _replenishQueue(
             recentArtists,
             autoplayMode,
             artistFrequency,
-            implicitDislikeKeys,
+            implicitDislikeKeys: mergedImplicitDislikeKeys,
             implicitLikeKeys,
             sessionMood,
             genreContext: candidateGenreContext,
@@ -446,7 +457,7 @@ async function _replenishQueue(
                     blockedArtistKeys,
                     autoplayMode,
                     artistFrequency,
-                    implicitDislikeKeys,
+                    implicitDislikeKeys: mergedImplicitDislikeKeys,
                     implicitLikeKeys,
                     sessionMood,
                     genreContext: {
