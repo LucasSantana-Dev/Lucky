@@ -9,6 +9,9 @@ export type EvalSample = {
 }
 
 export function computeHitAtK(samples: EvalSample[], k: number): number {
+    if (!Number.isInteger(k) || k <= 0) {
+        throw new Error(`k must be a positive integer, got ${k}`)
+    }
     if (samples.length === 0) return 0
 
     let hits = 0

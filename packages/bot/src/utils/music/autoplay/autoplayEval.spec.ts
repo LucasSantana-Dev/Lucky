@@ -136,6 +136,15 @@ describe('autoplayEval', () => {
             expect(result).toBe(0)
         })
 
+        it('throws for non-positive k', () => {
+            expect(() => computeHitAtK([], 0)).toThrow('k must be a positive integer')
+            expect(() => computeHitAtK([], -1)).toThrow('k must be a positive integer')
+        })
+
+        it('throws for non-integer k', () => {
+            expect(() => computeHitAtK([], 2.5)).toThrow('k must be a positive integer')
+        })
+
         it('works across multiple samples (averages correctly)', () => {
             const seed1 = createTrack({ author: 'Artist 1' })
             const positive1 = createTrack({
