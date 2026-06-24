@@ -14,7 +14,6 @@ export function computeHitAtK(samples: EvalSample[], k: number): number {
     let hits = 0
 
     for (const sample of samples) {
-        // Score all candidates
         const scored = sample.candidates.map(({ track, isPositive }) => ({
             isPositive,
             score: calculateRecommendationScore({
@@ -25,10 +24,8 @@ export function computeHitAtK(samples: EvalSample[], k: number): number {
             }).score,
         }))
 
-        // Sort by score descending
         scored.sort((a, b) => b.score - a.score)
 
-        // Check if positive is in top-k
         const topK = scored.slice(0, k)
         if (topK.some((c) => c.isPositive)) hits++
     }
