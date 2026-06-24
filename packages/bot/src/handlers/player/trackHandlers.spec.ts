@@ -101,10 +101,14 @@ jest.mock('@lucky/shared/utils', () => ({
     warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
+const recordGuildImplicitDislikeMock = jest.fn()
+
 jest.mock('../../services/musicRecommendation/feedbackService', () => ({
     recommendationFeedbackService: {
         recordImplicitFeedback: (...args: unknown[]) =>
             recordImplicitFeedbackMock(...args),
+        recordGuildImplicitDislike: (...args: unknown[]) =>
+            recordGuildImplicitDislikeMock(...args),
     },
 }))
 
