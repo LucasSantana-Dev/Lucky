@@ -131,6 +131,7 @@ const getPreferredArtistKeysMock = jest.fn()
 const getBlockedArtistKeysMock = jest.fn()
 const getImplicitDislikeKeysMock = jest.fn()
 const getImplicitLikeKeysMock = jest.fn()
+const getGuildImplicitDislikeKeysMock = jest.fn()
 
 jest.mock('../../services/musicRecommendation/feedbackService', () => ({
     recommendationFeedbackService: {
@@ -146,6 +147,8 @@ jest.mock('../../services/musicRecommendation/feedbackService', () => ({
             getImplicitDislikeKeysMock(...args),
         getImplicitLikeKeys: (...args: unknown[]) =>
             getImplicitLikeKeysMock(...args),
+        getGuildImplicitDislikeKeys: (...args: unknown[]) =>
+            getGuildImplicitDislikeKeysMock(...args),
     },
 }))
 
@@ -194,6 +197,7 @@ describe('queueManipulation.replenishQueue', () => {
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
+        getGuildImplicitDislikeKeysMock.mockReturnValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getArtistTopTagsMock.mockResolvedValue([])
@@ -1717,6 +1721,7 @@ describe('queueManipulation.replenishQueue query variation', () => {
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
+        getGuildImplicitDislikeKeysMock.mockReturnValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getArtistTopTagsMock.mockResolvedValue([])
@@ -1775,6 +1780,7 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
+        getGuildImplicitDislikeKeysMock.mockReturnValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getArtistTopTagsMock.mockResolvedValue([])
@@ -1825,6 +1831,7 @@ describe('queueManipulation.selectDiverseCandidates score jitter', () => {
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
+        getGuildImplicitDislikeKeysMock.mockReturnValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getArtistTopTagsMock.mockResolvedValue([])
@@ -1889,6 +1896,7 @@ describe('queueManipulation — genre candidate collection', () => {
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
+        getGuildImplicitDislikeKeysMock.mockReturnValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getArtistTopTagsMock.mockResolvedValue([])
@@ -1952,6 +1960,7 @@ describe('queueManipulation — multi-user VC blend', () => {
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
+        getGuildImplicitDislikeKeysMock.mockReturnValue(new Set())
         getSimilarTracksMock.mockResolvedValue([])
         getArtistTopTagsMock.mockResolvedValue([])
         getUserSpotifySeedsMock.mockResolvedValue(null)
@@ -2603,6 +2612,7 @@ describe('queueManipulation — Spotify priority', () => {
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
+        getGuildImplicitDislikeKeysMock.mockReturnValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getArtistTopTagsMock.mockResolvedValue([])
@@ -2875,6 +2885,7 @@ describe('queueManipulation — diversity improvements', () => {
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
+        getGuildImplicitDislikeKeysMock.mockReturnValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getArtistTopTagsMock.mockResolvedValue([])

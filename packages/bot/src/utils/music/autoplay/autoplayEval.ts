@@ -1,0 +1,37 @@
+import type { Track } from 'discord-player'
+import { calculateRecommendationScore } from './candidateScorer'
+
+export type EvalSample = {
+    seed: Track
+    candidates: Array<{ track: Track; isPositive: boolean }>
+    recentArtists?: Set<string>
+    implicitDislikeKeys?: Set<string>
+}
+
+export function computeHitAtK(samples: EvalSample[], k: number): number {
+    if (!Number.isInteger(k) || k <= 0) {
+        throw new Error(`k must be a positive integer, got ${k}`)
+    }
+    if (samples.length === 0) return 0
+
+    let hits = 0
+
+    for (const sample of samples) {
+        const scored = sample.candidates.map(({ track, isPositive }) => ({
+            isPositive,
+            score: calculateRecommendationScore({
+                candidate: track,
+                currentTrack: sample.seed,
+                recentArtists: sample.recentArtists ?? new Set(),
+                implicitDislikeKeys: sample.implicitDislikeKeys ?? new Set(),
+            }).score,
+        }))
+
+        scored.sort((a, b) => b.score - a.score)
+
+        const topK = scored.slice(0, k)
+        if (topK.some((c) => c.isPositive)) hits++
+    }
+
+    return hits / samples.length
+}
