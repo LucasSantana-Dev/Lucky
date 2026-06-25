@@ -8,6 +8,7 @@ import {
 } from 'discord.js'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { reactionRolesService } from '@lucky/shared/services'
+import { errorLog } from '@lucky/shared/utils'
 import {
     createErrorEmbed,
     createSuccessEmbed,
@@ -99,7 +100,8 @@ export async function handleDelete(
             messageId,
             guild.id,
         )
-    } catch (_error) {
+    } catch (error) {
+        errorLog({ message: 'Failed to delete reaction role message', error })
         await replyEmbed(
             interaction,
             createErrorEmbed(
