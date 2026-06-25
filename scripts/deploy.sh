@@ -145,13 +145,27 @@ verify_cloudflared_config() {
 }
 
 require_running_containers() {
-    local required
-    required=(lucky-backend lucky-frontend lucky-nginx lucky-postgres lucky-redis lucky-bot)
     local missing=()
     local not_running=()
-    local container running
+    local container running expected_service
 
-    for container in "${required[@]}"; do
+    # Derive expected services from docker-compose config, excluding one-shots.
+    # cloudflared runs with a profile and is not required for core deploy success.
+    # webhook is a deployment helper (not a user-facing service) and runs on demand.
+    local excluded_pattern="^(cloudflared|webhook)$"
+    local expected_services
+    expected_services=$(docker_compose config --services 2>/dev/null | grep -v -E "$excluded_pattern" || true)
+
+    if [[ -z "$expected_services" ]]; then
+        log "ERROR: could not derive expected services from docker-compose config"
+        return 1
+    fi
+
+    # Prefix service names with project name to get container names.
+    # docker-compose creates containers named <project>-<service>.
+    while IFS= read -r expected_service; do
+        container="${COMPOSE_PROJECT_NAME}-${expected_service}"
+
         if ! docker inspect "$container" >/dev/null 2>&1; then
             missing+=("$container")
             continue
@@ -161,7 +175,7 @@ require_running_containers() {
         if [[ "$running" != "true" ]]; then
             not_running+=("$container")
         fi
-    done
+    done <<< "$expected_services"
 
     if [[ "${#missing[@]}" -gt 0 ]] || [[ "${#not_running[@]}" -gt 0 ]]; then
         [[ "${#missing[@]}" -gt 0 ]] && log "ERROR: missing containers: ${missing[*]}"
