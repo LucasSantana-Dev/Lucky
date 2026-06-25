@@ -45,7 +45,7 @@ export async function startRssBridgeService(client: Client): Promise<void> {
     } catch (err) {
         errorLog({
             message: 'RSS Bridge service failed to start (non-fatal)',
-            data: err,
+            error: err,
         })
     }
 }
@@ -117,6 +117,15 @@ async function pollRssFeed(
             )
 
             try {
+                // Persist dedup record first
+                await db.rssDiscoveredGuide.create({
+                    data: {
+                        slug,
+                        title,
+                    },
+                })
+
+                // Post to Discord after DB write succeeds
                 await channel.send({
                     embeds: [
                         {
@@ -126,14 +135,6 @@ async function pollRssFeed(
                             color: EMBED_COLOR,
                         },
                     ],
-                })
-
-                // Record the guide in database
-                await db.rssDiscoveredGuide.create({
-                    data: {
-                        slug,
-                        title,
-                    },
                 })
 
                 infoLog({
