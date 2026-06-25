@@ -231,26 +231,23 @@ export function setupRolesRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const messageId = p(req.params.messageId)
+            let deleted: boolean
             try {
-                const deleted =
+                deleted =
                     await reactionRolesService.deleteReactionRoleMessage(
                         messageId,
                         guildId,
                     )
-                if (!deleted) {
-                    throw AppError.notFound('Reaction role message not found')
-                }
-                res.json({ success: true })
-            } catch (error) {
-                if (error instanceof AppError) {
-                    throw error
-                }
-                const message =
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to delete reaction role message'
-                throw new AppError(500, message)
+            } catch {
+                throw new AppError(
+                    500,
+                    'Failed to delete reaction role message',
+                )
             }
+            if (!deleted) {
+                throw AppError.notFound('Reaction role message not found')
+            }
+            res.json({ success: true })
         }),
     )
 
