@@ -113,4 +113,22 @@ describe('GET /api/guilds/:guildId/threads/:slug', () => {
             `https://discord.com/channels/${GUILD_ID}/THREAD_XYZ`,
         )
     })
+
+    test('returns 400 when guildId is malformed (not a snowflake)', async () => {
+        const res = await request(buildApp()).get(
+            `/api/guilds/invalid-guild-id/threads/${SLUG}`,
+        )
+
+        expect(res.status).toBe(400)
+        expect(res.body).toHaveProperty('error', 'Validation failed')
+        expect(mockFindUnique).not.toHaveBeenCalled()
+    })
+
+    test('returns 404 when slug is missing', async () => {
+        const res = await request(buildApp()).get(
+            `/api/guilds/${GUILD_ID}/threads/`,
+        )
+
+        expect(res.status).toBe(404)
+    })
 })
