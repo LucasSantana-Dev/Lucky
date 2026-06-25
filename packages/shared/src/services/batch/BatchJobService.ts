@@ -1,4 +1,5 @@
 import { getPrismaClient } from '../../utils/database/prismaClient.js'
+import { Prisma } from '../../generated/prisma/client.js'
 import type { ScopeConfig, BatchJobType, BatchJobStatus } from './types.js'
 
 /**
@@ -28,10 +29,14 @@ export class BatchJobService {
                 initiatedBy: input.initiatedBy,
                 sourceChannelId: input.sourceChannelId,
                 targetChannelId: input.targetChannelId,
-                scope: JSON.parse(JSON.stringify(input.scope)) as ScopeConfig,
+                scope: JSON.parse(
+                    JSON.stringify(input.scope),
+                ) as unknown as Prisma.InputJsonValue,
                 options: input.options
-                    ? (JSON.parse(JSON.stringify(input.options)) as Record<string, unknown>)
-                    : null,
+                    ? (JSON.parse(
+                          JSON.stringify(input.options),
+                      ) as unknown as Prisma.InputJsonValue)
+                    : Prisma.DbNull,
                 totalItems: input.totalItems,
                 estimatedMinutes: input.estimatedMinutes,
                 status: 'pending',
@@ -194,8 +199,10 @@ export class BatchJobService {
                 status: input.status,
                 error: input.error,
                 resultMetadata: input.resultMetadata
-                    ? (JSON.parse(JSON.stringify(input.resultMetadata)) as Record<string, unknown>)
-                    : null,
+                    ? (JSON.parse(
+                          JSON.stringify(input.resultMetadata),
+                      ) as unknown as Prisma.InputJsonValue)
+                    : Prisma.DbNull,
                 attemptedAt: new Date(),
             },
         })
@@ -209,7 +216,9 @@ export class BatchJobService {
         return await prisma.batchJob.update({
             where: { id: jobId },
             data: {
-                summary: JSON.parse(JSON.stringify(summary)) as Record<string, unknown>,
+                summary: JSON.parse(
+                    JSON.stringify(summary),
+                ) as unknown as Prisma.InputJsonValue,
             },
         })
     }
