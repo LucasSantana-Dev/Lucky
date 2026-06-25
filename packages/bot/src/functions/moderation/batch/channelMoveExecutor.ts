@@ -8,6 +8,7 @@ import {
 import {
     type BatchJobExecutor,
     type BatchProgress,
+    type ScopeConfig,
     matchesScope,
     batchJobService,
 } from '@lucky/shared/services/batch'
@@ -19,6 +20,7 @@ import {
     getUploadLimit,
 } from '../../../handlers/moveMessageHandler'
 import type { CustomClient } from '../../../types'
+import { getStoredClient } from '../../../bot/clientStore'
 
 /**
  * Executor for batch channel move operations.
@@ -49,8 +51,7 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
         },
         onProgress: (progress: BatchProgress) => Promise<void>,
     ): Promise<Record<string, unknown>> {
-        const { getClient } = await import('../../../bot/start')
-        const client = getClient() as CustomClient | null
+        const client = getStoredClient() as CustomClient | null
         if (!client) {
             throw new Error('Discord client not available')
         }
@@ -116,7 +117,7 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
             throw new Error(`Batch job not found: ${jobId}`)
         }
 
-        const scope = dbJob.scope as Record<string, unknown>
+        const scope = dbJob.scope as unknown as ScopeConfig
         let cursor = dbJob.nextCursor || undefined
         let processed = 0
         let failed = 0
@@ -175,7 +176,7 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
                         createdAt: message.createdAt,
                         index: messageIndex,
                     },
-                    scope as any,
+                    scope as ScopeConfig,
                 )
 
                 if (!matchesScopeResult) {
