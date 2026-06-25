@@ -1,12 +1,35 @@
-import { describe, it, expect, beforeEach, jest, vi } from 'vitest'
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
-import { purgeDuplicatesOfCurrentTrack } from './diversitySelector'
-import { recordRecommendationOutcome } from '../../../services/musicRecommendation/recommendationTelemetry'
+
+// Mock lru-cache to prevent LRUCache constructor errors in spotifyApi
+jest.mock('lru-cache', () => ({
+    LRUCache: jest.fn(function () {
+        this.get = jest.fn().mockReturnValue(null)
+        this.set = jest.fn()
+        this.delete = jest.fn()
+        this.clear = jest.fn()
+    }),
+}))
+
+// Mock shared utils first to prevent prismaClient import errors
+jest.mock('@lucky/shared/utils', () => ({
+    debugLog: jest.fn(),
+    errorLog: jest.fn(),
+    warnLog: jest.fn(),
+}))
 
 // Mock the telemetry service
-vi.mock('../../../services/musicRecommendation/recommendationTelemetry', () => ({
-    recordRecommendationOutcome: vi.fn().mockResolvedValue(undefined),
+jest.mock('../../../services/musicRecommendation/recommendationTelemetry', () => ({
+    recordRecommendationOutcome: jest.fn().mockResolvedValue(undefined),
 }))
+
+// Mock shared services that may have prismaClient dependencies
+jest.mock('@lucky/shared/services', () => ({
+    premiumService: { isPremium: jest.fn() },
+}))
+
+import { purgeDuplicatesOfCurrentTrack } from './diversitySelector'
+import { recordRecommendationOutcome } from '../../../services/musicRecommendation/recommendationTelemetry'
 
 describe('Autoplay eviction telemetry (#1585)', () => {
     let mockQueue: Partial<GuildQueue>
@@ -14,7 +37,7 @@ describe('Autoplay eviction telemetry (#1585)', () => {
     let queuedTracks: Partial<Track>[]
 
     beforeEach(() => {
-        vi.clearAllMocks()
+        jest.clearAllMocks()
 
         currentTrack = {
             id: 'current-track-id',
@@ -54,7 +77,7 @@ describe('Autoplay eviction telemetry (#1585)', () => {
                 toArray: () => queuedTracks as Track[],
             },
             node: {
-                remove: vi.fn(),
+                remove: jest.fn(),
             },
         } as unknown as Partial<GuildQueue>
     })

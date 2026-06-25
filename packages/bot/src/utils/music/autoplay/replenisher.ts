@@ -112,7 +112,7 @@ async function cancelPendingRecommendations(
     queue: GuildQueue,
     tracksToCancel: Track[],
 ): Promise<void> {
-    if (tracksToCancel.length === 0) return
+    if (!tracksToCancel?.length) return
 
     const cancellationWrites = tracksToCancel.map((track) => {
         const isAutoplay = (track.metadata as { isAutoplay?: boolean } | undefined)

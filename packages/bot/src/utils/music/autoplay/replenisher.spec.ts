@@ -1,5 +1,16 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
+
+// Mock lru-cache early to prevent LRUCache constructor errors in spotifyApi
+jest.mock('lru-cache', () => ({
+    LRUCache: jest.fn(function () {
+        this.get = jest.fn().mockReturnValue(null)
+        this.set = jest.fn()
+        this.delete = jest.fn()
+        this.clear = jest.fn()
+    }),
+}))
+
 import { replenishQueue, popularityBoost } from './replenisher'
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -165,11 +176,13 @@ describe('replenishQueue', () => {
             buildExcludedKeys,
             selectDiverseCandidates,
             addSelectedTracks,
+            purgeDuplicatesOfCurrentTrack,
         } = require('./diversitySelector')
         buildExcludedUrls.mockReturnValue(new Set())
         buildExcludedKeys.mockReturnValue(new Set())
         selectDiverseCandidates.mockReturnValue([])
         addSelectedTracks.mockResolvedValue(undefined)
+        purgeDuplicatesOfCurrentTrack.mockReturnValue([])
 
         const {
             collectBroadFallbackCandidates,
