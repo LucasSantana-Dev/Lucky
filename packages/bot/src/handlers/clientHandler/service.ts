@@ -8,6 +8,7 @@ import type ContextMenuCommand from '../../models/ContextMenuCommand'
 import { startPresenceRotation } from './presence'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
+import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
 
 let presenceControls: {
     stop: () => void
@@ -117,6 +118,16 @@ export async function startClient({
             } catch (error) {
                 errorLog({
                     message: 'Failed to start birthday scheduler',
+                    error,
+                })
+            }
+
+            try {
+                criativariaLiveNotificationService.start(client)
+            } catch (error) {
+                errorLog({
+                    message:
+                        'Failed to start Criativaria live notification service',
                     error,
                 })
             }

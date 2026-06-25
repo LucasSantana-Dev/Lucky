@@ -25,6 +25,7 @@ import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { aiDevToolkitService } from '../../services/AiDevToolkitService'
 import { dependencyCheckService } from '../../services/DependencyCheckService'
+import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
 import { stopTwitchService } from '../../twitch'
 import type {
     BotInitializationOptions,
@@ -221,6 +222,16 @@ export class BotInitializer {
         } catch (error) {
             errorLog({
                 message: 'Error stopping dependency check service:',
+                error,
+            })
+        }
+
+        try {
+            criativariaLiveNotificationService.stop()
+        } catch (error) {
+            errorLog({
+                message:
+                    'Error stopping Criativaria live notification service:',
                 error,
             })
         }
