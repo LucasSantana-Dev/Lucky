@@ -3,6 +3,7 @@ import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import type { AutoplayContext } from './autoplayContext'
 import { recommendationFeedbackService } from '../../../services/musicRecommendation/feedbackService'
+import { recordRecommendationOutcome } from '../../../services/musicRecommendation/recommendationTelemetry'
 import {
     trackHistoryService,
     guildSettingsService,
@@ -47,11 +48,14 @@ import { buildVcContributionWeights } from './vcWeights'
 import { getTrackAudioFeatures } from './audioFeatures'
 import { evaluateSkipRateBreaker } from './skipCircuitBreaker'
 
-// Autoplay backfill target. Non-premium guilds keep the existing 8-song
-// runway; premium guilds get 2× (16) so large listening sessions rarely
-// run out of queued tracks between bot cycles. See PremiumService.isPremium.
-const AUTOPLAY_BUFFER_SIZE = 8
-const AUTOPLAY_BUFFER_SIZE_PREMIUM = 16
+// Autoplay backfill target. Reduced from 8→2 to prevent over-queueing: when
+// too many songs are queued ahead, most get evicted before playerStart without
+// recording terminal telemetry events, leaving recommendations stuck pending.
+// Queue just-in-time (1-2 songs) so most picks get a chance to emit playerStart
+// or playerSkip/playerFinish. Premium guilds get 2× to handle longer sessions.
+// See PremiumService.isPremium and issue #1585.
+const AUTOPLAY_BUFFER_SIZE = 2
+const AUTOPLAY_BUFFER_SIZE_PREMIUM = 4
 const HISTORY_SEED_LIMIT = 3
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
@@ -95,6 +99,43 @@ const sessionMoodCache = new Map<
     { mood: import('./sessionMood').SessionMood; historyLen: number }
 >()
 
+/**
+ * Mark queued autoplay recommendations that won't be played as "rejected"
+ * to prevent them from staying pending forever. Called when:
+ * 1. purging duplicate variations of current track
+ * 2. replacing an old autoplay cycle with a new one
+ *
+ * These recommendations never reach playerStart, so they must be explicitly
+ * rejected to get accurate telemetry coverage (target: ≥80% terminal events).
+ */
+async function cancelPendingRecommendations(
+    queue: GuildQueue,
+    tracksToCancel: Track[],
+): Promise<void> {
+    if (tracksToCancel.length === 0) return
+
+    const cancellationWrites = tracksToCancel.map((track) => {
+        const isAutoplay = (track.metadata as { isAutoplay?: boolean } | undefined)
+            ?.isAutoplay === true
+        if (isAutoplay) {
+            // Record as 'rejected' since these tracks never got a chance to play
+            return recordRecommendationOutcome({
+                guildId: queue.guild.id,
+                trackId: track.id,
+                outcome: 'rejected',
+            })
+        }
+        return Promise.resolve()
+    })
+
+    await Promise.all(cancellationWrites).catch((err) => {
+        errorLog({
+            message: 'Error recording cancelled recommendation outcomes',
+            error: err,
+        })
+    })
+}
+
 export function replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
@@ -137,7 +178,10 @@ async function _replenishQueue(
         const currentTrack = queue.currentTrack ?? finishedTrack ?? null
         if (!currentTrack) return
 
-        purgeDuplicatesOfCurrentTrack(queue, currentTrack)
+        // Record evicted duplicate recommendations as rejected to improve telemetry
+        // coverage. These tracks never get a chance to emit playerStart.
+        const purgedTracks = purgeDuplicatesOfCurrentTrack(queue, currentTrack)
+        await cancelPendingRecommendations(queue, purgedTracks)
 
         const bufferSize = (await premiumService.isPremium(queue.guild.id))
             ? AUTOPLAY_BUFFER_SIZE_PREMIUM
