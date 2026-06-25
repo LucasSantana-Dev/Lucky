@@ -1,5 +1,16 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
+
+// Mock lru-cache early to prevent LRUCache constructor errors in spotifyApi
+jest.mock('lru-cache', () => ({
+    LRUCache: jest.fn(function () {
+        this.get = jest.fn().mockReturnValue(null)
+        this.set = jest.fn()
+        this.delete = jest.fn()
+        this.clear = jest.fn()
+    }),
+}))
+
 import { replenishQueue, popularityBoost } from './replenisher'
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -42,6 +53,14 @@ jest.mock('../../../services/musicRecommendation/feedbackService', () => ({
         getGuildImplicitDislikeKeys: jest.fn(),
     },
 }))
+
+jest.mock(
+    '../../../services/musicRecommendation/recommendationTelemetry',
+    () => ({
+        recordRecommendationPick: jest.fn(),
+        recordRecommendationOutcome: jest.fn().mockResolvedValue(undefined),
+    }),
+)
 
 jest.mock('./sessionMood', () => ({
     detectSessionMood: jest.fn(),
@@ -161,11 +180,13 @@ describe('replenishQueue', () => {
             buildExcludedKeys,
             selectDiverseCandidates,
             addSelectedTracks,
+            purgeDuplicatesOfCurrentTrack,
         } = require('./diversitySelector')
         buildExcludedUrls.mockReturnValue(new Set())
         buildExcludedKeys.mockReturnValue(new Set())
         selectDiverseCandidates.mockReturnValue([])
         addSelectedTracks.mockResolvedValue(undefined)
+        purgeDuplicatesOfCurrentTrack.mockReturnValue([])
 
         const {
             collectBroadFallbackCandidates,
@@ -283,9 +304,9 @@ describe('replenishQueue', () => {
 
         await replenishQueue(queue)
 
-        expect(trackHistoryService.getReplayFrequentTracks).toHaveBeenCalledWith(
-            'guildid',
-        )
+        expect(
+            trackHistoryService.getReplayFrequentTracks,
+        ).toHaveBeenCalledWith('guildid')
     })
 
     it('should handle errors gracefully without throwing', async () => {
@@ -385,6 +406,45 @@ describe('replenishQueue', () => {
                 }),
             }),
         )
+    })
+
+    it('calls recordRecommendationOutcome with rejected for purged autoplay tracks', async () => {
+        const { purgeDuplicatesOfCurrentTrack } = require('./diversitySelector')
+        const autoplayTrack = createTrack({
+            id: 'purged-autoplay-1',
+            metadata: { isAutoplay: true },
+        })
+        purgeDuplicatesOfCurrentTrack.mockReturnValue([autoplayTrack])
+
+        const queue = createGuildQueue()
+        await replenishQueue(queue)
+
+        const {
+            recordRecommendationOutcome,
+        } = require('../../../services/musicRecommendation/recommendationTelemetry')
+        expect(recordRecommendationOutcome).toHaveBeenCalledWith(
+            expect.objectContaining({
+                trackId: 'purged-autoplay-1',
+                outcome: 'rejected',
+            }),
+        )
+    })
+
+    it('does not call recordRecommendationOutcome for purged non-autoplay tracks', async () => {
+        const { purgeDuplicatesOfCurrentTrack } = require('./diversitySelector')
+        const manualTrack = createTrack({
+            id: 'purged-manual-1',
+            metadata: { isAutoplay: false },
+        })
+        purgeDuplicatesOfCurrentTrack.mockReturnValue([manualTrack])
+
+        const queue = createGuildQueue()
+        await replenishQueue(queue)
+
+        const {
+            recordRecommendationOutcome,
+        } = require('../../../services/musicRecommendation/recommendationTelemetry')
+        expect(recordRecommendationOutcome).not.toHaveBeenCalled()
     })
 
     it('passes Spotify genre fallback to createArtistTagFetcher when token is available', async () => {
@@ -494,7 +554,9 @@ describe('replenishQueue', () => {
     })
 
     it('builds recency-decay indices from full history: most-recent-per-artist, dedup, missing-author skip, window-bounded', async () => {
-        const { collectRecommendationCandidates } = require('./candidateCollector')
+        const {
+            collectRecommendationCandidates,
+        } = require('./candidateCollector')
         collectRecommendationCandidates.mockResolvedValue(new Map())
 
         // allTracks = [currentTrack, ...history]; only positions < window (10)

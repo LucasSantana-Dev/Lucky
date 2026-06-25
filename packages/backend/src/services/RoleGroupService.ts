@@ -1,6 +1,9 @@
 import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
 import { guildService, type GuildRoleManage } from './GuildService'
-import { reactionRolesService } from '@lucky/shared/services/ReactionRolesService'
+import {
+    reactionRolesService,
+    type ReactionRoleMappingReturn,
+} from '@lucky/shared/services/ReactionRolesService'
 import { infoLog, errorLog } from '@lucky/shared/utils/general/log'
 import { AppError } from '../errors/AppError'
 
@@ -31,8 +34,7 @@ export interface AddRoleToGroupPlan {
 export interface AddRoleToGroupResult {
     status: 'ok' | 'partial_success'
     role: GuildRoleManage
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mapping: any
+    mapping: ReactionRoleMappingReturn
 }
 
 export class RoleGroupService {
@@ -64,6 +66,7 @@ export class RoleGroupService {
      * Seed style from an existing reaction-role message's sibling roles.
      * Returns modal color, mode buttonStyle (tie -> Primary), and divergence flag.
      */
+    // eslint-disable-next-line complexity
     async seedStyleFromMessage(messageId: string): Promise<
         StyleTemplate & {
             buttonStyle: string
@@ -259,6 +262,7 @@ export class RoleGroupService {
      * Add a role to a group with preflight checks, dry-run support, DB-first apply,
      * and role-only compensation on failure.
      */
+    // eslint-disable-next-line complexity
     async addRoleToGroup(
         guildId: string,
         groupId: string,
@@ -268,8 +272,7 @@ export class RoleGroupService {
         plan?: AddRoleToGroupPlan
         status?: 'ok' | 'partial_success'
         role?: GuildRoleManage
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        mapping?: any
+        mapping?: ReactionRoleMappingReturn
     }> {
         // Load group and verify it belongs to the guild (IDOR protection)
         const group = await this.prisma.roleGroup.findFirst({
@@ -375,8 +378,10 @@ export class RoleGroupService {
         }
 
         // Add to message (DB-first)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let addResult: any
+        let addResult: {
+            status: 'ok' | 'partial_success'
+            mapping: ReactionRoleMappingReturn
+        }
         try {
             addResult = await reactionRolesService.addRoleToMessage(
                 message.messageId,
@@ -409,7 +414,6 @@ export class RoleGroupService {
         }
 
         // Handle partial_success
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         if (addResult.status === 'partial_success') {
             infoLog({
                 message: `Added role to group ${groupId} but Discord PATCH failed; data is consistent, visuals will re-sync (roleId: ${createdRole.id}, messageId: ${message.id})`,
@@ -417,10 +421,8 @@ export class RoleGroupService {
         }
 
         return {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
             status: addResult.status,
             role: createdRole,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
             mapping: addResult.mapping,
         }
     }

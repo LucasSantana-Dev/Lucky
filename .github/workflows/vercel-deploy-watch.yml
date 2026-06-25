@@ -24,8 +24,9 @@ jobs:
           VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_ALERT_WEBHOOK }}
           # Comma-separated project IDs to monitor. Discover via `vercel projects ls --json`.
+          # Removed: prj_ILW1nAjuVfyFfpxfe9hm5gfQCnkt (lucky) and prj_CVyJOhht0WdcRg01Z5opf2rE2LXX (figurinhas2026) — migrated to CF Pages
           PROJECT_IDS: >-
-            prj_ILW1nAjuVfyFfpxfe9hm5gfQCnkt,prj_CVyJOhht0WdcRg01Z5opf2rE2LXX,prj_2XcjG9xAWA7XTWrp2GLhki5VXrxF,prj_OGMBqswlIdcZYCtN7pobeaAnsZyr,prj_3NBVHR7IAZ5KUuc3Oc8j36OhEkYu
+            prj_2XcjG9xAWA7XTWrp2GLhki5VXrxF,prj_OGMBqswlIdcZYCtN7pobeaAnsZyr,prj_3NBVHR7IAZ5KUuc3Oc8j36OhEkYu
         run: |
           set -euo pipefail
 

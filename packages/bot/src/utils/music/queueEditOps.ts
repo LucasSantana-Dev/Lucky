@@ -4,6 +4,7 @@ import { debugLog, errorLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { replenishQueue } from './autoplay/replenisher'
 import { markAsAutoplayTrack } from './autoplay/queueMarkers'
+import { recordRecommendationOutcome } from '../../services/musicRecommendation/recommendationTelemetry'
 
 
 function randomIndex(maxExclusive: number): number {
@@ -249,6 +250,22 @@ export async function blendAutoplayTracks(
     const keepCount = Math.ceil(autoplayTracks.length * blendRatio)
     const toRemove = autoplayTracks.slice(keepCount)
 
+    // Record removed autoplay recommendations as rejected before eviction.
+    // These tracks never get a chance to emit playerStart/playerSkip/playerFinish,
+    // so we must explicitly mark them to improve telemetry coverage (#1585).
+    const cancellationWrites = toRemove.map((track) =>
+        recordRecommendationOutcome({
+            guildId: queue.guild.id,
+            trackId: track.id,
+            outcome: 'rejected',
+        }).catch((err) => {
+            errorLog({
+                message: 'Error recording blended track rejection',
+                error: err,
+            })
+        }),
+    )
+
     for (const track of toRemove) {
         try {
             queue.node.remove(track)
@@ -265,5 +282,7 @@ export async function blendAutoplayTracks(
         },
     })
 
+    // Wait for telemetry to settle before replenishing queue
+    await Promise.all(cancellationWrites)
     await replenishQueue(queue)
 }
