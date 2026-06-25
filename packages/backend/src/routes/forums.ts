@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { getPrismaClient } from '@lucky/shared/utils'
 import { apiLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
+import { validateParams } from '../middleware/validate'
+import { managementSchemas as s } from '../schemas/management'
 
 const threadResponseSchema = z.object({
     threadId: z.string(),
@@ -21,6 +23,7 @@ export function setupForumsRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/threads/:slug',
         apiLimiter,
+        validateParams(s.forumThreadSlugParam),
         asyncHandler(async (req: Request, res: Response) => {
             const { guildId, slug } = req.params as {
                 guildId: string
