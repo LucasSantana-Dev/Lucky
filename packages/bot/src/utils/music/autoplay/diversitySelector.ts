@@ -360,7 +360,7 @@ export async function addSelectedTracks(
 export function purgeDuplicatesOfCurrentTrack(
     queue: GuildQueue,
     currentTrack: Track,
-): void {
+): Track[] {
     const urls = new Set<string>()
     if (currentTrack.url) {
         urls.add(currentTrack.url)
@@ -373,9 +373,11 @@ export function purgeDuplicatesOfCurrentTrack(
     const core = extractSongCore(currentTrack.title ?? '', currentTrack.author)
     if (core) keys.add(normalizeText(core))
 
+    const removed: Track[] = []
     for (const track of queue.tracks.toArray()) {
         if (isDuplicateCandidate(track, urls, keys)) {
             queue.node.remove(track)
+            removed.push(track)
             debugLog({
                 message: 'Autoplay: purged stale duplicate of now-playing',
                 data: {
@@ -385,6 +387,7 @@ export function purgeDuplicatesOfCurrentTrack(
             })
         }
     }
+    return removed
 }
 
 export { ScoredTrack }
