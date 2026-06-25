@@ -1,5 +1,5 @@
 import { getPrismaClient } from '../../utils/database/prismaClient.js'
-import { Prisma } from '../../generated/prisma/client.js'
+import type { Prisma } from '../../generated/prisma/client.js'
 import type { ScopeConfig, BatchJobType, BatchJobStatus } from './types.js'
 
 /**
@@ -36,7 +36,7 @@ export class BatchJobService {
                     ? (JSON.parse(
                           JSON.stringify(input.options),
                       ) as unknown as Prisma.InputJsonValue)
-                    : Prisma.DbNull,
+                    : (null as unknown as Prisma.InputJsonValue),
                 totalItems: input.totalItems,
                 estimatedMinutes: input.estimatedMinutes,
                 status: 'pending',
@@ -202,7 +202,7 @@ export class BatchJobService {
                     ? (JSON.parse(
                           JSON.stringify(input.resultMetadata),
                       ) as unknown as Prisma.InputJsonValue)
-                    : Prisma.DbNull,
+                    : (null as unknown as Prisma.InputJsonValue),
                 attemptedAt: new Date(),
             },
         })

@@ -14,8 +14,9 @@ const batchJobServiceMock = {
     getById: jest.fn(),
 }
 
-jest.mock('../../../bot/start', () => ({
-    getClient: () => getClientMock(),
+jest.mock('../../../bot/clientStore', () => ({
+    getStoredClient: () => getClientMock(),
+    setClient: jest.fn(),
 }))
 
 jest.mock('@lucky/shared/services/batch', () => ({
@@ -112,11 +113,9 @@ describe('ChannelMoveBatchExecutor', () => {
                 guilds: {
                     fetch: jest.fn().mockResolvedValue({
                         channels: {
-                            fetch: jest
-                                .fn()
-                                .mockResolvedValue({
-                                    isTextBased: () => false,
-                                }),
+                            fetch: jest.fn().mockResolvedValue({
+                                isTextBased: () => false,
+                            }),
                         },
                     }),
                 },
