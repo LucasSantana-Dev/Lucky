@@ -1,4 +1,4 @@
-import type { Client, TextChannel } from 'discord.js'
+import type { Client, TextChannel, Guild, GuildScheduledEvent } from 'discord.js'
 import { ChannelType, EmbedBuilder } from 'discord.js'
 import { COLOR } from '@lucky/shared/constants'
 import {
@@ -238,9 +238,6 @@ export class WeeklyDigestService {
                 upcomingEvents,
             )
 
-            // Send embed
-            await digestChannel.send({ embeds: [embed] })
-
             // Save snapshot
             await prisma.weeklyDigestSnapshot.create({
                 data: {
@@ -249,6 +246,9 @@ export class WeeklyDigestService {
                     postedAt: new Date(this.clock()),
                 },
             })
+
+            // Send embed
+            await digestChannel.send({ embeds: [embed] })
 
             debugLog({
                 message: 'Weekly digest sent successfully',
@@ -304,25 +304,25 @@ export class WeeklyDigestService {
         }
     }
 
-    private async getUpcomingEvents(guild: any): Promise<string[]> {
+    private async getUpcomingEvents(guild: Guild): Promise<string[]> {
         try {
             const events = await guild.scheduledEvents.fetch()
             const now = this.clock()
             const oneWeekFromNow = now + MS_PER_WEEK
 
             const upcomingEvents = events
-                .filter((event: any) => {
+                .filter((event: GuildScheduledEvent) => {
                     const eventTime = event.scheduledStartTimestamp ?? 0
                     return eventTime > now && eventTime < oneWeekFromNow
                 })
                 .sort(
-                    (a: any, b: any) =>
+                    (a: GuildScheduledEvent, b: GuildScheduledEvent) =>
                         (a.scheduledStartTimestamp ?? 0) -
                         (b.scheduledStartTimestamp ?? 0),
                 )
                 .slice(0, 5)
                 .map(
-                    (event: any) =>
+                    (event: GuildScheduledEvent) =>
                         `• ${event.name} <t:${Math.floor((event.scheduledStartTimestamp ?? 0) / 1000)}:R>`,
                 )
 
