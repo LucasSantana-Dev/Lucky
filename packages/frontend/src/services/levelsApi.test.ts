@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { createLevelsApi } from './levelsApi'
+import { createLevelsApi, xpNeededForLevel } from './levelsApi'
 
 describe('createLevelsApi', () => {
     const get = vi.fn()
@@ -291,5 +291,32 @@ describe('createLevelsApi', () => {
             const result = await api.removeReward('g1', 5)
             expect(result).toBeUndefined()
         })
+    })
+})
+
+describe('xpNeededForLevel', () => {
+    test('calculates xp for level 1', () => {
+        expect(xpNeededForLevel(1)).toBe(100)
+    })
+
+    test('calculates xp for level 5', () => {
+        expect(xpNeededForLevel(5)).toBe(2500)
+    })
+
+    test('calculates xp for level 10', () => {
+        expect(xpNeededForLevel(10)).toBe(10000)
+    })
+
+    test('returns 0 for level 0', () => {
+        expect(xpNeededForLevel(0)).toBe(0)
+    })
+
+    test('follows formula level * level * 100', () => {
+        const level = 7
+        expect(xpNeededForLevel(level)).toBe(level * level * 100)
+    })
+
+    test('calculates xp for level 20', () => {
+        expect(xpNeededForLevel(20)).toBe(40000)
     })
 })
