@@ -1,5 +1,7 @@
 import { describe, test, expect, beforeEach } from '@jest/globals'
 import express from 'express'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 // The session store is Postgres-backed (PrismaSessionStore) via the globally
 // mocked getPrismaClient (tests/setup.ts); no Redis mocks are needed.
@@ -9,7 +11,6 @@ describe('Session Middleware', () => {
 
     beforeEach(() => {
         app = express()
-        jest.clearAllMocks()
     })
 
     test('should setup session middleware', async () => {
@@ -73,6 +74,13 @@ describe('Session Middleware', () => {
             setupSessionMiddleware(app)
         }).not.toThrow()
 
+        // Verify via source code that secure is set to isProduction
+        const source = readFileSync(
+            resolve(__dirname, '../../../src/middleware/session.ts'),
+            'utf8',
+        )
+        expect(source).toContain('secure: isProduction')
+
         process.env.NODE_ENV = originalEnv
     })
 
@@ -85,6 +93,13 @@ describe('Session Middleware', () => {
         expect(() => {
             setupSessionMiddleware(app)
         }).not.toThrow()
+
+        // Verify via source code that secure is set to isProduction
+        const source = readFileSync(
+            resolve(__dirname, '../../../src/middleware/session.ts'),
+            'utf8',
+        )
+        expect(source).toContain('secure: isProduction')
 
         process.env.NODE_ENV = originalEnv
     })

@@ -287,12 +287,12 @@ describe('Management Schemas', () => {
             expect(result.success).toBe(false)
         })
 
-        test('should reject role ID shorter than 17 digits', () => {
+        test('should reject role ID with 16 digits (below minimum)', () => {
             const payload = {
                 ...validPayload,
                 roles: [
                     {
-                        roleId: '12345678901234567',
+                        roleId: '1234567890123456',
                     },
                 ],
             }
