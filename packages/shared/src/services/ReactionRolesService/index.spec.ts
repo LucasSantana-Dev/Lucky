@@ -41,13 +41,30 @@ describe('ReactionRolesService', () => {
                 findUnique: jest.fn(),
                 delete: jest.fn(),
                 findMany: jest.fn(),
+                update: jest.fn(),
             },
             reactionRoleMapping: {
                 findFirst: jest.fn(),
+                deleteMany: jest.fn(),
+                count: (jest.fn() as any).mockResolvedValue(0),
+                create: jest.fn(),
             },
+            $transaction: jest.fn() as any,
         }
         mockGetPrismaClient.mockReturnValue(mockPrisma)
         mockIsEnabled.mockResolvedValue(true)
+        ;(mockPrisma.$transaction as any).mockImplementation(async (fnOrArray: any) => {
+            if (typeof fnOrArray === 'function') {
+                return await fnOrArray(mockPrisma)
+            }
+            // Handle array pattern: execute each operation
+            const results = []
+            for (const op of fnOrArray) {
+                // Each op is a Prisma operation (like deleteMany result)
+                results.push(op)
+            }
+            return results
+        })
     })
 
     afterEach(() => {
@@ -483,9 +500,9 @@ describe('ReactionRolesService', () => {
             const options = {
                 ...baseOptions,
                 roles: [
-                    { roleId: 'role-1', label: 'Role One', emoji: '1️⃣' },
+                    { roleId: '11111111111111111', label: 'Role One', emoji: '1️⃣' },
                     {
-                        roleId: 'role-2',
+                        roleId: '22222222222222222',
                         label: 'Role Two',
                         style: 'Success' as const,
                     },
@@ -502,12 +519,12 @@ describe('ReactionRolesService', () => {
                         mappings: expect.objectContaining({
                             create: expect.arrayContaining([
                                 expect.objectContaining({
-                                    roleId: 'role-1',
+                                    roleId: '11111111111111111',
                                     label: 'Role One',
                                     emoji: '1️⃣',
                                 }),
                                 expect.objectContaining({
-                                    roleId: 'role-2',
+                                    roleId: '22222222222222222',
                                     label: 'Role Two',
                                     style: 'Success',
                                 }),
@@ -626,12 +643,12 @@ describe('ReactionRolesService', () => {
                 ...baseOptions,
                 roles: [
                     {
-                        roleId: 'role-1',
+                        roleId: '11111111111111111',
                         label: 'Animated',
                         emoji: '<a:spin:123456>',
                     },
                     {
-                        roleId: 'role-2',
+                        roleId: '22222222222222222',
                         label: 'Static',
                         emoji: '<:star:789012>',
                     },
@@ -669,7 +686,7 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Heart', emoji: '❤️' }],
+                roles: [{ roleId: '11111111111111111', label: 'Heart', emoji: '❤️' }],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -691,7 +708,7 @@ describe('ReactionRolesService', () => {
             mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({})
 
             const roles = Array.from({ length: 12 }, (_, i) => ({
-                roleId: `role-${i}`,
+                roleId: String(i + 1).padStart(17, '1'),
                 label: `Role ${i}`,
             }))
             const options = { ...baseOptions, roles }
@@ -1111,7 +1128,7 @@ describe('ReactionRolesService', () => {
                 title: 'Test',
                 description: 'Test',
                 botToken: 'token',
-                roles: [{ roleId: 'r1', label: 'L1', emoji: '<a:fire:12345>' }],
+                roles: [{ roleId: '11111111111111111', label: 'L1', emoji: '<a:fire:12345>' }],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -1139,7 +1156,7 @@ describe('ReactionRolesService', () => {
                 title: 'Test',
                 description: 'Test',
                 botToken: 'token',
-                roles: [{ roleId: 'r1', label: 'L1', emoji: '<:star:98765>' }],
+                roles: [{ roleId: '11111111111111111', label: 'L1', emoji: '<:star:98765>' }],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -1167,7 +1184,7 @@ describe('ReactionRolesService', () => {
                 title: 'Test',
                 description: 'Test',
                 botToken: 'token',
-                roles: [{ roleId: 'r1', label: 'L1', emoji: '✨' }],
+                roles: [{ roleId: '11111111111111111', label: 'L1', emoji: '✨' }],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -1836,6 +1853,8 @@ describe('ReactionRolesService', () => {
             mockPrisma.reactionRoleMapping = {
                 create: jest.fn(),
                 deleteMany: jest.fn(),
+                count: (jest.fn() as any).mockResolvedValue(0),
+                findFirst: (jest.fn() as any).mockResolvedValue(null),
             }
         })
 
@@ -2036,7 +2055,7 @@ describe('ReactionRolesService', () => {
             const mappings = Array.from({ length: 25 }, (_, i) => ({
                 id: `m-${i}`,
                 messageId,
-                roleId: `r-${i}`,
+                roleId: `${String(i + 1).padStart(17, '1')}`,
                 label: `L${i}`,
                 emoji: null,
                 buttonId: `b-${i}`,
@@ -2053,6 +2072,13 @@ describe('ReactionRolesService', () => {
                 imageUrl: null,
                 mappings,
             })
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) =>
+                    typeof callback === 'function'
+                        ? callback(mockPrisma)
+                        : Promise.all(callback),
+            )
+            mockPrisma.reactionRoleMapping.count.mockResolvedValueOnce(25)
 
             await expect(
                 service.addRoleToMessage(
@@ -2066,10 +2092,19 @@ describe('ReactionRolesService', () => {
                     botToken,
                 ),
             ).rejects.toThrow('Message already at capacity')
-            expect(mockPrisma.$transaction).not.toHaveBeenCalled()
         })
 
         it('duplicate roleId → conflict', async () => {
+            const existingMapping = {
+                id: 'mapping-1',
+                messageId,
+                roleId: newRoleId,
+                label: 'Ex',
+                emoji: null,
+                buttonId: `reactionrole:${newRoleId}`,
+                type: 'button',
+                style: 'Primary',
+            }
             mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
                 id: 'msg-id-1',
                 messageId,
@@ -2078,19 +2113,17 @@ describe('ReactionRolesService', () => {
                 title: 'Test',
                 description: 'Click',
                 imageUrl: null,
-                mappings: [
-                    {
-                        id: 'mapping-1',
-                        messageId,
-                        roleId: newRoleId,
-                        label: 'Ex',
-                        emoji: null,
-                        buttonId: `reactionrole:${newRoleId}`,
-                        type: 'button',
-                        style: 'Primary',
-                    },
-                ],
+                mappings: [existingMapping],
             })
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) =>
+                    typeof callback === 'function'
+                        ? callback(mockPrisma)
+                        : Promise.all(callback),
+            )
+            mockPrisma.reactionRoleMapping.findFirst.mockResolvedValueOnce(
+                existingMapping,
+            )
 
             await expect(
                 service.addRoleToMessage(
@@ -2104,7 +2137,6 @@ describe('ReactionRolesService', () => {
                     botToken,
                 ),
             ).rejects.toThrow('Role already mapped')
-            expect(mockPrisma.$transaction).not.toHaveBeenCalled()
         })
 
         it('NO deleteMany called', async () => {
@@ -2159,6 +2191,430 @@ describe('ReactionRolesService', () => {
             expect(
                 mockPrisma.reactionRoleMapping.deleteMany,
             ).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('Issue #1540 - Input validation and parseEmoji null handling', () => {
+        describe('parseEmoji', () => {
+            it('returns null for empty emoji', () => {
+                const result = (service as any).parseEmoji('')
+                expect(result).toBeNull()
+            })
+
+            it('returns null for null emoji', () => {
+                const result = (service as any).parseEmoji(null)
+                expect(result).toBeNull()
+            })
+
+            it('parses custom emoji with id and name', () => {
+                const result = (service as any).parseEmoji(
+                    '<:smile:123456789012345678>',
+                )
+                expect(result).toEqual({
+                    id: '123456789012345678',
+                    name: 'smile',
+                    animated: false,
+                })
+            })
+
+            it('parses animated emoji', () => {
+                const result = (service as any).parseEmoji(
+                    '<a:spin:123456789012345678>',
+                )
+                expect(result).toEqual({
+                    id: '123456789012345678',
+                    name: 'spin',
+                    animated: true,
+                })
+            })
+
+            it('returns text emoji as name', () => {
+                const result = (service as any).parseEmoji('😀')
+                expect(result).toEqual({ name: '😀' })
+            })
+        })
+
+        describe('createReactionRoleMessageFromDashboard', () => {
+            const guildId = '11111111111111111'
+            const channelId = '22222222222222222'
+            const invalidRoleId = 'invalid-role-id'
+            const validRoleId = '33333333333333333'
+
+            it('validates roleIds in roles array', async () => {
+                mockIsEnabled.mockResolvedValueOnce(true)
+
+                const invalidOptions = {
+                    guildId,
+                    channelId,
+                    title: 'Test',
+                    description: 'Desc',
+                    botToken: 'token',
+                    roles: [
+                        {
+                            roleId: invalidRoleId,
+                            label: 'Role 1',
+                        },
+                    ],
+                }
+
+                await expect(
+                    service.createReactionRoleMessageFromDashboard(
+                        invalidOptions,
+                    ),
+                ).rejects.toThrow('Invalid messageId')
+            })
+
+            it('accepts valid snowflake roleIds', async () => {
+                mockIsEnabled.mockResolvedValueOnce(true)
+
+                const validOptions = {
+                    guildId,
+                    channelId,
+                    title: 'Test',
+                    description: 'Desc',
+                    botToken: 'token',
+                    roles: [
+                        {
+                            roleId: validRoleId,
+                            label: 'Role 1',
+                        },
+                    ],
+                }
+
+                mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({
+                    id: 'msg-id-1',
+                    messageId: 'msg-123',
+                })
+                ;(global as any).fetch = (jest
+                    .fn() as any)
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: async () => ({ id: 'msg-123' }),
+                    })
+
+                const result =
+                    await service.createReactionRoleMessageFromDashboard(
+                        validOptions,
+                    )
+
+                expect(result.messageId).toBe('msg-123')
+                expect(
+                    mockPrisma.reactionRoleMessage.create,
+                ).toHaveBeenCalled()
+            })
+
+            it('handles null emoji in buildButtonRows', async () => {
+                mockIsEnabled.mockResolvedValueOnce(true)
+
+                const optionsWithNullEmoji = {
+                    guildId,
+                    channelId,
+                    title: 'Test',
+                    description: 'Desc',
+                    botToken: 'token',
+                    roles: [
+                        {
+                            roleId: validRoleId,
+                            label: 'Role 1',
+                            emoji: null,
+                        },
+                    ],
+                }
+
+                mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({
+                    id: 'msg-id-1',
+                    messageId: 'msg-123',
+                })
+                ;(global as any).fetch = (jest
+                    .fn() as any)
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: async () => ({ id: 'msg-123' }),
+                    })
+
+                const result =
+                    await service.createReactionRoleMessageFromDashboard(
+                        optionsWithNullEmoji as any,
+                    )
+
+                expect(result.messageId).toBe('msg-123')
+            })
+        })
+    })
+
+    describe('Issue #1555 - Update partial failure rollback', () => {
+        const guildId = '11111111111111111'
+        const channelId = '22222222222222222'
+        const messageId = '33333333333333333'
+        const roleId = '44444444444444444'
+        const botToken = 'test-token'
+
+        it('rolls back DB changes when Discord update fails', async () => {
+            mockIsEnabled.mockResolvedValueOnce(true)
+
+            const originalMessage = {
+                id: 'msg-id-1',
+                messageId,
+                guildId,
+                channelId,
+                title: 'Original Title',
+                description: 'Original Desc',
+                imageUrl: null,
+                mappings: [
+                    {
+                        id: 'mapping-1',
+                        messageId,
+                        roleId: '55555555555555555',
+                        label: 'Role 1',
+                        emoji: null,
+                        buttonId: 'reactionrole:55555555555555555',
+                        type: 'button',
+                        style: 'Primary',
+                    },
+                ],
+            }
+
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce(
+                originalMessage,
+            )
+
+            let transactionCalls = 0
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) => {
+                    transactionCalls++
+                    return typeof callback === 'function'
+                        ? callback(mockPrisma)
+                        : Promise.all(callback)
+                },
+            )
+
+            mockPrisma.reactionRoleMessage.update.mockResolvedValueOnce({
+                ...originalMessage,
+                title: 'New Title',
+                description: 'New Desc',
+            })
+
+            // Discord API fails
+            ;(global as any).fetch = (jest.fn() as any).mockResolvedValueOnce({
+                ok: false,
+                status: 500,
+                text: async () => 'Internal Server Error',
+            })
+
+            // Second transaction for rollback
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) => {
+                    transactionCalls++
+                    return typeof callback === 'function'
+                        ? callback(mockPrisma)
+                        : Promise.all(callback)
+                },
+            )
+
+            mockPrisma.reactionRoleMessage.update.mockResolvedValueOnce(
+                originalMessage,
+            )
+
+            const options = {
+                guildId,
+                messageId,
+                title: 'New Title',
+                description: 'New Desc',
+                botToken,
+                roles: [
+                    {
+                        roleId: '55555555555555555',
+                        label: 'Role 1',
+                    },
+                ],
+            }
+
+            await expect(
+                service.updateReactionRoleMessage(options),
+            ).rejects.toThrow('Discord API error')
+
+            // Verify rollback transaction was called
+            expect(transactionCalls).toBe(2)
+        })
+    })
+
+    describe('Issue #1558 - Concurrent append serialization', () => {
+        const messageId = '11111111111111111'
+        const guildId = '22222222222222222'
+        const channelId = '33333333333333333'
+        const roleId = '44444444444444444'
+        const botToken = 'test-token'
+
+        it('enforces capacity check inside transaction', async () => {
+            const message = {
+                id: 'msg-id-1',
+                messageId,
+                guildId,
+                channelId,
+                title: 'Test',
+                description: 'Desc',
+                imageUrl: null,
+                mappings: Array(25)
+                    .fill(null)
+                    .map((_, i) => ({
+                        id: `mapping-${i}`,
+                        messageId,
+                        roleId: `${String(i).padStart(17, '0')}`,
+                        label: `Role ${i}`,
+                        emoji: null,
+                        buttonId: `reactionrole:${String(i).padStart(17, '0')}`,
+                        type: 'button',
+                        style: 'Primary',
+                    })),
+            }
+
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce(
+                message,
+            )
+
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) => {
+                    const mockTx = {
+                        reactionRoleMapping: {
+                            count: (jest.fn() as any).mockResolvedValue(25),
+                        },
+                    }
+                    return callback(mockTx)
+                },
+            )
+
+            await expect(
+                service.addRoleToMessage(
+                    messageId,
+                    {
+                        roleId,
+                        label: 'New Role',
+                    },
+                    botToken,
+                ),
+            ).rejects.toThrow('Message already at capacity')
+        })
+
+        it('checks duplicate roleId inside transaction', async () => {
+            const message = {
+                id: 'msg-id-1',
+                messageId,
+                guildId,
+                channelId,
+                title: 'Test',
+                description: 'Desc',
+                imageUrl: null,
+                mappings: [
+                    {
+                        id: 'mapping-1',
+                        messageId,
+                        roleId,
+                        label: 'Existing Role',
+                        emoji: null,
+                        buttonId: `reactionrole:${roleId}`,
+                        type: 'button',
+                        style: 'Primary',
+                    },
+                ],
+            }
+
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce(
+                message,
+            )
+
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) => {
+                    const mockTx = {
+                        reactionRoleMapping: {
+                            count: (jest.fn() as any).mockResolvedValue(1),
+                            findFirst: (jest.fn() as any).mockResolvedValue({
+                                id: 'mapping-1',
+                                roleId,
+                            }),
+                        },
+                    }
+                    return callback(mockTx)
+                },
+            )
+
+            await expect(
+                service.addRoleToMessage(
+                    messageId,
+                    {
+                        roleId,
+                        label: 'Existing Role',
+                    },
+                    botToken,
+                ),
+            ).rejects.toThrow('Role already mapped')
+        })
+
+        it('successfully inserts when under capacity and no duplicate', async () => {
+            const message = {
+                id: 'msg-id-1',
+                messageId,
+                guildId,
+                channelId,
+                title: 'Test',
+                description: 'Desc',
+                imageUrl: null,
+                mappings: [
+                    {
+                        id: 'mapping-1',
+                        messageId,
+                        roleId: '99999999999999999',
+                        label: 'Existing Role',
+                        emoji: null,
+                        buttonId: 'reactionrole:99999999999999999',
+                        type: 'button',
+                        style: 'Primary',
+                    },
+                ],
+            }
+
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce(
+                message,
+            )
+
+            const createdMapping = {
+                id: 'mapping-2',
+                messageId,
+                roleId,
+                label: 'New Role',
+                emoji: null,
+                buttonId: `reactionrole:${roleId}`,
+                type: 'button',
+                style: 'Primary',
+            }
+
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) => {
+                    const mockTx = {
+                        reactionRoleMapping: {
+                            count: (jest.fn() as any).mockResolvedValue(1),
+                            findFirst: (jest.fn() as any).mockResolvedValue(null),
+                            create: (jest.fn() as any).mockResolvedValue(createdMapping),
+                        },
+                    }
+                    return callback(mockTx)
+                },
+            )
+
+            ;(global as any).fetch = (jest.fn() as any).mockResolvedValueOnce({
+                ok: true,
+            })
+
+            const result = await service.addRoleToMessage(
+                messageId,
+                {
+                    roleId,
+                    label: 'New Role',
+                },
+                botToken,
+            )
+
+            expect(result.status).toBe('ok')
+            expect(result.mapping.roleId).toBe(roleId)
         })
     })
 })
