@@ -39,8 +39,13 @@ export function matchesScope(
 
             if (!msgDate) return false
 
-            const startMatch = !start || msgDate >= start
-            const endMatch = !end || msgDate <= end
+            // Normalize: after JSON roundtrip through Prisma's JSON column,
+            // Date fields arrive as ISO strings — coerce before comparing.
+            const startDate = start ? new Date(start) : null
+            const endDate = end ? new Date(end) : null
+
+            const startMatch = !startDate || msgDate >= startDate
+            const endMatch = !endDate || msgDate <= endDate
             return startMatch && endMatch
         }
 

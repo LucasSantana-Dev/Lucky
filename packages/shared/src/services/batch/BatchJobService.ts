@@ -42,11 +42,11 @@ export class BatchJobService {
     /**
      * Retrieves a batch job by ID.
      */
-    async getById(jobId: string) {
+    async getById(jobId: string, options?: { includeItems?: boolean }) {
         const prisma = getPrismaClient()
         return await prisma.batchJob.findUnique({
             where: { id: jobId },
-            include: { items: true },
+            include: options?.includeItems ? { items: true } : undefined,
         })
     }
 
@@ -77,7 +77,6 @@ export class BatchJobService {
             orderBy: { createdAt: orderBy },
             take: limit,
             skip: offset,
-            include: { items: true },
         })
     }
 

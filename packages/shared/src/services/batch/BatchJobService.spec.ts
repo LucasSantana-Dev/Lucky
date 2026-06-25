@@ -72,9 +72,12 @@ describe('BatchJobService', () => {
                 },
             })
 
-            const result = await service.getById('job-1')
+            const result = await service.getById('job-1', {
+                includeItems: true,
+            })
             expect(result?.id).toBe('job-1')
-            expect(result?.items).toHaveLength(1)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect((result as any)?.items).toHaveLength(1)
         })
 
         it('returns null if job not found', async () => {

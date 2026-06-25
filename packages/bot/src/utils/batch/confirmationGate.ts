@@ -9,6 +9,7 @@ import {
     ButtonStyle,
     EmbedBuilder,
     type BaseInteraction,
+    type CommandInteraction,
     type MessageComponentInteraction,
 } from 'discord.js'
 import { COLOR } from '@lucky/shared/constants'
@@ -48,7 +49,21 @@ export async function showBatchConfirmation(
         const embed = buildConfirmationEmbed(params)
         const buttons = buildConfirmationButtons()
 
-        const message = await interaction.reply({
+        // Use followUp when the interaction was already deferred or replied to
+        // (e.g. the command called deferReply before invoking this gate).
+        const alreadyResponded =
+            'deferred' in interaction &&
+            'replied' in interaction &&
+            ((interaction as unknown as CommandInteraction).deferred ||
+                (interaction as unknown as CommandInteraction).replied)
+
+        const replyFn = alreadyResponded
+            ? (opts: Parameters<CommandInteraction['followUp']>[0]) =>
+                  (interaction as unknown as CommandInteraction).followUp(opts)
+            : (opts: Parameters<typeof interaction.reply>[0]) =>
+                  interaction.reply(opts)
+
+        const message = await replyFn({
             embeds: [embed],
             components: [buttons],
             ephemeral: true,

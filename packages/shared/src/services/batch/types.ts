@@ -8,8 +8,8 @@ export interface ScopeConfig {
     config: {
         count?: number // For 'count' scope
         userId?: string // For 'user' scope
-        dateRangeStart?: Date // For 'date_range' scope
-        dateRangeEnd?: Date // For 'date_range' scope
+        dateRangeStart?: Date | string // For 'date_range' scope; stored as ISO string after JSON roundtrip
+        dateRangeEnd?: Date | string // For 'date_range' scope; stored as ISO string after JSON roundtrip
         searchText?: string // For 'contains' scope
     }
 }

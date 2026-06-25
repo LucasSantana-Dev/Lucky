@@ -69,7 +69,9 @@ export function setupBatchJobRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const jobId = p(req.params.jobId)
 
-            const job = await batchJobService.getById(jobId)
+            const job = await batchJobService.getById(jobId, {
+                includeItems: true,
+            })
             if (!job) {
                 throw AppError.notFound('Batch job not found')
             }
@@ -115,7 +117,22 @@ export function setupBatchJobRoutes(app: Express): void {
             let progress = null
             if (progressJson) {
                 try {
-                    progress = JSON.parse(progressJson)
+                    // Redis stores shared BatchProgress (processed/failed/skipped/total).
+                    // Map to the frontend BatchProgress shape (processedItems/failedItems/etc).
+                    const raw = JSON.parse(progressJson) as {
+                        processed?: number
+                        total?: number
+                        failed?: number
+                        skipped?: number
+                    }
+                    progress = {
+                        jobId,
+                        processedItems: raw.processed ?? 0,
+                        totalItems: raw.total ?? 0,
+                        failedItems: raw.failed ?? 0,
+                        skippedItems: raw.skipped ?? 0,
+                        lastUpdated: new Date().toISOString(),
+                    }
                 } catch {
                     // If parsing fails, return null (corrupted data)
                     progress = null

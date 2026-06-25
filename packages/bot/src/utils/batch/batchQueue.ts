@@ -54,7 +54,15 @@ export async function enqueueBatchJob(jobId: string): Promise<Job | null> {
     }
 
     try {
-        const job = await q.add(jobId, { jobId }, { jobId })
+        const job = await q.add(
+            jobId,
+            { jobId },
+            {
+                jobId,
+                removeOnComplete: true,
+                removeOnFail: true,
+            },
+        )
         return job
     } catch (error) {
         errorLog({

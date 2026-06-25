@@ -49,6 +49,9 @@ async function onProgress(
             error,
             data: { jobId },
         })
+        // Re-throw so the executor's `await onProgress(...)` surfaces the failure
+        // instead of continuing with an unpersisted cursor.
+        throw error
     }
 }
 
@@ -162,6 +165,7 @@ export async function startBatchJobWorker(): Promise<void> {
         registerExecutor(new ChannelMoveBatchExecutor())
     } catch (error) {
         errorLog({ message: 'Failed to register batch executors', error })
+        return
     }
 
     try {

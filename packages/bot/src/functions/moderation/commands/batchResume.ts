@@ -87,7 +87,23 @@ export default new Command({
 
             // Mark as in-progress and enqueue
             await batchJobService.markInProgress(jobId)
-            await enqueueBatchJob(jobId)
+            const queued = await enqueueBatchJob(jobId)
+            if (queued === null) {
+                // Enqueue failed (Redis unavailable); roll back to failed so the job
+                // is not stuck as in_progress without ever being processed.
+                await batchJobService.markFailed(
+                    jobId,
+                    'Failed to enqueue job for processing (Redis unavailable)',
+                )
+                await interactionReply({
+                    interaction,
+                    content: {
+                        content:
+                            '❌ Failed to queue the batch job for processing. Please try again when the service is available.',
+                    },
+                })
+                return
+            }
 
             await interactionReply({
                 interaction,
