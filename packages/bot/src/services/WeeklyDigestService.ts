@@ -1,4 +1,9 @@
-import type { Client, TextChannel, Guild, GuildScheduledEvent } from 'discord.js'
+import type {
+    Client,
+    TextChannel,
+    Guild,
+    GuildScheduledEvent,
+} from 'discord.js'
 import { ChannelType, EmbedBuilder } from 'discord.js'
 import { COLOR } from '@lucky/shared/constants'
 import {
@@ -59,7 +64,9 @@ function msUntilNextMonday12UTC(): number {
 
     // Find next Monday at 12:00 UTC
     const daysUntilMonday = (1 - utcDate.getUTCDay() + 7) % 7 || 7
-    const targetDate = new Date(utcDate.getTime() + daysUntilMonday * MS_PER_DAY)
+    const targetDate = new Date(
+        utcDate.getTime() + daysUntilMonday * MS_PER_DAY,
+    )
     targetDate.setUTCHours(12, 0, 0, 0)
 
     const msUntil = targetDate.getTime() - utcDate.getTime()
@@ -139,8 +146,7 @@ export class WeeklyDigestService {
 
             this.lastDigestTime = now
 
-            const digestChannelId =
-                process.env.CRIATIVARIA_DIGEST_CHANNEL_ID
+            const digestChannelId = process.env.CRIATIVARIA_DIGEST_CHANNEL_ID
             const forumChannelId = process.env.CRIATIVARIA_FORUM_CHANNEL_ID
 
             if (!digestChannelId || !forumChannelId) return
@@ -182,7 +188,10 @@ export class WeeklyDigestService {
             const digestChannel = (await this.client.channels
                 .fetch(digestChannelId)
                 .catch(() => null)) as TextChannel | null
-            if (!digestChannel || digestChannel.type !== ChannelType.GuildText) {
+            if (
+                !digestChannel ||
+                digestChannel.type !== ChannelType.GuildText
+            ) {
                 errorLog({
                     message: 'Weekly digest channel unavailable',
                     data: { digestChannelId },
@@ -310,7 +319,7 @@ export class WeeklyDigestService {
             const now = this.clock()
             const oneWeekFromNow = now + MS_PER_WEEK
 
-            const upcomingEvents = events
+            const upcomingEvents = [...events.values()]
                 .filter((event: GuildScheduledEvent) => {
                     const eventTime = event.scheduledStartTimestamp ?? 0
                     return eventTime > now && eventTime < oneWeekFromNow
@@ -343,7 +352,7 @@ export class WeeklyDigestService {
         upcomingEvents: string[],
     ): EmbedBuilder {
         const embed = new EmbedBuilder()
-            .setColor(COLOR.primary)
+            .setColor(COLOR.LUCKY_PURPLE)
             .setTitle('📅 Criativaria — Resumo da semana')
             .setFooter({ text: 'criativaria.com.br' })
             .setTimestamp()
@@ -364,7 +373,10 @@ export class WeeklyDigestService {
         // Top reacted messages field
         if (topMessages.length > 0) {
             const topMessagesList = topMessages
-                .map((msg) => `[💬 ${msg.content.substring(0, 50)}](${msg.messageUrl})`)
+                .map(
+                    (msg) =>
+                        `[💬 ${msg.content.substring(0, 50)}](${msg.messageUrl})`,
+                )
                 .join('\n')
             embed.addFields({
                 name: '💬 Top da semana',
