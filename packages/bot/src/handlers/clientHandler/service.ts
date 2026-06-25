@@ -94,6 +94,10 @@ export async function startClient({
                 const { startTwitchService } =
                     await import('../../twitch/index.js')
                 await startTwitchService(client)
+
+                const { startRssBridgeService } =
+                    await import('../../services/RssBridgeService.js')
+                await startRssBridgeService(client)
             } catch (error) {
                 errorLog({
                     message: 'Error in ready handler:',

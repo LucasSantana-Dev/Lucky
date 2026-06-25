@@ -1169,3 +1169,14 @@ model BatchJobItem {
   @@index([jobId, attemptedAt])
   @@map("batch_job_items")
 }
+
+// RSS feed tracking for Criativaria guides. Stores slugs of guides already
+// posted to Discord to avoid duplicates.
+model RssDiscoveredGuide {
+  id       Int      @id @default(autoincrement())
+  slug     String   @unique
+  title    String
+  postedAt DateTime @default(now())
+
+  @@map("rss_discovered_guides")
+}

@@ -117,6 +117,11 @@ const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
         enabled: true,
         description: 'Enable collaborative queue mode (/playlist collaborative)',
     },
+    RSS_BRIDGE: {
+        name: 'RSS_BRIDGE',
+        enabled: true,
+        description: 'Enable RSS feed polling for Criativaria guides',
+    },
 }
 
 function parseEnvironmentToggle(
