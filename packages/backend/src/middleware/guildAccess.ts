@@ -54,6 +54,15 @@ export function requireGuildModuleAccess(
                 throw AppError.badRequest('Guild id is required')
             }
 
+            // Note: resolveGuildContext uses a 30-second TTL cache on the user's
+            // Discord guild list. A membership revocation between getSession() and
+            // resolveGuildContext() may transiently grant access until the cache
+            // expires. This staleness window is bounded to ≤30s and is acceptable
+            // given the operational complexity of tightening the window would incur
+            // (atomic resolution would require either a single Discord API call for
+            // both user + guild context, or wrapping both in a transaction-like
+            // pattern). The cache was intentionally added to prevent Discord API
+            // 429 storms when it was unhealthy; see GuildAccessService.ts:38-48.
             const context = await guildAccessService.resolveGuildContext(
                 sessionData,
                 guildId,
