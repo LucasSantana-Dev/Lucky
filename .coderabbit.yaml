@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit AI review — config-as-code. Docs: https://docs.coderabbit.ai/reference/configuration
+language: "en-US"
+reviews:
+  profile: "chill"          # less nitpicky; switch to "assertive" for stricter review
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false           # don't review draft PRs
