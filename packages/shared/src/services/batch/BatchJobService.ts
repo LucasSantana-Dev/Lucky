@@ -28,9 +28,9 @@ export class BatchJobService {
                 initiatedBy: input.initiatedBy,
                 sourceChannelId: input.sourceChannelId,
                 targetChannelId: input.targetChannelId,
-                scope: JSON.parse(JSON.stringify(input.scope)),
+                scope: JSON.parse(JSON.stringify(input.scope)) as ScopeConfig,
                 options: input.options
-                    ? JSON.parse(JSON.stringify(input.options))
+                    ? (JSON.parse(JSON.stringify(input.options)) as Record<string, unknown>)
                     : null,
                 totalItems: input.totalItems,
                 estimatedMinutes: input.estimatedMinutes,
@@ -194,7 +194,7 @@ export class BatchJobService {
                 status: input.status,
                 error: input.error,
                 resultMetadata: input.resultMetadata
-                    ? JSON.parse(JSON.stringify(input.resultMetadata))
+                    ? (JSON.parse(JSON.stringify(input.resultMetadata)) as Record<string, unknown>)
                     : null,
                 attemptedAt: new Date(),
             },
@@ -209,7 +209,7 @@ export class BatchJobService {
         return await prisma.batchJob.update({
             where: { id: jobId },
             data: {
-                summary: JSON.parse(JSON.stringify(summary)),
+                summary: JSON.parse(JSON.stringify(summary)) as Record<string, unknown>,
             },
         })
     }

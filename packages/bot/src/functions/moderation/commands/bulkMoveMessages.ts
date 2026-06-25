@@ -12,7 +12,7 @@ import {
     checkBatchPermissions,
     matchesScope,
 } from '@lucky/shared/services/batch'
-import type { BatchJobType } from '@lucky/shared/services/batch'
+import type { BatchJobType, ScopeConfig } from '@lucky/shared/services/batch'
 import { enqueueBatchJob } from '../../../utils/batch/batchQueue'
 import { showBatchConfirmation } from '../../../utils/batch/confirmationGate'
 import { infoLog, errorLog } from '@lucky/shared/utils'
@@ -272,7 +272,7 @@ export default new Command({
                     {
                         type: scopeType,
                         config: scopeConfig,
-                    } as any,
+                    } as ScopeConfig,
                 )
                 if (matches) sampleMatched++
                 messageIndex++

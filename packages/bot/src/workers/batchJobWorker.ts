@@ -4,6 +4,8 @@
  */
 
 import { Worker, type Job } from 'bullmq'
+
+type BatchJobData = { jobId: string }
 import { redisClient } from '@lucky/shared/services'
 import { batchJobService } from '@lucky/shared/services/batch'
 import type { BatchProgress, BatchJobType } from '@lucky/shared/services/batch'
@@ -11,7 +13,7 @@ import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
 import { getExecutor, registerExecutor } from './executorRegistry'
 
 const QUEUE_NAME = 'batch-jobs'
-let worker: Worker | null = null
+let worker: Worker<BatchJobData> | null = null
 
 /**
  * Progress callback that checkpoints to the database and publishes to Redis.
@@ -59,8 +61,8 @@ async function onProgress(
  * Processes a single batch job.
  * Loads the job from the database, resolves the executor, and runs it.
  */
-async function processBatchJob(job: Job): Promise<Record<string, unknown>> {
-    const jobId = job.data.jobId as string
+async function processBatchJob(job: Job<BatchJobData>): Promise<Record<string, unknown>> {
+    const jobId = job.data.jobId
 
     try {
         debugLog({
