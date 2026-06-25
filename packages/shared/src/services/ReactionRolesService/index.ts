@@ -59,6 +59,18 @@ export interface DashboardUpdateReactionRoleOptions {
     }>
 }
 
+/** Type for ReactionRoleMapping returned from addRoleToMessage. */
+export interface ReactionRoleMappingReturn {
+    id: string
+    messageId: string
+    roleId: string
+    emoji: string | null
+    buttonId: string | null
+    type: string
+    label: string | null
+    style: string | null
+}
+
 /** Manages reaction role messages with button-based role assignment. */
 export class ReactionRolesService {
     /** Checks if reaction roles feature is enabled for a guild or user. */
@@ -762,7 +774,7 @@ export class ReactionRolesService {
             style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
         },
         botToken: string,
-    ): Promise<{ status: 'ok' | 'partial_success'; mapping: any }> {
+    ): Promise<{ status: 'ok' | 'partial_success'; mapping: ReactionRoleMappingReturn }> {
         if (!/^\d{17,20}$/.test(newMapping.roleId)) {
             throw new Error('Invalid roleId: expected a Discord snowflake ID')
         }
