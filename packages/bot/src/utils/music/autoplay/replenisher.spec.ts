@@ -43,6 +43,10 @@ jest.mock('../../../services/musicRecommendation/feedbackService', () => ({
     },
 }))
 
+jest.mock('../../../services/musicRecommendation/recommendationTelemetry', () => ({
+    recordRecommendationPick: jest.fn(),
+}))
+
 jest.mock('./sessionMood', () => ({
     detectSessionMood: jest.fn(),
 }))
