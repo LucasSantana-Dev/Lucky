@@ -233,6 +233,7 @@ services:
             - DEPLOY_WEBHOOK_SECRET=${DEPLOY_WEBHOOK_SECRET}
             - DISCORD_DEPLOY_WEBHOOK=${DISCORD_DEPLOY_WEBHOOK:-}
             - DEPLOY_DIR=/home/luk-server/Lucky
+            - GITHUB_DEPLOY_STATUS_TOKEN=${GITHUB_DEPLOY_STATUS_TOKEN:-}
         volumes:
             # Read hooks.json from the directory-mounted repo (not a single-file
             # mount): a single-file bind-mount freezes to the original inode, so

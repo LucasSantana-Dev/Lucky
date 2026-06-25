@@ -957,6 +957,7 @@ class GuildService {
         }
     }
 
+    // eslint-disable-next-line complexity
     async createGuildRole(
         guildId: string,
         data: RoleUpsertData,
@@ -1037,6 +1038,7 @@ class GuildService {
         }
     }
 
+    // eslint-disable-next-line complexity
     async updateGuildRole(
         guildId: string,
         roleId: string,

@@ -501,6 +501,46 @@ describe('Role Groups Routes', () => {
             expect(res.status).toBe(200)
             expect(res.body.status).toBe('partial_success')
         })
+
+        it('returns 503 when bot token is not configured', async () => {
+            const guildId = '123456789012345678'
+            const groupId = 'group-1'
+            delete process.env.DISCORD_TOKEN
+
+            const res = await request(app)
+                .post(`/api/guilds/${guildId}/role-groups/${groupId}/roles`)
+                .send({ name: 'New Role' })
+
+            process.env.DISCORD_TOKEN = 'test-bot-token'
+            expect(res.status).toBe(503)
+        })
+
+        it('rethrows AppError instances directly', async () => {
+            const { AppError } = await import('../../../src/errors/AppError')
+            const guildId = '123456789012345678'
+            const groupId = 'group-1'
+            mockAddRoleToGroup.mockRejectedValue(
+                AppError.forbidden('no access'),
+            )
+
+            const res = await request(app)
+                .post(`/api/guilds/${guildId}/role-groups/${groupId}/roles`)
+                .send({ name: 'New Role' })
+
+            expect(res.status).toBe(403)
+        })
+
+        it('returns 400 when service reports label too long', async () => {
+            const guildId = '123456789012345678'
+            const groupId = 'group-1'
+            mockAddRoleToGroup.mockRejectedValue(new Error('Label too long'))
+
+            const res = await request(app)
+                .post(`/api/guilds/${guildId}/role-groups/${groupId}/roles`)
+                .send({ name: 'New Role' })
+
+            expect(res.status).toBe(400)
+        })
     })
 
     describe('DELETE /api/guilds/:guildId/role-groups/:id/roles/:roleId', () => {

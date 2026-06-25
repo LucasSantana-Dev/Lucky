@@ -61,6 +61,8 @@ describe('extractOfficialSlug', () => {
 // ---------- processForumThread tests ----------
 
 describe('processForumThread', () => {
+    const BOT_ID = 'BOT_111'
+
     function makeThread(
         overrides: Partial<{
             guildId: string | null
@@ -69,6 +71,8 @@ describe('processForumThread', () => {
             parentType: ChannelType
             starterContent: string
             starterThrows: boolean
+            starterAuthorId: string
+            botId: string
         }> = {},
     ) {
         const opts = {
@@ -78,6 +82,8 @@ describe('processForumThread', () => {
             parentType: ChannelType.GuildForum,
             starterContent: '<!-- official:v1:my-guide --> some body',
             starterThrows: false,
+            starterAuthorId: BOT_ID,
+            botId: BOT_ID,
             ...overrides,
         }
         return {
@@ -85,10 +91,14 @@ describe('processForumThread', () => {
             id: opts.id,
             name: opts.name,
             parent: { type: opts.parentType },
+            client: { user: { id: opts.botId } },
             fetchStarterMessage: jest.fn(async () =>
                 opts.starterThrows
                     ? Promise.reject(new Error('forbidden'))
-                    : { content: opts.starterContent },
+                    : {
+                          content: opts.starterContent,
+                          author: { id: opts.starterAuthorId },
+                      },
             ),
         }
     }
@@ -124,6 +134,13 @@ describe('processForumThread', () => {
         expect(mockInfoLog).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'forum thread mapped' }),
         )
+    })
+
+    it('ignores the official marker when the starter was not authored by the bot', async () => {
+        await processForumThread(
+            makeThread({ starterAuthorId: 'RANDOM_USER_999' }) as never,
+        )
+        expect(mockUpsert).not.toHaveBeenCalled()
     })
 
     it('does nothing when parent is not a forum channel', async () => {
@@ -173,5 +190,33 @@ describe('handleForumThreadCreate', () => {
             Events.ThreadCreate,
             expect.any(Function),
         )
+    })
+
+    it('processes threads even when newlyCreated is false (cache miss / bot restart)', async () => {
+        let capturedHandler: ((thread: unknown) => void) | undefined
+        const onMock = jest.fn((event, handler) => {
+            capturedHandler = handler
+        })
+        mockUpsert.mockResolvedValue({})
+        mockGetPrismaClient.mockReturnValue({
+            guildForumThread: { upsert: mockUpsert },
+        })
+
+        handleForumThreadCreate({ on: onMock } as never)
+
+        const thread = {
+            guildId: '895505900016631839',
+            id: 'THREAD_456',
+            name: 'Guide Thread',
+            parent: { type: ChannelType.GuildForum },
+            client: { user: { id: 'BOT_ID' } },
+            fetchStarterMessage: jest.fn().mockResolvedValue({
+                content: '<!-- official:v1:my-guide -->',
+                author: { id: 'BOT_ID' },
+            }),
+        }
+
+        await capturedHandler!(thread)
+        expect(mockUpsert).toHaveBeenCalled()
     })
 })

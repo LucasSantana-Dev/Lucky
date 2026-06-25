@@ -24,7 +24,8 @@ export async function processForumThread(
     let content: string
     try {
         const starter = await thread.fetchStarterMessage()
-        content = starter?.content ?? ''
+        if (!starter || starter.author.id !== thread.client.user?.id) return
+        content = starter.content
     } catch {
         return
     }
@@ -63,8 +64,7 @@ export async function processForumThread(
 }
 
 export function handleForumThreadCreate(client: Client): void {
-    client.on(Events.ThreadCreate, (thread, newlyCreated) => {
-        if (!newlyCreated) return
+    client.on(Events.ThreadCreate, (thread) => {
         processForumThread(thread).catch((error) => {
             errorLog({
                 message: 'unhandled error in forumThreadHandler:',

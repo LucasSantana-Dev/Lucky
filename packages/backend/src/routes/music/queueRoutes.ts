@@ -9,12 +9,12 @@ import { musicControlService } from '@lucky/shared/services'
 import { param, buildCommand } from './helpers'
 
 const moveQueueBodySchema = z.object({
-    from: z.number(),
-    to: z.number(),
+    from: z.number().int().min(0).max(9999),
+    to: z.number().int().min(0).max(9999),
 })
 
 const removeQueueBodySchema = z.object({
-    index: z.number(),
+    index: z.number().int().min(0).max(9999),
 })
 
 const importBodySchema = z.object({

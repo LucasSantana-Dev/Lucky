@@ -294,7 +294,7 @@ describe('queueManipulation.replenishQueue', () => {
         await replenishQueue(queue as unknown as GuildQueue)
 
         expect(queue.player.search).toHaveBeenCalled()
-        expect(queue.addTrack).toHaveBeenCalledTimes(3)
+        expect(queue.addTrack).toHaveBeenCalledTimes(2)
         expect(queue.addTrack).toHaveBeenCalledWith(
             expect.objectContaining({
                 metadata: expect.objectContaining({
@@ -605,7 +605,7 @@ describe('queueManipulation.replenishQueue', () => {
             (c) => (c[0] as Track).author === 'Artist B',
         ).length
         expect(artistBCount).toBeLessThanOrEqual(2)
-        expect(queue.addTrack).toHaveBeenCalledTimes(3)
+        expect(queue.addTrack).toHaveBeenCalledTimes(2)
     })
 
     it('caps autoplay tracks by source when all candidates are from same source', async () => {

@@ -202,7 +202,12 @@ export const handleMoveMessageSelect = async (
             .fetch(destinationId)
             .catch(() => null)
 
-        if (!sourceChannel?.isTextBased() || !destChannel?.isTextBased()) {
+        if (
+            !sourceChannel?.isTextBased() ||
+            !destChannel?.isTextBased() ||
+            sourceChannel.guildId !== guild.id ||
+            destChannel.guildId !== guild.id
+        ) {
             await updateEphemeral(
                 interaction,
                 '❌ Source or destination channel is unavailable or not a text channel.',

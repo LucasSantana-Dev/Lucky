@@ -219,6 +219,7 @@ export class ArtistSuggestionService {
     /**
      * Fetch user's top artists from Spotify API across multiple time ranges.
      */
+    // eslint-disable-next-line complexity
     private async fetchSpotifyTopArtists(
         accessToken: string,
     ): Promise<SpotifyArtist[]> {

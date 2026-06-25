@@ -40,6 +40,9 @@ export async function recordRecommendationPick(
 ): Promise<void> {
     try {
         const prisma = getPrismaClient()
+        if (!prisma) {
+            return
+        }
         const prismaSource = recommendationSourceToPrisma(input.basis.source)
         const reason = serializeBasis(input.basis)
 
@@ -81,6 +84,9 @@ export async function recordRecommendationOutcome(
 ): Promise<void> {
     try {
         const prisma = getPrismaClient()
+        if (!prisma) {
+            return
+        }
 
         const recommendation = await prisma.recommendation.findFirst({
             where: {

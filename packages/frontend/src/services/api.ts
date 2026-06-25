@@ -109,7 +109,9 @@ apiClient.interceptors.response.use(
             typeof globalThis !== 'undefined' &&
             'window' in globalThis
         ) {
-            globalThis.window.location.assign('/api/auth/discord')
+            globalThis.window.location.assign(
+                `${NORMALIZED_API_BASE}/auth/discord`,
+            )
         }
 
         return Promise.reject(new ApiError(status, message, data?.details))

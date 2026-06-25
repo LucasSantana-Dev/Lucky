@@ -99,6 +99,51 @@ describe('Music Queue Routes', () => {
                 .expect(400)
         })
 
+        test('returns 400 for float from value', async () => {
+            authed()
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/move`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ from: 1.5, to: 2 })
+                .expect(400)
+        })
+
+        test('returns 400 for negative from value', async () => {
+            authed()
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/move`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ from: -1, to: 2 })
+                .expect(400)
+        })
+
+        test('returns 400 for from value exceeding max', async () => {
+            authed()
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/move`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ from: 10000, to: 2 })
+                .expect(400)
+        })
+
+        test('accepts valid boundary values', async () => {
+            authed()
+            mockSendCommand.mockResolvedValue({ success: true })
+
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/move`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ from: 0, to: 9999 })
+                .expect(200)
+
+            expect(mockSendCommand).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'queue_move',
+                    data: { from: 0, to: 9999 },
+                }),
+            )
+        })
+
         test('moves track in queue', async () => {
             authed()
             mockSendCommand.mockResolvedValue({ success: true })
@@ -126,6 +171,51 @@ describe('Music Queue Routes', () => {
                 .set('Cookie', SESSION_COOKIE)
                 .send({})
                 .expect(400)
+        })
+
+        test('returns 400 for float index value', async () => {
+            authed()
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/remove`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ index: 1.5 })
+                .expect(400)
+        })
+
+        test('returns 400 for negative index value', async () => {
+            authed()
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/remove`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ index: -1 })
+                .expect(400)
+        })
+
+        test('returns 400 for index exceeding max', async () => {
+            authed()
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/remove`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ index: 10000 })
+                .expect(400)
+        })
+
+        test('accepts valid boundary values', async () => {
+            authed()
+            mockSendCommand.mockResolvedValue({ success: true })
+
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/remove`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ index: 9999 })
+                .expect(200)
+
+            expect(mockSendCommand).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'queue_remove',
+                    data: { index: 9999 },
+                }),
+            )
         })
 
         test('removes track from queue', async () => {
