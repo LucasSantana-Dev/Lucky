@@ -235,4 +235,48 @@ describe('API Integration Flows', () => {
             expect(Array.isArray(response.body.guilds)).toBe(true)
         })
     })
+
+    describe('CORS Headers', () => {
+        test('should set access-control-allow-origin for allowed origins', async () => {
+            const corsApp = express()
+            const { setupMiddleware } =
+                await import('../../src/middleware')
+            setupMiddleware(corsApp)
+            corsApp.options('/api/test', (_req, res) => {
+                res.send()
+            })
+            corsApp.get('/api/test', (_req, res) => {
+                res.json({ ok: true })
+            })
+
+            const response = await request(corsApp)
+                .options('/api/test')
+                .set('Origin', 'http://localhost:3000')
+
+            expect(response.headers['access-control-allow-origin']).toBeDefined()
+            expect(response.headers['access-control-allow-origin']).not.toBe('')
+        })
+
+        test('should set access-control-allow-methods header', async () => {
+            const corsApp = express()
+            const { setupMiddleware } =
+                await import('../../src/middleware')
+            setupMiddleware(corsApp)
+            corsApp.options('/api/test', (_req, res) => {
+                res.send()
+            })
+            corsApp.get('/api/test', (_req, res) => {
+                res.json({ ok: true })
+            })
+
+            const response = await request(corsApp)
+                .options('/api/test')
+                .set('Origin', 'http://localhost:3000')
+
+            expect(response.headers['access-control-allow-methods']).toBeDefined()
+            expect(response.headers['access-control-allow-methods']).toContain(
+                'GET',
+            )
+        })
+    })
 })
