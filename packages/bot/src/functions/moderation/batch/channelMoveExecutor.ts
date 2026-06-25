@@ -18,7 +18,6 @@ import {
     partitionAttachments,
     getUploadLimit,
 } from '../../../handlers/moveMessageHandler'
-import { getClient } from '../../../bot/start'
 import type { CustomClient } from '../../../types'
 
 /**
@@ -50,6 +49,7 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
         },
         onProgress: (progress: BatchProgress) => Promise<void>,
     ): Promise<Record<string, unknown>> {
+        const { getClient } = await import('../../../bot/start')
         const client = getClient() as CustomClient | null
         if (!client) {
             throw new Error('Discord client not available')

@@ -169,6 +169,7 @@ describe('Batch Jobs Routes', () => {
             expect(response.body.job.id).toBe(MOCK_JOB_ID)
             expect(mockBatchJobService.getById).toHaveBeenCalledWith(
                 MOCK_JOB_ID,
+                { includeItems: true },
             )
         })
 
@@ -228,7 +229,8 @@ describe('Batch Jobs Routes', () => {
                 .expect(200)
 
             expect(response.body).toHaveProperty('progress')
-            expect(response.body.progress.percentComplete).toBe(53)
+            expect(response.body.progress.processedItems).toBe(50)
+            expect(response.body.progress.totalItems).toBe(100)
             expect(mockRedisClient.get).toHaveBeenCalledWith(
                 `job:${MOCK_JOB_ID}:progress`,
             )
