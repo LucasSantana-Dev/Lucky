@@ -22,7 +22,9 @@ const userSeedsCache = new LRUCache<string, SeededUserEntry>({
     ttl: CACHE_TTL_MS,
 })
 
-export async function getUserSpotifySeeds(userId: string): Promise<UserSpotifySeeds | null> {
+export async function getUserSpotifySeeds(
+    userId: string,
+): Promise<UserSpotifySeeds | null> {
     const now = Date.now()
     const cached = userSeedsCache.get(userId)
 
@@ -58,11 +60,15 @@ export async function getUserSpotifySeeds(userId: string): Promise<UserSpotifySe
             return null
         }
 
-        const likedTrackIds = await getUserSavedTracks(token).catch(() => [] as string[])
+        const likedTrackIds = await getUserSavedTracks(token).catch(
+            () => [] as string[],
+        )
 
         const seeds: UserSpotifySeeds = {
             artistIds: seedData.artists.map((a) => a.id),
-            artistNames: new Set(seedData.artists.map((a) => a.name.toLowerCase())),
+            artistNames: new Set(
+                seedData.artists.map((a) => a.name.toLowerCase()),
+            ),
             trackIds: seedData.tracks.map((t) => t.id),
             likedTrackIds,
         }
@@ -99,4 +105,8 @@ export function clearUserSeedsCache(userId: string): void {
         message: 'User Spotify seeds cache cleared',
         data: { userId },
     })
+}
+
+export function clearAllSeedsCache(): void {
+    userSeedsCache.clear()
 }
