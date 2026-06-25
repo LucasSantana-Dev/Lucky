@@ -202,6 +202,10 @@ const addRoleToGroupBody = z
     })
     .strict()
 
+const forumThreadSlugParam = guildIdParam.extend({
+    slug: z.string().min(1, 'Slug is required').max(256),
+})
+
 export const managementSchemas = {
     guildIdParam,
     commandNameParam,
@@ -225,4 +229,5 @@ export const managementSchemas = {
     createRoleGroupBody,
     updateRoleGroupBody,
     addRoleToGroupBody,
+    forumThreadSlugParam,
 }
