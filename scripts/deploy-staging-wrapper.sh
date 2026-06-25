@@ -14,4 +14,5 @@ if [[ ! -x "$DEPLOY_SCRIPT" ]]; then
 fi
 
 nohup bash "$DEPLOY_SCRIPT" "$@" > "$LOG_FILE" 2>&1 &
+chmod 0600 "$LOG_FILE" 2>/dev/null || true
 echo "[deploy-staging-wrapper] Staging deploy started (pid=$!, log=$LOG_FILE)"

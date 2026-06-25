@@ -4,8 +4,8 @@
 # at https://lucky-staging.lucassantana.tech before it merges to main.
 #
 # Invoked by the homelab webhook (deploy/hooks.json → deploy-staging hook) with:
-#   $1 = X-Webhook-Secret   (validated against DEPLOY_WEBHOOK_SECRET)
-#   $2 = X-Deploy-Ref        (branch name or commit SHA to deploy)
+#   $1 = X-Deploy-Ref        (branch name or commit SHA to deploy)
+#   DEPLOY_WEBHOOK_SECRET env var (validated, passed by adnanh webhook)
 #
 # Self-contained on purpose: it must NEVER reuse prod's deploy.sh (which resets
 # the prod checkout to origin/main and restarts prod services). This script
@@ -15,8 +15,7 @@ set -euo pipefail
 LOG_PREFIX="[deploy-staging]"
 log() { echo "$LOG_PREFIX $(date '+%H:%M:%S') $1"; }
 
-WEBHOOK_SECRET_ARG="${1:-}"
-DEPLOY_REF="${2:-main}"
+DEPLOY_REF="${1:-main}"
 
 STAGING_DIR="${STAGING_DIR:-/home/luk-server/lucky-staging}"
 # Staging INFRA (compose) comes from the prod checkout (always main) so ANY
@@ -34,10 +33,6 @@ HEALTH_HOST="${STAGING_HOST_IP:-100.95.204.103}"
 # --- secret gate ---------------------------------------------------------------
 if [[ -z "${DEPLOY_WEBHOOK_SECRET:-}" ]]; then
     log "ERROR: DEPLOY_WEBHOOK_SECRET not set in environment"
-    exit 1
-fi
-if [[ "$WEBHOOK_SECRET_ARG" != "$DEPLOY_WEBHOOK_SECRET" ]]; then
-    log "ERROR: webhook secret mismatch — refusing to deploy"
     exit 1
 fi
 
