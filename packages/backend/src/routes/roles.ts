@@ -249,7 +249,7 @@ export function setupRolesRoutes(app: Express): void {
                     error instanceof Error
                         ? error.message
                         : 'Failed to delete reaction role message'
-                throw AppError.internalServerError(message)
+                throw new AppError(500, message)
             }
         }),
     )
