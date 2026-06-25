@@ -1101,6 +1101,7 @@ model GuildForumThread {
   updatedAt DateTime @updatedAt
 
   @@unique([guildId, slug])
+  @@unique([guildId, threadId])
   @@index([guildId])
   @@map("guild_forum_threads")
 }
