@@ -12,6 +12,7 @@ import {
 import { errorLog, debugLog } from '../../utils/general/log'
 import { featureToggleService } from '../FeatureToggleService'
 import { getPrismaClient } from '../../utils/database/prismaClient'
+import type { ReactionRoleMapping } from '../../generated/prisma/client'
 
 /** Options for creating a reaction role message with button-based role assignments. */
 export interface CreateReactionRoleOptions {
@@ -57,6 +58,18 @@ export interface DashboardUpdateReactionRoleOptions {
         emoji?: string
         style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
     }>
+}
+
+/** Type for ReactionRoleMapping returned from addRoleToMessage. */
+export interface ReactionRoleMappingReturn {
+    id: string
+    messageId: string
+    roleId: string
+    emoji: string | null
+    buttonId: string | null
+    type: string
+    label: string | null
+    style: string | null
 }
 
 /** Manages reaction role messages with button-based role assignment. */
@@ -316,6 +329,7 @@ export class ReactionRolesService {
             includeAttachments = false,
         } = options
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const embed: Record<string, any> = {
             title,
             description,
@@ -333,6 +347,7 @@ export class ReactionRolesService {
         if (imageFile) {
             // Multipart FormData for file
             const formData = new FormData()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const payload: Record<string, any> = {
                 embeds: [embed],
                 components: actionRows,
@@ -550,9 +565,7 @@ export class ReactionRolesService {
 
                 if (!resp.ok) {
                     const text = await resp.text().catch(() => '')
-                    throw new Error(
-                        `Discord API error ${resp.status}: ${text}`,
-                    )
+                    throw new Error(`Discord API error ${resp.status}: ${text}`)
                 }
             } catch (discordError) {
                 // Discord update failed — rollback DB to original state
@@ -568,7 +581,7 @@ export class ReactionRolesService {
                                 description: message.description,
                                 imageUrl: message.imageUrl,
                                 mappings: {
-                                    create: originalMappings.map((m: any) => ({
+                                    create: originalMappings.map((m) => ({
                                         roleId: m.roleId,
                                         buttonId: m.buttonId,
                                         type: m.type,
@@ -762,7 +775,10 @@ export class ReactionRolesService {
             style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
         },
         botToken: string,
-    ): Promise<{ status: 'ok' | 'partial_success'; mapping: any }> {
+    ): Promise<{
+        status: 'ok' | 'partial_success'
+        mapping: ReactionRoleMappingReturn
+    }> {
         if (!/^\d{17,20}$/.test(newMapping.roleId)) {
             throw new Error('Invalid roleId: expected a Discord snowflake ID')
         }
@@ -782,9 +798,9 @@ export class ReactionRolesService {
         // Capacity check and insert are moved into the transaction to prevent
         // TOCTOU race condition (issue #1558). Capacity is checked atomically
         // with the insert inside the transaction.
-        let createdMapping: any
+        let createdMapping: ReactionRoleMapping
         try {
-            createdMapping = await prisma.$transaction(async (tx: any) => {
+            createdMapping = await prisma.$transaction(async (tx) => {
                 // Count current mappings inside transaction for atomicity
                 const currentCount = await tx.reactionRoleMapping.count({
                     where: { messageId },

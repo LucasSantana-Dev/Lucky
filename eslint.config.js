@@ -132,18 +132,15 @@ export default [
             "no-unused-vars": "off",
             "no-empty": ["error", { allowEmptyCatch: false }],
             "@typescript-eslint/no-non-null-assertion": "warn",
-            // NOTE: the no-unsafe-* inventory is cleaned to 0 (#1382/#1384/#1385), but these
-            // stay at `warn` until the CI `quality / Lint` job is type-aware.
-            // That job runs `eslint .` without `db:generate` / `build:shared`,
-            // so these type-aware rules report ~4200 phantom "type could not be
-            // resolved" errors there; promoting to `error` turns the job
-            // permanently red. Promotion is gated on #1386.
-            "@typescript-eslint/no-unsafe-assignment": "warn",
+            // Type-aware rules promoted to error per #1559 (#1386 fixed by
+            // pre-lint-script: npm run db:generate && npm run build:shared).
+            // These catch type-safety issues for packages/{bot,shared}.
+            "@typescript-eslint/no-unsafe-assignment": "error",
             "@typescript-eslint/no-unsafe-call": "warn",
-            "@typescript-eslint/no-unsafe-member-access": "warn",
+            "@typescript-eslint/no-unsafe-member-access": "error",
             "@typescript-eslint/no-unsafe-return": "warn",
             "@typescript-eslint/no-unsafe-argument": "warn",
-            "@typescript-eslint/no-explicit-any": "warn",
+            "@typescript-eslint/no-explicit-any": "error",
             // Honor the same ^_ ignore convention as the per-package block
             // (line ~52): without these options the root-cwd lint flags
             // intentionally-unused _-prefixed params/vars/caught-errors that
