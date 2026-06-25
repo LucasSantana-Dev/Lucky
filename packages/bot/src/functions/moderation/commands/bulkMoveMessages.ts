@@ -171,7 +171,7 @@ export default new Command({
                 return
             }
             const now = new Date()
-            let start = new Date()
+            const start = new Date()
             if (dateRangeStr === '2d') {
                 start.setDate(now.getDate() - 2)
             } else if (dateRangeStr === '7d') {
