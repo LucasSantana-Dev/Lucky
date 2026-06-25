@@ -66,6 +66,7 @@ export class RoleGroupService {
      * Seed style from an existing reaction-role message's sibling roles.
      * Returns modal color, mode buttonStyle (tie -> Primary), and divergence flag.
      */
+    // eslint-disable-next-line complexity
     async seedStyleFromMessage(messageId: string): Promise<
         StyleTemplate & {
             buttonStyle: string
@@ -261,6 +262,7 @@ export class RoleGroupService {
      * Add a role to a group with preflight checks, dry-run support, DB-first apply,
      * and role-only compensation on failure.
      */
+    // eslint-disable-next-line complexity
     async addRoleToGroup(
         guildId: string,
         groupId: string,
@@ -376,7 +378,10 @@ export class RoleGroupService {
         }
 
         // Add to message (DB-first)
-        let addResult: { status: 'ok' | 'partial_success'; mapping: ReactionRoleMappingReturn }
+        let addResult: {
+            status: 'ok' | 'partial_success'
+            mapping: ReactionRoleMappingReturn
+        }
         try {
             addResult = await reactionRolesService.addRoleToMessage(
                 message.messageId,
