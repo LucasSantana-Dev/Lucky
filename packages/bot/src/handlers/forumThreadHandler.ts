@@ -24,7 +24,8 @@ export async function processForumThread(
     let content: string
     try {
         const starter = await thread.fetchStarterMessage()
-        content = starter?.content ?? ''
+        if (!starter || starter.author.id !== thread.client.user?.id) return
+        content = starter.content
     } catch {
         return
     }
