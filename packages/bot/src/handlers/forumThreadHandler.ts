@@ -64,8 +64,7 @@ export async function processForumThread(
 }
 
 export function handleForumThreadCreate(client: Client): void {
-    client.on(Events.ThreadCreate, (thread, newlyCreated) => {
-        if (!newlyCreated) return
+    client.on(Events.ThreadCreate, (thread) => {
         processForumThread(thread).catch((error) => {
             errorLog({
                 message: 'unhandled error in forumThreadHandler:',
