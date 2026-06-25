@@ -12,6 +12,7 @@ import {
 import { errorLog, debugLog } from '../../utils/general/log'
 import { featureToggleService } from '../FeatureToggleService'
 import { getPrismaClient } from '../../utils/database/prismaClient'
+import type { ReactionRoleMapping } from '../../generated/prisma/client'
 
 /** Options for creating a reaction role message with button-based role assignments. */
 export interface CreateReactionRoleOptions {
@@ -564,9 +565,7 @@ export class ReactionRolesService {
 
                 if (!resp.ok) {
                     const text = await resp.text().catch(() => '')
-                    throw new Error(
-                        `Discord API error ${resp.status}: ${text}`,
-                    )
+                    throw new Error(`Discord API error ${resp.status}: ${text}`)
                 }
             } catch (discordError) {
                 // Discord update failed — rollback DB to original state
@@ -582,7 +581,7 @@ export class ReactionRolesService {
                                 description: message.description,
                                 imageUrl: message.imageUrl,
                                 mappings: {
-                                    create: originalMappings.map((m: any) => ({
+                                    create: originalMappings.map((m) => ({
                                         roleId: m.roleId,
                                         buttonId: m.buttonId,
                                         type: m.type,
@@ -799,9 +798,9 @@ export class ReactionRolesService {
         // Capacity check and insert are moved into the transaction to prevent
         // TOCTOU race condition (issue #1558). Capacity is checked atomically
         // with the insert inside the transaction.
-        let createdMapping: any
+        let createdMapping: ReactionRoleMapping
         try {
-            createdMapping = await prisma.$transaction(async (tx: any) => {
+            createdMapping = await prisma.$transaction(async (tx) => {
                 // Count current mappings inside transaction for atomicity
                 const currentCount = await tx.reactionRoleMapping.count({
                     where: { messageId },
