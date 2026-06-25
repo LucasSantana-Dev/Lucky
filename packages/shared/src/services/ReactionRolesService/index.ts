@@ -328,6 +328,7 @@ export class ReactionRolesService {
             includeAttachments = false,
         } = options
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const embed: Record<string, any> = {
             title,
             description,
@@ -345,6 +346,7 @@ export class ReactionRolesService {
         if (imageFile) {
             // Multipart FormData for file
             const formData = new FormData()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const payload: Record<string, any> = {
                 embeds: [embed],
                 components: actionRows,
@@ -774,7 +776,10 @@ export class ReactionRolesService {
             style?: 'Primary' | 'Secondary' | 'Success' | 'Danger'
         },
         botToken: string,
-    ): Promise<{ status: 'ok' | 'partial_success'; mapping: ReactionRoleMappingReturn }> {
+    ): Promise<{
+        status: 'ok' | 'partial_success'
+        mapping: ReactionRoleMappingReturn
+    }> {
         if (!/^\d{17,20}$/.test(newMapping.roleId)) {
             throw new Error('Invalid roleId: expected a Discord snowflake ID')
         }

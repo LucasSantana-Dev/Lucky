@@ -87,6 +87,7 @@ export class LogService {
         const isPlainObject = (v: unknown): v is Record<string, unknown> => {
             if (v === null || typeof v !== 'object' || Array.isArray(v))
                 return false
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             const proto = Object.getPrototypeOf(v)
             return proto === Object.prototype || proto === null
         }
