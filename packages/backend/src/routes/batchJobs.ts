@@ -1,11 +1,7 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
-import {
-    validateBody,
-    validateParams,
-    validateQuery,
-} from '../middleware/validate'
+import { validateParams, validateQuery } from '../middleware/validate'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { batchJobsSchemas as s } from '../schemas/batchJobs'
@@ -45,7 +41,7 @@ export function setupBatchJobRoutes(app: Express): void {
             const { status, limit = 20, offset = 0 } = query
 
             const jobs = await batchJobService.listByGuild(guildId, {
-                status: status as any,
+                status,
                 limit,
                 offset,
                 orderBy: 'newest',
