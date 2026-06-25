@@ -166,6 +166,9 @@ export class ReactionRolesService {
     private parseEmoji(
         emoji: string,
     ): { id?: string; name: string; animated?: boolean } | null {
+        if (!emoji) {
+            return null
+        }
         const match = emoji.match(/^<(a)?:([^:]+):(\d+)>$/)
         if (match) {
             return { id: match[3], name: match[2], animated: match[1] === 'a' }
@@ -204,6 +207,11 @@ export class ReactionRolesService {
         // request URL — defense-in-depth against SSRF / path traversal from
         // user-provided values (rejects anything non-numeric).
         this.assertSnowflakes(guildId, channelId)
+
+        // Validate each roleId in the input
+        for (const role of roles) {
+            this.assertSnowflakes(guildId, undefined, role.roleId)
+        }
 
         try {
             const actionRows = this.buildButtonRows(roles)
@@ -388,7 +396,10 @@ export class ReactionRolesService {
             }
 
             if (role.emoji) {
-                button.emoji = this.parseEmoji(role.emoji)
+                const parsedEmoji = this.parseEmoji(role.emoji)
+                if (parsedEmoji) {
+                    button.emoji = parsedEmoji
+                }
             }
 
             if (currentButtons.length >= 5) {
@@ -461,6 +472,7 @@ export class ReactionRolesService {
             const prisma = getPrismaClient()
             const message = await prisma.reactionRoleMessage.findUnique({
                 where: { messageId },
+                include: { mappings: true },
             })
 
             if (!message || message.guildId !== guildId) {
@@ -495,22 +507,11 @@ export class ReactionRolesService {
             ) {
                 throw new Error('Invalid Discord channel or message id')
             }
-            const resp = await fetch(
-                `${DISCORD_API}/channels/${channelId}/messages/${messageId}`,
-                {
-                    method: 'PATCH',
-                    headers,
-                    body,
-                    signal: AbortSignal.timeout(10_000),
-                },
-            )
 
-            if (!resp.ok) {
-                const text = await resp.text().catch(() => '')
-                throw new Error(`Discord API error ${resp.status}: ${text}`)
-            }
+            // Store the original mappings for rollback if Discord update fails
+            const originalMappings = message.mappings
 
-            // Update the database with new mappings
+            // Update the database first with new mappings (DB-first approach)
             await prisma.$transaction([
                 prisma.reactionRoleMapping.deleteMany({
                     where: { messageId },
@@ -534,6 +535,60 @@ export class ReactionRolesService {
                     },
                 }),
             ])
+
+            // Now attempt to update Discord
+            try {
+                const resp = await fetch(
+                    `${DISCORD_API}/channels/${channelId}/messages/${messageId}`,
+                    {
+                        method: 'PATCH',
+                        headers,
+                        body,
+                        signal: AbortSignal.timeout(10_000),
+                    },
+                )
+
+                if (!resp.ok) {
+                    const text = await resp.text().catch(() => '')
+                    throw new Error(
+                        `Discord API error ${resp.status}: ${text}`,
+                    )
+                }
+            } catch (discordError) {
+                // Discord update failed — rollback DB to original state
+                try {
+                    await prisma.$transaction([
+                        prisma.reactionRoleMapping.deleteMany({
+                            where: { messageId },
+                        }),
+                        prisma.reactionRoleMessage.update({
+                            where: { messageId },
+                            data: {
+                                title: message.title,
+                                description: message.description,
+                                imageUrl: message.imageUrl,
+                                mappings: {
+                                    create: originalMappings.map((m) => ({
+                                        roleId: m.roleId,
+                                        buttonId: m.buttonId,
+                                        type: m.type,
+                                        label: m.label,
+                                        style: m.style,
+                                        emoji: m.emoji,
+                                    })),
+                                },
+                            },
+                        }),
+                    ])
+                } catch (rollbackError) {
+                    errorLog({
+                        message:
+                            'Failed to rollback DB after Discord update failure:',
+                        error: rollbackError,
+                    })
+                }
+                throw discordError
+            }
 
             debugLog({
                 message: `Updated reaction role message ${messageId} in guild ${guildId}`,
@@ -714,7 +769,7 @@ export class ReactionRolesService {
 
         const prisma = getPrismaClient()
 
-        // Load the message and its existing mappings
+        // Load the message and its existing mappings to check basic validity
         const message = await prisma.reactionRoleMessage.findUnique({
             where: { messageId },
             include: { mappings: true },
@@ -724,33 +779,48 @@ export class ReactionRolesService {
             throw new Error('Reaction role message not found')
         }
 
-        // Guard: capacity check (max 25 buttons). Capacity is not DB-constrained,
-        // so highly-concurrent appends can still race past this — full
-        // serialization is tracked as v2 hardening (issue #1558). Duplicate
-        // roleIds are enforced atomically by the @@unique([messageId, roleId]) index.
-        if (message.mappings.length >= 25) {
-            throw new Error('Message already at capacity')
-        }
+        // Capacity check and insert are moved into the transaction to prevent
+        // TOCTOU race condition (issue #1558). Capacity is checked atomically
+        // with the insert inside the transaction.
+        let createdMapping: any
+        try {
+            createdMapping = await prisma.$transaction(async (tx) => {
+                // Count current mappings inside transaction for atomicity
+                const currentCount = await tx.reactionRoleMapping.count({
+                    where: { messageId },
+                })
 
-        // Guard: duplicate roleId check
-        if (message.mappings.some((m) => m.roleId === newMapping.roleId)) {
-            throw new Error('Role already mapped')
-        }
+                if (currentCount >= 25) {
+                    throw new Error('Message already at capacity')
+                }
 
-        // DB-first: Insert the mapping in a transaction
-        const createdMapping = await prisma.$transaction(async (tx) => {
-            return tx.reactionRoleMapping.create({
-                data: {
-                    messageId,
-                    roleId: newMapping.roleId,
-                    buttonId: `reactionrole:${newMapping.roleId}`,
-                    type: 'button',
-                    label: newMapping.label,
-                    style: newMapping.style ?? 'Primary',
-                    emoji: newMapping.emoji ?? null,
-                },
+                // Check for duplicate roleId inside transaction
+                const existing = await tx.reactionRoleMapping.findFirst({
+                    where: {
+                        messageId,
+                        roleId: newMapping.roleId,
+                    },
+                })
+
+                if (existing) {
+                    throw new Error('Role already mapped')
+                }
+
+                return tx.reactionRoleMapping.create({
+                    data: {
+                        messageId,
+                        roleId: newMapping.roleId,
+                        buttonId: `reactionrole:${newMapping.roleId}`,
+                        type: 'button',
+                        label: newMapping.label,
+                        style: newMapping.style ?? 'Primary',
+                        emoji: newMapping.emoji ?? null,
+                    },
+                })
             })
-        })
+        } catch (txError) {
+            throw txError
+        }
 
         // After DB insert, PATCH Discord with the full button set (existing + new)
         try {
