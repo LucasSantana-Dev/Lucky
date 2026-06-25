@@ -218,6 +218,7 @@ describe('handleMoveMessageSelect — full flow', () => {
     })
 
     const makeChannel = (over: Record<string, unknown> = {}) => ({
+        guildId: 'g1',
         isTextBased: () => true,
         isThread: () => false,
         permissionsFor: () => ({ has: () => true }),
@@ -316,6 +317,27 @@ describe('handleMoveMessageSelect — full flow', () => {
         const sendArg = (dest.send as jest.Mock).mock.calls[0][0]
         expect(sendArg.files).toHaveLength(1)
         expect(message.delete).toHaveBeenCalled()
+    })
+
+    it('refuses a destination channel from a different guild (IDOR guard)', async () => {
+        const message = makeMessage()
+        const source = makeChannel({
+            guildId: 'g1',
+            messages: { fetch: jest.fn().mockResolvedValue(message) },
+        })
+        const dest = makeChannel({ guildId: 'g2' })
+        const { interaction, editReply } = makeFlow({ source, dest })
+
+        await handleMoveMessageSelect(interaction as never, client)
+
+        expect(dest.send).not.toHaveBeenCalled()
+        expect(message.delete).not.toHaveBeenCalled()
+        expect(editReply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.stringContaining('unavailable'),
+                components: [],
+            }),
+        )
     })
 
     it('aborts without deleting when the bot lacks destination perms', async () => {
