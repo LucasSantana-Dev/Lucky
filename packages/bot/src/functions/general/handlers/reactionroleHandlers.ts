@@ -89,22 +89,33 @@ export async function handleDelete(
     guild: Guild,
 ) {
     const messageId = interaction.options.getString('message_id', true)
-    const deleted = await reactionRolesService.deleteReactionRoleMessage(
-        messageId,
-        guild.id,
-    )
 
-    if (deleted) {
-        await replyEmbed(
-            interaction,
-            createSuccessEmbed('Success', 'Reaction role message deleted.'),
+    try {
+        const deleted = await reactionRolesService.deleteReactionRoleMessage(
+            messageId,
+            guild.id,
         )
-    } else {
+
+        if (deleted) {
+            await replyEmbed(
+                interaction,
+                createSuccessEmbed('Success', 'Reaction role message deleted.'),
+            )
+        } else {
+            await replyEmbed(
+                interaction,
+                createErrorEmbed(
+                    'Error',
+                    'Reaction role message not found or you do not have permission to delete it.',
+                ),
+            )
+        }
+    } catch (_error) {
         await replyEmbed(
             interaction,
             createErrorEmbed(
                 'Error',
-                'Reaction role message not found or you do not have permission to delete it.',
+                'Failed to delete reaction role message. Please try again later.',
             ),
         )
     }
