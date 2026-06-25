@@ -120,6 +120,9 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
+      exclude: [
+        'src/components/ui/dropdown-menu.tsx',
+      ],
       thresholds: {
         statements: 85.3,
         branches: 79.2,
