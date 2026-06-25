@@ -262,6 +262,31 @@ describe('reactionroleHandlers', () => {
                 },
             })
         })
+
+        test('handles DB errors gracefully', async () => {
+            const guild = createGuild()
+            const interaction = createInteraction()
+
+            const dbError = new Error('Database connection lost')
+            deleteReactionRoleMessageMock.mockRejectedValueOnce(dbError)
+
+            await handleDelete(interaction, guild)
+
+            expect(interactionReplyMock).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    embeds: [
+                        expect.objectContaining({
+                            data: expect.objectContaining({
+                                title: 'Error',
+                                description: expect.stringContaining('try again later'),
+                            }),
+                        }),
+                    ],
+                    ephemeral: true,
+                },
+            })
+        })
     })
 
     describe('handleList', () => {
