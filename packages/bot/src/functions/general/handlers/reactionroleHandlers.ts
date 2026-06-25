@@ -8,7 +8,10 @@ import {
 } from 'discord.js'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { reactionRolesService } from '@lucky/shared/services'
-import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
 
 function replyEmbed(
     interaction: ChatInputCommandInteraction,
@@ -90,32 +93,34 @@ export async function handleDelete(
 ) {
     const messageId = interaction.options.getString('message_id', true)
 
+    let deleted: boolean
     try {
-        const deleted = await reactionRolesService.deleteReactionRoleMessage(
+        deleted = await reactionRolesService.deleteReactionRoleMessage(
             messageId,
             guild.id,
         )
-
-        if (deleted) {
-            await replyEmbed(
-                interaction,
-                createSuccessEmbed('Success', 'Reaction role message deleted.'),
-            )
-        } else {
-            await replyEmbed(
-                interaction,
-                createErrorEmbed(
-                    'Error',
-                    'Reaction role message not found or you do not have permission to delete it.',
-                ),
-            )
-        }
     } catch (_error) {
         await replyEmbed(
             interaction,
             createErrorEmbed(
                 'Error',
                 'Failed to delete reaction role message. Please try again later.',
+            ),
+        )
+        return
+    }
+
+    if (deleted) {
+        await replyEmbed(
+            interaction,
+            createSuccessEmbed('Success', 'Reaction role message deleted.'),
+        )
+    } else {
+        await replyEmbed(
+            interaction,
+            createErrorEmbed(
+                'Error',
+                'Reaction role message not found or you do not have permission to delete it.',
             ),
         )
     }
