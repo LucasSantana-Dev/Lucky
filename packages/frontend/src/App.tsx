@@ -9,7 +9,6 @@ import {
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ShieldAlert } from 'lucide-react'
-import { Analytics } from '@vercel/analytics/react'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useAuthStore } from './stores/authStore'
 import { useGuildStore } from './stores/guildStore'
@@ -274,7 +273,6 @@ function App() {
                         <PublicRoutes />
                     </Suspense>
                 </ErrorBoundary>
-                <Analytics />
             </div>
         )
     }
@@ -284,7 +282,6 @@ function App() {
         return (
             <div className='dark'>
                 <PageLoader />
-                <Analytics />
             </div>
         )
     }
@@ -304,7 +301,6 @@ function App() {
                         </Routes>
                     </Suspense>
                 </ErrorBoundary>
-                <Analytics />
             </div>
         )
     }
@@ -318,7 +314,6 @@ function App() {
                     </Suspense>
                 </Layout>
             </ErrorBoundary>
-            <Analytics />
         </div>
     )
 }
