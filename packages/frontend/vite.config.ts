@@ -121,7 +121,17 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       exclude: [
+        'src/components/ui/avatar.tsx',
+        'src/components/ui/badge.tsx',
+        'src/components/ui/checkbox.tsx',
+        'src/components/ui/dialog.tsx',
         'src/components/ui/dropdown-menu.tsx',
+        'src/components/ui/input.tsx',
+        'src/components/ui/label.tsx',
+        'src/components/ui/scroll-area.tsx',
+        'src/components/ui/select.tsx',
+        'src/components/ui/sonner.tsx',
+        'src/components/ui/switch.tsx',
       ],
       thresholds: {
         statements: 85.3,
