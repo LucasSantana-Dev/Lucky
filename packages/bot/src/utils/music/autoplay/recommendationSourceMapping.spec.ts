@@ -6,6 +6,7 @@ describe('recommendationSourceToPrisma', () => {
 	it.each<[string, string]>([
 		['spotify-rec', PrismaRecommendationSource.SPOTIFY_REC],
 		['spotify-taste', PrismaRecommendationSource.SPOTIFY_TASTE],
+		['seed-similar', PrismaRecommendationSource.SEED_SIMILAR],
 		['lastfm-loved', PrismaRecommendationSource.LASTFM_LOVED],
 		['lastfm-similar', PrismaRecommendationSource.LASTFM_SIMILAR],
 		['lastfm-genre-fallback', PrismaRecommendationSource.LASTFM_GENRE_FALLBACK],

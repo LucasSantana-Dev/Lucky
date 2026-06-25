@@ -977,4 +977,536 @@ describe('GuildService', () => {
             expect(result[0].iconUrl).toBeNull()
         })
     })
+
+    describe('getFullGuildRoles', () => {
+        test('returns full role data from bot client when guild available', async () => {
+            const guildId = '111111111111111111'
+            const mockGuild = {
+                id: guildId,
+                roles: {
+                    fetch: jest.fn().mockResolvedValue(
+                        new Map([
+                            [
+                                guildId,
+                                {
+                                    id: guildId,
+                                    name: '@everyone',
+                                    color: 0,
+                                    position: 0,
+                                    hoist: false,
+                                    mentionable: false,
+                                    managed: false,
+                                    permissions: {
+                                        bitfield: BigInt('0'),
+                                    },
+                                },
+                            ],
+                            [
+                                '999999999999999999',
+                                {
+                                    id: '999999999999999999',
+                                    name: 'Admin',
+                                    color: 16711680,
+                                    position: 10,
+                                    hoist: true,
+                                    mentionable: true,
+                                    managed: false,
+                                    permissions: {
+                                        bitfield: BigInt('8'),
+                                    },
+                                },
+                            ],
+                            [
+                                '888888888888888888',
+                                {
+                                    id: '888888888888888888',
+                                    name: 'Mod',
+                                    color: 255,
+                                    position: 5,
+                                    hoist: false,
+                                    mentionable: false,
+                                    managed: true,
+                                    permissions: {
+                                        bitfield: BigInt('16'),
+                                    },
+                                },
+                            ],
+                        ]),
+                    ),
+                },
+            } as unknown as Guild
+
+            setBotClient({
+                guilds: {
+                    cache: new Map([[guildId, mockGuild]]),
+                    fetch: jest.fn(),
+                },
+            } as unknown as Client)
+
+            const roles =
+                await guildService.getFullGuildRoles(guildId)
+
+            expect(roles).toEqual([
+                {
+                    id: '999999999999999999',
+                    name: 'Admin',
+                    color: 16711680,
+                    position: 10,
+                    hoist: true,
+                    mentionable: true,
+                    managed: false,
+                    permissions: '8',
+                },
+                {
+                    id: '888888888888888888',
+                    name: 'Mod',
+                    color: 255,
+                    position: 5,
+                    hoist: false,
+                    mentionable: false,
+                    managed: true,
+                    permissions: '16',
+                },
+            ])
+        })
+
+        test('falls back to Discord API when bot client path fails', async () => {
+            process.env.DISCORD_TOKEN = 'test-bot-token'
+            const guildId = '111111111111111111'
+
+            setBotClient({
+                guilds: {
+                    cache: new Map(),
+                    fetch: jest
+                        .fn()
+                        .mockRejectedValue(new Error('client fail')),
+                },
+            } as unknown as Client)
+
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                json: async () => [
+                    {
+                        id: guildId,
+                        name: '@everyone',
+                        color: 0,
+                        position: 0,
+                        hoist: false,
+                        mentionable: false,
+                        managed: false,
+                        permissions: '0',
+                    },
+                    {
+                        id: '777777777777777777',
+                        name: 'Helper',
+                        color: 65280,
+                        position: 3,
+                        hoist: false,
+                        mentionable: true,
+                        managed: false,
+                        permissions: '2048',
+                    },
+                ],
+            } as never) as unknown as typeof fetch
+
+            const roles =
+                await guildService.getFullGuildRoles(guildId)
+
+            expect(roles).toEqual([
+                {
+                    id: '777777777777777777',
+                    name: 'Helper',
+                    color: 65280,
+                    position: 3,
+                    hoist: false,
+                    mentionable: true,
+                    managed: false,
+                    permissions: '2048',
+                },
+            ])
+            expect(global.fetch).toHaveBeenCalledWith(
+                `https://discord.com/api/v10/guilds/${encodeURIComponent(guildId)}/roles`,
+                expect.objectContaining({
+                    headers: { Authorization: 'Bot test-bot-token' },
+                }),
+            )
+        })
+
+        test('returns empty array when bot token unavailable', async () => {
+            delete process.env.DISCORD_TOKEN
+            setBotClient(null)
+
+            const roles =
+                await guildService.getFullGuildRoles('111111111111111111')
+
+            expect(roles).toEqual([])
+        })
+
+        test('returns empty array when API request fails', async () => {
+            process.env.DISCORD_TOKEN = 'test-bot-token'
+            setBotClient(null)
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: false,
+                status: 404,
+            } as never) as unknown as typeof fetch
+
+            const roles =
+                await guildService.getFullGuildRoles('111111111111111111')
+
+            expect(roles).toEqual([])
+        })
+    })
+
+    describe('createGuildRole', () => {
+        test('creates role via bot client when guild available', async () => {
+            const guildId = '111111111111111111'
+            const mockGuild = {
+                id: guildId,
+                roles: {
+                    create: jest.fn().mockResolvedValue({
+                        id: '999999999999999999',
+                        name: 'New Role',
+                        color: 16711680,
+                        position: 5,
+                        hoist: true,
+                        mentionable: false,
+                        managed: false,
+                        permissions: {
+                            bitfield: BigInt('8'),
+                        },
+                    }),
+                },
+            } as unknown as Guild
+
+            setBotClient({
+                guilds: {
+                    cache: new Map([[guildId, mockGuild]]),
+                    fetch: jest.fn().mockResolvedValue(mockGuild),
+                },
+            } as unknown as Client)
+
+            const roleData = {
+                name: 'New Role',
+                color: 16711680,
+                hoist: true,
+                mentionable: false,
+                permissions: '8',
+            }
+
+            const role = await guildService.createGuildRole(guildId, roleData)
+
+            expect(role).toEqual({
+                id: '999999999999999999',
+                name: 'New Role',
+                color: 16711680,
+                position: 5,
+                hoist: true,
+                mentionable: false,
+                managed: false,
+                permissions: '8',
+            })
+            expect(mockGuild.roles.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'New Role',
+                    color: 16711680,
+                    hoist: true,
+                    mentionable: false,
+                    permissions: BigInt('8'),
+                }),
+            )
+        })
+
+        test('creates role via Discord API when bot client unavailable', async () => {
+            process.env.DISCORD_TOKEN = 'test-bot-token'
+            const guildId = '111111111111111111'
+
+            setBotClient(null)
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    id: '555555555555555555',
+                    name: 'API Role',
+                    color: 255,
+                    position: 2,
+                    hoist: false,
+                    mentionable: true,
+                    managed: false,
+                    permissions: '16',
+                }),
+            } as never) as unknown as typeof fetch
+
+            const roleData = {
+                name: 'API Role',
+                color: 255,
+                hoist: false,
+                mentionable: true,
+                permissions: '16',
+            }
+
+            const role = await guildService.createGuildRole(guildId, roleData)
+
+            expect(role).toEqual({
+                id: '555555555555555555',
+                name: 'API Role',
+                color: 255,
+                position: 2,
+                hoist: false,
+                mentionable: true,
+                managed: false,
+                permissions: '16',
+            })
+            expect(global.fetch).toHaveBeenCalledWith(
+                `https://discord.com/api/v10/guilds/${encodeURIComponent(guildId)}/roles`,
+                expect.objectContaining({
+                    method: 'POST',
+                    headers: {
+                        Authorization: 'Bot test-bot-token',
+                        'Content-Type': 'application/json',
+                    },
+                }),
+            )
+        })
+
+        test('throws error when no bot token available', async () => {
+            delete process.env.DISCORD_TOKEN
+            setBotClient(null)
+
+            const roleData = {
+                name: 'Test Role',
+                color: 0,
+                hoist: false,
+                mentionable: false,
+                permissions: '0',
+            }
+
+            await expect(
+                guildService.createGuildRole('111111111111111111', roleData),
+            ).rejects.toThrow('No bot token available')
+        })
+    })
+
+    describe('updateGuildRole', () => {
+        test('updates role via bot client when guild available', async () => {
+            const guildId = '111111111111111111'
+            const roleId = '999999999999999999'
+            const mockGuild = {
+                id: guildId,
+                roles: {
+                    fetch: jest.fn().mockResolvedValue({
+                        id: roleId,
+                        name: 'Updated Role',
+                        color: 65280,
+                        position: 5,
+                        hoist: false,
+                        mentionable: true,
+                        managed: false,
+                        permissions: {
+                            bitfield: BigInt('16'),
+                        },
+                        edit: jest.fn().mockResolvedValue({
+                            id: roleId,
+                            name: 'Updated Role',
+                            color: 65280,
+                            position: 5,
+                            hoist: false,
+                            mentionable: true,
+                            managed: false,
+                            permissions: {
+                                bitfield: BigInt('16'),
+                            },
+                        }),
+                    }),
+                },
+            } as unknown as Guild
+
+            setBotClient({
+                guilds: {
+                    cache: new Map([[guildId, mockGuild]]),
+                    fetch: jest.fn().mockResolvedValue(mockGuild),
+                },
+            } as unknown as Client)
+
+            const roleData = {
+                name: 'Updated Role',
+                color: 65280,
+                hoist: false,
+                mentionable: true,
+                permissions: '16',
+            }
+
+            const role = await guildService.updateGuildRole(
+                guildId,
+                roleId,
+                roleData,
+            )
+
+            expect(role).toEqual({
+                id: roleId,
+                name: 'Updated Role',
+                color: 65280,
+                position: 5,
+                hoist: false,
+                mentionable: true,
+                managed: false,
+                permissions: '16',
+            })
+        })
+
+        test('updates role via Discord API when bot client unavailable', async () => {
+            process.env.DISCORD_TOKEN = 'test-bot-token'
+            const guildId = '111111111111111111'
+            const roleId = '555555555555555555'
+
+            setBotClient(null)
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    id: roleId,
+                    name: 'Updated API Role',
+                    color: 128,
+                    position: 3,
+                    hoist: true,
+                    mentionable: false,
+                    managed: false,
+                    permissions: '32',
+                }),
+            } as never) as unknown as typeof fetch
+
+            const roleData = {
+                name: 'Updated API Role',
+                color: 128,
+                hoist: true,
+                mentionable: false,
+                permissions: '32',
+            }
+
+            const role = await guildService.updateGuildRole(
+                guildId,
+                roleId,
+                roleData,
+            )
+
+            expect(role).toEqual({
+                id: roleId,
+                name: 'Updated API Role',
+                color: 128,
+                position: 3,
+                hoist: true,
+                mentionable: false,
+                managed: false,
+                permissions: '32',
+            })
+            expect(global.fetch).toHaveBeenCalledWith(
+                `https://discord.com/api/v10/guilds/${encodeURIComponent(guildId)}/roles/${encodeURIComponent(roleId)}`,
+                expect.objectContaining({
+                    method: 'PATCH',
+                    headers: {
+                        Authorization: 'Bot test-bot-token',
+                        'Content-Type': 'application/json',
+                    },
+                }),
+            )
+        })
+
+        test('throws error when no bot token available', async () => {
+            delete process.env.DISCORD_TOKEN
+            setBotClient(null)
+
+            const roleData = {
+                name: 'Test Role',
+                color: 0,
+                hoist: false,
+                mentionable: false,
+                permissions: '0',
+            }
+
+            await expect(
+                guildService.updateGuildRole(
+                    '111111111111111111',
+                    '999999999999999999',
+                    roleData,
+                ),
+            ).rejects.toThrow('No bot token available')
+        })
+    })
+
+    describe('deleteGuildRole', () => {
+        test('deletes role via bot client when guild available', async () => {
+            const guildId = '111111111111111111'
+            const roleId = '999999999999999999'
+            const mockGuild = {
+                id: guildId,
+                roles: {
+                    fetch: jest.fn().mockResolvedValue({
+                        id: roleId,
+                        delete: jest.fn().mockResolvedValue(undefined),
+                    }),
+                },
+            } as unknown as Guild
+
+            setBotClient({
+                guilds: {
+                    cache: new Map([[guildId, mockGuild]]),
+                    fetch: jest.fn().mockResolvedValue(mockGuild),
+                },
+            } as unknown as Client)
+
+            await expect(
+                guildService.deleteGuildRole(guildId, roleId),
+            ).resolves.toBeUndefined()
+            expect(
+                (
+                    await mockGuild.roles.fetch(roleId)
+                ).delete,
+            ).toHaveBeenCalled()
+        })
+
+        test('deletes role via Discord API when bot client unavailable', async () => {
+            process.env.DISCORD_TOKEN = 'test-bot-token'
+            const guildId = '111111111111111111'
+            const roleId = '555555555555555555'
+
+            setBotClient(null)
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+            } as never) as unknown as typeof fetch
+
+            await expect(
+                guildService.deleteGuildRole(guildId, roleId),
+            ).resolves.toBeUndefined()
+            expect(global.fetch).toHaveBeenCalledWith(
+                `https://discord.com/api/v10/guilds/${encodeURIComponent(guildId)}/roles/${encodeURIComponent(roleId)}`,
+                expect.objectContaining({
+                    method: 'DELETE',
+                    headers: { Authorization: 'Bot test-bot-token' },
+                }),
+            )
+        })
+
+        test('throws error when no bot token available', async () => {
+            delete process.env.DISCORD_TOKEN
+            setBotClient(null)
+
+            await expect(
+                guildService.deleteGuildRole('111111111111111111', '999999999999999999'),
+            ).rejects.toThrow('No bot token available')
+        })
+
+        test('throws error when API response is not ok', async () => {
+            process.env.DISCORD_TOKEN = 'test-bot-token'
+            const guildId = '111111111111111111'
+            const roleId = '999999999999999999'
+
+            setBotClient(null)
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: false,
+                status: 404,
+                text: async () => 'Role not found',
+            } as never) as unknown as typeof fetch
+
+            await expect(
+                guildService.deleteGuildRole(guildId, roleId),
+            ).rejects.toThrow('Discord API error: Role not found')
+        })
+    })
 })
