@@ -191,4 +191,32 @@ describe('handleForumThreadCreate', () => {
             expect.any(Function),
         )
     })
+
+    it('processes threads even when newlyCreated is false (cache miss / bot restart)', async () => {
+        let capturedHandler: ((thread: unknown) => void) | undefined
+        const onMock = jest.fn((event, handler) => {
+            capturedHandler = handler
+        })
+        mockUpsert.mockResolvedValue({})
+        mockGetPrismaClient.mockReturnValue({
+            guildForumThread: { upsert: mockUpsert },
+        })
+
+        handleForumThreadCreate({ on: onMock } as never)
+
+        const thread = {
+            guildId: '895505900016631839',
+            id: 'THREAD_456',
+            name: 'Guide Thread',
+            parent: { type: ChannelType.GuildForum },
+            client: { user: { id: 'BOT_ID' } },
+            fetchStarterMessage: jest.fn().mockResolvedValue({
+                content: '<!-- official:v1:my-guide -->',
+                author: { id: 'BOT_ID' },
+            }),
+        }
+
+        await capturedHandler!(thread)
+        expect(mockUpsert).toHaveBeenCalled()
+    })
 })
