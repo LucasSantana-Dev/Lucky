@@ -46,6 +46,8 @@ describe('ReactionRolesService', () => {
             reactionRoleMapping: {
                 findFirst: jest.fn(),
                 deleteMany: jest.fn(),
+                count: (jest.fn() as any).mockResolvedValue(0),
+                create: jest.fn(),
             },
             $transaction: jest.fn() as any,
         }
@@ -498,9 +500,9 @@ describe('ReactionRolesService', () => {
             const options = {
                 ...baseOptions,
                 roles: [
-                    { roleId: 'role-1', label: 'Role One', emoji: '1️⃣' },
+                    { roleId: '11111111111111111', label: 'Role One', emoji: '1️⃣' },
                     {
-                        roleId: 'role-2',
+                        roleId: '22222222222222222',
                         label: 'Role Two',
                         style: 'Success' as const,
                     },
@@ -517,12 +519,12 @@ describe('ReactionRolesService', () => {
                         mappings: expect.objectContaining({
                             create: expect.arrayContaining([
                                 expect.objectContaining({
-                                    roleId: 'role-1',
+                                    roleId: '11111111111111111',
                                     label: 'Role One',
                                     emoji: '1️⃣',
                                 }),
                                 expect.objectContaining({
-                                    roleId: 'role-2',
+                                    roleId: '22222222222222222',
                                     label: 'Role Two',
                                     style: 'Success',
                                 }),
@@ -641,12 +643,12 @@ describe('ReactionRolesService', () => {
                 ...baseOptions,
                 roles: [
                     {
-                        roleId: 'role-1',
+                        roleId: '11111111111111111',
                         label: 'Animated',
                         emoji: '<a:spin:123456>',
                     },
                     {
-                        roleId: 'role-2',
+                        roleId: '22222222222222222',
                         label: 'Static',
                         emoji: '<:star:789012>',
                     },
@@ -684,7 +686,7 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: 'role-1', label: 'Heart', emoji: '❤️' }],
+                roles: [{ roleId: '11111111111111111', label: 'Heart', emoji: '❤️' }],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -706,7 +708,7 @@ describe('ReactionRolesService', () => {
             mockPrisma.reactionRoleMessage.create.mockResolvedValueOnce({})
 
             const roles = Array.from({ length: 12 }, (_, i) => ({
-                roleId: `role-${i}`,
+                roleId: String(i + 1).padStart(17, '1'),
                 label: `Role ${i}`,
             }))
             const options = { ...baseOptions, roles }
@@ -1126,7 +1128,7 @@ describe('ReactionRolesService', () => {
                 title: 'Test',
                 description: 'Test',
                 botToken: 'token',
-                roles: [{ roleId: 'r1', label: 'L1', emoji: '<a:fire:12345>' }],
+                roles: [{ roleId: '11111111111111111', label: 'L1', emoji: '<a:fire:12345>' }],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -1154,7 +1156,7 @@ describe('ReactionRolesService', () => {
                 title: 'Test',
                 description: 'Test',
                 botToken: 'token',
-                roles: [{ roleId: 'r1', label: 'L1', emoji: '<:star:98765>' }],
+                roles: [{ roleId: '11111111111111111', label: 'L1', emoji: '<:star:98765>' }],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -1182,7 +1184,7 @@ describe('ReactionRolesService', () => {
                 title: 'Test',
                 description: 'Test',
                 botToken: 'token',
-                roles: [{ roleId: 'r1', label: 'L1', emoji: '✨' }],
+                roles: [{ roleId: '11111111111111111', label: 'L1', emoji: '✨' }],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -1851,6 +1853,8 @@ describe('ReactionRolesService', () => {
             mockPrisma.reactionRoleMapping = {
                 create: jest.fn(),
                 deleteMany: jest.fn(),
+                count: (jest.fn() as any).mockResolvedValue(0),
+                findFirst: (jest.fn() as any).mockResolvedValue(null),
             }
         })
 
@@ -2051,7 +2055,7 @@ describe('ReactionRolesService', () => {
             const mappings = Array.from({ length: 25 }, (_, i) => ({
                 id: `m-${i}`,
                 messageId,
-                roleId: `r-${i}`,
+                roleId: `${String(i + 1).padStart(17, '1')}`,
                 label: `L${i}`,
                 emoji: null,
                 buttonId: `b-${i}`,
@@ -2068,6 +2072,13 @@ describe('ReactionRolesService', () => {
                 imageUrl: null,
                 mappings,
             })
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) =>
+                    typeof callback === 'function'
+                        ? callback(mockPrisma)
+                        : Promise.all(callback),
+            )
+            mockPrisma.reactionRoleMapping.count.mockResolvedValueOnce(25)
 
             await expect(
                 service.addRoleToMessage(
@@ -2081,10 +2092,19 @@ describe('ReactionRolesService', () => {
                     botToken,
                 ),
             ).rejects.toThrow('Message already at capacity')
-            expect(mockPrisma.$transaction).not.toHaveBeenCalled()
         })
 
         it('duplicate roleId → conflict', async () => {
+            const existingMapping = {
+                id: 'mapping-1',
+                messageId,
+                roleId: newRoleId,
+                label: 'Ex',
+                emoji: null,
+                buttonId: `reactionrole:${newRoleId}`,
+                type: 'button',
+                style: 'Primary',
+            }
             mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
                 id: 'msg-id-1',
                 messageId,
@@ -2093,19 +2113,17 @@ describe('ReactionRolesService', () => {
                 title: 'Test',
                 description: 'Click',
                 imageUrl: null,
-                mappings: [
-                    {
-                        id: 'mapping-1',
-                        messageId,
-                        roleId: newRoleId,
-                        label: 'Ex',
-                        emoji: null,
-                        buttonId: `reactionrole:${newRoleId}`,
-                        type: 'button',
-                        style: 'Primary',
-                    },
-                ],
+                mappings: [existingMapping],
             })
+            mockPrisma.$transaction.mockImplementationOnce(
+                async (callback: any) =>
+                    typeof callback === 'function'
+                        ? callback(mockPrisma)
+                        : Promise.all(callback),
+            )
+            mockPrisma.reactionRoleMapping.findFirst.mockResolvedValueOnce(
+                existingMapping,
+            )
 
             await expect(
                 service.addRoleToMessage(
@@ -2119,7 +2137,6 @@ describe('ReactionRolesService', () => {
                     botToken,
                 ),
             ).rejects.toThrow('Role already mapped')
-            expect(mockPrisma.$transaction).not.toHaveBeenCalled()
         })
 
         it('NO deleteMany called', async () => {
@@ -2365,7 +2382,9 @@ describe('ReactionRolesService', () => {
             mockPrisma.$transaction.mockImplementationOnce(
                 async (callback: any) => {
                     transactionCalls++
-                    return callback(mockPrisma)
+                    return typeof callback === 'function'
+                        ? callback(mockPrisma)
+                        : Promise.all(callback)
                 },
             )
 
@@ -2386,7 +2405,9 @@ describe('ReactionRolesService', () => {
             mockPrisma.$transaction.mockImplementationOnce(
                 async (callback: any) => {
                     transactionCalls++
-                    return callback(mockPrisma)
+                    return typeof callback === 'function'
+                        ? callback(mockPrisma)
+                        : Promise.all(callback)
                 },
             )
 
