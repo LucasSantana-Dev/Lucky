@@ -568,7 +568,7 @@ export class ReactionRolesService {
                                 description: message.description,
                                 imageUrl: message.imageUrl,
                                 mappings: {
-                                    create: originalMappings.map((m) => ({
+                                    create: originalMappings.map((m: any) => ({
                                         roleId: m.roleId,
                                         buttonId: m.buttonId,
                                         type: m.type,
@@ -784,7 +784,7 @@ export class ReactionRolesService {
         // with the insert inside the transaction.
         let createdMapping: any
         try {
-            createdMapping = await prisma.$transaction(async (tx) => {
+            createdMapping = await prisma.$transaction(async (tx: any) => {
                 // Count current mappings inside transaction for atomicity
                 const currentCount = await tx.reactionRoleMapping.count({
                     where: { messageId },

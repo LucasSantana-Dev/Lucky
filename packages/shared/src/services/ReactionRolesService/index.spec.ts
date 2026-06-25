@@ -41,13 +41,28 @@ describe('ReactionRolesService', () => {
                 findUnique: jest.fn(),
                 delete: jest.fn(),
                 findMany: jest.fn(),
+                update: jest.fn(),
             },
             reactionRoleMapping: {
                 findFirst: jest.fn(),
+                deleteMany: jest.fn(),
             },
+            $transaction: jest.fn() as any,
         }
         mockGetPrismaClient.mockReturnValue(mockPrisma)
         mockIsEnabled.mockResolvedValue(true)
+        ;(mockPrisma.$transaction as any).mockImplementation(async (fnOrArray: any) => {
+            if (typeof fnOrArray === 'function') {
+                return await fnOrArray(mockPrisma)
+            }
+            // Handle array pattern: execute each operation
+            const results = []
+            for (const op of fnOrArray) {
+                // Each op is a Prisma operation (like deleteMany result)
+                results.push(op)
+            }
+            return results
+        })
     })
 
     afterEach(() => {
@@ -2253,8 +2268,8 @@ describe('ReactionRolesService', () => {
                     id: 'msg-id-1',
                     messageId: 'msg-123',
                 })
-                ;(global as any).fetch = jest
-                    .fn()
+                ;(global as any).fetch = (jest
+                    .fn() as any)
                     .mockResolvedValueOnce({
                         ok: true,
                         json: async () => ({ id: 'msg-123' }),
@@ -2293,8 +2308,8 @@ describe('ReactionRolesService', () => {
                     id: 'msg-id-1',
                     messageId: 'msg-123',
                 })
-                ;(global as any).fetch = jest
-                    .fn()
+                ;(global as any).fetch = (jest
+                    .fn() as any)
                     .mockResolvedValueOnce({
                         ok: true,
                         json: async () => ({ id: 'msg-123' }),
@@ -2302,7 +2317,7 @@ describe('ReactionRolesService', () => {
 
                 const result =
                     await service.createReactionRoleMessageFromDashboard(
-                        optionsWithNullEmoji,
+                        optionsWithNullEmoji as any,
                     )
 
                 expect(result.messageId).toBe('msg-123')
@@ -2361,7 +2376,7 @@ describe('ReactionRolesService', () => {
             })
 
             // Discord API fails
-            ;(global as any).fetch = jest.fn().mockResolvedValueOnce({
+            ;(global as any).fetch = (jest.fn() as any).mockResolvedValueOnce({
                 ok: false,
                 status: 500,
                 text: async () => 'Internal Server Error',
@@ -2440,7 +2455,7 @@ describe('ReactionRolesService', () => {
                 async (callback: any) => {
                     const mockTx = {
                         reactionRoleMapping: {
-                            count: jest.fn().mockResolvedValue(25),
+                            count: (jest.fn() as any).mockResolvedValue(25),
                         },
                     }
                     return callback(mockTx)
@@ -2490,8 +2505,8 @@ describe('ReactionRolesService', () => {
                 async (callback: any) => {
                     const mockTx = {
                         reactionRoleMapping: {
-                            count: jest.fn().mockResolvedValue(1),
-                            findFirst: jest.fn().mockResolvedValue({
+                            count: (jest.fn() as any).mockResolvedValue(1),
+                            findFirst: (jest.fn() as any).mockResolvedValue({
                                 id: 'mapping-1',
                                 roleId,
                             }),
@@ -2555,16 +2570,16 @@ describe('ReactionRolesService', () => {
                 async (callback: any) => {
                     const mockTx = {
                         reactionRoleMapping: {
-                            count: jest.fn().mockResolvedValue(1),
-                            findFirst: jest.fn().mockResolvedValue(null),
-                            create: jest.fn().mockResolvedValue(createdMapping),
+                            count: (jest.fn() as any).mockResolvedValue(1),
+                            findFirst: (jest.fn() as any).mockResolvedValue(null),
+                            create: (jest.fn() as any).mockResolvedValue(createdMapping),
                         },
                     }
                     return callback(mockTx)
                 },
             )
 
-            ;(global as any).fetch = jest.fn().mockResolvedValueOnce({
+            ;(global as any).fetch = (jest.fn() as any).mockResolvedValueOnce({
                 ok: true,
             })
 
