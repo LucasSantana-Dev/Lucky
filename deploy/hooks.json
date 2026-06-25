@@ -19,8 +19,14 @@
         "include-command-output-in-response": true,
         "include-command-output-in-response-on-error": true,
         "pass-arguments-to-command": [
-            { "source": "header", "name": "X-Webhook-Secret" },
             { "source": "header", "name": "X-Deploy-Ref" }
+        ],
+        "pass-environment-to-command": [
+            {
+                "source": "header",
+                "name": "X-Webhook-Secret",
+                "envname": "DEPLOY_WEBHOOK_SECRET"
+            }
         ]
     }
 ]
