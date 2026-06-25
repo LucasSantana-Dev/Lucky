@@ -1,7 +1,8 @@
 import type { Client } from 'discord.js'
 import Parser from 'rss-parser'
 import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
-import { featureToggleService, getPrismaClient } from '@lucky/shared/services'
+import { featureToggleService } from '@lucky/shared/services'
+import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
 
 const RSS_FEED_URL = 'https://criativaria.com.br/rss.xml'
 const POLL_INTERVAL_MS = 3600000 // 1 hour
@@ -15,7 +16,7 @@ interface RssItem {
     pubDate?: string
 }
 
-let pollInterval: NodeJS.Timeout | null = null
+let pollInterval: ReturnType<typeof setInterval> | null = null
 
 export async function startRssBridgeService(client: Client): Promise<void> {
     const enabled = await featureToggleService.isEnabled('RSS_BRIDGE')
@@ -36,12 +37,9 @@ export async function startRssBridgeService(client: Client): Promise<void> {
         infoLog({ message: 'RSS Bridge service started' })
         await pollRssFeed(client, channelId)
         // Schedule polling every hour
-        pollInterval = setInterval(
-            async () => {
-                await pollRssFeed(client, channelId)
-            },
-            POLL_INTERVAL_MS,
-        )
+        pollInterval = setInterval(async () => {
+            await pollRssFeed(client, channelId)
+        }, POLL_INTERVAL_MS)
     } catch (err) {
         errorLog({
             message: 'RSS Bridge service failed to start (non-fatal)',
@@ -58,10 +56,7 @@ export function stopRssBridgeService(): void {
     }
 }
 
-async function pollRssFeed(
-    client: Client,
-    channelId: string,
-): Promise<void> {
+async function pollRssFeed(client: Client, channelId: string): Promise<void> {
     try {
         const parser = new Parser()
         const feed = await parser.parseURL(RSS_FEED_URL)
@@ -77,12 +72,16 @@ async function pollRssFeed(
         const db = getPrismaClient()
         const channel = await client.channels.fetch(channelId)
 
-        if (!channel?.isTextBased()) {
+        if (!channel?.isTextBased() || !('send' in channel)) {
             errorLog({
                 message: 'RSS Bridge channel is not a text channel',
                 data: { channelId },
             })
             return
+        }
+
+        const sendableChannel = channel as unknown as {
+            send: (options: unknown) => Promise<unknown>
         }
 
         for (const item of feed.items) {
@@ -126,7 +125,7 @@ async function pollRssFeed(
                 })
 
                 // Post to Discord after DB write succeeds
-                await channel.send({
+                await sendableChannel.send({
                     embeds: [
                         {
                             title,
