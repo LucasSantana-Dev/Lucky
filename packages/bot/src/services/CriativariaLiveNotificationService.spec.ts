@@ -19,6 +19,11 @@ jest.mock('@lucky/shared/utils', () => ({
 jest.mock('../twitch/token')
 
 import { CriativariaLiveNotificationService } from './CriativariaLiveNotificationService'
+import { getTwitchUserAccessToken } from '../twitch/token'
+
+const mockGetToken = getTwitchUserAccessToken as jest.MockedFunction<
+    typeof getTwitchUserAccessToken
+>
 
 describe('CriativariaLiveNotificationService', () => {
     let service: CriativariaLiveNotificationService
@@ -157,5 +162,64 @@ describe('CriativariaLiveNotificationService', () => {
         service.stop()
 
         expect((service as any).intervalHandle).toBeNull()
+    })
+
+    describe('fetchStream', () => {
+        beforeEach(() => {
+            mockGetToken.mockResolvedValue('test-token')
+        })
+
+        test('returns null when no token', async () => {
+            mockGetToken.mockResolvedValue(null)
+            const result = await service.fetchStream('criativaria')
+            expect(result).toBeNull()
+        })
+
+        test('returns null when TWITCH_CLIENT_ID not set', async () => {
+            delete process.env.TWITCH_CLIENT_ID
+            const result = await service.fetchStream('criativaria')
+            expect(result).toBeNull()
+        })
+
+        test('returns null when fetch returns non-ok status', async () => {
+            global.fetch = jest.fn(async () => ({ ok: false })) as any
+            const result = await service.fetchStream('criativaria')
+            expect(result).toBeNull()
+        })
+
+        test('returns null when fetch throws', async () => {
+            global.fetch = jest.fn(async () => {
+                throw new Error('network error')
+            }) as any
+            const result = await service.fetchStream('criativaria')
+            expect(result).toBeNull()
+        })
+
+        test('returns null when data array is empty', async () => {
+            global.fetch = jest.fn(async () => ({
+                ok: true,
+                json: async () => ({ data: [] }),
+            })) as any
+            const result = await service.fetchStream('criativaria')
+            expect(result).toBeNull()
+        })
+
+        test('returns stream when fetch succeeds', async () => {
+            const stream = {
+                id: 'stream-1',
+                user_login: 'criativaria',
+                title: 'Live Test',
+                viewer_count: 100,
+                game_name: 'Gaming',
+                thumbnail_url: 'https://example.com/{width}x{height}.jpg',
+                started_at: new Date().toISOString(),
+            }
+            global.fetch = jest.fn(async () => ({
+                ok: true,
+                json: async () => ({ data: [stream] }),
+            })) as any
+            const result = await service.fetchStream('criativaria')
+            expect(result).toEqual(stream)
+        })
     })
 })
