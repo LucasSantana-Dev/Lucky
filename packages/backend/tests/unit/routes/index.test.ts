@@ -29,6 +29,7 @@ const setupInternalNotifyRoutes = jest.fn()
 const setupWebhookApiRoutes = jest.fn()
 const setupWebhookPublicRoutes = jest.fn()
 const setupAdminRoutes = jest.fn()
+const setupBatchJobRoutes = jest.fn()
 
 const requireGuildModuleAccess = jest.fn()
 const apiLimiter = jest.fn()
@@ -146,6 +147,10 @@ jest.mock('../../../src/routes/admin', () => ({
     setupAdminRoutes,
 }))
 
+jest.mock('../../../src/routes/batchJobs', () => ({
+    setupBatchJobRoutes,
+}))
+
 jest.mock('../../../src/middleware/rateLimit', () => ({
     apiLimiter,
     writeLimiter,
@@ -169,12 +174,13 @@ jest.mock('../../../src/middleware/errorHandler', () => ({
 
 import { setupRoutes } from '../../../src/routes'
 
-type MockApp = Pick<Express, 'use' | 'get'>
+type MockApp = Pick<Express, 'use' | 'get' | 'post'>
 
 describe('setupRoutes', () => {
     const app: MockApp = {
         use: jest.fn() as unknown as Express['use'],
         get: jest.fn() as unknown as Express['get'],
+        post: jest.fn() as unknown as Express['post'],
     }
 
     beforeEach(() => {
@@ -209,6 +215,7 @@ describe('setupRoutes', () => {
         expect(setupAdminRoutes).toHaveBeenCalledWith(app)
         expect(setupWebhookApiRoutes).toHaveBeenCalledWith(app)
         expect(setupSupportRoutes).toHaveBeenCalledWith(app)
+        expect(setupBatchJobRoutes).toHaveBeenCalledWith(app)
 
         expect(requireGuildModuleAccess).toHaveBeenCalledWith('moderation')
         expect(requireGuildModuleAccess).toHaveBeenCalledWith('automation')

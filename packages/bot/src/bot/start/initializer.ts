@@ -26,6 +26,8 @@ import { modDigestSchedulerService } from '../../utils/moderation/modDigestSched
 import { aiDevToolkitService } from '../../services/AiDevToolkitService'
 import { dependencyCheckService } from '../../services/DependencyCheckService'
 import { stopTwitchService } from '../../twitch'
+import { stopBatchJobWorker } from '../../workers/batchJobWorker'
+import { setClient } from '../clientStore'
 import type {
     BotInitializationOptions,
     BotInitializationResult,
@@ -61,6 +63,7 @@ export class BotInitializer {
     private async createDiscordClient(): Promise<void> {
         try {
             this.client = await createClient()
+            setClient(this.client)
         } catch (error) {
             errorLog({ message: 'Failed to create Discord client', error })
             throw new ConfigurationError('Failed to create Discord client')
@@ -229,6 +232,15 @@ export class BotInitializer {
             stopTwitchService()
         } catch (error) {
             errorLog({ message: 'Error stopping Twitch service:', error })
+        }
+
+        try {
+            await stopBatchJobWorker()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping batch job worker:',
+                error,
+            })
         }
 
         try {

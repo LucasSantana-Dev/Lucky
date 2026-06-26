@@ -78,6 +78,14 @@ export class RedisClient implements IRedisClient {
         return this.client !== null && this.initializationError === null
     }
 
+    /**
+     * Returns the underlying ioredis client instance for use by tools like BullMQ.
+     * Returns null if not initialized. Caller must ensure Redis is connected.
+     */
+    getClient(): Redis | null {
+        return this.client
+    }
+
     getInitializationError(): Error | null {
         return this.initializationError
     }

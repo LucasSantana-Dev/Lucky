@@ -79,6 +79,14 @@ jest.mock('./moveMessageHandler', () => ({
     MOVE_MESSAGE_SELECT_PREFIX: 'movemsg:',
 }))
 
+// Mock the batch worker — its real module pulls in BatchJobService → prismaClient
+// (which uses import.meta) and is irrelevant to event routing.
+jest.mock('../workers/batchJobWorker', () => ({
+    // Plain functions (not jest.fn) so resetMocks doesn't wipe the Promise return.
+    startBatchJobWorker: () => Promise.resolve(),
+    stopBatchJobWorker: () => Promise.resolve(),
+}))
+
 jest.mock('@lucky/shared/services', () => ({
     reactionRolesService: {
         handleButtonInteraction: (...args: unknown[]) =>
