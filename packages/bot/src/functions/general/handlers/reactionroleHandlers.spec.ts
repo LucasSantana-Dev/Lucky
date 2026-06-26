@@ -1,5 +1,12 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 
+jest.mock('@lucky/shared/utils', () => ({
+    errorLog: jest.fn(),
+    infoLog: jest.fn(),
+    debugLog: jest.fn(),
+    warnLog: jest.fn(),
+}))
+
 jest.mock('@lucky/shared/services', () => ({
     reactionRolesService: {
         createReactionRoleMessage: jest.fn(),
