@@ -6,67 +6,260 @@
 </p>
 
 <p align="center">
-  <b>The Discord music bot that can't be shut down — because you host it.</b><br>
-  Self-hosted · Open-source · TypeScript monorepo · ~2500 tests · Zero prod incidents.
+  <b>🎵 The Discord music bot that can't be shut down — because you host it.</b><br>
+  <strong>Self-hosted · Open-source · TypeScript monorepo · ~2500 tests · Zero prod incidents</strong>
 </p>
 
 <p align="center">
-  <a href="https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge"><b>→ Invite Lucky</b></a> ·
-  <a href="https://lucky.lucassantana.tech"><b>Dashboard</b></a> ·
-  <a href="./docs/ARCHITECTURE.md">Architecture</a> ·
-  <a href="./CHANGELOG.md">Changelog</a> ·
-  <a href="https://github.com/LucasSantana-Dev/Lucky/issues">Issues</a>
+  <a href="https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge"><strong>→ Invite Lucky to Your Server</strong></a> · 
+  <a href="https://lucky.lucassantana.tech"><strong>Dashboard</strong></a> · 
+  <a href="./docs/ARCHITECTURE.md"><strong>Architecture</strong></a> · 
+  <a href="./CHANGELOG.md"><strong>Changelog</strong></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml"><img src="https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml"><img src="https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
   <a href="https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge"><img src="https://img.shields.io/badge/Invite-Lucky%20Bot-5865F2?logo=discord&logoColor=white" alt="Invite Lucky" /></a>
-  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22.x-green.svg" alt="Node.js" /></a>
-  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-blue.svg" alt="TypeScript" /></a>
-  <a href="https://discord.js.org/"><img src="https://img.shields.io/badge/Discord.js-14-purple.svg" alt="Discord.js" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-ISC-yellow.svg" alt="License" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22.x-green.svg" alt="Node.js 22" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-blue.svg" alt="TypeScript 5.9" /></a>
+  <a href="https://discord.js.org/"><img src="https://img.shields.io/badge/Discord.js-14-purple.svg" alt="Discord.js 14" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-ISC-yellow.svg" alt="ISC License" /></a>
 </p>
 
 ---
 
-## What is Lucky?
+## 🎯 What is Lucky?
 
-Lucky is a production-grade Discord bot built as a TypeScript monorepo. Music player with autoplay + recommendations, full moderation suite, auto-mod presets, and a React 19 dashboard — all self-hostable via Docker. Ships with /artist and /album commands for Spotify listening stats, session save/restore, a leveling system with XP and role rewards, and Twitch stream notifications.
+Lucky is a **production-grade, self-hosted Discord music bot** — built as a TypeScript monorepo with a React 19 dashboard, full moderation suite, and a leveling system. Supports **YouTube, Spotify, and SoundCloud** with smart autoplay powered by listening history recommendations.
 
-**Live at** [lucky.lucassantana.tech](https://lucky.lucassantana.tech) · [Invite to your server](https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge)
+Unlike Groovy, Rythm, or Hydra (all shut down by third-party enforcement), Lucky can't be taken offline because **you host it.** Every feature is included — no paywall, no premium tier.
 
----
-
-## Features
-
-| Category | Highlights |
-|----------|------------|
-| **Music** | YouTube + Spotify + SoundCloud, queue management, autoplay with recommendations, lyrics, session save/restore |
-| **Moderation** | Warn / mute / kick / ban, case tracking, scheduled digest reports, auto-mod presets |
-| **Dashboard** | Discord OAuth, guild management, RBAC, moderation overview, music controls, feature toggles |
-| **Engagement** | Leveling system with XP + role rewards, starboard, Last.fm scrobbling |
-| **Integrations** | Twitch stream notifications, Sentry monitoring, Cloudflare Tunnel |
+- **Live demo**: [lucky.lucassantana.tech](https://lucassantana.tech)  
+- **Invite to your server**: [Add Lucky now](https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge)
 
 ---
 
-## Why Lucky?
+## ✨ Features
 
-Groovy, Rythm, Hydra — the biggest Discord music bots all died. YouTube API enforcement can kill any cloud-only bot overnight. Lucky can't be shut down because you host it.
+### 🎵 Music Player
+- **Multi-source playback**: YouTube, Spotify, SoundCloud
+- **Smart autoplay**: Recommendations based on your listening history
+- **Queue management**: Shuffle, repeat, clear, skip, pause/resume
+- **Session save/restore**: Pick up where you left off
+- **Lyrics on-demand**: `/lyrics` for currently playing track
+- **Listening stats**: `/artist` and `/album` commands with Spotify integration
 
-- **Shutdown-proof** — self-hosted means no third-party service can take your bot away. Your server, your uptime.
-- **Full-stack** — bot + React 19 dashboard in one monorepo. Control music, moderation, and settings from a web interface.
-- **Production-grade** — ~2500 tests, zero production incidents, Sentry monitoring, and SonarCloud quality gates.
-- **Multi-source** — YouTube + Spotify + SoundCloud, not locked to one provider.
-- **Smart autoplay** — personalized recommendations from listening history, not just random tracks.
-- **No paywall** — every feature included, free forever. No premium tier, no upsells.
+### 🛡️ Moderation & Auto-mod
+- **Case tracking**: `/warn` `/mute` `/kick` `/ban` with full history
+- **Auto-mod presets**: Word filter, link filter, spam detection
+- **Scheduled digests**: Automated reports of moderation activity
+- **RBAC**: Role-based access control on the dashboard
 
-### Maintenance model
+### 📊 Engagement & Community
+- **Leveling system**: XP-based progression with role rewards
+- **Starboard**: Community-curated highlight board
+- **Last.fm integration**: Scrobble and share your listening activity
+- **Social commands**: Hug, pat, kiss, dance, bonk, wave — interactive fun
+- **Twitch notifications**: Stream alerts for your favorite streamers
 
-Lucky is a **solo personal project** — actively developed and deployed to production, but not seeking external contributors. The codebase is open-source so others can learn from it, self-host it, and adapt it. Issues and PRs are welcome but response time is best-effort.
+### 🌐 Web Dashboard
+- **Discord OAuth login**: Secure, permission-based access
+- **Guild management**: Control settings and features per server
+- **Music controls**: Queue, playback, and playlist management from the web
+- **Moderation overview**: Case history, warnings, and actions
+- **Feature toggles**: Enable/disable per-guild
+
+### 📈 Reliability & Monitoring
+- **CI/CD**: Every PR runs lint + build + ~2500 tests + SonarCloud gates
+- **Zero incidents**: Battle-tested in production with full test coverage
+- **Sentry monitoring**: Real-time error tracking and telemetry
+- **Security scanning**: Trivy container scans on every Docker publish
+- **Dependency management**: Dependabot with auto-merge for patches
 
 ---
 
-## Architecture
+## 🚀 Why Self-Host?
+
+**Groovy, Rythm, and Hydra were all killed by YouTube API enforcement.** Cloud-only bots have a single point of failure — if the hosting service shuts down, so does your bot.
+
+Lucky solves this:
+
+| Feature | Lucky | Cloud Bots |
+|---------|-------|-----------|
+| **Uptime** | Your control | Service-dependent |
+| **Feature parity** | Full suite included | Pay-to-unlock model |
+| **Data privacy** | On your servers | Third-party storage |
+| **Customization** | Modify the source code | Limited options |
+| **Shutdown risk** | None | High (enforcement, API changes) |
+
+---
+
+## 📦 Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Bot** | Discord.js 14, Discord Player 7, TypeScript 5.9 |
+| **Backend** | Express 5, REST API, Node.js 22 |
+| **Frontend** | React 19, Vite, Tailwind 4, shadcn/ui |
+| **Database** | PostgreSQL, Prisma ORM |
+| **Cache** | Redis |
+| **DevOps** | Docker, Docker Compose, Cloudflare Tunnel |
+| **Testing** | ~2500 unit + integration tests, Playwright e2e |
+| **Quality** | SonarCloud, Trivy, Dependabot, ESLint |
+
+---
+
+## 🔧 Quick Start
+
+### Prerequisites
+
+- **Node.js 22+** (or Docker)
+- **PostgreSQL** and **Redis**
+- **FFmpeg** (for audio processing)
+- **Discord Bot Token** ([create one](https://discord.com/developers/applications))
+- **Spotify API credentials** (optional, for advanced features)
+
+### Docker (Recommended)
+
+One command gets you running:
+
+```bash
+git clone https://github.com/LucasSantana-Dev/Lucky.git
+cd Lucky
+
+# Configure environment
+cp .env.example .env
+# Edit .env to fill in:
+#   - DISCORD_TOKEN (from Discord Developer Portal)
+#   - CLIENT_ID (your bot's client ID)
+#   - DATABASE_URL (postgres://...)
+#   - REDIS_URL (redis://...)
+
+# Start everything
+docker compose up -d
+
+# Watch the bot come online
+docker compose logs -f bot
+```
+
+**That's it.** Postgres, Redis, bot, backend, frontend, and Nginx all run together.
+
+### Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Set up database
+npm run db:migrate
+
+# Start the bot with hot reload
+npm run dev:bot
+
+# In another terminal, start the backend
+npm run dev:backend
+
+# And the React dashboard (localhost:5173)
+npm run dev:frontend
+```
+
+### Configuration
+
+See [`.env.example`](.env.example) for all options. Key settings:
+
+```bash
+# Discord
+DISCORD_TOKEN=your_bot_token_here
+CLIENT_ID=your_client_id
+
+# Database
+DATABASE_URL=postgres://user:pass@localhost:5432/lucky
+REDIS_URL=redis://localhost:6379
+
+# Spotify (optional)
+SPOTIFY_CLIENT_ID=...
+SPOTIFY_CLIENT_SECRET=...
+
+# Sentry (monitoring, optional)
+SENTRY_DSN=...
+```
+
+---
+
+## 📖 Commands
+
+### 🎵 Music
+| Command | Purpose |
+|---------|---------|
+| `/play` | Play a song, playlist, or search query |
+| `/pause` / `/resume` | Control playback |
+| `/skip` | Skip to next track |
+| `/stop` | Stop and clear queue |
+| `/queue` | View current queue |
+| `/shuffle` | Randomize queue order |
+| `/repeat` | Toggle repeat modes (off / all / one) |
+| `/lyrics` | Show lyrics for current track |
+| `/autoplay` | Toggle smart recommendations |
+| `/songinfo` | Details on current track |
+| `/history` | Your recently played tracks |
+| `/session` | Save/load playback sessions |
+
+### 🛡️ Moderation
+| Command | Purpose |
+|---------|---------|
+| `/warn` | Issue a warning with reason |
+| `/mute` | Mute a user for specified duration |
+| `/kick` | Remove a user from server |
+| `/ban` | Ban a user permanently |
+| `/cases` | View moderation history |
+| `/digest` | Manual moderation report |
+| `/automod` | Configure auto-mod rules and presets |
+
+### 🎮 Engagement
+| Command | Purpose |
+|---------|---------|
+| `/level` | Check your level and XP |
+| `/starboard` | View community highlights |
+| `/lastfm` | Link and view Last.fm stats |
+| `/hug` `/pat` `/kiss` `/dance` `/bonk` `/wave` | Social interactions |
+
+### 📡 Integrations
+| Command | Purpose |
+|---------|---------|
+| `/twitch add` | Get stream alerts for a channel |
+| `/twitch list` | View your stream subscriptions |
+
+### ⚙️ General
+| Command | Purpose |
+|---------|---------|
+| `/ping` | Check latency |
+| `/help` | Command list and syntax |
+| `/version` | Current bot version |
+| `/download` | Get Lucky for your own server |
+
+---
+
+## 💻 Development
+
+### Local Workflows
+
+```bash
+# Run all checks before committing (lint + build + test)
+npm run verify
+
+# Run all tests (~2500 total)
+npm run test:all
+
+# Run e2e smoke tests (Playwright)
+npm run test:e2e
+
+# Watch mode for active development
+npm run dev:bot         # Bot with hot reload
+npm run dev:backend     # Backend with hot reload
+npm run dev:frontend    # Vite dev server (port 5173)
+```
+
+### Code Organization
 
 ```
 packages/
@@ -76,125 +269,109 @@ packages/
   frontend/  # React 19 dashboard (Tailwind 4, shadcn/ui)
 ```
 
-**Stack**: Node.js 22 · TypeScript 5.9 · Discord Player 7 · Prisma 7 · Redis · Docker
+### Commit Conventions
+
+Follow [conventional commits](https://www.conventionalcommits.org/):
+- `feat:` New feature
+- `fix:` Bug fix
+- `docs:` Documentation
+- `refactor:` Code restructuring
+- `test:` Test additions/fixes
+- `chore:` Tooling, dependencies
+
+### Code Quality Standards
+
+- Keep functions **under 50 lines**
+- Write **tests before code** (TDD)
+- Run `npm run verify` **before opening a PR**
+- Aim for **>80% test coverage** on new logic
 
 ---
 
-## Reliability
+## 📚 Documentation
 
-- **CI** — every PR runs lint + build + ~2500 tests + SonarCloud quality gate: [![CI](https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml)
-- **Security** — Trivy image scan on every Docker publish; Dependabot with auto-merge for patches, manual triage for majors
-- **Monitoring** — Sentry error tracking + custom telemetry on production deployments
+### Core Docs
+- **[Architecture](docs/ARCHITECTURE.md)** — System design, data flow, API structure
+- **[CI/CD Pipeline](docs/CI_CD.md)** — GitHub Actions, testing, deployment
+- **[Testing Strategy](docs/TESTING.md)** — Unit, integration, e2e test patterns
+- **[Docker Setup](docs/DOCKER.md)** — Containerization, compose configuration
 
----
+### Deployment & Operations
+- **[Cloudflare Tunnel Setup](docs/CLOUDFLARE_TUNNEL_SETUP.md)** — Expose without port forwarding
+- **[Release Cadence](docs/RELEASE_CADENCE.md)** — Version strategy and process
+- **[Environment Variables](.env.example)** — Full configuration reference
 
-## Quick Start
+### Integrations
+- **[Twitch Integration](docs/TWITCH_SETUP.md)** — Stream notification setup
+- **[Last.fm Integration](docs/LASTFM_SETUP.md)** — Scrobbling configuration
 
-### Docker (recommended)
+### Architecture Decisions
+Every non-trivial technical choice is captured as an **Architecture Decision Record** in [`decisions/`](decisions/). 20+ ADRs cover:
+- Music engine architecture
+- CI/CD pipeline design
+- Database strategy
+- Security posture
+- Caching and performance
+
+Browse decisions to understand tradeoffs and revisit triggers.
+
+### Admin Panel Setup
+
+The `/admin` panel requires Discord OAuth and developer role:
 
 ```bash
-git clone https://github.com/LucasSantana-Dev/Lucky.git
-cd Lucky
-cp .env.example .env        # Fill in DISCORD_TOKEN, CLIENT_ID, DATABASE_URL
-docker compose up -d        # Starts postgres, redis, bot, backend, frontend, nginx
-docker compose logs -f bot  # Verify startup
+# 1. Add your Discord user ID to .env
+DEVELOPER_USER_IDS=your_discord_user_id
+
+# 2. Apply database migrations
+npx prisma migrate deploy
+
+# 3. Restart the backend
+docker compose restart backend
+
+# 4. Sign in via Discord at /admin
 ```
 
-### Local
-
-```bash
-npm install
-npm run build
-npm run db:migrate
-npm start
-```
-
-**Minimum requirements**: Node.js 22, FFmpeg, PostgreSQL, Redis, Discord Bot Token.
+Multiple admin IDs can be comma-separated: `DEVELOPER_USER_IDS=id1,id2,id3`
 
 ---
 
-## Development
+## 🤝 Contributing
 
-```bash
-npm run dev:bot         # Bot with hot reload
-npm run dev:backend     # Backend with hot reload
-npm run dev:frontend    # Vite dev server
+Lucky is a **solo personal project** — actively developed and deployed to production, but not seeking external contributors. The codebase is open-source so you can learn from it, self-host it, and adapt it for your needs.
 
-npm run verify          # Full pre-PR gate (lint + build + test)
-npm run test:all        # All unit/integration tests (~2500 tests)
-npm run test:e2e        # Playwright smoke tests
-```
+**To contribute:**
 
----
+1. **Fork** the repository
+2. **Create a branch**: `feature/cool-thing` or `fix/bug-name`
+3. **Follow conventions**: Conventional commits, <50 line functions, tests first
+4. **Run the gate**: `npm run verify` (lint + build + ~2500 tests)
+5. **Open a PR** with a clear description
 
-## Slash Commands
-
-**Music** — `/play` `/pause` `/resume` `/skip` `/stop` `/queue` `/shuffle` `/repeat` `/lyrics` `/autoplay` `/songinfo` `/history` `/session`
-
-**Moderation** — `/warn` `/mute` `/kick` `/ban` `/cases` `/digest`
-
-**Auto-mod** — `/automod` (word filter, link filter, spam detection, presets)
-
-**Engagement** — `/level` `/starboard` `/lastfm` `/social` (hug · pat · kiss · dance · bonk · wave)
-
-**Twitch** — `/twitch add` `/twitch remove` `/twitch list`
-
-**General** — `/ping` `/help` `/version` `/download`
+**Response time** is best-effort due to solo maintenance, but all PRs are reviewed.
 
 ---
 
-## Documentation
+## 🔒 Security & Maintenance
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [CI/CD Pipeline](docs/CI_CD.md)
-- [Testing Strategy](docs/TESTING.md)
-- [Docker Setup](docs/DOCKER.md)
-- [Release Cadence](docs/RELEASE_CADENCE.md)
-- [Cloudflare Tunnel](docs/CLOUDFLARE_TUNNEL_SETUP.md)
-- [Twitch Integration](docs/TWITCH_SETUP.md)
-- [Last.fm Integration](docs/LASTFM_SETUP.md)
-- [Environment Variables](.env.example)
-- [AI Agent Contracts](docs/agents/) — behavioral contracts for agent-based workflows (issue tracker, triage labels, domain layout)
-
-### Decision Log
-
-Every non-trivial technical choice is documented as an Architecture Decision Record in [`decisions/`](decisions/). 20+ ADRs covering the music engine, CI/CD pipeline, database strategy, security posture, and more — each with context, alternatives considered, and revisit triggers.
-
-### Admin Panel
-
-The Admin Panel (`/admin`) is gated behind Discord OAuth and requires a developer Discord user ID.
-
-**Setup:**
-
-1. Add your Discord user ID to `.env`:
-   ```env
-   DEVELOPER_USER_IDS=your_discord_user_id
-   ```
-   Multiple IDs can be comma-separated: `DEVELOPER_USER_IDS=id1,id2`
-
-2. Apply the database migration (required for writable global toggles):
-   ```sh
-   npx prisma migrate deploy --config prisma/prisma.config.ts
-   ```
-
-3. Restart the backend so it picks up the env var:
-   ```sh
-   docker compose restart backend
-   ```
-
-After setup, sign in via Discord on the `/admin` page and the panel will be accessible.
+- **Automated scanning**: Trivy on every Docker build, Dependabot for dependencies
+- **Merge strategy**: Auto-merge for patch updates, manual review for major changes
+- **Monitoring**: Sentry for error tracking, custom telemetry in production
+- **Incident response**: Zero production incidents to date; post-incident reviews are public
 
 ---
 
-## Contributing
+## 📄 License
 
-1. Fork → create a `feature/` or `fix/` branch
-2. Follow [conventional commits](https://www.conventionalcommits.org/)
-3. Run `npm run verify` before opening a PR
-4. Keep functions under 50 lines
+ISC © [Lucas Santana](https://github.com/LucasSantana-Dev)
 
 ---
 
-## License
+## 🙌 Acknowledgments
 
-ISC © [LucasSantana-Dev](https://github.com/LucasSantana-Dev)
+Inspired by community music bots like Groovy and Rythm. Built on the shoulders of:
+- [discord.js](https://discord.js.org/) — Discord API library
+- [Discord Player](https://discord-player.js.org/) — Music playback framework
+- [Prisma](https://www.prisma.io/) — Type-safe ORM
+- [React](https://react.dev/) — Frontend framework
+- And 200+ open-source dependencies 💙
