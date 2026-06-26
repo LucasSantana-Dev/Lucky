@@ -29,6 +29,7 @@ const aiDevToolkitStopMock = jest.fn()
 const dependencyCheckStopMock = jest.fn()
 const weeklyDigestStartMock = jest.fn()
 const weeklyDigestStopMock = jest.fn()
+const criativariaLiveNotifStopMock = jest.fn()
 const stopTwitchServiceMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -120,6 +121,13 @@ jest.mock('../../services/WeeklyDigestService', () => ({
     weeklyDigestService: {
         start: (...args: unknown[]) => weeklyDigestStartMock(...args),
         stop: (...args: unknown[]) => weeklyDigestStopMock(...args),
+    },
+}))
+
+jest.mock('../../services/CriativariaLiveNotificationService', () => ({
+    criativariaLiveNotificationService: {
+        start: jest.fn(),
+        stop: (...args: unknown[]) => criativariaLiveNotifStopMock(...args),
     },
 }))
 
