@@ -347,6 +347,19 @@ describe('Roles Routes', () => {
 
             expect(res.status).toBe(400)
         })
+
+        test('should return 500 when DB error occurs (not record not found)', async () => {
+            authed()
+            const dbError = new Error('Database connection lost')
+            mockDeleteReactionRole.mockRejectedValue(dbError)
+
+            const res = await request(app)
+                .delete(`/api/guilds/${GUILD_ID}/reaction-roles/${MESSAGE_ID}`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(500)
+            expect(res.body.error).toBeDefined()
+        })
     })
 
     describe('GET /api/guilds/:guildId/roles/exclusive', () => {
