@@ -1,5 +1,12 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 
+jest.mock('@lucky/shared/utils', () => ({
+    errorLog: jest.fn(),
+    infoLog: jest.fn(),
+    debugLog: jest.fn(),
+    warnLog: jest.fn(),
+}))
+
 jest.mock('@lucky/shared/services', () => ({
     reactionRolesService: {
         createReactionRoleMessage: jest.fn(),
@@ -255,6 +262,31 @@ describe('reactionroleHandlers', () => {
                         expect.objectContaining({
                             data: expect.objectContaining({
                                 title: 'Success',
+                            }),
+                        }),
+                    ],
+                    ephemeral: true,
+                },
+            })
+        })
+
+        test('handles DB errors gracefully', async () => {
+            const guild = createGuild()
+            const interaction = createInteraction()
+
+            const dbError = new Error('Database connection lost')
+            deleteReactionRoleMessageMock.mockRejectedValueOnce(dbError)
+
+            await handleDelete(interaction, guild)
+
+            expect(interactionReplyMock).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    embeds: [
+                        expect.objectContaining({
+                            data: expect.objectContaining({
+                                title: 'Error',
+                                description: expect.stringContaining('try again later'),
                             }),
                         }),
                     ],
