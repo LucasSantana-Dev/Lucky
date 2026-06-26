@@ -21,6 +21,7 @@ export type FeatureToggleName =
     | 'ALBUM_COMMAND'
     | 'EMBED_BUILDER'
     | 'COLLABORATIVE_PLAYLIST'
+    | 'RSS_BRIDGE'
 
 export type FeatureToggleConfig = {
     name: FeatureToggleName

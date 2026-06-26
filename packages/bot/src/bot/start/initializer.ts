@@ -29,6 +29,7 @@ import { criativariaLiveNotificationService } from '../../services/CriativariaLi
 import { stopTwitchService } from '../../twitch'
 import { stopBatchJobWorker } from '../../workers/batchJobWorker'
 import { setClient } from '../clientStore'
+import { stopRssBridgeService } from '../../services/RssBridgeService'
 import type {
     BotInitializationOptions,
     BotInitializationResult,
@@ -250,6 +251,15 @@ export class BotInitializer {
         } catch (error) {
             errorLog({
                 message: 'Error stopping batch job worker:',
+                error,
+            })
+        }
+
+        try {
+            stopRssBridgeService()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping RSS Bridge service:',
                 error,
             })
         }
