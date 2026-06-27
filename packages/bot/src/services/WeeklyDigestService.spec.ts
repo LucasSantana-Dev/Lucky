@@ -74,8 +74,8 @@ function setClient(svc: WeeklyDigestService, client: Client | null): void {
 
 describe('WeeklyDigestService', () => {
     beforeEach(() => {
-        process.env.CRIATIVARIA_DIGEST_CHANNEL_ID = 'digest-channel-id'
-        process.env.CRIATIVARIA_FORUM_CHANNEL_ID = 'forum-channel-id'
+        process.env.DIGEST_CHANNEL_ID = 'digest-channel-id'
+        process.env.FORUM_CHANNEL_ID = 'forum-channel-id'
         ;(
             getPrismaClient as jest.MockedFunction<typeof getPrismaClient>
         ).mockReturnValue(
@@ -87,8 +87,8 @@ describe('WeeklyDigestService', () => {
 
     afterEach(() => {
         jest.clearAllMocks()
-        delete process.env.CRIATIVARIA_DIGEST_CHANNEL_ID
-        delete process.env.CRIATIVARIA_FORUM_CHANNEL_ID
+        delete process.env.DIGEST_CHANNEL_ID
+        delete process.env.FORUM_CHANNEL_ID
         delete process.env.WEEKLY_DIGEST_TICK_INTERVAL_MS
     })
 
@@ -131,8 +131,8 @@ describe('WeeklyDigestService', () => {
     })
 
     describe('start / stop lifecycle', () => {
-        test('does not start when CRIATIVARIA_DIGEST_CHANNEL_ID is missing', () => {
-            delete process.env.CRIATIVARIA_DIGEST_CHANNEL_ID
+        test('does not start when DIGEST_CHANNEL_ID is missing', () => {
+            delete process.env.DIGEST_CHANNEL_ID
             const svc = new WeeklyDigestService({ tickIntervalMs: 1000 })
             const client = {
                 channels: { fetch: jest.fn() },
@@ -141,8 +141,8 @@ describe('WeeklyDigestService', () => {
             svc.stop() // no-op, timer not set
         })
 
-        test('does not start when CRIATIVARIA_FORUM_CHANNEL_ID is missing', () => {
-            delete process.env.CRIATIVARIA_FORUM_CHANNEL_ID
+        test('does not start when FORUM_CHANNEL_ID is missing', () => {
+            delete process.env.FORUM_CHANNEL_ID
             const svc = new WeeklyDigestService({ tickIntervalMs: 1000 })
             const client = {
                 channels: { fetch: jest.fn() },

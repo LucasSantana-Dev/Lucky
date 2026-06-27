@@ -96,13 +96,13 @@ export class WeeklyDigestService {
         if (this.timer) return
 
         // Check if the service is configured via env vars
-        const digestChannelId = process.env.CRIATIVARIA_DIGEST_CHANNEL_ID
-        const forumChannelId = process.env.CRIATIVARIA_FORUM_CHANNEL_ID
+        const digestChannelId = process.env.DIGEST_CHANNEL_ID
+        const forumChannelId = process.env.FORUM_CHANNEL_ID
 
         if (!digestChannelId || !forumChannelId) {
             debugLog({
                 message:
-                    'Weekly digest service disabled: CRIATIVARIA_DIGEST_CHANNEL_ID or CRIATIVARIA_FORUM_CHANNEL_ID not configured',
+                    'Weekly digest service disabled: DIGEST_CHANNEL_ID or FORUM_CHANNEL_ID not configured',
             })
             return
         }
@@ -146,8 +146,8 @@ export class WeeklyDigestService {
 
             this.lastDigestTime = now
 
-            const digestChannelId = process.env.CRIATIVARIA_DIGEST_CHANNEL_ID
-            const forumChannelId = process.env.CRIATIVARIA_FORUM_CHANNEL_ID
+            const digestChannelId = process.env.DIGEST_CHANNEL_ID
+            const forumChannelId = process.env.FORUM_CHANNEL_ID
 
             if (!digestChannelId || !forumChannelId) return
 
