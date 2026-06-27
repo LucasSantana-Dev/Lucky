@@ -2,6 +2,7 @@ import js from '@eslint/js'
 import globals from 'globals'
 import parserTs from '@typescript-eslint/parser'
 import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default [
     {
@@ -10,7 +11,6 @@ export default [
             'coverage/**',
             'playwright-report/**',
             'test-results/**',
-            '.eslintrc.cjs',
         ],
     },
     {
@@ -31,6 +31,7 @@ export default [
         },
         plugins: {
             'react-hooks': reactHooks,
+            'react-refresh': reactRefresh,
         },
         rules: {
             ...js.configs.recommended.rules,
@@ -42,6 +43,11 @@ export default [
             'no-console': ['error', { allow: ['warn'] }],
             'react-hooks/rules-of-hooks': 'error',
             'react-hooks/exhaustive-deps': 'off',
+            // Warn about exports that break Fast Refresh (Vite HMR)
+            'react-refresh/only-export-components': [
+                'warn',
+                { allowConstantExport: true },
+            ],
         },
     },
     {

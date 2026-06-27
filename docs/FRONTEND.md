@@ -122,7 +122,7 @@ src/webapp/frontend/
 ├── tsconfig.json            # TypeScript configuration
 ├── tsconfig.node.json        # TypeScript config for Vite
 ├── postcss.config.js        # PostCSS configuration
-├── .eslintrc.cjs            # ESLint configuration
+├── eslint.config.js         # ESLint flat configuration
 ├── Dockerfile.dev           # Development Docker configuration
 ├── scripts/                 # Build and utility scripts
 │   └── check-dependencies.ts # Dependency checking script
