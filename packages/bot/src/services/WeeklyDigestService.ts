@@ -47,32 +47,6 @@ function parsePositiveIntEnv(
     return parsed
 }
 
-/**
- * Calculate milliseconds until next Monday 12:00 UTC.
- * Useful for initial delay before starting interval-based scheduling.
- */
-function msUntilNextMonday12UTC(): number {
-    const now = new Date()
-    const utcDate = new Date(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-        now.getUTCHours(),
-        now.getUTCMinutes(),
-        now.getUTCSeconds(),
-    )
-
-    // Find next Monday at 12:00 UTC
-    const daysUntilMonday = (1 - utcDate.getUTCDay() + 7) % 7 || 7
-    const targetDate = new Date(
-        utcDate.getTime() + daysUntilMonday * MS_PER_DAY,
-    )
-    targetDate.setUTCHours(12, 0, 0, 0)
-
-    const msUntil = targetDate.getTime() - utcDate.getTime()
-    return Math.max(1000, msUntil) // At least 1 second
-}
-
 export class WeeklyDigestService {
     private readonly tickIntervalMs: number
     private readonly clock: () => number
@@ -128,7 +102,13 @@ export class WeeklyDigestService {
     }
 
     async tick(): Promise<void> {
-        if (this.tickInProgress || !this.client) return
+        if (this.tickInProgress || !this.client) {
+            console.log('Tick early return', {
+                tickInProgress: this.tickInProgress,
+                client: !!this.client,
+            })
+            return
+        }
         this.tickInProgress = true
 
         try {
@@ -139,7 +119,10 @@ export class WeeklyDigestService {
             const dayOfWeek = utcDate.getUTCDay()
             const hour = utcDate.getUTCHours()
 
-            if (dayOfWeek !== 1 || hour !== 12) return // Not Monday 12:xx UTC
+            if (dayOfWeek !== 1 || hour !== 12) {
+                console.log('Not Monday 12 UTC', { dayOfWeek, hour })
+                return
+            } // Not Monday 12:xx UTC
 
             // Single-send per hour: don't send again if we sent in the last 30 mins
             if (now - this.lastDigestTime < 30 * 60 * 1000) return
@@ -230,8 +213,28 @@ export class WeeklyDigestService {
                     take: 1,
                 })
 
+            // Idempotency check: don't send if we already sent this week
+            if (previousSnapshot) {
+                const lastPosted = new Date(previousSnapshot.postedAt)
+                const now = new Date(this.clock())
+                const startOfThisWeek = new Date(now)
+                startOfThisWeek.setUTCDate(
+                    now.getUTCDate() - now.getUTCDay() + 1,
+                )
+                startOfThisWeek.setUTCHours(0, 0, 0, 0)
+
+                if (lastPosted >= startOfThisWeek) {
+                    debugLog({
+                        message: 'Weekly digest already sent this week',
+                    })
+                    return false
+                }
+            }
+
             const previousMemberCount = previousSnapshot?.memberCount ?? 0
-            const memberDelta = currentMemberCount - previousMemberCount
+            const memberDelta = previousSnapshot
+                ? currentMemberCount - previousMemberCount
+                : 0
 
             // Fetch top-reacted messages from last 7 days
             const topMessages = await this.getTopReactedMessages(forumChannel)
@@ -280,10 +283,14 @@ export class WeeklyDigestService {
         try {
             // Fetch last 100 messages from forum
             const messages = await forumChannel.messages.fetch({ limit: 100 })
+            const oneWeekAgo = this.clock() - MS_PER_WEEK
 
             const reactionCounts: ReactionCount[] = []
 
             for (const message of messages.values()) {
+                // Filter by last 7 days
+                if (message.createdTimestamp < oneWeekAgo) continue
+
                 let totalReactions = 0
                 for (const reaction of message.reactions.cache.values()) {
                     totalReactions += reaction.count
@@ -353,8 +360,8 @@ export class WeeklyDigestService {
     ): EmbedBuilder {
         const embed = new EmbedBuilder()
             .setColor(COLOR.LUCKY_PURPLE)
-            .setTitle('📅 Criativaria — Resumo da semana')
-            .setFooter({ text: 'criativaria.com.br' })
+            .setTitle(process.env.DIGEST_TITLE ?? '📅 Resumo da semana')
+            .setFooter({ text: process.env.DIGEST_FOOTER ?? 'lucky.bot' })
             .setTimestamp()
 
         // Member count field
