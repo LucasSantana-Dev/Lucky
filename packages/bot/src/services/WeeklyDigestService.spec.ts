@@ -117,7 +117,7 @@ describe('WeeklyDigestService', () => {
 
         test('falls back to default when env var is zero or negative', () => {
             process.env.WEEKLY_DIGEST_TICK_INTERVAL_MS = '-1'
-            const svc = new WeeklyDigestService()
+            new WeeklyDigestService()
             expect(errorLog).toHaveBeenCalled()
         })
 
