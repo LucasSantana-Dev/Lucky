@@ -109,9 +109,18 @@ apiClient.interceptors.response.use(
             typeof globalThis !== 'undefined' &&
             'window' in globalThis
         ) {
-            globalThis.window.location.assign(
-                `${NORMALIZED_API_BASE}/auth/discord`,
+            const lastRedirect = parseInt(
+                sessionStorage.getItem('auth_redirect_ts') || '0',
+                10,
             )
+            const now = Date.now()
+            // 30s cooldown: if we redirected recently (OAuth loop), break it
+            if (now - lastRedirect > 30_000) {
+                sessionStorage.setItem('auth_redirect_ts', String(now))
+                globalThis.window.location.assign(
+                    `${NORMALIZED_API_BASE}/auth/discord`,
+                )
+            }
         }
 
         return Promise.reject(new ApiError(status, message, data?.details))

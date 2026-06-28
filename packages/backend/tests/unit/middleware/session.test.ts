@@ -103,4 +103,44 @@ describe('Session Middleware', () => {
 
         process.env.NODE_ENV = originalEnv
     })
+
+    test('should use sameSite: none in production for cross-subdomain credentials', async () => {
+        const { setupSessionMiddleware } =
+            await import('../../../src/middleware/session')
+        const originalEnv = process.env.NODE_ENV
+        process.env.NODE_ENV = 'production'
+
+        expect(() => {
+            setupSessionMiddleware(app)
+        }).not.toThrow()
+
+        // sameSite: 'none' + secure: true ensures the session cookie is sent
+        // on credentialed JS fetches between subdomains (lucky.* → lucky-api.*)
+        const source = readFileSync(
+            resolve(__dirname, '../../../src/middleware/session.ts'),
+            'utf8',
+        )
+        expect(source).toContain("sameSite: isProduction ? 'none' : 'lax'")
+
+        process.env.NODE_ENV = originalEnv
+    })
+
+    test('should use sameSite: lax in development', async () => {
+        const { setupSessionMiddleware } =
+            await import('../../../src/middleware/session')
+        const originalEnv = process.env.NODE_ENV
+        process.env.NODE_ENV = 'development'
+
+        expect(() => {
+            setupSessionMiddleware(app)
+        }).not.toThrow()
+
+        const source = readFileSync(
+            resolve(__dirname, '../../../src/middleware/session.ts'),
+            'utf8',
+        )
+        expect(source).toContain("sameSite: isProduction ? 'none' : 'lax'")
+
+        process.env.NODE_ENV = originalEnv
+    })
 })

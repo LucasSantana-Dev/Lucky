@@ -154,7 +154,7 @@ describe('Auth Routes Integration', () => {
                         (cookie) =>
                             cookie.includes('sessionId=') &&
                             cookie.includes('Secure') &&
-                            cookie.includes('SameSite=Lax'),
+                            cookie.includes('SameSite=None'),
                     ),
                 ).toBe(true)
             } finally {
@@ -232,7 +232,7 @@ describe('Auth Routes Integration', () => {
             const cookies = response.headers['set-cookie'] ?? []
             expect(cookies.join(';')).toContain('Secure')
             expect(cookies.join(';')).toContain('HttpOnly')
-            expect(cookies.join(';')).toContain('SameSite=Lax')
+            expect(cookies.join(';')).toContain('SameSite=None')
 
             process.env.NODE_ENV = originalNodeEnv
             if (originalRedirectUri) {
@@ -428,7 +428,9 @@ describe('Auth Routes Integration', () => {
                 .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
                 .expect(302)
 
-            expect(response.headers.location).toContain('error=auth_failed&message=invalid_state')
+            expect(response.headers.location).toContain(
+                'error=auth_failed&message=invalid_state',
+            )
         })
 
         test('should clean up state after successful validation', async () => {
