@@ -430,17 +430,20 @@ export function setupRolesRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const { roleIds } = s.bulkDeleteBody.parse(req.body)
 
+            const results = await Promise.allSettled(
+                roleIds.map(id => guildService.deleteGuildRole(guildId, id)),
+            )
+
             const deleted: string[] = []
             const failed: string[] = []
-
-            for (const roleId of roleIds) {
-                try {
-                    await guildService.deleteGuildRole(guildId, roleId)
+            results.forEach((result, index) => {
+                const roleId = roleIds[index]
+                if (result.status === 'fulfilled') {
                     deleted.push(roleId)
-                } catch (_err) {
+                } else {
                     failed.push(roleId)
                 }
-            }
+            })
 
             res.json({ deleted, failed })
         }),
