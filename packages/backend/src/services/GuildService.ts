@@ -143,6 +143,7 @@ class GuildService {
                     headers: {
                         Authorization: `Bot ${token}`,
                     },
+                    signal: AbortSignal.timeout(10_000),
                 },
             )
 
@@ -630,6 +631,7 @@ class GuildService {
                     headers: {
                         Authorization: `Bot ${token}`,
                     },
+                    signal: AbortSignal.timeout(10_000),
                 },
             )
 
