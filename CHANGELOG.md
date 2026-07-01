@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.26.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.25.0...v2.26.0) (2026-07-01)
+
+
+### Features
+
+* **batch:** batch-operation framework + bulk-move-messages flagship ([#1564](https://github.com/LucasSantana-Dev/Lucky/issues/1564)) ([9d11bf5](https://github.com/LucasSantana-Dev/Lucky/commit/9d11bf5d985dc9765b75eecb0bc798e2fe0c6443))
+* **bot:** add RSS bridge service for Criativaria guides ([#1608](https://github.com/LucasSantana-Dev/Lucky/issues/1608)) ([2807cad](https://github.com/LucasSantana-Dev/Lucky/commit/2807cada542424d3e4b15eaf76ec56d6b7250c8a))
+* **bot:** criativaria live twitch notification (poll every 2 min) ([#1613](https://github.com/LucasSantana-Dev/Lucky/issues/1613)) ([e1d10b6](https://github.com/LucasSantana-Dev/Lucky/commit/e1d10b6efa7dd570867f4e678e9d0f6e30368bf7))
+
+
+### Bug Fixes
+
+* add missing fetch timeouts to GuildService Discord API calls ([#1641](https://github.com/LucasSantana-Dev/Lucky/issues/1641)) ([a8a57d5](https://github.com/LucasSantana-Dev/Lucky/commit/a8a57d5b780e900e0fa856804910ef8e3ed67d7a))
+* auth loop between web dashboard and api subdomains ([572e320](https://github.com/LucasSantana-Dev/Lucky/commit/572e320ef803d195a96eb0f66ec42445f73a1931))
+* **autoplay:** prevent over-queueing; ensure evicted recs get terminal events ([#1589](https://github.com/LucasSantana-Dev/Lucky/issues/1589)) ([815d763](https://github.com/LucasSantana-Dev/Lucky/commit/815d763329d60580f8034232b606d7d0b2814684))
+* **backend:** add validateparams to forums route guildid and slug ([#1602](https://github.com/LucasSantana-Dev/Lucky/issues/1602)) ([a7102f4](https://github.com/LucasSantana-Dev/Lucky/commit/a7102f4c5f54405af37d631bfd45506b8cef4615))
+* **backend:** propagate db errors from deleteReactionRoleMessage ([#1604](https://github.com/LucasSantana-Dev/Lucky/issues/1604)) ([b36fad0](https://github.com/LucasSantana-Dev/Lucky/commit/b36fad097822dd8013b02e5fd21d2cb536bab317))
+* **bot:** process threadcreate regardless of newlycreated flag ([#1606](https://github.com/LucasSantana-Dev/Lucky/issues/1606)) ([be08786](https://github.com/LucasSantana-Dev/Lucky/commit/be08786eeac2b1213a58f1487d7d5b5eba53686a))
+* bound music queue params, type rolegroup mapping, harden ci lint ([#1588](https://github.com/LucasSantana-Dev/Lucky/issues/1588)) ([309d5d9](https://github.com/LucasSantana-Dev/Lucky/commit/309d5d9c9bbb04d2362fd0fe65e2db0f677169c1))
+* **deploy:** derive require_running_containers from docker compose ([#1601](https://github.com/LucasSantana-Dev/Lucky/issues/1601)) ([5715249](https://github.com/LucasSantana-Dev/Lucky/commit/571524924f2efe0cd7b5ab0d990631a86f220378))
+* **deploy:** wire GITHUB_DEPLOY_STATUS_TOKEN into lucky-webhook container ([#1597](https://github.com/LucasSantana-Dev/Lucky/issues/1597)) ([ad4b7ed](https://github.com/LucasSantana-Dev/Lucky/commit/ad4b7ed32a66ab945ed610333a58131379b7cc08))
+* **frontend:** fix CF Pages API routing and remove Vercel Analytics ([#1596](https://github.com/LucasSantana-Dev/Lucky/issues/1596)) ([2902984](https://github.com/LucasSantana-Dev/Lucky/commit/2902984146f090eca210149eb84ea6e593c40747))
+* **middleware:** resolve guildAccess non-atomic session+context staleness window ([5a64dd1](https://github.com/LucasSantana-Dev/Lucky/commit/5a64dd17bb1d9143c82eee49821c38e75a7f13ab))
+* **reaction-roles:** validate roleIds, fix update rollback, serialize concurrent appends ([#1587](https://github.com/LucasSantana-Dev/Lucky/issues/1587)) ([6873ac8](https://github.com/LucasSantana-Dev/Lucky/commit/6873ac8d398aa26f50d6a204d7d1de83557a402e))
+* **release:** tag-guard reconciles autorelease label ([#1561](https://github.com/LucasSantana-Dev/Lucky/issues/1561)) ([#1583](https://github.com/LucasSantana-Dev/Lucky/issues/1583)) ([6505f44](https://github.com/LucasSantana-Dev/Lucky/commit/6505f446b55fd2eb5ca5c87c5d105f2da975e28c))
+* **schema:** add unique guild+thread constraint to GuildForumThread ([#1607](https://github.com/LucasSantana-Dev/Lucky/issues/1607)) ([6c4c8ab](https://github.com/LucasSantana-Dev/Lucky/commit/6c4c8ab9a7488149dece8f486160ca3125d17a4e))
+* **security:** pass staging webhook secret via env not argv ([#1600](https://github.com/LucasSantana-Dev/Lucky/issues/1600)) ([d12efc5](https://github.com/LucasSantana-Dev/Lucky/commit/d12efc519570026cf9a6f1b075d57b99d41898e2))
+* **security:** verify bot authorship before trusting slug marker ([#1599](https://github.com/LucasSantana-Dev/Lucky/issues/1599)) ([23bf73a](https://github.com/LucasSantana-Dev/Lucky/commit/23bf73a3e7db054d63ab7faea60db66124fbbfe9))
+* **test:** close open handles causing jest force-exit in bot suite ([#1605](https://github.com/LucasSantana-Dev/Lucky/issues/1605)) ([cf2a026](https://github.com/LucasSantana-Dev/Lucky/commit/cf2a026d4852e2889eb18e1a0ce2389d73da3333))
+
 ## [2.25.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.24.0...v2.25.0) (2026-06-24)
 
 
