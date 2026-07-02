@@ -2,10 +2,8 @@ import type { Express, Request, Response } from 'express'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
-import { errorLog } from '@lucky/shared/utils'
 import { timingSafeKeyCompare } from '../utils/timingSafeKeyCompare'
-
-const DISCORD_API = 'https://discord.com/api/v10'
+import { postChannelMessage, type ChannelMessagePayload } from '../utils/postChannelMessage'
 
 function requireAnnounceKey(req: Request): void {
     const provided = req.header('x-announce-key')?.trim()
@@ -42,9 +40,7 @@ export function setupServiceAnnounceRoutes(app: Express): void {
             requireAnnounceKey(req)
             const allowlist = getChannelAllowlist()
             if (allowlist.size === 0) {
-                throw AppError.forbidden(
-                    'announce channel allowlist not configured',
-                )
+                throw AppError.forbidden('announce channel allowlist not configured')
             }
 
             const body = (req.body ?? {}) as AnnounceBody
@@ -53,41 +49,15 @@ export function setupServiceAnnounceRoutes(app: Express): void {
             }
 
             if (!allowlist.has(body.channelId)) {
-                throw AppError.forbidden(
-                    `channel ${body.channelId} not in allowlist`,
-                )
+                throw AppError.forbidden(`channel ${body.channelId} not in allowlist`)
             }
 
-            const token = process.env.DISCORD_TOKEN
-            if (!token) {
-                throw new AppError(500, 'bot token missing')
+            const payload: ChannelMessagePayload = {
+                channelId: body.channelId,
+                content: body.content,
+                embeds: body.embeds,
             }
-
-            const resp = await fetch(
-                `${DISCORD_API}/channels/${body.channelId}/messages`,
-                {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bot ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        content: body.content?.slice(0, 1900),
-                        embeds: body.embeds,
-                    }),
-                    signal: AbortSignal.timeout(10_000),
-                },
-            )
-
-            if (!resp.ok) {
-                const text = await resp.text().catch(() => '')
-                errorLog({
-                    message: 'service announce failed',
-                    data: { status: resp.status, text },
-                })
-                throw new AppError(502, `discord ${resp.status}`)
-            }
-
+            await postChannelMessage(payload, 'service announce failed')
             res.status(204).send()
         }),
     )
