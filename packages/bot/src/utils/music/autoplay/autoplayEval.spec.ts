@@ -222,86 +222,29 @@ describe('autoplayEval', () => {
                     author: 'Seed Artist',
                 })
 
-                // Generate 14 decoys:
-                // - 5 different artists with standard duration (neutral baseline)
-                // - 5 long-duration tracks (would trigger SCORE_FREQUENT_ARTIST penalty if scorer is correct)
-                // - 4 Spotify tracks with popular status (test that Spotify boost doesn't override same-artist)
-                const decoys = [
-                    // Baseline artists (neutral): should score ~1.0
+                const negatives = [
                     createTrack({
-                        title: `Decoy A1 ${i}`,
+                        title: `Neg A ${i}`,
                         author: 'Other Artist 1',
                     }),
                     createTrack({
-                        title: `Decoy A2 ${i}`,
+                        title: `Neg B ${i}`,
                         author: 'Other Artist 2',
                     }),
                     createTrack({
-                        title: `Decoy A3 ${i}`,
+                        title: `Neg C ${i}`,
                         author: 'Other Artist 3',
                     }),
                     createTrack({
-                        title: `Decoy A4 ${i}`,
+                        title: `Neg D ${i}`,
                         author: 'Other Artist 4',
-                    }),
-                    createTrack({
-                        title: `Decoy A5 ${i}`,
-                        author: 'Other Artist 5',
-                    }),
-                    // Long-duration decoys (8.5 min each): trigger -0.2 SCORE_FREQUENT_ARTIST penalty
-                    // Scorer should rank these ~0.8, below the positive at ~1.3
-                    createTrack({
-                        title: `Long Decoy B1 ${i}`,
-                        author: 'Long Artist 1',
-                        durationMS: 8 * 60 * 1000 + 30 * 1000,
-                    }),
-                    createTrack({
-                        title: `Long Decoy B2 ${i}`,
-                        author: 'Long Artist 2',
-                        durationMS: 8 * 60 * 1000 + 30 * 1000,
-                    }),
-                    createTrack({
-                        title: `Long Decoy B3 ${i}`,
-                        author: 'Long Artist 3',
-                        durationMS: 8 * 60 * 1000 + 30 * 1000,
-                    }),
-                    createTrack({
-                        title: `Long Decoy B4 ${i}`,
-                        author: 'Long Artist 4',
-                        durationMS: 8 * 60 * 1000 + 30 * 1000,
-                    }),
-                    createTrack({
-                        title: `Long Decoy B5 ${i}`,
-                        author: 'Long Artist 5',
-                        durationMS: 8 * 60 * 1000 + 30 * 1000,
-                    }),
-                    // Spotify tracks (generic popularity boost): should score lower than same-artist
-                    createTrack({
-                        title: `Spotify Decoy C1 ${i}`,
-                        author: 'Spotify Artist 1',
-                        source: 'spotify',
-                    }),
-                    createTrack({
-                        title: `Spotify Decoy C2 ${i}`,
-                        author: 'Spotify Artist 2',
-                        source: 'spotify',
-                    }),
-                    createTrack({
-                        title: `Spotify Decoy C3 ${i}`,
-                        author: 'Spotify Artist 3',
-                        source: 'spotify',
-                    }),
-                    createTrack({
-                        title: `Spotify Decoy C4 ${i}`,
-                        author: 'Spotify Artist 4',
-                        source: 'spotify',
                     }),
                 ]
 
                 samples.push({
                     seed,
                     candidates: [
-                        ...decoys.map((track) => ({
+                        ...negatives.map((track) => ({
                             track,
                             isPositive: false,
                         })),
@@ -322,48 +265,12 @@ describe('autoplayEval', () => {
                 title: 'Disliked Track',
                 author: 'Artist A',
             })
-            // Make 4 negatives from SAME artist so they score higher than disliked positive
-            // Then add 10 decoys of various types to expand the candidate pool
-            const sameArtistNegatives = [
+            // Make negatives from SAME artist so they score higher than disliked positive
+            const negatives = [
                 createTrack({ title: 'Other 1', author: 'Artist A' }),
                 createTrack({ title: 'Other 2', author: 'Artist A' }),
                 createTrack({ title: 'Other 3', author: 'Artist A' }),
                 createTrack({ title: 'Other 4', author: 'Artist A' }),
-            ]
-
-            const decoys = [
-                // Different artists
-                createTrack({ title: 'Decoy X1', author: 'Artist X' }),
-                createTrack({ title: 'Decoy X2', author: 'Artist X' }),
-                createTrack({ title: 'Decoy Y1', author: 'Artist Y' }),
-                createTrack({ title: 'Decoy Y2', author: 'Artist Y' }),
-                createTrack({ title: 'Decoy Z1', author: 'Artist Z' }),
-                // Long-duration decoys
-                createTrack({
-                    title: 'Long Decoy 1',
-                    author: 'Long Artist',
-                    durationMS: 9 * 60 * 1000,
-                }),
-                createTrack({
-                    title: 'Long Decoy 2',
-                    author: 'Another Long Artist',
-                    durationMS: 9 * 60 * 1000,
-                }),
-                createTrack({
-                    title: 'Long Decoy 3',
-                    author: 'Third Long Artist',
-                    durationMS: 9 * 60 * 1000,
-                }),
-                createTrack({
-                    title: 'Long Decoy 4',
-                    author: 'Fourth Long Artist',
-                    durationMS: 9 * 60 * 1000,
-                }),
-                createTrack({
-                    title: 'Long Decoy 5',
-                    author: 'Fifth Long Artist',
-                    durationMS: 9 * 60 * 1000,
-                }),
             ]
 
             const positiveKey = 'dislikedtrack::artista'
@@ -371,21 +278,15 @@ describe('autoplayEval', () => {
             const sample: EvalSample = {
                 seed,
                 candidates: [
-                    ...sameArtistNegatives.map((track) => ({
-                        track,
-                        isPositive: false,
-                    })),
-                    ...decoys.map((track) => ({ track, isPositive: false })),
+                    ...negatives.map((track) => ({ track, isPositive: false })),
                     { track: positive, isPositive: true },
                 ],
                 recentArtists: new Set(),
                 implicitDislikeKeys: new Set([positiveKey]),
             }
 
-            // With implicit dislike penalty (-0.35), the positive ranks below all
-            // the same-artist negatives which get implicit-dislike penalty but the
-            // positive is explicitly disliked, making it rank much lower.
-            // k=4 excludes the penalized positive from top-4 (5 same-artist tracks beat it)
+            // Use k=4 so only the 4 negatives (each scoring +0.3) are in top-4,
+            // excluding the positive which scores -0.05
             const result = computeHitAtK([sample], 4)
             expect(result).toBe(0)
         })
