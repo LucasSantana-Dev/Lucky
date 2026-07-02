@@ -391,6 +391,21 @@ function handleChannelDelete(client: Client): void {
     })
 }
 
+function handleGuildScheduledEventCreate(client: Client): void {
+    client.on(Events.GuildScheduledEventCreate, (event) => {
+        const { scheduledEventNotificationService } = require('../services/ScheduledEventNotificationService')
+        scheduledEventNotificationService
+            .notifyScheduledEvent(event, client)
+            .catch((error: unknown) => {
+                errorLog({
+                    message:
+                        'Error handling guild scheduled event create:',
+                    error,
+                })
+            })
+    })
+}
+
 export default function handleEvents(client: Client) {
     handleClientReady(client)
     client.on(Events.InteractionCreate, (interaction: Interaction) => {
@@ -410,4 +425,5 @@ export default function handleEvents(client: Client) {
     handleGuildDelete(client)
     handleChannelDelete(client)
     handleForumThreadCreate(client)
+    handleGuildScheduledEventCreate(client)
 }

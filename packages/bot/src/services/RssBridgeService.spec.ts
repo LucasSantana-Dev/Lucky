@@ -385,4 +385,122 @@ describe('RSS feed polling', () => {
         expect(createMock).toHaveBeenCalledTimes(2)
         expect(channel.send).toHaveBeenCalledTimes(2)
     })
+
+    describe('Per-guild RSS subscriptions', () => {
+        it('should send RSS item with role mention when mentionRoleId is set', async () => {
+            featureToggleMock.mockResolvedValue(true)
+
+            const channel = {
+                isTextBased: () => true,
+                isDMBased: () => false,
+                send: jest.fn().mockResolvedValue({}),
+            }
+
+            const mockDb = {
+                rssFeedSubscription: {
+                    findMany: jest
+                        .fn()
+                        .mockResolvedValue([
+                            {
+                                id: 'sub1',
+                                guildId: 'guild1',
+                                feedUrl: 'https://example.com/rss.xml',
+                                channelId: 'channel1',
+                                mentionRoleId: 'role1',
+                                lastItemGuid: null,
+                                enabled: true,
+                                createdAt: new Date(),
+                                updatedAt: new Date(),
+                            },
+                        ]),
+                    findUnique: jest.fn().mockResolvedValue(null),
+                    create: jest.fn().mockResolvedValue({}),
+                    update: jest.fn().mockResolvedValue({}),
+                },
+            }
+
+            jest.doMock('@lucky/shared/utils/database/prismaClient', () => ({
+                getPrismaClient: () => mockDb,
+            }))
+
+            parseURLMock.mockResolvedValue({
+                items: [
+                    {
+                        title: 'Test Item',
+                        link: 'https://example.com/item',
+                        description: 'Test description',
+                        guid: 'guid-1',
+                    },
+                ],
+            })
+
+            const client = makeClient(channel)
+            await startRssBridgeService(client as never)
+
+            expect(channel.send).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: '<@&role1>',
+                    allowedMentions: { roles: ['role1'] },
+                }),
+            )
+        })
+
+        it('should not send mention when mentionRoleId is not set', async () => {
+            featureToggleMock.mockResolvedValue(true)
+
+            const channel = {
+                isTextBased: () => true,
+                isDMBased: () => false,
+                send: jest.fn().mockResolvedValue({}),
+            }
+
+            const mockDb = {
+                rssFeedSubscription: {
+                    findMany: jest
+                        .fn()
+                        .mockResolvedValue([
+                            {
+                                id: 'sub1',
+                                guildId: 'guild1',
+                                feedUrl: 'https://example.com/rss.xml',
+                                channelId: 'channel1',
+                                mentionRoleId: null,
+                                lastItemGuid: null,
+                                enabled: true,
+                                createdAt: new Date(),
+                                updatedAt: new Date(),
+                            },
+                        ]),
+                    findUnique: jest.fn().mockResolvedValue(null),
+                    create: jest.fn().mockResolvedValue({}),
+                    update: jest.fn().mockResolvedValue({}),
+                },
+            }
+
+            jest.doMock('@lucky/shared/utils/database/prismaClient', () => ({
+                getPrismaClient: () => mockDb,
+            }))
+
+            parseURLMock.mockResolvedValue({
+                items: [
+                    {
+                        title: 'Test Item',
+                        link: 'https://example.com/item',
+                        description: 'Test description',
+                        guid: 'guid-1',
+                    },
+                ],
+            })
+
+            const client = makeClient(channel)
+            await startRssBridgeService(client as never)
+
+            expect(channel.send).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: undefined,
+                    allowedMentions: undefined,
+                }),
+            )
+        })
+    })
 })

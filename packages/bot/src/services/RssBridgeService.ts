@@ -4,7 +4,6 @@ import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
 import { featureToggleService } from '@lucky/shared/services'
 import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
 
-const RSS_FEED_URL = 'https://criativaria.com.br/rss.xml'
 const POLL_INTERVAL_MS = 3600000 // 1 hour
 const EMBED_COLOR = 0xe879a0
 
@@ -14,6 +13,7 @@ interface RssItem {
     description?: string
     content?: string
     pubDate?: string
+    guid?: string
 }
 
 let pollInterval: ReturnType<typeof setInterval> | null = null
@@ -24,21 +24,13 @@ export async function startRssBridgeService(client: Client): Promise<void> {
         return
     }
 
-    const channelId = process.env.CRIATIVARIA_GUIDES_CHANNEL_ID
-    if (!channelId) {
-        errorLog({
-            message:
-                'RSS Bridge service requires CRIATIVARIA_GUIDES_CHANNEL_ID env variable',
-        })
-        return
-    }
-
     try {
+        const db = getPrismaClient()
+        await ensureBackwardCompatibleSubscription(db)
         infoLog({ message: 'RSS Bridge service started' })
-        await pollRssFeed(client, channelId)
-        // Schedule polling every hour
+        await pollRssFeedSubscriptions(client)
         pollInterval = setInterval(async () => {
-            await pollRssFeed(client, channelId)
+            await pollRssFeedSubscriptions(client)
         }, POLL_INTERVAL_MS)
     } catch (err) {
         errorLog({
@@ -56,26 +48,106 @@ export function stopRssBridgeService(): void {
     }
 }
 
-async function pollRssFeed(client: Client, channelId: string): Promise<void> {
-    try {
-        const parser = new Parser()
-        const feed = await parser.parseURL(RSS_FEED_URL)
+async function ensureBackwardCompatibleSubscription(
+    db: ReturnType<typeof getPrismaClient>,
+): Promise<void> {
+    const feedUrl = process.env.CRIATIVARIA_GUIDES_FEED_URL || 'https://criativaria.com.br/rss.xml'
+    const channelId = process.env.CRIATIVARIA_GUIDES_CHANNEL_ID
+    const guildId = process.env.CRIATIVARIA_GUILD_ID
 
-        if (!feed.items || feed.items.length === 0) {
+    if (!channelId || !guildId) {
+        debugLog({
+            message: 'Backward compat RSS subscription: env not configured',
+        })
+        return
+    }
+
+    const existing = await db.rssFeedSubscription.findUnique({
+        where: {
+            guildId_feedUrl: {
+                guildId,
+                feedUrl,
+            },
+        },
+    })
+
+    if (!existing) {
+        await db.rssFeedSubscription.create({
+            data: {
+                guildId,
+                feedUrl,
+                channelId,
+                enabled: true,
+            },
+        })
+        debugLog({
+            message: 'Auto-seeded backward compatible RSS subscription',
+            data: { guildId, feedUrl, channelId },
+        })
+    }
+}
+
+async function pollRssFeedSubscriptions(client: Client): Promise<void> {
+    try {
+        const db = getPrismaClient()
+        const subscriptions = await db.rssFeedSubscription.findMany({
+            where: { enabled: true },
+        })
+
+        if (subscriptions.length === 0) {
             debugLog({
-                message: 'No items found in RSS feed',
-                data: { feedUrl: RSS_FEED_URL },
+                message: 'No RSS feed subscriptions to poll',
             })
             return
         }
 
-        const db = getPrismaClient()
-        const channel = await client.channels.fetch(channelId)
+        for (const subscription of subscriptions) {
+            await pollSingleSubscription(client, db, subscription)
+        }
+    } catch (err) {
+        errorLog({
+            message: 'Error polling RSS feed subscriptions',
+            error: err,
+        })
+    }
+}
+
+async function pollSingleSubscription(
+    client: Client,
+    db: ReturnType<typeof getPrismaClient>,
+    subscription: {
+        id: string
+        guildId: string
+        feedUrl: string
+        channelId: string
+        mentionRoleId: string | null
+        lastItemGuid: string | null
+        enabled: boolean
+        createdAt: Date
+        updatedAt: Date
+    },
+): Promise<void> {
+    try {
+        const parser = new Parser()
+        const feed = await parser.parseURL(subscription.feedUrl)
+
+        if (!feed.items || feed.items.length === 0) {
+            debugLog({
+                message: 'No items found in RSS feed',
+                data: { feedUrl: subscription.feedUrl },
+            })
+            return
+        }
+
+        const channel = await client.channels.fetch(subscription.channelId)
 
         if (!channel?.isTextBased() || !('send' in channel)) {
             errorLog({
                 message: 'RSS Bridge channel is not a text channel',
-                data: { channelId },
+                data: {
+                    channelId: subscription.channelId,
+                    feedUrl: subscription.feedUrl,
+                },
             })
             return
         }
@@ -84,48 +156,43 @@ async function pollRssFeed(client: Client, channelId: string): Promise<void> {
             send: (options: unknown) => Promise<unknown>
         }
 
+        let lastItemGuid = subscription.lastItemGuid
+
         for (const item of feed.items) {
             const itemTyped = item as RssItem
-            const slug = extractSlug(itemTyped.link)
+            const itemGuid =
+                itemTyped.guid ||
+                itemTyped.link ||
+                extractSlug(itemTyped.link)
 
-            if (!slug) {
+            if (!itemGuid) {
                 debugLog({
-                    message: 'Could not extract slug from RSS item',
+                    message: 'Could not extract GUID from RSS item',
                     data: { link: itemTyped.link },
                 })
                 continue
             }
 
-            // Check if we've already posted this guide
-            const existing = await db.rssDiscoveredGuide.findUnique({
-                where: { slug },
-            })
-
-            if (existing) {
+            if (lastItemGuid && itemGuid === lastItemGuid) {
                 debugLog({
-                    message: 'Guide already posted',
-                    data: { slug },
+                    message: 'RSS item already posted',
+                    data: { itemGuid },
                 })
-                continue
+                break
             }
 
-            // Post new guide to Discord
             const title = itemTyped.title || 'Untitled'
             const description = truncateDescription(
                 itemTyped.description || itemTyped.content || '',
             )
 
             try {
-                // Persist dedup record first
-                await db.rssDiscoveredGuide.create({
-                    data: {
-                        slug,
-                        title,
-                    },
-                })
+                const content = subscription.mentionRoleId
+                    ? `<@&${subscription.mentionRoleId}>`
+                    : undefined
 
-                // Post to Discord after DB write succeeds
                 await sendableChannel.send({
+                    content,
                     embeds: [
                         {
                             title,
@@ -134,24 +201,50 @@ async function pollRssFeed(client: Client, channelId: string): Promise<void> {
                             color: EMBED_COLOR,
                         },
                     ],
+                    allowedMentions: subscription.mentionRoleId
+                        ? { roles: [subscription.mentionRoleId] }
+                        : undefined,
                 })
 
+                if (!lastItemGuid) {
+                    lastItemGuid = itemGuid
+                }
+
                 infoLog({
-                    message: 'RSS guide posted',
-                    data: { slug, title },
+                    message: 'RSS item posted',
+                    data: {
+                        subscriptionId: subscription.id,
+                        itemGuid,
+                        title,
+                    },
                 })
             } catch (err) {
                 errorLog({
-                    message: 'Failed to post RSS guide',
+                    message: 'Failed to post RSS item',
                     error: err,
-                    data: { slug, title },
+                    data: {
+                        subscriptionId: subscription.id,
+                        itemGuid,
+                        title,
+                    },
                 })
             }
         }
+
+        if (lastItemGuid !== subscription.lastItemGuid) {
+            await db.rssFeedSubscription.update({
+                where: { id: subscription.id },
+                data: { lastItemGuid },
+            })
+        }
     } catch (err) {
         errorLog({
-            message: 'Error polling RSS feed',
+            message: 'Error polling single RSS feed subscription',
             error: err,
+            data: {
+                subscriptionId: subscription.id,
+                feedUrl: subscription.feedUrl,
+            },
         })
     }
 }
