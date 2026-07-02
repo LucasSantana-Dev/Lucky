@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.27.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.26.0...v2.27.0) (2026-07-02)
+
+
+### Features
+
+* **bot:** add weekly community digest service ([#1609](https://github.com/LucasSantana-Dev/Lucky/issues/1609)) ([2a653bf](https://github.com/LucasSantana-Dev/Lucky/commit/2a653bff32f3e5afa15cb73aae4d41e0476da859))
+
+
+### Bug Fixes
+
+* **bot:** dead-man heartbeat + exit on fatal init failure ([#1656](https://github.com/LucasSantana-Dev/Lucky/issues/1656)) ([e379f5f](https://github.com/LucasSantana-Dev/Lucky/commit/e379f5f8bd62cfa6173cd514f1c83b5ef2080c65))
+
 ## [2.26.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.25.0...v2.26.0) (2026-07-01)
 
 
