@@ -245,7 +245,16 @@ async function dispatchToChannels(
                 })
                 continue
             }
-            await channel.send({ embeds: [embed] })
+            const content = notif.mentionRoleId
+                ? `<@&${notif.mentionRoleId}>`
+                : undefined
+            await channel.send({
+                content,
+                embeds: [embed],
+                allowedMentions: notif.mentionRoleId
+                    ? { roles: [notif.mentionRoleId] }
+                    : undefined,
+            })
         } catch (err) {
             errorLog({
                 message: `Twitch EventSub: failed to send notification to channel ${notif.discordChannelId}`,
