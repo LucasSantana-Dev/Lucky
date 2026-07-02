@@ -8,7 +8,7 @@ import {
     type TextChannel,
 } from 'discord.js'
 import { starboardService } from '@lucky/shared/services'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 import { activeGiveaways } from '../functions/general/commands/giveaway'
 import { getSongInfoMessage } from './player/trackNowPlaying'
 import { recordRecommendationSkipReason } from '../services/musicRecommendation/recommendationTelemetry'
@@ -97,9 +97,22 @@ async function handleSkipReasonReaction(
     reaction: MessageReaction | PartialMessageReaction,
     user: User | PartialUser,
 ): Promise<void> {
-    if (user.bot) return
+    if (user.bot) {
+        debugLog({
+            message: 'Skipping skip-reason reaction: reaction added by bot',
+            data: { userId: user.id },
+        })
+        return
+    }
+
     if (reaction.partial) await reaction.fetch()
-    if (!reaction.message.guild) return
+
+    if (!reaction.message.guild) {
+        debugLog({
+            message: 'Skipping skip-reason reaction: guild context missing',
+        })
+        return
+    }
 
     const guildId = reaction.message.guild.id
     const messageId = reaction.message.id
@@ -107,11 +120,29 @@ async function handleSkipReasonReaction(
 
     // Check if this emoji is a skip-reason emoji
     const skipReason = SKIP_REASON_EMOJI_MAP[emojiName]
-    if (!skipReason) return
+    if (!skipReason) {
+        debugLog({
+            message:
+                'Skipping skip-reason reaction: emoji not a skip-reason emoji',
+            data: { guildId, emojiName, messageId },
+        })
+        return
+    }
 
     // Check if this message is the now-playing message for the guild
     const nowPlayingMsg = getSongInfoMessage(guildId)
-    if (!nowPlayingMsg || nowPlayingMsg.messageId !== messageId) return
+    if (!nowPlayingMsg || nowPlayingMsg.messageId !== messageId) {
+        debugLog({
+            message:
+                'Skipping skip-reason reaction: message is not the now-playing message',
+            data: {
+                guildId,
+                messageId,
+                nowPlayingMsgId: nowPlayingMsg?.messageId,
+            },
+        })
+        return
+    }
 
     // Find the recommendation for this specific track (narrow by guild + trackUrl)
     try {
@@ -125,12 +156,32 @@ async function handleSkipReasonReaction(
             take: 1,
         })
 
-        if (!recommendation) return
+        if (!recommendation) {
+            debugLog({
+                message:
+                    'Skipping skip-reason reaction: no recommendation found for track',
+                data: {
+                    guildId,
+                    trackUrl: nowPlayingMsg.trackUrl,
+                    messageId,
+                },
+            })
+            return
+        }
 
         // Record the skip reason non-blockingly
         await recordRecommendationSkipReason({
             recommendationId: recommendation.id,
             skipReason,
+        })
+
+        debugLog({
+            message: 'Recorded skip reason from user reaction',
+            data: {
+                guildId,
+                recommendationId: recommendation.id,
+                skipReason,
+            },
         })
     } catch (err) {
         errorLog({ message: 'Error handling skip reason reaction:', error: err })

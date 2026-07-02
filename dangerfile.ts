@@ -3,6 +3,7 @@
 //
 // Goal: enforce conventions that humans forget (and AI reviewers
 // rate-limit out of) so the merge rule has more to lean on.
+// Upgrade to danger@^13 + node 20 for Node 24 compatibility (issue #1654).
 
 import { danger, fail, message, schedule, warn } from 'danger'
 

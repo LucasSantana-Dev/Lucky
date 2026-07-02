@@ -17,8 +17,8 @@ function resolveHeartbeatUrls(): string[] {
 
 function resolveRunningVersion(): string {
     return (
-        process.env.SENTRY_RELEASE?.trim() ??
-        process.env.COMMIT_SHA?.trim() ??
+        process.env.SENTRY_RELEASE?.trim() ||
+        process.env.COMMIT_SHA?.trim() ||
         'unknown'
     )
 }
