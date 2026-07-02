@@ -537,7 +537,9 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         // Linear decay: penalty = max * (1 - index/window), clamped to [0, max]
         const decayFactor = Math.max(0, 1 - recentIndex / RECENCY_WINDOW_TRACKS)
         const penalty = SCORE_RECENCY_DECAY_MAX * decayFactor
-        if (penalty !== 0) {
+        // decayFactor > 0 ⟺ penalty !== 0 (MAX is a nonzero constant) —
+        // avoids float equality (S1244) with identical branch behavior
+        if (decayFactor > 0) {
             score += penalty
             signals.push('recency decay')
         }
