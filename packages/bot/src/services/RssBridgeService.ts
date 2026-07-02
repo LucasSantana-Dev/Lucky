@@ -19,6 +19,10 @@ interface RssItem {
 let pollInterval: ReturnType<typeof setInterval> | null = null
 
 export async function startRssBridgeService(client: Client): Promise<void> {
+    // Repeated starts must not stack polling intervals
+    if (pollInterval) {
+        return
+    }
     const enabled = await featureToggleService.isEnabled('RSS_BRIDGE')
     if (!enabled) {
         return
@@ -158,7 +162,8 @@ async function pollSingleSubscription(
             send: (options: unknown) => Promise<unknown>
         }
 
-        let lastItemGuid = subscription.lastItemGuid
+        const storedGuid = subscription.lastItemGuid
+        let newestSeenGuid: string | null = null
 
         for (const item of feed.items) {
             const itemTyped = item as RssItem
@@ -173,7 +178,12 @@ async function pollSingleSubscription(
                 continue
             }
 
-            if (lastItemGuid && itemGuid === lastItemGuid) {
+            if (!newestSeenGuid) {
+                // Feeds are newest-first: the first valid item anchors the cursor
+                newestSeenGuid = itemGuid
+            }
+
+            if (storedGuid && itemGuid === storedGuid) {
                 debugLog({
                     message: 'RSS item already posted',
                     data: { itemGuid },
@@ -188,10 +198,18 @@ async function pollSingleSubscription(
 
             // Per-item dedup via RssDiscoveredGuide (the #1608 record other
             // consumers read) — lastItemGuid is only a fast-path short-circuit
-            const slug = extractSlug(itemTyped.link) || itemGuid
-            const existing = await db.rssDiscoveredGuide.findUnique({
-                where: { slug },
-            })
+            const rawSlug = extractSlug(itemTyped.link) || itemGuid
+            // Scope dedup per guild so two guilds subscribing to the same
+            // feed do not suppress each other; raw-slug lookup keeps the
+            // pre-existing (Criativaria) rows honored without a repost burst
+            const slug = `${subscription.guildId}:${rawSlug}`
+            const existing =
+                (await db.rssDiscoveredGuide.findUnique({
+                    where: { slug },
+                })) ??
+                (await db.rssDiscoveredGuide.findUnique({
+                    where: { slug: rawSlug },
+                }))
             if (existing) {
                 debugLog({
                     message: 'RSS item already posted',
@@ -224,10 +242,6 @@ async function pollSingleSubscription(
                     data: { slug, title },
                 })
 
-                if (!lastItemGuid) {
-                    lastItemGuid = itemGuid
-                }
-
                 infoLog({
                     message: 'RSS item posted',
                     data: {
@@ -249,10 +263,10 @@ async function pollSingleSubscription(
             }
         }
 
-        if (lastItemGuid !== subscription.lastItemGuid) {
+        if (newestSeenGuid && newestSeenGuid !== storedGuid) {
             await db.rssFeedSubscription.update({
                 where: { id: subscription.id },
-                data: { lastItemGuid },
+                data: { lastItemGuid: newestSeenGuid },
             })
         }
     } catch (err) {

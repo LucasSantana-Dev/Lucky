@@ -86,7 +86,10 @@ beforeEach(() => {
 
     featureToggleMock.mockResolvedValue(true)
     findUniqueMock.mockResolvedValue(null)
-    createMock.mockResolvedValue({ slug: 'my-guide', title: 'Guide Title' })
+    createMock.mockResolvedValue({
+        slug: 'guild-1:my-guide',
+        title: 'Guide Title',
+    })
     subFindManyMock.mockReset()
     subFindUniqueMock.mockReset()
     subCreateMock.mockReset()
@@ -282,7 +285,7 @@ describe('RSS feed polling', () => {
         await startRssBridgeService(makeClient(channel) as never)
 
         expect(createMock).toHaveBeenCalledWith({
-            data: { slug: 'my-guide', title: 'Guide Title' },
+            data: { slug: 'guild-1:my-guide', title: 'Guide Title' },
         })
         expect(channel.send).toHaveBeenCalledWith(
             expect.objectContaining({

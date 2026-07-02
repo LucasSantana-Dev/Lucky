@@ -26,7 +26,12 @@ export class ScheduledEventNotificationService {
             }
 
             const channel = await client.channels.fetch(config.channelId)
-            if (!channel || !channel.isTextBased() || !('send' in channel)) {
+            if (
+                !channel ||
+                !channel.isTextBased() ||
+                !('send' in channel) ||
+                ('guildId' in channel && channel.guildId !== event.guildId)
+            ) {
                 errorLog({
                     message:
                         'Scheduled event notification: channel not found or not text-based',
