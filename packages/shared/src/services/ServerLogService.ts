@@ -38,6 +38,110 @@ export interface LogDetails {
     [key: string]: unknown
 }
 
+/** Presentation severity/category bucket for a log, derived from its type. */
+export type ServerLogLevel =
+    | 'info'
+    | 'warn'
+    | 'error'
+    | 'moderation'
+    | 'automod'
+    | 'system'
+
+/** Maps a raw log `type` to the level bucket the dashboard groups/filters by. */
+export const LOG_LEVEL_BY_TYPE: Record<string, ServerLogLevel> = {
+    message_delete: 'moderation',
+    message_edit: 'moderation',
+    member_join: 'info',
+    member_leave: 'info',
+    role_update: 'info',
+    channel_update: 'system',
+    voice_state: 'info',
+    mod_action: 'moderation',
+    mod_case_update: 'moderation',
+    automod_trigger: 'automod',
+    automod_settings: 'automod',
+    custom_command: 'system',
+    embed_template: 'system',
+    auto_message: 'system',
+    settings_change: 'system',
+}
+
+/** Shape the dashboard expects for each log row. */
+export interface SerializedServerLog {
+    id: string
+    guildId: string
+    type: string
+    level: ServerLogLevel
+    message: string
+    userId?: string
+    userName?: string
+    channelId?: string
+    channelName?: string
+    metadata: Record<string, unknown>
+    createdAt: string
+}
+
+/** `details` is persisted as a JSON string; parse it back to an object safely. */
+function parseLogDetails(details: unknown): Record<string, unknown> {
+    if (details == null) {
+        return {}
+    }
+    if (typeof details === 'string') {
+        try {
+            const parsed: unknown = JSON.parse(details)
+            return parsed && typeof parsed === 'object'
+                ? (parsed as Record<string, unknown>)
+                : {}
+        } catch {
+            return {}
+        }
+    }
+    if (typeof details === 'object') {
+        return details as Record<string, unknown>
+    }
+    return {}
+}
+
+/**
+ * Maps a raw persisted log row to the dashboard contract: derives `level` from
+ * `type`, uses `action` as the human `message`, and surfaces user/channel names
+ * from `details` (falling back to the id so the actor is never blank).
+ */
+export function serializeServerLog(log: {
+    id: string
+    guildId: string
+    type: string
+    action?: string | null
+    userId?: string | null
+    channelId?: string | null
+    details?: unknown
+    createdAt: Date | string
+}): SerializedServerLog {
+    const metadata = parseLogDetails(log.details)
+    const userName =
+        typeof metadata.username === 'string' ? metadata.username : undefined
+    const channelName =
+        typeof metadata.channelName === 'string'
+            ? metadata.channelName
+            : undefined
+    return {
+        id: log.id,
+        guildId: log.guildId,
+        type: log.type,
+        level: LOG_LEVEL_BY_TYPE[log.type] ?? 'info',
+        message: log.action ?? '',
+        userId: log.userId ?? undefined,
+        userName: userName ?? log.userId ?? undefined,
+        channelId: log.channelId ?? undefined,
+        channelName: channelName ?? log.channelId ?? undefined,
+        metadata,
+        createdAt:
+            log.createdAt instanceof Date
+                ? log.createdAt.toISOString()
+                : log.createdAt,
+    }
+}
+
 /** Service for creating and querying server audit logs persisted in the database. */
 export class ServerLogService {
     /** Creates a new audit log entry for the given guild. */

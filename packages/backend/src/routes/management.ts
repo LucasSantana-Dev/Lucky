@@ -15,6 +15,7 @@ import {
     autoModService,
     customCommandService,
     serverLogService,
+    serializeServerLog,
     type LogType,
 } from '@lucky/shared/services'
 import { setupEmbedRoutes } from './managementEmbeds'
@@ -258,13 +259,13 @@ export function setupManagementRoutes(app: Express): void {
                     guildId,
                     type as LogType,
                 )
-                res.json({ logs, total })
+                res.json({ logs: logs.map(serializeServerLog), total })
                 return
             }
 
             const logs = await serverLogService.getRecentLogs(guildId, limit)
             const total = await serverLogService.countRecentLogs(guildId)
-            res.json({ logs, total })
+            res.json({ logs: logs.map(serializeServerLog), total })
         }),
     )
 
@@ -281,7 +282,7 @@ export function setupManagementRoutes(app: Express): void {
                 type: query.type as LogType | undefined,
                 userId: query.userId,
             })
-            res.json({ logs })
+            res.json({ logs: logs.map(serializeServerLog) })
         }),
     )
 
@@ -294,7 +295,7 @@ export function setupManagementRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const userId = p(req.params.userId)
             const logs = await serverLogService.getUserLogs(guildId, userId)
-            res.json({ logs })
+            res.json({ logs: logs.map(serializeServerLog) })
         }),
     )
 
