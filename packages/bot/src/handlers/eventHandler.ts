@@ -24,6 +24,7 @@ import { handleMemberEvents } from './memberHandler'
 import { handleAuditEvents } from './auditHandler'
 import { handleExternalScrobbler } from './externalScrobbler'
 import { handleReactionEvents } from './reactionHandler'
+import { scheduledEventNotificationService } from '../services/ScheduledEventNotificationService'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
 import { executeContextMenu } from './commandsHandler'
 import {
@@ -393,13 +394,11 @@ function handleChannelDelete(client: Client): void {
 
 function handleGuildScheduledEventCreate(client: Client): void {
     client.on(Events.GuildScheduledEventCreate, (event) => {
-        const { scheduledEventNotificationService } = require('../services/ScheduledEventNotificationService')
         scheduledEventNotificationService
             .notifyScheduledEvent(event, client)
             .catch((error: unknown) => {
                 errorLog({
-                    message:
-                        'Error handling guild scheduled event create:',
+                    message: 'Error handling guild scheduled event create:',
                     error,
                 })
             })
