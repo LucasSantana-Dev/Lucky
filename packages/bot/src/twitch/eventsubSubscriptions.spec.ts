@@ -502,6 +502,80 @@ describe('eventsubSubscriptions', () => {
             )
             expect(mockChannel.send).not.toHaveBeenCalled()
         })
+
+        it('should send mention when mentionRoleId is set', async () => {
+            const notifications = [
+                {
+                    discordChannelId: 'channel1',
+                    twitchLogin: 'testuser',
+                    mentionRoleId: 'role123',
+                },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'stream.online',
+                    condition: { broadcaster_user_id: 'twitch123' },
+                },
+                event: {
+                    id: 'event123',
+                    broadcaster_user_id: 'twitch123',
+                    broadcaster_user_login: 'testuser',
+                    broadcaster_user_name: 'Test User',
+                    type: 'stream.online',
+                    started_at: '2024-01-01T00:00:00Z',
+                },
+            }
+
+            await handleStreamOnline(payload as any, mockClient as Client)
+
+            expect(mockChannel.send).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: '<@&role123>',
+                    allowedMentions: { roles: ['role123'] },
+                }),
+            )
+        })
+
+        it('should not send mention when mentionRoleId is not set', async () => {
+            const notifications = [
+                {
+                    discordChannelId: 'channel1',
+                    twitchLogin: 'testuser',
+                    mentionRoleId: null,
+                },
+            ]
+            getNotificationsByTwitchUserIdMock.mockResolvedValue(
+                notifications as any,
+            )
+
+            const payload = {
+                subscription: {
+                    type: 'stream.online',
+                    condition: { broadcaster_user_id: 'twitch123' },
+                },
+                event: {
+                    id: 'event123',
+                    broadcaster_user_id: 'twitch123',
+                    broadcaster_user_login: 'testuser',
+                    broadcaster_user_name: 'Test User',
+                    type: 'stream.online',
+                    started_at: '2024-01-01T00:00:00Z',
+                },
+            }
+
+            await handleStreamOnline(payload as any, mockClient as Client)
+
+            expect(mockChannel.send).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: undefined,
+                    allowedMentions: undefined,
+                }),
+            )
+        })
     })
 
     describe('handleStreamOffline', () => {

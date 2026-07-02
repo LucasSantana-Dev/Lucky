@@ -124,6 +124,10 @@ intent — paste these into the dashboard):
 
 ## Maintenance
 
+- **Danger.js version** (2026-07-01): upgraded central workflow to danger@^13 + node 20
+  to fix Node 24 incompatibility (node-fetch v2 → undici WHATWG fetch). See
+  `LucasSantana-Dev/.github/.github/workflows/danger.yml` for the pinned version.
+  TODO: revert node pin to 22+ after danger@14+ ships and is stable (≥2 weeks wild).
 - Re-evaluate Greptile if they introduce per-org pricing
 - Tune cubic's custom rules in the dashboard if it proves too quiet/noisy;
   watch the revisit triggers in ADR `2026-05-21-replace-plan-limited-review-tools.md`
