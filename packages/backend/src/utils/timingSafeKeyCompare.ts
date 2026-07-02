@@ -2,7 +2,9 @@ import crypto from 'crypto'
 
 /**
  * Timing-safe comparison of API keys.
- * Hashes both values before comparison to avoid length-mismatch timing leaks.
+ * Both values are zero-padded to a common byte length so timingSafeEqual
+ * always runs a full constant-time comparison; a length mismatch is folded
+ * into the result afterwards instead of short-circuiting.
  * @param providedKey - The key provided in the request (e.g., from header)
  * @param expectedKey - The expected key from environment
  * @returns true if keys match, false otherwise
@@ -16,15 +18,14 @@ export function timingSafeKeyCompare(
         return false
     }
 
-    // Hash both values to avoid length-mismatch timing leaks
-    const providedHash = crypto.createHash('sha256').update(providedKey).digest()
-    const expectedHash = crypto.createHash('sha256').update(expectedKey).digest()
+    const provided = Buffer.from(providedKey)
+    const expected = Buffer.from(expectedKey)
+    const length = Math.max(provided.length, expected.length)
+    const providedPadded = Buffer.alloc(length)
+    const expectedPadded = Buffer.alloc(length)
+    provided.copy(providedPadded)
+    expected.copy(expectedPadded)
 
-    // Use timingSafeEqual for constant-time comparison
-    try {
-        return crypto.timingSafeEqual(providedHash, expectedHash)
-    } catch {
-        // timingSafeEqual throws if lengths don't match (shouldn't happen with hashes)
-        return false
-    }
+    const equal = crypto.timingSafeEqual(providedPadded, expectedPadded)
+    return equal && provided.length === expected.length
 }

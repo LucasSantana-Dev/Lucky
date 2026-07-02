@@ -37,7 +37,7 @@ describe('Service Announce Routes Integration', () => {
                 text: async () => '',
             } as Response)
 
-            const response = await request(app)
+            await request(app)
                 .post('/api/service/announce')
                 .set('x-announce-key', 'test-announce-key')
                 .send({
@@ -237,7 +237,7 @@ describe('Service Announce Routes Integration', () => {
                 .expect(204)
 
             // Test with slightly different key (timing-safe should still reject)
-            const response = await request(app)
+            await request(app)
                 .post('/api/service/announce')
                 .set('x-announce-key', 'test-announce-key-wrong')
                 .send({
