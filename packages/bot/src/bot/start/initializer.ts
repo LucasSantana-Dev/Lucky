@@ -170,9 +170,10 @@ export class BotInitializer {
                 }
             }
 
-            // Exit the process on fatal init failure. Restart policy (unless-stopped)
-            // will revive with backoff; the zombie class (#1649) is prevented at source.
-            process.exit(1)
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            }
         }
     }
 

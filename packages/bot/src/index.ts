@@ -3,8 +3,6 @@ import {
     setupErrorHandlers,
     flushSentry,
     initializeSentry,
-    startHeartbeat,
-    stopHeartbeat,
     debugLog,
     errorLog,
     sanitizeErrorMessage,
@@ -23,8 +21,6 @@ async function gracefulShutdown(signal: string): Promise<void> {
 
     isShuttingDown = true
     debugLog({ message: `Received ${signal}, initiating graceful shutdown...` })
-
-    stopHeartbeat()
 
     try {
         await shutdownBot()
@@ -49,15 +45,15 @@ async function main(): Promise<void> {
     initializeSentry({
         appName: 'lucky',
         serviceName: 'bot',
-        release: process.env.SENTRY_RELEASE ?? process.env.COMMIT_SHA,
+        // || not ??: compose sets SENTRY_RELEASE to "" when unset, which is
+        // not nullish and would block the COMMIT_SHA fallback (#release-empty)
+        release: process.env.SENTRY_RELEASE || process.env.COMMIT_SHA,
         serverName: process.env.SENTRY_SERVER_NAME ?? process.env.HOSTNAME,
         environment: process.env.SENTRY_ENVIRONMENT,
         tags: {
             runtime: 'discord-bot',
         },
     })
-
-    startHeartbeat({ serviceName: 'bot' })
 
     if (process.env.DEPENDENCY_CHECK_ENABLED === 'true') {
         dependencyCheckService.start()
@@ -70,7 +66,12 @@ async function main(): Promise<void> {
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
     process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
-    await initializeBot()
+    const result = await initializeBot()
+    if (!result.success) {
+        // Throw into main().catch (Sentry flush + exit(1)) — returning here
+        // leaves a zombie process the restart policy can never revive (#1649)
+        throw new Error(result.error ?? 'Bot initialization failed')
+    }
 }
 
 main().catch(async (error: unknown) => {
