@@ -150,24 +150,19 @@ async function processBatchJob(
  * Creates a dedicated BullMQ redis connection with maxRetriesPerRequest: null.
  * BullMQ strictly requires this setting to avoid connection state conflicts.
  */
-function createBullMQRedisConnection(): Redis | null {
-    try {
-        return new Redis({
-            host: ENVIRONMENT_CONFIG.REDIS.HOST,
-            port: ENVIRONMENT_CONFIG.REDIS.PORT,
-            password: ENVIRONMENT_CONFIG.REDIS.PASSWORD,
-            db: ENVIRONMENT_CONFIG.REDIS.DB,
-            // BullMQ requirement: must be null to avoid request queueing conflicts
-            maxRetriesPerRequest: null,
-            lazyConnect: true,
-        })
-    } catch (error) {
-        errorLog({
-            message: 'Failed to create BullMQ redis connection',
-            error,
-        })
-        return null
-    }
+function createBullMQRedisConnection(): Redis {
+    // No try/catch: with lazyConnect the constructor never touches the
+    // network — connection errors surface later through BullMQ's own
+    // error handling, so a catch here would be a false safety net.
+    return new Redis({
+        host: ENVIRONMENT_CONFIG.REDIS.HOST,
+        port: ENVIRONMENT_CONFIG.REDIS.PORT,
+        password: ENVIRONMENT_CONFIG.REDIS.PASSWORD,
+        db: ENVIRONMENT_CONFIG.REDIS.DB,
+        // BullMQ requirement: must be null to avoid request queueing conflicts
+        maxRetriesPerRequest: null,
+        lazyConnect: true,
+    })
 }
 
 /**
@@ -188,12 +183,6 @@ export async function startBatchJobWorker(): Promise<void> {
 
     // Create a dedicated redis connection for BullMQ with maxRetriesPerRequest: null
     bullmqRedis = createBullMQRedisConnection()
-    if (!bullmqRedis) {
-        errorLog({
-            message: 'Failed to create BullMQ redis connection',
-        })
-        return
-    }
 
     // Register batch executors before consuming jobs. A lazy import keeps the
     // executor — which statically pulls in the bot client (bot/start) and DB
@@ -268,11 +257,6 @@ export async function stopBatchJobWorker(): Promise<void> {
             await worker.close()
             worker = null
         }
-        // Disconnect the BullMQ-specific redis connection
-        if (bullmqRedis) {
-            await bullmqRedis.disconnect()
-            bullmqRedis = null
-        }
         infoLog({
             message: 'Batch job worker stopped',
         })
@@ -281,5 +265,12 @@ export async function stopBatchJobWorker(): Promise<void> {
             message: 'Error stopping batch job worker',
             error,
         })
+    } finally {
+        // Always release the BullMQ redis connection — a throwing
+        // worker.close() must not leak it
+        if (bullmqRedis) {
+            bullmqRedis.disconnect()
+            bullmqRedis = null
+        }
     }
 }
