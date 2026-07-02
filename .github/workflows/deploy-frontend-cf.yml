@@ -5,7 +5,11 @@ on:
     branches: [main]
     paths:
       - 'packages/frontend/**'
+      - 'packages/shared/**'
+      - 'prisma/**'
+      - 'CHANGELOG.md'
       - '.github/workflows/deploy-frontend-cf.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,19 +20,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # This is a root-lockfile monorepo (workspaces: packages/*). Per-package
+      # lockfiles are gitignored (.gitignore: packages/*/package-lock.json), so
+      # `npm ci` and the setup-node cache MUST target the root package-lock.json.
+      # The old config pointed both at packages/frontend/package-lock.json, which
+      # does not exist in CI — every run died at the cache step in ~8s and the
+      # live site froze on a pre-workflow build. Mirror the Dockerfile `build` +
+      # `build-frontend` stages: root install → prisma generate → build:shared →
+      # frontend build (which imports @lucky/shared and repo-root CHANGELOG.md).
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: packages/frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
-        working-directory: packages/frontend
-        run: npm ci
+      - name: Install dependencies (root workspaces)
+        run: npm ci --legacy-peer-deps --ignore-scripts
 
-      - name: Build
-        working-directory: packages/frontend
-        run: npm run build
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Build shared package
+        run: npm run build:shared
+
+      - name: Build frontend
+        run: npm run build --workspace=packages/frontend
         env:
           VITE_API_BASE_URL: https://lucky-api.lucassantana.tech/api
           VITE_SENTRY_ENVIRONMENT: production
