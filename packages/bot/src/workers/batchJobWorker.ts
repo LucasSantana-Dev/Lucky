@@ -3,6 +3,7 @@
  * Loads jobs from the queue, resolves executors, and runs them with progress tracking.
  */
 
+import Redis from 'ioredis'
 import { Worker, type Job } from 'bullmq'
 
 type BatchJobData = { jobId: string }
@@ -11,9 +12,11 @@ import { batchJobService } from '@lucky/shared/services/batch'
 import type { BatchProgress, BatchJobType } from '@lucky/shared/services/batch'
 import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
 import { getExecutor, registerExecutor } from './executorRegistry'
+import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 
 const QUEUE_NAME = 'batch-jobs'
 let worker: Worker<BatchJobData> | null = null
+let bullmqRedis: Redis | null = null
 
 /**
  * Progress callback that checkpoints to the database and publishes to Redis.
@@ -61,7 +64,9 @@ async function onProgress(
  * Processes a single batch job.
  * Loads the job from the database, resolves the executor, and runs it.
  */
-async function processBatchJob(job: Job<BatchJobData>): Promise<Record<string, unknown>> {
+async function processBatchJob(
+    job: Job<BatchJobData>,
+): Promise<Record<string, unknown>> {
     const jobId = job.data.jobId
 
     try {
@@ -142,16 +147,50 @@ async function processBatchJob(job: Job<BatchJobData>): Promise<Record<string, u
 }
 
 /**
+ * Creates a dedicated BullMQ redis connection with maxRetriesPerRequest: null.
+ * BullMQ strictly requires this setting to avoid connection state conflicts.
+ */
+function createBullMQRedisConnection(): Redis | null {
+    try {
+        return new Redis({
+            host: ENVIRONMENT_CONFIG.REDIS.HOST,
+            port: ENVIRONMENT_CONFIG.REDIS.PORT,
+            password: ENVIRONMENT_CONFIG.REDIS.PASSWORD,
+            db: ENVIRONMENT_CONFIG.REDIS.DB,
+            // BullMQ requirement: must be null to avoid request queueing conflicts
+            maxRetriesPerRequest: null,
+            lazyConnect: true,
+        })
+    } catch (error) {
+        errorLog({
+            message: 'Failed to create BullMQ redis connection',
+            error,
+        })
+        return null
+    }
+}
+
+/**
  * Starts the batch job worker (concurrency 1).
  * Must be called with an active Redis connection.
  * Gracefully handles Redis unavailability without crashing.
  */
 export async function startBatchJobWorker(): Promise<void> {
-    const redis = redisClient.getClient()
-    if (!redis) {
+    // Check that shared redis is available (signals connectivity)
+    const sharedRedis = redisClient.getClient()
+    if (!sharedRedis) {
         errorLog({
             message:
                 'Cannot start batch job worker: Redis client not available',
+        })
+        return
+    }
+
+    // Create a dedicated redis connection for BullMQ with maxRetriesPerRequest: null
+    bullmqRedis = createBullMQRedisConnection()
+    if (!bullmqRedis) {
+        errorLog({
+            message: 'Failed to create BullMQ redis connection',
         })
         return
     }
@@ -167,12 +206,17 @@ export async function startBatchJobWorker(): Promise<void> {
         registerExecutor(new ChannelMoveBatchExecutor())
     } catch (error) {
         errorLog({ message: 'Failed to register batch executors', error })
+        // Clean up the bullmq redis connection on executor registration failure
+        if (bullmqRedis) {
+            await bullmqRedis.disconnect()
+            bullmqRedis = null
+        }
         return
     }
 
     try {
         worker = new Worker(QUEUE_NAME, processBatchJob, {
-            connection: redis,
+            connection: bullmqRedis,
             concurrency: 1,
         })
 
@@ -199,6 +243,19 @@ export async function startBatchJobWorker(): Promise<void> {
             message: 'Failed to start batch job worker',
             error,
         })
+        // Clean up the bullmq redis connection on worker creation failure
+        if (bullmqRedis) {
+            try {
+                await bullmqRedis.disconnect()
+            } catch (disconnectError) {
+                errorLog({
+                    message:
+                        'Error disconnecting BullMQ redis on startup failure',
+                    error: disconnectError,
+                })
+            }
+            bullmqRedis = null
+        }
     }
 }
 
@@ -206,18 +263,23 @@ export async function startBatchJobWorker(): Promise<void> {
  * Stops the batch job worker gracefully.
  */
 export async function stopBatchJobWorker(): Promise<void> {
-    if (worker) {
-        try {
+    try {
+        if (worker) {
             await worker.close()
             worker = null
-            infoLog({
-                message: 'Batch job worker stopped',
-            })
-        } catch (error) {
-            errorLog({
-                message: 'Error stopping batch job worker',
-                error,
-            })
         }
+        // Disconnect the BullMQ-specific redis connection
+        if (bullmqRedis) {
+            await bullmqRedis.disconnect()
+            bullmqRedis = null
+        }
+        infoLog({
+            message: 'Batch job worker stopped',
+        })
+    } catch (error) {
+        errorLog({
+            message: 'Error stopping batch job worker',
+            error,
+        })
     }
 }
