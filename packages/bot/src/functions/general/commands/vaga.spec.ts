@@ -47,8 +47,13 @@ function makeInteraction(
             id: 'g1',
             channels: {
                 cache: {
-                    find: (fn: (c: unknown) => boolean) =>
-                        fn(channel) ? channel : undefined,
+                    filter: (fn: (c: unknown) => boolean) => {
+                        const arr = fn(channel) ? [channel] : []
+                        return {
+                            find: (g: (c: unknown) => boolean) => arr.find(g),
+                            first: () => arr[0],
+                        }
+                    },
                 },
             },
         },

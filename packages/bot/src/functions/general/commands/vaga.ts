@@ -143,6 +143,16 @@ export default new Command({
         )
         const preview = `${body}\n\n${pings}`
 
+        // Discord rejects message content over 2000 chars — fail early with a
+        // clear message instead of a runtime API error at publish time.
+        if (preview.length > 2000) {
+            await chat.reply({
+                content: `⚠️ A vaga ficou muito longa (${preview.length}/2000 caracteres). Encurte a descrição.`,
+                ephemeral: true,
+            })
+            return
+        }
+
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
             new ButtonBuilder()
                 .setCustomId('vaga_publish')
@@ -182,12 +192,19 @@ export default new Command({
             return
         }
 
-        const channel = chat.guild.channels.cache.find(
+        const vagasChannels = chat.guild.channels.cache.filter(
             (c: GuildBasedChannel) =>
                 /vagas/i.test(c.name) &&
                 (c.type === ChannelType.GuildText ||
                     c.type === ChannelType.GuildAnnouncement),
         )
+        // Prefer an exact "vagas" match; only fall back to the first
+        // substring match so we never post to an unrelated "vagas-*" channel
+        // when the canonical one exists.
+        const channel =
+            vagasChannels.find(
+                (c: GuildBasedChannel) => c.name.toLowerCase() === 'vagas',
+            ) ?? vagasChannels.first()
         if (!channel || !channel.isTextBased()) {
             await choice.update({
                 content: '⚠️ Canal #vagas não encontrado.',

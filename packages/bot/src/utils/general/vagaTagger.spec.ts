@@ -5,6 +5,7 @@ const MAPPINGS = [
     { label: 'Python', roleId: 'r-python' },
     { label: 'Javascript', roleId: 'r-js' },
     { label: 'TypeScript', roleId: 'r-ts' },
+    { label: 'Java', roleId: 'r-java' },
     { label: 'C#', roleId: 'r-csharp' },
     { label: '.NET', roleId: 'r-dotnet' },
     { label: 'C', roleId: 'r-c' },
@@ -53,10 +54,12 @@ describe('detectVagaRoleTags', () => {
         )
     })
 
-    it('does not tag React when only React Native is mentioned-adjacent', () => {
-        // "React Native" should tag RN; plain React alias 'react' also fires
-        // here (substring), which is acceptable — assert RN is present.
-        expect(ids('Experiência com React Native')).toContain('r-rn')
+    it('tags both React Native and React when "React Native" appears', () => {
+        // "React Native" tags RN; the substring "react" also legitimately tags
+        // React (a React Native dev is a React dev). Assert both are present.
+        const got = ids('Experiência com React Native')
+        expect(got).toContain('r-rn')
+        expect(got).toContain('r-react')
     })
 
     it('maps education phrasing to graduation roles', () => {
@@ -94,9 +97,15 @@ describe('detectVagaRoleTags', () => {
         expect(got.filter((r) => r === 'r-python')).toHaveLength(1)
     })
 
-    it('does not false-match Java inside Javascript', () => {
-        // 'javascript' should tag JS but not Java (no Java mapping here anyway);
-        // assert TS-style substring safety: 'typescript' must not tag 'script'.
-        expect(ids('Somente Javascript')).toContain('r-js')
+    it('does not tag Java when only Javascript is mentioned', () => {
+        // "javascript" contains "java" as a substring; the word-boundary check
+        // must prevent tagging the Java role.
+        const got = ids('Somente Javascript')
+        expect(got).toContain('r-js')
+        expect(got).not.toContain('r-java')
+    })
+
+    it('tags Java when Java is mentioned standalone', () => {
+        expect(ids('Vaga para dev Java')).toContain('r-java')
     })
 })
