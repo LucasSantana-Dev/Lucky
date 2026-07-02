@@ -14,6 +14,21 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
     infoLog: jest.fn(),
+    warnLog: jest.fn(),
+    // Plain function (not jest.fn): resetMocks would wipe a factory impl
+    // between tests. Mirrors the real parseIntEnv contract from shared/utils.
+    parseIntEnv: (
+        name: string,
+        fallback: number,
+        options?: { min?: number; max?: number },
+    ) => {
+        const value = process.env[name]
+        if (!value || !/^[+-]?\d+$/.test(value.trim())) return fallback
+        const parsed = Number.parseInt(value, 10)
+        if (options?.min !== undefined && parsed < options.min) return fallback
+        if (options?.max !== undefined && parsed > options.max) return fallback
+        return parsed
+    },
 }))
 
 jest.mock('@lucky/shared/constants', () => ({
@@ -92,33 +107,33 @@ describe('WeeklyDigestService', () => {
         delete process.env.WEEKLY_DIGEST_TICK_INTERVAL_MS
     })
 
-    describe('constructor / parsePositiveIntEnv', () => {
+    describe('constructor / tick interval parsing', () => {
+        const DEFAULT_TICK = 60 * 60 * 1000
+        const tickOf = (svc: WeeklyDigestService): number =>
+            (svc as unknown as { tickIntervalMs: number }).tickIntervalMs
+
         test('uses default tick interval when env var not set', () => {
-            const svc = new WeeklyDigestService()
-            expect(svc).toBeDefined()
+            expect(tickOf(new WeeklyDigestService())).toBe(DEFAULT_TICK)
         })
 
         test('reads tick interval from env var', () => {
             process.env.WEEKLY_DIGEST_TICK_INTERVAL_MS = '5000'
-            const svc = new WeeklyDigestService()
-            expect(svc).toBeDefined()
+            expect(tickOf(new WeeklyDigestService())).toBe(5000)
         })
 
         test('falls back to default when env var is not a number', () => {
             process.env.WEEKLY_DIGEST_TICK_INTERVAL_MS = 'bad'
-            const svc = new WeeklyDigestService()
-            expect(errorLog).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: expect.stringContaining('Invalid'),
-                }),
-            )
-            expect(svc).toBeDefined()
+            expect(tickOf(new WeeklyDigestService())).toBe(DEFAULT_TICK)
+        })
+
+        test('rejects partial numerics like "1h" instead of parsing 1ms', () => {
+            process.env.WEEKLY_DIGEST_TICK_INTERVAL_MS = '1h'
+            expect(tickOf(new WeeklyDigestService())).toBe(DEFAULT_TICK)
         })
 
         test('falls back to default when env var is zero or negative', () => {
             process.env.WEEKLY_DIGEST_TICK_INTERVAL_MS = '-1'
-            new WeeklyDigestService()
-            expect(errorLog).toHaveBeenCalled()
+            expect(tickOf(new WeeklyDigestService())).toBe(DEFAULT_TICK)
         })
 
         test('accepts explicit clock and interval options', () => {
@@ -314,7 +329,10 @@ describe('WeeklyDigestService', () => {
         test('uses previous snapshot for member delta', async () => {
             mockPrismaClient.weeklyDigestSnapshot.findFirst.mockResolvedValue({
                 memberCount: 80,
-                postedAt: new Date(),
+                // Anchor to the mocked clock, one week back — a real `new
+                // Date()` here becomes an idempotency skip (and a failing
+                // test) as soon as the wall clock leaves the mocked week
+                postedAt: new Date(MONDAY_12_UTC - 7 * 24 * 60 * 60 * 1000),
             })
             const svc = makeSvc()
             const guild = makeMockGuild()
@@ -356,6 +374,11 @@ describe('WeeklyDigestService', () => {
             setClient(svc, client)
             await svc.tick()
             expect(errorLog).toHaveBeenCalled()
+            // Failed send must NOT advance the weekly baseline — otherwise
+            // the idempotency check suppresses retry and the digest is lost
+            expect(
+                mockPrismaClient.weeklyDigestSnapshot.create,
+            ).not.toHaveBeenCalled()
         })
 
         test('includes top reacted messages in embed', async () => {
@@ -390,6 +413,44 @@ describe('WeeklyDigestService', () => {
             } as unknown as Client
             setClient(svc, client)
             await svc.tick()
+            expect(digestChannel.send).toHaveBeenCalled()
+        })
+
+        test('fetches starter messages from threads when channel is GuildForum', async () => {
+            const svc = makeSvc()
+            const reaction = { count: 7 }
+            const starterMessage = {
+                id: 'post-1',
+                url: 'https://discord.com/post-1',
+                author: { id: 'user-1' },
+                content: 'Forum post!',
+                createdTimestamp: MONDAY_12_UTC - 1000,
+                reactions: { cache: new Map([['🔥', reaction]]) },
+            }
+            const fetchStarterMessage = jest.fn(async () => starterMessage)
+            const fetchActive = jest.fn(async () => ({
+                threads: new Map([['thread-1', { fetchStarterMessage }]]),
+            }))
+            const guild = makeMockGuild()
+            const forumChannel = {
+                type: ChannelType.GuildForum,
+                guildId: 'guild-123',
+                guild: guild as Guild,
+                threads: { fetchActive },
+            }
+            ;(
+                guild.channels!.fetch as jest.MockedFunction<
+                    () => Promise<unknown>
+                >
+            ).mockResolvedValue(forumChannel)
+            const digestChannel = makeMockTextChannel(guild)
+            const client = {
+                channels: { fetch: jest.fn(async () => digestChannel) },
+            } as unknown as Client
+            setClient(svc, client)
+            await svc.tick()
+            expect(fetchActive).toHaveBeenCalled()
+            expect(fetchStarterMessage).toHaveBeenCalled()
             expect(digestChannel.send).toHaveBeenCalled()
         })
 

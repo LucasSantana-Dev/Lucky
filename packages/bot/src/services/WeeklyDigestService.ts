@@ -1,8 +1,10 @@
 import type {
     Client,
     TextChannel,
+    ForumChannel,
     Guild,
     GuildScheduledEvent,
+    Message,
 } from 'discord.js'
 import { ChannelType, EmbedBuilder } from 'discord.js'
 import { COLOR } from '@lucky/shared/constants'
@@ -11,6 +13,7 @@ import {
     debugLog,
     errorLog,
     infoLog,
+    parseIntEnv,
 } from '@lucky/shared/utils'
 
 const DEFAULT_TICK_INTERVAL_MS = 60 * 60 * 1000 // Check every hour
@@ -30,23 +33,6 @@ type ReactionCount = {
     totalReactions: number
 }
 
-function parsePositiveIntEnv(
-    raw: string | undefined,
-    fallback: number,
-    name: string,
-): number {
-    if (raw === undefined) return fallback
-    const parsed = Number.parseInt(raw, 10)
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-        errorLog({
-            message: `Invalid ${name} env value, falling back to default`,
-            data: { raw, fallback },
-        })
-        return fallback
-    }
-    return parsed
-}
-
 export class WeeklyDigestService {
     private readonly tickIntervalMs: number
     private readonly clock: () => number
@@ -58,10 +44,10 @@ export class WeeklyDigestService {
     constructor(options: WeeklyDigestServiceOptions = {}) {
         this.tickIntervalMs =
             options.tickIntervalMs ??
-            parsePositiveIntEnv(
-                process.env.WEEKLY_DIGEST_TICK_INTERVAL_MS,
-                DEFAULT_TICK_INTERVAL_MS,
+            parseIntEnv(
                 'WEEKLY_DIGEST_TICK_INTERVAL_MS',
+                DEFAULT_TICK_INTERVAL_MS,
+                { min: 1 },
             )
         this.clock = options.clock ?? (() => Date.now())
     }
@@ -103,9 +89,12 @@ export class WeeklyDigestService {
 
     async tick(): Promise<void> {
         if (this.tickInProgress || !this.client) {
-            console.log('Tick early return', {
-                tickInProgress: this.tickInProgress,
-                client: !!this.client,
+            debugLog({
+                message: 'Weekly digest tick early return',
+                data: {
+                    tickInProgress: this.tickInProgress,
+                    client: !!this.client,
+                },
             })
             return
         }
@@ -120,9 +109,12 @@ export class WeeklyDigestService {
             const hour = utcDate.getUTCHours()
 
             if (dayOfWeek !== 1 || hour !== 12) {
-                console.log('Not Monday 12 UTC', { dayOfWeek, hour })
+                debugLog({
+                    message: 'Weekly digest: not Monday 12:00 UTC',
+                    data: { dayOfWeek, hour },
+                })
                 return
-            } // Not Monday 12:xx UTC
+            }
 
             // Single-send per hour: don't send again if we sent in the last 30 mins
             if (now - this.lastDigestTime < 30 * 60 * 1000) return
@@ -188,7 +180,7 @@ export class WeeklyDigestService {
             // Resolve forum channel
             const forumChannel = (await guild.channels
                 .fetch(forumChannelId)
-                .catch(() => null)) as TextChannel | null
+                .catch(() => null)) as TextChannel | ForumChannel | null
             if (
                 !forumChannel ||
                 (forumChannel.type !== ChannelType.GuildText &&
@@ -250,7 +242,11 @@ export class WeeklyDigestService {
                 upcomingEvents,
             )
 
-            // Save snapshot
+            // Send embed first — persisting the snapshot only after a
+            // successful send keeps a failed send from advancing the weekly
+            // baseline (which would suppress retry and lose the digest)
+            await digestChannel.send({ embeds: [embed] })
+
             await prisma.weeklyDigestSnapshot.create({
                 data: {
                     guildId,
@@ -258,9 +254,6 @@ export class WeeklyDigestService {
                     postedAt: new Date(this.clock()),
                 },
             })
-
-            // Send embed
-            await digestChannel.send({ embeds: [embed] })
 
             debugLog({
                 message: 'Weekly digest sent successfully',
@@ -278,16 +271,32 @@ export class WeeklyDigestService {
     }
 
     private async getTopReactedMessages(
-        forumChannel: TextChannel,
+        forumChannel: TextChannel | ForumChannel,
     ): Promise<ReactionCount[]> {
         try {
-            // Fetch last 100 messages from forum
-            const messages = await forumChannel.messages.fetch({ limit: 100 })
+            // Forum posts live in threads — the forum container itself has no
+            // .messages, so collect each active thread's starter message.
+            // Text channels keep the plain last-100-messages fetch.
+            const messages: Message[] = []
+            if (forumChannel.type === ChannelType.GuildForum) {
+                const active = await forumChannel.threads.fetchActive()
+                for (const thread of active.threads.values()) {
+                    const starter = await thread
+                        .fetchStarterMessage()
+                        .catch(() => null)
+                    if (starter) messages.push(starter)
+                }
+            } else {
+                const fetched = await forumChannel.messages.fetch({
+                    limit: 100,
+                })
+                messages.push(...fetched.values())
+            }
             const oneWeekAgo = this.clock() - MS_PER_WEEK
 
             const reactionCounts: ReactionCount[] = []
 
-            for (const message of messages.values()) {
+            for (const message of messages) {
                 // Filter by last 7 days
                 if (message.createdTimestamp < oneWeekAgo) continue
 
