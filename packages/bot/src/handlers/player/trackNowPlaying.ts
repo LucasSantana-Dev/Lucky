@@ -290,7 +290,7 @@ export async function sendNowPlayingEmbed(
             })
             // Add skip-reason emoji reactions
             let successCount = 0
-            let attemptedCount = skipReasonEmojis.length
+            const attemptedCount = skipReasonEmojis.length
             for (const emoji of skipReasonEmojis) {
                 try {
                     await message.react(emoji)
@@ -351,7 +351,7 @@ export async function sendNowPlayingEmbed(
 
     // Add skip-reason emoji reactions
     let successCount = 0
-    let attemptedCount = skipReasonEmojis.length
+    const attemptedCount = skipReasonEmojis.length
     for (const emoji of skipReasonEmojis) {
         try {
             await message.react(emoji)
