@@ -574,7 +574,8 @@ export class ReactionRolesService {
                 try {
                     await prisma.$transaction([
                         prisma.reactionRoleMapping.deleteMany({
-                            where: { messageId },
+                            // cuid FK, not the Discord snowflake — see #1675.
+                            where: { messageId: message.id },
                         }),
                         prisma.reactionRoleMessage.update({
                             where: { messageId },

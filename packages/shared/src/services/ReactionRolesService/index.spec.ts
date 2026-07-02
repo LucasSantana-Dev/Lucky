@@ -1415,6 +1415,44 @@ describe('ReactionRolesService', () => {
             })
         })
 
+        it('rollback also deletes by cuid when the Discord update fails (#1675)', async () => {
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                id: 'cuid-internal-2',
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+                title: 'old',
+                description: 'old',
+                imageUrl: null,
+                mappings: [],
+            })
+            // First $transaction (the update) succeeds; the Discord PATCH then
+            // fails, triggering the rollback $transaction.
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+            ;(global as any).fetch.mockResolvedValueOnce({
+                ok: false,
+                status: 500,
+                text: (jest.fn() as any).mockResolvedValue('err'),
+            })
+
+            await expect(
+                service.updateReactionRoleMessage(baseOptions),
+            ).rejects.toThrow('Discord API error 500')
+
+            // Every deleteMany (update + rollback) must target the cuid, never
+            // the Discord snowflake.
+            for (const call of mockPrisma.reactionRoleMapping.deleteMany.mock
+                .calls) {
+                expect(call[0]).toEqual({
+                    where: { messageId: 'cuid-internal-2' },
+                })
+            }
+            expect(
+                mockPrisma.reactionRoleMapping.deleteMany,
+            ).toHaveBeenCalledTimes(2)
+        })
+
         it('includes imageUrl in PATCH body embed when provided', async () => {
             mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
                 messageId: '98765432109876543',
