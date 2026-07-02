@@ -529,7 +529,9 @@ export class ReactionRolesService {
             // Update the database first with new mappings (DB-first approach)
             await prisma.$transaction([
                 prisma.reactionRoleMapping.deleteMany({
-                    where: { messageId },
+                    // FK ReactionRoleMapping.messageId references ReactionRoleMessage.id
+                    // (a cuid), NOT the Discord snowflake — see #1675.
+                    where: { messageId: message.id },
                 }),
                 prisma.reactionRoleMessage.update({
                     where: { messageId },

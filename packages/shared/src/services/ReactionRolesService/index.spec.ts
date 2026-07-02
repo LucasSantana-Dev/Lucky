@@ -53,18 +53,20 @@ describe('ReactionRolesService', () => {
         }
         mockGetPrismaClient.mockReturnValue(mockPrisma)
         mockIsEnabled.mockResolvedValue(true)
-        ;(mockPrisma.$transaction as any).mockImplementation(async (fnOrArray: any) => {
-            if (typeof fnOrArray === 'function') {
-                return await fnOrArray(mockPrisma)
-            }
-            // Handle array pattern: execute each operation
-            const results = []
-            for (const op of fnOrArray) {
-                // Each op is a Prisma operation (like deleteMany result)
-                results.push(op)
-            }
-            return results
-        })
+        ;(mockPrisma.$transaction as any).mockImplementation(
+            async (fnOrArray: any) => {
+                if (typeof fnOrArray === 'function') {
+                    return await fnOrArray(mockPrisma)
+                }
+                // Handle array pattern: execute each operation
+                const results = []
+                for (const op of fnOrArray) {
+                    // Each op is a Prisma operation (like deleteMany result)
+                    results.push(op)
+                }
+                return results
+            },
+        )
     })
 
     afterEach(() => {
@@ -500,7 +502,11 @@ describe('ReactionRolesService', () => {
             const options = {
                 ...baseOptions,
                 roles: [
-                    { roleId: '11111111111111111', label: 'Role One', emoji: '1️⃣' },
+                    {
+                        roleId: '11111111111111111',
+                        label: 'Role One',
+                        emoji: '1️⃣',
+                    },
                     {
                         roleId: '22222222222222222',
                         label: 'Role Two',
@@ -686,7 +692,13 @@ describe('ReactionRolesService', () => {
 
             const options = {
                 ...baseOptions,
-                roles: [{ roleId: '11111111111111111', label: 'Heart', emoji: '❤️' }],
+                roles: [
+                    {
+                        roleId: '11111111111111111',
+                        label: 'Heart',
+                        emoji: '❤️',
+                    },
+                ],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -1128,7 +1140,13 @@ describe('ReactionRolesService', () => {
                 title: 'Test',
                 description: 'Test',
                 botToken: 'token',
-                roles: [{ roleId: '11111111111111111', label: 'L1', emoji: '<a:fire:12345>' }],
+                roles: [
+                    {
+                        roleId: '11111111111111111',
+                        label: 'L1',
+                        emoji: '<a:fire:12345>',
+                    },
+                ],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -1156,7 +1174,13 @@ describe('ReactionRolesService', () => {
                 title: 'Test',
                 description: 'Test',
                 botToken: 'token',
-                roles: [{ roleId: '11111111111111111', label: 'L1', emoji: '<:star:98765>' }],
+                roles: [
+                    {
+                        roleId: '11111111111111111',
+                        label: 'L1',
+                        emoji: '<:star:98765>',
+                    },
+                ],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -1184,7 +1208,9 @@ describe('ReactionRolesService', () => {
                 title: 'Test',
                 description: 'Test',
                 botToken: 'token',
-                roles: [{ roleId: '11111111111111111', label: 'L1', emoji: '✨' }],
+                roles: [
+                    { roleId: '11111111111111111', label: 'L1', emoji: '✨' },
+                ],
             }
             await service.createReactionRoleMessageFromDashboard(options)
 
@@ -1358,6 +1384,35 @@ describe('ReactionRolesService', () => {
                     }),
                 }),
             )
+        })
+
+        it('deletes old mappings by message cuid, not Discord snowflake (#1675)', async () => {
+            // ReactionRoleMapping.messageId is a FK to ReactionRoleMessage.id
+            // (a cuid). Using the Discord snowflake matched zero rows, so the
+            // nested create collided on @@unique([messageId, roleId]) -> 400.
+            mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
+                id: 'cuid-internal-1',
+                messageId: '98765432109876543',
+                guildId: '12345678901234567',
+                channelId: '11111111111111111',
+                mappings: [],
+            })
+            const mockResponse: any = {
+                ok: true,
+                json: (jest.fn() as any).mockResolvedValue({
+                    id: '98765432109876543',
+                }),
+            }
+            ;(global as any).fetch.mockResolvedValueOnce(mockResponse)
+            mockPrisma.$transaction.mockResolvedValueOnce({})
+
+            await service.updateReactionRoleMessage(baseOptions)
+
+            expect(
+                mockPrisma.reactionRoleMapping.deleteMany,
+            ).toHaveBeenCalledWith({
+                where: { messageId: 'cuid-internal-1' },
+            })
         })
 
         it('includes imageUrl in PATCH body embed when provided', async () => {
@@ -2285,12 +2340,12 @@ describe('ReactionRolesService', () => {
                     id: 'msg-id-1',
                     messageId: 'msg-123',
                 })
-                ;(global as any).fetch = (jest
-                    .fn() as any)
-                    .mockResolvedValueOnce({
-                        ok: true,
-                        json: async () => ({ id: 'msg-123' }),
-                    })
+                ;(global as any).fetch = (
+                    jest.fn() as any
+                ).mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ id: 'msg-123' }),
+                })
 
                 const result =
                     await service.createReactionRoleMessageFromDashboard(
@@ -2298,9 +2353,7 @@ describe('ReactionRolesService', () => {
                     )
 
                 expect(result.messageId).toBe('msg-123')
-                expect(
-                    mockPrisma.reactionRoleMessage.create,
-                ).toHaveBeenCalled()
+                expect(mockPrisma.reactionRoleMessage.create).toHaveBeenCalled()
             })
 
             it('handles null emoji in buildButtonRows', async () => {
@@ -2325,12 +2378,12 @@ describe('ReactionRolesService', () => {
                     id: 'msg-id-1',
                     messageId: 'msg-123',
                 })
-                ;(global as any).fetch = (jest
-                    .fn() as any)
-                    .mockResolvedValueOnce({
-                        ok: true,
-                        json: async () => ({ id: 'msg-123' }),
-                    })
+                ;(global as any).fetch = (
+                    jest.fn() as any
+                ).mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ id: 'msg-123' }),
+                })
 
                 const result =
                     await service.createReactionRoleMessageFromDashboard(
@@ -2592,14 +2645,17 @@ describe('ReactionRolesService', () => {
                     const mockTx = {
                         reactionRoleMapping: {
                             count: (jest.fn() as any).mockResolvedValue(1),
-                            findFirst: (jest.fn() as any).mockResolvedValue(null),
-                            create: (jest.fn() as any).mockResolvedValue(createdMapping),
+                            findFirst: (jest.fn() as any).mockResolvedValue(
+                                null,
+                            ),
+                            create: (jest.fn() as any).mockResolvedValue(
+                                createdMapping,
+                            ),
                         },
                     }
                     return callback(mockTx)
                 },
             )
-
             ;(global as any).fetch = (jest.fn() as any).mockResolvedValueOnce({
                 ok: true,
             })
