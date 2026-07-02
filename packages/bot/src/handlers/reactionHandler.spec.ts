@@ -3,6 +3,7 @@ const mockGetSongInfoMessage = jest.fn()
 const mockRecordRecommendationSkipReason = jest.fn()
 const mockGetPrismaClient = jest.fn()
 const mockErrorLog = jest.fn()
+const mockDebugLog = jest.fn()
 
 jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
     getPrismaClient: mockGetPrismaClient,
@@ -13,7 +14,7 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: mockErrorLog,
     warnLog: jest.fn(),
     infoLog: jest.fn(),
-    debugLog: jest.fn(),
+    debugLog: mockDebugLog,
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -333,6 +334,122 @@ describe('reactionHandler', () => {
             await expect(
                 mockClient._messageReactionAddHandler(mockReaction, mockUser),
             ).resolves.toBeUndefined()
+        })
+
+        it('logs debug message when reaction is from a bot', async () => {
+            mockUser.bot = true
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(mockDebugLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('bot'),
+                }),
+            )
+        })
+
+        it('logs debug message when guild context is missing', async () => {
+            mockMessage.guild = undefined
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(mockDebugLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('guild context missing'),
+                }),
+            )
+        })
+
+        it('logs debug message for non-skip-reason emoji', async () => {
+            mockReaction.emoji = { name: '❤️' }
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(mockDebugLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('not a skip-reason emoji'),
+                    data: expect.objectContaining({
+                        emojiName: '❤️',
+                    }),
+                }),
+            )
+        })
+
+        it('logs debug message when message is not the now-playing message', async () => {
+            mockGetSongInfoMessage.mockReturnValue({
+                messageId: 'different-message-id',
+                channelId: 'channel-123',
+            })
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(mockDebugLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'not the now-playing message',
+                    ),
+                }),
+            )
+        })
+
+        it('logs debug message when no recommendation is found', async () => {
+            mockGetSongInfoMessage.mockReturnValue({
+                messageId: 'message-456',
+                channelId: 'channel-123',
+                trackUrl: 'https://example.com/track',
+            })
+
+            const mockPrisma = {
+                recommendation: {
+                    findFirst: jest.fn().mockResolvedValue(null),
+                },
+            }
+            mockGetPrismaClient.mockReturnValue(mockPrisma)
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(mockDebugLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('no recommendation found'),
+                }),
+            )
+        })
+
+        it('logs debug message after successfully recording skip reason', async () => {
+            mockReaction.emoji = { name: '👎' }
+            mockGetSongInfoMessage.mockReturnValue({
+                messageId: 'message-456',
+                channelId: 'channel-123',
+            })
+
+            const mockPrisma = {
+                recommendation: {
+                    findFirst: jest.fn().mockResolvedValue({
+                        id: 'rec-id-123',
+                    }),
+                },
+            }
+            mockGetPrismaClient.mockReturnValue(mockPrisma)
+            mockRecordRecommendationSkipReason.mockResolvedValue(undefined)
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(mockDebugLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'Recorded skip reason from user reaction',
+                    ),
+                    data: expect.objectContaining({
+                        skipReason: 'generic_dislike',
+                    }),
+                }),
+            )
         })
     })
 })
