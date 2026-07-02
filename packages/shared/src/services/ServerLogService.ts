@@ -118,10 +118,14 @@ export function serializeServerLog(log: {
     createdAt: Date | string
 }): SerializedServerLog {
     const metadata = parseLogDetails(log.details)
+    // Treat empty strings as absent so the id fallback below still fires
+    // (keeps the actor/channel from rendering blank).
     const userName =
-        typeof metadata.username === 'string' ? metadata.username : undefined
+        typeof metadata.username === 'string' && metadata.username
+            ? metadata.username
+            : undefined
     const channelName =
-        typeof metadata.channelName === 'string'
+        typeof metadata.channelName === 'string' && metadata.channelName
             ? metadata.channelName
             : undefined
     return {

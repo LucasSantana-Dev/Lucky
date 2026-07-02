@@ -69,6 +69,19 @@ describe('serializeServerLog', () => {
         expect(result.message).toBe('Roles updated')
     })
 
+    it('treats an empty-string username as absent and falls back to userId', () => {
+        const result = serializeServerLog({
+            id: 'log-4',
+            guildId: 'g1',
+            type: 'role_update',
+            action: 'Roles updated',
+            userId: 'u77',
+            details: JSON.stringify({ username: '' }),
+            createdAt,
+        })
+        expect(result.userName).toBe('u77')
+    })
+
     it('tolerates already-parsed object details and null details', () => {
         expect(
             serializeServerLog({
