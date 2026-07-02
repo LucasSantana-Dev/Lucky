@@ -15,6 +15,9 @@ jest.mock('@lucky/shared/services', () => ({
     autoroleService: {
         list: jest.fn(),
     },
+    roleManagementService: {
+        handleGuildMemberUpdate: jest.fn(),
+    },
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -26,6 +29,7 @@ import {
     autoMessageService,
     featureToggleService,
     autoroleService,
+    roleManagementService,
 } from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 
@@ -663,6 +667,48 @@ describe('memberHandler', () => {
                 message: 'Error handling member remove:',
                 error: expect.any(Error),
             })
+        })
+    })
+    describe('GuildMemberUpdate event', () => {
+        beforeEach(() => {
+            client = createMockClient()
+            handleMemberEvents(client as any)
+        })
+
+        it('delegates to roleManagementService.handleGuildMemberUpdate', async () => {
+            const oldMember = { roles: { cache: new Map() } }
+            const newMember = {
+                guild: { id: 'guild-1' },
+                roles: { cache: new Map([['role-1', {}]]) },
+            }
+            await triggerEvent(
+                client,
+                Events.GuildMemberUpdate,
+                oldMember,
+                newMember,
+            )
+            expect(
+                roleManagementService.handleGuildMemberUpdate,
+            ).toHaveBeenCalledWith(oldMember, newMember)
+        })
+
+        it('logs and does not throw when the exclusion handler rejects', async () => {
+            ;(
+                roleManagementService.handleGuildMemberUpdate as jest.Mock
+            ).mockRejectedValue(new Error('boom'))
+            await expect(
+                triggerEvent(
+                    client,
+                    Events.GuildMemberUpdate,
+                    { roles: { cache: new Map() } },
+                    { guild: { id: 'g' }, roles: { cache: new Map() } },
+                ),
+            ).resolves.toBeUndefined()
+            expect(errorLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('member update'),
+                }),
+            )
         })
     })
 })
