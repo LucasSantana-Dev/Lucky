@@ -3,7 +3,9 @@ import { describe, expect, it, jest } from '@jest/globals'
 type ProcessorFn = (job: { data: { jobId: string } }) => Promise<unknown>
 
 function makeModule(opts: {
-    redis?: object | null
+    sharedRedis?: object | null
+    bullmqRedisCtor?: jest.Mock | null
+    bullmqRedisFails?: boolean
     dbJob?: object | null
     executorExecute?: jest.Mock
     executorMissing?: boolean
@@ -12,7 +14,9 @@ function makeModule(opts: {
     checkpointThrows?: boolean
 }) {
     const {
-        redis = {},
+        sharedRedis = { setex: jest.fn().mockResolvedValue('OK') },
+        bullmqRedisCtor = undefined,
+        bullmqRedisFails = false,
         dbJob = null,
         executorExecute,
         executorMissing = false,
@@ -50,6 +54,17 @@ function makeModule(opts: {
     const mockWorkerOn = jest.fn()
     const mockWorkerClose = jest.fn().mockResolvedValue(undefined)
 
+    // BullMQ redis instance mock (with disconnect method)
+    const mockBullmqRedisDisconnect = jest.fn().mockResolvedValue(undefined)
+    const mockBullmqRedis = bullmqRedisFails
+        ? null
+        : {
+              disconnect: mockBullmqRedisDisconnect,
+          }
+
+    const MockRedis =
+        bullmqRedisCtor ?? jest.fn().mockReturnValue(mockBullmqRedis)
+
     let capturedProcessor: ProcessorFn | null = null
     const MockWorker = workerCtorThrows
         ? jest.fn(() => {
@@ -73,8 +88,9 @@ function makeModule(opts: {
     }
 
     jest.isolateModules(() => {
+        jest.doMock('ioredis', () => MockRedis)
         jest.doMock('@lucky/shared/services', () => ({
-            redisClient: { getClient: () => redis },
+            redisClient: { getClient: () => sharedRedis },
         }))
         jest.doMock('@lucky/shared/services/batch', () => ({
             batchJobService: {
@@ -90,6 +106,16 @@ function makeModule(opts: {
             infoLog,
             errorLog,
             debugLog,
+        }))
+        jest.doMock('@lucky/shared/config', () => ({
+            ENVIRONMENT_CONFIG: {
+                REDIS: {
+                    HOST: 'localhost',
+                    PORT: 6379,
+                    PASSWORD: undefined,
+                    DB: 0,
+                },
+            },
         }))
         jest.doMock('./executorRegistry', () => ({
             getExecutor: mockGetExecutor,
@@ -110,6 +136,9 @@ function makeModule(opts: {
         mod: mod!,
         capturedProcessor: () => capturedProcessor,
         MockWorker,
+        MockRedis,
+        mockBullmqRedis,
+        mockBullmqRedisDisconnect,
         mockWorkerClose,
         mockWorkerOn,
         mockGetById,
@@ -132,20 +161,33 @@ function makeJob(jobId = 'job-abc') {
 describe('batchJobWorker', () => {
     describe('startBatchJobWorker', () => {
         it('returns early and logs error when redis is unavailable', async () => {
-            const { mod, MockWorker, errorLog } = makeModule({ redis: null })
+            const { mod, MockWorker, errorLog } = makeModule({
+                sharedRedis: null,
+            })
             await mod.startBatchJobWorker()
             expect(MockWorker).not.toHaveBeenCalled()
             expect(errorLog).toHaveBeenCalled()
         })
 
+        it('creates BullMQ redis connection with maxRetriesPerRequest: null', async () => {
+            const { mod, MockRedis } = makeModule({})
+            await mod.startBatchJobWorker()
+            expect(MockRedis).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    maxRetriesPerRequest: null,
+                }),
+            )
+        })
+
         it('registers executor and creates Worker when redis is available', async () => {
-            const { mod, MockWorker, mockRegisterExecutor } = makeModule({})
+            const { mod, MockWorker, mockBullmqRedis, mockRegisterExecutor } =
+                makeModule({})
             await mod.startBatchJobWorker()
             expect(mockRegisterExecutor).toHaveBeenCalled()
             expect(MockWorker).toHaveBeenCalledWith(
                 'batch-jobs',
                 expect.any(Function),
-                { connection: {}, concurrency: 1 },
+                { connection: mockBullmqRedis, concurrency: 1 },
             )
         })
 
@@ -175,7 +217,7 @@ describe('batchJobWorker', () => {
 
     describe('stopBatchJobWorker', () => {
         it('does nothing when no worker is active', async () => {
-            const { mod, mockWorkerClose } = makeModule({ redis: null })
+            const { mod, mockWorkerClose } = makeModule({ sharedRedis: null })
             await mod.stopBatchJobWorker()
             expect(mockWorkerClose).not.toHaveBeenCalled()
         })
@@ -193,6 +235,13 @@ describe('batchJobWorker', () => {
             await mod.startBatchJobWorker()
             await mod.stopBatchJobWorker()
             expect(errorLog).toHaveBeenCalled()
+        })
+
+        it('disconnects the BullMQ redis connection', async () => {
+            const { mod, mockBullmqRedisDisconnect } = makeModule({})
+            await mod.startBatchJobWorker()
+            await mod.stopBatchJobWorker()
+            expect(mockBullmqRedisDisconnect).toHaveBeenCalled()
         })
     })
 

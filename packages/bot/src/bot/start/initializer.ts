@@ -26,6 +26,8 @@ import { modDigestSchedulerService } from '../../utils/moderation/modDigestSched
 import { aiDevToolkitService } from '../../services/AiDevToolkitService'
 import { dependencyCheckService } from '../../services/DependencyCheckService'
 import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
+import { weeklyDigestService } from '../../services/WeeklyDigestService'
+import { heartbeatService } from '../../services/HeartbeatService'
 import { stopTwitchService } from '../../twitch'
 import { stopBatchJobWorker } from '../../workers/batchJobWorker'
 import { setClient } from '../clientStore'
@@ -136,6 +138,8 @@ export class BotInitializer {
                 await startClient({ client: this.client })
                 startMetricsServer(this.client)
                 await setupWebMusicHandler(this.client)
+                weeklyDigestService.start(this.client)
+                heartbeatService.start(this.client)
             }
             this.setInitializationState()
 
@@ -236,6 +240,24 @@ export class BotInitializer {
             errorLog({
                 message:
                     'Error stopping Criativaria live notification service:',
+                error,
+            })
+        }
+
+        try {
+            weeklyDigestService.stop()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping weekly digest service:',
+                error,
+            })
+        }
+
+        try {
+            heartbeatService.stop()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping heartbeat service:',
                 error,
             })
         }

@@ -27,6 +27,11 @@ const birthdaySchedulerStopMock = jest.fn()
 const modDigestSchedulerStopMock = jest.fn()
 const aiDevToolkitStopMock = jest.fn()
 const dependencyCheckStopMock = jest.fn()
+const weeklyDigestStartMock = jest.fn()
+const weeklyDigestStopMock = jest.fn()
+const heartbeatServiceStartMock = jest.fn()
+const heartbeatServiceStopMock = jest.fn()
+const criativariaLiveNotifStopMock = jest.fn()
 const stopTwitchServiceMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -111,6 +116,27 @@ jest.mock('../../services/AiDevToolkitService', () => ({
 jest.mock('../../services/DependencyCheckService', () => ({
     dependencyCheckService: {
         stop: (...args: unknown[]) => dependencyCheckStopMock(...args),
+    },
+}))
+
+jest.mock('../../services/WeeklyDigestService', () => ({
+    weeklyDigestService: {
+        start: (...args: unknown[]) => weeklyDigestStartMock(...args),
+        stop: (...args: unknown[]) => weeklyDigestStopMock(...args),
+    },
+}))
+
+jest.mock('../../services/HeartbeatService', () => ({
+    heartbeatService: {
+        start: (...args: unknown[]) => heartbeatServiceStartMock(...args),
+        stop: (...args: unknown[]) => heartbeatServiceStopMock(...args),
+    },
+}))
+
+jest.mock('../../services/CriativariaLiveNotificationService', () => ({
+    criativariaLiveNotificationService: {
+        start: jest.fn(),
+        stop: (...args: unknown[]) => criativariaLiveNotifStopMock(...args),
     },
 }))
 
@@ -430,6 +456,8 @@ describe('BotInitializer', () => {
             expect(modDigestSchedulerStopMock).toHaveBeenCalled()
             expect(aiDevToolkitStopMock).toHaveBeenCalled()
             expect(dependencyCheckStopMock).toHaveBeenCalled()
+            expect(weeklyDigestStopMock).toHaveBeenCalled()
+            expect(heartbeatServiceStopMock).toHaveBeenCalled()
             expect(stopTwitchServiceMock).toHaveBeenCalled()
             expect(musicWatchdogStopMock).toHaveBeenCalled()
             expect(musicWatchdogStopPeriodicScanMock).toHaveBeenCalled()
@@ -445,6 +473,8 @@ describe('BotInitializer', () => {
             ['modDigestSchedulerService.stop', modDigestSchedulerStopMock],
             ['aiDevToolkitService.stop', aiDevToolkitStopMock],
             ['dependencyCheckService.stop', dependencyCheckStopMock],
+            ['weeklyDigestService.stop', weeklyDigestStopMock],
+            ['heartbeatService.stop', heartbeatServiceStopMock],
             ['stopTwitchService', stopTwitchServiceMock],
             ['stopOrphanSessionMonitor', musicWatchdogStopMock],
             ['stopPeriodicScan', musicWatchdogStopPeriodicScanMock],
