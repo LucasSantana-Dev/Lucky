@@ -288,6 +288,12 @@ async function handleInteractionCreate(
                 await handleMusicButtonInteraction(interaction)
                 return
             }
+            // `/vaga` preview buttons are handled by that command's own
+            // awaitMessageComponent collector — don't route them to the
+            // reaction-role handler (would double-ack the interaction).
+            if (id.startsWith('vaga_')) {
+                return
+            }
             await reactionRolesService.handleButtonInteraction(interaction)
             return
         }
