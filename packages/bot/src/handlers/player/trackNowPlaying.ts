@@ -21,6 +21,12 @@ import {
 import { getSkipReasonEmojis } from '../../utils/music/skipReasonMap'
 
 /**
+ * Track which guilds have logged a skip-reason prefill failure in this session.
+ * Used to emit a ONCE-per-guild warning (not per-emoji spam) when emoji reactions fail.
+ */
+const prefillFailureLoggedGuilds = new Set<string>()
+
+/**
  * Manages per-guild now-playing state with automatic TTL + explicit cleanup
  * on guild lifecycle events (guildDelete, channelDelete).
  */
@@ -80,6 +86,39 @@ class TrackNowPlayingState {
 }
 
 const trackNowPlayingState = new TrackNowPlayingState()
+
+/**
+ * Log a skip-reason emoji prefill failure for a guild (once per session).
+ * Prevents per-emoji spam by tracking which guilds have already logged.
+ */
+function logEmojiPrefillFailure(guildId: string, error: unknown): void {
+    if (prefillFailureLoggedGuilds.has(guildId)) {
+        return
+    }
+    prefillFailureLoggedGuilds.add(guildId)
+    const errorCode = extractErrorCode(error)
+    warnLog({
+        message: 'Failed to prefill skip-reason emojis on now-playing message',
+        error,
+        data: { guildId, errorCode },
+    })
+}
+
+/**
+ * Extract Discord API error code from an error object if present.
+ * Used for diagnosing prefill failures (e.g., 50013 = Missing Permissions).
+ */
+function extractErrorCode(error: unknown): number | string | undefined {
+    if (error instanceof Error) {
+        // discord.js errors have a code property
+        const discordError = error as unknown as { code?: number | string }
+        if (discordError.code) return discordError.code
+        // Try to extract from error message (e.g., "50013")
+        const match = error.message.match(/\b(\d{5})\b/)
+        if (match) return match[1]
+    }
+    return undefined
+}
 
 /**
  * Register an existing message as the "now playing" display for a guild.
@@ -250,9 +289,25 @@ export async function sendNowPlayingEmbed(
                 ],
             })
             // Add skip-reason emoji reactions
+            let successCount = 0
+            let attemptedCount = skipReasonEmojis.length
             for (const emoji of skipReasonEmojis) {
-                message.react(emoji).catch(() => {
-                    // Silently ignore if reaction fails (e.g., bot permissions)
+                try {
+                    await message.react(emoji)
+                    successCount++
+                } catch (error) {
+                    logEmojiPrefillFailure(queue.guild.id, error)
+                }
+            }
+            if (successCount > 0 && successCount < attemptedCount) {
+                debugLog({
+                    message:
+                        'Partial emoji prefill: some emojis failed to react',
+                    data: {
+                        guildId: queue.guild.id,
+                        successCount,
+                        attemptedCount,
+                    },
                 })
             }
             // Refresh the cached trackUrl — the message is reused but now points
@@ -295,10 +350,15 @@ export async function sendNowPlayingEmbed(
     })
 
     // Add skip-reason emoji reactions
+    let successCount = 0
+    let attemptedCount = skipReasonEmojis.length
     for (const emoji of skipReasonEmojis) {
-        message.react(emoji).catch(() => {
-            // Silently ignore if reaction fails (e.g., bot permissions)
-        })
+        try {
+            await message.react(emoji)
+            successCount++
+        } catch (error) {
+            logEmojiPrefillFailure(queue.guild.id, error)
+        }
     }
 
     registerNowPlayingMessage(
@@ -308,9 +368,19 @@ export async function sendNowPlayingEmbed(
         track.url,
     )
 
+    // Log first-message diagnostic: track successful vs attempted emoji prefills
     debugLog({
         message: 'Sent now playing message to channel',
-        data: { guildId: queue.guild.id, trackTitle: track.title, isAutoplay },
+        data: {
+            guildId: queue.guild.id,
+            trackTitle: track.title,
+            isAutoplay,
+            emojiPrefill: {
+                successCount,
+                attemptedCount,
+                allSuccessful: successCount === attemptedCount,
+            },
+        },
     })
 }
 
