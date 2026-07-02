@@ -62,42 +62,44 @@ model Guild {
   updatedAt DateTime  @updatedAt
 
   // Relations
-  settings             GuildSettings?
-  sessions             GuildSession[]
-  trackHistory         TrackHistory[]
-  twitchNotifications  TwitchNotification[]
-  twitchFollowerRole   TwitchFollowerRole?
-  twitchSubscriberRole TwitchSubscriberRole?
-  featureToggles       GuildFeatureToggle[]
-  namedQueues          NamedQueue[]
-  sessionSnapshot      MusicSessionSnapshot?
-  counter              GuildCounter?
-  trackFeedback        UserTrackFeedback[]
-  roleGrants           GuildRoleGrant[]
-  automationManifest   GuildAutomationManifest?
-  automationRuns       GuildAutomationRun[]
-  automationDrifts     GuildAutomationDrift[]
-  downloads            Download[]
-  roleExclusions       RoleExclusion[]
-  moderationCases      ModerationCase[]
-  moderationSettings   ModerationSettings?
-  autoModSettings      AutoModSettings?
-  modDigestConfig      ModDigestConfig?
-  embedTemplates       EmbedTemplate[]
-  autoMessages         AutoMessage[]
-  customCommands       CustomCommand[]
-  serverLogs           ServerLog[]
-  starboardEntries     StarboardEntry[]
-  levelConfig          LevelConfig?
-  memberXPs            MemberXP[]
-  levelRewards         LevelReward[]
-  autoRoles            AutoRole[]
-  memberBirthdays      MemberBirthday[]
-  subscription         GuildSubscription?
-  reactionRoleMessages ReactionRoleMessage[]
-  roleGroups           RoleGroup[]
-  forumThreads         GuildForumThread[]
-  batchJobs            BatchJob[]
+  settings                     GuildSettings?
+  sessions                     GuildSession[]
+  trackHistory                 TrackHistory[]
+  twitchNotifications          TwitchNotification[]
+  scheduledEventNotification   ScheduledEventNotification?
+  rssFeedSubscriptions         RssFeedSubscription[]
+  twitchFollowerRole           TwitchFollowerRole?
+  twitchSubscriberRole         TwitchSubscriberRole?
+  featureToggles               GuildFeatureToggle[]
+  namedQueues                  NamedQueue[]
+  sessionSnapshot              MusicSessionSnapshot?
+  counter                      GuildCounter?
+  trackFeedback                UserTrackFeedback[]
+  roleGrants                   GuildRoleGrant[]
+  automationManifest           GuildAutomationManifest?
+  automationRuns               GuildAutomationRun[]
+  automationDrifts             GuildAutomationDrift[]
+  downloads                    Download[]
+  roleExclusions               RoleExclusion[]
+  moderationCases              ModerationCase[]
+  moderationSettings           ModerationSettings?
+  autoModSettings              AutoModSettings?
+  modDigestConfig              ModDigestConfig?
+  embedTemplates               EmbedTemplate[]
+  autoMessages                 AutoMessage[]
+  customCommands               CustomCommand[]
+  serverLogs                   ServerLog[]
+  starboardEntries             StarboardEntry[]
+  levelConfig                  LevelConfig?
+  memberXPs                    MemberXP[]
+  levelRewards                 LevelReward[]
+  autoRoles                    AutoRole[]
+  memberBirthdays              MemberBirthday[]
+  subscription                 GuildSubscription?
+  reactionRoleMessages         ReactionRoleMessage[]
+  roleGroups                   RoleGroup[]
+  forumThreads                 GuildForumThread[]
+  batchJobs                    BatchJob[]
 
   @@map("guilds")
 }
@@ -149,11 +151,41 @@ model TwitchNotification {
   twitchUserId     String
   twitchLogin      String
   discordChannelId String
+  mentionRoleId    String?
   createdAt        DateTime @default(now())
 
   @@unique([guildId, twitchUserId])
   @@index([twitchUserId])
   @@map("twitch_notifications")
+}
+
+model ScheduledEventNotification {
+  id            String   @id @default(cuid())
+  guildId       String   @unique
+  guild         Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  channelId     String
+  mentionRoleId String?
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("scheduled_event_notifications")
+}
+
+model RssFeedSubscription {
+  id             String   @id @default(cuid())
+  guildId        String
+  guild          Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  feedUrl        String
+  channelId      String
+  mentionRoleId  String?
+  lastItemGuid   String?
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([guildId, feedUrl])
+  @@map("rss_feed_subscriptions")
 }
 
 enum AutoplayMode {
