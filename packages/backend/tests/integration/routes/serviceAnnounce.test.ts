@@ -209,7 +209,8 @@ describe('Service Announce Routes Integration', () => {
 
         test('should use timing-safe key comparison', async () => {
             const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
-            mockFetch.mockResolvedValueOnce({
+            // Two accepted-key requests below → mock one Discord response per request
+            mockFetch.mockResolvedValue({
                 ok: true,
                 status: 204,
                 text: async () => '',
