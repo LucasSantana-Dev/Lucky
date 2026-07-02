@@ -339,7 +339,7 @@ describe('autoplayEval', () => {
             // With implicit dislike penalty (-0.35), the positive ranks below all
             // the same-artist negatives which get implicit-dislike penalty but the
             // positive is explicitly disliked, making it rank much lower.
-            // k=4 excludes the penalized positive from top-4 (5 same-artist tracks beat it)
+            // k=4 excludes the penalized positive from top-4 (4 same-artist tracks beat it)
             const result = computeHitAtK([sample], 4)
             expect(result).toBe(0)
         })
