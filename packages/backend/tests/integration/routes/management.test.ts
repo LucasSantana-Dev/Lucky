@@ -22,6 +22,9 @@ jest.mock('../../../src/services/GuildAccessService', () => ({
 }))
 
 jest.mock('@lucky/shared/services', () => ({
+    // Route-wiring test: pass logs through unchanged. The real serializer's
+    // behaviour is covered by ServerLogService.spec.ts.
+    serializeServerLog: (log: unknown) => log,
     AutoModTemplateNotFoundError: class AutoModTemplateNotFoundError extends Error {
         readonly code = 'ERR_AUTOMOD_TEMPLATE_NOT_FOUND'
 
