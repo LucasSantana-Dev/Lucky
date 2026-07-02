@@ -14,6 +14,10 @@ const infoLogMock = jest.fn()
 const featureToggleMock = jest.fn()
 const findUniqueMock = jest.fn()
 const createMock = jest.fn()
+const subFindManyMock = jest.fn()
+const subFindUniqueMock = jest.fn()
+const subCreateMock = jest.fn()
+const subUpdateMock = jest.fn()
 
 jest.mock(
     'rss-parser',
@@ -40,6 +44,12 @@ jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
         rssDiscoveredGuide: {
             findUnique: (...args: unknown[]) => findUniqueMock(...args),
             create: (...args: unknown[]) => createMock(...args),
+        },
+        rssFeedSubscription: {
+            findMany: (...args: unknown[]) => subFindManyMock(...args),
+            findUnique: (...args: unknown[]) => subFindUniqueMock(...args),
+            create: (...args: unknown[]) => subCreateMock(...args),
+            update: (...args: unknown[]) => subUpdateMock(...args),
         },
     }),
 }))
@@ -77,6 +87,25 @@ beforeEach(() => {
     featureToggleMock.mockResolvedValue(true)
     findUniqueMock.mockResolvedValue(null)
     createMock.mockResolvedValue({ slug: 'my-guide', title: 'Guide Title' })
+    subFindManyMock.mockReset()
+    subFindUniqueMock.mockReset()
+    subCreateMock.mockReset()
+    subUpdateMock.mockReset()
+    subFindUniqueMock.mockResolvedValue({ id: 'sub-1' })
+    subUpdateMock.mockResolvedValue({})
+    subFindManyMock.mockResolvedValue([
+        {
+            id: 'sub-1',
+            guildId: 'guild-1',
+            feedUrl: 'https://criativaria.com.br/rss.xml',
+            channelId: 'channel-123',
+            mentionRoleId: null,
+            lastItemGuid: null,
+            enabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        },
+    ])
     process.env.CRIATIVARIA_GUIDES_CHANNEL_ID = 'channel-123'
 })
 
@@ -95,15 +124,13 @@ describe('startRssBridgeService', () => {
         expect(infoLogMock).not.toHaveBeenCalled()
     })
 
-    it('logs error and returns when env var missing', async () => {
-        delete process.env.CRIATIVARIA_GUIDES_CHANNEL_ID
+    it('debugLogs and skips polling when no subscriptions exist', async () => {
+        subFindManyMock.mockResolvedValue([])
         await startRssBridgeService(makeClient() as never)
 
-        expect(errorLogMock).toHaveBeenCalledWith(
+        expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: expect.stringContaining(
-                    'CRIATIVARIA_GUIDES_CHANNEL_ID',
-                ),
+                message: expect.stringContaining('No RSS feed subscriptions'),
             }),
         )
         expect(parseURLMock).not.toHaveBeenCalled()
@@ -208,32 +235,32 @@ describe('RSS feed polling', () => {
         )
     })
 
-    it('debugLogs and skips items with no link', async () => {
+    it('debugLogs and skips items with no link or guid', async () => {
         parseURLMock.mockResolvedValue({
-            items: [makeFeedItem({ link: undefined })],
+            items: [makeFeedItem({ link: undefined, guid: undefined })],
         } as never)
         await startRssBridgeService(makeClient() as never)
 
         expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: expect.stringContaining('slug'),
+                message: expect.stringContaining('Could not extract GUID'),
             }),
         )
         expect(findUniqueMock).not.toHaveBeenCalled()
     })
 
-    it('debugLogs and skips items with unparseable link', async () => {
+    it('falls back to the raw link as dedup key for unparseable links', async () => {
+        const channel = makeChannel()
         parseURLMock.mockResolvedValue({
             items: [makeFeedItem({ link: 'not-a-url' })],
         } as never)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(makeClient(channel) as never)
 
-        expect(debugLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: expect.stringContaining('slug'),
-            }),
+        // Unparseable URL → extractSlug null → the raw link becomes the key
+        expect(findUniqueMock).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { slug: 'not-a-url' } }),
         )
-        expect(findUniqueMock).not.toHaveBeenCalled()
+        expect(channel.send).toHaveBeenCalled()
     })
 
     it('debugLogs and skips items already in DB', async () => {
@@ -387,55 +414,25 @@ describe('RSS feed polling', () => {
     })
 
     describe('Per-guild RSS subscriptions', () => {
-        it('should send RSS item with role mention when mentionRoleId is set', async () => {
-            featureToggleMock.mockResolvedValue(true)
+        const sub = (mentionRoleId: string | null) => ({
+            id: 'sub1',
+            guildId: 'guild1',
+            feedUrl: 'https://example.com/rss.xml',
+            channelId: 'channel1',
+            mentionRoleId,
+            lastItemGuid: null,
+            enabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        })
 
-            const channel = {
-                isTextBased: () => true,
-                isDMBased: () => false,
-                send: jest.fn().mockResolvedValue({}),
-            }
-
-            const mockDb = {
-                rssFeedSubscription: {
-                    findMany: jest
-                        .fn()
-                        .mockResolvedValue([
-                            {
-                                id: 'sub1',
-                                guildId: 'guild1',
-                                feedUrl: 'https://example.com/rss.xml',
-                                channelId: 'channel1',
-                                mentionRoleId: 'role1',
-                                lastItemGuid: null,
-                                enabled: true,
-                                createdAt: new Date(),
-                                updatedAt: new Date(),
-                            },
-                        ]),
-                    findUnique: jest.fn().mockResolvedValue(null),
-                    create: jest.fn().mockResolvedValue({}),
-                    update: jest.fn().mockResolvedValue({}),
-                },
-            }
-
-            jest.doMock('@lucky/shared/utils/database/prismaClient', () => ({
-                getPrismaClient: () => mockDb,
-            }))
-
+        it('sends RSS item with role mention when mentionRoleId is set', async () => {
+            subFindManyMock.mockResolvedValue([sub('role1')])
             parseURLMock.mockResolvedValue({
-                items: [
-                    {
-                        title: 'Test Item',
-                        link: 'https://example.com/item',
-                        description: 'Test description',
-                        guid: 'guid-1',
-                    },
-                ],
-            })
-
-            const client = makeClient(channel)
-            await startRssBridgeService(client as never)
+                items: [makeFeedItem({ guid: 'guid-1' })],
+            } as never)
+            const channel = makeChannel()
+            await startRssBridgeService(makeClient(channel) as never)
 
             expect(channel.send).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -445,55 +442,13 @@ describe('RSS feed polling', () => {
             )
         })
 
-        it('should not send mention when mentionRoleId is not set', async () => {
-            featureToggleMock.mockResolvedValue(true)
-
-            const channel = {
-                isTextBased: () => true,
-                isDMBased: () => false,
-                send: jest.fn().mockResolvedValue({}),
-            }
-
-            const mockDb = {
-                rssFeedSubscription: {
-                    findMany: jest
-                        .fn()
-                        .mockResolvedValue([
-                            {
-                                id: 'sub1',
-                                guildId: 'guild1',
-                                feedUrl: 'https://example.com/rss.xml',
-                                channelId: 'channel1',
-                                mentionRoleId: null,
-                                lastItemGuid: null,
-                                enabled: true,
-                                createdAt: new Date(),
-                                updatedAt: new Date(),
-                            },
-                        ]),
-                    findUnique: jest.fn().mockResolvedValue(null),
-                    create: jest.fn().mockResolvedValue({}),
-                    update: jest.fn().mockResolvedValue({}),
-                },
-            }
-
-            jest.doMock('@lucky/shared/utils/database/prismaClient', () => ({
-                getPrismaClient: () => mockDb,
-            }))
-
+        it('sends no mention when mentionRoleId is not set', async () => {
+            subFindManyMock.mockResolvedValue([sub(null)])
             parseURLMock.mockResolvedValue({
-                items: [
-                    {
-                        title: 'Test Item',
-                        link: 'https://example.com/item',
-                        description: 'Test description',
-                        guid: 'guid-1',
-                    },
-                ],
-            })
-
-            const client = makeClient(channel)
-            await startRssBridgeService(client as never)
+                items: [makeFeedItem({ guid: 'guid-1' })],
+            } as never)
+            const channel = makeChannel()
+            await startRssBridgeService(makeClient(channel) as never)
 
             expect(channel.send).toHaveBeenCalledWith(
                 expect.objectContaining({

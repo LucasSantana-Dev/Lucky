@@ -14,12 +14,12 @@ const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
-    debugLog: debugLogMock,
-    errorLog: errorLogMock,
+    debugLog: (...args: unknown[]) => debugLogMock(...args),
+    errorLog: (...args: unknown[]) => errorLogMock(...args),
 }))
 
 jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
-    getPrismaClient: getPrismaClientMock,
+    getPrismaClient: (...args: unknown[]) => getPrismaClientMock(...args),
 }))
 
 describe('ScheduledEventNotificationService', () => {

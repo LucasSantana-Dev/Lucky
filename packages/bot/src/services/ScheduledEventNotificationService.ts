@@ -18,14 +18,15 @@ export class ScheduledEventNotificationService {
 
             if (!config || !config.enabled) {
                 debugLog({
-                    message: 'Scheduled event notification: no config or disabled',
+                    message:
+                        'Scheduled event notification: no config or disabled',
                     data: { guildId: event.guildId },
                 })
                 return
             }
 
             const channel = await client.channels.fetch(config.channelId)
-            if (!channel || !channel.isTextBased()) {
+            if (!channel || !channel.isTextBased() || !('send' in channel)) {
                 errorLog({
                     message:
                         'Scheduled event notification: channel not found or not text-based',
@@ -63,7 +64,10 @@ export class ScheduledEventNotificationService {
                 ? `<@&${config.mentionRoleId}>`
                 : undefined
 
-            await channel.send({
+            const sendableChannel = channel as unknown as {
+                send: (options: unknown) => Promise<unknown>
+            }
+            await sendableChannel.send({
                 content,
                 embeds: [embed],
                 allowedMentions: config.mentionRoleId

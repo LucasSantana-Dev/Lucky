@@ -51,7 +51,9 @@ export function stopRssBridgeService(): void {
 async function ensureBackwardCompatibleSubscription(
     db: ReturnType<typeof getPrismaClient>,
 ): Promise<void> {
-    const feedUrl = process.env.CRIATIVARIA_GUIDES_FEED_URL || 'https://criativaria.com.br/rss.xml'
+    const feedUrl =
+        process.env.CRIATIVARIA_GUIDES_FEED_URL ||
+        'https://criativaria.com.br/rss.xml'
     const channelId = process.env.CRIATIVARIA_GUIDES_CHANNEL_ID
     const guildId = process.env.CRIATIVARIA_GUILD_ID
 
@@ -161,9 +163,7 @@ async function pollSingleSubscription(
         for (const item of feed.items) {
             const itemTyped = item as RssItem
             const itemGuid =
-                itemTyped.guid ||
-                itemTyped.link ||
-                extractSlug(itemTyped.link)
+                itemTyped.guid || itemTyped.link || extractSlug(itemTyped.link)
 
             if (!itemGuid) {
                 debugLog({
@@ -186,6 +186,20 @@ async function pollSingleSubscription(
                 itemTyped.description || itemTyped.content || '',
             )
 
+            // Per-item dedup via RssDiscoveredGuide (the #1608 record other
+            // consumers read) — lastItemGuid is only a fast-path short-circuit
+            const slug = extractSlug(itemTyped.link) || itemGuid
+            const existing = await db.rssDiscoveredGuide.findUnique({
+                where: { slug },
+            })
+            if (existing) {
+                debugLog({
+                    message: 'RSS item already posted',
+                    data: { slug },
+                })
+                continue
+            }
+
             try {
                 const content = subscription.mentionRoleId
                     ? `<@&${subscription.mentionRoleId}>`
@@ -204,6 +218,10 @@ async function pollSingleSubscription(
                     allowedMentions: subscription.mentionRoleId
                         ? { roles: [subscription.mentionRoleId] }
                         : undefined,
+                })
+
+                await db.rssDiscoveredGuide.create({
+                    data: { slug, title },
                 })
 
                 if (!lastItemGuid) {
@@ -239,7 +257,7 @@ async function pollSingleSubscription(
         }
     } catch (err) {
         errorLog({
-            message: 'Error polling single RSS feed subscription',
+            message: 'Error polling RSS feed',
             error: err,
             data: {
                 subscriptionId: subscription.id,
