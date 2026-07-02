@@ -75,7 +75,8 @@
             "lastFm": "Last.fm",
             "twitch": "Twitch",
             "features": "Recursos",
-            "roles": "Funções"
+            "roles": "Funções",
+            "roleGroups": "Grupos de cargos"
         }
     },
     "layout": {
@@ -167,6 +168,10 @@
             "fallback": {
                 "title": "Painel Lucky",
                 "subtitle": "Configure módulos, moderação e fluxos de engajamento."
+            },
+            "roleGroups": {
+                "title": "Grupos de cargos",
+                "subtitle": "Crie e gerencie coleções de cargos estilizados."
             }
         }
     },
@@ -1068,5 +1073,29 @@
         "jobItemStatus": "Status do Item",
         "noItemsFound": "Nenhum item encontrado",
         "itemsWillAppearHere": "Os itens da operação aparecerão aqui"
+    },
+    "roleGroups": {
+        "noServerSelected": "Nenhum servidor selecionado",
+        "selectServerToView": "Selecione um servidor para gerenciar seus grupos de cargos.",
+        "loadError": "Falha ao carregar grupos de cargos",
+        "noGroupsYet": "Nenhum grupo de cargos ainda",
+        "noGroupsHint": "Grupos de cargos são criados a partir de um painel de Cargos por reação — abra Cargos por reação, escolha um painel e clique em \"Criar grupo de cargos\".",
+        "linkedPanel": "Painel",
+        "rolesInGroup": "Cargos neste grupo",
+        "noRolesInGroup": "Nenhum cargo neste grupo ainda — adicione um abaixo.",
+        "removeRole": "Remover cargo",
+        "roleRemoved": "Cargo removido do grupo",
+        "removeError": "Falha ao remover cargo",
+        "color": "Cor",
+        "buttonStyle": "Estilo do botão",
+        "hoist": "Exibir separadamente",
+        "mentionable": "Mencionável",
+        "defaultEmoji": "Emoji padrão",
+        "save": "Salvar",
+        "saving": "Salvando...",
+        "saved": "Grupo de cargos atualizado",
+        "saveError": "Falha ao salvar grupo de cargos",
+        "addRole": "Adicionar cargo estilizado",
+        "cancelAddRole": "Cancelar"
     }
 }

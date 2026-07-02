@@ -25,6 +25,7 @@ import {
     Tv,
     Users,
     Disc3,
+    Boxes,
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuthStore } from '@/stores/authStore'
@@ -113,6 +114,12 @@ const navSections: NavSection[] = [
                 path: '/reaction-roles',
                 labelKey: 'sidebar.nav.reactionRoles',
                 icon: Link2,
+                module: 'automation',
+            },
+            {
+                path: '/role-groups',
+                labelKey: 'sidebar.nav.roleGroups',
+                icon: Boxes,
                 module: 'automation',
             },
             {
