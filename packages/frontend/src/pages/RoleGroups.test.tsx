@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import RoleGroups from './RoleGroups'
 import { useGuildStore } from '@/stores/guildStore'
 import { api } from '@/services/api'
@@ -96,5 +96,149 @@ describe('RoleGroups', () => {
         vi.mocked(api.reactionRoles.list).mockReturnValue(new Promise(() => {}))
         render(<RoleGroups />)
         expect(screen.getByRole('status')).toBeInTheDocument()
+    })
+
+    const groupFixture = {
+        id: 'grp-1',
+        guildId: 'g1',
+        name: 'Tecnologias',
+        color: '0xf673d5',
+        hoist: true,
+        mentionable: false,
+        buttonStyle: 'Primary',
+        defaultEmoji: null,
+    }
+
+    function seedOneGroup(withMessage: boolean) {
+        mockStore({ id: 'g1' })
+        vi.mocked(api.roleGroups.list).mockResolvedValue([groupFixture])
+        vi.mocked(api.reactionRoles.list).mockResolvedValue(
+            (withMessage
+                ? [
+                      {
+                          messageId: 'msg-1',
+                          channelId: 'c1',
+                          guildId: 'g1',
+                          groupId: 'grp-1',
+                          title: 'Panel',
+                          mappings: [
+                              {
+                                  id: 'm1',
+                                  messageId: 'msg-1',
+                                  roleId: 'r1',
+                                  label: 'Python',
+                              },
+                          ],
+                      },
+                  ]
+                : []) as never,
+        )
+    }
+
+    test('saving a group calls updateTemplate with 0x-prefixed color', async () => {
+        seedOneGroup(true)
+        vi.mocked(api.roleGroups.updateTemplate).mockResolvedValue(
+            groupFixture as never,
+        )
+        render(<RoleGroups />)
+        fireEvent.click(await screen.findByText('save'))
+        await waitFor(() =>
+            expect(api.roleGroups.updateTemplate).toHaveBeenCalledWith(
+                'g1',
+                'grp-1',
+                expect.objectContaining({
+                    color: expect.stringMatching(/^0x[0-9A-F]{6}$/),
+                    hoist: true,
+                    buttonStyle: 'Primary',
+                    defaultEmoji: null,
+                }),
+            ),
+        )
+    })
+
+    test('removing a role calls detachRole with its id', async () => {
+        seedOneGroup(true)
+        vi.mocked(api.roleGroups.detachRole).mockResolvedValue(true)
+        render(<RoleGroups />)
+        fireEvent.click(await screen.findByLabelText('removeRole'))
+        await waitFor(() =>
+            expect(api.roleGroups.detachRole).toHaveBeenCalledWith(
+                'g1',
+                'grp-1',
+                'r1',
+            ),
+        )
+    })
+
+    test('renders group with no linked panel using the empty-roles state', async () => {
+        seedOneGroup(false)
+        render(<RoleGroups />)
+        expect(await screen.findByText('Tecnologias')).toBeInTheDocument()
+        expect(screen.getByText('noRolesInGroup')).toBeInTheDocument()
+    })
+
+    test('toasts on failed save', async () => {
+        const { toast } = await import('sonner')
+        seedOneGroup(true)
+        vi.mocked(api.roleGroups.updateTemplate).mockRejectedValue(
+            new Error('boom'),
+        )
+        render(<RoleGroups />)
+        fireEvent.click(await screen.findByText('save'))
+        await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    })
+
+    test('toasts on failed detach', async () => {
+        const { toast } = await import('sonner')
+        seedOneGroup(true)
+        vi.mocked(api.roleGroups.detachRole).mockRejectedValue(
+            new Error('nope'),
+        )
+        render(<RoleGroups />)
+        fireEvent.click(await screen.findByLabelText('removeRole'))
+        await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    })
+
+    test('toasts loadError when the list request fails', async () => {
+        const { toast } = await import('sonner')
+        mockStore({ id: 'g1' })
+        vi.mocked(api.roleGroups.list).mockRejectedValue(new Error('down'))
+        vi.mocked(api.reactionRoles.list).mockResolvedValue([] as never)
+        render(<RoleGroups />)
+        await waitFor(() =>
+            expect(toast.error).toHaveBeenCalledWith('loadError'),
+        )
+    })
+
+    test('toggles the add-styled-role form and edits style inputs', async () => {
+        seedOneGroup(true)
+        vi.mocked(api.roleGroups.updateTemplate).mockResolvedValue(
+            groupFixture as never,
+        )
+        render(<RoleGroups />)
+        // toggle add-role open then closed
+        fireEvent.click(await screen.findByText('addRole'))
+        expect(screen.getByText('cancelAddRole')).toBeInTheDocument()
+        fireEvent.click(screen.getByText('cancelAddRole'))
+        // change color, button style and switches, then save
+        fireEvent.change(
+            document.getElementById('color-grp-1') as HTMLInputElement,
+            { target: { value: '#123abc' } },
+        )
+        fireEvent.change(
+            document.getElementById('style-grp-1') as HTMLSelectElement,
+            { target: { value: 'Danger' } },
+        )
+        fireEvent.click(screen.getByText('save'))
+        await waitFor(() =>
+            expect(api.roleGroups.updateTemplate).toHaveBeenCalledWith(
+                'g1',
+                'grp-1',
+                expect.objectContaining({
+                    color: '0x123ABC',
+                    buttonStyle: 'Danger',
+                }),
+            ),
+        )
     })
 })
