@@ -109,7 +109,16 @@ export class CriativariaLiveNotificationService {
                 .setTimestamp(new Date(stream.started_at))
                 .setFooter({ text: 'Twitch' })
 
-            await (channel as TextChannel).send({ embeds: [embed] })
+            const mentionRoleId = process.env.CRIATIVARIA_LIVE_MENTION_ROLE_ID
+            const content = mentionRoleId ? `<@&${mentionRoleId}>` : undefined
+
+            await (channel as TextChannel).send({
+                content,
+                embeds: [embed],
+                allowedMentions: mentionRoleId
+                    ? { roles: [mentionRoleId] }
+                    : undefined,
+            })
         } catch (err) {
             errorLog({
                 message: 'CriativariaLiveNotification: send failed',
