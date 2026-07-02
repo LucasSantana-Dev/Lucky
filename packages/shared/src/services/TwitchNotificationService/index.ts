@@ -5,7 +5,12 @@ import type { TwitchNotification } from '../../generated/prisma/client.js'
 /** Twitch notification configuration for a guild channel. */
 export type TwitchNotificationRow = Pick<
     TwitchNotification,
-    'id' | 'guildId' | 'twitchUserId' | 'twitchLogin' | 'discordChannelId'
+    | 'id'
+    | 'guildId'
+    | 'twitchUserId'
+    | 'twitchLogin'
+    | 'discordChannelId'
+    | 'mentionRoleId'
 > & {
     guild?: { discordId: string }
 }
