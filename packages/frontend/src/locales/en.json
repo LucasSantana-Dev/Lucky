@@ -75,7 +75,8 @@
             "musicalTaste": "Musical Taste",
             "lastFm": "Last.fm",
             "twitch": "Twitch",
-            "features": "Features"
+            "features": "Features",
+            "roleGroups": "Role Groups"
         }
     },
     "layout": {
@@ -171,6 +172,10 @@
             "fallback": {
                 "title": "Lucky Dashboard",
                 "subtitle": "Configure modules, moderation, and engagement workflows."
+            },
+            "roleGroups": {
+                "title": "Role Groups",
+                "subtitle": "Create and manage styled role collections."
             }
         }
     },
@@ -1072,5 +1077,29 @@
         "jobItemStatus": "Item Status",
         "noItemsFound": "No items found",
         "itemsWillAppearHere": "Job items will appear here"
+    },
+    "roleGroups": {
+        "noServerSelected": "No server selected",
+        "selectServerToView": "Select a server to manage its role groups.",
+        "loadError": "Failed to load role groups",
+        "noGroupsYet": "No role groups yet",
+        "noGroupsHint": "Role groups are created from a Reaction Roles panel — open Reaction Roles, pick a panel, and choose \"Create Role Group\".",
+        "linkedPanel": "Panel",
+        "rolesInGroup": "Roles in this group",
+        "noRolesInGroup": "No roles in this group yet — add one below.",
+        "removeRole": "Remove role",
+        "roleRemoved": "Role removed from group",
+        "removeError": "Failed to remove role",
+        "color": "Color",
+        "buttonStyle": "Button style",
+        "hoist": "Show separately",
+        "mentionable": "Mentionable",
+        "defaultEmoji": "Default emoji",
+        "save": "Save",
+        "saving": "Saving...",
+        "saved": "Role group updated",
+        "saveError": "Failed to save role group",
+        "addRole": "Add styled role",
+        "cancelAddRole": "Cancel"
     }
 }
