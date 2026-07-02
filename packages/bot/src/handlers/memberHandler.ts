@@ -10,6 +10,7 @@ import {
     autoMessageService,
     autoroleService,
     featureToggleService,
+    roleManagementService,
     type EmbedData,
 } from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
@@ -257,6 +258,26 @@ export function handleMemberEvents(client: Client): void {
             } catch (error) {
                 errorLog({
                     message: 'Error in member remove handler:',
+                    error,
+                })
+            }
+        },
+    )
+
+    client.on(
+        Events.GuildMemberUpdate,
+        async (
+            oldMember: GuildMember | PartialGuildMember,
+            newMember: GuildMember,
+        ) => {
+            try {
+                await roleManagementService.handleGuildMemberUpdate(
+                    oldMember,
+                    newMember,
+                )
+            } catch (error) {
+                errorLog({
+                    message: 'Error in member update handler:',
                     error,
                 })
             }
