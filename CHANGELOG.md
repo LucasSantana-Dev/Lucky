@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.28.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.28.0...v2.28.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* **batch:** bullmq worker requires maxretriesperrequest null redis ([#1665](https://github.com/LucasSantana-Dev/Lucky/issues/1665)) ([f5adffe](https://github.com/LucasSantana-Dev/Lucky/commit/f5adffe8f17df02362ac34d619ad35836706e614))
+* **bot:** wire role exclusion enforcement + guildmembers intent ([#1668](https://github.com/LucasSantana-Dev/Lucky/issues/1668)) ([e8145af](https://github.com/LucasSantana-Dev/Lucky/commit/e8145afe9f4765b927b077d3df471a2280087e14))
+* **sonar:** clear main reliability gate - s1244 and tailwind v4 fps ([#1671](https://github.com/LucasSantana-Dev/Lucky/issues/1671)) ([c12059d](https://github.com/LucasSantana-Dev/Lucky/commit/c12059dfc059db1915706723659812b088c5f34c))
+* **telemetry:** un-silence skip-reason emoji prefill errors ([#1660](https://github.com/LucasSantana-Dev/Lucky/issues/1660)) ([5eabbd2](https://github.com/LucasSantana-Dev/Lucky/commit/5eabbd2bad04ee92885766ba7184219ea17e5758))
+
 ## [2.28.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.27.0...v2.28.0) (2026-07-02)
 
 
