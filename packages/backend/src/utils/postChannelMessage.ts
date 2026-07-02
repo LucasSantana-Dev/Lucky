@@ -3,6 +3,10 @@ import { errorLog } from '@lucky/shared/utils'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 
+// Discord snowflakes are 17-20 digit numeric IDs; anything else would let
+// request input alter the API path (SSRF/path injection).
+const SNOWFLAKE_RE = /^\d{17,20}$/
+
 export type ChannelMessagePayload = {
     channelId: string
     content?: string
@@ -21,6 +25,9 @@ export async function postChannelMessage(payload: ChannelMessagePayload, logCont
     // Validate required fields
     if (!payload.channelId || (!payload.content && !payload.embeds)) {
         throw AppError.badRequest('channelId + content|embeds required')
+    }
+    if (!SNOWFLAKE_RE.test(payload.channelId)) {
+        throw AppError.badRequest('channelId must be a Discord snowflake')
     }
 
     // Get bot token

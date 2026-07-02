@@ -12,7 +12,7 @@ describe('Service Announce Routes Integration', () => {
     beforeEach(() => {
         originalEnv = { ...process.env }
         process.env.LUCKY_ANNOUNCE_API_KEY = 'test-announce-key'
-        process.env.LUCKY_ANNOUNCE_CHANNEL_IDS = '123456789,987654321'
+        process.env.LUCKY_ANNOUNCE_CHANNEL_IDS = '895505900016631839,968982002701332610'
         process.env.DISCORD_TOKEN = 'test-bot-token'
 
         app = express()
@@ -41,13 +41,13 @@ describe('Service Announce Routes Integration', () => {
                 .post('/api/service/announce')
                 .set('x-announce-key', 'test-announce-key')
                 .send({
-                    channelId: '123456789',
+                    channelId: '895505900016631839',
                     content: 'Test announcement',
                 })
                 .expect(204)
 
             expect(mockFetch).toHaveBeenCalledWith(
-                'https://discord.com/api/v10/channels/123456789/messages',
+                'https://discord.com/api/v10/channels/895505900016631839/messages',
                 expect.objectContaining({
                     method: 'POST',
                     headers: expect.objectContaining({
@@ -62,7 +62,7 @@ describe('Service Announce Routes Integration', () => {
                 .post('/api/service/announce')
                 .set('x-announce-key', 'wrong-key')
                 .send({
-                    channelId: '123456789',
+                    channelId: '895505900016631839',
                     content: 'Test announcement',
                 })
                 .expect(401)
@@ -74,7 +74,7 @@ describe('Service Announce Routes Integration', () => {
             const response = await request(app)
                 .post('/api/service/announce')
                 .send({
-                    channelId: '123456789',
+                    channelId: '895505900016631839',
                     content: 'Test announcement',
                 })
                 .expect(401)
@@ -102,7 +102,7 @@ describe('Service Announce Routes Integration', () => {
                 .post('/api/service/announce')
                 .set('x-announce-key', 'test-announce-key')
                 .send({
-                    channelId: '123456789',
+                    channelId: '895505900016631839',
                     content: 'Test announcement',
                 })
                 .expect(403)
@@ -127,7 +127,7 @@ describe('Service Announce Routes Integration', () => {
                 .post('/api/service/announce')
                 .set('x-announce-key', 'test-announce-key')
                 .send({
-                    channelId: '123456789',
+                    channelId: '895505900016631839',
                 })
                 .expect(400)
 
@@ -147,7 +147,7 @@ describe('Service Announce Routes Integration', () => {
                 .post('/api/service/announce')
                 .set('x-announce-key', 'test-announce-key')
                 .send({
-                    channelId: '123456789',
+                    channelId: '895505900016631839',
                     content: longContent,
                 })
                 .expect(204)
@@ -176,7 +176,7 @@ describe('Service Announce Routes Integration', () => {
                 .post('/api/service/announce')
                 .set('x-announce-key', 'test-announce-key')
                 .send({
-                    channelId: '123456789',
+                    channelId: '895505900016631839',
                     content: 'Content with embed',
                     embeds,
                 })
@@ -199,7 +199,7 @@ describe('Service Announce Routes Integration', () => {
                 .post('/api/service/announce')
                 .set('x-announce-key', 'test-announce-key')
                 .send({
-                    channelId: '123456789',
+                    channelId: '895505900016631839',
                     content: 'Test announcement',
                 })
                 .expect(502)
@@ -221,7 +221,7 @@ describe('Service Announce Routes Integration', () => {
                 .post('/api/service/announce')
                 .set('x-announce-key', 'test-announce-key')
                 .send({
-                    channelId: '123456789',
+                    channelId: '895505900016631839',
                     content: 'Test',
                 })
                 .expect(204)
@@ -231,7 +231,7 @@ describe('Service Announce Routes Integration', () => {
                 .post('/api/service/announce')
                 .set('x-announce-key', '  test-announce-key  ')
                 .send({
-                    channelId: '123456789',
+                    channelId: '895505900016631839',
                     content: 'Test',
                 })
                 .expect(204)
@@ -241,7 +241,7 @@ describe('Service Announce Routes Integration', () => {
                 .post('/api/service/announce')
                 .set('x-announce-key', 'test-announce-key-wrong')
                 .send({
-                    channelId: '123456789',
+                    channelId: '895505900016631839',
                     content: 'Test',
                 })
                 .expect(401)
