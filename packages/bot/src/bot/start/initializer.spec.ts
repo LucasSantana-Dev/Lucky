@@ -27,6 +27,9 @@ const birthdaySchedulerStopMock = jest.fn()
 const modDigestSchedulerStopMock = jest.fn()
 const aiDevToolkitStopMock = jest.fn()
 const dependencyCheckStopMock = jest.fn()
+const weeklyDigestStartMock = jest.fn()
+const weeklyDigestStopMock = jest.fn()
+const criativariaLiveNotifStopMock = jest.fn()
 const stopTwitchServiceMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -111,6 +114,20 @@ jest.mock('../../services/AiDevToolkitService', () => ({
 jest.mock('../../services/DependencyCheckService', () => ({
     dependencyCheckService: {
         stop: (...args: unknown[]) => dependencyCheckStopMock(...args),
+    },
+}))
+
+jest.mock('../../services/WeeklyDigestService', () => ({
+    weeklyDigestService: {
+        start: (...args: unknown[]) => weeklyDigestStartMock(...args),
+        stop: (...args: unknown[]) => weeklyDigestStopMock(...args),
+    },
+}))
+
+jest.mock('../../services/CriativariaLiveNotificationService', () => ({
+    criativariaLiveNotificationService: {
+        start: jest.fn(),
+        stop: (...args: unknown[]) => criativariaLiveNotifStopMock(...args),
     },
 }))
 
@@ -430,6 +447,7 @@ describe('BotInitializer', () => {
             expect(modDigestSchedulerStopMock).toHaveBeenCalled()
             expect(aiDevToolkitStopMock).toHaveBeenCalled()
             expect(dependencyCheckStopMock).toHaveBeenCalled()
+            expect(weeklyDigestStopMock).toHaveBeenCalled()
             expect(stopTwitchServiceMock).toHaveBeenCalled()
             expect(musicWatchdogStopMock).toHaveBeenCalled()
             expect(musicWatchdogStopPeriodicScanMock).toHaveBeenCalled()
@@ -445,6 +463,7 @@ describe('BotInitializer', () => {
             ['modDigestSchedulerService.stop', modDigestSchedulerStopMock],
             ['aiDevToolkitService.stop', aiDevToolkitStopMock],
             ['dependencyCheckService.stop', dependencyCheckStopMock],
+            ['weeklyDigestService.stop', weeklyDigestStopMock],
             ['stopTwitchService', stopTwitchServiceMock],
             ['stopOrphanSessionMonitor', musicWatchdogStopMock],
             ['stopPeriodicScan', musicWatchdogStopPeriodicScanMock],

@@ -1180,3 +1180,15 @@ model RssDiscoveredGuide {
 
   @@map("rss_discovered_guides")
 }
+
+// Weekly digest snapshot — member count tracking for week-over-week delta.
+// Saved each time a weekly digest is posted; used to compute membership growth.
+model WeeklyDigestSnapshot {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  memberCount Int
+  postedAt  DateTime @default(now())
+
+  @@index([guildId, postedAt])
+  @@map("weekly_digest_snapshots")
+}
