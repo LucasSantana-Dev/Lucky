@@ -255,7 +255,6 @@ export async function stopBatchJobWorker(): Promise<void> {
     try {
         if (worker) {
             await worker.close()
-            worker = null
         }
         infoLog({
             message: 'Batch job worker stopped',
@@ -266,8 +265,9 @@ export async function stopBatchJobWorker(): Promise<void> {
             error,
         })
     } finally {
-        // Always release the BullMQ redis connection — a throwing
-        // worker.close() must not leak it
+        // Always drop the worker reference and release the BullMQ redis
+        // connection — a throwing worker.close() must not leave dead state
+        worker = null
         if (bullmqRedis) {
             bullmqRedis.disconnect()
             bullmqRedis = null
