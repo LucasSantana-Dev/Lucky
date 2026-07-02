@@ -670,6 +670,11 @@ describe('memberHandler', () => {
         })
     })
     describe('GuildMemberUpdate event', () => {
+        beforeEach(() => {
+            client = createMockClient()
+            handleMemberEvents(client as any)
+        })
+
         it('delegates to roleManagementService.handleGuildMemberUpdate', async () => {
             const oldMember = { roles: { cache: new Map() } }
             const newMember = {
