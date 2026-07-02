@@ -7,30 +7,57 @@ import { timingSafeKeyCompare } from '../utils/timingSafeKeyCompare'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 
-function requireKey(req: Request): void {
-    const provided = req.header('x-notify-key')?.trim()
-    const expected = process.env.LUCKY_NOTIFY_API_KEY
+function requireAnnounceKey(req: Request): void {
+    const provided = req.header('x-announce-key')?.trim()
+    const expected = process.env.LUCKY_ANNOUNCE_API_KEY
     if (!timingSafeKeyCompare(provided, expected)) {
-        throw AppError.unauthorized('invalid notify key')
+        throw AppError.unauthorized('invalid announce key')
     }
 }
 
-type NotifyBody = {
+function getChannelAllowlist(): Set<string> {
+    const allowlistEnv = process.env.LUCKY_ANNOUNCE_CHANNEL_IDS
+    if (!allowlistEnv || !allowlistEnv.trim()) {
+        return new Set()
+    }
+    return new Set(
+        allowlistEnv
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean),
+    )
+}
+
+type AnnounceBody = {
     channelId?: string
     content?: string
     embeds?: unknown[]
 }
 
-export function setupInternalNotifyRoutes(app: Express): void {
+export function setupServiceAnnounceRoutes(app: Express): void {
     app.post(
-        '/api/internal/notify',
+        '/api/service/announce',
         writeLimiter,
         asyncHandler(async (req: Request, res: Response) => {
-            requireKey(req)
-            const body = (req.body ?? {}) as NotifyBody
+            requireAnnounceKey(req)
+            const allowlist = getChannelAllowlist()
+            if (allowlist.size === 0) {
+                throw AppError.forbidden(
+                    'announce channel allowlist not configured',
+                )
+            }
+
+            const body = (req.body ?? {}) as AnnounceBody
             if (!body.channelId || (!body.content && !body.embeds)) {
                 throw AppError.badRequest('channelId + content|embeds required')
             }
+
+            if (!allowlist.has(body.channelId)) {
+                throw AppError.forbidden(
+                    `channel ${body.channelId} not in allowlist`,
+                )
+            }
+
             const token = process.env.DISCORD_TOKEN
             if (!token) {
                 throw new AppError(500, 'bot token missing')
@@ -55,7 +82,7 @@ export function setupInternalNotifyRoutes(app: Express): void {
             if (!resp.ok) {
                 const text = await resp.text().catch(() => '')
                 errorLog({
-                    message: 'internal notify failed',
+                    message: 'service announce failed',
                     data: { status: resp.status, text },
                 })
                 throw new AppError(502, `discord ${resp.status}`)
