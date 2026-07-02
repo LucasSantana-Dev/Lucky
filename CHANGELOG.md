@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.28.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.27.0...v2.28.0) (2026-07-02)
+
+
+### Features
+
+* guild integrations pack ([#1669](https://github.com/LucasSantana-Dev/Lucky/issues/1669)) ([64a41a4](https://github.com/LucasSantana-Dev/Lucky/commit/64a41a48a1147b06ca18e36cbd5f9a4551321d23))
+
+
+### Bug Fixes
+
+* **ci:** danger node 24 compatibility ([#1659](https://github.com/LucasSantana-Dev/Lucky/issues/1659)) ([862426a](https://github.com/LucasSantana-Dev/Lucky/commit/862426a32f7d786644a02c8bde5a4c5d1e6bb6e8))
+
 ## [2.27.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.26.0...v2.27.0) (2026-07-02)
 
 
