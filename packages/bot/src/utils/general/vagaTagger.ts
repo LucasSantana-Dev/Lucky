@@ -70,11 +70,30 @@ const ALIASES: Record<string, string[]> = {
  */
 const SKIP_FREE_TEXT = new Set(['C', 'R', 'Go'])
 
-function buildPattern(term: string): RegExp {
-    // Escape regex metachars, then require a boundary that also works when the
-    // term ends in a symbol (#, +, .) where \b would misbehave.
-    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i')
+const WORD_CHAR = /[a-z0-9]/
+
+function isWordChar(ch: string): boolean {
+    return ch !== '' && WORD_CHAR.test(ch)
+}
+
+/**
+ * Literal (non-regex) substring match with word-ish boundaries. Avoids building
+ * a RegExp from dynamic input (ReDoS-safe) and treats symbols like #/+/. that
+ * `\b` mishandles as ordinary boundaries. `term` and `haystack` are assumed
+ * already normalized (lowercase, no diacritics).
+ */
+function matchesTerm(haystack: string, term: string): boolean {
+    if (!term) return false
+    let from = 0
+    for (;;) {
+        const idx = haystack.indexOf(term, from)
+        if (idx === -1) return false
+        const before = idx === 0 ? '' : haystack[idx - 1]
+        const afterIdx = idx + term.length
+        const after = afterIdx >= haystack.length ? '' : haystack[afterIdx]
+        if (!isWordChar(before) && !isWordChar(after)) return true
+        from = idx + 1
+    }
 }
 
 function termsFor(label: string): string[] {
@@ -118,7 +137,7 @@ export function detectVagaRoleTags(
         const isForced = forced.has(m.label)
         const matched =
             isForced ||
-            termsFor(m.label).some((term) => buildPattern(term).test(haystack))
+            termsFor(m.label).some((term) => matchesTerm(haystack, term))
         if (matched) {
             push(m)
         }
