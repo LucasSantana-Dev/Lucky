@@ -34,6 +34,10 @@ export async function createClient(): Promise<CustomClient> {
         const client = new Client({
             intents: [
                 GatewayIntentBits.Guilds,
+                // Privileged intent (portal toggle verified ON, LIMITED tier):
+                // required for GuildMemberAdd/Remove/Update — welcome/leave
+                // messages, autoroles, and role-exclusion enforcement (#1667)
+                GatewayIntentBits.GuildMembers,
                 GatewayIntentBits.GuildMessages,
                 GatewayIntentBits.GuildVoiceStates,
                 GatewayIntentBits.MessageContent,

@@ -22,14 +22,6 @@
         "tsBuildInfoFile": "./dist/.tsbuildinfo",
         "assumeChangesOnlyAffectDirectDependencies": true
     },
-    "include": ["src/**/*", "src/register.ts"],
-    "exclude": [
-        "node_modules",
-        "dist",
-        "**/*.test.ts",
-        "**/*.spec.ts",
-        "src/webapp/frontend.backup/**"
-    ],
     "ts-node": {
         "esm": true,
         "experimentalSpecifierResolution": "node"
