@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.29.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.28.1...v2.29.0) (2026-07-02)
+
+
+### Features
+
+* **dashboard:** add role groups management page ([#1678](https://github.com/LucasSantana-Dev/Lucky/issues/1678)) ([bb8bc2c](https://github.com/LucasSantana-Dev/Lucky/commit/bb8bc2c9d2e2a0dd2cccd3ff690c16531a576016))
+
+
+### Bug Fixes
+
+* **ci:** cf pages deploy uses root lockfile (stops silent failure) ([#1673](https://github.com/LucasSantana-Dev/Lucky/issues/1673)) ([8824fc3](https://github.com/LucasSantana-Dev/Lucky/commit/8824fc377e17bd4938b8af7d21050b2aa47b4982))
+* **logs:** serialize server logs with level, message and actor ([#1677](https://github.com/LucasSantana-Dev/Lucky/issues/1677)) ([acd8fe3](https://github.com/LucasSantana-Dev/Lucky/commit/acd8fe31493931cd1cba5e93ed46d93bd35fe514))
+* **reaction-roles:** PUT panel edit deletes mappings by cuid not snowflake ([#1675](https://github.com/LucasSantana-Dev/Lucky/issues/1675)) ([#1676](https://github.com/LucasSantana-Dev/Lucky/issues/1676)) ([a51c70f](https://github.com/LucasSantana-Dev/Lucky/commit/a51c70f77dac207c5c76c8b1155f77a033a5e04b))
+
 ## [2.28.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.28.0...v2.28.1) (2026-07-02)
 
 
