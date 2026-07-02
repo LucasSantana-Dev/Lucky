@@ -67,7 +67,7 @@ describe('Service Announce Routes Integration', () => {
                 })
                 .expect(401)
 
-            expect(response.body.message).toContain('invalid announce key')
+            expect(response.body.error).toContain('invalid announce key')
         })
 
         test('should reject with missing key', async () => {
@@ -79,7 +79,7 @@ describe('Service Announce Routes Integration', () => {
                 })
                 .expect(401)
 
-            expect(response.body.message).toContain('invalid announce key')
+            expect(response.body.error).toContain('invalid announce key')
         })
 
         test('should reject channel not in allowlist', async () => {
@@ -92,7 +92,7 @@ describe('Service Announce Routes Integration', () => {
                 })
                 .expect(403)
 
-            expect(response.body.message).toContain('not in allowlist')
+            expect(response.body.error).toContain('not in allowlist')
         })
 
         test('should reject with empty allowlist', async () => {
@@ -107,7 +107,7 @@ describe('Service Announce Routes Integration', () => {
                 })
                 .expect(403)
 
-            expect(response.body.message).toContain('not configured')
+            expect(response.body.error).toContain('not configured')
         })
 
         test('should reject missing channelId', async () => {
@@ -119,7 +119,7 @@ describe('Service Announce Routes Integration', () => {
                 })
                 .expect(400)
 
-            expect(response.body.message).toContain('required')
+            expect(response.body.error).toContain('required')
         })
 
         test('should reject missing content and embeds', async () => {
@@ -131,7 +131,7 @@ describe('Service Announce Routes Integration', () => {
                 })
                 .expect(400)
 
-            expect(response.body.message).toContain('required')
+            expect(response.body.error).toContain('required')
         })
 
         test('should slice content to 1900 chars', async () => {
@@ -204,7 +204,7 @@ describe('Service Announce Routes Integration', () => {
                 })
                 .expect(502)
 
-            expect(response.body.message).toContain('discord 500')
+            expect(response.body.error).toContain('discord 500')
         })
 
         test('should use timing-safe key comparison', async () => {
