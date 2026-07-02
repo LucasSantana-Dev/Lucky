@@ -31,6 +31,7 @@ const ROUTE_KEYS: Record<string, string> = {
     '/automessages': 'autoMessages',
     '/embed-builder': 'embedBuilder',
     '/reaction-roles': 'reactionRoles',
+    '/role-groups': 'roleGroups',
     '/guild-automation': 'guildAutomation',
     '/levels': 'levels',
     '/starboard': 'starboard',
