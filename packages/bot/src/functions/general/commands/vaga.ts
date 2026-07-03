@@ -10,8 +10,12 @@ import {
     type GuildBasedChannel,
 } from 'discord.js'
 import Command from '../../../models/Command'
-import { infoLog, errorLog, getPrismaClient } from '@lucky/shared/utils'
-import { detectVagaRoleTags } from '../../../utils/general/vagaTagger'
+import {
+    infoLog,
+    errorLog,
+    getPrismaClient,
+    detectVagaRoleTags,
+} from '@lucky/shared/utils'
 
 const MODALIDADE = {
     remoto: { label: 'Remoto', display: '🏠 Remoto' },

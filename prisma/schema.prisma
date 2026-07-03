@@ -840,6 +840,12 @@ model CustomCommand {
   lastUsed        DateTime?
   allowedRoles    String[]  @default([])
   allowedChannels String[]  @default([])
+  // Smart commands: when enabled, the text a user types after the command name
+  // is scanned against the guild's reaction-role labels and the matched roles
+  // are pinged. targetChannelId, when set, is where the built message is posted
+  // (otherwise it replies in place).
+  smartTags       Boolean   @default(false)
+  targetChannelId String?
   createdBy       String
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

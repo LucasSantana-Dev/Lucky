@@ -150,14 +150,20 @@ export function setupManagementRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
             const body = s.createCommandBody.parse(req.body)
-            const { name, response, description } = body
+            const { name, response, description, smartTags, targetChannelId } =
+                body
             let command
             try {
                 command = await customCommandService.createCommand(
                     guildId,
                     name,
                     response,
-                    { description, createdBy: userId },
+                    {
+                        description,
+                        createdBy: userId,
+                        smartTags,
+                        targetChannelId,
+                    },
                 )
             } catch (error) {
                 if (!isUniqueViolation(error)) {

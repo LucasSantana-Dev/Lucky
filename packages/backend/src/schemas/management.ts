@@ -37,6 +37,14 @@ const guildAutomationRunBody = z
     })
     .strict()
 
+const smartTagFields = {
+    smartTags: z.boolean().optional(),
+    targetChannelId: z
+        .string()
+        .regex(/^\d{17,20}$/, 'Invalid channel ID')
+        .nullish(),
+}
+
 const createCommandBody = z.object({
     name: z
         .string()
@@ -45,6 +53,7 @@ const createCommandBody = z.object({
         .regex(/^[\w-]+$/, 'Name must be alphanumeric with dashes/underscores'),
     response: z.string().min(1, 'Response is required').max(2000),
     description: z.string().max(100).optional(),
+    ...smartTagFields,
 })
 
 const updateCommandBody = z
@@ -52,6 +61,7 @@ const updateCommandBody = z
         response: z.string().min(1).max(2000).optional(),
         description: z.string().max(100).optional(),
         enabled: z.boolean().optional(),
+        ...smartTagFields,
     })
     .strict()
 
