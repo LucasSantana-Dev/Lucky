@@ -1,5 +1,6 @@
 import {
     ChannelType,
+    type ChatInputCommandInteraction,
     MessageFlags,
     PermissionFlagsBits,
     SlashCommandBuilder,
@@ -94,7 +95,7 @@ export default new Command({
             } else if (subcommand === 'list') {
                 await handleList(interaction, guildId)
             }
-        } catch (error) {
+        } catch {
             await interactionReply({
                 interaction,
                 content: { embeds: [createErrorEmbed('Error', 'An error occurred while processing your request.')] },
@@ -103,9 +104,9 @@ export default new Command({
     },
 })
 
-async function handleSetInterval(interaction: any, guildId: string) {
+async function handleSetInterval(interaction: ChatInputCommandInteraction, guildId: string) {
     const channel = interaction.options.getChannel('channel')
-    const minutes = interaction.options.getInteger('minutos')
+    const minutes = interaction.options.getInteger('minutos', true)
 
     if (!channel) {
         await interactionReply({
@@ -151,7 +152,7 @@ async function handleSetInterval(interaction: any, guildId: string) {
                 ],
             },
         })
-    } catch (error) {
+    } catch {
         await interactionReply({
             interaction,
             content: { embeds: [createErrorEmbed('Error', 'Failed to save configuration.')] },
@@ -159,9 +160,9 @@ async function handleSetInterval(interaction: any, guildId: string) {
     }
 }
 
-async function handleSetTtl(interaction: any, guildId: string) {
+async function handleSetTtl(interaction: ChatInputCommandInteraction, guildId: string) {
     const channel = interaction.options.getChannel('channel')
-    const seconds = interaction.options.getInteger('segundos')
+    const seconds = interaction.options.getInteger('segundos', true)
 
     if (!channel) {
         await interactionReply({
@@ -216,7 +217,7 @@ async function handleSetTtl(interaction: any, guildId: string) {
                 ],
             },
         })
-    } catch (error) {
+    } catch {
         await interactionReply({
             interaction,
             content: { embeds: [createErrorEmbed('Error', 'Failed to save configuration.')] },
@@ -224,7 +225,7 @@ async function handleSetTtl(interaction: any, guildId: string) {
     }
 }
 
-async function handleDisable(interaction: any, guildId: string) {
+async function handleDisable(interaction: ChatInputCommandInteraction, guildId: string) {
     const channel = interaction.options.getChannel('channel')
 
     if (!channel) {
@@ -261,7 +262,7 @@ async function handleDisable(interaction: any, guildId: string) {
                 ],
             },
         })
-    } catch (error) {
+    } catch {
         await interactionReply({
             interaction,
             content: { embeds: [createErrorEmbed('Error', 'Failed to disable cleanup.')] },
@@ -269,7 +270,7 @@ async function handleDisable(interaction: any, guildId: string) {
     }
 }
 
-async function handleList(interaction: any, guildId: string) {
+async function handleList(interaction: ChatInputCommandInteraction, guildId: string) {
     try {
         const configs = await channelCleanupService.listConfigs(guildId)
 
@@ -314,7 +315,7 @@ async function handleList(interaction: any, guildId: string) {
             interaction,
             content: { embeds: [embed] },
         })
-    } catch (error) {
+    } catch {
         await interactionReply({
             interaction,
             content: { embeds: [createErrorEmbed('Error', 'Failed to retrieve configurations.')] },
