@@ -116,8 +116,7 @@ describe('afkHandler', () => {
                         ['user2', user1],
                         ['user3', user2],
                     ]),
-                    get: (id: string) =>
-                        message.mentions.users.get(id) as any,
+                    get: (id: string) => message.mentions.users.get(id) as any,
                 },
                 reply: replyMock,
             } as unknown as Message
@@ -162,8 +161,7 @@ describe('afkHandler', () => {
                 author: { id: 'user1', bot: false },
                 mentions: {
                     users: new Map([['user2', user1]]),
-                    get: (id: string) =>
-                        message.mentions.users.get(id) as any,
+                    get: (id: string) => message.mentions.users.get(id) as any,
                 },
                 reply: replyMock,
             } as unknown as Message

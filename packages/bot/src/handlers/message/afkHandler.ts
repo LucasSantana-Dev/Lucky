@@ -1,7 +1,11 @@
 import type { Message } from 'discord.js'
 import { afkService } from '@lucky/shared/services'
 import { errorLog } from '@lucky/shared/utils'
-import type { MessageContext, MessageHandler, MessageHandlerResult } from './types'
+import type {
+    MessageContext,
+    MessageHandler,
+    MessageHandlerResult,
+} from './types'
 
 export const afkHandler: MessageHandler = {
     name: 'Afk',
@@ -55,11 +59,15 @@ export const afkHandler: MessageHandler = {
                                     : ''
                                 await message.reply({
                                     content: `ℹ️ ${user} is AFK${reasonText}`,
-                                    allowedMentions: { parse: [], repliedUser: false },
+                                    allowedMentions: {
+                                        parse: [],
+                                        repliedUser: false,
+                                    },
                                 })
                             } catch (replyError) {
                                 errorLog({
-                                    message: 'Failed to send AFK mention reply:',
+                                    message:
+                                        'Failed to send AFK mention reply:',
                                     error: replyError,
                                 })
                             }

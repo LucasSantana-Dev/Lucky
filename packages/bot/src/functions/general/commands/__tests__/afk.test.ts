@@ -120,9 +120,7 @@ describe('afk command', () => {
             options: { getString: jest.fn().mockReturnValue('Away') },
         } as unknown as CommandInteraction
 
-        ;(afkService.set as jest.Mock).mockRejectedValue(
-            new Error('DB error'),
-        )
+        ;(afkService.set as jest.Mock).mockRejectedValue(new Error('DB error'))
 
         await afkCommand.execute({
             client: {} as any,

@@ -47,7 +47,9 @@ function deliveringClient() {
         users: {
             fetch: jest
                 .fn()
-                .mockResolvedValue({ send: jest.fn().mockResolvedValue(undefined) }),
+                .mockResolvedValue({
+                    send: jest.fn().mockResolvedValue(undefined),
+                }),
         },
         channels: { fetch: jest.fn() },
     } as never

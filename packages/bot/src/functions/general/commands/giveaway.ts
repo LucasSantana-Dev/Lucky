@@ -31,7 +31,9 @@ function buildGiveawayEmbed(
 ): EmbedBuilder {
     const statusColor = status === 'Rerolled' ? 0xff9900 : 0xff0000
     const winnersText =
-        winners.length > 0 ? winners.map((id) => `<@${id}>`).join(', ') : 'no valid entries'
+        winners.length > 0
+            ? winners.map((id) => `<@${id}>`).join(', ')
+            : 'no valid entries'
     const fieldName = status === 'Rerolled' ? 'New Winners' : 'Winners'
 
     return new EmbedBuilder()
@@ -70,7 +72,10 @@ async function handleStart(
     if (!interaction.guildId || !interaction.channelId) {
         await interactionReply({
             interaction,
-            content: { content: '❌ Guild or channel context missing.', ephemeral: true },
+            content: {
+                content: '❌ Guild or channel context missing.',
+                ephemeral: true,
+            },
         })
         return
     }
@@ -101,7 +106,10 @@ async function handleStart(
     if (!channel || channel.type !== ChannelType.GuildText) {
         await interactionReply({
             interaction,
-            content: { content: '❌ Cannot access text channel.', ephemeral: true },
+            content: {
+                content: '❌ Cannot access text channel.',
+                ephemeral: true,
+            },
         })
         return
     }
@@ -242,7 +250,10 @@ async function handleEnd(
         return
     }
 
-    const result = await giveawayService.endById(giveawayId, interaction.guildId)
+    const result = await giveawayService.endById(
+        giveawayId,
+        interaction.guildId,
+    )
     if (!result) {
         await interactionReply({
             interaction,
@@ -313,11 +324,17 @@ async function handleReroll(
         return
     }
 
-    const winners = await giveawayService.reroll(giveawayId, interaction.guildId)
+    const winners = await giveawayService.reroll(
+        giveawayId,
+        interaction.guildId,
+    )
     if (!winners) {
         await interactionReply({
             interaction,
-            content: { content: '❌ Giveaway has not ended yet.', ephemeral: true },
+            content: {
+                content: '❌ Giveaway has not ended yet.',
+                ephemeral: true,
+            },
         })
         return
     }
@@ -431,7 +448,10 @@ export default new Command({
             try {
                 await interactionReply({
                     interaction,
-                    content: { content: '❌ An error occurred.', ephemeral: true },
+                    content: {
+                        content: '❌ An error occurred.',
+                        ephemeral: true,
+                    },
                 })
             } catch (replyError) {
                 errorLog({

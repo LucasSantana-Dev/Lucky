@@ -95,10 +95,13 @@ export class GiveawayScheduler {
             // Fetch the channel (may not be in cache). Normalize to
             // `Channel | null` so the fetch result (also `| null`) assigns
             // cleanly and the guard below narrows it.
-            let channel = this.client.channels.cache.get(giveaway.channelId) ?? null
+            let channel =
+                this.client.channels.cache.get(giveaway.channelId) ?? null
             if (!channel) {
                 try {
-                    channel = await this.client.channels.fetch(giveaway.channelId)
+                    channel = await this.client.channels.fetch(
+                        giveaway.channelId,
+                    )
                 } catch (err) {
                     // Channel deleted or inaccessible; log and return
                     // (giveaway is already finalized above)
@@ -106,7 +109,10 @@ export class GiveawayScheduler {
                         message:
                             'Channel not found when processing giveaway; finalized without announcement:',
                         error: err,
-                        data: { giveawayId: giveaway.id, channelId: giveaway.channelId },
+                        data: {
+                            giveawayId: giveaway.id,
+                            channelId: giveaway.channelId,
+                        },
                     })
                     return
                 }
@@ -115,7 +121,10 @@ export class GiveawayScheduler {
             if (!channel || channel.type !== ChannelType.GuildText) {
                 debugLog({
                     message: 'Giveaway channel is not text-based',
-                    data: { giveawayId: giveaway.id, channelId: giveaway.channelId },
+                    data: {
+                        giveawayId: giveaway.id,
+                        channelId: giveaway.channelId,
+                    },
                 })
                 return
             }
@@ -134,9 +143,7 @@ export class GiveawayScheduler {
                             name: 'Winners',
                             value:
                                 winners && winners.length > 0
-                                    ? winners
-                                          .map((id) => `<@${id}>`)
-                                          .join(', ')
+                                    ? winners.map((id) => `<@${id}>`).join(', ')
                                     : 'no valid entries',
                             inline: false,
                         },

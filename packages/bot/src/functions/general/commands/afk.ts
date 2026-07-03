@@ -13,7 +13,9 @@ export default new Command({
         .addStringOption((option) =>
             option
                 .setName('motivo')
-                .setDescription('Reason for being away (optional, max 200 chars).')
+                .setDescription(
+                    'Reason for being away (optional, max 200 chars).',
+                )
                 .setMaxLength(MAX_REASON_LENGTH)
                 .setRequired(false),
         ),
@@ -27,7 +29,10 @@ export default new Command({
             if (!guildId) {
                 await interactionReply({
                     interaction,
-                    content: { content: '❌ Unable to determine guild.', ephemeral: true },
+                    content: {
+                        content: '❌ Unable to determine guild.',
+                        ephemeral: true,
+                    },
                 })
                 return
             }
@@ -38,7 +43,8 @@ export default new Command({
                 await interactionReply({
                     interaction,
                     content: {
-                        content: '✅ Welcome back! Your AFK status has been cleared.',
+                        content:
+                            '✅ Welcome back! Your AFK status has been cleared.',
                         ephemeral: true,
                     },
                 })
@@ -68,7 +74,10 @@ export default new Command({
             try {
                 await interactionReply({
                     interaction,
-                    content: { content: '❌ Failed to update AFK status.', ephemeral: true },
+                    content: {
+                        content: '❌ Failed to update AFK status.',
+                        ephemeral: true,
+                    },
                 })
             } catch (replyError) {
                 errorLog({

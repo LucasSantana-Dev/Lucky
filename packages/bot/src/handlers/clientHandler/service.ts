@@ -9,7 +9,7 @@ import { startPresenceRotation } from './presence'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { reminderScheduler } from '../../utils/general/reminderScheduler'
-import { giveawayScheduler } from '../../utils/general/giveawayScheduler' 
+import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
 import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
 
 let presenceControls: {

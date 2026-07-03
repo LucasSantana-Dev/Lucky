@@ -1,10 +1,7 @@
 import type { Client, TextChannel } from 'discord.js'
 import { EmbedBuilder } from '@discordjs/builders'
 import { COLOR } from '@lucky/shared/constants'
-import {
-    reminderService,
-    MAX_DELIVERY_ATTEMPTS,
-} from '@lucky/shared/services'
+import { reminderService, MAX_DELIVERY_ATTEMPTS } from '@lucky/shared/services'
 import { errorLog, infoLog } from '@lucky/shared/utils'
 
 const DEFAULT_TICK_INTERVAL_MS = 60 * 1000 // 60 seconds

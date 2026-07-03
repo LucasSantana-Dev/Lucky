@@ -253,9 +253,11 @@ describe('/remind command', () => {
                 'abc12345',
             ) as never,
         })
-        expect(
-            reminderServiceMock.findPendingByIdPrefix,
-        ).toHaveBeenCalledWith('guild-1', 'u1', 'abc12345')
+        expect(reminderServiceMock.findPendingByIdPrefix).toHaveBeenCalledWith(
+            'guild-1',
+            'u1',
+            'abc12345',
+        )
         expect(reminderServiceMock.deleteOwned).toHaveBeenCalledWith(
             'guild-1',
             'u1',

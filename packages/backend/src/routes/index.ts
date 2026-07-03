@@ -20,6 +20,7 @@ import { setupStarboardRoutes } from './starboard'
 import { setupMusicRoutes } from './music'
 import { setupArtistsRoutes } from './artists'
 import { setupInternalNotifyRoutes } from './internalNotify'
+import { setupServiceGuildRoutes } from './serviceGuild'
 import { setupServiceAnnounceRoutes } from './serviceAnnounce'
 import { setupWebhookApiRoutes, setupWebhookPublicRoutes } from './webhooks'
 import { setupAdminRoutes } from './admin'
@@ -107,6 +108,7 @@ export function setupRoutes(app: Express): void {
     setupStatsRoutes(app)
     setupForumsRoutes(app)
     setupInternalNotifyRoutes(app)
+    setupServiceGuildRoutes(app)
     setupServiceAnnounceRoutes(app)
     setupWebhookPublicRoutes(app)
     // Public, unauthenticated CSP report sink — registered before the shared

@@ -146,7 +146,10 @@ export class GiveawayService {
     }
 
     /** Reroll winners for an ended giveaway. Guild-scoped. */
-    async reroll(giveawayId: string, guildId: string): Promise<string[] | null> {
+    async reroll(
+        giveawayId: string,
+        guildId: string,
+    ): Promise<string[] | null> {
         const giveaway = await this.getPrisma().giveaway.findFirst({
             where: { id: giveawayId, guildId },
         })
@@ -165,7 +168,11 @@ export class GiveawayService {
         const entries = await this.getEntries(giveawayId)
         const winners: string[] = []
         const copied = [...entries]
-        for (let i = 0; i < Math.min(giveaway.winnersCount, copied.length); i++) {
+        for (
+            let i = 0;
+            i < Math.min(giveaway.winnersCount, copied.length);
+            i++
+        ) {
             const idx = randomInt(copied.length)
             winners.push(copied[idx])
             copied.splice(idx, 1)
