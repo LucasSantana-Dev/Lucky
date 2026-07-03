@@ -50,7 +50,7 @@ describe('POST /api/internal/notify', () => {
         const res = await request(buildApp())
             .post('/api/internal/notify')
             .set('x-notify-key', 'anything')
-            .send({ channelId: '1', content: 'hi' })
+            .send({ channelId: '123456789012345678', content: 'hi' })
         expect(res.status).toBe(401)
     })
 
@@ -58,7 +58,7 @@ describe('POST /api/internal/notify', () => {
         const res = await request(buildApp())
             .post('/api/internal/notify')
             .set('x-notify-key', 'wrong')
-            .send({ channelId: '1', content: 'hi' })
+            .send({ channelId: '123456789012345678', content: 'hi' })
         expect(res.status).toBe(401)
     })
 
@@ -74,7 +74,7 @@ describe('POST /api/internal/notify', () => {
         const res = await request(buildApp())
             .post('/api/internal/notify')
             .set('x-notify-key', 'k')
-            .send({ channelId: '1' })
+            .send({ channelId: '123456789012345678' })
         expect(res.status).toBe(400)
     })
 
@@ -89,10 +89,10 @@ describe('POST /api/internal/notify', () => {
         const res = await request(buildApp())
             .post('/api/internal/notify')
             .set('x-notify-key', 'k')
-            .send({ channelId: '12345', content: 'hello' })
+            .send({ channelId: '123456789012345678', content: 'hello' })
         expect(res.status).toBe(204)
         expect(fetchMock).toHaveBeenCalledWith(
-            'https://discord.com/api/v10/channels/12345/messages',
+            'https://discord.com/api/v10/channels/123456789012345678/messages',
             expect.objectContaining({
                 method: 'POST',
                 headers: expect.objectContaining({
@@ -112,7 +112,7 @@ describe('POST /api/internal/notify', () => {
         const res = await request(buildApp())
             .post('/api/internal/notify')
             .set('x-notify-key', 'k')
-            .send({ channelId: '1', content: 'x' })
+            .send({ channelId: '123456789012345678', content: 'x' })
         expect(res.status).toBe(502)
     })
 
@@ -121,7 +121,7 @@ describe('POST /api/internal/notify', () => {
         const res = await request(buildApp())
             .post('/api/internal/notify')
             .set('x-notify-key', 'k')
-            .send({ channelId: '1', content: 'x' })
+            .send({ channelId: '123456789012345678', content: 'x' })
         expect(res.status).toBe(500)
     })
 
@@ -129,7 +129,7 @@ describe('POST /api/internal/notify', () => {
         const res = await request(buildApp())
             .post('/api/internal/notify')
             .set('x-notify-key', '   ')
-            .send({ channelId: '1', content: 'hi' })
+            .send({ channelId: '123456789012345678', content: 'hi' })
         expect(res.status).toBe(401)
     })
 })
