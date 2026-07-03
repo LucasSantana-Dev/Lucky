@@ -87,8 +87,10 @@ export class GiveawayScheduler {
                 return
             }
 
-            // Fetch the channel (may not be in cache)
-            let channel = this.client.channels.cache.get(giveaway.channelId)
+            // Fetch the channel (may not be in cache). Normalize to
+            // `Channel | null` so the fetch result (also `| null`) assigns
+            // cleanly and the guard below narrows it.
+            let channel = this.client.channels.cache.get(giveaway.channelId) ?? null
             if (!channel) {
                 try {
                     channel = await this.client.channels.fetch(giveaway.channelId)
@@ -111,7 +113,7 @@ export class GiveawayScheduler {
                 }
             }
 
-            if (channel.type !== ChannelType.GuildText) {
+            if (!channel || channel.type !== ChannelType.GuildText) {
                 debugLog({
                     message: 'Giveaway channel is not text-based',
                     data: { giveawayId: giveaway.id, channelId: giveaway.channelId },

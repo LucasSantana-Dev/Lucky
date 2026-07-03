@@ -34,6 +34,12 @@ jest.mock('../../utils/moderation/modDigestScheduler', () => ({
     },
 }))
 
+// giveawayScheduler's import chain reaches prismaClient's import.meta, which
+// bot jest cannot compile — mock it so this suite loads.
+jest.mock('../../utils/general/giveawayScheduler', () => ({
+    giveawayScheduler: { start: jest.fn(), stop: jest.fn() },
+}))
+
 jest.mock('discord.js', () => {
     const originalModule =
         jest.requireActual<typeof import('discord.js')>('discord.js')
