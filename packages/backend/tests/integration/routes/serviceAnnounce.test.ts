@@ -1,4 +1,11 @@
-import { describe, test, expect, beforeEach, jest, afterEach } from '@jest/globals'
+import {
+    describe,
+    test,
+    expect,
+    beforeEach,
+    jest,
+    afterEach,
+} from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
 import { setupServiceAnnounceRoutes } from '../../../src/routes/serviceAnnounce'
@@ -12,7 +19,8 @@ describe('Service Announce Routes Integration', () => {
     beforeEach(() => {
         originalEnv = { ...process.env }
         process.env.LUCKY_ANNOUNCE_API_KEY = 'test-announce-key'
-        process.env.LUCKY_ANNOUNCE_CHANNEL_IDS = '895505900016631839,968982002701332610'
+        process.env.LUCKY_ANNOUNCE_CHANNEL_IDS =
+            '895505900016631839,968982002701332610'
         process.env.DISCORD_TOKEN = 'test-bot-token'
 
         app = express()
@@ -134,6 +142,48 @@ describe('Service Announce Routes Integration', () => {
             expect(response.body.error).toContain('required')
         })
 
+        test('should reject an empty embeds array with no content', async () => {
+            const response = await request(app)
+                .post('/api/service/announce')
+                .set('x-announce-key', 'test-announce-key')
+                .send({
+                    channelId: '895505900016631839',
+                    embeds: [],
+                })
+                .expect(400)
+
+            expect(response.body.error).toContain('required')
+        })
+
+        test('should reject whitespace-only content with no embeds', async () => {
+            const response = await request(app)
+                .post('/api/service/announce')
+                .set('x-announce-key', 'test-announce-key')
+                .send({
+                    channelId: '895505900016631839',
+                    content: '   ',
+                })
+                .expect(400)
+
+            expect(response.body.error).toContain('required')
+        })
+
+        test('should return 502 when the Discord request itself fails (network/timeout)', async () => {
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
+            mockFetch.mockRejectedValueOnce(new Error('network unreachable'))
+
+            const response = await request(app)
+                .post('/api/service/announce')
+                .set('x-announce-key', 'test-announce-key')
+                .send({
+                    channelId: '895505900016631839',
+                    content: 'Test announcement',
+                })
+                .expect(502)
+
+            expect(response.body.error).toContain('discord request failed')
+        })
+
         test('should slice content to 1900 chars', async () => {
             const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
             mockFetch.mockResolvedValueOnce({
@@ -245,6 +295,25 @@ describe('Service Announce Routes Integration', () => {
                     content: 'Test',
                 })
                 .expect(401)
+        })
+
+        test('should accept a matching key even when the env var has trailing whitespace', async () => {
+            process.env.LUCKY_ANNOUNCE_API_KEY = '  test-announce-key\n'
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 204,
+                text: async () => '',
+            } as Response)
+
+            await request(app)
+                .post('/api/service/announce')
+                .set('x-announce-key', 'test-announce-key')
+                .send({
+                    channelId: '895505900016631839',
+                    content: 'Test',
+                })
+                .expect(204)
         })
     })
 })

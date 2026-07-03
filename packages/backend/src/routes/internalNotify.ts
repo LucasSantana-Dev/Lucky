@@ -3,11 +3,14 @@ import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { timingSafeKeyCompare } from '../utils/timingSafeKeyCompare'
-import { postChannelMessage, type ChannelMessagePayload } from '../utils/postChannelMessage'
+import {
+    postChannelMessage,
+    type ChannelMessagePayload,
+} from '../utils/postChannelMessage'
 
 function requireKey(req: Request): void {
     const provided = req.header('x-notify-key')?.trim()
-    const expected = process.env.LUCKY_NOTIFY_API_KEY
+    const expected = process.env.LUCKY_NOTIFY_API_KEY?.trim()
     if (!timingSafeKeyCompare(provided, expected)) {
         throw AppError.unauthorized('invalid notify key')
     }

@@ -21,9 +21,15 @@ export type ChannelMessagePayload = {
  * @throws AppError with status 500 if DISCORD_TOKEN missing
  * @throws AppError with status 502 if Discord API returns non-ok response
  */
-export async function postChannelMessage(payload: ChannelMessagePayload, logContext: string): Promise<void> {
+export async function postChannelMessage(
+    payload: ChannelMessagePayload,
+    logContext: string,
+): Promise<void> {
     // Validate required fields
-    if (!payload.channelId || (!payload.content && !payload.embeds)) {
+    const hasContent =
+        typeof payload.content === 'string' && payload.content.trim().length > 0
+    const hasEmbeds = Array.isArray(payload.embeds) && payload.embeds.length > 0
+    if (!payload.channelId || (!hasContent && !hasEmbeds)) {
         throw AppError.badRequest('channelId + content|embeds required')
     }
     if (!SNOWFLAKE_RE.test(payload.channelId)) {
@@ -37,18 +43,30 @@ export async function postChannelMessage(payload: ChannelMessagePayload, logCont
     }
 
     // Post to Discord
-    const resp = await fetch(`${DISCORD_API}/channels/${payload.channelId}/messages`, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bot ${token}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            content: payload.content?.slice(0, 1900),
-            embeds: payload.embeds,
-        }),
-        signal: AbortSignal.timeout(10_000),
-    })
+    let resp: Response
+    try {
+        resp = await fetch(
+            `${DISCORD_API}/channels/${payload.channelId}/messages`,
+            {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: payload.content?.slice(0, 1900),
+                    embeds: payload.embeds,
+                }),
+                signal: AbortSignal.timeout(10_000),
+            },
+        )
+    } catch (err) {
+        errorLog({
+            message: logContext,
+            data: { error: err instanceof Error ? err.message : String(err) },
+        })
+        throw new AppError(502, 'discord request failed')
+    }
 
     // Handle response
     if (!resp.ok) {

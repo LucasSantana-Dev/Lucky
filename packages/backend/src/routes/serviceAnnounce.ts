@@ -3,11 +3,14 @@ import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { timingSafeKeyCompare } from '../utils/timingSafeKeyCompare'
-import { postChannelMessage, type ChannelMessagePayload } from '../utils/postChannelMessage'
+import {
+    postChannelMessage,
+    type ChannelMessagePayload,
+} from '../utils/postChannelMessage'
 
 function requireAnnounceKey(req: Request): void {
     const provided = req.header('x-announce-key')?.trim()
-    const expected = process.env.LUCKY_ANNOUNCE_API_KEY
+    const expected = process.env.LUCKY_ANNOUNCE_API_KEY?.trim()
     if (!timingSafeKeyCompare(provided, expected)) {
         throw AppError.unauthorized('invalid announce key')
     }
@@ -40,16 +43,29 @@ export function setupServiceAnnounceRoutes(app: Express): void {
             requireAnnounceKey(req)
             const allowlist = getChannelAllowlist()
             if (allowlist.size === 0) {
-                throw AppError.forbidden('announce channel allowlist not configured')
+                throw AppError.forbidden(
+                    'announce channel allowlist not configured',
+                )
             }
 
             const body = (req.body ?? {}) as AnnounceBody
-            if (!body.channelId || (!body.content && !body.embeds)) {
+            const hasContent =
+                typeof body.content === 'string' &&
+                body.content.trim().length > 0
+            const hasEmbeds =
+                Array.isArray(body.embeds) && body.embeds.length > 0
+            if (
+                typeof body.channelId !== 'string' ||
+                !body.channelId ||
+                (!hasContent && !hasEmbeds)
+            ) {
                 throw AppError.badRequest('channelId + content|embeds required')
             }
 
             if (!allowlist.has(body.channelId)) {
-                throw AppError.forbidden(`channel ${body.channelId} not in allowlist`)
+                throw AppError.forbidden(
+                    `channel ${body.channelId} not in allowlist`,
+                )
             }
 
             const payload: ChannelMessagePayload = {
