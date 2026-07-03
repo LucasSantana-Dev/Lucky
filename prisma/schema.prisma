@@ -882,6 +882,15 @@ model StarboardConfig {
   emoji     String   @default("⭐")
   threshold Int      @default(3)
   selfStar  Boolean  @default(false)
+  // Engagement seeding: the bot pre-adds the starboard emoji to messages so
+  // members discover the feature. seedChannelIds empty = all channels (the
+  // starboard channel itself is always excluded). All per-guild config —
+  // nothing guild-specific in code.
+  seedReaction       Boolean  @default(false)
+  seedChannelIds     String[] @default([])
+  // DM a member the first time they star a message, explaining the feature.
+  firstStarDm        Boolean  @default(false)
+  firstStarDmMessage String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -904,6 +913,18 @@ model StarboardEntry {
   @@unique([guildId, messageId])
   @@index([guildId])
   @@map("starboard_entries")
+}
+
+/// Tracks which members already received the one-time first-star DM.
+model StarboardDmSent {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, userId])
+  @@index([guildId])
+  @@map("starboard_dm_sents")
 }
 
 model LevelConfig {
