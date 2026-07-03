@@ -246,7 +246,6 @@ export default new Command({
                     message: `reminder deleted by ${interaction.user.tag}`,
                     data: { guildId: guild.id, reminderId: reminder.id },
                 })
-                return
             }
         } catch (error) {
             errorLog({
