@@ -8,19 +8,16 @@ const DEFAULT_TICK_INTERVAL_MS = 60 * 1000 // 60 seconds
 
 type ReminderSchedulerOptions = {
     tickIntervalMs?: number
-    clock?: () => Date
 }
 
 export class ReminderScheduler {
     private readonly tickIntervalMs: number
-    private readonly clock: () => Date
     private timer: ReturnType<typeof setInterval> | null = null
     private client: Client | null = null
     private tickInProgress = false
 
     constructor(options: ReminderSchedulerOptions = {}) {
         this.tickIntervalMs = options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS
-        this.clock = options.clock ?? (() => new Date())
     }
 
     start(client: Client): void {
@@ -47,8 +44,23 @@ export class ReminderScheduler {
             const dueReminders = await reminderService.getDueReminders(25)
 
             for (const reminder of dueReminders) {
-                await this.deliverReminder(reminder)
-                await reminderService.markDelivered(reminder.id)
+                // Per-reminder isolation: one failure must not abort the batch.
+                try {
+                    const delivered = await this.deliverReminder(reminder)
+                    // Undelivered reminders stay pending and retry next tick;
+                    // give up after 24h so they can't clog the due window.
+                    const expired =
+                        Date.now() - reminder.remindAt.getTime() >
+                        24 * 60 * 60 * 1000
+                    if (delivered || expired) {
+                        await reminderService.markDelivered(reminder.id)
+                    }
+                } catch (error) {
+                    errorLog({
+                        message: 'reminder delivery iteration failed',
+                        error: error as Error,
+                    })
+                }
             }
 
             if (dueReminders.length > 0) {
@@ -66,14 +78,15 @@ export class ReminderScheduler {
         }
     }
 
+    /** Returns true when the reminder reached the user via DM or channel. */
     private async deliverReminder(reminder: {
         id: string
         userId: string
         channelId: string
         message: string
         remindAt: Date
-    }): Promise<void> {
-        if (!this.client) return
+    }): Promise<boolean> {
+        if (!this.client) return false
 
         const embed = new EmbedBuilder()
             .setTitle('⏰ Reminder')
@@ -86,6 +99,7 @@ export class ReminderScheduler {
             // Try to DM the user first
             const user = await this.client.users.fetch(reminder.userId)
             await user.send({ embeds: [embed.toJSON()] })
+            return true
         } catch (dmError) {
             // Fallback: post to origin channel
             try {
@@ -98,6 +112,7 @@ export class ReminderScheduler {
                         embeds: [embed.toJSON()],
                         allowedMentions: { parse: ['users'] },
                     })
+                    return true
                 }
             } catch (channelError) {
                 errorLog({
@@ -110,6 +125,7 @@ export class ReminderScheduler {
                 })
             }
         }
+        return false
     }
 }
 

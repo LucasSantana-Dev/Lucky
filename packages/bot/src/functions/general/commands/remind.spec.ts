@@ -7,8 +7,8 @@ jest.mock('@lucky/shared/utils', () => ({
 
 const reminderServiceMock = {
     create: jest.fn(),
-    listByUserId: jest.fn(),
-    deleteById: jest.fn(),
+    listPending: jest.fn(),
+    deleteOwned: jest.fn(),
 }
 jest.mock('@lucky/shared/services', () => ({
     reminderService: reminderServiceMock,
@@ -103,8 +103,8 @@ describe('/remind command', () => {
             delivered: false,
             createdAt: new Date(),
         })
-        reminderServiceMock.listByUserId.mockReset().mockResolvedValue([])
-        reminderServiceMock.deleteById.mockReset().mockResolvedValue(undefined)
+        reminderServiceMock.listPending.mockReset().mockResolvedValue([])
+        reminderServiceMock.deleteOwned.mockReset().mockResolvedValue(true)
         interactionReply.mockClear().mockResolvedValue(undefined)
     })
 
@@ -171,7 +171,7 @@ describe('/remind command', () => {
     })
 
     test('list: shows empty message when no reminders', async () => {
-        reminderServiceMock.listByUserId.mockResolvedValue([])
+        reminderServiceMock.listPending.mockResolvedValue([])
         await remindCommand.execute({
             interaction: makeInteraction('list') as never,
         })
@@ -184,9 +184,9 @@ describe('/remind command', () => {
 
     test('list: shows reminders with IDs', async () => {
         const futureDate = new Date(Date.now() + 600000)
-        reminderServiceMock.listByUserId.mockResolvedValue([
+        reminderServiceMock.listPending.mockResolvedValue([
             {
-                id: 'reminder-abc12345xyz',
+                id: 'abc12345xyz',
                 guildId: 'guild-1',
                 userId: 'u1',
                 channelId: 'channel-1',
@@ -211,7 +211,7 @@ describe('/remind command', () => {
     })
 
     test('delete: rejects when reminder not found', async () => {
-        reminderServiceMock.listByUserId.mockResolvedValue([])
+        reminderServiceMock.listPending.mockResolvedValue([])
         await remindCommand.execute({
             interaction: makeInteraction(
                 'delete',
@@ -229,7 +229,7 @@ describe('/remind command', () => {
 
     test('delete: deletes reminder and confirms', async () => {
         const reminder = {
-            id: 'reminder-abc12345xyz',
+            id: 'abc12345xyz',
             guildId: 'guild-1',
             userId: 'u1',
             channelId: 'channel-1',
@@ -238,18 +238,24 @@ describe('/remind command', () => {
             delivered: false,
             createdAt: new Date(),
         }
-        reminderServiceMock.listByUserId.mockResolvedValueOnce([reminder])
+        reminderServiceMock.listPending.mockResolvedValueOnce([reminder])
         await remindCommand.execute({
             interaction: makeInteraction(
                 'delete',
                 undefined,
                 undefined,
-                'reminder',
+                'abc12345',
             ) as never,
         })
-        expect(reminderServiceMock.listByUserId).toHaveBeenCalledWith('u1')
-        expect(reminderServiceMock.deleteById).toHaveBeenCalledWith(
-            'reminder-abc12345xyz',
+        expect(reminderServiceMock.listPending).toHaveBeenCalledWith(
+            'guild-1',
+            'u1',
+            50,
+        )
+        expect(reminderServiceMock.deleteOwned).toHaveBeenCalledWith(
+            'guild-1',
+            'u1',
+            'abc12345xyz',
         )
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string; ephemeral?: boolean }

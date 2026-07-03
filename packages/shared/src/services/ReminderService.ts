@@ -33,21 +33,35 @@ export class ReminderService {
         })
     }
 
-    /** List pending reminders for a user, ordered by remindAt ascending. */
-    async listByUserId(
+    /**
+     * List a user's PENDING reminders in one guild, soonest first. Guild
+     * scoping keeps reminders from leaking across servers (review P1).
+     */
+    async listPending(
+        guildId: string,
         userId: string,
         limit: number = 10,
     ): Promise<ReminderRecord[]> {
         return await prisma.reminder.findMany({
-            where: { userId },
+            where: { guildId, userId, delivered: false },
             orderBy: { remindAt: 'asc' },
             take: limit,
         })
     }
 
-    /** Delete a reminder by ID. */
-    async deleteById(reminderId: string): Promise<void> {
-        await prisma.reminder.delete({ where: { id: reminderId } })
+    /**
+     * Delete a reminder the caller owns. Ownership enforced at the data layer
+     * (id alone is not sufficient). Returns whether a row was deleted.
+     */
+    async deleteOwned(
+        guildId: string,
+        userId: string,
+        reminderId: string,
+    ): Promise<boolean> {
+        const result = await prisma.reminder.deleteMany({
+            where: { id: reminderId, guildId, userId },
+        })
+        return result.count > 0
     }
 
     /** Fetch undelivered reminders that are due (remindAt <= now). */

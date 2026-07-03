@@ -1287,8 +1287,8 @@ model Reminder {
   delivered Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  @@index([remindAt, delivered])
-  @@index([userId])
+  @@index([delivered, remindAt])
+  @@index([userId, remindAt])
   @@map("reminders")
 }
 }

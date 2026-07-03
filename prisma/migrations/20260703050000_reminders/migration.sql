@@ -13,7 +13,7 @@ CREATE TABLE "reminders" (
 );
 
 -- CreateIndex for scheduler lookups
-CREATE INDEX "reminders_remindAt_delivered_idx" ON "reminders"("remindAt", "delivered");
+CREATE INDEX "reminders_delivered_remindAt_idx" ON "reminders"("delivered", "remindAt");
 
 -- CreateIndex for user lookups
-CREATE INDEX "reminders_userId_idx" ON "reminders"("userId");
+CREATE INDEX "reminders_userId_remindAt_idx" ON "reminders"("userId", "remindAt");

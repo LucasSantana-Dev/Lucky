@@ -140,7 +140,8 @@ export default new Command({
             }
 
             if (subcommand === 'list') {
-                const reminders = await reminderService.listByUserId(
+                const reminders = await reminderService.listPending(
+                    guild.id,
                     interaction.user.id,
                     10,
                 )
@@ -185,14 +186,18 @@ export default new Command({
 
             if (subcommand === 'delete') {
                 const id = interaction.options.getString('id', true)
-                const reminders = await reminderService.listByUserId(
+                const reminders = await reminderService.listPending(
+                    guild.id,
                     interaction.user.id,
+                    50,
                 )
 
-                const reminder = reminders.find(
-                    (r) => r.id.startsWith(id) || r.id === id,
+                // Prefix match must be UNIQUE — deleting the first match could
+                // remove the wrong reminder (review P2).
+                const matches = reminders.filter(
+                    (r) => r.id === id || r.id.startsWith(id),
                 )
-                if (!reminder) {
+                if (matches.length === 0) {
                     await interactionReply({
                         interaction,
                         content: {
@@ -203,8 +208,34 @@ export default new Command({
                     })
                     return
                 }
+                if (matches.length > 1) {
+                    await interactionReply({
+                        interaction,
+                        content: {
+                            content:
+                                '❌ That ID prefix matches more than one reminder — use more characters of the ID from `/remind list`.',
+                            ephemeral: true,
+                        },
+                    })
+                    return
+                }
+                const reminder = matches[0]
 
-                await reminderService.deleteById(reminder.id)
+                const deleted = await reminderService.deleteOwned(
+                    guild.id,
+                    interaction.user.id,
+                    reminder.id,
+                )
+                if (!deleted) {
+                    await interactionReply({
+                        interaction,
+                        content: {
+                            content: '❌ Reminder not found.',
+                            ephemeral: true,
+                        },
+                    })
+                    return
+                }
 
                 await interactionReply({
                     interaction,

@@ -5,6 +5,7 @@ const mockPrisma = {
         create: jest.fn() as jest.MockedFunction<any>,
         findMany: jest.fn() as jest.MockedFunction<any>,
         delete: jest.fn() as jest.MockedFunction<any>,
+        deleteMany: jest.fn() as jest.MockedFunction<any>,
         update: jest.fn() as jest.MockedFunction<any>,
     },
 } as any
@@ -58,8 +59,8 @@ describe('ReminderService', () => {
         })
     })
 
-    describe('listByUserId', () => {
-        test('lists reminders for a user, ordered by remindAt asc', async () => {
+    describe('listPending', () => {
+        test('lists pending reminders scoped to guild+user, remindAt asc', async () => {
             const date1 = new Date('2026-07-03T10:00:00Z')
             const date2 = new Date('2026-07-04T10:00:00Z')
             mockPrisma.reminder.findMany.mockResolvedValue([
@@ -85,10 +86,14 @@ describe('ReminderService', () => {
                 },
             ])
 
-            const result = await service.listByUserId('user-1', 10)
+            const result = await service.listPending('guild-1', 'user-1', 10)
 
             expect(mockPrisma.reminder.findMany).toHaveBeenCalledWith({
-                where: { userId: 'user-1' },
+                where: {
+                    guildId: 'guild-1',
+                    userId: 'user-1',
+                    delivered: false,
+                },
                 orderBy: { remindAt: 'asc' },
                 take: 10,
             })
@@ -99,25 +104,44 @@ describe('ReminderService', () => {
         test('defaults to limit 10', async () => {
             mockPrisma.reminder.findMany.mockResolvedValue([])
 
-            await service.listByUserId('user-1')
+            await service.listPending('guild-1', 'user-1')
 
             expect(mockPrisma.reminder.findMany).toHaveBeenCalledWith({
-                where: { userId: 'user-1' },
+                where: {
+                    guildId: 'guild-1',
+                    userId: 'user-1',
+                    delivered: false,
+                },
                 orderBy: { remindAt: 'asc' },
                 take: 10,
             })
         })
     })
 
-    describe('deleteById', () => {
-        test('deletes reminder by ID', async () => {
-            mockPrisma.reminder.delete.mockResolvedValue({})
+    describe('deleteOwned', () => {
+        test('deletes only when guild+user own the reminder', async () => {
+            mockPrisma.reminder.deleteMany.mockResolvedValue({ count: 1 })
 
-            await service.deleteById('reminder-1')
+            const ok = await service.deleteOwned(
+                'guild-1',
+                'user-1',
+                'reminder-1',
+            )
 
-            expect(mockPrisma.reminder.delete).toHaveBeenCalledWith({
-                where: { id: 'reminder-1' },
+            expect(mockPrisma.reminder.deleteMany).toHaveBeenCalledWith({
+                where: {
+                    id: 'reminder-1',
+                    guildId: 'guild-1',
+                    userId: 'user-1',
+                },
             })
+            expect(ok).toBe(true)
+        })
+
+        test('returns false when nothing matched (not the owner)', async () => {
+            mockPrisma.reminder.deleteMany.mockResolvedValue({ count: 0 })
+            const ok = await service.deleteOwned('g', 'u', 'other')
+            expect(ok).toBe(false)
         })
     })
 
