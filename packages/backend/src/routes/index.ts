@@ -20,6 +20,7 @@ import { setupStarboardRoutes } from './starboard'
 import { setupMusicRoutes } from './music'
 import { setupArtistsRoutes } from './artists'
 import { setupInternalNotifyRoutes } from './internalNotify'
+import { setupServiceAnnounceRoutes } from './serviceAnnounce'
 import { setupWebhookApiRoutes, setupWebhookPublicRoutes } from './webhooks'
 import { setupAdminRoutes } from './admin'
 import { apiLimiter, writeLimiter } from '../middleware/rateLimit'
@@ -106,6 +107,7 @@ export function setupRoutes(app: Express): void {
     setupStatsRoutes(app)
     setupForumsRoutes(app)
     setupInternalNotifyRoutes(app)
+    setupServiceAnnounceRoutes(app)
     setupWebhookPublicRoutes(app)
     // Public, unauthenticated CSP report sink — registered before the shared
     // /api limiter/guards so it uses its own strict limiter (#1283).
