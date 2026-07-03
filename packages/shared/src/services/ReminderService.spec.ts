@@ -175,6 +175,23 @@ describe('ReminderService', () => {
         })
     })
 
+    describe('recordFailedAttempt', () => {
+        test('increments the attempt counter and sets the next attempt time', async () => {
+            ;(mockPrisma.reminder.update as any).mockResolvedValue({})
+            const next = new Date('2026-07-03T10:05:00Z')
+
+            await service.recordFailedAttempt('reminder-1', next)
+
+            expect(mockPrisma.reminder.update).toHaveBeenCalledWith({
+                where: { id: 'reminder-1' },
+                data: {
+                    remindAt: next,
+                    deliveryAttempts: { increment: 1 },
+                },
+            })
+        })
+    })
+
     describe('markDelivered', () => {
         test('marks reminder as delivered', async () => {
             ;(mockPrisma.reminder.update as any).mockResolvedValue({})

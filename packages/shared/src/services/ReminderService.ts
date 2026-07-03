@@ -10,8 +10,13 @@ export type ReminderRecord = {
     message: string
     remindAt: Date
     delivered: boolean
+    deliveryAttempts: number
     createdAt: Date
 }
+
+// Give up after ~1h of 5-minute backoff so an undeliverable reminder
+// (user left the guild, DMs closed) can't retry forever.
+export const MAX_DELIVERY_ATTEMPTS = 12
 
 export class ReminderService {
     /** Create a new reminder for a user. */
@@ -85,11 +90,23 @@ export class ReminderService {
         })
     }
 
-    /** Reschedules a failed delivery a few minutes out (retry backoff). */
-    async rescheduleDelivery(reminderId: string, remindAt: Date): Promise<void> {
+    /**
+     * Records a failed delivery: increments the attempt counter and pushes the
+     * next attempt out (backoff). Expiry is driven by the counter, NOT elapsed
+     * time from createdAt — a reminder scheduled far in the future must not be
+     * dropped on its first failure (review P1). remindAt here is the
+     * next-attempt time; the original schedule is irrelevant once due (P2).
+     */
+    async recordFailedAttempt(
+        reminderId: string,
+        nextRemindAt: Date,
+    ): Promise<void> {
         await prisma.reminder.update({
             where: { id: reminderId },
-            data: { remindAt },
+            data: {
+                remindAt: nextRemindAt,
+                deliveryAttempts: { increment: 1 },
+            },
         })
     }
 

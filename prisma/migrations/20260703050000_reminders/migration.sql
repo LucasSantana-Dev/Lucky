@@ -7,6 +7,7 @@ CREATE TABLE "reminders" (
     "message" TEXT NOT NULL,
     "remindAt" TIMESTAMP(3) NOT NULL,
     "delivered" BOOLEAN NOT NULL DEFAULT false,
+    "deliveryAttempts" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "reminders_pkey" PRIMARY KEY ("id")

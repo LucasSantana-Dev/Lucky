@@ -1,7 +1,10 @@
 import type { Client, TextChannel } from 'discord.js'
 import { EmbedBuilder } from '@discordjs/builders'
 import { COLOR } from '@lucky/shared/constants'
-import { reminderService } from '@lucky/shared/services'
+import {
+    reminderService,
+    MAX_DELIVERY_ATTEMPTS,
+} from '@lucky/shared/services'
 import { errorLog, infoLog } from '@lucky/shared/utils'
 
 const DEFAULT_TICK_INTERVAL_MS = 60 * 1000 // 60 seconds
@@ -49,22 +52,21 @@ export class ReminderScheduler {
                     const delivered = await this.deliverReminder(reminder)
                     if (delivered) {
                         await reminderService.markDelivered(reminder.id)
+                    } else if (
+                        reminder.deliveryAttempts + 1 >=
+                        MAX_DELIVERY_ATTEMPTS
+                    ) {
+                        // Give up after MAX attempts so an undeliverable
+                        // reminder can't monopolize the 25-row due window
+                        // (review P1) — counter, not elapsed time, so a
+                        // future-dated reminder isn't dropped on first failure.
+                        await reminderService.markDelivered(reminder.id)
                     } else {
-                        // Failed deliveries back off 5 minutes instead of
-                        // retrying every tick (which would monopolize the
-                        // 25-row due window — review P1) and give up 24h
-                        // after creation.
-                        const expired =
-                            Date.now() - reminder.createdAt.getTime() >
-                            24 * 60 * 60 * 1000
-                        if (expired) {
-                            await reminderService.markDelivered(reminder.id)
-                        } else {
-                            await reminderService.rescheduleDelivery(
-                                reminder.id,
-                                new Date(Date.now() + 5 * 60 * 1000),
-                            )
-                        }
+                        // Back off 5 minutes and bump the attempt counter.
+                        await reminderService.recordFailedAttempt(
+                            reminder.id,
+                            new Date(Date.now() + 5 * 60 * 1000),
+                        )
                     }
                 } catch (error) {
                     errorLog({
