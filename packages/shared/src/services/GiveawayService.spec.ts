@@ -6,6 +6,7 @@ const mockPrisma = {
     giveaway: {
         create: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         findMany: jest.fn(),
         update: jest.fn(),
     },
@@ -83,19 +84,26 @@ describe('GiveawayService', () => {
     })
 
     describe('getActiveByMessageId', () => {
-        it('returns a giveaway by message ID', async () => {
+        it('returns a giveaway by message ID if active', async () => {
             const giveaway = {
                 id: 'giveaway123',
                 messageId: 'msg123',
                 endedAt: null,
             }
-            prisma.giveaway.findUnique.mockResolvedValue(giveaway)
+            prisma.giveaway.findFirst.mockResolvedValue(giveaway)
 
             const result = await giveawayService.getActiveByMessageId('msg123')
-            expect(prisma.giveaway.findUnique).toHaveBeenCalledWith({
-                where: { messageId: 'msg123' },
+            expect(prisma.giveaway.findFirst).toHaveBeenCalledWith({
+                where: { messageId: 'msg123', endedAt: null },
             })
             expect(result).toEqual(giveaway)
+        })
+
+        it('returns null for ended giveaway', async () => {
+            prisma.giveaway.findFirst.mockResolvedValue(null)
+
+            const result = await giveawayService.getActiveByMessageId('msg123')
+            expect(result).toBeNull()
         })
     })
 
@@ -157,6 +165,14 @@ describe('GiveawayService', () => {
             for (const w of winners) {
                 expect(entries).toContain(w)
             }
+            // Assert update was called with winners and endedAt
+            expect(prisma.giveaway.update).toHaveBeenCalledWith({
+                where: { id: 'giveaway123' },
+                data: expect.objectContaining({
+                    winnerIds: expect.any(Array),
+                    endedAt: expect.any(Date),
+                }),
+            })
         })
 
         it('returns all entries if fewer than requested winners', async () => {
@@ -169,6 +185,14 @@ describe('GiveawayService', () => {
             const winners = await giveawayService.endAndDraw('giveaway123', 5)
             expect(winners).toHaveLength(1)
             expect(winners[0]).toBe('user1')
+            // Assert update was called
+            expect(prisma.giveaway.update).toHaveBeenCalledWith({
+                where: { id: 'giveaway123' },
+                data: expect.objectContaining({
+                    winnerIds: ['user1'],
+                    endedAt: expect.any(Date),
+                }),
+            })
         })
 
         it('returns empty array for no entries', async () => {
@@ -177,6 +201,14 @@ describe('GiveawayService', () => {
 
             const winners = await giveawayService.endAndDraw('giveaway123', 2)
             expect(winners).toEqual([])
+            // Assert update was called even with no winners
+            expect(prisma.giveaway.update).toHaveBeenCalledWith({
+                where: { id: 'giveaway123' },
+                data: expect.objectContaining({
+                    winnerIds: [],
+                    endedAt: expect.any(Date),
+                }),
+            })
         })
     })
 
@@ -185,6 +217,7 @@ describe('GiveawayService', () => {
             const giveaway = {
                 id: 'giveaway123',
                 winnersCount: 2,
+                endedAt: new Date(),
             }
             prisma.giveaway.findUnique.mockResolvedValue(giveaway)
             prisma.giveawayEntry.findMany.mockResolvedValue([
@@ -196,6 +229,22 @@ describe('GiveawayService', () => {
 
             const winners = await giveawayService.reroll('giveaway123')
             expect(winners).toHaveLength(2)
+            // Assert that update was called (persistence happened)
+            expect(prisma.giveaway.update).toHaveBeenCalled()
+        })
+
+        it('returns null for giveaway that has not ended', async () => {
+            const giveaway = {
+                id: 'giveaway123',
+                winnersCount: 2,
+                endedAt: null,
+            }
+            prisma.giveaway.findUnique.mockResolvedValue(giveaway)
+
+            const winners = await giveawayService.reroll('giveaway123')
+            expect(winners).toBeNull()
+            // Assert update was NOT called (no redraw for active giveaway)
+            expect(prisma.giveaway.update).not.toHaveBeenCalled()
         })
     })
 })

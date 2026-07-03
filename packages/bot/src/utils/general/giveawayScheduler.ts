@@ -72,22 +72,52 @@ export class GiveawayScheduler {
         winnerIds?: string[]
     }): Promise<void> {
         try {
-            const winners =
-                giveaway.winnerIds ??
-                (await giveawayService.endAndDraw(
-                    giveaway.id,
-                    giveaway.winnersCount,
-                ))
+            if (!this.client || !giveaway.messageId) {
+                // No way to announce; finalize silently
+                const winners =
+                    giveaway.winnerIds ??
+                    (await giveawayService.endAndDraw(
+                        giveaway.id,
+                        giveaway.winnersCount,
+                    ))
+                debugLog({
+                    message: 'Giveaway finalized without announcement',
+                    data: { giveawayId: giveaway.id, winners },
+                })
+                return
+            }
 
-            debugLog({
-                message: 'Processing ended giveaway',
-                data: { giveawayId: giveaway.id, winners },
-            })
+            // Fetch the channel (may not be in cache)
+            let channel = this.client.channels.cache.get(giveaway.channelId)
+            if (!channel) {
+                try {
+                    channel = await this.client.channels.fetch(giveaway.channelId)
+                } catch (err) {
+                    // Channel deleted or inaccessible; finalize but log
+                    errorLog({
+                        message:
+                            'Channel not found when processing giveaway; finalizing without announcement:',
+                        error: err,
+                        data: { giveawayId: giveaway.id, channelId: giveaway.channelId },
+                    })
+                    // Still end the giveaway even if channel is gone
+                    if (!giveaway.winnerIds) {
+                        await giveawayService.endAndDraw(
+                            giveaway.id,
+                            giveaway.winnersCount,
+                        )
+                    }
+                    return
+                }
+            }
 
-            if (!this.client || !giveaway.messageId) return
-
-            const channel = this.client.channels.cache.get(giveaway.channelId)
-            if (!channel || channel.type !== ChannelType.GuildText) return
+            if (channel.type !== ChannelType.GuildText) {
+                debugLog({
+                    message: 'Giveaway channel is not text-based',
+                    data: { giveawayId: giveaway.id, channelId: giveaway.channelId },
+                })
+                return
+            }
 
             const textChannel = channel as TextChannel
             const msg = await textChannel.messages
@@ -98,18 +128,28 @@ export class GiveawayScheduler {
                 const embed = EmbedBuilder.from(msg.embeds[0] ?? {})
                     .setColor(0xff0000)
                     .setDescription(`**Prize:** ${giveaway.prize} (Ended)`)
-                    .addFields([
+                    .setFields([
                         {
                             name: 'Winners',
                             value:
-                                winners.length > 0
-                                    ? winners.map((id) => `<@${id}>`).join(', ')
+                                giveaway.winnerIds && giveaway.winnerIds.length > 0
+                                    ? giveaway.winnerIds
+                                          .map((id) => `<@${id}>`)
+                                          .join(', ')
                                     : 'no valid entries',
                             inline: false,
                         },
                     ])
 
                 await msg.edit({ embeds: [embed.toJSON()] })
+
+                // Only now that announcement is sent, finalize the giveaway
+                const winners =
+                    giveaway.winnerIds ??
+                    (await giveawayService.endAndDraw(
+                        giveaway.id,
+                        giveaway.winnersCount,
+                    ))
 
                 if (winners.length > 0) {
                     await textChannel.send({
@@ -121,12 +161,12 @@ export class GiveawayScheduler {
                         content: '❌ No valid entries for this giveaway.',
                     })
                 }
-            }
 
-            infoLog({
-                message: 'Giveaway processed',
-                data: { giveawayId: giveaway.id, winners },
-            })
+                infoLog({
+                    message: 'Giveaway processed',
+                    data: { giveawayId: giveaway.id, winners },
+                })
+            }
         } catch (err) {
             errorLog({
                 message: 'Error processing ended giveaway:',

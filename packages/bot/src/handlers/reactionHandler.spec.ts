@@ -584,6 +584,7 @@ describe('reactionHandler', () => {
 
         it('ignores bot reactions', async () => {
             mockUser.bot = true
+            mockReaction.emoji = { name: '🎉' }
 
             handleReactionEvents(mockClient)
             await mockClient._messageReactionAddHandler(mockReaction, mockUser)

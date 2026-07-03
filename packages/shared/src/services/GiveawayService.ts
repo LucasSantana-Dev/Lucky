@@ -52,8 +52,8 @@ export class GiveawayService {
     async getActiveByMessageId(
         messageId: string,
     ): Promise<GiveawayData | null> {
-        return await prisma.giveaway.findUnique({
-            where: { messageId },
+        return await prisma.giveaway.findFirst({
+            where: { messageId, endedAt: null },
         })
     }
 
@@ -120,6 +120,8 @@ export class GiveawayService {
     async endById(giveawayId: string): Promise<GiveawayData | null> {
         const giveaway = await this.getById(giveawayId)
         if (!giveaway) return null
+        // If already ended, return the existing record (no redraw)
+        if (giveaway.endedAt !== null) return giveaway
 
         const winners = await this.endAndDraw(giveawayId, giveaway.winnersCount)
         return {
@@ -130,9 +132,11 @@ export class GiveawayService {
     }
 
     /** Reroll winners for an ended giveaway. */
-    async reroll(giveawayId: string): Promise<string[]> {
+    async reroll(giveawayId: string): Promise<string[] | null> {
         const giveaway = await this.getById(giveawayId)
-        if (!giveaway) return []
+        if (!giveaway) return null
+        // Reroll must only operate on already-ended giveaways
+        if (giveaway.endedAt === null) return null
 
         return await this.endAndDraw(giveawayId, giveaway.winnersCount)
     }

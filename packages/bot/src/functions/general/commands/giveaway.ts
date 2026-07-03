@@ -9,8 +9,11 @@ import {
 import Command from '../../../models/Command'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { giveawayService, parseDuration } from '@lucky/shared/services'
+import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient.js'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { COLOR } from '@lucky/shared/constants'
+
+const prisma = getPrismaClient()
 
 async function handleStart(
     interaction: ChatInputCommandInteraction,
@@ -41,6 +44,43 @@ async function handleStart(
 
     const endsAt = new Date(Date.now() + durationMs)
 
+    // Verify channel is text-based and bot has SendMessages permission
+    const channel = interaction.client.channels.cache.get(
+        interaction.channelId,
+    ) as TextChannel
+    if (!channel || channel.type !== ChannelType.GuildText) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Cannot access text channel.' },
+        })
+        return
+    }
+
+    const guild = interaction.guild
+    if (!guild) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Guild context missing.' },
+        })
+        return
+    }
+
+    const me = guild.members.me ?? (await guild.members.fetchMe())
+    const hasPermission = channel
+        .permissionsFor(me)
+        ?.has(PermissionFlagsBits.SendMessages)
+    if (!hasPermission) {
+        await interactionReply({
+            interaction,
+            content: {
+                content:
+                    '❌ I do not have permission to send messages in that channel.',
+            },
+        })
+        return
+    }
+
+    // Create giveaway record
     const giveaway = await giveawayService.create({
         guildId: interaction.guildId,
         channelId: interaction.channelId,
@@ -48,11 +88,6 @@ async function handleStart(
         winnersCount,
         endsAt,
         createdBy: interaction.user.id,
-    })
-
-    infoLog({
-        message: 'giveaway start command executed',
-        data: { giveawayId: giveaway.id, userId: interaction.user.id },
     })
 
     const embed = new EmbedBuilder()
@@ -72,22 +107,33 @@ async function handleStart(
         })
         .setTimestamp()
 
-    const channel = interaction.client.channels.cache.get(
-        interaction.channelId,
-    ) as TextChannel
-    if (!channel || channel.type !== ChannelType.GuildText) {
+    let msg
+    try {
+        msg = await channel.send({ embeds: [embed.toJSON()] })
+        await msg.react('🎉')
+        // Save message ID only after successful post
+        await giveawayService.updateMessageId(giveaway.id, msg.id)
+    } catch (err) {
+        // Clean up the orphan record if post fails
+        await prisma.giveaway.delete({ where: { id: giveaway.id } })
+        errorLog({
+            message: 'Failed to post giveaway message:',
+            error: err,
+        })
         await interactionReply({
             interaction,
-            content: { content: '❌ Cannot access text channel.' },
+            content: {
+                content:
+                    '❌ Failed to post giveaway message. Please try again.',
+            },
         })
         return
     }
 
-    const msg = await channel.send({ embeds: [embed.toJSON()] })
-    await msg.react('🎉')
-
-    // Save message ID
-    await giveawayService.updateMessageId(giveaway.id, msg.id)
+    infoLog({
+        message: 'giveaway start command executed',
+        data: { giveawayId: giveaway.id, userId: interaction.user.id },
+    })
 
     await interactionReply({
         interaction,
@@ -141,7 +187,7 @@ async function handleEnd(
                     )
                         .setColor(0xff0000)
                         .setDescription(`**Prize:** ${giveaway.prize} (Ended)`)
-                        .addFields([
+                        .setFields([
                             {
                                 name: 'Winners',
                                 value: mention,
@@ -194,6 +240,14 @@ async function handleReroll(
     }
 
     const winners = await giveawayService.reroll(giveawayId)
+    if (!winners) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Giveaway has not ended yet.' },
+        })
+        return
+    }
+
     const mention =
         winners.length > 0
             ? winners.map((id) => `<@${id}>`).join(', ')
