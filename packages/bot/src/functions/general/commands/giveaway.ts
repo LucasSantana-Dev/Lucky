@@ -201,8 +201,8 @@ async function handleEnd(
         return
     }
 
-    const giveaway = await giveawayService.endById(giveawayId, interaction.guildId)
-    if (!giveaway) {
+    const result = await giveawayService.endById(giveawayId, interaction.guildId)
+    if (!result) {
         await interactionReply({
             interaction,
             content: { content: '❌ Giveaway not found.', ephemeral: true },
@@ -210,8 +210,10 @@ async function handleEnd(
         return
     }
 
-    // If already ended, don't re-announce
-    if (giveaway.endedAt !== null) {
+    const { giveaway, wasAlreadyEnded } = result
+
+    // If it was already ended before this call, don't re-announce.
+    if (wasAlreadyEnded) {
         const mention =
             giveaway.winnerIds.length > 0
                 ? giveaway.winnerIds.map((id) => `<@${id}>`).join(', ')

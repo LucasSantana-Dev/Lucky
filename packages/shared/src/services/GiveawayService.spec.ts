@@ -57,7 +57,10 @@ describe('GiveawayService', () => {
 
             const result = await service.endById('ga-123', 'guild-1')
 
-            expect(result).toEqual(endedGiveaway)
+            expect(result).toEqual({
+                giveaway: endedGiveaway,
+                wasAlreadyEnded: true,
+            })
             expect(mockUpdate).not.toHaveBeenCalled()
         })
 
@@ -86,8 +89,9 @@ describe('GiveawayService', () => {
 
             const result = await service.endById('ga-123', 'guild-1')
 
-            expect(result?.winnerIds).toHaveLength(2)
-            expect(result?.endedAt).not.toBeNull()
+            expect(result?.wasAlreadyEnded).toBe(false)
+            expect(result?.giveaway.winnerIds).toHaveLength(2)
+            expect(result?.giveaway.endedAt).not.toBeNull()
             expect(mockUpdate).toHaveBeenCalled()
         })
 

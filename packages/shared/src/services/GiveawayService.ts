@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto'
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 
 /** Duration parser for human-readable durations (e.g., "10m", "2h", "1d"). */
@@ -101,7 +102,7 @@ export class GiveawayService {
         const winners: string[] = []
         const copied = [...entries]
         for (let i = 0; i < Math.min(winnersCount, copied.length); i++) {
-            const idx = Math.floor(Math.random() * copied.length)
+            const idx = randomInt(copied.length)
             winners.push(copied[idx])
             copied.splice(idx, 1)
         }
@@ -118,20 +119,29 @@ export class GiveawayService {
         return winners
     }
 
-    /** End a giveaway by ID (early termination). Guild-scoped. */
-    async endById(giveawayId: string, guildId: string): Promise<GiveawayData | null> {
+    /**
+     * End a giveaway by ID (early termination). Guild-scoped. Returns the
+     * giveaway plus `wasAlreadyEnded` so the caller can tell a fresh end from
+     * a no-op on an already-ended giveaway — the returned record always has
+     * `endedAt` set, so `endedAt` alone cannot distinguish the two.
+     */
+    async endById(
+        giveawayId: string,
+        guildId: string,
+    ): Promise<{ giveaway: GiveawayData; wasAlreadyEnded: boolean } | null> {
         const giveaway = await this.getPrisma().giveaway.findFirst({
             where: { id: giveawayId, guildId },
         })
         if (!giveaway) return null
-        // If already ended, return the existing record (no redraw)
-        if (giveaway.endedAt !== null) return giveaway
+        // If already ended, return the existing record (no redraw).
+        if (giveaway.endedAt !== null) {
+            return { giveaway, wasAlreadyEnded: true }
+        }
 
         const winners = await this.endAndDraw(giveawayId, giveaway.winnersCount)
         return {
-            ...giveaway,
-            winnerIds: winners,
-            endedAt: new Date(),
+            giveaway: { ...giveaway, winnerIds: winners, endedAt: new Date() },
+            wasAlreadyEnded: false,
         }
     }
 
@@ -156,7 +166,7 @@ export class GiveawayService {
         const winners: string[] = []
         const copied = [...entries]
         for (let i = 0; i < Math.min(giveaway.winnersCount, copied.length); i++) {
-            const idx = Math.floor(Math.random() * copied.length)
+            const idx = randomInt(copied.length)
             winners.push(copied[idx])
             copied.splice(idx, 1)
         }
