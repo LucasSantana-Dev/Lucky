@@ -10,6 +10,8 @@ import {
     type PartialGuildMember,
     type Role,
     type GuildBan,
+    type User,
+    type PartialUser,
     type DMChannel,
     type NonThreadGuildBasedChannel,
     AuditLogEvent,
@@ -20,6 +22,14 @@ import { postToModLog } from '../functions/moderation/helpers/modLogPoster.js'
 
 async function isServerLogsEnabled(guildId: string): Promise<boolean> {
     return featureToggleService.isEnabled('SERVER_LOGS', { guildId })
+}
+
+function moderatorField(executor: User | PartialUser | null | undefined) {
+    return {
+        name: 'Moderator',
+        value: executor ? `${executor.tag} (${executor.id})` : 'Unknown',
+        inline: true as const,
+    }
 }
 
 async function handleMessageDelete(
@@ -186,13 +196,7 @@ async function handleGuildBanAdd(ban: {
                         value: `${ban.user.tag} (${ban.user.id})`,
                         inline: true,
                     },
-                    {
-                        name: 'Moderator',
-                        value: banEntry?.executor
-                            ? `${banEntry.executor.tag} (${banEntry.executor.id})`
-                            : 'Unknown',
-                        inline: true,
-                    },
+                    moderatorField(banEntry?.executor),
                     {
                         name: 'Reason',
                         value: banEntry?.reason || 'No reason provided',
@@ -253,13 +257,7 @@ async function handleGuildBanRemove(ban: {
                         value: `${ban.user.tag} (${ban.user.id})`,
                         inline: true,
                     },
-                    {
-                        name: 'Moderator',
-                        value: unbanEntry?.executor
-                            ? `${unbanEntry.executor.tag} (${unbanEntry.executor.id})`
-                            : 'Unknown',
-                        inline: true,
-                    },
+                    moderatorField(unbanEntry?.executor),
                     {
                         name: 'Reason',
                         value: unbanEntry?.reason || 'No reason provided',
@@ -280,18 +278,22 @@ async function handleGuildBanRemove(ban: {
     }
 }
 
-async function handleChannelCreate(channel: GuildChannel): Promise<void> {
+async function handleChannelEvent(
+    channel: GuildChannel,
+    action: 'created' | 'deleted',
+    auditLogAction: AuditLogEvent,
+): Promise<void> {
     if (!(await isServerLogsEnabled(channel.guild.id))) return
     try {
         const auditLogs = await channel.guild
-            .fetchAuditLogs({ type: AuditLogEvent.ChannelCreate, limit: 1 })
+            .fetchAuditLogs({ type: auditLogAction, limit: 1 })
             .catch(() => null)
         const channelEntry = auditLogs?.entries.first()
 
         await serverLogService.createLog(
             channel.guild.id,
             'channel_update',
-            'Channel created',
+            `Channel ${action}`,
             {
                 channelId: channel.id,
                 channelName: channel.name,
@@ -304,80 +306,36 @@ async function handleChannelCreate(channel: GuildChannel): Promise<void> {
         )
 
         const embed = new EmbedBuilder()
-            .setColor(0x57f287)
-            .setTitle('➕ Channel Created')
+            .setColor(action === 'created' ? 0x57f287 : 0xed4245)
+            .setTitle(
+                action === 'created'
+                    ? '➕ Channel Created'
+                    : '➖ Channel Deleted',
+            )
             .addFields(
                 { name: 'Channel', value: `#${channel.name}`, inline: true },
-                {
-                    name: 'Moderator',
-                    value: channelEntry?.executor
-                        ? `${channelEntry.executor.tag} (${channelEntry.executor.id})`
-                        : 'Unknown',
-                    inline: true,
-                },
+                moderatorField(channelEntry?.executor),
             )
             .setTimestamp()
         await postToModLog(channel.guild, embed)
 
         debugLog({
-            message: `Logged channel create in ${channel.guild.name}`,
+            message: `Logged channel ${action} in ${channel.guild.name}`,
         })
     } catch (error) {
         errorLog({
-            message: 'Error logging channel create:',
+            message: `Error logging channel ${action}:`,
             error,
         })
     }
 }
 
+async function handleChannelCreate(channel: GuildChannel): Promise<void> {
+    await handleChannelEvent(channel, 'created', AuditLogEvent.ChannelCreate)
+}
+
 async function handleChannelDelete(channel: GuildChannel): Promise<void> {
-    if (!(await isServerLogsEnabled(channel.guild.id))) return
-    try {
-        const auditLogs = await channel.guild
-            .fetchAuditLogs({ type: AuditLogEvent.ChannelDelete, limit: 1 })
-            .catch(() => null)
-        const channelEntry = auditLogs?.entries.first()
-
-        await serverLogService.createLog(
-            channel.guild.id,
-            'channel_update',
-            'Channel deleted',
-            {
-                channelId: channel.id,
-                channelName: channel.name,
-                channelType: channel.type,
-            },
-            {
-                channelId: channel.id,
-                moderatorId: channelEntry?.executor?.id,
-            },
-        )
-
-        const embed = new EmbedBuilder()
-            .setColor(0xed4245)
-            .setTitle('➖ Channel Deleted')
-            .addFields(
-                { name: 'Channel', value: `#${channel.name}`, inline: true },
-                {
-                    name: 'Moderator',
-                    value: channelEntry?.executor
-                        ? `${channelEntry.executor.tag} (${channelEntry.executor.id})`
-                        : 'Unknown',
-                    inline: true,
-                },
-            )
-            .setTimestamp()
-        await postToModLog(channel.guild, embed)
-
-        debugLog({
-            message: `Logged channel delete in ${channel.guild.name}`,
-        })
-    } catch (error) {
-        errorLog({
-            message: 'Error logging channel delete:',
-            error,
-        })
-    }
+    await handleChannelEvent(channel, 'deleted', AuditLogEvent.ChannelDelete)
 }
 
 async function handleRoleEvent(
@@ -414,13 +372,7 @@ async function handleRoleEvent(
             )
             .addFields(
                 { name: 'Role', value: role.name, inline: true },
-                {
-                    name: 'Moderator',
-                    value: roleEntry?.executor
-                        ? `${roleEntry.executor.tag} (${roleEntry.executor.id})`
-                        : 'Unknown',
-                    inline: true,
-                },
+                moderatorField(roleEntry?.executor),
             )
             .setTimestamp()
         await postToModLog(role.guild, embed)
