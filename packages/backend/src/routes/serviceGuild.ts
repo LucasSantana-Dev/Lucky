@@ -6,18 +6,29 @@ import { timingSafeKeyCompare } from '../utils/timingSafeKeyCompare'
 
 function requireMembersKey(req: Request): void {
     const provided = req.header('x-members-key')?.trim()
-    const expected = process.env.LUCKY_MEMBERS_API_KEY
+    const expected = process.env.LUCKY_MEMBERS_API_KEY?.trim()
     if (!timingSafeKeyCompare(provided, expected)) {
         throw AppError.unauthorized('invalid members key')
     }
 }
 
 function getGuildId(): string {
-    return process.env.CRIATIVARIA_GUILD_ID || '895505900016631839'
+    const guildId = process.env.CRIATIVARIA_GUILD_ID
+    if (!guildId) {
+        throw new AppError(500, 'CRIATIVARIA_GUILD_ID not configured')
+    }
+    return guildId
 }
 
 function validateSnowflake(value: string): boolean {
     return /^\d{17,20}$/.test(value)
+}
+
+function singleQueryParam(value: unknown): string | undefined {
+    if (Array.isArray(value)) {
+        throw AppError.badRequest('query parameter must not be repeated')
+    }
+    return typeof value === 'string' ? value : undefined
 }
 
 function sanitizeQuery(query: string): string {
@@ -75,7 +86,7 @@ async function discordFetch(url: string, method: string): Promise<Response> {
     const timeout = setTimeout(() => controller.abort(), 10_000)
 
     try {
-        const response = await fetch(url, {
+        return await fetch(url, {
             method,
             headers: {
                 Authorization: `Bot ${token}`,
@@ -83,7 +94,9 @@ async function discordFetch(url: string, method: string): Promise<Response> {
             },
             signal: controller.signal,
         })
-        return response
+    } catch (err) {
+        console.error('Discord API request failed:', err)
+        throw AppError.badGateway('discord request failed')
     } finally {
         clearTimeout(timeout)
     }
@@ -121,14 +134,17 @@ export function setupServiceGuildRoutes(app: Express): void {
             const guildId = getGuildId()
 
             // Parse and validate query parameters
-            const limitParam = req.query.limit as string | undefined
-            const afterParam = req.query.after as string | undefined
-            const queryParam = req.query.query as string | undefined
+            const limitParam = singleQueryParam(req.query.limit)
+            const afterParam = singleQueryParam(req.query.after)
+            const queryParam = singleQueryParam(req.query.query)
 
             let limit = 50
             if (limitParam !== undefined) {
+                if (!/^\d+$/.test(limitParam)) {
+                    throw AppError.badRequest('limit must be 1-100')
+                }
                 const parsed = parseInt(limitParam, 10)
-                if (isNaN(parsed) || parsed < 1 || parsed > 100) {
+                if (parsed < 1 || parsed > 100) {
                     throw AppError.badRequest('limit must be 1-100')
                 }
                 limit = parsed
@@ -144,6 +160,9 @@ export function setupServiceGuildRoutes(app: Express): void {
                     throw AppError.badRequest('query must be 1-32 characters')
                 }
                 sanitizedQuery = sanitizeQuery(queryParam)
+                if (sanitizedQuery.length === 0) {
+                    throw AppError.badRequest('query must be 1-32 characters')
+                }
             }
 
             // Build Discord API URL

@@ -197,6 +197,60 @@ describe('Service Guild Routes Integration', () => {
             )
         })
 
+        test('should reject a partially-numeric limit like "50abc"', async () => {
+            const response = await request(app)
+                .get('/api/service/guild/members?limit=50abc')
+                .set('x-members-key', 'test-members-key')
+                .expect(400)
+
+            expect(response.body.error).toContain('limit must be 1-100')
+        })
+
+        test('should reject a query that sanitizes down to an empty string', async () => {
+            const response = await request(app)
+                .get('/api/service/guild/members?query=%00%01%02')
+                .set('x-members-key', 'test-members-key')
+                .expect(400)
+
+            expect(response.body.error).toContain(
+                'query must be 1-32 characters',
+            )
+        })
+
+        test('should reject a repeated (array-valued) limit query parameter', async () => {
+            const response = await request(app)
+                .get('/api/service/guild/members?limit=1&limit=2')
+                .set('x-members-key', 'test-members-key')
+                .expect(400)
+
+            expect(response.body.error).toContain(
+                'query parameter must not be repeated',
+            )
+        })
+
+        test('should return 502 when the Discord request itself fails (network/timeout)', async () => {
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
+            mockFetch.mockRejectedValueOnce(new Error('network unreachable'))
+
+            const response = await request(app)
+                .get('/api/service/guild/members')
+                .set('x-members-key', 'test-members-key')
+                .expect(502)
+
+            expect(response.body.error).toContain('discord request failed')
+        })
+
+        test('should fail closed when CRIATIVARIA_GUILD_ID is not configured', async () => {
+            delete process.env.CRIATIVARIA_GUILD_ID
+
+            const response = await request(app)
+                .get('/api/service/guild/members')
+                .set('x-members-key', 'test-members-key')
+                .expect(500)
+
+            expect(response.body.error).toContain('CRIATIVARIA_GUILD_ID')
+        })
+
         test('should sanitize control characters from query', async () => {
             const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
             mockFetch.mockResolvedValueOnce({
