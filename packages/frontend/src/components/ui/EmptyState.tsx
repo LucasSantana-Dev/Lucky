@@ -7,6 +7,12 @@ interface EmptyStateProps {
     icon?: ReactNode
     action?: ReactNode
     className?: string
+    /**
+     * Render without the panel chrome (no surface background, border, or
+     * centered max-width) so the empty state sits flush inside a container
+     * that already provides its own surface — e.g. embedded in a table Card.
+     */
+    bare?: boolean
 }
 
 export default function EmptyState({
@@ -15,11 +21,13 @@ export default function EmptyState({
     icon,
     action,
     className,
+    bare = false,
 }: EmptyStateProps) {
     return (
         <section
             className={cn(
-                'surface-panel mx-auto flex w-full min-h-[240px] max-w-2xl flex-col items-center justify-center px-6 py-12 text-center md:px-10 md:py-14',
+                'flex w-full min-h-[240px] flex-col items-center justify-center px-6 py-12 text-center md:px-10 md:py-14',
+                bare ? '' : 'surface-panel mx-auto max-w-2xl',
                 className,
             )}
         >
