@@ -371,6 +371,164 @@ describe('customCommandHandler', () => {
             expect(replied.content).toContain('texto qualquer')
         })
 
+        function smartSetup(opts: {
+            config?: Record<string, unknown>
+            mappings?: unknown[]
+            detected?: unknown[]
+            channel?: Record<string, unknown> | null
+            me?: unknown
+            fetchMe?: unknown
+            content?: string
+        }) {
+            ;(customCommandService.listCommands as jest.Mock).mockResolvedValue(
+                [
+                    {
+                        name: 'vaga',
+                        response: '',
+                        commandKind: 'job_post',
+                        config: opts.config ?? { targetChannelId: 'chan2' },
+                    },
+                ],
+            )
+            ;(
+                customCommandService.incrementUsage as jest.Mock
+            ).mockResolvedValue(undefined)
+            ;(getPrismaClient as jest.Mock).mockReturnValue({
+                reactionRoleMessage: {
+                    findMany: jest.fn(() =>
+                        Promise.resolve([
+                            {
+                                mappings: opts.mappings ?? [
+                                    { label: 'Python', roleId: 'r-py' },
+                                ],
+                            },
+                        ]),
+                    ),
+                },
+            })
+            ;(detectRolesFromText as jest.Mock).mockReturnValue(
+                opts.detected ?? [{ label: 'Python', roleId: 'r-py' }],
+            )
+            const send = jest.fn().mockResolvedValue(undefined)
+            const reply = jest.fn().mockResolvedValue(undefined)
+            const channel =
+                opts.channel === null
+                    ? null
+                    : {
+                          id: 'chan2',
+                          isTextBased: () => true,
+                          permissionsFor: () => ({ has: () => true }),
+                          send,
+                          ...(opts.channel ?? {}),
+                      }
+            const message = {
+                author: { id: 'user1', bot: false },
+                content: opts.content ?? 'vaga Dev Python remoto',
+                channelId: 'c1',
+                member: { roles: { cache: { map: () => [] } } },
+                reply,
+                guild: {
+                    members: {
+                        me: 'me' in opts ? opts.me : {},
+                        fetchMe: jest.fn(() =>
+                            'fetchMe' in opts
+                                ? Promise.resolve(opts.fetchMe)
+                                : Promise.reject(new Error('no fetch')),
+                        ),
+                    },
+                    channels: {
+                        fetch: jest.fn(() => Promise.resolve(channel)),
+                    },
+                },
+            } as unknown as Message
+            const context: MessageContext = {
+                guild: { id: 'guild1' } as any,
+                member: {} as any,
+                featureToggles: { CUSTOM_COMMANDS: true },
+            }
+            return { message, context, send, reply }
+        }
+
+        it('SECURITY: denied canUseCommand never runs the smart path', async () => {
+            const { message, context, send, reply } = smartSetup({})
+            ;(customCommandService.canUseCommand as jest.Mock).mockReturnValue(
+                false,
+            )
+            await customCommandHandler.handle(message, context)
+            expect(send).not.toHaveBeenCalled()
+            expect(reply).not.toHaveBeenCalled()
+            expect(customCommandService.incrementUsage).not.toHaveBeenCalled()
+        })
+
+        it('warns when the guild has no reaction roles configured', async () => {
+            const { message, context, send, reply } = smartSetup({
+                mappings: [],
+            })
+            await customCommandHandler.handle(message, context)
+            expect(send).not.toHaveBeenCalled()
+            expect(
+                (reply.mock.calls[0] as unknown[])[0] as { content: string },
+            ).toMatchObject({
+                content: expect.stringContaining('Nenhum cargo de reação'),
+            })
+        })
+
+        it('warns when the target channel is invalid', async () => {
+            const { message, context, send, reply } = smartSetup({
+                channel: null,
+            })
+            await customCommandHandler.handle(message, context)
+            expect(send).not.toHaveBeenCalled()
+            expect(
+                (reply.mock.calls[0] as unknown[])[0] as { content: string },
+            ).toMatchObject({
+                content: expect.stringContaining('Canal de destino inválido'),
+            })
+        })
+
+        it('warns when the bot cannot post in the target channel', async () => {
+            const { message, context, send, reply } = smartSetup({
+                channel: { permissionsFor: () => ({ has: () => false }) },
+            })
+            await customCommandHandler.handle(message, context)
+            expect(send).not.toHaveBeenCalled()
+            expect(
+                (reply.mock.calls[0] as unknown[])[0] as { content: string },
+            ).toMatchObject({
+                content: expect.stringContaining('Sem permissão'),
+            })
+        })
+
+        it('fetches the bot member on cache miss instead of failing perms', async () => {
+            const { message, context, send } = smartSetup({
+                me: null,
+                fetchMe: {},
+            })
+            await customCommandHandler.handle(message, context)
+            expect(send).toHaveBeenCalledTimes(1)
+        })
+
+        it('rejects content over the 2000-char limit', async () => {
+            const { message, context, send, reply } = smartSetup({
+                content: 'vaga ' + 'x'.repeat(2100),
+            })
+            await customCommandHandler.handle(message, context)
+            expect(send).not.toHaveBeenCalled()
+            expect(
+                (reply.mock.calls[0] as unknown[])[0] as { content: string },
+            ).toMatchObject({
+                content: expect.stringContaining('muito longo'),
+            })
+        })
+
+        it('a failed confirmation ack does not skip usage accounting', async () => {
+            const { message, context, send, reply } = smartSetup({})
+            reply.mockRejectedValue(new Error('cannot reply'))
+            await customCommandHandler.handle(message, context)
+            expect(send).toHaveBeenCalledTimes(1)
+            expect(customCommandService.incrementUsage).toHaveBeenCalled()
+        })
+
         it('should handle error when listCommands throws', async () => {
             const error = new Error('Service error')
             ;(customCommandService.listCommands as jest.Mock).mockRejectedValue(

@@ -93,7 +93,11 @@ async function runJobPost(
             await reply(message, '⚠️ Canal de destino inválido ou removido.')
             return
         }
-        const me = message.guild.members.me
+        // members.me can be a cache miss on large guilds — fetch before
+        // concluding the bot lacks permission (cubic P2).
+        const me =
+            message.guild.members.me ??
+            (await message.guild.members.fetchMe().catch(() => null))
         const canPost = me
             ? (channel
                   .permissionsFor(me)
@@ -107,10 +111,12 @@ async function runJobPost(
             return
         }
         await channel.send({ content, allowedMentions: { roles: roleIds } })
+        // The publish already happened — a failed confirmation ack must not
+        // mark the execution failed or skip usage accounting (cubic P2).
         await reply(
             message,
             `✅ Publicado em <#${channel.id}> (${roleIds.length} cargo(s) marcado(s)).`,
-        )
+        ).catch(() => undefined)
         return
     }
 

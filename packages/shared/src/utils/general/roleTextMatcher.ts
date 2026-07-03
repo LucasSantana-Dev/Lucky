@@ -21,11 +21,11 @@ export function normalize(text: string): string {
 }
 
 /**
- * Extra match terms per canonical label (already normalized: lowercase, no
- * diacritics). The label itself is always tried too. Labels not listed here
- * are matched by their own normalized text as a word-bounded phrase.
+ * Default vocabulary for the `job_post` smart-command kind: canonical label ->
+ * extra match terms (already normalized: lowercase, no diacritics). The label
+ * itself is always tried too; labels not listed here are matched by their own
+ * normalized text as a word-bounded phrase.
  */
-/** Default vocabulary for the `job_post` smart-command kind. */
 export const JOB_ALIASES: AliasTable = {
     Javascript: ['javascript', 'js'],
     TypeScript: ['typescript', 'ts'],
@@ -142,7 +142,12 @@ export function detectRolesFromText(
     }
 
     if (opts.notifyRoleId) {
-        push({ label: 'notify', roleId: opts.notifyRoleId })
+        // Surface the real label in user-facing previews when the notify role
+        // is itself one of the mappings (cubic P3).
+        const label =
+            mappings.find((m) => m.roleId === opts.notifyRoleId)?.label ??
+            'notify'
+        push({ label, roleId: opts.notifyRoleId })
     }
 
     for (const m of mappings) {
