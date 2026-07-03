@@ -10,6 +10,13 @@ jest.mock('@lucky/shared/services', () => ({
         getEndedDue: mockGetEndedDue,
     },
 }))
+// @lucky/shared/utils' barrel reaches prismaClient's import.meta, which bot
+// jest can't compile — mock the log fns the scheduler uses.
+jest.mock('@lucky/shared/utils', () => ({
+    errorLog: jest.fn(),
+    debugLog: jest.fn(),
+    infoLog: jest.fn(),
+}))
 
 import { GiveawayScheduler } from './giveawayScheduler'
 
