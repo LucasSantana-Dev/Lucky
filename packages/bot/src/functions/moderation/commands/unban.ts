@@ -7,6 +7,7 @@ import Command from '../../../models/Command.js'
 import { moderationService } from '@lucky/shared/services'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
+import { postToModLog } from '../helpers/modLogPoster.js'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -87,6 +88,7 @@ export default new Command({
                 interaction,
                 content: { embeds: [embed] },
             })
+            await postToModLog(interaction.guild, embed)
 
             infoLog({
                 message: `User ${username} unbanned by ${interaction.user.tag} in ${interaction.guild.name}`,

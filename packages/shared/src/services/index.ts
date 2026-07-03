@@ -1,6 +1,7 @@
 export * from './FeatureToggleService'
 export * from './PremiumService'
 export * from './database/DatabaseService.js'
+export { afkService, type AfkStatusEntry } from './AfkService.js'
 export {
     MusicControlService,
     musicControlService,
@@ -90,6 +91,11 @@ export {
 } from './GuildRoleAccessService'
 export { redisClient } from './redis/index.js'
 export {
+    giveawayService,
+    parseDuration,
+    type GiveawayData,
+} from './GiveawayService.js'
+export {
     starboardService,
     type StarboardConfig,
     type StarboardEntry,
@@ -128,3 +134,10 @@ export {
     type BatchJobExecutor,
     type PermissionCheckResult,
 } from './batch/index.js'
+
+export {
+    reminderService,
+    ReminderService,
+    MAX_DELIVERY_ATTEMPTS,
+    type ReminderRecord,
+} from './ReminderService.js'

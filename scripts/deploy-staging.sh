@@ -78,9 +78,25 @@ git checkout --quiet --force --detach "$RESOLVED_SHA"
 log "Checked out $DEPLOY_REF -> ${RESOLVED_SHA:0:7}"
 export IMAGE_TAG="staging-${RESOLVED_SHA:0:7}"
 
+# --- test bot gating -----------------------------------------------------------
+# The staging bot is opt-in: only build/run it when a dedicated test-app token
+# is configured, so this stack never crash-loops on a missing token and never
+# logs in with the production token. Grep runs on the homelab at deploy time.
+SERVICES="backend frontend nginx"
+if grep -qE '^STAGING_DISCORD_TOKEN=.+' "$STAGING_DIR/$ENV_FILE" 2>/dev/null; then
+    SERVICES="$SERVICES bot"
+    log "STAGING_DISCORD_TOKEN present — including the test bot."
+else
+    log "STAGING_DISCORD_TOKEN absent — skipping the test bot (set it in $ENV_FILE to enable)."
+    # Omitting `bot` from the up set does NOT stop an already-running one
+    # (--remove-orphans only removes services absent from the compose file),
+    # so explicitly tear it down when the token has been removed.
+    dc rm -sf bot 2>/dev/null || true
+fi
+
 # --- build (locally; CI only builds main images) -------------------------------
-log "Building staging images (backend, frontend, nginx)..."
-if ! dc build backend frontend nginx; then
+log "Building staging images ($SERVICES)..."
+if ! dc build $SERVICES; then
     log "ERROR: BUILD_FAILED"
     exit 1
 fi
@@ -103,8 +119,8 @@ if ! dc run --rm --no-deps backend \
 fi
 
 # --- roll out ------------------------------------------------------------------
-log "Rolling out staging services..."
-dc up -d --remove-orphans backend frontend nginx
+log "Rolling out staging services ($SERVICES)..."
+dc up -d --remove-orphans $SERVICES
 
 # Routing is via the published HOST PORT: the production cloudflared tunnel's
 # remote ingress routes lucky-staging.* -> http://100.95.204.103:8093 (this nginx's

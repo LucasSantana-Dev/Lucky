@@ -8,6 +8,7 @@ import { moderationService } from '@lucky/shared/services'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 import { formatDurationHuman } from '../../../utils/general/formatDuration'
+import { postToModLog } from '../helpers/modLogPoster.js'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -119,6 +120,7 @@ export default new Command({
                 interaction,
                 content: { embeds: [embed] },
             })
+            await postToModLog(interaction.guild, embed)
 
             if (!silent) {
                 try {

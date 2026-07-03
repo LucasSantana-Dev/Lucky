@@ -21,6 +21,11 @@ jest.mock('@lucky/shared/services', () => ({
     starboardService: {
         getConfig: jest.fn(),
         upsertEntry: jest.fn(),
+        tryClaimFirstStarDm: jest.fn(),
+    },
+    giveawayService: {
+        getActiveByMessageId: jest.fn(),
+        addEntry: jest.fn(),
     },
 }))
 
@@ -33,12 +38,7 @@ jest.mock('../services/musicRecommendation/recommendationTelemetry', () => ({
 }))
 
 // NOW import types and the module under test after mocks are set up
-import {
-    describe,
-    expect,
-    it,
-    beforeEach,
-} from '@jest/globals'
+import { describe, expect, it, beforeEach } from '@jest/globals'
 import type {
     MessageReaction,
     PartialMessageReaction,
@@ -47,7 +47,11 @@ import type {
     Guild,
     Message,
 } from 'discord.js'
-import { handleReactionEvents } from './reactionHandler'
+import {
+    handleReactionEvents,
+    handleStarboardReaction,
+} from './reactionHandler'
+import { starboardService } from '@lucky/shared/services'
 
 describe('reactionHandler', () => {
     let mockClient: any
@@ -450,6 +454,204 @@ describe('reactionHandler', () => {
                     }),
                 }),
             )
+        })
+    })
+
+    describe('handleStarboardReaction (seed exclusion + first-star DM)', () => {
+        const config = {
+            channelId: 'star-chan',
+            emoji: '⭐',
+            threshold: 2,
+            selfStar: false,
+            seedReaction: true,
+            seedChannelIds: [],
+            firstStarDm: true,
+            firstStarDmMessage: null,
+        }
+
+        function starSetup(opts: { count: number; me: boolean }) {
+            ;(starboardService.getConfig as jest.Mock).mockResolvedValue(config)
+            ;(starboardService.upsertEntry as jest.Mock).mockResolvedValue({
+                starboardMsgId: null,
+            })
+            ;(
+                starboardService.tryClaimFirstStarDm as jest.Mock
+            ).mockResolvedValue(true)
+            const send = jest.fn().mockResolvedValue(undefined)
+            const user = {
+                id: 'u1',
+                bot: false,
+                partial: false,
+                send,
+            } as unknown as User
+            const message = {
+                id: 'm1',
+                partial: false,
+                guild: { id: 'g1' },
+                channelId: 'chan-1',
+                author: {
+                    id: 'author-1',
+                    username: 'author',
+                    displayAvatarURL: () => 'https://cdn.x/a.png',
+                },
+                content: 'hello',
+                url: 'https://discord.com/x',
+                channel: { name: 'general' },
+            }
+            const reaction = {
+                partial: false,
+                message,
+                emoji: { name: '⭐' },
+                count: opts.count,
+                me: opts.me,
+            } as unknown as MessageReaction
+            const channelSend = jest.fn().mockResolvedValue({ id: 'posted-1' })
+            const client = {
+                channels: {
+                    fetch: jest.fn().mockResolvedValue({
+                        isTextBased: () => true,
+                        send: channelSend,
+                        messages: { fetch: jest.fn() },
+                    }),
+                },
+            } as any
+            return { user, reaction, client, send, channelSend }
+        }
+
+        it("subtracts the bot's own seed reaction from the count", async () => {
+            // 2 raw reactions but one is the bot seed -> effective 1 < threshold 2
+            const { user, reaction, client, channelSend } = starSetup({
+                count: 2,
+                me: true,
+            })
+            await handleStarboardReaction(reaction, user, client)
+            expect(starboardService.upsertEntry).toHaveBeenCalledWith(
+                'g1',
+                'm1',
+                expect.objectContaining({ starCount: 1 }),
+            )
+            expect(channelSend).not.toHaveBeenCalled()
+        })
+
+        it('posts to the starboard when human stars alone meet the threshold', async () => {
+            const { user, reaction, client, channelSend } = starSetup({
+                count: 3,
+                me: true,
+            })
+            await handleStarboardReaction(reaction, user, client)
+            expect(channelSend).toHaveBeenCalledTimes(1)
+        })
+
+        it('DMs the member exactly when the claim succeeds', async () => {
+            const { user, reaction, client, send } = starSetup({
+                count: 1,
+                me: false,
+            })
+            await handleStarboardReaction(reaction, user, client)
+            expect(starboardService.tryClaimFirstStarDm).toHaveBeenCalledWith(
+                'g1',
+                'u1',
+            )
+            expect(send).toHaveBeenCalledTimes(1)
+            expect((send.mock.calls[0] as unknown[])[0]).toContain(
+                '<#star-chan>',
+            )
+        })
+
+        it('does not DM when the claim reports already-sent', async () => {
+            const { user, reaction, client, send } = starSetup({
+                count: 1,
+                me: false,
+            })
+            ;(
+                starboardService.tryClaimFirstStarDm as jest.Mock
+            ).mockResolvedValue(false)
+            await handleStarboardReaction(reaction, user, client)
+            expect(send).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('handleGiveawayReaction', () => {
+        let mockGiveawayService: any
+
+        beforeEach(() => {
+            // Import the mocked service
+            mockGiveawayService =
+                require('@lucky/shared/services').giveawayService
+            mockGiveawayService.getActiveByMessageId.mockClear()
+            mockGiveawayService.addEntry.mockClear()
+        })
+
+        it('ignores bot reactions', async () => {
+            mockUser.bot = true
+            mockReaction.emoji = { name: '🎉' }
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(
+                mockGiveawayService.getActiveByMessageId,
+            ).not.toHaveBeenCalled()
+        })
+
+        it('ignores non-giveaway emojis', async () => {
+            mockReaction.emoji = { name: '❤️' }
+            mockGiveawayService.getActiveByMessageId.mockResolvedValue(null)
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(
+                mockGiveawayService.getActiveByMessageId,
+            ).not.toHaveBeenCalled()
+        })
+
+        it('ignores 🎉 reaction if no giveaway exists for message', async () => {
+            mockReaction.emoji = { name: '🎉' }
+            mockGiveawayService.getActiveByMessageId.mockResolvedValue(null)
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(
+                mockGiveawayService.getActiveByMessageId,
+            ).toHaveBeenCalledWith('message-456')
+            expect(mockGiveawayService.addEntry).not.toHaveBeenCalled()
+        })
+
+        it('adds entry for active giveaway', async () => {
+            mockReaction.emoji = { name: '🎉' }
+            mockGiveawayService.getActiveByMessageId.mockResolvedValue({
+                id: 'giveaway-123',
+                messageId: 'message-456',
+                endedAt: null,
+            })
+            mockGiveawayService.addEntry.mockResolvedValue(undefined)
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(
+                mockGiveawayService.getActiveByMessageId,
+            ).toHaveBeenCalledWith('message-456')
+            expect(mockGiveawayService.addEntry).toHaveBeenCalledWith(
+                'giveaway-123',
+                'user-789',
+            )
+        })
+
+        it('ignores 🎉 reaction if giveaway has already ended', async () => {
+            mockReaction.emoji = { name: '🎉' }
+            mockGiveawayService.getActiveByMessageId.mockResolvedValue({
+                id: 'giveaway-123',
+                messageId: 'message-456',
+                endedAt: new Date(),
+            })
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(mockGiveawayService.addEntry).not.toHaveBeenCalled()
         })
     })
 })

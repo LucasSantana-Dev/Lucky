@@ -37,6 +37,25 @@ const guildAutomationRunBody = z
     })
     .strict()
 
+// Smart-command config, validated per kind (ADR 2026-07-03). Only "job_post"
+// is defined today; "basic" ignores config.
+const jobPostConfig = z
+    .object({
+        targetChannelId: z
+            .string()
+            .regex(/^\d{17,20}$/, 'Invalid channel ID')
+            .nullish(),
+        notifyRoleLabel: z.string().max(100).optional(),
+    })
+    // Reject typo'd keys — a mis-typed targetChannelId would silently change
+    // where job posts land (cubic P2).
+    .strict()
+
+const smartTagFields = {
+    commandKind: z.enum(['basic', 'job_post']).optional(),
+    config: jobPostConfig.optional(),
+}
+
 const createCommandBody = z.object({
     name: z
         .string()
@@ -45,6 +64,7 @@ const createCommandBody = z.object({
         .regex(/^[\w-]+$/, 'Name must be alphanumeric with dashes/underscores'),
     response: z.string().min(1, 'Response is required').max(2000),
     description: z.string().max(100).optional(),
+    ...smartTagFields,
 })
 
 const updateCommandBody = z
@@ -52,6 +72,7 @@ const updateCommandBody = z
         response: z.string().min(1).max(2000).optional(),
         description: z.string().max(100).optional(),
         enabled: z.boolean().optional(),
+        ...smartTagFields,
     })
     .strict()
 

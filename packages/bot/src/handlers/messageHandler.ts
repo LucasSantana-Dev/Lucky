@@ -5,14 +5,18 @@ import { MessagePipeline } from './message/pipeline'
 import { autoModHandler } from './message/autoModHandler'
 import { spamHandler } from './message/spamHandler'
 import { customCommandHandler } from './message/customCommandHandler'
+import { afkHandler } from './message/afkHandler'
 import { xpHandler } from './message/xpHandler'
+import { starboardSeedHandler } from './message/starboardSeedHandler'
 import type { MessageContext } from './message/types'
 
 const pipeline = new MessagePipeline()
     .register(spamHandler)
     .register(autoModHandler)
     .register(customCommandHandler)
+    .register(afkHandler)
     .register(xpHandler)
+    .register(starboardSeedHandler)
 
 export function handleMessageCreate(client: Client): void {
     client.on(Events.MessageCreate, async (message: Message) => {

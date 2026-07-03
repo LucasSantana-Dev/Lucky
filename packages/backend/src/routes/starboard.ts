@@ -21,6 +21,13 @@ const upsertConfigBody = z.object({
     emoji: z.string().min(1).max(10).optional(),
     threshold: z.number().int().min(1).max(100).optional(),
     selfStar: z.boolean().optional(),
+    seedReaction: z.boolean().optional(),
+    seedChannelIds: z
+        .array(z.string().regex(/^\d{17,20}$/, 'Invalid channel ID'))
+        .max(50)
+        .optional(),
+    firstStarDm: z.boolean().optional(),
+    firstStarDmMessage: z.string().max(1000).nullish(),
 })
 
 const entriesQuery = z.object({

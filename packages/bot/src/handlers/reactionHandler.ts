@@ -7,9 +7,8 @@ import {
     type PartialUser,
     type TextChannel,
 } from 'discord.js'
-import { starboardService } from '@lucky/shared/services'
+import { starboardService, giveawayService } from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
-import { activeGiveaways } from '../functions/general/commands/giveaway'
 import { getSongInfoMessage } from './player/trackNowPlaying'
 import { recordRecommendationSkipReason } from '../services/musicRecommendation/recommendationTelemetry'
 import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
@@ -22,15 +21,20 @@ async function handleGiveawayReaction(
     if (user.bot) return
     if (user.partial) await user.fetch()
 
-    const giveaway = activeGiveaways.get(reaction.message.id)
+    if (reaction.emoji.name !== '🎉') return
+
+    const giveaway = await giveawayService.getActiveByMessageId(
+        reaction.message.id,
+    )
     if (!giveaway) return
 
-    if (reaction.emoji.name === '🎉') {
-        giveaway.entries.add(user.id)
-    }
+    // Only allow entries for active (not ended) giveaways
+    if (giveaway.endedAt) return
+
+    await giveawayService.addEntry(giveaway.id, user.id)
 }
 
-async function handleStarboardReaction(
+export async function handleStarboardReaction(
     reaction: MessageReaction | PartialMessageReaction,
     user: User | PartialUser,
     client: Client,
@@ -47,11 +51,28 @@ async function handleStarboardReaction(
     const emoji = reaction.emoji.name ?? ''
     if (emoji !== config.emoji) return
 
-    const msg = reaction.message.partial ? await reaction.message.fetch() : reaction.message
+    const msg = reaction.message.partial
+        ? await reaction.message.fetch()
+        : reaction.message
 
     if (!config.selfStar && msg.author?.id === user.id) return
 
-    const starCount = reaction.count ?? 1
+    // One-time DM introducing the starboard the first time a member stars
+    // anything (per-guild opt-in; text overridable per guild).
+    if (config.firstStarDm) {
+        const first = await starboardService
+            .tryClaimFirstStarDm(guildId, user.id)
+            .catch(() => false)
+        if (first) {
+            const dmText =
+                config.firstStarDmMessage ??
+                `${config.emoji} You just starred a message! When a message collects ${config.threshold}× ${config.emoji}, it gets featured in <#${config.channelId}>.`
+            await (user as User).send(dmText).catch(() => undefined)
+        }
+    }
+
+    // The bot's own seed reaction must never count toward the threshold.
+    const starCount = Math.max(0, (reaction.count ?? 1) - (reaction.me ? 1 : 0))
     const entry = await starboardService.upsertEntry(guildId, msg.id, {
         channelId: msg.channelId,
         authorId: msg.author?.id ?? '',
@@ -61,7 +82,9 @@ async function handleStarboardReaction(
 
     if (starCount < config.threshold) return
 
-    const rawChannel = await client.channels.fetch(config.channelId).catch(() => null)
+    const rawChannel = await client.channels
+        .fetch(config.channelId)
+        .catch(() => null)
     if (!rawChannel || !rawChannel.isTextBased()) return
     const channel = rawChannel as TextChannel
 
@@ -79,7 +102,9 @@ async function handleStarboardReaction(
     }
 
     if (entry.starboardMsgId) {
-        const starMsg = await channel.messages.fetch(entry.starboardMsgId).catch(() => null)
+        const starMsg = await channel.messages
+            .fetch(entry.starboardMsgId)
+            .catch(() => null)
         if (starMsg) await starMsg.edit({ embeds: [starEmbed] })
     } else {
         const posted = await channel.send({ embeds: [starEmbed] })
@@ -184,7 +209,10 @@ async function handleSkipReasonReaction(
             },
         })
     } catch (err) {
-        errorLog({ message: 'Error handling skip reason reaction:', error: err })
+        errorLog({
+            message: 'Error handling skip reason reaction:',
+            error: err,
+        })
     }
 }
 
