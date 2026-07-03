@@ -5,6 +5,7 @@ import {
     type ChatInputCommandInteraction,
     ChannelType,
     type TextChannel,
+    type Client,
 } from 'discord.js'
 import Command from '../../../models/Command'
 import { infoLog, errorLog } from '@lucky/shared/utils'
@@ -16,6 +17,13 @@ import { COLOR } from '@lucky/shared/constants'
 const prisma = getPrismaClient()
 
 /** Helper: Build a giveaway embed showing winners and prize. */
+/** Renders a winners mention list, or a fallback when there are none. */
+function formatWinners(winners: string[]): string {
+    return winners.length > 0
+        ? winners.map((id) => `<@${id}>`).join(', ')
+        : 'no valid entries'
+}
+
 function buildGiveawayEmbed(
     prize: string,
     winners: string[],
@@ -188,6 +196,39 @@ async function handleStart(
     })
 }
 
+/**
+ * Best-effort refresh of the original giveaway message: edits its embed to the
+ * given status and runs `announce`. Shared by end + reroll (a missing message,
+ * non-text channel, or fetch failure is a no-op).
+ */
+async function refreshGiveawayMessage(
+    client: Client,
+    giveaway: { channelId: string; messageId: string | null; prize: string },
+    winners: string[],
+    status: 'Ended' | 'Rerolled',
+    announce: (channel: TextChannel) => Promise<void>,
+): Promise<void> {
+    if (!giveaway.messageId) return
+    try {
+        const channel = client.channels.cache.get(
+            giveaway.channelId,
+        ) as TextChannel
+        if (!channel || channel.type !== ChannelType.GuildText) return
+        const msg = await channel.messages
+            .fetch(giveaway.messageId)
+            .catch(() => null)
+        if (!msg) return
+        const embed = buildGiveawayEmbed(giveaway.prize, winners, status)
+        await msg.edit({ embeds: [embed.toJSON()] })
+        await announce(channel)
+    } catch (err) {
+        errorLog({
+            message: `Error updating ${status.toLowerCase()} giveaway message:`,
+            error: err,
+        })
+    }
+}
+
 async function handleEnd(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
@@ -214,10 +255,7 @@ async function handleEnd(
 
     // If it was already ended before this call, don't re-announce.
     if (wasAlreadyEnded) {
-        const mention =
-            giveaway.winnerIds.length > 0
-                ? giveaway.winnerIds.map((id) => `<@${id}>`).join(', ')
-                : 'no valid entries'
+        const mention = formatWinners(giveaway.winnerIds)
         await interactionReply({
             interaction,
             content: {
@@ -229,39 +267,20 @@ async function handleEnd(
     }
 
     const winners = giveaway.winnerIds
-    const mention =
-        winners.length > 0
-            ? winners.map((id) => `<@${id}>`).join(', ')
-            : 'no valid entries'
+    const mention = formatWinners(winners)
 
     infoLog({
         message: 'giveaway end command executed',
         data: { giveawayId, winners },
     })
 
-    // Edit the embed and post congratulations
-    if (giveaway.messageId) {
-        try {
-            const channel = interaction.client.channels.cache.get(
-                giveaway.channelId,
-            ) as TextChannel
-            if (channel && channel.type === ChannelType.GuildText) {
-                const msg = await channel.messages
-                    .fetch(giveaway.messageId)
-                    .catch(() => null)
-                if (msg) {
-                    const embed = buildGiveawayEmbed(giveaway.prize, winners, 'Ended')
-                    await msg.edit({ embeds: [embed.toJSON()] })
-                    await announceWinners(channel, giveaway.prize, winners)
-                }
-            }
-        } catch (err) {
-            errorLog({
-                message: 'Error updating giveaway message:',
-                error: err,
-            })
-        }
-    }
+    await refreshGiveawayMessage(
+        interaction.client,
+        giveaway,
+        winners,
+        'Ended',
+        (channel) => announceWinners(channel, giveaway.prize, winners),
+    )
 
     await interactionReply({
         interaction,
@@ -303,45 +322,27 @@ async function handleReroll(
         return
     }
 
-    const mention =
-        winners.length > 0
-            ? winners.map((id) => `<@${id}>`).join(', ')
-            : 'no valid entries'
+    const mention = formatWinners(winners)
 
     infoLog({
         message: 'giveaway reroll command executed',
         data: { giveawayId, winners },
     })
 
-    // Edit the message
-    if (giveaway.messageId) {
-        try {
-            const channel = interaction.client.channels.cache.get(
-                giveaway.channelId,
-            ) as TextChannel
-            if (channel && channel.type === ChannelType.GuildText) {
-                const msg = await channel.messages
-                    .fetch(giveaway.messageId)
-                    .catch(() => null)
-                if (msg) {
-                    const embed = buildGiveawayEmbed(giveaway.prize, winners, 'Rerolled')
-                    await msg.edit({ embeds: [embed.toJSON()] })
-
-                    if (winners.length > 0) {
-                        await channel.send({
-                            content: `🎉 New winners: ${mention} for ${giveaway.prize}!`,
-                            allowedMentions: { users: winners },
-                        })
-                    }
-                }
+    await refreshGiveawayMessage(
+        interaction.client,
+        giveaway,
+        winners,
+        'Rerolled',
+        async (channel) => {
+            if (winners.length > 0) {
+                await channel.send({
+                    content: `🎉 New winners: ${mention} for ${giveaway.prize}!`,
+                    allowedMentions: { users: winners },
+                })
             }
-        } catch (err) {
-            errorLog({
-                message: 'Error updating rerolled giveaway message:',
-                error: err,
-            })
-        }
-    }
+        },
+    )
 
     await interactionReply({
         interaction,

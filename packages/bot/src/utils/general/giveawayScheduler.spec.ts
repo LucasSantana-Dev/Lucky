@@ -225,4 +225,38 @@ describe('GiveawayScheduler.processEndedGiveaway', () => {
             }),
         )
     })
+    describe('tick / start / stop', () => {
+        it('processes each ended giveaway on tick', async () => {
+            mockGetEndedDue.mockResolvedValueOnce([
+                { id: 'g1', channelId: 'c', prize: 'P', winnersCount: 1, messageId: null },
+                { id: 'g2', channelId: 'c', prize: 'P', winnersCount: 1, messageId: null },
+            ])
+            mockEndAndDraw.mockResolvedValue(['u1'])
+
+            // client with no messageId -> finalize up front, no announce
+            scheduler['client'] = { channels: { cache: { get: jest.fn() }, fetch: jest.fn() } } as any
+            await scheduler['tick']()
+
+            expect(mockGetEndedDue).toHaveBeenCalledTimes(1)
+            expect(mockEndAndDraw).toHaveBeenCalledTimes(2)
+        })
+
+        it('is a no-op while a tick is already in progress', async () => {
+            scheduler['tickInProgress'] = true
+            await scheduler['tick']()
+            expect(mockGetEndedDue).not.toHaveBeenCalled()
+        })
+
+        it('start schedules a timer and is idempotent; stop clears it', () => {
+            jest.useFakeTimers()
+            const client = { channels: { cache: { get: jest.fn() }, fetch: jest.fn() } } as any
+            scheduler.start(client)
+            expect(scheduler['timer']).not.toBeNull()
+            // second start is a no-op (already started)
+            scheduler.start(client)
+            scheduler.stop()
+            expect(scheduler['timer']).toBeNull()
+            jest.useRealTimers()
+        })
+    })
 })
