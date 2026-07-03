@@ -1290,3 +1290,35 @@ model Reminder {
   @@index([userId, remindAt])
   @@map("reminders")
 }
+
+// Giveaway entries and configuration per guild.
+model Giveaway {
+  id          String   @id @default(cuid())
+  guildId     String
+  channelId   String
+  messageId   String?  @unique
+  prize       String
+  winnersCount Int    @default(1)
+  endsAt      DateTime
+  endedAt     DateTime?
+  winnerIds   String[] @default([])
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  entries GiveawayEntry[]
+
+  @@index([guildId])
+  @@index([endsAt])
+  @@map("giveaways")
+}
+
+model GiveawayEntry {
+  id          String   @id @default(cuid())
+  giveawayId  String
+  giveaway    Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId      String
+  createdAt   DateTime @default(now())
+
+  @@unique([giveawayId, userId])
+  @@map("giveaway_entries")
+}

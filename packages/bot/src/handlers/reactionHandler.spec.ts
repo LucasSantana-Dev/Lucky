@@ -23,6 +23,10 @@ jest.mock('@lucky/shared/services', () => ({
         upsertEntry: jest.fn(),
         tryClaimFirstStarDm: jest.fn(),
     },
+    giveawayService: {
+        getActiveByMessageId: jest.fn(),
+        addEntry: jest.fn(),
+    },
 }))
 
 jest.mock('./player/trackNowPlaying', () => ({
@@ -564,6 +568,89 @@ describe('reactionHandler', () => {
             ).mockResolvedValue(false)
             await handleStarboardReaction(reaction, user, client)
             expect(send).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('handleGiveawayReaction', () => {
+        let mockGiveawayService: any
+
+        beforeEach(() => {
+            // Import the mocked service
+            mockGiveawayService =
+                require('@lucky/shared/services').giveawayService
+            mockGiveawayService.getActiveByMessageId.mockClear()
+            mockGiveawayService.addEntry.mockClear()
+        })
+
+        it('ignores bot reactions', async () => {
+            mockUser.bot = true
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(
+                mockGiveawayService.getActiveByMessageId,
+            ).not.toHaveBeenCalled()
+        })
+
+        it('ignores non-giveaway emojis', async () => {
+            mockReaction.emoji = { name: '❤️' }
+            mockGiveawayService.getActiveByMessageId.mockResolvedValue(null)
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(
+                mockGiveawayService.getActiveByMessageId,
+            ).not.toHaveBeenCalled()
+        })
+
+        it('ignores 🎉 reaction if no giveaway exists for message', async () => {
+            mockReaction.emoji = { name: '🎉' }
+            mockGiveawayService.getActiveByMessageId.mockResolvedValue(null)
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(
+                mockGiveawayService.getActiveByMessageId,
+            ).toHaveBeenCalledWith('message-456')
+            expect(mockGiveawayService.addEntry).not.toHaveBeenCalled()
+        })
+
+        it('adds entry for active giveaway', async () => {
+            mockReaction.emoji = { name: '🎉' }
+            mockGiveawayService.getActiveByMessageId.mockResolvedValue({
+                id: 'giveaway-123',
+                messageId: 'message-456',
+                endedAt: null,
+            })
+            mockGiveawayService.addEntry.mockResolvedValue(undefined)
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(
+                mockGiveawayService.getActiveByMessageId,
+            ).toHaveBeenCalledWith('message-456')
+            expect(mockGiveawayService.addEntry).toHaveBeenCalledWith(
+                'giveaway-123',
+                'user-789',
+            )
+        })
+
+        it('ignores 🎉 reaction if giveaway has already ended', async () => {
+            mockReaction.emoji = { name: '🎉' }
+            mockGiveawayService.getActiveByMessageId.mockResolvedValue({
+                id: 'giveaway-123',
+                messageId: 'message-456',
+                endedAt: new Date(),
+            })
+
+            handleReactionEvents(mockClient)
+            await mockClient._messageReactionAddHandler(mockReaction, mockUser)
+
+            expect(mockGiveawayService.addEntry).not.toHaveBeenCalled()
         })
     })
 })
