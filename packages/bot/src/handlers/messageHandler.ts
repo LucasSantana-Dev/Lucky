@@ -19,7 +19,6 @@ const pipeline = new MessagePipeline()
     .register(afkHandler)
     .register(xpHandler)
     .register(starboardSeedHandler)
-    .register(ttlDeleteHandler)
 
 export function handleMessageCreate(client: Client): void {
     client.on(Events.MessageCreate, async (message: Message) => {

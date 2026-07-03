@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { ChatInputCommandInteraction } from 'discord.js'
+import { PermissionFlagsBits } from 'discord.js'
 
 const requireGuildMock = jest.fn()
 const channelCleanupServiceMock = {
@@ -42,12 +43,24 @@ describe('cleanup command', () => {
     beforeEach(async () => {
         jest.clearAllMocks()
 
+        const mockPermissions = {
+            has: jest.fn().mockReturnValue(true),
+        }
+
+        const mockChannel = {
+            id: 'channel-456',
+            permissionsFor: jest.fn().mockReturnValue(mockPermissions),
+        }
+
         mockInteraction = {
             guildId: 'guild-123',
+            client: {
+                user: { id: 'bot-user-id' },
+            },
             deferReply: jest.fn().mockResolvedValue(undefined),
             options: {
                 getSubcommand: jest.fn().mockReturnValue('list'),
-                getChannel: jest.fn().mockReturnValue({ id: 'channel-456' }),
+                getChannel: jest.fn().mockReturnValue(mockChannel),
                 getInteger: jest.fn().mockReturnValue(60),
             },
         } as any
@@ -61,25 +74,33 @@ describe('cleanup command', () => {
     })
 
     it('should defer reply with ephemeral', async () => {
-        await cleanupCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+        await cleanupCommand.execute({
+            interaction: mockInteraction as ChatInputCommandInteraction,
+        })
         expect(mockInteraction.deferReply).toHaveBeenCalledWith({ flags: 64 })
     })
 
     it('should return early if requireGuild fails', async () => {
         requireGuildMock.mockResolvedValue(false)
 
-        await cleanupCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+        await cleanupCommand.execute({
+            interaction: mockInteraction as ChatInputCommandInteraction,
+        })
 
         expect(mockInteraction.deferReply).not.toHaveBeenCalled()
     })
 
     describe('set-interval subcommand', () => {
         beforeEach(() => {
-            ;(mockInteraction.options as any).getSubcommand.mockReturnValue('set-interval')
+            ;(mockInteraction.options as any).getSubcommand.mockReturnValue(
+                'set-interval',
+            )
         })
 
         it('should configure purge interval', async () => {
-            await cleanupCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+            await cleanupCommand.execute({
+                interaction: mockInteraction as ChatInputCommandInteraction,
+            })
 
             expect(channelCleanupServiceMock.upsertConfig).toHaveBeenCalledWith(
                 'guild-123',
@@ -99,21 +120,29 @@ describe('cleanup command', () => {
                 channelId: 'channel-456',
             })
 
-            await cleanupCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+            await cleanupCommand.execute({
+                interaction: mockInteraction as ChatInputCommandInteraction,
+            })
 
             expect(interactionReplyMock).toHaveBeenCalled()
-            expect(channelCleanupServiceMock.upsertConfig).not.toHaveBeenCalled()
+            expect(
+                channelCleanupServiceMock.upsertConfig,
+            ).not.toHaveBeenCalled()
         })
     })
 
     describe('set-ttl subcommand', () => {
         beforeEach(() => {
-            ;(mockInteraction.options as any).getSubcommand.mockReturnValue('set-ttl')
+            ;(mockInteraction.options as any).getSubcommand.mockReturnValue(
+                'set-ttl',
+            )
             ;(mockInteraction.options as any).getInteger.mockReturnValue(300) // 5 minutes
         })
 
         it('should configure TTL delete', async () => {
-            await cleanupCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+            await cleanupCommand.execute({
+                interaction: mockInteraction as ChatInputCommandInteraction,
+            })
 
             expect(channelCleanupServiceMock.upsertConfig).toHaveBeenCalledWith(
                 'guild-123',
@@ -133,16 +162,22 @@ describe('cleanup command', () => {
                 channelId: 'channel-456',
             })
 
-            await cleanupCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+            await cleanupCommand.execute({
+                interaction: mockInteraction as ChatInputCommandInteraction,
+            })
 
             expect(interactionReplyMock).toHaveBeenCalled()
-            expect(channelCleanupServiceMock.upsertConfig).not.toHaveBeenCalled()
+            expect(
+                channelCleanupServiceMock.upsertConfig,
+            ).not.toHaveBeenCalled()
         })
     })
 
     describe('disable subcommand', () => {
         beforeEach(() => {
-            ;(mockInteraction.options as any).getSubcommand.mockReturnValue('disable')
+            ;(mockInteraction.options as any).getSubcommand.mockReturnValue(
+                'disable',
+            )
         })
 
         it('should disable cleanup for channel', async () => {
@@ -151,24 +186,34 @@ describe('cleanup command', () => {
                 enabled: true,
             })
 
-            await cleanupCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+            await cleanupCommand.execute({
+                interaction: mockInteraction as ChatInputCommandInteraction,
+            })
 
-            expect(channelCleanupServiceMock.disableCleanup).toHaveBeenCalledWith('guild-123', 'channel-456')
+            expect(
+                channelCleanupServiceMock.disableCleanup,
+            ).toHaveBeenCalledWith('guild-123', 'channel-456')
         })
 
         it('should show error if channel has no config', async () => {
             channelCleanupServiceMock.getConfig.mockResolvedValue(null)
 
-            await cleanupCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+            await cleanupCommand.execute({
+                interaction: mockInteraction as ChatInputCommandInteraction,
+            })
 
-            expect(channelCleanupServiceMock.disableCleanup).not.toHaveBeenCalled()
+            expect(
+                channelCleanupServiceMock.disableCleanup,
+            ).not.toHaveBeenCalled()
             expect(interactionReplyMock).toHaveBeenCalled()
         })
     })
 
     describe('list subcommand', () => {
         beforeEach(() => {
-            ;(mockInteraction.options as any).getSubcommand.mockReturnValue('list')
+            ;(mockInteraction.options as any).getSubcommand.mockReturnValue(
+                'list',
+            )
         })
 
         it('should list all configs', async () => {
@@ -183,16 +228,22 @@ describe('cleanup command', () => {
             ]
             channelCleanupServiceMock.listConfigs.mockResolvedValue(configs)
 
-            await cleanupCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+            await cleanupCommand.execute({
+                interaction: mockInteraction as ChatInputCommandInteraction,
+            })
 
-            expect(channelCleanupServiceMock.listConfigs).toHaveBeenCalledWith('guild-123')
+            expect(channelCleanupServiceMock.listConfigs).toHaveBeenCalledWith(
+                'guild-123',
+            )
             expect(interactionReplyMock).toHaveBeenCalled()
         })
 
         it('should show empty message if no configs', async () => {
             channelCleanupServiceMock.listConfigs.mockResolvedValue([])
 
-            await cleanupCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+            await cleanupCommand.execute({
+                interaction: mockInteraction as ChatInputCommandInteraction,
+            })
 
             expect(interactionReplyMock).toHaveBeenCalled()
         })

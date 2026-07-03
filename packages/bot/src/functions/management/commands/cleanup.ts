@@ -5,10 +5,14 @@ import {
     PermissionFlagsBits,
     SlashCommandBuilder,
     EmbedBuilder,
+    type GuildChannel,
 } from 'discord.js'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
 import { channelCleanupService, starboardService } from '@lucky/shared/services'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import { assertDefined } from '@lucky/shared/utils/guards'
@@ -23,7 +27,9 @@ export default new Command({
         .addSubcommand((sub) =>
             sub
                 .setName('set-interval')
-                .setDescription('Enable interval-based purge (wipes channel every N minutes)')
+                .setDescription(
+                    'Enable interval-based purge (wipes channel every N minutes)',
+                )
                 .addChannelOption((opt) =>
                     opt
                         .setName('channel')
@@ -42,7 +48,9 @@ export default new Command({
         .addSubcommand((sub) =>
             sub
                 .setName('set-ttl')
-                .setDescription('Enable TTL-based delete (deletes messages N seconds after posting)')
+                .setDescription(
+                    'Enable TTL-based delete (deletes messages N seconds after posting)',
+                )
                 .addChannelOption((opt) =>
                     opt
                         .setName('channel')
@@ -74,12 +82,17 @@ export default new Command({
         .addSubcommand((sub) =>
             sub
                 .setName('list')
-                .setDescription('List all configured cleanup channels for this guild'),
+                .setDescription(
+                    'List all configured cleanup channels for this guild',
+                ),
         ),
     category: 'management',
     execute: async ({ interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        const guildId = assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')
+        const guildId = assertDefined(
+            interaction.guildId,
+            'Guild ID required after requireGuild check',
+        )
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
@@ -98,20 +111,61 @@ export default new Command({
         } catch {
             await interactionReply({
                 interaction,
-                content: { embeds: [createErrorEmbed('Error', 'An error occurred while processing your request.')] },
+                content: {
+                    embeds: [
+                        createErrorEmbed(
+                            'Error',
+                            'An error occurred while processing your request.',
+                        ),
+                    ],
+                },
             })
         }
     },
 })
 
-async function handleSetInterval(interaction: ChatInputCommandInteraction, guildId: string) {
-    const channel = interaction.options.getChannel('channel')
+async function handleSetInterval(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+) {
+    const channel = interaction.options.getChannel(
+        'channel',
+    ) as GuildChannel | null
     const minutes = interaction.options.getInteger('minutos', true)
 
     if (!channel) {
         await interactionReply({
             interaction,
-            content: { embeds: [createErrorEmbed('Error', 'Channel not found.')] },
+            content: {
+                embeds: [createErrorEmbed('Error', 'Channel not found.')],
+            },
+        })
+        return
+    }
+
+    // Check if bot has ManageMessages permission in the target channel
+    if (!('permissionsFor' in channel)) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Error', 'Invalid channel type.')],
+            },
+        })
+        return
+    }
+
+    const botPermissions = channel.permissionsFor(interaction.client.user)
+    if (!botPermissions?.has(PermissionFlagsBits.ManageMessages)) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Permission Missing',
+                        `I don't have **Manage Messages** permission in <#${channel.id}>. Please grant this permission before configuring cleanup.`,
+                    ),
+                ],
+            },
         })
         return
     }
@@ -155,19 +209,57 @@ async function handleSetInterval(interaction: ChatInputCommandInteraction, guild
     } catch {
         await interactionReply({
             interaction,
-            content: { embeds: [createErrorEmbed('Error', 'Failed to save configuration.')] },
+            content: {
+                embeds: [
+                    createErrorEmbed('Error', 'Failed to save configuration.'),
+                ],
+            },
         })
     }
 }
 
-async function handleSetTtl(interaction: ChatInputCommandInteraction, guildId: string) {
-    const channel = interaction.options.getChannel('channel')
+async function handleSetTtl(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+) {
+    const channel = interaction.options.getChannel(
+        'channel',
+    ) as GuildChannel | null
     const seconds = interaction.options.getInteger('segundos', true)
 
     if (!channel) {
         await interactionReply({
             interaction,
-            content: { embeds: [createErrorEmbed('Error', 'Channel not found.')] },
+            content: {
+                embeds: [createErrorEmbed('Error', 'Channel not found.')],
+            },
+        })
+        return
+    }
+
+    // Check if bot has ManageMessages permission in the target channel
+    if (!('permissionsFor' in channel)) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Error', 'Invalid channel type.')],
+            },
+        })
+        return
+    }
+
+    const botPermissions = channel.permissionsFor(interaction.client.user)
+    if (!botPermissions?.has(PermissionFlagsBits.ManageMessages)) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Permission Missing',
+                        `I don't have **Manage Messages** permission in <#${channel.id}>. Please grant this permission before configuring cleanup.`,
+                    ),
+                ],
+            },
         })
         return
     }
@@ -220,30 +312,47 @@ async function handleSetTtl(interaction: ChatInputCommandInteraction, guildId: s
     } catch {
         await interactionReply({
             interaction,
-            content: { embeds: [createErrorEmbed('Error', 'Failed to save configuration.')] },
+            content: {
+                embeds: [
+                    createErrorEmbed('Error', 'Failed to save configuration.'),
+                ],
+            },
         })
     }
 }
 
-async function handleDisable(interaction: ChatInputCommandInteraction, guildId: string) {
+async function handleDisable(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+) {
     const channel = interaction.options.getChannel('channel')
 
     if (!channel) {
         await interactionReply({
             interaction,
-            content: { embeds: [createErrorEmbed('Error', 'Channel not found.')] },
+            content: {
+                embeds: [createErrorEmbed('Error', 'Channel not found.')],
+            },
         })
         return
     }
 
     try {
-        const config = await channelCleanupService.getConfig(guildId, channel.id)
+        const config = await channelCleanupService.getConfig(
+            guildId,
+            channel.id,
+        )
 
         if (!config) {
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [createErrorEmbed('Not Configured', 'This channel does not have cleanup configured.')],
+                    embeds: [
+                        createErrorEmbed(
+                            'Not Configured',
+                            'This channel does not have cleanup configured.',
+                        ),
+                    ],
                 },
             })
             return
@@ -265,12 +374,19 @@ async function handleDisable(interaction: ChatInputCommandInteraction, guildId: 
     } catch {
         await interactionReply({
             interaction,
-            content: { embeds: [createErrorEmbed('Error', 'Failed to disable cleanup.')] },
+            content: {
+                embeds: [
+                    createErrorEmbed('Error', 'Failed to disable cleanup.'),
+                ],
+            },
         })
     }
 }
 
-async function handleList(interaction: ChatInputCommandInteraction, guildId: string) {
+async function handleList(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+) {
     try {
         const configs = await channelCleanupService.listConfigs(guildId)
 
@@ -318,7 +434,14 @@ async function handleList(interaction: ChatInputCommandInteraction, guildId: str
     } catch {
         await interactionReply({
             interaction,
-            content: { embeds: [createErrorEmbed('Error', 'Failed to retrieve configurations.')] },
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Error',
+                        'Failed to retrieve configurations.',
+                    ),
+                ],
+            },
         })
     }
 }

@@ -90,6 +90,26 @@ export class ChannelPurgeScheduler {
                         continue
                     }
 
+                    // Verify channel belongs to the configured guild
+                    if (
+                        !('guild' in channel) ||
+                        channel.guild?.id !== config.guildId
+                    ) {
+                        debugLog({
+                            message:
+                                'Channel guild mismatch or no guild, skipping',
+                            data: {
+                                channelId: config.channelId,
+                                configGuildId: config.guildId,
+                                channelGuildId:
+                                    'guild' in channel
+                                        ? channel.guild?.id
+                                        : 'no-guild-property',
+                            },
+                        })
+                        continue
+                    }
+
                     const textChannel = channel as TextChannel
 
                     // Bulk delete recent messages up to 5 times (Discord limits bulk delete to 100 messages, and only for messages <14 days old)
@@ -110,11 +130,15 @@ export class ChannelPurgeScheduler {
 
                             if (deleted.size < 100) break
                         } catch (innerError) {
-                            // Ignore errors for individual bulkDelete attempts
-                            debugLog({
-                                message: 'Error bulk deleting messages',
+                            // Log at ERROR level for permission or other failures
+                            // so they're visible for debugging, not just DEBUG
+                            errorLog({
+                                message:
+                                    'Error bulk deleting messages in channel purge',
+                                error: innerError,
                                 data: {
                                     channelId: config.channelId,
+                                    guildId: config.guildId,
                                     attempt: i + 1,
                                 },
                             })
