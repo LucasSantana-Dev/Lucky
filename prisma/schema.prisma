@@ -100,6 +100,7 @@ model Guild {
   roleGroups                   RoleGroup[]
   forumThreads                 GuildForumThread[]
   batchJobs                    BatchJob[]
+  afkStatuses                  AfkStatus[]
 
   @@map("guilds")
 }
@@ -1252,4 +1253,21 @@ model WeeklyDigestSnapshot {
 
   @@index([guildId, postedAt])
   @@map("weekly_digest_snapshots")
+}
+
+// AFK status tracking: user-initiated away status with optional reason.
+// One per (guildId, userId) pair; cleared on user message or /afk toggle.
+model AfkStatus {
+  id        String   @id @default(cuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  userId    String
+  reason    String?
+  since     DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, userId])
+  @@index([guildId])
+  @@map("afk_statuses")
 }

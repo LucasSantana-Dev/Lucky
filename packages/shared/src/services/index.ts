@@ -1,6 +1,7 @@
 export * from './FeatureToggleService'
 export * from './PremiumService'
 export * from './database/DatabaseService.js'
+export { afkService, type AfkStatusEntry } from './AfkService.js'
 export {
     MusicControlService,
     musicControlService,
