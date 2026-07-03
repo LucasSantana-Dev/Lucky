@@ -20,6 +20,7 @@ describe('GiveawayService', () => {
         mockPrisma = {
             giveaway: {
                 findFirst: mockFindFirst,
+                findUnique: jest.fn(),
                 findMany: mockFindMany,
                 update: mockUpdate,
             },
@@ -33,6 +34,7 @@ describe('GiveawayService', () => {
 
     describe('endById — guild-scoped', () => {
         it('returns null when giveaway not found for guild', async () => {
+            // @ts-ignore
             mockFindFirst.mockResolvedValueOnce(null)
 
             const result = await service.endById('ga-123', 'guild-1')
@@ -50,6 +52,7 @@ describe('GiveawayService', () => {
                 endedAt: new Date('2026-01-02'),
                 winnerIds: ['user-1'],
             }
+            // @ts-ignore
             mockFindFirst.mockResolvedValueOnce(endedGiveaway)
 
             const result = await service.endById('ga-123', 'guild-1')
@@ -66,7 +69,9 @@ describe('GiveawayService', () => {
                 endedAt: null,
                 winnerIds: [],
             }
+            // @ts-ignore
             mockFindFirst.mockResolvedValueOnce(pendingGiveaway)
+            // @ts-ignore
             mockPrisma.giveawayEntry.findMany.mockResolvedValueOnce([
                 { userId: 'user-1' },
                 { userId: 'user-2' },
@@ -87,6 +92,7 @@ describe('GiveawayService', () => {
         })
 
         it('prevents cross-guild access (IDOR protection)', async () => {
+            // @ts-ignore
             mockFindFirst.mockResolvedValueOnce(null)
 
             const result = await service.endById('ga-123', 'guild-2')
@@ -101,6 +107,7 @@ describe('GiveawayService', () => {
     describe('reroll — guild-scoped', () => {
         it('returns null if not found for guild', async () => {
             // @ts-ignore jest.fn type inference
+            // @ts-ignore
             mockFindFirst.mockResolvedValueOnce(null)
 
             const result = await service.reroll('ga-123', 'guild-1')
@@ -109,6 +116,7 @@ describe('GiveawayService', () => {
         })
 
         it('returns null if not ended', async () => {
+            // @ts-ignore
             mockFindFirst.mockResolvedValueOnce({
                 id: 'ga-123',
                 endedAt: null,
@@ -129,7 +137,11 @@ describe('GiveawayService', () => {
                 winnerIds: ['user-old'],
             }
 
+            // @ts-ignore
             mockFindFirst.mockResolvedValueOnce(endedGiveaway)
+            // @ts-ignore
+            mockPrisma.giveaway.findUnique.mockResolvedValueOnce(endedGiveaway)
+            // @ts-ignore
             mockPrisma.giveawayEntry.findMany.mockResolvedValueOnce([
                 { userId: 'user-1' },
                 { userId: 'user-2' },
@@ -145,10 +157,12 @@ describe('GiveawayService', () => {
             expect(result).toHaveLength(1)
             const updateCall = mockUpdate.mock.calls[0]?.[0]
             // Should NOT have endedAt in data
+            // @ts-ignore
             expect(updateCall?.data?.endedAt).toBeUndefined()
         })
 
         it('prevents cross-guild reroll (IDOR protection)', async () => {
+            // @ts-ignore
             mockFindFirst.mockResolvedValueOnce(null)
 
             const result = await service.reroll('ga-123', 'guild-2')
@@ -159,6 +173,7 @@ describe('GiveawayService', () => {
 
     describe('endAndDraw', () => {
         it('draws winners and sets endedAt', async () => {
+            // @ts-ignore
             mockPrisma.giveawayEntry.findMany.mockResolvedValueOnce([
                 { userId: 'user-1' },
                 { userId: 'user-2' },
@@ -183,6 +198,7 @@ describe('GiveawayService', () => {
         })
 
         it('handles empty entries', async () => {
+            // @ts-ignore
             mockPrisma.giveawayEntry.findMany.mockResolvedValueOnce([])
 
             // @ts-ignore

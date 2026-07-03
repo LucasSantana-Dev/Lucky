@@ -1,7 +1,5 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 
-const prisma = getPrismaClient()
-
 /** Duration parser for human-readable durations (e.g., "10m", "2h", "1d"). */
 export function parseDuration(input: string): number | null {
     const match = input.match(/^(\d+)([mhd])$/)
@@ -34,6 +32,10 @@ export type GiveawayData = {
 }
 
 export class GiveawayService {
+    private getPrisma() {
+        return getPrismaClient()
+    }
+
     /** Create a new giveaway. */
     async create(data: {
         guildId: string
@@ -43,7 +45,7 @@ export class GiveawayService {
         endsAt: Date
         createdBy: string
     }): Promise<GiveawayData> {
-        return await prisma.giveaway.create({
+        return await this.getPrisma().giveaway.create({
             data,
         })
     }
@@ -52,14 +54,14 @@ export class GiveawayService {
     async getActiveByMessageId(
         messageId: string,
     ): Promise<GiveawayData | null> {
-        return await prisma.giveaway.findFirst({
+        return await this.getPrisma().giveaway.findFirst({
             where: { messageId, endedAt: null },
         })
     }
 
     /** Get a giveaway by ID. */
     async getById(id: string): Promise<GiveawayData | null> {
-        return await prisma.giveaway.findUnique({
+        return await this.getPrisma().giveaway.findUnique({
             where: { id },
         })
     }
@@ -67,7 +69,7 @@ export class GiveawayService {
     /** Add an entry to a giveaway (ignore duplicate user entries). */
     async addEntry(giveawayId: string, userId: string): Promise<void> {
         try {
-            await prisma.giveawayEntry.create({
+            await this.getPrisma().giveawayEntry.create({
                 data: { giveawayId, userId },
             })
         } catch (err) {
@@ -81,7 +83,7 @@ export class GiveawayService {
 
     /** Get all entries for a giveaway. */
     async getEntries(giveawayId: string): Promise<string[]> {
-        const entries = await prisma.giveawayEntry.findMany({
+        const entries = await this.getPrisma().giveawayEntry.findMany({
             where: { giveawayId },
             select: { userId: true },
         })
@@ -105,7 +107,7 @@ export class GiveawayService {
         }
 
         // Update the giveaway
-        await prisma.giveaway.update({
+        await this.getPrisma().giveaway.update({
             where: { id: giveawayId },
             data: {
                 winnerIds: winners,
@@ -118,7 +120,7 @@ export class GiveawayService {
 
     /** End a giveaway by ID (early termination). Guild-scoped. */
     async endById(giveawayId: string, guildId: string): Promise<GiveawayData | null> {
-        const giveaway = await prisma.giveaway.findFirst({
+        const giveaway = await this.getPrisma().giveaway.findFirst({
             where: { id: giveawayId, guildId },
         })
         if (!giveaway) return null
@@ -135,7 +137,7 @@ export class GiveawayService {
 
     /** Reroll winners for an ended giveaway. Guild-scoped. */
     async reroll(giveawayId: string, guildId: string): Promise<string[] | null> {
-        const giveaway = await prisma.giveaway.findFirst({
+        const giveaway = await this.getPrisma().giveaway.findFirst({
             where: { id: giveawayId, guildId },
         })
         if (!giveaway) return null
@@ -160,7 +162,7 @@ export class GiveawayService {
         }
 
         // Update ONLY winnerIds, leave endedAt alone
-        await prisma.giveaway.update({
+        await this.getPrisma().giveaway.update({
             where: { id: giveawayId },
             data: { winnerIds: winners },
         })
@@ -170,7 +172,7 @@ export class GiveawayService {
 
     /** Get all giveaways that have ended (endsAt <= now, endedAt IS NULL). */
     async getEndedDue(): Promise<GiveawayData[]> {
-        return await prisma.giveaway.findMany({
+        return await this.getPrisma().giveaway.findMany({
             where: {
                 endsAt: { lte: new Date() },
                 endedAt: null,
@@ -184,7 +186,7 @@ export class GiveawayService {
         giveawayId: string,
         messageId: string,
     ): Promise<GiveawayData> {
-        return await prisma.giveaway.update({
+        return await this.getPrisma().giveaway.update({
             where: { id: giveawayId },
             data: { messageId },
         })
