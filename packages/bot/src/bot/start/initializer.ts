@@ -22,6 +22,7 @@ import { redisClient } from '@lucky/shared/services'
 import { initProviderHealth } from '../../utils/music/search/providerHealth'
 import { musicWatchdogService } from '../../utils/music/watchdog'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
+import { reminderScheduler } from '../../utils/general/reminderScheduler'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { aiDevToolkitService } from '../../services/AiDevToolkitService'
 import { dependencyCheckService } from '../../services/DependencyCheckService'
@@ -208,6 +209,12 @@ export class BotInitializer {
             birthdayScheduler.stop()
         } catch (error) {
             errorLog({ message: 'Error stopping birthday scheduler:', error })
+        }
+
+        try {
+            reminderScheduler.stop()
+        } catch (error) {
+            errorLog({ message: 'Error stopping reminder scheduler:', error })
         }
 
         try {

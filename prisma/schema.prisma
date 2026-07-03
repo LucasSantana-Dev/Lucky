@@ -101,6 +101,7 @@ model Guild {
   forumThreads                 GuildForumThread[]
   batchJobs                    BatchJob[]
   afkStatuses                  AfkStatus[]
+  reminders                   Reminder[]
 
   @@map("guilds")
 }
@@ -1270,4 +1271,22 @@ model AfkStatus {
   @@unique([guildId, userId])
   @@index([guildId])
   @@map("afk_statuses")
+}
+
+// User reminders — per-guild, per-user reminders with DM delivery fallback to origin channel.
+model Reminder {
+  id        String   @id @default(cuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  userId    String
+  channelId String   // Origin channel where /remind was created
+  message   String
+  remindAt  DateTime
+  delivered        Boolean  @default(false)
+  deliveryAttempts Int      @default(0) // gives up after MAX_DELIVERY_ATTEMPTS
+  createdAt        DateTime @default(now())
+
+  @@index([delivered, remindAt])
+  @@index([userId, remindAt])
+  @@map("reminders")
 }

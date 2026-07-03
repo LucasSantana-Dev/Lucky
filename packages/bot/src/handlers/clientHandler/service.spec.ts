@@ -23,6 +23,10 @@ jest.mock('./presence', () => ({
     }),
 }))
 
+jest.mock('../../utils/general/reminderScheduler', () => ({
+    reminderScheduler: { start: jest.fn(), stop: jest.fn() },
+}))
+
 jest.mock('../../utils/moderation/modDigestScheduler', () => ({
     modDigestSchedulerService: {
         start: jest.fn(),
