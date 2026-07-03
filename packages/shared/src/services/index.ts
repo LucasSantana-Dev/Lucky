@@ -129,3 +129,9 @@ export {
     type BatchJobExecutor,
     type PermissionCheckResult,
 } from './batch/index.js'
+
+export {
+    reminderService,
+    ReminderService,
+    type ReminderRecord,
+} from './ReminderService.js'
