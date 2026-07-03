@@ -23,11 +23,21 @@ jest.mock('./presence', () => ({
     }),
 }))
 
+jest.mock('../../utils/general/reminderScheduler', () => ({
+    reminderScheduler: { start: jest.fn(), stop: jest.fn() },
+}))
+
 jest.mock('../../utils/moderation/modDigestScheduler', () => ({
     modDigestSchedulerService: {
         start: jest.fn(),
         stop: jest.fn(),
     },
+}))
+
+// giveawayScheduler's import chain reaches prismaClient's import.meta, which
+// bot jest cannot compile — mock it so this suite loads.
+jest.mock('../../utils/general/giveawayScheduler', () => ({
+    giveawayScheduler: { start: jest.fn(), stop: jest.fn() },
 }))
 
 jest.mock('discord.js', () => {

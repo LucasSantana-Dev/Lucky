@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.31.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.30.0...v2.31.0) (2026-07-03)
+
+
+### Features
+
+* **bot:** afk status with mention replies ([#1689](https://github.com/LucasSantana-Dev/Lucky/issues/1689)) ([d8b5ba1](https://github.com/LucasSantana-Dev/Lucky/commit/d8b5ba101ea69033f18d9236481c9f8225867f08))
+* **bot:** extend mod-log posting, fix twitch startup silence ([#1698](https://github.com/LucasSantana-Dev/Lucky/issues/1698)) ([fb48065](https://github.com/LucasSantana-Dev/Lucky/commit/fb4806554220e604094aee1e27a498376ad566ff))
+* **bot:** persistent giveaways with reaction entry ([#1690](https://github.com/LucasSantana-Dev/Lucky/issues/1690)) ([b715af9](https://github.com/LucasSantana-Dev/Lucky/commit/b715af9df16ad016eaa7feda5f6e287d2b441933))
+* **bot:** post moderation case embeds to the mod-log channel ([#1696](https://github.com/LucasSantana-Dev/Lucky/issues/1696)) ([884da0f](https://github.com/LucasSantana-Dev/Lucky/commit/884da0fc5d8d689751c02ab4546911d11dc11fb8))
+* **bot:** reminders with /remind and delivery scheduler ([#1686](https://github.com/LucasSantana-Dev/Lucky/issues/1686)) ([1228290](https://github.com/LucasSantana-Dev/Lucky/commit/12282903a07538c75869c5eabb24f2823fb7411d))
+* **bot:** starboard seeding and one-time first-star dm ([#1685](https://github.com/LucasSantana-Dev/Lucky/issues/1685)) ([e12e2e4](https://github.com/LucasSantana-Dev/Lucky/commit/e12e2e4e18a1d5fc256c1c83b818384c8366fe60))
+* **staging:** opt-in test bot for pre-merge live smoke ([#1692](https://github.com/LucasSantana-Dev/Lucky/issues/1692)) ([c54eaba](https://github.com/LucasSantana-Dev/Lucky/commit/c54eabab1525d04297b6241eba7ea979826159b1))
+
+
+### Bug Fixes
+
+* **frontend:** flush moderation empty state (stray dark band) ([#1693](https://github.com/LucasSantana-Dev/Lucky/issues/1693)) ([c64041a](https://github.com/LucasSantana-Dev/Lucky/commit/c64041a9e5aa25d411ad5115cfa0038d779a693b))
+
+## [2.30.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.29.0...v2.30.0) (2026-07-03)
+
+
+### Features
+
+* **bot:** /vaga command builds job posts with auto-tagged roles ([#1682](https://github.com/LucasSantana-Dev/Lucky/issues/1682)) ([963e457](https://github.com/LucasSantana-Dev/Lucky/commit/963e457af6402437b10138124052df524af37a99))
+* **bot:** smart custom commands via generic command-kind seam (ADR 2026-07-03) ([#1684](https://github.com/LucasSantana-Dev/Lucky/issues/1684)) ([f0c446c](https://github.com/LucasSantana-Dev/Lucky/commit/f0c446c5dad1ab343b9a8df57f7b89ea3eaccaa2))
+
+## [2.29.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.28.1...v2.29.0) (2026-07-02)
+
+
+### Features
+
+* **dashboard:** add role groups management page ([#1678](https://github.com/LucasSantana-Dev/Lucky/issues/1678)) ([bb8bc2c](https://github.com/LucasSantana-Dev/Lucky/commit/bb8bc2c9d2e2a0dd2cccd3ff690c16531a576016))
+
+
+### Bug Fixes
+
+* **ci:** cf pages deploy uses root lockfile (stops silent failure) ([#1673](https://github.com/LucasSantana-Dev/Lucky/issues/1673)) ([8824fc3](https://github.com/LucasSantana-Dev/Lucky/commit/8824fc377e17bd4938b8af7d21050b2aa47b4982))
+* **logs:** serialize server logs with level, message and actor ([#1677](https://github.com/LucasSantana-Dev/Lucky/issues/1677)) ([acd8fe3](https://github.com/LucasSantana-Dev/Lucky/commit/acd8fe31493931cd1cba5e93ed46d93bd35fe514))
+* **reaction-roles:** PUT panel edit deletes mappings by cuid not snowflake ([#1675](https://github.com/LucasSantana-Dev/Lucky/issues/1675)) ([#1676](https://github.com/LucasSantana-Dev/Lucky/issues/1676)) ([a51c70f](https://github.com/LucasSantana-Dev/Lucky/commit/a51c70f77dac207c5c76c8b1155f77a033a5e04b))
+
 ## [2.28.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.28.0...v2.28.1) (2026-07-02)
 
 

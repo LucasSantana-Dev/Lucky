@@ -622,6 +622,7 @@ export default function ModerationPage() {
                         </AnimatePresence>
                     ) : (
                         <EmptyState
+                            bare
                             icon={
                                 <Shield
                                     className='w-10 h-10'
@@ -634,7 +635,6 @@ export default function ModerationPage() {
                                     ? t('tryAdjustingFilters')
                                     : t('moderationCasesWillAppearHere')
                             }
-                            className='rounded-none border-0 min-h-[240px]'
                         />
                     )}
                 </div>

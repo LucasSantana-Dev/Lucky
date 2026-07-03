@@ -2,8 +2,11 @@
 # verifying frontend/dashboard changes on a real branch before they reach prod.
 #
 # Differences vs docker-compose.yml (production):
-#   - NO bot service (the dashboard reads guild data via Discord REST; it does
-#     not need a running gateway bot — and two bots cannot share one token).
+#   - The bot service is TEST-ONLY and OPT-IN: it uses a SEPARATE Discord app
+#     token (STAGING_DISCORD_TOKEN) and is started by scripts/deploy-staging.sh
+#     only when that token is set, so it can never share the production token or
+#     act in production guilds. Its purpose is pre-merge live smoke of bot
+#     features (e.g. the destructive-interaction gate).
 #   - NO webhook / cloudflared services (staging reuses the PRODUCTION tunnel;
 #     an ingress rule in config-lucky.yml routes lucky-staging.* → this nginx's
 #     published host port 8093).
@@ -128,6 +131,47 @@ services:
             DEVELOPER_USER_IDS: ${DEVELOPER_USER_IDS:-}
             WEBAPP_FRONTEND_URL: ${WEBAPP_FRONTEND_URL:-}
             WEBAPP_BACKEND_URL: ${WEBAPP_BACKEND_URL:-}
+        networks:
+            - lucky-staging-network
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    # TEST-ONLY gateway bot for pre-merge live smoke of bot features. It logs in
+    # with STAGING_DISCORD_TOKEN — a SEPARATE Discord app — so it only acts in
+    # guilds where that test app is invited and can NEVER touch production
+    # guilds. DISCORD_TOKEN is overridden below (empty default) so it never
+    # falls back to the common-app-env production token: a missing
+    # STAGING_DISCORD_TOKEN yields a clean login failure, not a prod login.
+    # Started only when the token is present (see scripts/deploy-staging.sh).
+    bot:
+        <<: *small-svc
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-bot:${IMAGE_TAG:-staging}
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: production-bot
+            args:
+                SERVICE: bot
+                NODE_ENV: production
+        container_name: lucky-staging-bot
+        env_file:
+            - .env.staging
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        environment:
+            <<: *common-app-env
+            # Override the production token from common-app-env with the
+            # test-app token; empty default = clean login failure, never prod.
+            DISCORD_TOKEN: ${STAGING_DISCORD_TOKEN:-}
+            SENTRY_SERVICE_NAME: ${SENTRY_SERVICE_NAME:-bot}
+            BOT_NAME: ${BOT_NAME:-Lucky-Staging}
         networks:
             - lucky-staging-network
         logging:

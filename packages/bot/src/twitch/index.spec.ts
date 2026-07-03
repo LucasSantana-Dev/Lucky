@@ -3,6 +3,14 @@ import type { Client } from 'discord.js'
 
 const mockIsEnabled = jest.fn<() => Promise<boolean>>()
 const mockIsConfigured = jest.fn<() => boolean>()
+const mockGetTwitchEnv = jest.fn<
+    () => {
+        clientId: string
+        clientSecret: string
+        accessToken: string | undefined
+        refreshToken: string | undefined
+    }
+>()
 const mockStart = jest.fn<(c: Client) => Promise<void>>()
 const mockStop = jest.fn<() => void>()
 const mockRefresh = jest.fn<() => Promise<void>>()
@@ -10,9 +18,11 @@ const mockConnect = jest.fn<() => Promise<void>>()
 const mockDisconnect = jest.fn<() => Promise<void>>()
 const mockSubscribe = jest.fn<(h: () => Promise<void>) => Promise<void>>()
 const mockIsHealthy = jest.fn<() => boolean>()
+const mockWarnLog = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
+    warnLog: (...args: unknown[]) => mockWarnLog(...args),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -27,6 +37,7 @@ jest.mock('@lucky/shared/services', () => ({
 
 jest.mock('./token', () => ({
     isTwitchConfigured: () => mockIsConfigured(),
+    getTwitchEnv: () => mockGetTwitchEnv(),
 }))
 
 jest.mock('./eventsubClient', () => ({
@@ -50,6 +61,12 @@ describe('twitch/index', () => {
         jest.clearAllMocks()
         mockIsEnabled.mockResolvedValue(true)
         mockIsConfigured.mockReturnValue(true)
+        mockGetTwitchEnv.mockReturnValue({
+            clientId: 'client-id',
+            clientSecret: 'client-secret',
+            accessToken: 'access-token',
+            refreshToken: undefined,
+        })
         mockStart.mockResolvedValue(undefined)
         mockConnect.mockResolvedValue(undefined)
         mockSubscribe.mockResolvedValue(undefined)
@@ -74,6 +91,26 @@ describe('twitch/index', () => {
 
             expect(mockStart).not.toHaveBeenCalled()
             expect(mockConnect).not.toHaveBeenCalled()
+        })
+
+        it('warns which env var(s) are missing when misconfigured', async () => {
+            mockIsConfigured.mockReturnValue(false)
+            mockGetTwitchEnv.mockReturnValue({
+                clientId: 'client-id',
+                clientSecret: '',
+                accessToken: undefined,
+                refreshToken: undefined,
+            })
+
+            await startTwitchService(client)
+
+            expect(mockWarnLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'TWITCH_CLIENT_SECRET, TWITCH_ACCESS_TOKEN',
+                    ),
+                }),
+            )
         })
 
         it('starts EventSub and subscribes to refresh when healthy', async () => {
