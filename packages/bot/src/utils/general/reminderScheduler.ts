@@ -47,13 +47,24 @@ export class ReminderScheduler {
                 // Per-reminder isolation: one failure must not abort the batch.
                 try {
                     const delivered = await this.deliverReminder(reminder)
-                    // Undelivered reminders stay pending and retry next tick;
-                    // give up after 24h so they can't clog the due window.
-                    const expired =
-                        Date.now() - reminder.remindAt.getTime() >
-                        24 * 60 * 60 * 1000
-                    if (delivered || expired) {
+                    if (delivered) {
                         await reminderService.markDelivered(reminder.id)
+                    } else {
+                        // Failed deliveries back off 5 minutes instead of
+                        // retrying every tick (which would monopolize the
+                        // 25-row due window — review P1) and give up 24h
+                        // after creation.
+                        const expired =
+                            Date.now() - reminder.createdAt.getTime() >
+                            24 * 60 * 60 * 1000
+                        if (expired) {
+                            await reminderService.markDelivered(reminder.id)
+                        } else {
+                            await reminderService.rescheduleDelivery(
+                                reminder.id,
+                                new Date(Date.now() + 5 * 60 * 1000),
+                            )
+                        }
                     }
                 } catch (error) {
                     errorLog({

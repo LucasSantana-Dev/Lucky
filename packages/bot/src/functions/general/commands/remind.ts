@@ -186,16 +186,13 @@ export default new Command({
 
             if (subcommand === 'delete') {
                 const id = interaction.options.getString('id', true)
-                const reminders = await reminderService.listPending(
+                // Prefix resolved in the DB (scoped to owner) so it works no
+                // matter how many reminders the user has; must be UNIQUE —
+                // deleting the first match could remove the wrong one.
+                const matches = await reminderService.findPendingByIdPrefix(
                     guild.id,
                     interaction.user.id,
-                    50,
-                )
-
-                // Prefix match must be UNIQUE — deleting the first match could
-                // remove the wrong reminder (review P2).
-                const matches = reminders.filter(
-                    (r) => r.id === id || r.id.startsWith(id),
+                    id,
                 )
                 if (matches.length === 0) {
                     await interactionReply({

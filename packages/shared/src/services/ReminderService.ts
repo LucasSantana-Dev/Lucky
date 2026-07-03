@@ -64,6 +64,35 @@ export class ReminderService {
         return result.count > 0
     }
 
+    /**
+     * Finds pending reminders whose id matches a prefix, scoped to the owner.
+     * Returns up to 2 rows so callers can detect ambiguity without paging
+     * through the full list (review P2).
+     */
+    async findPendingByIdPrefix(
+        guildId: string,
+        userId: string,
+        prefix: string,
+    ): Promise<ReminderRecord[]> {
+        return await prisma.reminder.findMany({
+            where: {
+                guildId,
+                userId,
+                delivered: false,
+                id: { startsWith: prefix },
+            },
+            take: 2,
+        })
+    }
+
+    /** Reschedules a failed delivery a few minutes out (retry backoff). */
+    async rescheduleDelivery(reminderId: string, remindAt: Date): Promise<void> {
+        await prisma.reminder.update({
+            where: { id: reminderId },
+            data: { remindAt },
+        })
+    }
+
     /** Fetch undelivered reminders that are due (remindAt <= now). */
     async getDueReminders(limit: number = 25): Promise<ReminderRecord[]> {
         const now = new Date()

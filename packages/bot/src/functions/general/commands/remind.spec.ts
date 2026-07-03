@@ -8,6 +8,7 @@ jest.mock('@lucky/shared/utils', () => ({
 const reminderServiceMock = {
     create: jest.fn(),
     listPending: jest.fn(),
+    findPendingByIdPrefix: jest.fn(),
     deleteOwned: jest.fn(),
 }
 jest.mock('@lucky/shared/services', () => ({
@@ -104,6 +105,9 @@ describe('/remind command', () => {
             createdAt: new Date(),
         })
         reminderServiceMock.listPending.mockReset().mockResolvedValue([])
+        reminderServiceMock.findPendingByIdPrefix
+            .mockReset()
+            .mockResolvedValue([])
         reminderServiceMock.deleteOwned.mockReset().mockResolvedValue(true)
         interactionReply.mockClear().mockResolvedValue(undefined)
     })
@@ -238,7 +242,9 @@ describe('/remind command', () => {
             delivered: false,
             createdAt: new Date(),
         }
-        reminderServiceMock.listPending.mockResolvedValueOnce([reminder])
+        reminderServiceMock.findPendingByIdPrefix.mockResolvedValueOnce([
+            reminder,
+        ])
         await remindCommand.execute({
             interaction: makeInteraction(
                 'delete',
@@ -247,11 +253,9 @@ describe('/remind command', () => {
                 'abc12345',
             ) as never,
         })
-        expect(reminderServiceMock.listPending).toHaveBeenCalledWith(
-            'guild-1',
-            'u1',
-            50,
-        )
+        expect(
+            reminderServiceMock.findPendingByIdPrefix,
+        ).toHaveBeenCalledWith('guild-1', 'u1', 'abc12345')
         expect(reminderServiceMock.deleteOwned).toHaveBeenCalledWith(
             'guild-1',
             'u1',
