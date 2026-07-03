@@ -186,7 +186,10 @@ async function handleGuildBanAdd(ban: {
         // the command's reason at creation time — posting again here would
         // duplicate it. Only post for bans made outside the bot (native
         // Discord UI, other bots).
-        if (banEntry?.executor?.id !== guild.client.user?.id) {
+        if (
+            banEntry?.executor &&
+            banEntry.executor.id !== guild.client.user?.id
+        ) {
             const embed = new EmbedBuilder()
                 .setColor(0xc92a2a)
                 .setTitle('🔨 Member Banned')
@@ -247,7 +250,10 @@ async function handleGuildBanRemove(ban: {
 
         // Bot-issued unbans (via /unban) already post to the mod-log channel
         // at creation time — see handleGuildBanAdd for the same guard.
-        if (unbanEntry?.executor?.id !== guild.client.user?.id) {
+        if (
+            unbanEntry?.executor &&
+            unbanEntry.executor.id !== guild.client.user?.id
+        ) {
             const embed = new EmbedBuilder()
                 .setColor(0x51cf66)
                 .setTitle('✅ Member Unbanned')
@@ -470,7 +476,10 @@ async function handleGuildMemberRemove(
                 },
                 {
                     name: 'Roles',
-                    value: roleNames.length > 0 ? roleNames.join(', ') : 'None',
+                    value:
+                        roleNames.length > 0
+                            ? roleNames.join(', ').slice(0, 1024)
+                            : 'None',
                 },
             )
             .setTimestamp()
