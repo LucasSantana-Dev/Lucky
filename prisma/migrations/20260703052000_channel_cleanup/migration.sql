@@ -1,0 +1,14 @@
+-- CreateTable
+CREATE TABLE "channel_cleanup_configs" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "guildId" TEXT NOT NULL,
+    "channelId" TEXT NOT NULL,
+    "mode" TEXT NOT NULL,
+    "intervalMinutes" INTEGER,
+    "ttlSeconds" INTEGER,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "lastRunAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "channel_cleanup_configs_guildId_channelId_key" UNIQUE ("guildId", "channelId")
+);

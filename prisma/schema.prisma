@@ -956,6 +956,23 @@ model StarboardDmSent {
   @@map("starboard_dm_sents")
 }
 
+model ChannelCleanupConfig {
+  id              String   @id @default(cuid())
+  guildId         String
+  channelId       String
+  mode            String   // "purge_interval" | "ttl"
+  intervalMinutes Int?     // for purge_interval mode, min 60
+  ttlSeconds      Int?     // for ttl mode, min 5 max 86400
+  enabled         Boolean  @default(true)
+  lastRunAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([guildId, channelId])
+  @@index([guildId])
+  @@map("channel_cleanup_configs")
+}
+
 model LevelConfig {
   id              String   @id @default(cuid())
   guildId         String   @unique
