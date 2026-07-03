@@ -6,6 +6,7 @@ import { autoModHandler } from './message/autoModHandler'
 import { spamHandler } from './message/spamHandler'
 import { customCommandHandler } from './message/customCommandHandler'
 import { xpHandler } from './message/xpHandler'
+import { starboardSeedHandler } from './message/starboardSeedHandler'
 import type { MessageContext } from './message/types'
 
 const pipeline = new MessagePipeline()
@@ -13,6 +14,7 @@ const pipeline = new MessagePipeline()
     .register(autoModHandler)
     .register(customCommandHandler)
     .register(xpHandler)
+    .register(starboardSeedHandler)
 
 export function handleMessageCreate(client: Client): void {
     client.on(Events.MessageCreate, async (message: Message) => {

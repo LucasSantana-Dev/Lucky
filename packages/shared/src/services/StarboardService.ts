@@ -10,6 +10,10 @@ export type StarboardConfig = {
     emoji: string
     threshold: number
     selfStar: boolean
+    seedReaction: boolean
+    seedChannelIds: string[]
+    firstStarDm: boolean
+    firstStarDmMessage: string | null
     createdAt: Date
     updatedAt: Date
 }
@@ -34,6 +38,10 @@ type UpsertConfigData = {
     emoji?: string
     threshold?: number
     selfStar?: boolean
+    seedReaction?: boolean
+    seedChannelIds?: string[]
+    firstStarDm?: boolean
+    firstStarDmMessage?: string | null
 }
 
 /** Data for upserting a starboard entry. */
@@ -62,6 +70,26 @@ export class StarboardService {
             create: { guildId, ...data },
             update: data,
         })
+    }
+
+    /**
+     * Claims the one-time first-star DM for a user. Returns true exactly once
+     * per (guild, user) — the unique constraint makes the claim atomic, so
+     * concurrent reactions can't double-DM.
+     */
+    async tryClaimFirstStarDm(
+        guildId: string,
+        userId: string,
+    ): Promise<boolean> {
+        try {
+            await prisma.starboardDmSent.create({ data: { guildId, userId } })
+            return true
+        } catch (error) {
+            if ((error as { code?: string })?.code === 'P2002') {
+                return false
+            }
+            throw error
+        }
     }
 
     /** Deletes starboard configuration for a guild. */
