@@ -37,12 +37,19 @@ const guildAutomationRunBody = z
     })
     .strict()
 
-const smartTagFields = {
-    smartTags: z.boolean().optional(),
+// Smart-command config, validated per kind (ADR 2026-07-03). Only "job_post"
+// is defined today; "basic" ignores config.
+const jobPostConfig = z.object({
     targetChannelId: z
         .string()
         .regex(/^\d{17,20}$/, 'Invalid channel ID')
         .nullish(),
+    notifyRoleLabel: z.string().max(100).optional(),
+})
+
+const smartTagFields = {
+    commandKind: z.enum(['basic', 'job_post']).optional(),
+    config: jobPostConfig.optional(),
 }
 
 const createCommandBody = z.object({

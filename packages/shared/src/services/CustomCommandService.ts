@@ -35,8 +35,8 @@ export class CustomCommandService {
             allowedRoles?: string[]
             allowedChannels?: string[]
             createdBy?: string
-            smartTags?: boolean
-            targetChannelId?: string | null
+            commandKind?: string
+            config?: Prisma.InputJsonValue | null
         },
     ) {
         // Validate embedData if provided
@@ -65,8 +65,11 @@ export class CustomCommandService {
                     : Prisma.JsonNull,
                 allowedRoles: options?.allowedRoles || [],
                 allowedChannels: options?.allowedChannels || [],
-                smartTags: options?.smartTags ?? false,
-                targetChannelId: options?.targetChannelId ?? null,
+                commandKind: options?.commandKind ?? 'basic',
+                config:
+                    options?.config === undefined
+                        ? Prisma.JsonNull
+                        : (options.config ?? Prisma.JsonNull),
                 createdBy: options?.createdBy || 'unknown',
             },
         })

@@ -7,21 +7,24 @@ jest.mock('@lucky/shared/services', () => ({
     customCommandService: {
         listCommands: jest.fn(),
         incrementUsage: jest.fn(),
+        canUseCommand: jest.fn(),
     },
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
     getPrismaClient: jest.fn(),
-    detectVagaRoleTags: jest.fn(),
+    detectRolesFromText: jest.fn(),
+    JOB_ALIASES: {},
 }))
 
 import { customCommandService } from '@lucky/shared/services'
-import { getPrismaClient, detectVagaRoleTags } from '@lucky/shared/utils'
+import { getPrismaClient, detectRolesFromText } from '@lucky/shared/utils'
 
 describe('customCommandHandler', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        ;(customCommandService.canUseCommand as jest.Mock).mockReturnValue(true)
     })
 
     describe('canHandle', () => {
@@ -262,8 +265,8 @@ describe('customCommandHandler', () => {
                     {
                         name: 'vaga',
                         response: '📋 Nova vaga',
-                        smartTags: true,
-                        targetChannelId: 'chan2',
+                        commandKind: 'job_post',
+                        config: { targetChannelId: 'chan2' },
                     },
                 ],
             )
@@ -281,7 +284,7 @@ describe('customCommandHandler', () => {
                     ),
                 },
             })
-            ;(detectVagaRoleTags as jest.Mock).mockReturnValue([
+            ;(detectRolesFromText as jest.Mock).mockReturnValue([
                 { label: 'Python', roleId: 'r-py' },
             ])
 
@@ -290,13 +293,17 @@ describe('customCommandHandler', () => {
             const message = {
                 author: { id: 'user1', bot: false },
                 content: 'vaga Dev Python remoto',
+                channelId: 'c1',
+                member: { roles: { cache: { map: () => [] } } },
                 reply,
                 guild: {
+                    members: { me: {} },
                     channels: {
                         fetch: jest.fn(() =>
                             Promise.resolve({
                                 id: 'chan2',
                                 isTextBased: () => true,
+                                permissionsFor: () => ({ has: () => true }),
                                 send,
                             }),
                         ),
@@ -325,24 +332,30 @@ describe('customCommandHandler', () => {
 
         it('smart command without target channel replies in place', async () => {
             ;(customCommandService.listCommands as jest.Mock).mockResolvedValue(
-                [{ name: 'vaga', response: '', smartTags: true }],
+                [{ name: 'vaga', response: '', commandKind: 'job_post' }],
             )
             ;(
                 customCommandService.incrementUsage as jest.Mock
             ).mockResolvedValue(undefined)
             ;(getPrismaClient as jest.Mock).mockReturnValue({
                 reactionRoleMessage: {
-                    findMany: jest.fn(() => Promise.resolve([])),
+                    findMany: jest.fn(() =>
+                        Promise.resolve([
+                            { mappings: [{ label: 'X', roleId: 'r-x' }] },
+                        ]),
+                    ),
                 },
             })
-            ;(detectVagaRoleTags as jest.Mock).mockReturnValue([])
+            ;(detectRolesFromText as jest.Mock).mockReturnValue([])
 
             const reply = jest.fn().mockResolvedValue(undefined)
             const message = {
                 author: { id: 'user1', bot: false },
                 content: 'vaga texto qualquer',
+                channelId: 'c1',
+                member: { roles: { cache: { map: () => [] } } },
                 reply,
-                guild: { channels: { fetch: jest.fn() } },
+                guild: { members: { me: {} }, channels: { fetch: jest.fn() } },
             } as unknown as Message
 
             const context: MessageContext = {

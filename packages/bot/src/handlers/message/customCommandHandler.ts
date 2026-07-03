@@ -1,9 +1,11 @@
-import type { Message } from 'discord.js'
+import { PermissionFlagsBits, type Message } from 'discord.js'
 import { customCommandService } from '@lucky/shared/services'
 import {
     errorLog,
     getPrismaClient,
-    detectVagaRoleTags,
+    detectRolesFromText,
+    JOB_ALIASES,
+    type RoleTag,
 } from '@lucky/shared/utils'
 import type { CustomCommandModel } from '@lucky/shared/generated/prisma/models/CustomCommand'
 import type {
@@ -14,10 +16,13 @@ import type {
 
 const DISCORD_CONTENT_LIMIT = 2000
 
+interface JobPostConfig {
+    targetChannelId?: string | null
+    notifyRoleLabel?: string
+}
+
 /** Loads the guild's reaction-role labels + roleIds for auto-tagging. */
-async function loadRoleTags(
-    guildId: string,
-): Promise<{ label: string; roleId: string }[]> {
+async function loadRoleTags(guildId: string): Promise<RoleTag[]> {
     const prisma = getPrismaClient()
     const messages = await prisma.reactionRoleMessage.findMany({
         where: { guildId },
@@ -30,20 +35,41 @@ async function loadRoleTags(
     )
 }
 
+const reply = (message: Message, content: string) =>
+    message.reply({ content, allowedMentions: { repliedUser: false } })
+
 /**
- * Smart command: scans the text after the command name against the guild's
- * reaction-role labels, then posts `{response}\n\n{userText}\n\n{pings}` to the
- * command's target channel (or replies in place), pinging the matched roles.
+ * job_post smart command: scans the text after the command name against the
+ * guild's reaction-role labels (JOB_ALIASES vocabulary) and posts
+ * `{response}\n\n{userText}\n\n{pings}` to the configured target channel (or
+ * replies in place), pinging the matched roles. Fails loud when the guild has
+ * no reaction roles or the bot can't post to the target.
  */
-async function runSmartCommand(
+async function runJobPost(
     message: Message,
     guildId: string,
     cmd: CustomCommandModel,
 ): Promise<void> {
-    const userText = message.content.slice(cmd.name.length).trim()
     const mappings = await loadRoleTags(guildId)
-    const vagasRoleId = mappings.find((m) => /vagas?/i.test(m.label))?.roleId
-    const tags = detectVagaRoleTags(userText, mappings, { vagasRoleId })
+    if (mappings.length === 0) {
+        await reply(
+            message,
+            '⚠️ Nenhum cargo de reação configurado neste servidor — configure os reaction roles primeiro.',
+        )
+        return
+    }
+
+    const config = (cmd.config ?? {}) as JobPostConfig
+    const notifyLabel = config.notifyRoleLabel ?? 'Vagas'
+    const notifyRoleId = mappings.find(
+        (m) => m.label.toLowerCase() === notifyLabel.toLowerCase(),
+    )?.roleId
+
+    const userText = message.content.slice(cmd.name.length).trim()
+    const tags = detectRolesFromText(userText, mappings, {
+        aliases: JOB_ALIASES,
+        notifyRoleId,
+    })
     const roleIds = tags.map((t) => t.roleId)
     const pings = roleIds.map((id) => `<@&${id}>`).join(' ')
 
@@ -52,32 +78,46 @@ async function runSmartCommand(
         .join('\n\n')
 
     if (content.length > DISCORD_CONTENT_LIMIT) {
-        await message.reply({
-            content: `⚠️ Conteúdo muito longo (${content.length}/${DISCORD_CONTENT_LIMIT}).`,
-            allowedMentions: { repliedUser: false },
-        })
+        await reply(
+            message,
+            `⚠️ Conteúdo muito longo (${content.length}/${DISCORD_CONTENT_LIMIT}). Encurte o texto.`,
+        )
         return
     }
 
-    const target =
-        cmd.targetChannelId && message.guild
-            ? await message.guild.channels
-                  .fetch(cmd.targetChannelId)
-                  .catch(() => null)
-            : null
-
-    if (target?.isTextBased()) {
-        await target.send({ content, allowedMentions: { roles: roleIds } })
-        await message.reply({
-            content: `✅ Publicado em <#${target.id}>.`,
-            allowedMentions: { repliedUser: false },
-        })
-    } else {
-        await message.reply({
-            content,
-            allowedMentions: { roles: roleIds, repliedUser: false },
-        })
+    if (config.targetChannelId && message.guild) {
+        const channel = await message.guild.channels
+            .fetch(config.targetChannelId)
+            .catch(() => null)
+        if (!channel?.isTextBased()) {
+            await reply(message, '⚠️ Canal de destino inválido ou removido.')
+            return
+        }
+        const me = message.guild.members.me
+        const canPost = me
+            ? (channel
+                  .permissionsFor(me)
+                  ?.has(PermissionFlagsBits.SendMessages) ?? false)
+            : false
+        if (!canPost) {
+            await reply(
+                message,
+                '⚠️ Sem permissão para postar no canal de destino.',
+            )
+            return
+        }
+        await channel.send({ content, allowedMentions: { roles: roleIds } })
+        await reply(
+            message,
+            `✅ Publicado em <#${channel.id}> (${roleIds.length} cargo(s) marcado(s)).`,
+        )
+        return
     }
+
+    await message.reply({
+        content,
+        allowedMentions: { roles: roleIds, repliedUser: false },
+    })
 }
 
 export const customCommandHandler: MessageHandler = {
@@ -116,8 +156,23 @@ export const customCommandHandler: MessageHandler = {
                 return { stop: false }
             }
 
-            if (matchedCommand.smartTags) {
-                await runSmartCommand(message, context.guild.id, matchedCommand)
+            // Enforce per-command allowedRoles/allowedChannels BEFORE acting —
+            // a smart command can ping roles / post to another channel, so an
+            // ungated trigger would be a privilege-escalation vector (ADR
+            // 2026-07-03). Denied triggers are ignored silently.
+            const userRoles = message.member?.roles.cache.map((r) => r.id) ?? []
+            if (
+                !customCommandService.canUseCommand(
+                    matchedCommand,
+                    userRoles,
+                    message.channelId,
+                )
+            ) {
+                return { stop: false }
+            }
+
+            if (matchedCommand.commandKind === 'job_post') {
+                await runJobPost(message, context.guild.id, matchedCommand)
             } else {
                 await message.reply({
                     content: matchedCommand.response ?? '',

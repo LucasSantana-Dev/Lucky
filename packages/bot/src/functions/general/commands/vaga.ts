@@ -14,7 +14,8 @@ import {
     infoLog,
     errorLog,
     getPrismaClient,
-    detectVagaRoleTags,
+    detectRolesFromText,
+    JOB_ALIASES,
 } from '@lucky/shared/utils'
 
 const MODALIDADE = {
@@ -132,8 +133,9 @@ export default new Command({
             forcedLabels.push(SENIORIDADE[senioridadeVal])
         }
 
-        const tags = detectVagaRoleTags(`${titulo}\n${descricao}`, mappings, {
-            vagasRoleId,
+        const tags = detectRolesFromText(`${titulo}\n${descricao}`, mappings, {
+            aliases: JOB_ALIASES,
+            notifyRoleId: vagasRoleId,
             forcedLabels,
         })
         const roleIds = tags.map((t) => t.roleId)

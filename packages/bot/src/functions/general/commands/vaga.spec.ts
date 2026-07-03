@@ -16,7 +16,11 @@ interface Tag {
 const fakeDetect = (
     text: string,
     mappings: Tag[],
-    opts: { vagasRoleId?: string; forcedLabels?: string[] } = {},
+    opts: {
+        notifyRoleId?: string
+        forcedLabels?: string[]
+        aliases?: unknown
+    } = {},
 ): Tag[] => {
     const out: Tag[] = []
     const seen = new Set<string>()
@@ -26,7 +30,7 @@ const fakeDetect = (
             out.push(t)
         }
     }
-    if (opts.vagasRoleId) push({ label: 'Vagas', roleId: opts.vagasRoleId })
+    if (opts.notifyRoleId) push({ label: 'Vagas', roleId: opts.notifyRoleId })
     for (const m of mappings) {
         if (
             opts.forcedLabels?.includes(m.label) ||
@@ -42,7 +46,8 @@ jest.mock('@lucky/shared/utils', () => ({
     getPrismaClient,
     infoLog: jest.fn(),
     errorLog: jest.fn(),
-    detectVagaRoleTags: fakeDetect,
+    detectRolesFromText: fakeDetect,
+    JOB_ALIASES: {},
 }))
 
 import vaga from './vaga'

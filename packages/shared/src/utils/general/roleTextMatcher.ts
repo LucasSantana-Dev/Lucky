@@ -1,14 +1,19 @@
 /**
- * Detects which reaction-role roles a job post should ping, by matching the
- * post text against the guild's reaction-role labels (data-driven — no
- * hard-coded role ids). Conservative by design: it prefers missing a tag over
- * adding a wrong one, since the result is pinged in a public channel.
+ * Matches free text against a guild's reaction-role labels to decide which
+ * roles to ping (data-driven — no hard-coded role ids). Generic across
+ * smart-command kinds: the alias table is supplied by the caller so each kind
+ * (job_post today, others later) brings its own vocabulary. Conservative by
+ * design: prefers missing a tag over adding a wrong one, since the result is
+ * pinged in a public channel.
  */
 
 export interface RoleTag {
     label: string
     roleId: string
 }
+
+/** Alias table: canonical label -> extra normalized match terms. */
+export type AliasTable = Record<string, string[]>
 
 /** Lowercase + strip diacritics so "Híbrido"/"graduação" match plainly. */
 export function normalize(text: string): string {
@@ -20,7 +25,8 @@ export function normalize(text: string): string {
  * diacritics). The label itself is always tried too. Labels not listed here
  * are matched by their own normalized text as a word-bounded phrase.
  */
-const ALIASES: Record<string, string[]> = {
+/** Default vocabulary for the `job_post` smart-command kind. */
+export const JOB_ALIASES: AliasTable = {
     Javascript: ['javascript', 'js'],
     TypeScript: ['typescript', 'ts'],
     'Node.js': ['node.js', 'nodejs', 'node'],
@@ -96,26 +102,32 @@ function matchesTerm(haystack: string, term: string): boolean {
     }
 }
 
-function termsFor(label: string): string[] {
+function termsFor(label: string, aliases: AliasTable): string[] {
     const base = normalize(label)
-    const aliases = ALIASES[label] ?? []
-    // Go still gets 'golang' (unambiguous) even though bare 'go' is skipped.
+    const extra = aliases[label] ?? []
+    // Ambiguous labels (Go) still get unambiguous aliases (golang) even though
+    // the bare token is skipped.
     if (SKIP_FREE_TEXT.has(label)) {
-        return aliases
+        return extra
     }
-    return [base, ...aliases]
+    return [base, ...extra]
 }
 
 /**
- * Returns the roles to tag for a job post, deduped, preserving mapping order.
- * `vagasRoleId` (the "Notificados de Vagas" role) is always included when given.
- * `forcedLabels` come from explicit slash-command choices (modalidade,
- * senioridade) and are matched by label regardless of free-text detection.
+ * Returns the roles to tag for a chunk of text, deduped, preserving mapping
+ * order. `aliases` is the caller-supplied vocabulary (e.g. JOB_ALIASES).
+ * `notifyRoleId`, when given, is always included first (e.g. a "Vagas" notify
+ * role). `forcedLabels` come from explicit inputs (slash-command choices) and
+ * are matched by label regardless of free-text detection.
  */
-export function detectVagaRoleTags(
+export function detectRolesFromText(
     text: string,
     mappings: RoleTag[],
-    opts: { vagasRoleId?: string; forcedLabels?: string[] } = {},
+    opts: {
+        aliases: AliasTable
+        notifyRoleId?: string
+        forcedLabels?: string[]
+    },
 ): RoleTag[] {
     const haystack = normalize(text)
     const forced = new Set(opts.forcedLabels ?? [])
@@ -129,15 +141,17 @@ export function detectVagaRoleTags(
         }
     }
 
-    if (opts.vagasRoleId) {
-        push({ label: 'Vagas', roleId: opts.vagasRoleId })
+    if (opts.notifyRoleId) {
+        push({ label: 'notify', roleId: opts.notifyRoleId })
     }
 
     for (const m of mappings) {
         const isForced = forced.has(m.label)
         const matched =
             isForced ||
-            termsFor(m.label).some((term) => matchesTerm(haystack, term))
+            termsFor(m.label, opts.aliases).some((term) =>
+                matchesTerm(haystack, term),
+            )
         if (matched) {
             push(m)
         }
