@@ -7,9 +7,8 @@ import {
     type PartialUser,
     type TextChannel,
 } from 'discord.js'
-import { starboardService } from '@lucky/shared/services'
+import { starboardService, giveawayService } from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
-import { activeGiveaways } from '../functions/general/commands/giveaway'
 import { getSongInfoMessage } from './player/trackNowPlaying'
 import { recordRecommendationSkipReason } from '../services/musicRecommendation/recommendationTelemetry'
 import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
@@ -22,12 +21,17 @@ async function handleGiveawayReaction(
     if (user.bot) return
     if (user.partial) await user.fetch()
 
-    const giveaway = activeGiveaways.get(reaction.message.id)
+    if (reaction.emoji.name !== '🎉') return
+
+    const giveaway = await giveawayService.getActiveByMessageId(
+        reaction.message.id,
+    )
     if (!giveaway) return
 
-    if (reaction.emoji.name === '🎉') {
-        giveaway.entries.add(user.id)
-    }
+    // Only allow entries for active (not ended) giveaways
+    if (giveaway.endedAt) return
+
+    await giveawayService.addEntry(giveaway.id, user.id)
 }
 
 export async function handleStarboardReaction(
