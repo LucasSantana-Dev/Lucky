@@ -1,15 +1,27 @@
 import type { Client } from 'discord.js'
-import { infoLog } from '@lucky/shared/utils'
+import { infoLog, warnLog } from '@lucky/shared/utils'
 import {
     featureToggleService,
     twitchControlService,
 } from '@lucky/shared/services'
-import { isTwitchConfigured } from './token'
+import { isTwitchConfigured, getTwitchEnv } from './token'
 import { twitchEventSubClient } from './eventsubClient'
 
 export async function startTwitchService(client: Client): Promise<void> {
     const enabled = await featureToggleService.isEnabled('TWITCH_NOTIFICATIONS')
-    if (!enabled || !isTwitchConfigured()) {
+    if (!enabled) {
+        return
+    }
+    if (!isTwitchConfigured()) {
+        const { clientId, clientSecret, accessToken } = getTwitchEnv()
+        const missing = [
+            !clientId && 'TWITCH_CLIENT_ID',
+            !clientSecret && 'TWITCH_CLIENT_SECRET',
+            !accessToken && 'TWITCH_ACCESS_TOKEN',
+        ].filter((name): name is string => Boolean(name))
+        warnLog({
+            message: `Twitch EventSub: not starting, missing env var(s): ${missing.join(', ')}`,
+        })
         return
     }
     try {
