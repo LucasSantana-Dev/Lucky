@@ -1271,8 +1271,6 @@ model AfkStatus {
   @@unique([guildId, userId])
   @@index([guildId])
   @@map("afk_statuses")
-||||||| parent of 79806287 (feat(bot): reminders with /remind and delivery scheduler)
-
 }
 
 // User reminders — per-guild, per-user reminders with DM delivery fallback to origin channel.
@@ -1291,5 +1289,4 @@ model Reminder {
   @@index([delivered, remindAt])
   @@index([userId, remindAt])
   @@map("reminders")
-}
 }

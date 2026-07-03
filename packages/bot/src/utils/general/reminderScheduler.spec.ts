@@ -61,59 +61,54 @@ describe('ReminderScheduler.tick', () => {
         scheduler = new ReminderScheduler()
     })
 
-    it('marks a reminder delivered when it reaches the user', async () => {
-        reminderServiceMock.getDueReminders.mockResolvedValue([makeReminder()])
-        scheduler.start(deliveringClient())
-        // start() fires an immediate tick; let it settle
+    /** Runs one tick with the given client + due rows, then stops the timer. */
+    async function runTick(
+        client: ReturnType<typeof deliveringClient>,
+        due: ReturnType<typeof makeReminder>[],
+    ) {
+        reminderServiceMock.getDueReminders.mockResolvedValue(due)
+        scheduler.start(client)
+        // start() fires an immediate tick; let its microtasks settle.
         await new Promise((r) => setImmediate(r))
+        scheduler.stop()
+    }
+
+    it('marks a reminder delivered when it reaches the user', async () => {
+        await runTick(deliveringClient(), [makeReminder()])
 
         expect(reminderServiceMock.markDelivered).toHaveBeenCalledWith('r1')
         expect(reminderServiceMock.recordFailedAttempt).not.toHaveBeenCalled()
-        scheduler.stop()
     })
 
     it('backs off (records a failed attempt) when delivery fails below the cap', async () => {
-        reminderServiceMock.getDueReminders.mockResolvedValue([
-            makeReminder({ deliveryAttempts: 2 }),
-        ])
-        scheduler.start(failingClient())
-        await new Promise((r) => setImmediate(r))
+        await runTick(failingClient(), [makeReminder({ deliveryAttempts: 2 })])
 
         expect(reminderServiceMock.recordFailedAttempt).toHaveBeenCalledTimes(1)
         expect(reminderServiceMock.recordFailedAttempt.mock.calls[0][0]).toBe(
             'r1',
         )
         expect(reminderServiceMock.markDelivered).not.toHaveBeenCalled()
-        scheduler.stop()
     })
 
     it('gives up (marks delivered) once the attempt cap is reached, regardless of createdAt', async () => {
         // Far-future createdAt guard: a future-dated reminder must NOT be
         // dropped by elapsed time — only by the counter (review P1).
-        reminderServiceMock.getDueReminders.mockResolvedValue([
-            makeReminder({ deliveryAttempts: 11 }),
-        ])
-        scheduler.start(failingClient())
-        await new Promise((r) => setImmediate(r))
+        await runTick(failingClient(), [makeReminder({ deliveryAttempts: 11 })])
 
         expect(reminderServiceMock.markDelivered).toHaveBeenCalledWith('r1')
         expect(reminderServiceMock.recordFailedAttempt).not.toHaveBeenCalled()
-        scheduler.stop()
     })
 
     it('isolates a per-reminder failure so the batch continues', async () => {
-        reminderServiceMock.getDueReminders.mockResolvedValue([
-            makeReminder({ id: 'r1' }),
-            makeReminder({ id: 'r2' }),
-        ])
         reminderServiceMock.markDelivered
             .mockRejectedValueOnce(new Error('db blip'))
             .mockResolvedValue(undefined)
-        scheduler.start(deliveringClient())
-        await new Promise((r) => setImmediate(r))
+        await runTick(deliveringClient(), [
+            makeReminder({ id: 'r1' }),
+            makeReminder({ id: 'r2' }),
+        ])
 
         // both reminders were processed despite r1's markDelivered throwing
         expect(reminderServiceMock.markDelivered).toHaveBeenCalledTimes(2)
-        scheduler.stop()
     })
 })
