@@ -88,6 +88,10 @@ if grep -qE '^STAGING_DISCORD_TOKEN=.+' "$STAGING_DIR/$ENV_FILE" 2>/dev/null; th
     log "STAGING_DISCORD_TOKEN present — including the test bot."
 else
     log "STAGING_DISCORD_TOKEN absent — skipping the test bot (set it in $ENV_FILE to enable)."
+    # Omitting `bot` from the up set does NOT stop an already-running one
+    # (--remove-orphans only removes services absent from the compose file),
+    # so explicitly tear it down when the token has been removed.
+    dc rm -sf bot 2>/dev/null || true
 fi
 
 # --- build (locally; CI only builds main images) -------------------------------

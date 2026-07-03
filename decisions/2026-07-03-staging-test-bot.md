@@ -56,7 +56,8 @@ for the branch bot to deploy, exercise the feature in the test guild.
   verification.
 - **Negative:** one more idle gateway connection on the shared staging stack —
   in slight tension with the Phase-C staging auto-stop goal
-  (`adr_2026-07-02_resource_hygiene`). Mitigated: small-svc limits (128m /
+  (`decisions/2026-07-02-resource-hygiene-alert-calibration-first.md`).
+  Mitigated: small-svc limits (128m /
   0.25 cpu) and it only runs when a token is configured.
 
 ## Revisit when
