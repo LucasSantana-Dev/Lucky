@@ -76,14 +76,22 @@ export default new Command({
         ),
     category: 'general',
     execute: async ({ interaction }) => {
+        // Ephemeral reply helpers — collapse the repeated interactionReply
+        // boilerplate (one text, one embed variant).
+        const replyText = (content: string) =>
+            interactionReply({
+                interaction,
+                content: { content, ephemeral: true },
+            })
+        const replyEmbed = (embed: EmbedBuilder) =>
+            interactionReply({
+                interaction,
+                content: { embeds: [embed.toJSON()], ephemeral: true },
+            })
+
         const guild = interaction.guild
         if (!guild) {
-            await interactionReply({
-                interaction,
-                content: {
-                    content: '❌ This command can only be used in a server.',
-                },
-            })
+            await replyText('❌ This command can only be used in a server.')
             return
         }
 
@@ -96,13 +104,9 @@ export default new Command({
 
                 const ms = parseDuration(tempo)
                 if (ms === null) {
-                    await interactionReply({
-                        interaction,
-                        content: {
-                            content:
-                                '❌ Invalid duration. Use format like: 30s, 10m, 2h, 1d (max 30 days)',
-                        },
-                    })
+                    await replyText(
+                        '❌ Invalid duration. Use format like: 30s, 10m, 2h, 1d (max 30 days)',
+                    )
                     return
                 }
 
@@ -127,10 +131,7 @@ export default new Command({
                     .setColor(COLOR.LUCKY_PURPLE)
                     .setFooter({ text: `ID: ${reminder.id.slice(0, 8)}` })
 
-                await interactionReply({
-                    interaction,
-                    content: { embeds: [embed.toJSON()], ephemeral: true },
-                })
+                await replyEmbed(embed)
 
                 infoLog({
                     message: `reminder set by ${interaction.user.tag}: ${tempo}`,
@@ -147,14 +148,9 @@ export default new Command({
                 )
 
                 if (reminders.length === 0) {
-                    await interactionReply({
-                        interaction,
-                        content: {
-                            content:
-                                "You don't have any pending reminders. Use `/remind set` to create one.",
-                            ephemeral: true,
-                        },
-                    })
+                    await replyText(
+                        "You don't have any pending reminders. Use `/remind set` to create one.",
+                    )
                     return
                 }
 
@@ -177,10 +173,7 @@ export default new Command({
                         text: `${reminders.length} reminder${reminders.length === 1 ? '' : 's'}`,
                     })
 
-                await interactionReply({
-                    interaction,
-                    content: { embeds: [embed.toJSON()], ephemeral: true },
-                })
+                await replyEmbed(embed)
                 return
             }
 
@@ -195,25 +188,15 @@ export default new Command({
                     id,
                 )
                 if (matches.length === 0) {
-                    await interactionReply({
-                        interaction,
-                        content: {
-                            content:
-                                '❌ Reminder not found. Use `/remind list` to see your reminders.',
-                            ephemeral: true,
-                        },
-                    })
+                    await replyText(
+                        '❌ Reminder not found. Use `/remind list` to see your reminders.',
+                    )
                     return
                 }
                 if (matches.length > 1) {
-                    await interactionReply({
-                        interaction,
-                        content: {
-                            content:
-                                '❌ That ID prefix matches more than one reminder — use more characters of the ID from `/remind list`.',
-                            ephemeral: true,
-                        },
-                    })
+                    await replyText(
+                        '❌ That ID prefix matches more than one reminder — use more characters of the ID from `/remind list`.',
+                    )
                     return
                 }
                 const reminder = matches[0]
@@ -224,23 +207,13 @@ export default new Command({
                     reminder.id,
                 )
                 if (!deleted) {
-                    await interactionReply({
-                        interaction,
-                        content: {
-                            content: '❌ Reminder not found.',
-                            ephemeral: true,
-                        },
-                    })
+                    await replyText('❌ Reminder not found.')
                     return
                 }
 
-                await interactionReply({
-                    interaction,
-                    content: {
-                        content: `✅ Reminder deleted: "${reminder.message.slice(0, 50)}${reminder.message.length > 50 ? '…' : ''}"`,
-                        ephemeral: true,
-                    },
-                })
+                await replyText(
+                    `✅ Reminder deleted: "${reminder.message.slice(0, 50)}${reminder.message.length > 50 ? '…' : ''}"`,
+                )
 
                 infoLog({
                     message: `reminder deleted by ${interaction.user.tag}`,
@@ -253,14 +226,9 @@ export default new Command({
                 error,
             })
             try {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        content:
-                            '❌ An error occurred while processing your reminder.',
-                        ephemeral: true,
-                    },
-                })
+                await replyText(
+                    '❌ An error occurred while processing your reminder.',
+                )
             } catch (replyError) {
                 errorLog({
                     message: 'Failed to send error reply for remind command:',
