@@ -40,7 +40,9 @@ export const starboardSeedHandler: MessageHandler = {
             ) {
                 return { stop: false }
             }
-            await message.react(config.emoji).catch(() => undefined)
+            // Let failures (bad emoji, missing perms) reach the outer catch
+            // so misconfiguration is visible in logs (cubic P2).
+            await message.react(config.emoji)
         } catch (error) {
             errorLog({ message: 'Error seeding starboard reaction:', error })
         }
