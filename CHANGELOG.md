@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.30.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.29.0...v2.30.0) (2026-07-03)
+
+
+### Features
+
+* **bot:** /vaga command builds job posts with auto-tagged roles ([#1682](https://github.com/LucasSantana-Dev/Lucky/issues/1682)) ([963e457](https://github.com/LucasSantana-Dev/Lucky/commit/963e457af6402437b10138124052df524af37a99))
+* **bot:** smart custom commands via generic command-kind seam (ADR 2026-07-03) ([#1684](https://github.com/LucasSantana-Dev/Lucky/issues/1684)) ([f0c446c](https://github.com/LucasSantana-Dev/Lucky/commit/f0c446c5dad1ab343b9a8df57f7b89ea3eaccaa2))
+
 ## [2.29.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.28.1...v2.29.0) (2026-07-02)
 
 
