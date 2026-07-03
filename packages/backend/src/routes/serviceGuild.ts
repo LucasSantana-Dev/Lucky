@@ -33,6 +33,7 @@ function singleQueryParam(value: unknown): string | undefined {
 
 function sanitizeQuery(query: string): string {
     // Remove control characters
+    // eslint-disable-next-line no-control-regex
     return query.replace(/[\x00-\x1F\x7F]/g, '').trim()
 }
 
