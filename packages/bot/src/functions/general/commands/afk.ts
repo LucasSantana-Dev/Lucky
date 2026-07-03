@@ -27,7 +27,7 @@ export default new Command({
             if (!guildId) {
                 await interactionReply({
                     interaction,
-                    content: { content: '❌ Unable to determine guild.' },
+                    content: { content: '❌ Unable to determine guild.', ephemeral: true },
                 })
                 return
             }
@@ -39,8 +39,8 @@ export default new Command({
                     interaction,
                     content: {
                         content: '✅ Welcome back! Your AFK status has been cleared.',
+                        ephemeral: true,
                     },
-                    ephemeral: true,
                 })
                 infoLog({
                     message: `AFK status cleared for ${interaction.user.tag} in guild ${guildId}`,
@@ -54,8 +54,8 @@ export default new Command({
                 interaction,
                 content: {
                     content: `✅ AFK set${motivo ? `: ${motivo}` : ''}.`,
+                    ephemeral: true,
                 },
-                ephemeral: true,
             })
             infoLog({
                 message: `AFK status set for ${interaction.user.tag} in guild ${guildId}: ${motivo}`,
@@ -68,8 +68,7 @@ export default new Command({
             try {
                 await interactionReply({
                     interaction,
-                    content: { content: '❌ Failed to update AFK status.' },
-                    ephemeral: true,
+                    content: { content: '❌ Failed to update AFK status.', ephemeral: true },
                 })
             } catch (replyError) {
                 errorLog({

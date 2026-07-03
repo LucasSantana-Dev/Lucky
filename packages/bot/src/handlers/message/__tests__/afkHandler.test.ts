@@ -16,6 +16,7 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 import { afkService } from '@lucky/shared/services'
+import { errorLog } from '@lucky/shared/utils'
 
 describe('afkHandler', () => {
     beforeEach(() => {
@@ -74,7 +75,7 @@ describe('afkHandler', () => {
             expect(afkService.clear).toHaveBeenCalledWith('guild1', 'user1')
             expect(replyMock).toHaveBeenCalledWith({
                 content: expect.stringContaining('Welcome back'),
-                allowedMentions: { repliedUser: false },
+                allowedMentions: { parse: [], repliedUser: false },
             })
             expect(result).toEqual({ stop: false })
         })
@@ -91,14 +92,16 @@ describe('afkHandler', () => {
                 featureToggles: {},
             }
 
-            ;(afkService.get as jest.Mock).mockRejectedValue(
-                new Error('DB error'),
-            )
+            const dbError = new Error('DB error')
+            ;(afkService.get as jest.Mock).mockRejectedValue(dbError)
 
             const result = await afkHandler.handle(message, context)
 
             // Should always return { stop: false }, never throw
             expect(result).toEqual({ stop: false })
+            expect(errorLog).toHaveBeenCalledWith(
+                expect.objectContaining({ error: dbError }),
+            )
         })
 
         it('should reply to mentioned users with AFK status', async () => {
@@ -146,7 +149,7 @@ describe('afkHandler', () => {
             ])
             expect(replyMock).toHaveBeenCalledWith({
                 content: expect.stringContaining('is AFK: Sleeping'),
-                allowedMentions: { repliedUser: false },
+                allowedMentions: { parse: [], repliedUser: false },
             })
             expect(result).toEqual({ stop: false })
         })
@@ -188,7 +191,7 @@ describe('afkHandler', () => {
 
             expect(replyMock).toHaveBeenCalledWith({
                 content: expect.stringContaining('is AFK'),
-                allowedMentions: { repliedUser: false },
+                allowedMentions: { parse: [], repliedUser: false },
             })
         })
 

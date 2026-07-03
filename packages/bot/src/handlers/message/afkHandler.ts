@@ -26,7 +26,7 @@ export const afkHandler: MessageHandler = {
                     await afkService.clear(context.guild.id, message.author.id)
                     await message.reply({
                         content: `👋 Welcome back, ${message.author}!`,
-                        allowedMentions: { repliedUser: false },
+                        allowedMentions: { parse: [], repliedUser: false },
                     })
                 } catch (replyError) {
                     errorLog({
@@ -55,7 +55,7 @@ export const afkHandler: MessageHandler = {
                                     : ''
                                 await message.reply({
                                     content: `ℹ️ ${user} is AFK${reasonText}`,
-                                    allowedMentions: { repliedUser: false },
+                                    allowedMentions: { parse: [], repliedUser: false },
                                 })
                             } catch (replyError) {
                                 errorLog({

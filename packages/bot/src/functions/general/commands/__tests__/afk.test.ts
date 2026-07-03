@@ -14,12 +14,12 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
-jest.mock('../../../utils/general/interactionReply', () => ({
+jest.mock('../../../../utils/general/interactionReply', () => ({
     interactionReply: jest.fn(),
 }))
 
 import { afkService } from '@lucky/shared/services'
-import { interactionReply } from '../../../utils/general/interactionReply'
+import { interactionReply } from '../../../../utils/general/interactionReply'
 
 describe('afk command', () => {
     beforeEach(() => {
@@ -50,8 +50,8 @@ describe('afk command', () => {
             interaction: mockInteraction,
             content: {
                 content: expect.stringContaining('Welcome back'),
+                ephemeral: true,
             },
-            ephemeral: true,
         })
     })
 
@@ -86,8 +86,8 @@ describe('afk command', () => {
             interaction: mockInteraction,
             content: {
                 content: expect.stringContaining('In a meeting'),
+                ephemeral: true,
             },
-            ephemeral: true,
         })
     })
 
@@ -107,6 +107,7 @@ describe('afk command', () => {
             interaction: mockInteraction,
             content: {
                 content: expect.stringContaining('Unable to determine guild'),
+                ephemeral: true,
             },
         })
         expect(afkService.set).not.toHaveBeenCalled()

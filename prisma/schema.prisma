@@ -1260,6 +1260,7 @@ model WeeklyDigestSnapshot {
 model AfkStatus {
   id        String   @id @default(cuid())
   guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   userId    String
   reason    String?
   since     DateTime @default(now())
