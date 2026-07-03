@@ -9,7 +9,7 @@ import {
 import Command from '../../../models/Command'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { giveawayService, parseDuration } from '@lucky/shared/services'
-import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient.js'
+import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { COLOR } from '@lucky/shared/constants'
 
