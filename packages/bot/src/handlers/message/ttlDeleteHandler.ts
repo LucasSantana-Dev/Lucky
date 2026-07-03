@@ -44,11 +44,25 @@ export const ttlDeleteHandler: MessageHandler = {
                 return { stop: false }
             }
 
-            // Schedule deletion
+            // Schedule deletion. Re-check the config at fire time so turning
+            // cleanup off (or switching mode) cancels pending deletes
+            // (review P2).
             setTimeout(() => {
-                message.delete().catch(() => {
-                    // Silently ignore deletion errors (message may already be deleted, etc.)
-                })
+                void (async () => {
+                    const current = await channelCleanupService
+                        .getConfig(guildId, channelId)
+                        .catch(() => null)
+                    if (
+                        !current ||
+                        !current.enabled ||
+                        current.mode !== 'ttl'
+                    ) {
+                        return
+                    }
+                    await message.delete().catch(() => {
+                        // Message may already be gone — ignore.
+                    })
+                })()
             }, ttlSeconds * 1000)
 
             return { stop: false }

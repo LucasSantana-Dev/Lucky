@@ -7,7 +7,8 @@ export type ChannelCleanupConfig = {
     id: string
     guildId: string
     channelId: string
-    mode: 'purge_interval' | 'ttl'
+    // "purge_interval" | "ttl" — kept as string to match the Prisma column.
+    mode: string
     intervalMinutes: number | null
     ttlSeconds: number | null
     enabled: boolean
@@ -72,18 +73,25 @@ export class ChannelCleanupService {
         })
     }
 
-    /** Gets all purge_interval configs that are due for execution. */
-    async getPurgeConfigsDue(minutes: number = 5): Promise<ChannelCleanupConfig[]> {
-        const cutoffTime = new Date(Date.now() - minutes * 60 * 1000)
-        return await prisma.channelCleanupConfig.findMany({
-            where: {
-                enabled: true,
-                mode: 'purge_interval',
-                OR: [
-                    { lastRunAt: null },
-                    { lastRunAt: { lt: cutoffTime } },
-                ],
-            },
+    /**
+     * Gets purge_interval configs that are due, honoring EACH config's own
+     * intervalMinutes (a global window would purge a 60-minute channel on
+     * every scheduler tick — review P1).
+     */
+    async getPurgeConfigsDue(): Promise<ChannelCleanupConfig[]> {
+        const configs = await prisma.channelCleanupConfig.findMany({
+            where: { enabled: true, mode: 'purge_interval' },
+        })
+        const now = Date.now()
+        return configs.filter((config) => {
+            if (!config.intervalMinutes || config.intervalMinutes < 1) {
+                return false
+            }
+            if (!config.lastRunAt) return true
+            return (
+                now - config.lastRunAt.getTime() >=
+                config.intervalMinutes * 60 * 1000
+            )
         })
     }
 

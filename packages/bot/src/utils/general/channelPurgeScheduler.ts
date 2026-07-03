@@ -1,5 +1,4 @@
 import type { Client, TextChannel } from 'discord.js'
-import { ChannelType } from 'discord.js'
 import { channelCleanupService } from '@lucky/shared/services'
 import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
 

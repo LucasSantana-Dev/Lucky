@@ -1,4 +1,5 @@
 import {
+    ChannelType,
     MessageFlags,
     PermissionFlagsBits,
     SlashCommandBuilder,
@@ -26,6 +27,7 @@ export default new Command({
                     opt
                         .setName('channel')
                         .setDescription('Channel to clean up')
+                        .addChannelTypes(ChannelType.GuildText)
                         .setRequired(true),
                 )
                 .addIntegerOption((opt) =>
@@ -44,6 +46,7 @@ export default new Command({
                     opt
                         .setName('channel')
                         .setDescription('Channel to clean up')
+                        .addChannelTypes(ChannelType.GuildText)
                         .setRequired(true),
                 )
                 .addIntegerOption((opt) =>
@@ -63,6 +66,7 @@ export default new Command({
                     opt
                         .setName('channel')
                         .setDescription('Channel to stop cleaning up')
+                        .addChannelTypes(ChannelType.GuildText)
                         .setRequired(true),
                 ),
         )

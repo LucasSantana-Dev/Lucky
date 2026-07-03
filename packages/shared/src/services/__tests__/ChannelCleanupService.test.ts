@@ -1,29 +1,27 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
-import { ChannelCleanupService } from '../ChannelCleanupService'
-import { getPrismaClient } from '../../utils/database/prismaClient'
 
+// The service captures prisma at module load, so the factory must hand back
+// the mock at import time (module-level `const prisma = getPrismaClient()`).
+const mockPrisma = {
+    channelCleanupConfig: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        upsert: jest.fn(),
+        updateMany: jest.fn(),
+        update: jest.fn(),
+    },
+} as any
 jest.mock('../../utils/database/prismaClient', () => ({
-    getPrismaClient: jest.fn(),
+    getPrismaClient: () => mockPrisma,
 }))
+
+import { ChannelCleanupService } from '../ChannelCleanupService'
 
 describe('ChannelCleanupService', () => {
     let service: ChannelCleanupService
-    let mockPrisma: any
 
     beforeEach(() => {
         jest.clearAllMocks()
-
-        mockPrisma = {
-            channelCleanupConfig: {
-                findUnique: jest.fn(),
-                findMany: jest.fn(),
-                upsert: jest.fn(),
-                updateMany: jest.fn(),
-                update: jest.fn(),
-            },
-        }
-
-        ;(getPrismaClient as jest.Mock).mockReturnValue(mockPrisma)
         service = new ChannelCleanupService()
     })
 
@@ -171,29 +169,58 @@ describe('ChannelCleanupService', () => {
     })
 
     describe('getPurgeConfigsDue', () => {
-        it('should return configs that are due for purge execution', async () => {
-            const now = new Date()
+        it('honors each config own interval and asserts the query filter', async () => {
+            const now = Date.now()
             const mockConfigs = [
+                // never run -> due
                 {
                     id: 'config1',
                     mode: 'purge_interval',
                     enabled: true,
+                    intervalMinutes: 60,
                     lastRunAt: null,
                 },
+                // 60-min interval, ran 10 min ago -> NOT due (review P1)
                 {
                     id: 'config2',
                     mode: 'purge_interval',
                     enabled: true,
-                    lastRunAt: new Date(now.getTime() - 10 * 60 * 1000), // 10 minutes ago
+                    intervalMinutes: 60,
+                    lastRunAt: new Date(now - 10 * 60 * 1000),
+                },
+                // 60-min interval, ran 61 min ago -> due
+                {
+                    id: 'config3',
+                    mode: 'purge_interval',
+                    enabled: true,
+                    intervalMinutes: 60,
+                    lastRunAt: new Date(now - 61 * 60 * 1000),
+                },
+                // invalid interval -> never due
+                {
+                    id: 'config4',
+                    mode: 'purge_interval',
+                    enabled: true,
+                    intervalMinutes: null,
+                    lastRunAt: null,
                 },
             ]
 
-            mockPrisma.channelCleanupConfig.findMany.mockResolvedValue(mockConfigs)
+            mockPrisma.channelCleanupConfig.findMany.mockResolvedValue(
+                mockConfigs,
+            )
 
-            const result = await service.getPurgeConfigsDue(5) // 5 minute interval
+            const result = await service.getPurgeConfigsDue()
 
-            expect(result).toEqual(mockConfigs)
-            expect(mockPrisma.channelCleanupConfig.findMany).toHaveBeenCalled()
+            expect(
+                mockPrisma.channelCleanupConfig.findMany,
+            ).toHaveBeenCalledWith({
+                where: { enabled: true, mode: 'purge_interval' },
+            })
+            expect(result.map((c: { id: string }) => c.id)).toEqual([
+                'config1',
+                'config3',
+            ])
         })
     })
 

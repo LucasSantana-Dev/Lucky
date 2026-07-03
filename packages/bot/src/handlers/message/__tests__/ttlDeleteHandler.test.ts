@@ -176,8 +176,9 @@ describe('ttlDeleteHandler', () => {
             // Message delete should not be called immediately
             expect(message.delete).not.toHaveBeenCalled()
 
-            // Advance timers to TTL + 100ms
-            jest.advanceTimersByTime(10 * 1000 + 100)
+            // Advance timers to TTL + 100ms; the callback re-checks the
+            // config asynchronously, so flush microtasks too.
+            await jest.advanceTimersByTimeAsync(10 * 1000 + 100)
 
             // Now it should be called
             expect(message.delete).toHaveBeenCalledTimes(1)
@@ -205,9 +206,39 @@ describe('ttlDeleteHandler', () => {
             const result = await ttlDeleteHandler.handle(message, context)
             expect(result.stop).toBe(false)
 
-            jest.advanceTimersByTime(10 * 1000 + 100)
+            await jest.advanceTimersByTimeAsync(10 * 1000 + 100)
             expect(message.delete).toHaveBeenCalledTimes(1)
             // No error should be thrown
+        })
+
+        it('does not delete when cleanup was disabled before the timer fired', async () => {
+            ;(channelCleanupService.getConfig as jest.Mock)
+                .mockResolvedValueOnce({
+                    enabled: true,
+                    mode: 'ttl',
+                    ttlSeconds: 10,
+                })
+                .mockResolvedValueOnce({
+                    enabled: false,
+                    mode: 'ttl',
+                    ttlSeconds: 10,
+                })
+
+            const message = {
+                author: { id: 'user1', bot: false },
+                channelId: 'channel1',
+                delete: jest.fn().mockResolvedValue(undefined),
+            } as unknown as Message
+
+            const context: MessageContext = {
+                guild: { id: 'guild1' } as any,
+                member: {} as any,
+                featureToggles: {},
+            }
+
+            await ttlDeleteHandler.handle(message, context)
+            await jest.advanceTimersByTimeAsync(10 * 1000 + 100)
+            expect(message.delete).not.toHaveBeenCalled()
         })
 
         it('should return stop: false even when an error occurs', async () => {

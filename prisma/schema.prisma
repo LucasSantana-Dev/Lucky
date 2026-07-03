@@ -100,9 +100,10 @@ model Guild {
   roleGroups                   RoleGroup[]
   forumThreads                 GuildForumThread[]
   batchJobs                    BatchJob[]
-  afkStatuses                  AfkStatus[]
+afkStatuses                  AfkStatus[]
   reminders                   Reminder[]
   supportSessions              SupportSession[]
+  channelCleanupConfigs        ChannelCleanupConfig[]
 
   @@map("guilds")
 }
@@ -959,6 +960,7 @@ model StarboardDmSent {
 model ChannelCleanupConfig {
   id              String   @id @default(cuid())
   guildId         String
+  guild           Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   channelId       String
   mode            String   // "purge_interval" | "ttl"
   intervalMinutes Int?     // for purge_interval mode, min 60
@@ -970,6 +972,7 @@ model ChannelCleanupConfig {
 
   @@unique([guildId, channelId])
   @@index([guildId])
+  @@index([enabled, mode])
   @@map("channel_cleanup_configs")
 }
 
