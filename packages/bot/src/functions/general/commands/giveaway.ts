@@ -15,13 +15,54 @@ import { COLOR } from '@lucky/shared/constants'
 
 const prisma = getPrismaClient()
 
+/** Helper: Build a giveaway embed showing winners and prize. */
+function buildGiveawayEmbed(
+    prize: string,
+    winners: string[],
+    status: 'Ended' | 'Rerolled' = 'Ended',
+): EmbedBuilder {
+    const statusColor = status === 'Rerolled' ? 0xff9900 : 0xff0000
+    const winnersText =
+        winners.length > 0 ? winners.map((id) => `<@${id}>`).join(', ') : 'no valid entries'
+    const fieldName = status === 'Rerolled' ? 'New Winners' : 'Winners'
+
+    return new EmbedBuilder()
+        .setColor(statusColor)
+        .setDescription(`**Prize:** ${prize} (${status})`)
+        .addFields([
+            {
+                name: fieldName,
+                value: winnersText,
+                inline: false,
+            },
+        ])
+}
+
+/** Helper: Post the congratulations or no-entries message. */
+async function announceWinners(
+    textChannel: TextChannel,
+    prize: string,
+    winners: string[],
+): Promise<void> {
+    if (winners.length > 0) {
+        await textChannel.send({
+            content: `🎉 Congratulations ${winners.map((id) => `<@${id}>`).join(', ')} on winning ${prize}!`,
+            allowedMentions: { users: winners },
+        })
+    } else {
+        await textChannel.send({
+            content: '❌ No valid entries for this giveaway.',
+        })
+    }
+}
+
 async function handleStart(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     if (!interaction.guildId || !interaction.channelId) {
         await interactionReply({
             interaction,
-            content: { content: '❌ Guild or channel context missing.' },
+            content: { content: '❌ Guild or channel context missing.', ephemeral: true },
         })
         return
     }
@@ -37,6 +78,7 @@ async function handleStart(
             content: {
                 content:
                     '❌ Invalid duration. Use format: 10m, 2h, 1d (max 14d).',
+                ephemeral: true,
             },
         })
         return
@@ -51,7 +93,7 @@ async function handleStart(
     if (!channel || channel.type !== ChannelType.GuildText) {
         await interactionReply({
             interaction,
-            content: { content: '❌ Cannot access text channel.' },
+            content: { content: '❌ Cannot access text channel.', ephemeral: true },
         })
         return
     }
@@ -60,7 +102,7 @@ async function handleStart(
     if (!guild) {
         await interactionReply({
             interaction,
-            content: { content: '❌ Guild context missing.' },
+            content: { content: '❌ Guild context missing.', ephemeral: true },
         })
         return
     }
@@ -75,6 +117,7 @@ async function handleStart(
             content: {
                 content:
                     '❌ I do not have permission to send messages in that channel.',
+                ephemeral: true,
             },
         })
         return
@@ -125,6 +168,7 @@ async function handleStart(
             content: {
                 content:
                     '❌ Failed to post giveaway message. Please try again.',
+                ephemeral: true,
             },
         })
         return
@@ -149,11 +193,35 @@ async function handleEnd(
 ): Promise<void> {
     const giveawayId = interaction.options.getString('id', true)
 
-    const giveaway = await giveawayService.endById(giveawayId)
+    if (!interaction.guildId) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Guild context missing.', ephemeral: true },
+        })
+        return
+    }
+
+    const giveaway = await giveawayService.endById(giveawayId, interaction.guildId)
     if (!giveaway) {
         await interactionReply({
             interaction,
-            content: { content: '❌ Giveaway not found.' },
+            content: { content: '❌ Giveaway not found.', ephemeral: true },
+        })
+        return
+    }
+
+    // If already ended, don't re-announce
+    if (giveaway.endedAt !== null) {
+        const mention =
+            giveaway.winnerIds.length > 0
+                ? giveaway.winnerIds.map((id) => `<@${id}>`).join(', ')
+                : 'no valid entries'
+        await interactionReply({
+            interaction,
+            content: {
+                content: `ℹ️ Giveaway already ended. Winners: ${mention}`,
+                ephemeral: true,
+            },
         })
         return
     }
@@ -180,32 +248,9 @@ async function handleEnd(
                     .fetch(giveaway.messageId)
                     .catch(() => null)
                 if (msg) {
-                    const embed = (
-                        msg.embeds[0]
-                            ? EmbedBuilder.from(msg.embeds[0])
-                            : new EmbedBuilder()
-                    )
-                        .setColor(0xff0000)
-                        .setDescription(`**Prize:** ${giveaway.prize} (Ended)`)
-                        .setFields([
-                            {
-                                name: 'Winners',
-                                value: mention,
-                                inline: false,
-                            },
-                        ])
+                    const embed = buildGiveawayEmbed(giveaway.prize, winners, 'Ended')
                     await msg.edit({ embeds: [embed.toJSON()] })
-
-                    if (winners.length > 0) {
-                        await channel.send({
-                            content: `🎉 Congratulations ${mention} on winning ${giveaway.prize}!`,
-                            allowedMentions: { users: winners },
-                        })
-                    } else {
-                        await channel.send({
-                            content: '❌ No valid entries for this giveaway.',
-                        })
-                    }
+                    await announceWinners(channel, giveaway.prize, winners)
                 }
             }
         } catch (err) {
@@ -230,20 +275,28 @@ async function handleReroll(
 ): Promise<void> {
     const giveawayId = interaction.options.getString('id', true)
 
-    const giveaway = await giveawayService.getById(giveawayId)
-    if (!giveaway) {
+    if (!interaction.guildId) {
         await interactionReply({
             interaction,
-            content: { content: '❌ Giveaway not found.' },
+            content: { content: '❌ Guild context missing.', ephemeral: true },
         })
         return
     }
 
-    const winners = await giveawayService.reroll(giveawayId)
+    const giveaway = await giveawayService.getById(giveawayId)
+    if (!giveaway) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Giveaway not found.', ephemeral: true },
+        })
+        return
+    }
+
+    const winners = await giveawayService.reroll(giveawayId, interaction.guildId)
     if (!winners) {
         await interactionReply({
             interaction,
-            content: { content: '❌ Giveaway has not ended yet.' },
+            content: { content: '❌ Giveaway has not ended yet.', ephemeral: true },
         })
         return
     }
@@ -269,22 +322,7 @@ async function handleReroll(
                     .fetch(giveaway.messageId)
                     .catch(() => null)
                 if (msg) {
-                    const embed = (
-                        msg.embeds[0]
-                            ? EmbedBuilder.from(msg.embeds[0])
-                            : new EmbedBuilder()
-                    )
-                        .setColor(0xff9900)
-                        .setDescription(
-                            `**Prize:** ${giveaway.prize} (Rerolled)`,
-                        )
-                        .addFields([
-                            {
-                                name: 'New Winners',
-                                value: mention,
-                                inline: false,
-                            },
-                        ])
+                    const embed = buildGiveawayEmbed(giveaway.prize, winners, 'Rerolled')
                     await msg.edit({ embeds: [embed.toJSON()] })
 
                     if (winners.length > 0) {
@@ -390,7 +428,7 @@ export default new Command({
             try {
                 await interactionReply({
                     interaction,
-                    content: { content: '❌ An error occurred.' },
+                    content: { content: '❌ An error occurred.', ephemeral: true },
                 })
             } catch (replyError) {
                 errorLog({

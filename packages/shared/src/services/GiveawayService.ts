@@ -116,9 +116,11 @@ export class GiveawayService {
         return winners
     }
 
-    /** End a giveaway by ID (early termination). */
-    async endById(giveawayId: string): Promise<GiveawayData | null> {
-        const giveaway = await this.getById(giveawayId)
+    /** End a giveaway by ID (early termination). Guild-scoped. */
+    async endById(giveawayId: string, guildId: string): Promise<GiveawayData | null> {
+        const giveaway = await prisma.giveaway.findFirst({
+            where: { id: giveawayId, guildId },
+        })
         if (!giveaway) return null
         // If already ended, return the existing record (no redraw)
         if (giveaway.endedAt !== null) return giveaway
@@ -131,14 +133,39 @@ export class GiveawayService {
         }
     }
 
-    /** Reroll winners for an ended giveaway. */
-    async reroll(giveawayId: string): Promise<string[] | null> {
-        const giveaway = await this.getById(giveawayId)
+    /** Reroll winners for an ended giveaway. Guild-scoped. */
+    async reroll(giveawayId: string, guildId: string): Promise<string[] | null> {
+        const giveaway = await prisma.giveaway.findFirst({
+            where: { id: giveawayId, guildId },
+        })
         if (!giveaway) return null
         // Reroll must only operate on already-ended giveaways
         if (giveaway.endedAt === null) return null
 
-        return await this.endAndDraw(giveawayId, giveaway.winnersCount)
+        return await this.rerollWinners(giveawayId)
+    }
+
+    /** Update only winnerIds without touching endedAt. */
+    private async rerollWinners(giveawayId: string): Promise<string[]> {
+        const giveaway = await this.getById(giveawayId)
+        if (!giveaway) return []
+
+        const entries = await this.getEntries(giveawayId)
+        const winners: string[] = []
+        const copied = [...entries]
+        for (let i = 0; i < Math.min(giveaway.winnersCount, copied.length); i++) {
+            const idx = Math.floor(Math.random() * copied.length)
+            winners.push(copied[idx])
+            copied.splice(idx, 1)
+        }
+
+        // Update ONLY winnerIds, leave endedAt alone
+        await prisma.giveaway.update({
+            where: { id: giveawayId },
+            data: { winnerIds: winners },
+        })
+
+        return winners
     }
 
     /** Get all giveaways that have ended (endsAt <= now, endedAt IS NULL). */

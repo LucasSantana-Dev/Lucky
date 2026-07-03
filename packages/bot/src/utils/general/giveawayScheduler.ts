@@ -72,14 +72,19 @@ export class GiveawayScheduler {
         winnerIds?: string[]
     }): Promise<void> {
         try {
+            // FIRST: Draw and persist winners up front so giveaway is finalized
+            // regardless of whether announcement succeeds. This ensures:
+            // 1. giveaway.endedAt is set immediately → won't re-process forever
+            // 2. We have the actual winners to announce, not an empty list
+            const winners =
+                giveaway.winnerIds ??
+                (await giveawayService.endAndDraw(
+                    giveaway.id,
+                    giveaway.winnersCount,
+                ))
+
+            // THEN: Best-effort announce
             if (!this.client || !giveaway.messageId) {
-                // No way to announce; finalize silently
-                const winners =
-                    giveaway.winnerIds ??
-                    (await giveawayService.endAndDraw(
-                        giveaway.id,
-                        giveaway.winnersCount,
-                    ))
                 debugLog({
                     message: 'Giveaway finalized without announcement',
                     data: { giveawayId: giveaway.id, winners },
@@ -95,20 +100,14 @@ export class GiveawayScheduler {
                 try {
                     channel = await this.client.channels.fetch(giveaway.channelId)
                 } catch (err) {
-                    // Channel deleted or inaccessible; finalize but log
+                    // Channel deleted or inaccessible; log and return
+                    // (giveaway is already finalized above)
                     errorLog({
                         message:
-                            'Channel not found when processing giveaway; finalizing without announcement:',
+                            'Channel not found when processing giveaway; finalized without announcement:',
                         error: err,
                         data: { giveawayId: giveaway.id, channelId: giveaway.channelId },
                     })
-                    // Still end the giveaway even if channel is gone
-                    if (!giveaway.winnerIds) {
-                        await giveawayService.endAndDraw(
-                            giveaway.id,
-                            giveaway.winnersCount,
-                        )
-                    }
                     return
                 }
             }
@@ -134,8 +133,8 @@ export class GiveawayScheduler {
                         {
                             name: 'Winners',
                             value:
-                                giveaway.winnerIds && giveaway.winnerIds.length > 0
-                                    ? giveaway.winnerIds
+                                winners && winners.length > 0
+                                    ? winners
                                           .map((id) => `<@${id}>`)
                                           .join(', ')
                                     : 'no valid entries',
@@ -144,14 +143,6 @@ export class GiveawayScheduler {
                     ])
 
                 await msg.edit({ embeds: [embed.toJSON()] })
-
-                // Only now that announcement is sent, finalize the giveaway
-                const winners =
-                    giveaway.winnerIds ??
-                    (await giveawayService.endAndDraw(
-                        giveaway.id,
-                        giveaway.winnersCount,
-                    ))
 
                 if (winners.length > 0) {
                     await textChannel.send({
@@ -163,12 +154,12 @@ export class GiveawayScheduler {
                         content: '❌ No valid entries for this giveaway.',
                     })
                 }
-
-                infoLog({
-                    message: 'Giveaway processed',
-                    data: { giveawayId: giveaway.id, winners },
-                })
             }
+
+            infoLog({
+                message: 'Giveaway processed',
+                data: { giveawayId: giveaway.id, winners },
+            })
         } catch (err) {
             errorLog({
                 message: 'Error processing ended giveaway:',
