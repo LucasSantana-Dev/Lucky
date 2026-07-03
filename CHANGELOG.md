@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.32.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.31.0...v2.32.0) (2026-07-03)
+
+
+### Features
+
+* **backend:** read-only guild members/roles service endpoints ([#1691](https://github.com/LucasSantana-Dev/Lucky/issues/1691)) ([fd04b6e](https://github.com/LucasSantana-Dev/Lucky/commit/fd04b6ef5f8a1609a468bb97f43213df488af8a8))
+* service announce endpoint with timing-safe key + channel allowlist ([#1681](https://github.com/LucasSantana-Dev/Lucky/issues/1681)) ([3fbf022](https://github.com/LucasSantana-Dev/Lucky/commit/3fbf02256d8aed9fb4df067dcba7d87389317acb))
+
 ## [2.31.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.30.0...v2.31.0) (2026-07-03)
 
 
