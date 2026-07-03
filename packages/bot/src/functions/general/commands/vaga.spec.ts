@@ -6,10 +6,48 @@ const getPrismaClient = jest.fn(() => ({
     reactionRoleMessage: { findMany },
 })) as unknown as jest.Mock
 
+// Lightweight stand-in for the real detectVagaRoleTags — its own behaviour is
+// covered by vagaTagger.spec.ts in @lucky/shared; here we only verify the
+// command's wiring (pings built, posted to the channel).
+interface Tag {
+    label: string
+    roleId: string
+}
+const fakeDetect = (
+    text: string,
+    mappings: Tag[],
+    opts: {
+        notifyRoleId?: string
+        forcedLabels?: string[]
+        aliases?: unknown
+    } = {},
+): Tag[] => {
+    const out: Tag[] = []
+    const seen = new Set<string>()
+    const push = (t: Tag) => {
+        if (!seen.has(t.roleId)) {
+            seen.add(t.roleId)
+            out.push(t)
+        }
+    }
+    if (opts.notifyRoleId) push({ label: 'Vagas', roleId: opts.notifyRoleId })
+    for (const m of mappings) {
+        if (
+            opts.forcedLabels?.includes(m.label) ||
+            text.toLowerCase().includes(m.label.toLowerCase())
+        ) {
+            push(m)
+        }
+    }
+    return out
+}
+
 jest.mock('@lucky/shared/utils', () => ({
     getPrismaClient,
     infoLog: jest.fn(),
     errorLog: jest.fn(),
+    detectRolesFromText: fakeDetect,
+    JOB_ALIASES: {},
 }))
 
 import vaga from './vaga'

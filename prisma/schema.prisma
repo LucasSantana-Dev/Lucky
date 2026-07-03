@@ -840,6 +840,14 @@ model CustomCommand {
   lastUsed        DateTime?
   allowedRoles    String[]  @default([])
   allowedChannels String[]  @default([])
+  // Smart-command dispatch seam (ADR 2026-07-03). "basic" = static reply
+  // (default). Other kinds (e.g. "job_post") scan the text after the command
+  // name against the guild's reaction-role labels and ping the matches; `config`
+  // holds per-kind settings (validated by a per-kind zod schema), e.g.
+  // { targetChannelId, notifyRoleLabel }. String (not enum) so new kinds need
+  // no migration.
+  commandKind     String    @default("basic")
+  config          Json?
   createdBy       String
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals'
-import { detectVagaRoleTags, normalize } from './vagaTagger'
+import { detectRolesFromText, normalize, JOB_ALIASES } from './roleTextMatcher'
 
 const MAPPINGS = [
     { label: 'Python', roleId: 'r-python' },
@@ -22,8 +22,11 @@ const MAPPINGS = [
     { label: 'Vagas', roleId: 'r-vagas' },
 ]
 
-function ids(text: string, opts = {}) {
-    return detectVagaRoleTags(text, MAPPINGS, opts).map((t) => t.roleId)
+function ids(text: string, opts: Record<string, unknown> = {}) {
+    return detectRolesFromText(text, MAPPINGS, {
+        aliases: JOB_ALIASES,
+        ...opts,
+    }).map((t) => t.roleId)
 }
 
 describe('normalize', () => {
@@ -34,7 +37,7 @@ describe('normalize', () => {
     })
 })
 
-describe('detectVagaRoleTags', () => {
+describe('detectRolesFromText', () => {
     it('detects a stack via labels and aliases', () => {
         const got = ids('Vaga com C#, .Net, SQL Server e Angular')
         expect(got).toEqual(
@@ -68,7 +71,7 @@ describe('detectVagaRoleTags', () => {
     })
 
     it('always includes the Vagas notify role when provided', () => {
-        expect(ids('qualquer coisa', { vagasRoleId: 'r-vagas' })).toContain(
+        expect(ids('qualquer coisa', { notifyRoleId: 'r-vagas' })).toContain(
             'r-vagas',
         )
     })
@@ -93,7 +96,7 @@ describe('detectVagaRoleTags', () => {
     })
 
     it('dedupes and does not double-tag', () => {
-        const got = ids('Python, python e PYTHON', { vagasRoleId: 'r-vagas' })
+        const got = ids('Python, python e PYTHON', { notifyRoleId: 'r-vagas' })
         expect(got.filter((r) => r === 'r-python')).toHaveLength(1)
     })
 

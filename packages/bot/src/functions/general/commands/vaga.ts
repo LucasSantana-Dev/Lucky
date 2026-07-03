@@ -10,8 +10,13 @@ import {
     type GuildBasedChannel,
 } from 'discord.js'
 import Command from '../../../models/Command'
-import { infoLog, errorLog, getPrismaClient } from '@lucky/shared/utils'
-import { detectVagaRoleTags } from '../../../utils/general/vagaTagger'
+import {
+    infoLog,
+    errorLog,
+    getPrismaClient,
+    detectRolesFromText,
+    JOB_ALIASES,
+} from '@lucky/shared/utils'
 
 const MODALIDADE = {
     remoto: { label: 'Remoto', display: '🏠 Remoto' },
@@ -128,8 +133,9 @@ export default new Command({
             forcedLabels.push(SENIORIDADE[senioridadeVal])
         }
 
-        const tags = detectVagaRoleTags(`${titulo}\n${descricao}`, mappings, {
-            vagasRoleId,
+        const tags = detectRolesFromText(`${titulo}\n${descricao}`, mappings, {
+            aliases: JOB_ALIASES,
+            notifyRoleId: vagasRoleId,
             forcedLabels,
         })
         const roleIds = tags.map((t) => t.roleId)
