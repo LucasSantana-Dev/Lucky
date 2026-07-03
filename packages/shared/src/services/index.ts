@@ -91,6 +91,11 @@ export {
 } from './GuildRoleAccessService'
 export { redisClient } from './redis/index.js'
 export {
+    giveawayService,
+    parseDuration,
+    type GiveawayData,
+} from './GiveawayService.js'
+export {
     starboardService,
     type StarboardConfig,
     type StarboardEntry,

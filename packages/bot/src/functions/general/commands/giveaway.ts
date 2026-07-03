@@ -1,372 +1,444 @@
-import crypto from 'node:crypto'
-import { COLOR } from '@lucky/shared/constants'
-import { SlashCommandBuilder, EmbedBuilder } from '@discordjs/builders'
-import { PermissionFlagsBits, type TextChannel, type Client } from 'discord.js'
-import Command from '../../../models/Command'
-import { interactionReply } from '../../../utils/general/interactionReply'
-import { requireGuild } from '../../../utils/command/commandValidations'
+import { SlashCommandBuilder } from '@discordjs/builders'
 import {
-    createSuccessEmbed,
-    createErrorEmbed,
-} from '../../../utils/general/embeds'
-import { errorLog } from '@lucky/shared/utils'
+    PermissionFlagsBits,
+    EmbedBuilder,
+    type ChatInputCommandInteraction,
+    ChannelType,
+    type TextChannel,
+    type Client,
+} from 'discord.js'
+import Command from '../../../models/Command'
+import { infoLog, errorLog } from '@lucky/shared/utils'
+import { giveawayService, parseDuration } from '@lucky/shared/services'
+import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
+import { interactionReply } from '../../../utils/general/interactionReply'
+import { COLOR } from '@lucky/shared/constants'
 
-type GiveawayEntry = {
-    messageId: string
-    channelId: string
-    guildId: string
-    prize: string
-    winnersCount: number
-    endTime: number
-    entries: Set<string>
-    timeoutId: NodeJS.Timeout
+const prisma = getPrismaClient()
+
+/** Helper: Build a giveaway embed showing winners and prize. */
+/** Renders a winners mention list, or a fallback when there are none. */
+function formatWinners(winners: string[]): string {
+    return winners.length > 0
+        ? winners.map((id) => `<@${id}>`).join(', ')
+        : 'no valid entries'
 }
 
-const activeGiveaways = new Map<string, GiveawayEntry>()
+function buildGiveawayEmbed(
+    prize: string,
+    winners: string[],
+    status: 'Ended' | 'Rerolled' = 'Ended',
+): EmbedBuilder {
+    const statusColor = status === 'Rerolled' ? 0xff9900 : 0xff0000
+    const winnersText =
+        winners.length > 0 ? winners.map((id) => `<@${id}>`).join(', ') : 'no valid entries'
+    const fieldName = status === 'Rerolled' ? 'New Winners' : 'Winners'
 
-function parseDuration(durationStr: string): number {
-    const regex = /(\d+)([hmd])/g // NOSONAR: S5852 - no catastrophic backtracking; \d+ and [hmd] are non-overlapping
-    let totalMs = 0
-    let match
-
-    while ((match = regex.exec(durationStr)) !== null) {
-        const value = parseInt(match[1], 10)
-        const unit = match[2]
-
-        switch (unit) {
-            case 'h':
-                totalMs += value * 3600000
-                break
-            case 'm':
-                totalMs += value * 60000
-                break
-            case 'd':
-                totalMs += value * 86400000
-                break
-        }
-    }
-
-    return totalMs
+    return new EmbedBuilder()
+        .setColor(statusColor)
+        .setDescription(`**Prize:** ${prize} (${status})`)
+        .addFields([
+            {
+                name: fieldName,
+                value: winnersText,
+                inline: false,
+            },
+        ])
 }
 
-async function endGiveaway(
-    messageId: string,
-    isReroll = false,
-    client?: Client,
+/** Helper: Post the congratulations or no-entries message. */
+async function announceWinners(
+    textChannel: TextChannel,
+    prize: string,
+    winners: string[],
 ): Promise<void> {
-    const giveaway = activeGiveaways.get(messageId)
-    if (!isReroll) {
-        clearTimeout(giveaway?.timeoutId)
-    }
-
-    if (!giveaway) return
-
-    if (!client) return
-    const guild = client.guilds.cache.get(giveaway.guildId)
-    if (!guild) return
-
-    const rawChannel = guild.channels.cache.get(giveaway.channelId)
-    if (!rawChannel || !rawChannel.isTextBased()) return
-
-    const channel = rawChannel as TextChannel
-    const message = await channel.messages
-        .fetch(giveaway.messageId)
-        .catch(() => null)
-    if (!message) return
-
-    const entries = Array.from(giveaway.entries)
-    if (entries.length === 0) {
-        await channel.send({
-            embeds: [
-                new EmbedBuilder()
-                    .setTitle('🎉 Giveaway Ended 🎉')
-                    .setDescription(`**${giveaway.prize}** - No valid entries!`)
-                    .setColor(COLOR.ERROR_RED),
-            ],
+    if (winners.length > 0) {
+        await textChannel.send({
+            content: `🎉 Congratulations ${winners.map((id) => `<@${id}>`).join(', ')} on winning ${prize}!`,
+            allowedMentions: { users: winners },
         })
-        if (!isReroll) activeGiveaways.delete(messageId)
+    } else {
+        await textChannel.send({
+            content: '❌ No valid entries for this giveaway.',
+        })
+    }
+}
+
+async function handleStart(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    if (!interaction.guildId || !interaction.channelId) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Guild or channel context missing.', ephemeral: true },
+        })
         return
     }
 
-    const winners: string[] = []
-    const selectedIndexes = new Set<number>()
+    const prize = interaction.options.getString('premio', true)
+    const duracao = interaction.options.getString('duracao', true)
+    const winnersCount = interaction.options.getInteger('vencedores') ?? 1
 
-    for (let i = 0; i < Math.min(giveaway.winnersCount, entries.length); i++) {
-        let index = crypto.randomInt(entries.length)
-        while (selectedIndexes.has(index)) {
-            index = crypto.randomInt(entries.length)
-        }
-        selectedIndexes.add(index)
-        winners.push(entries[index])
+    const durationMs = parseDuration(duracao)
+    if (!durationMs || durationMs > 14 * 24 * 60 * 60 * 1000) {
+        await interactionReply({
+            interaction,
+            content: {
+                content:
+                    '❌ Invalid duration. Use format: 10m, 2h, 1d (max 14d).',
+                ephemeral: true,
+            },
+        })
+        return
     }
 
-    const winnerMentions = winners.map((id) => `<@${id}>`).join(', ')
+    const endsAt = new Date(Date.now() + durationMs)
 
-    await channel.send({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle(`🎉 Giveaway ${isReroll ? 'Rerolled' : 'Ended'} 🎉`)
-                .setDescription(
-                    `**${giveaway.prize}**\n\nWinner${giveaway.winnersCount > 1 ? 's' : ''}: ${winnerMentions}`,
-                )
-                .setColor(COLOR.SUCCESS_GREEN)
-                .setFooter({
-                    text: `${giveaway.winnersCount} winner${giveaway.winnersCount > 1 ? 's' : ''}`,
-                }),
-        ],
+    // Verify channel is text-based and bot has SendMessages permission
+    const channel = interaction.client.channels.cache.get(
+        interaction.channelId,
+    ) as TextChannel
+    if (!channel || channel.type !== ChannelType.GuildText) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Cannot access text channel.', ephemeral: true },
+        })
+        return
+    }
+
+    const guild = interaction.guild
+    if (!guild) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Guild context missing.', ephemeral: true },
+        })
+        return
+    }
+
+    const me = guild.members.me ?? (await guild.members.fetchMe())
+    const hasPermission = channel
+        .permissionsFor(me)
+        ?.has(PermissionFlagsBits.SendMessages)
+    if (!hasPermission) {
+        await interactionReply({
+            interaction,
+            content: {
+                content:
+                    '❌ I do not have permission to send messages in that channel.',
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    // Create giveaway record
+    const giveaway = await giveawayService.create({
+        guildId: interaction.guildId,
+        channelId: interaction.channelId,
+        prize,
+        winnersCount,
+        endsAt,
+        createdBy: interaction.user.id,
     })
 
-    if (!isReroll) activeGiveaways.delete(messageId)
+    const embed = new EmbedBuilder()
+        .setTitle('🎉 Giveaway')
+        .setColor(COLOR.INFO_GREEN)
+        .setDescription(`**Prize:** ${prize}`)
+        .addFields([
+            { name: 'Winners', value: winnersCount.toString(), inline: true },
+            {
+                name: 'Ends at',
+                value: `<t:${Math.floor(endsAt.getTime() / 1000)}:F>`,
+                inline: true,
+            },
+        ])
+        .setFooter({
+            text: `ID: ${giveaway.id}`,
+        })
+        .setTimestamp()
+
+    let msg
+    try {
+        msg = await channel.send({ embeds: [embed.toJSON()] })
+        await msg.react('🎉')
+        // Save message ID only after successful post
+        await giveawayService.updateMessageId(giveaway.id, msg.id)
+    } catch (err) {
+        // Clean up the orphan record if post fails
+        await prisma.giveaway.delete({ where: { id: giveaway.id } })
+        errorLog({
+            message: 'Failed to post giveaway message:',
+            error: err,
+        })
+        await interactionReply({
+            interaction,
+            content: {
+                content:
+                    '❌ Failed to post giveaway message. Please try again.',
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    infoLog({
+        message: 'giveaway start command executed',
+        data: { giveawayId: giveaway.id, userId: interaction.user.id },
+    })
+
+    await interactionReply({
+        interaction,
+        content: {
+            content: `✅ Giveaway started! React with 🎉 to enter. [Jump to message](${msg.url})`,
+            ephemeral: true,
+        },
+    })
+}
+
+/**
+ * Best-effort refresh of the original giveaway message: edits its embed to the
+ * given status and runs `announce`. Shared by end + reroll (a missing message,
+ * non-text channel, or fetch failure is a no-op).
+ */
+async function refreshGiveawayMessage(
+    client: Client,
+    giveaway: { channelId: string; messageId: string | null; prize: string },
+    winners: string[],
+    status: 'Ended' | 'Rerolled',
+    announce: (channel: TextChannel) => Promise<void>,
+): Promise<void> {
+    if (!giveaway.messageId) return
+    try {
+        const channel = client.channels.cache.get(
+            giveaway.channelId,
+        ) as TextChannel
+        if (!channel || channel.type !== ChannelType.GuildText) return
+        const msg = await channel.messages
+            .fetch(giveaway.messageId)
+            .catch(() => null)
+        if (!msg) return
+        const embed = buildGiveawayEmbed(giveaway.prize, winners, status)
+        await msg.edit({ embeds: [embed.toJSON()] })
+        await announce(channel)
+    } catch (err) {
+        errorLog({
+            message: `Error updating ${status.toLowerCase()} giveaway message:`,
+            error: err,
+        })
+    }
+}
+
+async function handleEnd(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    const giveawayId = interaction.options.getString('id', true)
+
+    if (!interaction.guildId) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Guild context missing.', ephemeral: true },
+        })
+        return
+    }
+
+    const result = await giveawayService.endById(giveawayId, interaction.guildId)
+    if (!result) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Giveaway not found.', ephemeral: true },
+        })
+        return
+    }
+
+    const { giveaway, wasAlreadyEnded } = result
+
+    // If it was already ended before this call, don't re-announce.
+    if (wasAlreadyEnded) {
+        const mention = formatWinners(giveaway.winnerIds)
+        await interactionReply({
+            interaction,
+            content: {
+                content: `ℹ️ Giveaway already ended. Winners: ${mention}`,
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    const winners = giveaway.winnerIds
+    const mention = formatWinners(winners)
+
+    infoLog({
+        message: 'giveaway end command executed',
+        data: { giveawayId, winners },
+    })
+
+    await refreshGiveawayMessage(
+        interaction.client,
+        giveaway,
+        winners,
+        'Ended',
+        (channel) => announceWinners(channel, giveaway.prize, winners),
+    )
+
+    await interactionReply({
+        interaction,
+        content: {
+            content: `✅ Giveaway ended. Winners: ${mention}`,
+            ephemeral: true,
+        },
+    })
+}
+
+async function handleReroll(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    const giveawayId = interaction.options.getString('id', true)
+
+    if (!interaction.guildId) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Guild context missing.', ephemeral: true },
+        })
+        return
+    }
+
+    const giveaway = await giveawayService.getById(giveawayId)
+    if (!giveaway) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Giveaway not found.', ephemeral: true },
+        })
+        return
+    }
+
+    const winners = await giveawayService.reroll(giveawayId, interaction.guildId)
+    if (!winners) {
+        await interactionReply({
+            interaction,
+            content: { content: '❌ Giveaway has not ended yet.', ephemeral: true },
+        })
+        return
+    }
+
+    const mention = formatWinners(winners)
+
+    infoLog({
+        message: 'giveaway reroll command executed',
+        data: { giveawayId, winners },
+    })
+
+    await refreshGiveawayMessage(
+        interaction.client,
+        giveaway,
+        winners,
+        'Rerolled',
+        async (channel) => {
+            if (winners.length > 0) {
+                await channel.send({
+                    content: `🎉 New winners: ${mention} for ${giveaway.prize}!`,
+                    allowedMentions: { users: winners },
+                })
+            }
+        },
+    )
+
+    await interactionReply({
+        interaction,
+        content: {
+            content: `✅ Giveaway rerolled. New winners: ${mention}`,
+            ephemeral: true,
+        },
+    })
 }
 
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('giveaway')
-        .setDescription('Run a giveaway')
+        .setDescription('🎉 Manage giveaways in your server.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addSubcommand((sub) =>
             sub
                 .setName('start')
-                .setDescription('Start a giveaway')
-                .addStringOption((o) =>
-                    o
-                        .setName('duration')
-                        .setDescription('Duration (e.g., 1h, 30m, 2d, 1h30m)')
+                .setDescription('Start a new giveaway')
+                .addStringOption((opt) =>
+                    opt
+                        .setName('premio')
+                        .setDescription(
+                            'Prize for the giveaway (max 200 chars)',
+                        )
+                        .setRequired(true)
+                        .setMaxLength(200),
+                )
+                .addStringOption((opt) =>
+                    opt
+                        .setName('duracao')
+                        .setDescription(
+                            'Duration (e.g., 10m, 2h, 1d — max 14d)',
+                        )
                         .setRequired(true),
                 )
-                .addStringOption((o) =>
-                    o
-                        .setName('prize')
-                        .setDescription('Prize description')
-                        .setRequired(true),
-                )
-                .addIntegerOption((o) =>
-                    o
-                        .setName('winners')
-                        .setDescription('Number of winners (default: 1)')
+                .addIntegerOption((opt) =>
+                    opt
+                        .setName('vencedores')
+                        .setDescription('Number of winners (default 1)')
                         .setMinValue(1)
-                        .setMaxValue(10)
-                        .setRequired(false),
+                        .setMaxValue(10),
                 ),
         )
         .addSubcommand((sub) =>
             sub
                 .setName('end')
                 .setDescription('End a giveaway early')
-                .addStringOption((o) =>
-                    o
-                        .setName('message_id')
-                        .setDescription('Message ID of the giveaway')
+                .addStringOption((opt) =>
+                    opt
+                        .setName('id')
+                        .setDescription('Giveaway ID')
                         .setRequired(true),
                 ),
         )
         .addSubcommand((sub) =>
             sub
                 .setName('reroll')
-                .setDescription('Pick new winner(s) from existing entries')
-                .addStringOption((o) =>
-                    o
-                        .setName('message_id')
-                        .setDescription('Message ID of the giveaway')
+                .setDescription('Redraw winners from an ended giveaway')
+                .addStringOption((opt) =>
+                    opt
+                        .setName('id')
+                        .setDescription('Giveaway ID')
                         .setRequired(true),
                 ),
-        )
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+        ),
     category: 'general',
     execute: async ({ interaction }) => {
-        if (!(await requireGuild(interaction))) return
-        if (!interaction.guild) return
-
-        const subcommand = interaction.options.getSubcommand()
+        const subcommand = (
+            interaction as ChatInputCommandInteraction
+        ).options.getSubcommand()
 
         try {
             if (subcommand === 'start') {
-                const durationStr = interaction.options.getString(
-                    'duration',
-                    true,
-                )
-                const prize = interaction.options.getString('prize', true)
-                const winnersCount =
-                    interaction.options.getInteger('winners') ?? 1
-
-                const durationMs = parseDuration(durationStr)
-                if (durationMs <= 0) {
-                    await interactionReply({
-                        interaction,
-                        content: {
-                            embeds: [
-                                createErrorEmbed(
-                                    'Invalid Duration',
-                                    'Please provide a valid duration (e.g., 1h, 30m, 2d)',
-                                ),
-                            ],
-                            ephemeral: true,
-                        },
-                    })
-                    return
-                }
-
-                const endTime = Date.now() + durationMs
-                const embed = new EmbedBuilder()
-                    .setTitle('🎉 GIVEAWAY 🎉')
-                    .setDescription(prize)
-                    .addFields(
-                        {
-                            name: 'Winners',
-                            value: `${winnersCount}`,
-                            inline: true,
-                        },
-                        {
-                            name: 'Ends',
-                            value: `<t:${Math.floor(endTime / 1000)}:R>`,
-                            inline: true,
-                        },
-                    )
-                    .setColor(COLOR.WARNING_GOLD)
-                    .setFooter({ text: 'React with 🎉 to enter' })
-
-                if (
-                    !interaction.channel ||
-                    !interaction.channel.isTextBased()
-                ) {
-                    await interactionReply({
-                        interaction,
-                        content: {
-                            embeds: [
-                                createErrorEmbed(
-                                    'Error',
-                                    'This channel is not text-based.',
-                                ),
-                            ],
-                            ephemeral: true,
-                        },
-                    })
-                    return
-                }
-
-                const message = await (interaction.channel as TextChannel).send(
-                    { embeds: [embed] },
-                )
-                if (!message) return
-
-                await message.react('🎉')
-
-                const giveaway: GiveawayEntry = {
-                    messageId: message.id,
-                    channelId: interaction.channelId,
-                    guildId: interaction.guild.id,
-                    prize,
-                    winnersCount,
-                    endTime,
-                    entries: new Set(),
-                    timeoutId: setTimeout(() => {
-                        endGiveaway(message.id, false, interaction.client)
-                    }, durationMs),
-                }
-
-                activeGiveaways.set(message.id, giveaway)
-
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [
-                            createSuccessEmbed(
-                                'Giveaway Started',
-                                `Giveaway for **${prize}** has started! React with 🎉 to enter.\n[Jump to giveaway](${message.url})`,
-                            ),
-                        ],
-                    },
-                })
+                await handleStart(interaction as ChatInputCommandInteraction)
             } else if (subcommand === 'end') {
-                const messageId = interaction.options.getString(
-                    'message_id',
-                    true,
-                )
-
-                const giveaway = activeGiveaways.get(messageId)
-                if (!giveaway) {
-                    await interactionReply({
-                        interaction,
-                        content: {
-                            embeds: [
-                                createErrorEmbed(
-                                    'Not Found',
-                                    'Giveaway not found.',
-                                ),
-                            ],
-                            ephemeral: true,
-                        },
-                    })
-                    return
-                }
-
-                await endGiveaway(messageId, false, interaction.client)
-
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [
-                            createSuccessEmbed(
-                                'Giveaway Ended',
-                                'Winners have been selected.',
-                            ),
-                        ],
-                    },
-                })
+                await handleEnd(interaction as ChatInputCommandInteraction)
             } else if (subcommand === 'reroll') {
-                const messageId = interaction.options.getString(
-                    'message_id',
-                    true,
-                )
-
-                const giveaway = activeGiveaways.get(messageId)
-                if (!giveaway) {
-                    await interactionReply({
-                        interaction,
-                        content: {
-                            embeds: [
-                                createErrorEmbed(
-                                    'Not Found',
-                                    'Giveaway not found.',
-                                ),
-                            ],
-                            ephemeral: true,
-                        },
-                    })
-                    return
-                }
-
-                await endGiveaway(messageId, true, interaction.client)
-
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [
-                            createSuccessEmbed(
-                                'Rerolled',
-                                'New winners have been selected.',
-                            ),
-                        ],
-                    },
-                })
+                await handleReroll(interaction as ChatInputCommandInteraction)
             }
         } catch (error) {
-            errorLog({ message: 'Error in giveaway command:', error })
-            await interactionReply({
-                interaction,
-                content: {
-                    embeds: [
-                        createErrorEmbed(
-                            'Error',
-                            error instanceof Error
-                                ? error.message
-                                : 'An error occurred.',
-                        ),
-                    ],
-                    ephemeral: true,
-                },
+            errorLog({
+                message: 'giveaway command error:',
+                error,
             })
+            try {
+                await interactionReply({
+                    interaction,
+                    content: { content: '❌ An error occurred.', ephemeral: true },
+                })
+            } catch (replyError) {
+                errorLog({
+                    message: 'Failed to send error reply for giveaway command:',
+                    error: replyError,
+                })
+            }
         }
     },
 })
-
-export { activeGiveaways, parseDuration }
