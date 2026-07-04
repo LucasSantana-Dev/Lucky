@@ -78,7 +78,18 @@ function makeInteraction(
                 : Promise.reject(new Error('timeout')),
         ),
     }
-    const reply = jest.fn(() => Promise.resolve(message))
+    // descricao is now collected via a modal (paragraph text input), not a
+    // plain string option — the modal submission is its own interaction
+    // that owns the reply/editReply for the preview + button flow.
+    const modalReply = jest.fn(() => Promise.resolve(message))
+    const modalSubmit = {
+        user: { id: 'u1' },
+        fields: {
+            getTextInputValue: (name: string) => opts[name] ?? '',
+        },
+        reply: modalReply,
+        editReply: jest.fn(),
+    }
     const interaction = {
         user: { id: 'u1', tag: 'mod#1' },
         guild: {
@@ -98,10 +109,19 @@ function makeInteraction(
         options: {
             getString: (name: string) => opts[name] ?? null,
         },
-        reply,
+        showModal: jest.fn(),
+        awaitModalSubmit: jest.fn(() => Promise.resolve(modalSubmit)),
+        reply: jest.fn(),
         editReply: jest.fn(),
     }
-    return { interaction, reply, send, update, message }
+    return {
+        interaction,
+        reply: modalReply,
+        send,
+        update,
+        message,
+        modalSubmit,
+    }
 }
 
 describe('/vaga command', () => {
@@ -179,6 +199,48 @@ describe('/vaga command', () => {
         const { interaction, send } = makeInteraction(base, {
             customId: 'vaga_cancel',
         })
+        await vaga.execute({
+            interaction: interaction as never,
+            client: {} as never,
+        })
+        expect(send).not.toHaveBeenCalled()
+    })
+
+    it('shows a modal for descricao before doing any lookups', async () => {
+        const { interaction } = makeInteraction(base, {
+            customId: 'vaga_cancel',
+        })
+        await vaga.execute({
+            interaction: interaction as never,
+            client: {} as never,
+        })
+        expect(interaction.showModal).toHaveBeenCalledTimes(1)
+        expect(interaction.awaitModalSubmit).toHaveBeenCalledTimes(1)
+    })
+
+    it('preserves real line breaks from the modal in the published message', async () => {
+        const multiline = {
+            ...base,
+            descricao: '- Requisito um\n- Requisito dois\n- Requisito três',
+        }
+        const { interaction, send } = makeInteraction(multiline, {
+            customId: 'vaga_publish',
+        })
+        await vaga.execute({
+            interaction: interaction as never,
+            client: {} as never,
+        })
+        const sent = send.mock.calls[0][0] as { content: string }
+        expect(sent.content).toContain(
+            '- Requisito um\n- Requisito dois\n- Requisito três',
+        )
+    })
+
+    it('does nothing further when the modal submission times out', async () => {
+        const { interaction, send } = makeInteraction(base)
+        interaction.awaitModalSubmit = jest.fn(() =>
+            Promise.reject(new Error('time')),
+        )
         await vaga.execute({
             interaction: interaction as never,
             client: {} as never,
