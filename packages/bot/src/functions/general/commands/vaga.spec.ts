@@ -91,6 +91,7 @@ function makeInteraction(
         editReply: jest.fn(),
     }
     const interaction = {
+        id: 'interaction-1',
         user: { id: 'u1', tag: 'mod#1' },
         guild: {
             id: 'g1',
@@ -246,5 +247,41 @@ describe('/vaga command', () => {
             client: {} as never,
         })
         expect(send).not.toHaveBeenCalled()
+    })
+
+    it('scopes the modal filter to this invocation, rejecting a stale/concurrent submission (regression for cross-invocation mixing)', async () => {
+        const { interaction } = makeInteraction(base, {
+            customId: 'vaga_cancel',
+        })
+        await vaga.execute({
+            interaction: interaction as never,
+            client: {} as never,
+        })
+        const [{ filter }] = interaction.awaitModalSubmit.mock.calls[0] as [
+            {
+                filter: (i: {
+                    user: { id: string }
+                    customId: string
+                }) => boolean
+            },
+        ]
+        const thisCustomId = `vaga_descricao_${interaction.id}`
+
+        // Same user, this invocation's modal — accepted.
+        expect(filter({ user: { id: 'u1' }, customId: thisCustomId })).toBe(
+            true,
+        )
+        // Same user, a DIFFERENT (e.g. earlier, still-open) /vaga
+        // invocation's modal — must be rejected, not mixed in.
+        expect(
+            filter({
+                user: { id: 'u1' },
+                customId: 'vaga_descricao_some-other-interaction',
+            }),
+        ).toBe(false)
+        // Different user entirely — rejected.
+        expect(filter({ user: { id: 'u2' }, customId: thisCustomId })).toBe(
+            false,
+        )
     })
 })

@@ -53,9 +53,9 @@ function buildVagaMessage(
 // requirements list into one collapses it onto one line (browsers flatten
 // <li> newlines into spaces on copy). A modal's paragraph text input is the
 // only way to actually accept real line breaks here.
-function buildDescricaoModal(): ModalBuilder {
+function buildDescricaoModal(customId: string): ModalBuilder {
     return new ModalBuilder()
-        .setCustomId('vaga_descricao')
+        .setCustomId(customId)
         .setTitle('Descrição da vaga')
         .addComponents(
             new ActionRowBuilder<TextInputBuilder>().addComponents(
@@ -70,10 +70,16 @@ function buildDescricaoModal(): ModalBuilder {
 }
 
 async function collectDescricao(chat: ChatInputCommandInteraction) {
-    await chat.showModal(buildDescricaoModal())
+    // Scoped to this invocation's own interaction id — without it, a second
+    // /vaga run by the same user before the first one's modal is submitted
+    // could resolve THIS awaitModalSubmit with the OTHER invocation's
+    // descrição, mixing it with this call's título/url/modalidade.
+    const customId = `vaga_descricao_${chat.id}`
+    await chat.showModal(buildDescricaoModal(customId))
     try {
         return await chat.awaitModalSubmit({
-            filter: (i) => i.user.id === chat.user.id,
+            filter: (i) =>
+                i.user.id === chat.user.id && i.customId === customId,
             time: 5 * 60 * 1000,
         })
     } catch {
