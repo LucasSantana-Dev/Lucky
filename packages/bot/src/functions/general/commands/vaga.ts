@@ -6,6 +6,9 @@ import {
     ButtonStyle,
     ComponentType,
     ChannelType,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
     type ChatInputCommandInteraction,
     type GuildBasedChannel,
 } from 'discord.js'
@@ -46,6 +49,46 @@ function buildVagaMessage(
     return parts.join('\n\n')
 }
 
+// Discord's plain string options are single-line inputs — pasting a bulleted
+// requirements list into one collapses it onto one line (browsers flatten
+// <li> newlines into spaces on copy). A modal's paragraph text input is the
+// only way to actually accept real line breaks here.
+function buildDescricaoModal(customId: string): ModalBuilder {
+    return new ModalBuilder()
+        .setCustomId(customId)
+        .setTitle('Descrição da vaga')
+        .addComponents(
+            new ActionRowBuilder<TextInputBuilder>().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('descricao')
+                    .setLabel('Descrição / requisitos')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(true)
+                    .setMaxLength(1800),
+            ),
+        )
+}
+
+async function collectDescricao(chat: ChatInputCommandInteraction) {
+    // Scoped to this invocation's own interaction id — without it, a second
+    // /vaga run by the same user before the first one's modal is submitted
+    // could resolve THIS awaitModalSubmit with the OTHER invocation's
+    // descrição, mixing it with this call's título/url/modalidade.
+    const customId = `vaga_descricao_${chat.id}`
+    await chat.showModal(buildDescricaoModal(customId))
+    try {
+        return await chat.awaitModalSubmit({
+            filter: (i) =>
+                i.user.id === chat.user.id && i.customId === customId,
+            time: 5 * 60 * 1000,
+        })
+    } catch {
+        // No follow-up possible — the original interaction was only
+        // acknowledged by showModal(), which leaves nothing to edit.
+        return null
+    }
+}
+
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('vaga')
@@ -57,12 +100,6 @@ export default new Command({
             o
                 .setName('titulo')
                 .setDescription('Título da vaga')
-                .setRequired(true),
-        )
-        .addStringOption((o) =>
-            o
-                .setName('descricao')
-                .setDescription('Descrição / requisitos da vaga')
                 .setRequired(true),
         )
         .addStringOption((o) =>
@@ -104,7 +141,6 @@ export default new Command({
         }
 
         const titulo = chat.options.getString('titulo', true)
-        const descricao = chat.options.getString('descricao', true)
         const url = chat.options.getString('url', true)
         const modalidadeVal = chat.options.getString('modalidade')
         const senioridadeVal = chat.options.getString('senioridade')
@@ -112,6 +148,10 @@ export default new Command({
         const modalidade = modalidadeVal
             ? MODALIDADE[modalidadeVal as keyof typeof MODALIDADE]
             : null
+
+        const modalSubmit = await collectDescricao(chat)
+        if (!modalSubmit) return
+        const descricao = modalSubmit.fields.getTextInputValue('descricao')
 
         const prisma = getPrismaClient()
         const messages = await prisma.reactionRoleMessage.findMany({
@@ -152,7 +192,7 @@ export default new Command({
         // Discord rejects message content over 2000 chars — fail early with a
         // clear message instead of a runtime API error at publish time.
         if (preview.length > 2000) {
-            await chat.reply({
+            await modalSubmit.reply({
                 content: `⚠️ A vaga ficou muito longa (${preview.length}/2000 caracteres). Encurte a descrição.`,
                 ephemeral: true,
             })
@@ -171,7 +211,7 @@ export default new Command({
         )
 
         const tagList = tags.map((t) => t.label).join(', ') || '(nenhum)'
-        const message = await chat.reply({
+        const message = await modalSubmit.reply({
             content: `**Prévia da vaga** (cargos marcados: ${tagList})\n\n${preview}`,
             components: [row],
             ephemeral: true,
@@ -186,7 +226,7 @@ export default new Command({
                 time: 5 * 60 * 1000,
             })
         } catch {
-            await chat.editReply({
+            await modalSubmit.editReply({
                 content: '⏱️ Tempo esgotado — vaga não publicada.',
                 components: [],
             })
