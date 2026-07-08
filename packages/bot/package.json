@@ -22,7 +22,7 @@
         "@discordjs/builders": "^1.14.1",
         "@discordjs/opus": "^0.10.0",
         "@lucky/shared": "file:../shared",
-        "@sentry/node": "^10.53.1",
+        "@sentry/node": "10.53.1",
         "bullmq": "^5.79.1",
         "chalk": "^5.6.2",
         "discord-player": "^7.1.0",
