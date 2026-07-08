@@ -122,6 +122,8 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
 
         // Fetch messages in pages; start from cursor or newest
         const PAGE_SIZE = 100
+        // hasMore is a fixed sentinel — the loop only ever exits via the
+        // break/return below, not by this condition becoming false.
         const hasMore = true
 
         while (hasMore) {
