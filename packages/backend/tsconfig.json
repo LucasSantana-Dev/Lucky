@@ -25,8 +25,7 @@
             "@lucky/shared/*": [
                 "../shared/src/*"
             ]
-        },
-        "ignoreDeprecations": "6.0"
+        }
     },
     "include": [
         "src/**/*"

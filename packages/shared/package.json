@@ -106,6 +106,6 @@
         "glob": "^13.0.6",
         "typedoc": "^0.28.19",
         "typedoc-plugin-coverage": "^4.0.3",
-        "typescript": "^6.0.3"
+        "typescript": "^7.0.2"
     }
 }
