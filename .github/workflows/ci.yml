@@ -293,6 +293,10 @@ jobs:
         steps:
             - name: Assert all builds passed
               run: |
+                  if [[ "${{ needs.detect-docker-changes.result }}" != "success" ]]; then
+                      echo "Detect-docker-changes did not complete successfully: ${{ needs.detect-docker-changes.result }}"
+                      exit 1
+                  fi
                   if [[ "${{ needs.detect-docker-changes.outputs.relevant }}" != "true" ]]; then
                       echo "No Docker-relevant changes in this diff — skipping validation."
                       exit 0
