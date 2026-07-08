@@ -217,11 +217,32 @@ describe('Health Routes Integration', () => {
                 .set('Host', 'lucky-api.lucassantana.tech')
                 .expect(200)
 
-            expect(response.body.warnings).toEqual([])
+            // warnings/sessionSecretConfigured/redisHealthy are redacted in
+            // production to avoid leaking deployment diagnostics to
+            // anonymous callers; this test only asserts the response is
+            // otherwise unaffected (status stays 'ok', redirectUri still
+            // resolves correctly).
+            expect(response.body.warnings).toBeUndefined()
             expect(response.body.status).toBe('ok')
             expect(response.body.auth.redirectUri).toBe(
                 'https://lucky-api.lucassantana.tech/api/auth/callback',
             )
+        })
+
+        test('redacts operational diagnostics in production', async () => {
+            mockRedis.isHealthy.mockReturnValue(true)
+            process.env.NODE_ENV = 'production'
+
+            const response = await request(app)
+                .get('/api/health/auth-config')
+                .expect(200)
+
+            expect(response.body.warnings).toBeUndefined()
+            expect(response.body.auth.sessionSecretConfigured).toBeUndefined()
+            expect(response.body.auth.redisHealthy).toBeUndefined()
+            expect(response.body.auth.clientId).toBe('test-client-id')
+            expect(response.body.auth.redirectUri).toBeDefined()
+            expect(response.body.auth.authorizeUrlPreview).toBeDefined()
         })
     })
 
