@@ -2,7 +2,7 @@
 
 **Status:** Accepted (Phase 1 shipped; Phase 2 diagnostic complete; Phase 3 shipped)
 **Deciders:** Lucas Santana (via 4-lens debate: feasibility, production-safety, pragmatism, architecture; synthesis by Fable)
-**Related:** PR #1711 (Phase 1), PR TBD (Phase 3), `.github/workflows/ci.yml`, `.github/workflows/docker-publish.yml`
+**Related:** PR #1711 (Phase 1), PR #1712 (Phase 3), `.github/workflows/ci.yml`, `.github/workflows/docker-publish.yml`
 **Trigger:** operator request "CI/CD takes way too long" (2026-07-08).
 
 ## Context
