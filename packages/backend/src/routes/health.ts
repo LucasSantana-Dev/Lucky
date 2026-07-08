@@ -110,7 +110,9 @@ export function setupHealthRoutes(app: Express): void {
         // sees. But operational details (session/redis state, config
         // validation warnings) aren't needed by anonymous callers and only
         // help an attacker fingerprint the deployment, so they're redacted
-        // outside development.
+        // outside development. NODE_ENV=production covers staging too
+        // (docker-compose.staging.yml sets it), which is correct — staging
+        // is internet-facing and shouldn't leak diagnostics either.
         if (process.env.NODE_ENV === 'production') {
             res.json({
                 status: healthResponse.status,

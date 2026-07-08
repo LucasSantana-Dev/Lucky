@@ -1,4 +1,11 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import {
+    describe,
+    test,
+    expect,
+    beforeEach,
+    afterEach,
+    jest,
+} from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
 import {
@@ -12,6 +19,7 @@ const mockRedis = redisClient as jest.Mocked<typeof redisClient>
 
 describe('Health Routes Integration', () => {
     let app: express.Express
+    const originalNodeEnv = process.env.NODE_ENV
 
     beforeEach(() => {
         app = express()
@@ -25,6 +33,13 @@ describe('Health Routes Integration', () => {
             'https://lucky-api.lucassantana.tech/api/auth/callback'
         process.env.WEBAPP_BACKEND_URL = 'https://lucky-api.lucassantana.tech'
         delete process.env.WEBAPP_EXPECTED_CLIENT_ID
+    })
+
+    afterEach(() => {
+        // Several tests below set NODE_ENV='production' to exercise
+        // production-only behavior; restore it so that doesn't leak into
+        // other tests in this file or other files sharing the worker.
+        process.env.NODE_ENV = originalNodeEnv
     })
 
     describe('GET /api/health', () => {
