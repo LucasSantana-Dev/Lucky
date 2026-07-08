@@ -61,7 +61,6 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
             guildId,
             sourceChannelId,
             targetChannelId,
-            options = {},
         } = job
 
         if (!sourceChannelId || !targetChannelId) {
@@ -160,7 +159,6 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
                 })) as Collection<string, Message<true>> | null
 
             if (!messages || messages.size === 0) {
-                hasMore = false
                 break
             }
 

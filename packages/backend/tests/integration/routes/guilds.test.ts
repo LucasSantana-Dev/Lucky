@@ -378,7 +378,7 @@ describe('Guilds Routes Integration', () => {
             >
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
-            const response = await request(app)
+            await request(app)
                 .get('/api/guilds/invalid-id/roles')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(400)

@@ -2437,7 +2437,6 @@ describe('ReactionRolesService', () => {
         const guildId = '11111111111111111'
         const channelId = '22222222222222222'
         const messageId = '33333333333333333'
-        const roleId = '44444444444444444'
         const botToken = 'test-token'
 
         it('rolls back DB changes when Discord update fails', async () => {

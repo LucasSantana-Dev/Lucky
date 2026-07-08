@@ -1,4 +1,4 @@
-import { jest, afterAll } from '@jest/globals'
+import { jest } from '@jest/globals'
 
 // Neutralize the @snazzah/davey native addon (Discord DAVE E2E encryption).
 // It is pulled in transitively (discord-player → discord-voip → @snazzah/davey)

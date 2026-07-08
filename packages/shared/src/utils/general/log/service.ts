@@ -8,9 +8,16 @@ import { recordWithCooldown, emitAlert } from '../../alerts'
 import { getLogContext } from './context'
 import type { LogLevelType, LogParams, LogConfig } from './types'
 
+function sanitizeForLogging(text: string): string {
+    return text.replace(/[\x00-\x1f\x7f]/g, ' ')
+}
+
 function serializeError(err: unknown): string {
     if (err instanceof Error) {
-        return `${err.name}: ${err.message}\n${err.stack ?? ''}`
+        const sanitizedName = sanitizeForLogging(err.name)
+        const sanitizedMessage = sanitizeForLogging(err.message)
+        const sanitizedStack = sanitizeForLogging(err.stack ?? '')
+        return `${sanitizedName}: ${sanitizedMessage}\n${sanitizedStack}`
     }
     try {
         return JSON.stringify(err, null, 2)
@@ -107,13 +114,14 @@ export class LogService {
         // message can't forge additional log lines (log injection).
 
         const coloredMessage = color(
-            formattedMessage.replace(/[\x00-\x1f\x7f]/g, ' '),
+            sanitizeForLogging(formattedMessage),
         )
 
         console.log(coloredMessage)
 
         if (effectiveParams.data) {
-            console.log(color(JSON.stringify(effectiveParams.data, null, 2)))
+            const sanitizedData = sanitizeForLogging(JSON.stringify(effectiveParams.data, null, 2))
+            console.log(color(sanitizedData))
         }
 
         if (effectiveParams.error) {

@@ -81,7 +81,6 @@ describe('parseDuration', () => {
     })
 
     test('rejects durations > 30 days', () => {
-        const thirtyDays = 30 * 24 * 60 * 60 * 1000
         expect(parseDuration('31d')).toBeNull()
         expect(parseDuration('1000h')).toBeNull()
     })
