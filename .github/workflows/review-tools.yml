@@ -52,5 +52,3 @@ jobs:
 
   danger:
     uses: LucasSantana-Dev/.github/.github/workflows/danger.yml@0e4a491c9ae4cae6859972da1813c6a581a1a082 # v1
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
