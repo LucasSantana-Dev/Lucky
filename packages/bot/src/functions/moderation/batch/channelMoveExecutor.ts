@@ -56,12 +56,7 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
             throw new Error('Discord client not available')
         }
 
-        const {
-            id: jobId,
-            guildId,
-            sourceChannelId,
-            targetChannelId,
-        } = job
+        const { id: jobId, guildId, sourceChannelId, targetChannelId } = job
 
         if (!sourceChannelId || !targetChannelId) {
             throw new Error('sourceChannelId and targetChannelId are required')
@@ -127,7 +122,7 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
 
         // Fetch messages in pages; start from cursor or newest
         const PAGE_SIZE = 100
-        let hasMore = true
+        const hasMore = true
 
         while (hasMore) {
             // Check for cancellation
