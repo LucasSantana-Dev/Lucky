@@ -1,6 +1,6 @@
 # ADR 2026-07-08 — CI speedup: paths-filter docker-build first, cache diagnostic before architecture change
 
-**Status:** Accepted (Phase 1 shipped; Phase 2 diagnostic complete; Phase 3 shipped)
+**Status:** Accepted (Phase 1 shipped; Phase 2 diagnostic complete; Phase 3 shipped and empirically verified)
 **Deciders:** Lucas Santana (via 4-lens debate: feasibility, production-safety, pragmatism, architecture; synthesis by Fable)
 **Related:** PR #1711 (Phase 1), PR #1712 (Phase 3), `.github/workflows/ci.yml`, `.github/workflows/docker-publish.yml`
 **Trigger:** operator request "CI/CD takes way too long" (2026-07-08).
@@ -84,11 +84,12 @@ collision), and — because both workflows now key on the identical `${{ matrix.
 scope — a PR's `docker-build` validation run can warm the cache that the eventual
 merge-time `docker-publish.yml` build reuses, and vice versa.
 
-This is a **high-confidence hypothesis fix, not yet empirically re-verified** — the
-prediction is that the next PR touching Docker-relevant paths should show `CACHED` hits on
-at least the early shared stages (`base-runtime`, `build`) if it runs shortly after another
-build of the same service. That should be confirmed by inspecting the next 1-2 real
-`docker-build` runs after this ships, the same way Phase 2 measured it.
+**Empirically verified** on PR #1712 itself: the first `Build — bot` run after this fix
+landed took 5m8s (308s, a cold write into the newly-scoped, previously-empty namespace —
+expected). A same-job rerun moments later (`gh run rerun --job`, same branch/commit, same
+scope, same content) completed in **16s — a ~19x speedup** — with 40 `CACHED` layer hits in
+the log and confirmed cache import (`#10 importing cache manifest from gha:...`). Root cause
+and fix both confirmed correct, not just plausible.
 
 ## Alternatives considered
 
@@ -113,27 +114,25 @@ build of the same service. That should be confirmed by inspecting the next 1-2 r
 **Positive (Phase 1):** PRs that touch only docs, unrelated workflow files, or config skip
 Docker validation entirely, zero regression risk.
 
-**Positive (Phase 3, expected — pending verification):** the `bot` service's 400s+ builds
-should drop substantially once cache hits actually land on shared stages, on PRs that touch
-Docker-relevant paths *and* run reasonably close in time to a prior same-service build.
-Aligning `ci.yml`/`docker-publish.yml` scopes means the fix benefits both workflows from one
-change.
+**Positive (Phase 3, confirmed):** the `bot` service's build dropped from 308s (cold, first
+write to the new scope) to 16s (warm, ~19x speedup) on a same-commit rerun. Benefit applies
+to PRs that touch Docker-relevant paths *and* run reasonably close in time to a prior
+same-service build — the shared-scope alignment across `ci.yml`/`docker-publish.yml` means
+both workflows draw from the same warm cache.
 
 **Negative:** GHA cache scoping by service still means the *first* build after this ships
 (and after any long gap between builds of a given service) pays the full cold cost — this
-is expected, not a bug. If verification shows hits still aren't landing, the next
-suspect is GHA cache quota eviction pressure from `mode=max`'s export size, which would
-point toward switching to `mode=min` or reconsidering Option C.
+is expected, not a bug, and was directly observed (the 308s first run on PR #1712 itself).
 
 **Neutral:** `docker-publish.yml`'s actual publish behavior (tags, push targets) is
 unchanged — only its cache configuration.
 
 ## Revisit when
 
-- **Verification run(s) after Phase 3 ships** — confirm `CACHED` hits actually appear on a
-  same-service rebuild. If not, the next hypothesis is GHA cache quota/eviction pressure
-  from `mode=max`; consider `mode=min` or per-stage cache scoping before escalating to
-  Option C (pre-built base image).
+- **If a future regression shows `CACHED` hits stop landing again** — the next hypothesis is
+  GHA cache quota/eviction pressure from `mode=max`'s export size (still large per-scope,
+  just no longer collision-prone); consider `mode=min` or per-stage cache scoping before
+  escalating to Option C (pre-built base image).
 - **`docker-publish.yml` failure rate over a longer window** (aim for the original ~100-run
   sample) diverges meaningfully from the 0/30 measured here — re-evaluate Option D.
 - **The `detect-docker-changes` paths list drifts out of sync with `docker-publish.yml`'s**
