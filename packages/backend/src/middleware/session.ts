@@ -190,7 +190,10 @@ export function setupSessionMiddleware(app: Express): void {
             cookie: {
                 secure: isProduction,
                 httpOnly: true,
-                sameSite: 'lax',
+                // sameSite: 'none' (paired with secure: true) is required in production
+                // for credentialed cross-subdomain fetches between the frontend and API
+                // subdomains; see packages/backend/tests/unit/middleware/session.test.ts.
+                sameSite: isProduction ? 'none' : 'lax',
                 maxAge: 7 * 24 * 60 * 60 * 1000,
                 path: '/',
             },
