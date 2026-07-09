@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.32.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.32.2...v2.32.3) (2026-07-09)
+
+
+### Bug Fixes
+
+* **backend:** guard timingsafeequal against length mismatch in lastfm route ([#1719](https://github.com/LucasSantana-Dev/Lucky/issues/1719)) ([6d58671](https://github.com/LucasSantana-Dev/Lucky/commit/6d586711c804be9f66199338330ca0746c4e8fe5))
+* **security:** resolve CodeQL/Semgrep findings (XSS, cookie, log injection, nginx headers) ([#1707](https://github.com/LucasSantana-Dev/Lucky/issues/1707)) ([3a30135](https://github.com/LucasSantana-Dev/Lucky/commit/3a301358d7cae1091bcbb79a1ff17c638317e641))
+
 ## [2.32.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.32.1...v2.32.2) (2026-07-09)
 
 
