@@ -51,3 +51,7 @@ jobs:
                   pattern: 'packages/frontend/dist/**/*.{js,css}'
                   strip-hash: '\\b\\w{8}\\.'
                   minimum-change-threshold: 100
+
+            - name: Size Limit Check
+              run: npx size-limit --config packages/frontend/.size-limit.json
+              working-directory: ./packages/frontend
