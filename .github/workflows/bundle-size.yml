@@ -52,6 +52,22 @@ jobs:
                   strip-hash: '\\b\\w{8}\\.'
                   minimum-change-threshold: 100
 
+            # compressed-size-action builds base/head in its own isolated temp
+            # checkouts, not $GITHUB_WORKSPACE — the main checkout is never
+            # npm-installed by an earlier step, so Size Limit Check needs its
+            # own install + build.
+            - name: Install dependencies
+              run: npm ci --legacy-peer-deps --ignore-scripts
+
+            - name: Generate Prisma client
+              run: npm run db:generate
+
+            - name: Build shared package
+              run: npm run build:shared
+
+            - name: Build frontend
+              run: npm run build --workspace=packages/frontend
+
             - name: Size Limit Check
               run: npx size-limit --config packages/frontend/.size-limit.json
               working-directory: ./packages/frontend
