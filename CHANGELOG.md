@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.32.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.32.1...v2.32.2) (2026-07-09)
+
+
+### Bug Fixes
+
+* **ci:** scope docker build cache per matrix service ([#1712](https://github.com/LucasSantana-Dev/Lucky/issues/1712)) ([3ed9aae](https://github.com/LucasSantana-Dev/Lucky/commit/3ed9aaec6e93ec713144427d2e8290300e214c15))
+* **security:** redact operational diagnostics from /api/health/auth-config ([#1710](https://github.com/LucasSantana-Dev/Lucky/issues/1710)) ([e1b6b61](https://github.com/LucasSantana-Dev/Lucky/commit/e1b6b61c493eabd4d633d9600c46ad29a3ffc781))
+
 ## [2.32.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.32.0...v2.32.1) (2026-07-09)
 
 
