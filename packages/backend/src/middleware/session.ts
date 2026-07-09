@@ -190,9 +190,12 @@ export function setupSessionMiddleware(app: Express): void {
             cookie: {
                 secure: isProduction,
                 httpOnly: true,
-                // sameSite: 'none' (paired with secure: true) is required in production
-                // for credentialed cross-subdomain fetches between the frontend and API
-                // subdomains; see packages/backend/tests/unit/middleware/session.test.ts.
+                // sameSite: 'none' (paired with secure: true) is the deliberate,
+                // test-enforced choice for production (see session.test.ts). Note this
+                // is stricter than technically required: frontend/API subdomains share
+                // a registrable domain, so per the SameSite spec they're same-site and
+                // 'lax' would already permit credentialed fetches between them. Revisit
+                // whether 'lax' is viable before loosening this — tracked in #1714.
                 sameSite: isProduction ? 'none' : 'lax',
                 maxAge: 7 * 24 * 60 * 60 * 1000,
                 path: '/',

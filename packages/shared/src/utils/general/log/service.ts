@@ -26,6 +26,14 @@ function serializeError(err: unknown): string {
     }
 }
 
+function serializeData(data: unknown): string {
+    try {
+        return JSON.stringify(data, null, 2)
+    } catch {
+        return String(data)
+    }
+}
+
 function toError(err: unknown): Error {
     if (err instanceof Error) return err
     return new Error(typeof err === 'string' ? err : JSON.stringify(err))
@@ -113,14 +121,14 @@ export class LogService {
         // Strip control characters (CR/LF/etc.) so user-provided values in the
         // message can't forge additional log lines (log injection).
 
-        const coloredMessage = color(
-            sanitizeForLogging(formattedMessage),
-        )
+        const coloredMessage = color(sanitizeForLogging(formattedMessage))
 
         console.log(coloredMessage)
 
         if (effectiveParams.data) {
-            const sanitizedData = sanitizeForLogging(JSON.stringify(effectiveParams.data, null, 2))
+            const sanitizedData = sanitizeForLogging(
+                serializeData(effectiveParams.data),
+            )
             console.log(color(sanitizedData))
         }
 
