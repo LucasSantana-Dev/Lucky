@@ -82,12 +82,12 @@ export interface GuildEmojiOption {
 const discordGuildChannelSchema = z.object({
     id: z.string().optional(),
     name: z.string().optional(),
-    type: z.number(),
+    type: z.number().int(),
     position: z.number().optional(),
 })
 
 const discordGuildRoleSchema = z.object({
-    id: z.string(),
+    id: z.string().min(1),
     name: z.string(),
     color: z.number().optional(),
     position: z.number().optional(),
@@ -157,9 +157,7 @@ class GuildService {
         return token && token.length > 0 ? token : null
     }
 
-    private validateChannelArray(
-        data: unknown,
-    ): DiscordGuildChannel[] {
+    private validateChannelArray(data: unknown): DiscordGuildChannel[] {
         if (!Array.isArray(data)) {
             errorLog({
                 message: 'Invalid channels response from Discord API',
@@ -183,9 +181,7 @@ class GuildService {
         return validated
     }
 
-    private validateRoleArray(
-        data: unknown,
-    ): DiscordGuildRole[] {
+    private validateRoleArray(data: unknown): DiscordGuildRole[] {
         if (!Array.isArray(data)) {
             errorLog({
                 message: 'Invalid roles response from Discord API',
@@ -1121,7 +1117,7 @@ class GuildService {
             const payload = this.validateSingleRole(await response.json())
             if (!payload) {
                 throw new Error(
-                    'Failed to validate role response from Discord API',
+                    'Discord API error: Failed to validate role response from Discord API',
                 )
             }
             return {
@@ -1212,7 +1208,7 @@ class GuildService {
             const payload = this.validateSingleRole(await response.json())
             if (!payload) {
                 throw new Error(
-                    'Failed to validate role response from Discord API',
+                    'Discord API error: Failed to validate role response from Discord API',
                 )
             }
             return {

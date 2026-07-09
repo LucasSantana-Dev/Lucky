@@ -9,7 +9,7 @@ export interface DiscordUser {
     discriminator: string
     global_name?: string | null
     avatar: string | null
-    email?: string
+    email?: string | null
     verified?: boolean
 }
 
@@ -57,7 +57,7 @@ const discordUserSchema = z.object({
     discriminator: z.string(),
     global_name: z.string().nullable().optional(),
     avatar: z.string().nullable(),
-    email: z.string().optional(),
+    email: z.string().nullable().optional(),
     verified: z.boolean().optional(),
 })
 
@@ -197,10 +197,7 @@ class DiscordOAuthService {
         return result.data
     }
 
-    private validateUserResponse(
-        data: unknown,
-        endpoint: string,
-    ): DiscordUser {
+    private validateUserResponse(data: unknown, endpoint: string): DiscordUser {
         const result = discordUserSchema.safeParse(data)
         if (!result.success) {
             const errors = result.error.issues
