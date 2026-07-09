@@ -2,7 +2,7 @@
  * Unit tests for Result utility functions
  */
 
-import { describe, it, expect, jest } from '@jest/globals'
+import { describe, it, expect } from '@jest/globals'
 import { createSuccess, createFailure, isSuccess, isFailure } from './result'
 
 describe('Result Utilities', () => {

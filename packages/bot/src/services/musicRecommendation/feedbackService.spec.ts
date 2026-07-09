@@ -358,7 +358,6 @@ describe('implicit feedback', () => {
         '$getter returns $type entries from in-memory cache',
         async ({ type, getter, included, excluded }) => {
             const service = new RecommendationFeedbackService(30)
-            const now = Date.now()
 
             // Record both types
             await service.recordImplicitFeedback(

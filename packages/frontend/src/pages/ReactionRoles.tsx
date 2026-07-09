@@ -620,7 +620,14 @@ function MessageForm({
                         />
                         {!imageFile &&
                             imageUrl.trim() &&
-                            /^https?:\/\//i.test(imageUrl.trim()) && (
+                            (() => {
+                                try {
+                                    const url = new URL(imageUrl.trim())
+                                    return url.protocol === 'http:' || url.protocol === 'https:'
+                                } catch {
+                                    return false
+                                }
+                            })() && (
                                 <div className='mt-2 overflow-hidden rounded-md border border-lucky-border'>
                                     <img
                                         src={imageUrl}

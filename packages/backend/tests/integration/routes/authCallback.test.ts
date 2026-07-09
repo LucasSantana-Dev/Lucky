@@ -186,7 +186,6 @@ describe('OAuth Callback (handleOAuthCallback)', () => {
                             next(err)
                         } else {
                             // Override save to fail on the actual callback request
-                            const originalSave = req.session.save
                             req.session.save = jest.fn((callback) => {
                                 callback(new Error('Session save failed'))
                             })
