@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.32.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.32.0...v2.32.1) (2026-07-09)
+
+
+### Bug Fixes
+
+* **bot:** collect /vaga descricao via modal, not a single-line option ([#1701](https://github.com/LucasSantana-Dev/Lucky/issues/1701)) ([ba20cd8](https://github.com/LucasSantana-Dev/Lucky/commit/ba20cd8f0857983e0f0765e16cf91722ba568e6c))
+* **ci:** pin GitHub Actions to commit SHAs, scope secrets, harden Renovate ([#1706](https://github.com/LucasSantana-Dev/Lucky/issues/1706)) ([1239e28](https://github.com/LucasSantana-Dev/Lucky/commit/1239e286df0e222f4a0b39f328c622901a96f916))
+* **ci:** skip docker-build validation for non-docker-relevant PRs ([#1711](https://github.com/LucasSantana-Dev/Lucky/issues/1711)) ([5ea19ea](https://github.com/LucasSantana-Dev/Lucky/commit/5ea19eabf162c7ab82a1bd242979df8d8354156e))
+* **deps:** resolve npm audit vulnerabilities (1 critical + 5 moderate) ([#1708](https://github.com/LucasSantana-Dev/Lucky/issues/1708)) ([e2b07bf](https://github.com/LucasSantana-Dev/Lucky/commit/e2b07bfece040e3f65bf0e62ff5a7565b93b670d))
+* **docker:** bump npm to patch bundled undici/tar CVEs in base image ([#1709](https://github.com/LucasSantana-Dev/Lucky/issues/1709)) ([a635a0c](https://github.com/LucasSantana-Dev/Lucky/commit/a635a0c33c77ff99cd27369d3a8398ea51cc96de))
+
 ## [2.32.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.31.0...v2.32.0) (2026-07-03)
 
 
