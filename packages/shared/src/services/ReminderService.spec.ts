@@ -147,6 +147,7 @@ describe('ReminderService', () => {
 
     describe('getDueReminders', () => {
         test('fetches undelivered reminders with remindAt <= now', async () => {
+            jest.useFakeTimers()
             const now = new Date()
             const pastDate = new Date(now.getTime() - 1000)
             mockPrisma.reminder.findMany.mockResolvedValue([
@@ -172,6 +173,8 @@ describe('ReminderService', () => {
             expect(call.orderBy).toEqual({ remindAt: 'asc' })
             expect(call.take).toBe(25)
             expect(result).toHaveLength(1)
+
+            jest.useRealTimers()
         })
     })
 
