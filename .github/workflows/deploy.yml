@@ -370,8 +370,8 @@ jobs:
                     echo "==> No Docker rebuild — checking for homelab-deploy commit status (SHA: $expected)..."
 
                     status_was_seen=false
-                    for attempt in $(seq 1 20); do
-                      echo "Attempt ${attempt}/20..."
+                    for attempt in $(seq 1 40); do
+                      echo "Attempt ${attempt}/40..."
                       deploy_state=$(gh api \
                         "repos/${{ github.repository }}/commits/${expected}/statuses" \
                         --jq '[.[] | select(.context == "homelab-deploy")] | first | .state // ""' \
@@ -390,8 +390,8 @@ jobs:
 
                       if [ "$status_was_seen" = "false" ] && [ "$attempt" -eq 6 ]; then
                         echo "::notice::No homelab-deploy status after ~90s — GITHUB_DEPLOY_STATUS_TOKEN not configured on homelab. Falling back to HTTP health check."
-                        for http_attempt in $(seq 1 20); do
-                          echo "HTTP attempt ${http_attempt}/20..."
+                        for http_attempt in $(seq 1 40); do
+                          echo "HTTP attempt ${http_attempt}/40..."
                           response=$(curl -sS --max-time 20 -w "\n%{http_code}" "$health_url" || true)
                           http_code=$(echo "$response" | tail -1)
                           if [ "$http_code" = "200" ]; then
@@ -416,8 +416,8 @@ jobs:
                   version_url="${base_url}/api/health/version"
                   echo "==> Validating deployed SHA at $version_url (expected: $expected)..."
 
-                  for attempt in $(seq 1 20); do
-                    echo "Attempt ${attempt}/20..."
+                  for attempt in $(seq 1 40); do
+                    echo "Attempt ${attempt}/40..."
                     response=$(curl -sS --max-time 20 -w "\n%{http_code}" "$version_url" || true)
                     http_code=$(echo "$response" | tail -1)
                     body=$(echo "$response" | sed '$d')
