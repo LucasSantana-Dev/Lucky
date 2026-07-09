@@ -8,7 +8,7 @@ Single-context repo. ADRs live in **`decisions/`** (not the conventional `docs/a
 
 ```
 /
-├── CONTEXT.md                    ← not yet created; proceed silently if absent
+├── CONTEXT.md                    ← canonical domain glossary; defines vocabulary for all domain concepts
 ├── decisions/                    ← ADRs live here (tracked, repo root)
 │   └── YYYY-MM-DD-<slug>.md
 ├── docs/                         ← human-facing project documentation only
@@ -21,10 +21,8 @@ Single-context repo. ADRs live in **`decisions/`** (not the conventional `docs/a
 
 ## Before exploring, read these
 
-- **`CONTEXT.md`** at the repo root (if it exists).
+- **`CONTEXT.md`** at the repo root — canonical domain glossary. Defines vocabulary for all domain concepts: tenancy (Guild, Member, User), music runtime (Track, Source, Queue, Player, Session), autoplay and recommendations, guild automation, moderation, engagement (XP, Level, Starboard), role granting, integrations, and support. Use these exact terms in issue titles, refactor proposals, and test names to stay aligned with the codebase's language.
 - **`decisions/`** — read ADRs that touch the area you're about to work in. Filter by date and slug.
-
-If `CONTEXT.md` doesn't exist, **proceed silently**. Don't flag its absence; don't suggest creating it upfront. The producer skill (`/grill-with-docs`) creates it lazily when terms or decisions actually get resolved.
 
 ## Use the glossary's vocabulary
 
