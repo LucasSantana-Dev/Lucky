@@ -55,7 +55,7 @@
             ],
             "automerge": false,
             "labels": ["youtube-dep", "dependencies"],
-            "minimumReleaseAge": "3 days"
+            "minimumReleaseAge": "7 days"
         }
     ],
     "github-actions": {
