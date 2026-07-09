@@ -54,7 +54,8 @@
                 "play-dl"
             ],
             "automerge": false,
-            "labels": ["youtube-dep", "dependencies"]
+            "labels": ["youtube-dep", "dependencies"],
+            "minimumReleaseAge": "7 days"
         }
     ],
     "github-actions": {
