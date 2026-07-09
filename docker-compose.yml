@@ -214,6 +214,11 @@ services:
             - "${NGINX_PORT:-8080}:8080"
         networks:
             - lucky-network
+        healthcheck:
+            test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
         logging:
             driver: "json-file"
             options:
