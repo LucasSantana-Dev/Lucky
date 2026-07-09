@@ -81,8 +81,12 @@ and `cache-to` in **both** `ci.yml`'s `docker-build` job and `docker-publish.yml
 `build-and-push` job, using the *same* scope naming in both files. This gives each of the 4
 services its own persistent cache namespace (no more matrix-sibling or cross-workflow
 collision), and — because both workflows now key on the identical `${{ matrix.service }}`
-scope — a PR's `docker-build` validation run can warm the cache that the eventual
-merge-time `docker-publish.yml` build reuses, and vice versa.
+scope — once `docker-publish.yml` has built a given service on the default branch, a
+later PR's `docker-build` validation run for that same service can reuse that cache.
+Reuse is one-way (default/base branch → PR), not bidirectional: GitHub Actions cache
+isolation means a PR's own cache (scoped to its merge ref) can't be read back by
+`main` or by other PRs — see
+[GitHub's cache access-restriction docs](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache).
 
 **Empirically verified** on PR #1712 itself: the first `Build — bot` run after this fix
 landed took 5m8s (308s, a cold write into the newly-scoped, previously-empty namespace —
