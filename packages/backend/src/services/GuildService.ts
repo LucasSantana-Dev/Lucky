@@ -491,9 +491,16 @@ class GuildService {
                 ? this.validateChannelArray(await channelsResponse.json())
                 : []
 
-            const rolesPayload = rolesResponse.ok
-                ? this.validateRoleArray(await rolesResponse.json())
+            // Only the array length is used here (not individual role
+            // fields), so a shape check is enough — validateRoleArray's full
+            // per-item schema would silently drop roles missing optional
+            // fields this endpoint never reads, undercounting them.
+            const rawRolesPayload = rolesResponse.ok
+                ? await rolesResponse.json()
                 : []
+            const roleCount = Array.isArray(rawRolesPayload)
+                ? rawRolesPayload.length
+                : null
 
             const counts = this.countChannelTypes(channelsPayload)
 
@@ -505,7 +512,7 @@ class GuildService {
                 categoryCount: counts.categoryCount,
                 textChannelCount: counts.textChannelCount,
                 voiceChannelCount: counts.voiceChannelCount,
-                roleCount: rolesPayload.length || null,
+                roleCount: roleCount || null,
             }
         } catch (error) {
             errorLog({
