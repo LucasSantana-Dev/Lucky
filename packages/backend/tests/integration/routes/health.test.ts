@@ -232,13 +232,12 @@ describe('Health Routes Integration', () => {
                 .set('Host', 'lucky-api.lucassantana.tech')
                 .expect(200)
 
-            // warnings/sessionSecretConfigured/redisHealthy are redacted in
-            // production to avoid leaking deployment diagnostics to
-            // anonymous callers; this test only asserts the response is
-            // otherwise unaffected (status stays 'ok', redirectUri still
-            // resolves correctly).
+            // warnings/status/sessionSecretConfigured/redisHealthy are
+            // redacted in production to avoid leaking deployment diagnostics
+            // to anonymous callers; this test only asserts the response is
+            // otherwise unaffected (redirectUri still resolves correctly).
             expect(response.body.warnings).toBeUndefined()
-            expect(response.body.status).toBe('ok')
+            expect(response.body.status).toBeUndefined()
             expect(response.body.auth.redirectUri).toBe(
                 'https://lucky-api.lucassantana.tech/api/auth/callback',
             )
@@ -253,6 +252,7 @@ describe('Health Routes Integration', () => {
                 .expect(200)
 
             expect(response.body.warnings).toBeUndefined()
+            expect(response.body.status).toBeUndefined()
             expect(response.body.auth.sessionSecretConfigured).toBeUndefined()
             expect(response.body.auth.redisHealthy).toBeUndefined()
             expect(response.body.auth.clientId).toBe('test-client-id')

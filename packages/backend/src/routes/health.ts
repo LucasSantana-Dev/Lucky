@@ -115,7 +115,6 @@ export function setupHealthRoutes(app: Express): void {
         // is internet-facing and shouldn't leak diagnostics either.
         if (process.env.NODE_ENV === 'production') {
             res.json({
-                status: healthResponse.status,
                 auth: {
                     clientId: healthResponse.auth.clientId,
                     redirectUri: healthResponse.auth.redirectUri,
