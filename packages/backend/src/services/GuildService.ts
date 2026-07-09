@@ -6,6 +6,8 @@ let botClient: Client | null = null
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
 const BOT_GUILD_CACHE_TTL_MS = 60_000
 const GUILD_METRICS_CACHE_TTL_MS = 30_000
+// Discord permission bitfield literal representing zero permissions granted
+const NO_PERMISSIONS = '0'
 
 interface GuildMetrics {
     memberCount: number | null
@@ -839,7 +841,7 @@ class GuildService {
             name: guild.name,
             icon: guild.icon,
             owner: false,
-            permissions: '0',
+            permissions: NO_PERMISSIONS,
             features: guild.features,
             hasBot,
             botInviteUrl,
@@ -945,7 +947,7 @@ class GuildService {
                     color: role.color ?? 0,
                     hoist: role.hoist ?? false,
                     mentionable: role.mentionable ?? false,
-                    permissions: role.permissions ?? '0',
+                    permissions: role.permissions ?? NO_PERMISSIONS,
                     position: role.position ?? 0,
                     managed: role.managed ?? false,
                 }))
@@ -1027,7 +1029,7 @@ class GuildService {
                 color: payload.color ?? 0,
                 hoist: payload.hoist ?? false,
                 mentionable: payload.mentionable ?? false,
-                permissions: payload.permissions ?? '0',
+                permissions: payload.permissions ?? NO_PERMISSIONS,
                 position: payload.position ?? 0,
                 managed: payload.managed ?? false,
             }
@@ -1113,7 +1115,7 @@ class GuildService {
                 color: payload.color ?? 0,
                 hoist: payload.hoist ?? false,
                 mentionable: payload.mentionable ?? false,
-                permissions: payload.permissions ?? '0',
+                permissions: payload.permissions ?? NO_PERMISSIONS,
                 position: payload.position ?? 0,
                 managed: payload.managed ?? false,
             }
