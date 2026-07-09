@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.33.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.33.0...v2.33.1) (2026-07-09)
+
+
+### Bug Fixes
+
+* **backend:** await session destroy before logout response ([#1721](https://github.com/LucasSantana-Dev/Lucky/issues/1721)) ([b1f0c19](https://github.com/LucasSantana-Dev/Lucky/commit/b1f0c19f6b74f82fd144cd86b88795ab28ed47dd))
+* **docker:** chown [@prisma](https://github.com/prisma) so bot can write migrate engine ([#1734](https://github.com/LucasSantana-Dev/Lucky/issues/1734)) ([#1735](https://github.com/LucasSantana-Dev/Lucky/issues/1735)) ([901e0fd](https://github.com/LucasSantana-Dev/Lucky/commit/901e0fdd08b3aef643307e9a6d2a0c0d18a07d91))
+* update CONTEXT.md reference in domain.md ([#1744](https://github.com/LucasSantana-Dev/Lucky/issues/1744)) ([c92aa26](https://github.com/LucasSantana-Dev/Lucky/commit/c92aa26cb015bce1ec99d0077a9902dec56d6ed8))
+* **webhook:** add curl to webhook container ([#1742](https://github.com/LucasSantana-Dev/Lucky/issues/1742)) ([50d9500](https://github.com/LucasSantana-Dev/Lucky/commit/50d95008c519e7d6179e780c99cb824b20c6f26d))
+
 ## [2.33.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.32.3...v2.33.0) (2026-07-09)
 
 
