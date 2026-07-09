@@ -2,6 +2,7 @@ import js from '@eslint/js'
 import globals from 'globals'
 import parserTs from '@typescript-eslint/parser'
 import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default [
     {
@@ -31,6 +32,7 @@ export default [
         },
         plugins: {
             'react-hooks': reactHooks,
+            'react-refresh': reactRefresh,
         },
         rules: {
             ...js.configs.recommended.rules,
@@ -42,6 +44,10 @@ export default [
             'no-console': ['error', { allow: ['warn'] }],
             'react-hooks/rules-of-hooks': 'error',
             'react-hooks/exhaustive-deps': 'off',
+            'react-refresh/only-export-components': [
+                'warn',
+                { allowConstantExport: true },
+            ],
         },
     },
     {
@@ -55,6 +61,16 @@ export default [
         files: ['scripts/**/*.ts'],
         rules: {
             'no-console': 'off',
+        },
+    },
+    {
+        // shadcn/ui components commonly export a cva()-generated variants
+        // helper alongside the component (e.g. badgeVariants); the rule's
+        // allowConstantExport option doesn't recognize a cva() call as a
+        // constant, so these vendored files are exempt.
+        files: ['src/components/ui/**/*.tsx'],
+        rules: {
+            'react-refresh/only-export-components': 'off',
         },
     },
 ]
