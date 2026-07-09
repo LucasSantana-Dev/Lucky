@@ -7,10 +7,10 @@ import {
     initializeSentry,
     setupErrorHandlers,
     startHeartbeat,
+    verifyRequiredDatabaseRelations,
     warnLog,
 } from '@lucky/shared/utils'
 import { startWebApp } from './server'
-import { verifyRequiredDatabaseState } from './startup/verifyRequiredDatabaseState'
 
 export async function bootstrapBackend(): Promise<void> {
     await ensureEnvironment()
@@ -26,7 +26,7 @@ export async function bootstrapBackend(): Promise<void> {
         tags: { runtime: 'express' },
     })
     startHeartbeat({ serviceName: 'backend' })
-    await verifyRequiredDatabaseState()
+    await verifyRequiredDatabaseRelations()
 
     try {
         const connected = await redisClient.connect()

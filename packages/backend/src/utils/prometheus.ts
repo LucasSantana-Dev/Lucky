@@ -60,9 +60,3 @@ export const guildAutomationUsageTotal = new Counter<'operation'>({
     labelNames: ['operation'],
     registers: [registry],
 })
-
-export async function renderMetrics(): Promise<string> {
-    return registry.metrics()
-}
-
-export const metricsContentType: string = registry.contentType
