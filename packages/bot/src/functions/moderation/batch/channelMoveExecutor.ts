@@ -2,7 +2,7 @@ import {
     type GuildTextBasedChannel,
     type Collection,
     type Message,
-    GuildPremiumTier,
+    type AttachmentBuilder,
     PermissionFlagsBits,
 } from 'discord.js'
 import {
@@ -211,7 +211,7 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
                         tooLarge,
                     })
 
-                    let files: any[] = []
+                    let files: AttachmentBuilder[] = []
                     try {
                         files = await fetchAttachments(toUpload)
                     } catch (fetchError) {
