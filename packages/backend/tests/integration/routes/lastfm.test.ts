@@ -439,6 +439,20 @@ describe('Last.fm Routes Integration', () => {
             )
         })
 
+        test('should redirect with error on mismatched-length signature (not crash)', async () => {
+            // Build a state with a signature that's intentionally the wrong length
+            const payload = Buffer.from(DISCORD_ID, 'utf8').toString('base64url')
+            const wrongLengthSig = 'short' // Too short for a valid HMAC-SHA256 hex
+            const mismatchedState = `${payload}.${wrongLengthSig}`
+
+            const res = await request(app)
+                .get('/api/lastfm/callback')
+                .query({ token: 'valid_token', state: mismatchedState })
+                .expect(302)
+
+            expect(res.headers.location).toContain('error=lastfm_invalid_state')
+        })
+
         test('should redirect with error when exchange fails', async () => {
             mockExchangeToken.mockResolvedValue(null)
 

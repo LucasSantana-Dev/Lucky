@@ -56,11 +56,11 @@ function decodeAndVerifyState(state: string, secret: string): string | null {
         .createHmac('sha256', secret)
         .update(discordId, 'utf8')
         .digest('hex')
+    const sigBuf = Buffer.from(sig, 'utf8')
+    const expectedBuf = Buffer.from(expected, 'utf8')
     if (
-        crypto.timingSafeEqual(
-            Buffer.from(sig, 'utf8'),
-            Buffer.from(expected, 'utf8'),
-        )
+        sigBuf.length === expectedBuf.length &&
+        crypto.timingSafeEqual(sigBuf, expectedBuf)
     ) {
         return discordId
     }
