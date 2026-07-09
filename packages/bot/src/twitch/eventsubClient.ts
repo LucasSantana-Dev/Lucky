@@ -130,7 +130,8 @@ export class TwitchEventSubClient {
         switch (msg.metadata.message_type) {
             case 'session_welcome': {
                 const p = msg.payload as WelcomePayload
-                this.sessionId = p.session.id
+                const sessionId = p.session.id
+                this.sessionId = sessionId
                 this.reconnectUrl = p.session.reconnect_url
                 this.scheduleKeepalive(
                     p.session.keepalive_timeout_seconds * 1000,
@@ -138,22 +139,22 @@ export class TwitchEventSubClient {
                 void (async () => {
                     const results = await Promise.allSettled([
                         subscribeToStreamOnline(
-                            this.sessionId,
+                            sessionId,
                             this.clientId,
                             this.subscribedUserIds,
                         ),
                         subscribeToStreamOffline(
-                            this.sessionId,
+                            sessionId,
                             this.clientId,
                             this.subscribedOfflineIds,
                         ),
                         subscribeToChannelUpdate(
-                            this.sessionId,
+                            sessionId,
                             this.clientId,
                             this.subscribedUpdateIds,
                         ),
                         subscribeToChannelRaid(
-                            this.sessionId,
+                            sessionId,
                             this.clientId,
                             this.subscribedRaidIds,
                         ),
