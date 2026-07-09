@@ -1,4 +1,4 @@
-import type { Client, TextChannel } from 'discord.js'
+import type { TextChannel } from 'discord.js'
 import { EmbedBuilder } from '@discordjs/builders'
 import { COLOR } from '@lucky/shared/constants'
 import { reminderService, MAX_DELIVERY_ATTEMPTS } from '@lucky/shared/services'
@@ -27,43 +27,42 @@ export class ReminderScheduler extends IntervalScheduler {
     }
 
     protected async execute(): Promise<void> {
-            const dueReminders = await reminderService.getDueReminders(25)
+        const dueReminders = await reminderService.getDueReminders(25)
 
-            for (const reminder of dueReminders) {
-                // Per-reminder isolation: one failure must not abort the batch.
-                try {
-                    const delivered = await this.deliverReminder(reminder)
-                    if (delivered) {
-                        await reminderService.markDelivered(reminder.id)
-                    } else if (
-                        reminder.deliveryAttempts + 1 >=
-                        MAX_DELIVERY_ATTEMPTS
-                    ) {
-                        // Give up after MAX attempts so an undeliverable
-                        // reminder can't monopolize the 25-row due window
-                        // (review P1) — counter, not elapsed time, so a
-                        // future-dated reminder isn't dropped on first failure.
-                        await reminderService.markDelivered(reminder.id)
-                    } else {
-                        // Back off 5 minutes and bump the attempt counter.
-                        await reminderService.recordFailedAttempt(
-                            reminder.id,
-                            new Date(Date.now() + 5 * 60 * 1000),
-                        )
-                    }
-                } catch (error) {
-                    errorLog({
-                        message: 'reminder delivery iteration failed',
-                        error: error as Error,
-                    })
+        for (const reminder of dueReminders) {
+            // Per-reminder isolation: one failure must not abort the batch.
+            try {
+                const delivered = await this.deliverReminder(reminder)
+                if (delivered) {
+                    await reminderService.markDelivered(reminder.id)
+                } else if (
+                    reminder.deliveryAttempts + 1 >=
+                    MAX_DELIVERY_ATTEMPTS
+                ) {
+                    // Give up after MAX attempts so an undeliverable
+                    // reminder can't monopolize the 25-row due window
+                    // (review P1) — counter, not elapsed time, so a
+                    // future-dated reminder isn't dropped on first failure.
+                    await reminderService.markDelivered(reminder.id)
+                } else {
+                    // Back off 5 minutes and bump the attempt counter.
+                    await reminderService.recordFailedAttempt(
+                        reminder.id,
+                        new Date(Date.now() + 5 * 60 * 1000),
+                    )
                 }
-            }
-
-            if (dueReminders.length > 0) {
-                infoLog({
-                    message: `reminder scheduler delivered ${dueReminders.length} reminders`,
+            } catch (error) {
+                errorLog({
+                    message: 'reminder delivery iteration failed',
+                    error: error as Error,
                 })
             }
+        }
+
+        if (dueReminders.length > 0) {
+            infoLog({
+                message: `reminder scheduler delivered ${dueReminders.length} reminders`,
+            })
         }
     }
 

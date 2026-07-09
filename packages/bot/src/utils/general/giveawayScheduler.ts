@@ -1,4 +1,4 @@
-import type { Client, TextChannel } from 'discord.js'
+import type { TextChannel } from 'discord.js'
 import { ChannelType, EmbedBuilder } from 'discord.js'
 import { giveawayService } from '@lucky/shared/services'
 import { errorLog, debugLog, infoLog } from '@lucky/shared/utils'
@@ -25,11 +25,11 @@ export class GiveawayScheduler extends IntervalScheduler {
     }
 
     protected async execute(): Promise<void> {
-            const giveaways = await giveawayService.getEndedDue()
+        const giveaways = await giveawayService.getEndedDue()
 
-            for (const giveaway of giveaways) {
-                await this.processEndedGiveaway(giveaway)
-            }
+        for (const giveaway of giveaways) {
+            await this.processEndedGiveaway(giveaway)
+        }
     }
 
     private async processEndedGiveaway(giveaway: {

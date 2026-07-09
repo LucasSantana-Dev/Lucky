@@ -1,4 +1,4 @@
-import type { Client, TextChannel } from 'discord.js'
+import type { TextChannel } from 'discord.js'
 import { ChannelType } from 'discord.js'
 import { EmbedBuilder } from '@discordjs/builders'
 import { COLOR } from '@lucky/shared/constants'
@@ -71,41 +71,40 @@ export class BirthdayScheduler extends IntervalScheduler {
     }
 
     protected async execute(): Promise<void> {
-            const now = this.clock()
-            const month = now.getUTCMonth() + 1
-            const day = now.getUTCDate()
-            const todayKey = now.toISOString().slice(0, 10)
+        const now = this.clock()
+        const month = now.getUTCMonth() + 1
+        const day = now.getUTCDate()
+        const todayKey = now.toISOString().slice(0, 10)
 
-            const prisma = getPrismaClient()
-            const rows = (await prisma.memberBirthday.findMany({
-                where: { month, day },
-                select: { userId: true, guildId: true },
-            })) as BirthdayRow[]
+        const prisma = getPrismaClient()
+        const rows = (await prisma.memberBirthday.findMany({
+            where: { month, day },
+            select: { userId: true, guildId: true },
+        })) as BirthdayRow[]
 
-            const byGuild = new Map<string, Set<string>>()
-            for (const row of rows) {
-                const set = byGuild.get(row.guildId) ?? new Set<string>()
-                set.add(row.userId)
-                byGuild.set(row.guildId, set)
+        const byGuild = new Map<string, Set<string>>()
+        for (const row of rows) {
+            const set = byGuild.get(row.guildId) ?? new Set<string>()
+            set.add(row.userId)
+            byGuild.set(row.guildId, set)
+        }
+
+        // Announce + grant for guilds with matches today
+        for (const [guildId, userIds] of byGuild) {
+            const userIdArr = [...userIds]
+            if (this.lastAnnouncedPerGuild.get(guildId) !== todayKey) {
+                await this.announceForGuild(guildId, userIdArr, todayKey)
             }
+            await this.reconcileBirthdayRole(guildId, userIds)
+        }
 
-            // Announce + grant for guilds with matches today
-            for (const [guildId, userIds] of byGuild) {
-                const userIdArr = [...userIds]
-                if (this.lastAnnouncedPerGuild.get(guildId) !== todayKey) {
-                    await this.announceForGuild(guildId, userIdArr, todayKey)
-                }
-                await this.reconcileBirthdayRole(guildId, userIds)
-            }
+        // Reconcile role for guilds with no matches today (revocation only)
+        await this.reconcileGuildsWithoutMatches(byGuild)
 
-            // Reconcile role for guilds with no matches today (revocation only)
-            await this.reconcileGuildsWithoutMatches(byGuild)
-
-            if (rows.length === 0) {
-                debugLog({
-                    message: `birthday tick: no matches for ${todayKey}`,
-                })
-            }
+        if (rows.length === 0) {
+            debugLog({
+                message: `birthday tick: no matches for ${todayKey}`,
+            })
         }
     }
 
