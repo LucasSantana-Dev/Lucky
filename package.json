@@ -1,6 +1,6 @@
 {
     "name": "lucky-bot",
-    "version": "2.32.0",
+    "version": "2.32.1",
     "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
     "type": "module",
     "workspaces": [
@@ -134,6 +134,8 @@
         "picomatch": ">=2.3.2",
         "follow-redirects": "1.16.0",
         "ip-address": ">=10.1.1",
-        "esbuild": "0.28.1"
+        "esbuild": "0.28.1",
+        "qs": "^6.15.2",
+        "@opentelemetry/core": "^2.8.0"
     }
 }
