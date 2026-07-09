@@ -23,6 +23,19 @@ export interface AuthenticatedRequest extends Request {
     }
 }
 
+function buildUserFromSession(
+    sessionData: Awaited<ReturnType<typeof sessionService.getSession>>,
+): AuthenticatedRequest['user'] {
+    if (!sessionData) return undefined
+    return {
+        id: sessionData.user.id,
+        username: sessionData.user.username,
+        discriminator: sessionData.user.discriminator,
+        globalName: sessionData.user.global_name,
+        avatar: sessionData.user.avatar,
+    }
+}
+
 export async function requireAuth(
     req: AuthenticatedRequest,
     res: Response,
@@ -44,13 +57,7 @@ export async function requireAuth(
 
         req.sessionId = sessionId
         req.userId = sessionData.userId
-        req.user = {
-            id: sessionData.user.id,
-            username: sessionData.user.username,
-            discriminator: sessionData.user.discriminator,
-            globalName: sessionData.user.global_name,
-            avatar: sessionData.user.avatar,
-        }
+        req.user = buildUserFromSession(sessionData)
 
         next()
     } catch (error) {
@@ -77,13 +84,7 @@ export function optionalAuth(
             if (sessionData) {
                 req.sessionId = sessionId
                 req.userId = sessionData.userId
-                req.user = {
-                    id: sessionData.user.id,
-                    username: sessionData.user.username,
-                    discriminator: sessionData.user.discriminator,
-                    globalName: sessionData.user.global_name,
-                    avatar: sessionData.user.avatar,
-                }
+                req.user = buildUserFromSession(sessionData)
             }
 
             next()
