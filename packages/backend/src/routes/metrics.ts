@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from 'express'
 import { errorLog } from '@lucky/shared/utils'
-import { metricsContentType, renderMetrics } from '../utils/prometheus'
+import { registry } from '../utils/prometheus'
 
 /**
  * Mount the /metrics endpoint that Prometheus scrapes.
@@ -14,9 +14,10 @@ import { metricsContentType, renderMetrics } from '../utils/prometheus'
 export function setupMetricsRoute(app: Express): void {
     if (process.env.METRICS_DISABLED === 'true') return
     app.get('/metrics', (_req: Request, res: Response) => {
-        renderMetrics()
+        registry
+            .metrics()
             .then((body) => {
-                res.set('content-type', metricsContentType)
+                res.set('content-type', registry.contentType)
                 res.status(200).send(body)
             })
             .catch((error: unknown) => {
