@@ -23,6 +23,13 @@ const STREAM_OFFLINE_TYPE = 'stream.offline'
 const CHANNEL_UPDATE_TYPE = 'channel.update'
 const CHANNEL_RAID_TYPE = 'channel.raid'
 
+const EVENT_LABELS = [
+    STREAM_ONLINE_TYPE,
+    STREAM_OFFLINE_TYPE,
+    CHANNEL_UPDATE_TYPE,
+    CHANNEL_RAID_TYPE,
+] as const
+
 type WelcomePayload = {
     session: {
         id: string
@@ -128,34 +135,38 @@ export class TwitchEventSubClient {
                 this.scheduleKeepalive(
                     p.session.keepalive_timeout_seconds * 1000,
                 )
-                void Promise.all([
-                    subscribeToStreamOnline(
-                        this.sessionId,
-                        this.clientId,
-                        this.subscribedUserIds,
-                    ),
-                    subscribeToStreamOffline(
-                        this.sessionId,
-                        this.clientId,
-                        this.subscribedOfflineIds,
-                    ),
-                    subscribeToChannelUpdate(
-                        this.sessionId,
-                        this.clientId,
-                        this.subscribedUpdateIds,
-                    ),
-                    subscribeToChannelRaid(
-                        this.sessionId,
-                        this.clientId,
-                        this.subscribedRaidIds,
-                    ),
-                ]).catch((error) =>
-                    errorLog({
-                        message:
-                            'Twitch EventSub: subscribe on session_welcome failed',
-                        error,
-                    }),
-                )
+                void (async () => {
+                    const results = await Promise.allSettled([
+                        subscribeToStreamOnline(
+                            this.sessionId,
+                            this.clientId,
+                            this.subscribedUserIds,
+                        ),
+                        subscribeToStreamOffline(
+                            this.sessionId,
+                            this.clientId,
+                            this.subscribedOfflineIds,
+                        ),
+                        subscribeToChannelUpdate(
+                            this.sessionId,
+                            this.clientId,
+                            this.subscribedUpdateIds,
+                        ),
+                        subscribeToChannelRaid(
+                            this.sessionId,
+                            this.clientId,
+                            this.subscribedRaidIds,
+                        ),
+                    ])
+                    results.forEach((result, index) => {
+                        if (result.status === 'rejected') {
+                            errorLog({
+                                message: `Twitch EventSub: ${EVENT_LABELS[index]} subscription failed`,
+                                error: result.reason,
+                            })
+                        }
+                    })
+                })()
                 break
             }
             case 'session_keepalive':
@@ -242,7 +253,7 @@ export class TwitchEventSubClient {
         this.subscribedUpdateIds.clear()
         this.subscribedRaidIds.clear()
         if (this.sessionId) {
-            await Promise.all([
+            const results = await Promise.allSettled([
                 subscribeToStreamOnline(
                     this.sessionId,
                     this.clientId,
@@ -264,6 +275,14 @@ export class TwitchEventSubClient {
                     this.subscribedRaidIds,
                 ),
             ])
+            results.forEach((result, index) => {
+                if (result.status === 'rejected') {
+                    errorLog({
+                        message: `Twitch EventSub: ${EVENT_LABELS[index]} subscription failed`,
+                        error: result.reason,
+                    })
+                }
+            })
         }
     }
 
