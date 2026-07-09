@@ -21,7 +21,9 @@ module.exports = {
     'src/routes/music/playbackRoutes.ts',
     'src/routes/music/stateRoutes.ts',
     'src/routes/music/autoplayRoutes.ts',
-    'src/routes/music/index.ts'
+    'src/routes/music/index.ts',
+    'src/routes/music/queueRoutes.ts',
+    'src/routes/music/helpers.ts'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
