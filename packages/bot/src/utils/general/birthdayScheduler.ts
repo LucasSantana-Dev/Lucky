@@ -9,6 +9,8 @@ import {
     infoLog,
 } from '@lucky/shared/utils'
 
+import { IntervalScheduler } from './IntervalScheduler'
+
 // Tick every hour by default. The scheduler tracks the last UTC date it
 // announced for each guild (in-memory) so multiple ticks on the same day
 // are no-ops.
@@ -41,50 +43,34 @@ function parsePositiveIntEnv(
     return parsed
 }
 
-export class BirthdayScheduler {
-    private readonly tickIntervalMs: number
+export class BirthdayScheduler extends IntervalScheduler {
     private readonly clock: () => Date
-    private timer: ReturnType<typeof setInterval> | null = null
-    private client: Client | null = null
-    private tickInProgress = false
     // Tracks the last YYYY-MM-DD we announced per guild, so reruns within
     // the same day are no-ops even without Redis coordination.
     private readonly lastAnnouncedPerGuild = new Map<string, string>()
 
     constructor(options: BirthdaySchedulerOptions = {}) {
-        this.tickIntervalMs =
+        const tickIntervalMs =
             options.tickIntervalMs ??
             parsePositiveIntEnv(
                 process.env.BIRTHDAY_TICK_INTERVAL_MS,
                 DEFAULT_TICK_INTERVAL_MS,
                 'BIRTHDAY_TICK_INTERVAL_MS',
             )
+        super(tickIntervalMs)
         this.clock = options.clock ?? (() => new Date())
     }
 
-    start(client: Client): void {
-        if (this.timer) return
-        this.client = client
+    protected onStart(): void {
+        // Run once immediately on startup so a restart near midnight UTC
+        // doesn't miss the window.
         infoLog({
             message: `Birthday scheduler started (interval: ${this.tickIntervalMs}ms)`,
         })
-        // Run once immediately on startup so a restart near midnight UTC
-        // doesn't miss the window.
         void this.tick()
-        this.timer = setInterval(() => void this.tick(), this.tickIntervalMs)
     }
 
-    stop(): void {
-        if (this.timer) {
-            clearInterval(this.timer)
-            this.timer = null
-        }
-    }
-
-    async tick(): Promise<void> {
-        if (this.tickInProgress || !this.client) return
-        this.tickInProgress = true
-        try {
+    protected async execute(): Promise<void> {
             const now = this.clock()
             const month = now.getUTCMonth() + 1
             const day = now.getUTCDate()
@@ -120,13 +106,6 @@ export class BirthdayScheduler {
                     message: `birthday tick: no matches for ${todayKey}`,
                 })
             }
-        } catch (error) {
-            errorLog({
-                message: 'birthday scheduler tick failed',
-                error: error as Error,
-            })
-        } finally {
-            this.tickInProgress = false
         }
     }
 

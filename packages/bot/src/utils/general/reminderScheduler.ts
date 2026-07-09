@@ -4,43 +4,29 @@ import { COLOR } from '@lucky/shared/constants'
 import { reminderService, MAX_DELIVERY_ATTEMPTS } from '@lucky/shared/services'
 import { errorLog, infoLog } from '@lucky/shared/utils'
 
+import { IntervalScheduler } from './IntervalScheduler'
+
 const DEFAULT_TICK_INTERVAL_MS = 60 * 1000 // 60 seconds
 
 type ReminderSchedulerOptions = {
     tickIntervalMs?: number
 }
 
-export class ReminderScheduler {
-    private readonly tickIntervalMs: number
-    private timer: ReturnType<typeof setInterval> | null = null
-    private client: Client | null = null
-    private tickInProgress = false
+export class ReminderScheduler extends IntervalScheduler {
 
     constructor(options: ReminderSchedulerOptions = {}) {
-        this.tickIntervalMs = options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS
+        const tickIntervalMs = options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS
+        super(tickIntervalMs)
     }
 
-    start(client: Client): void {
-        if (this.timer) return
-        this.client = client
+    protected onStart(): void {
         infoLog({
             message: `Reminder scheduler started (interval: ${this.tickIntervalMs}ms)`,
         })
         void this.tick()
-        this.timer = setInterval(() => void this.tick(), this.tickIntervalMs)
     }
 
-    stop(): void {
-        if (this.timer) {
-            clearInterval(this.timer)
-            this.timer = null
-        }
-    }
-
-    async tick(): Promise<void> {
-        if (this.tickInProgress || !this.client) return
-        this.tickInProgress = true
-        try {
+    protected async execute(): Promise<void> {
             const dueReminders = await reminderService.getDueReminders(25)
 
             for (const reminder of dueReminders) {
@@ -78,13 +64,6 @@ export class ReminderScheduler {
                     message: `reminder scheduler delivered ${dueReminders.length} reminders`,
                 })
             }
-        } catch (error) {
-            errorLog({
-                message: 'reminder scheduler tick failed',
-                error: error as Error,
-            })
-        } finally {
-            this.tickInProgress = false
         }
     }
 

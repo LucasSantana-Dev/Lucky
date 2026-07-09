@@ -3,64 +3,33 @@ import { ChannelType, EmbedBuilder } from 'discord.js'
 import { giveawayService } from '@lucky/shared/services'
 import { errorLog, debugLog, infoLog } from '@lucky/shared/utils'
 
+import { IntervalScheduler } from './IntervalScheduler'
+
 const DEFAULT_TICK_INTERVAL_MS = 60 * 1000 // Every 60 seconds
 
-export class GiveawayScheduler {
-    private readonly tickIntervalMs: number
+export class GiveawayScheduler extends IntervalScheduler {
     private readonly clock: () => Date
-    private timer: ReturnType<typeof setInterval> | null = null
-    private client: Client | null = null
-    private tickInProgress = false
 
     constructor(options?: { tickIntervalMs?: number; clock?: () => Date }) {
-        this.tickIntervalMs =
+        const tickIntervalMs =
             options?.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS
+        super(tickIntervalMs)
         this.clock = options?.clock ?? (() => new Date())
     }
 
-    start(client: Client): void {
-        if (this.timer) {
-            debugLog({ message: 'GiveawayScheduler already started' })
-            return
-        }
-
-        this.client = client
-        this.timer = setInterval(() => {
-            this.tick().catch((err) =>
-                errorLog({
-                    message: 'Error in giveaway scheduler tick:',
-                    error: err,
-                }),
-            )
-        }, this.tickIntervalMs)
-
+    protected onStart(): void {
         infoLog({
             message: 'GiveawayScheduler started',
             data: { tickIntervalMs: this.tickIntervalMs },
         })
     }
 
-    stop(): void {
-        if (this.timer) {
-            clearInterval(this.timer)
-            this.timer = null
-            infoLog({ message: 'GiveawayScheduler stopped' })
-        }
-    }
-
-    private async tick(): Promise<void> {
-        if (this.tickInProgress) return
-        this.tickInProgress = true
-
-        try {
+    protected async execute(): Promise<void> {
             const giveaways = await giveawayService.getEndedDue()
 
             for (const giveaway of giveaways) {
                 await this.processEndedGiveaway(giveaway)
             }
-        } finally {
-            this.tickInProgress = false
-        }
     }
 
     private async processEndedGiveaway(giveaway: {
