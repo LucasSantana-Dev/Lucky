@@ -141,6 +141,13 @@ COPY --from=build /app/packages/shared/src/generated ./packages/shared/src/gener
 COPY --from=build /app/packages/shared/src/generated ./packages/shared/dist/generated
 COPY --from=build /app/packages/bot/dist ./packages/bot/dist
 COPY --from=build /app/prisma ./prisma
+# Bake the Prisma engines. `prisma`/`@prisma/engines` are devDeps, so the
+# deps-production `npm ci --omit=dev` above ships node_modules WITHOUT the
+# migrate schema-engine — `prisma migrate deploy` then tries to download it at
+# boot (fails for uid 1001 on a root-owned dir; needs the CDN reachable). The
+# build stage's full `npm ci` already has the engines, so copy them in: no
+# runtime download, no boot-time Prisma-CDN dependency. (#1734)
+COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 
 RUN mkdir -p downloads logs && \
     addgroup -g 1001 -S nodejs && \
