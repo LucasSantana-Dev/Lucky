@@ -78,5 +78,5 @@ jobs:
               run: npm run build --workspace=packages/frontend
 
             - name: Size Limit Check
-              run: npx size-limit --config packages/frontend/.size-limit.json
+              run: npx size-limit --config .size-limit.json
               working-directory: ./packages/frontend
