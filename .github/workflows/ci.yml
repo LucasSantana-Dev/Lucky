@@ -221,6 +221,13 @@ jobs:
               id: filter
               run: |
                   BASE_SHA="${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}"
+                  if [ "${{ github.event_name }}" = "pull_request" ]; then
+                      # pull_request.base.sha is a snapshot from when the PR was
+                      # opened/synced, not the live base branch tip — diffing
+                      # against it directly can pick up unrelated commits merged
+                      # to base after that point. Use the actual merge-base.
+                      BASE_SHA=$(git merge-base "$BASE_SHA" HEAD)
+                  fi
                   CHANGED=$(git diff --name-only "$BASE_SHA" HEAD)
                   echo "Changed files:"
                   echo "$CHANGED"
