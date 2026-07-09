@@ -84,13 +84,18 @@ export function setupAuthRoutes(app: Express): void {
                 await sessionService.deleteSession(sessionId)
             }
 
-            req.session.destroy((err) => {
-                if (err) {
-                    errorLog({
-                        message: 'Error destroying session:',
-                        error: err,
-                    })
-                }
+            await new Promise<void>((resolve, reject) => {
+                req.session.destroy((err) => {
+                    if (err) {
+                        errorLog({
+                            message: 'Error destroying session:',
+                            error: err,
+                        })
+                        reject(err)
+                    } else {
+                        resolve()
+                    }
+                })
             })
 
             res.json({ success: true })
