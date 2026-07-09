@@ -736,7 +736,12 @@ class GuildService {
 
             return payload
                 .filter(
-                    (channel) =>
+                    (
+                        channel,
+                    ): channel is typeof channel & {
+                        id: string
+                        name: string
+                    } =>
                         typeof channel.id === 'string' &&
                         typeof channel.name === 'string' &&
                         (channel.type === 0 ||
@@ -746,8 +751,8 @@ class GuildService {
                 )
                 .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
                 .map((channel) => ({
-                    id: channel.id!,
-                    name: `#${channel.name!}`,
+                    id: channel.id,
+                    name: `#${channel.name}`,
                 }))
         } catch (error) {
             errorLog({
