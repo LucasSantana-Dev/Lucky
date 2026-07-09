@@ -207,10 +207,44 @@ jobs:
                   path: packages/frontend/coverage/lcov.info
                   retention-days: 1
 
+    detect-docker-changes:
+        name: Detect Docker-relevant changes
+        runs-on: ubuntu-latest
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        outputs:
+            relevant: ${{ steps.filter.outputs.relevant }}
+        steps:
+            - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+              with:
+                  fetch-depth: 0
+            - name: Check for Docker-relevant changes
+              id: filter
+              run: |
+                  BASE_SHA="${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}"
+                  if [ "${{ github.event_name }}" = "pull_request" ]; then
+                      # pull_request.base.sha is a snapshot from when the PR was
+                      # opened/synced, not the live base branch tip — diffing
+                      # against it directly can pick up unrelated commits merged
+                      # to base after that point. Use the actual merge-base.
+                      BASE_SHA=$(git merge-base "$BASE_SHA" HEAD)
+                  fi
+                  CHANGED=$(git diff --name-only "$BASE_SHA" HEAD)
+                  echo "Changed files:"
+                  echo "$CHANGED"
+                  # Mirrors docker-publish.yml's paths: filter, plus this
+                  # workflow file itself (so edits to the docker-build job
+                  # definition are still validated).
+                  if echo "$CHANGED" | grep -qE '^(packages/|prisma/|Dockerfile$|Dockerfile\.|nginx/|package.*\.json$|\.github/workflows/ci\.yml$)'; then
+                      echo "relevant=true" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "relevant=false" >> "$GITHUB_OUTPUT"
+                  fi
+
     docker-build:
         name: Build — ${{ matrix.service }}
         runs-on: ubuntu-latest
-        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        needs: detect-docker-changes
+        if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.detect-docker-changes.outputs.relevant == 'true'
         strategy:
             fail-fast: false
             matrix:
@@ -261,11 +295,19 @@ jobs:
     docker-build-check:
         name: Build — Docker images
         runs-on: ubuntu-latest
-        needs: docker-build
+        needs: [detect-docker-changes, docker-build]
         if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
         steps:
             - name: Assert all builds passed
               run: |
+                  if [[ "${{ needs.detect-docker-changes.result }}" != "success" ]]; then
+                      echo "Detect-docker-changes did not complete successfully: ${{ needs.detect-docker-changes.result }}"
+                      exit 1
+                  fi
+                  if [[ "${{ needs.detect-docker-changes.outputs.relevant }}" != "true" ]]; then
+                      echo "No Docker-relevant changes in this diff — skipping validation."
+                      exit 0
+                  fi
                   if [[ "${{ needs.docker-build.result }}" != "success" ]]; then
                       echo "Docker build result: ${{ needs.docker-build.result }}"
                       exit 1
