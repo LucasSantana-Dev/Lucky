@@ -85,8 +85,8 @@ jobs:
                   build-args: |
                       COMMIT_SHA=${{ github.sha }}
                       NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
+                  cache-from: type=gha,scope=${{ matrix.service }}
+                  cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
             - name: Smoke test yt-dlp
               if: matrix.service == 'bot'
