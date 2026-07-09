@@ -213,7 +213,8 @@ export function setupLastFmRoutes(app: Express): void {
 
             // Extract and validate state from query or cookies
             const stateFromQuery = parsedQuery.data.state
-            const stateFromCookieRaw = req.cookies?.[LASTFM_STATE_COOKIE]
+            const stateFromCookieRaw: unknown =
+                req.cookies?.[LASTFM_STATE_COOKIE]
             const stateFromCookieValidated = stateCookieSchema.safeParse(stateFromCookieRaw)
 
             const state =
