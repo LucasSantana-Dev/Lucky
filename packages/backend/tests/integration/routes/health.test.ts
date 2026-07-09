@@ -1,4 +1,11 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import {
+    describe,
+    test,
+    expect,
+    beforeEach,
+    afterEach,
+    jest,
+} from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
 import {
@@ -12,6 +19,7 @@ const mockRedis = redisClient as jest.Mocked<typeof redisClient>
 
 describe('Health Routes Integration', () => {
     let app: express.Express
+    const originalNodeEnv = process.env.NODE_ENV
 
     beforeEach(() => {
         app = express()
@@ -25,6 +33,13 @@ describe('Health Routes Integration', () => {
             'https://lucky-api.lucassantana.tech/api/auth/callback'
         process.env.WEBAPP_BACKEND_URL = 'https://lucky-api.lucassantana.tech'
         delete process.env.WEBAPP_EXPECTED_CLIENT_ID
+    })
+
+    afterEach(() => {
+        // Several tests below set NODE_ENV='production' to exercise
+        // production-only behavior; restore it so that doesn't leak into
+        // other tests in this file or other files sharing the worker.
+        process.env.NODE_ENV = originalNodeEnv
     })
 
     describe('GET /api/health', () => {
@@ -217,11 +232,32 @@ describe('Health Routes Integration', () => {
                 .set('Host', 'lucky-api.lucassantana.tech')
                 .expect(200)
 
-            expect(response.body.warnings).toEqual([])
-            expect(response.body.status).toBe('ok')
+            // warnings/status/sessionSecretConfigured/redisHealthy are
+            // redacted in production to avoid leaking deployment diagnostics
+            // to anonymous callers; this test only asserts the response is
+            // otherwise unaffected (redirectUri still resolves correctly).
+            expect(response.body.warnings).toBeUndefined()
+            expect(response.body.status).toBeUndefined()
             expect(response.body.auth.redirectUri).toBe(
                 'https://lucky-api.lucassantana.tech/api/auth/callback',
             )
+        })
+
+        test('redacts operational diagnostics in production', async () => {
+            mockRedis.isHealthy.mockReturnValue(true)
+            process.env.NODE_ENV = 'production'
+
+            const response = await request(app)
+                .get('/api/health/auth-config')
+                .expect(200)
+
+            expect(response.body.warnings).toBeUndefined()
+            expect(response.body.status).toBeUndefined()
+            expect(response.body.auth.sessionSecretConfigured).toBeUndefined()
+            expect(response.body.auth.redisHealthy).toBeUndefined()
+            expect(response.body.auth.clientId).toBe('test-client-id')
+            expect(response.body.auth.redirectUri).toBeDefined()
+            expect(response.body.auth.authorizeUrlPreview).toBeDefined()
         })
     })
 
