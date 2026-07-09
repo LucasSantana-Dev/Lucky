@@ -6,11 +6,11 @@ import {
     Shield,
     ArrowLeft,
     ChevronRight,
+    Loader2,
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
-import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { useTranslation } from 'react-i18next'
 
 const MusicConfig = lazy(() => import('@/components/Config/MusicConfig'))
@@ -193,7 +193,7 @@ export default function ConfigPage() {
                         <Suspense
                             fallback={
                                 <div className='flex justify-center py-12'>
-                                    <LoadingSpinner />
+                                    <Loader2 className='text-primary animate-spin w-6 h-6' />
                                 </div>
                             }
                         >

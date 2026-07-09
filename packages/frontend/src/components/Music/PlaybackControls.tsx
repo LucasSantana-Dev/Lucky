@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
     Play,
     Pause,
@@ -10,7 +10,6 @@ import {
     Repeat,
     Repeat1,
 } from 'lucide-react'
-import { useDebounce } from '@/hooks/useDebounce'
 
 interface PlaybackControlsProps {
     isPlaying: boolean
@@ -109,15 +108,24 @@ interface VolumeSliderProps {
 
 export function VolumeSlider({ volume, onChange }: VolumeSliderProps) {
     const [localVol, setLocalVol] = useState(volume)
-    const debouncedChange = useDebounce(onChange, 150)
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const onChangeRef = useRef(onChange)
+    onChangeRef.current = onChange
+
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) clearTimeout(timerRef.current)
+        }
+    }, [])
 
     const handleChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
             const v = parseInt(e.target.value)
             setLocalVol(v)
-            debouncedChange(v)
+            if (timerRef.current) clearTimeout(timerRef.current)
+            timerRef.current = setTimeout(() => onChangeRef.current(v), 150)
         },
-        [debouncedChange],
+        [],
     )
 
     const displayVol =
