@@ -47,9 +47,17 @@ function failedOps(): string[] {
 
 describe('runPostPlayBackgroundOps', () => {
     beforeEach(() => {
-        jest.clearAllMocks()
+        // Explicitly clear and reset all mock implementations to prevent test pollution
+        clearAutoplayPause.mockClear()
+        clearAutoplayPause.mockReturnValue(undefined)
+        applyStoredAutoplayPreference.mockClear()
         applyStoredAutoplayPreference.mockResolvedValue(undefined)
+        blendAutoplayTracks.mockClear()
         blendAutoplayTracks.mockResolvedValue(undefined)
+        clearSessionMoodCache.mockClear()
+        clearSessionMoodCache.mockReturnValue(undefined)
+        addBreadcrumb.mockClear()
+        errorLog.mockClear()
     })
 
     it('runs all three ops on the happy path with no failure breadcrumb', async () => {
