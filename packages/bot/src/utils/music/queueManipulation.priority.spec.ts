@@ -5,9 +5,6 @@ jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
 }))
 import {
     replenishQueue,
-    enrichWithAudioFeatures,
-    getGenreFamilies,
-    calculateGenreFamilyPenalty,
 } from './queueManipulation'
 
 jest.mock('lru-cache', () => ({
