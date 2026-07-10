@@ -19,10 +19,14 @@ import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
 
 const LASTFM_STATE_COOKIE = 'lastfm_state'
 const STATE_MAX_AGE_SEC = 600
+
 const lastFmCallbackQuery = z.object({
     token: z.string().min(1),
     state: z.string().min(1).optional(),
 })
+
+// Schema for validating the state value extracted from cookies
+const stateCookieSchema = z.string().min(1, 'State cookie must be non-empty')
 
 function getLinkSecret(): string {
     const secret =
@@ -203,65 +207,66 @@ export function setupLastFmRoutes(app: Express): void {
         asyncHandler(async (req: Request, res: Response) => {
             const frontendUrl = getFrontendUrl()
             try {
-                const cookies = req.cookies as
-                    | Record<string, unknown>
-                    | undefined
-                const stateFromCookie = cookies?.[LASTFM_STATE_COOKIE]
-                const parsedQuery = lastFmCallbackQuery.safeParse(req.query)
-                res.clearCookie(LASTFM_STATE_COOKIE, { path: '/' })
+            // Validate query parameters
+            const parsedQuery = lastFmCallbackQuery.safeParse(req.query)
+            res.clearCookie(LASTFM_STATE_COOKIE, { path: '/' })
 
-                if (!parsedQuery.success) {
-                    return res.redirect(
-                        `${frontendUrl}/?error=lastfm_missing_token`,
-                    )
-                }
-
-                const state =
-                    typeof parsedQuery.data.state === 'string'
-                        ? parsedQuery.data.state
-                        : typeof stateFromCookie === 'string'
-                          ? stateFromCookie
-                          : null
-
-                if (!state) {
-                    return res.redirect(
-                        `${frontendUrl}/?error=lastfm_missing_state`,
-                    )
-                }
-                const secret = getLinkSecret()
-                const discordId = decodeAndVerifyState(state, secret)
-                if (!discordId) {
-                    return res.redirect(
-                        `${frontendUrl}/?error=lastfm_invalid_state`,
-                    )
-                }
-                const session = await exchangeTokenForSession(
-                    parsedQuery.data.token,
+            if (!parsedQuery.success) {
+                return res.redirect(
+                    `${frontendUrl}/?error=lastfm_missing_token`,
                 )
-                if (!session) {
-                    return res.redirect(
-                        `${frontendUrl}/?error=lastfm_exchange_failed`,
-                    )
-                }
-                const ok = await lastFmLinkService.set(
-                    discordId,
-                    session.sessionKey,
-                    session.username,
-                )
-                if (!ok) {
-                    return res.redirect(
-                        `${frontendUrl}/?error=lastfm_save_failed`,
-                    )
-                }
-                debugLog({
-                    message: 'Last.fm linked',
-                    data: { discordId, username: session.username },
-                })
-                res.redirect(`${frontendUrl}/?lastfm_linked=true`)
-            } catch (error) {
-                errorLog({ message: 'Last.fm callback error', error })
-                res.redirect(`${frontendUrl}/?error=lastfm_callback_error`)
             }
+
+            // Extract and validate state from query or cookies
+            const stateFromQuery = parsedQuery.data.state
+            const stateFromCookieRaw: unknown =
+                req.cookies?.[LASTFM_STATE_COOKIE]
+            const stateFromCookieValidated = stateCookieSchema.safeParse(stateFromCookieRaw)
+
+            const state =
+                typeof stateFromQuery === 'string'
+                    ? stateFromQuery
+                    : stateFromCookieValidated.success
+                      ? stateFromCookieValidated.data
+                      : null
+
+            if (!state) {
+                return res.redirect(
+                    `${frontendUrl}/?error=lastfm_missing_state`,
+                )
+            }
+            const secret = getLinkSecret()
+            const discordId = decodeAndVerifyState(state, secret)
+            if (!discordId) {
+                return res.redirect(
+                    `${frontendUrl}/?error=lastfm_invalid_state`,
+                )
+            }
+            const session = await exchangeTokenForSession(
+                parsedQuery.data.token,
+            )
+            if (!session) {
+                return res.redirect(
+                    `${frontendUrl}/?error=lastfm_exchange_failed`,
+                )
+            }
+            const ok = await lastFmLinkService.set(
+                discordId,
+                session.sessionKey,
+                session.username,
+            )
+            if (!ok) {
+                return res.redirect(`${frontendUrl}/?error=lastfm_save_failed`)
+            }
+            debugLog({
+                message: 'Last.fm linked',
+                data: { discordId, username: session.username },
+            })
+            res.redirect(`${frontendUrl}/?lastfm_linked=true`)
+        } catch (error) {
+            errorLog({ message: 'Last.fm callback error', error })
+            res.redirect(`${frontendUrl}/?error=lastfm_callback_error`)
+        }
         }),
     )
 }
