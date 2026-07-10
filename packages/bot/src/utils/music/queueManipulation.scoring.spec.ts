@@ -1,9 +1,34 @@
 import { jest } from '@jest/globals'
 
+jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
+    getAutoplaySkipRateForGuild: jest.fn(),
+}))
+
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
     warnLog: jest.fn(),
+}))
+
+jest.mock('@lucky/shared/services', () => ({
+    trackHistoryService: {
+        getTrackHistory: jest.fn(),
+        addTrackToHistory: jest.fn().mockResolvedValue(true),
+        getReplayFrequentTracks: jest.fn(),
+    },
+    guildSettingsService: {
+        getGuildSettings: jest.fn(),
+    },
+    lastFmLinkService: {
+        getByDiscordId: jest.fn(),
+    },
+    spotifyLinkService: {
+        getValidAccessToken: jest.fn().mockResolvedValue(null),
+        getByDiscordId: jest.fn().mockResolvedValue(null),
+    },
+    premiumService: {
+        isPremium: jest.fn(() => Promise.resolve(false)),
+    },
 }))
 
 jest.mock('../../spotify/spotifyApi', () => ({
@@ -92,9 +117,7 @@ describe('calculateGenreFamilyPenalty', () => {
     })
 
     it('treats latin as strong', () => {
-        expect(calculateGenreFamilyPenalty(['reggaeton'], ['pop'])).toBe(
-            -0.6,
-        )
+        expect(calculateGenreFamilyPenalty(['reggaeton'], ['pop'])).toBe(-0.6)
     })
 })
 
