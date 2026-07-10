@@ -1,18 +1,9 @@
-import {
-    createClient as createClientFunc,
-    startClient as startClientFunc,
-    stopPresenceRotation as stopPresenceRotationFunc,
-} from './service'
 import type {
     StartClientParams,
     CreateClientOptions,
     RegisterCommandsOptions,
 } from './types'
 import type Command from '../../models/Command'
-
-export const createClient = createClientFunc
-export const startClient = startClientFunc
-export const stopPresenceRotation = stopPresenceRotationFunc
 
 export const registerCommands = async (
     options: RegisterCommandsOptions,
