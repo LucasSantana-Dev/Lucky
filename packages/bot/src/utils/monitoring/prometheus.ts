@@ -6,6 +6,7 @@ import {
     type CollectFunction,
 } from 'prom-client'
 import { getPrismaClient, errorLog } from '@lucky/shared/utils'
+import { getStoredClient } from '../../bot/clientStore'
 
 /**
  * Shared Prometheus registry for the bot. All metrics MUST be registered
@@ -46,6 +47,25 @@ export const guildsGauge = new Gauge<'state'>({
     labelNames: ['state'],
     registers: [registry],
     collect: guildsGaugeCollect,
+})
+
+/**
+ * Gauge: whether the Discord gateway connection is currently ready
+ * (client.isReady()). Distinct from process-liveness (`up`) — a zombie
+ * process that finished init but later dropped its gateway connection
+ * stays "up" while this goes to 0, which `up` alone cannot detect (#1651).
+ */
+const gatewayConnectedGaugeCollect: CollectFunction<Gauge> =
+    function collectGatewayConnected(this: Gauge) {
+        const client = getStoredClient()
+        this.set(client?.isReady() ? 1 : 0)
+    }
+
+export const gatewayConnectedGauge = new Gauge({
+    name: 'lucky_bot_gateway_connected',
+    help: 'Whether the Discord gateway connection is currently ready (1) or not (0). Distinct from process-liveness: a zombie process that dropped its gateway after a successful init stays "up" but reports 0 here.',
+    registers: [registry],
+    collect: gatewayConnectedGaugeCollect,
 })
 
 /**
