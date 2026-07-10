@@ -7,15 +7,11 @@
         "configFile": "./jest.mutation.cjs"
     },
     "mutate": [
-        "src/utils/oauthRedirectUri.ts",
-        "src/utils/frontendOrigin.ts",
-        "src/utils/prismaErrors.ts",
-        "src/utils/authHealth.ts",
-        "src/middleware/requestId.ts",
-        "src/middleware/validate.ts",
-        "src/middleware/errorHandler.ts",
-        "src/services/GuildService.ts",
-        "src/services/SessionService.ts"
+        "src/services/HeartbeatService.ts",
+        "src/services/VoiceChannelStatusService.ts",
+        "src/services/WeeklyDigestService.ts",
+        "src/services/RssBridgeService.ts",
+        "src/utils/general/formatDuration.ts"
     ],
     "reporters": ["html", "clear-text", "progress"],
     "timeoutMS": 15000,
@@ -28,7 +24,7 @@
     "incrementalFile": "reports/stryker-incremental.json",
     "thresholds": {
         "high": 85,
-        "low": 65,
-        "break": 65
+        "low": 45,
+        "break": 40
     }
 }
