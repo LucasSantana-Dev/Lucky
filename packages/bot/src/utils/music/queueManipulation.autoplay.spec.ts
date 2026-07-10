@@ -343,7 +343,11 @@ describe('queueManipulation — genre candidate collection', () => {
 
 describe('queueManipulation — multi-user VC blend', () => {
     beforeEach(() => {
-        jest.clearAllMocks()
+        // resetAllMocks (not clearAllMocks) — this block re-establishes defaults
+        // below assuming a full reset; clearAllMocks leaves queued
+        // mockResolvedValueOnce() values from the previous test in place, which
+        // corrupts ordered call sequences (e.g. per-call-site token mocks).
+        jest.resetAllMocks()
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         consumeBlendedSeedSliceMock.mockResolvedValue([])
         getLastFmLinkMock.mockResolvedValue(null)
