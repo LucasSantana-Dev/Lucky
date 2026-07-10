@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from 'express'
-import { timingSafeEqual } from 'node:crypto'
+import { timingSafeKeyCompare } from '../utils/timingSafeKeyCompare'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
@@ -17,13 +17,6 @@ const VOTE_TTL_MILLISECONDS = 60 * 60 * 12 * 1000
 // Streak window: 36h gives 12h grace around the 24h cycle so a daily voter
 // doesn't lose their streak due to timezone or minor scheduling drift.
 const STREAK_TTL_MILLISECONDS = 60 * 60 * 36 * 1000
-
-function safeEqualString(a: string, b: string): boolean {
-    const ab = Buffer.from(a)
-    const bb = Buffer.from(b)
-    if (ab.length !== bb.length) return false
-    return timingSafeEqual(ab, bb)
-}
 
 type TopggVotePayload = {
     bot?: string
@@ -43,7 +36,7 @@ function verifyTopggAuth(req: Request): void {
         throw new AppError(503, 'TOPGG_AUTH_TOKEN not configured')
     }
     const provided = req.header('authorization')?.trim()
-    if (!provided || !safeEqualString(provided, expected)) {
+    if (!provided || !timingSafeKeyCompare(provided, expected)) {
         throw AppError.unauthorized('invalid top.gg webhook token')
     }
 }
@@ -51,7 +44,7 @@ function verifyTopggAuth(req: Request): void {
 function verifyInternalKey(req: Request): void {
     const expected = process.env.LUCKY_NOTIFY_API_KEY
     const provided = req.header('x-notify-key')?.trim()
-    if (!expected || !provided || !safeEqualString(provided, expected)) {
+    if (!expected || !provided || !timingSafeKeyCompare(provided, expected)) {
         throw AppError.unauthorized('invalid internal key')
     }
 }
@@ -80,7 +73,8 @@ async function readVoteState(
     )
 
     // Streak expires after 36h with no vote, matching the original Redis EXPIRE behavior
-    const expiredStreak = timeSinceVote > STREAK_TTL_MILLISECONDS ? 0 : vote.streak
+    const expiredStreak =
+        timeSinceVote > STREAK_TTL_MILLISECONDS ? 0 : vote.streak
 
     return {
         hasVoted: timeSinceVote < VOTE_TTL_MILLISECONDS,
@@ -113,9 +107,10 @@ async function recordVote(userId: string): Promise<'recorded' | 'duplicate'> {
         if (existing) {
             const timeSinceVote = nowMs - existing.lastVoteAt.getTime()
             // Preserve streak if within 36h, otherwise reset to 1
-            newStreak = timeSinceVote <= STREAK_TTL_MILLISECONDS
-                ? existing.streak + 1
-                : 1
+            newStreak =
+                timeSinceVote <= STREAK_TTL_MILLISECONDS
+                    ? existing.streak + 1
+                    : 1
         }
 
         // Upsert: create or update vote record
