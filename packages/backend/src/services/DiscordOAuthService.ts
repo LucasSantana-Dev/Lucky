@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { delay, withTimeout } from '@lucky/shared/utils/async'
 import { recordWithCooldown, emitAlert } from '@lucky/shared/utils/alerts'
@@ -8,7 +9,7 @@ export interface DiscordUser {
     discriminator: string
     global_name?: string | null
     avatar: string | null
-    email?: string
+    email?: string | null
     verified?: boolean
 }
 
@@ -40,6 +41,25 @@ interface TokenResponse {
     refresh_token: string
     scope: string
 }
+
+// Zod validation schemas for Discord API responses
+const tokenResponseSchema = z.object({
+    access_token: z.string().min(1),
+    token_type: z.string().min(1),
+    expires_in: z.number().int().positive(),
+    refresh_token: z.string().min(1),
+    scope: z.string().min(1),
+})
+
+const discordUserSchema = z.object({
+    id: z.string().min(1),
+    username: z.string().min(1),
+    discriminator: z.string(),
+    global_name: z.string().nullable().optional(),
+    avatar: z.string().nullable(),
+    email: z.string().nullable().optional(),
+    verified: z.boolean().optional(),
+})
 
 class DiscordOAuthService {
     private readonly apiBaseUrl = 'https://discord.com/api/v10'
@@ -159,6 +179,39 @@ class DiscordOAuthService {
         )
     }
 
+    private validateTokenResponse(
+        data: unknown,
+        endpoint: string,
+    ): TokenResponse {
+        const result = tokenResponseSchema.safeParse(data)
+        if (!result.success) {
+            const errors = result.error.issues
+                .map((e) => `${e.path.join('.')}: ${e.message}`)
+                .join('; ')
+            throw new DiscordApiError(
+                `Invalid token response from Discord API: ${errors}`,
+                400,
+                endpoint,
+            )
+        }
+        return result.data
+    }
+
+    private validateUserResponse(data: unknown, endpoint: string): DiscordUser {
+        const result = discordUserSchema.safeParse(data)
+        if (!result.success) {
+            const errors = result.error.issues
+                .map((e) => `${e.path.join('.')}: ${e.message}`)
+                .join('; ')
+            throw new DiscordApiError(
+                `Invalid user response from Discord API: ${errors}`,
+                400,
+                endpoint,
+            )
+        }
+        return result.data
+    }
+
     async exchangeCodeForToken(
         code: string,
         redirectUri?: string,
@@ -188,7 +241,10 @@ class DiscordOAuthService {
                 )
             }
 
-            const tokenData = (await response.json()) as TokenResponse
+            const tokenData = this.validateTokenResponse(
+                await response.json(),
+                '/oauth2/token',
+            )
             debugLog({ message: 'Successfully exchanged code for token' })
             return tokenData
         } catch (error) {
@@ -215,7 +271,10 @@ class DiscordOAuthService {
                 )
             }
 
-            const userData = (await response.json()) as DiscordUser
+            const userData = this.validateUserResponse(
+                await response.json(),
+                '/users/@me',
+            )
             debugLog({
                 message: 'Successfully fetched user info',
                 data: { userId: userData.id },
@@ -350,7 +409,10 @@ class DiscordOAuthService {
                 )
             }
 
-            const tokenData = (await response.json()) as TokenResponse
+            const tokenData = this.validateTokenResponse(
+                await response.json(),
+                '/oauth2/token',
+            )
             debugLog({ message: 'Successfully refreshed token' })
             return tokenData
         } catch (error) {
