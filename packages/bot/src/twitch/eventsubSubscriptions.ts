@@ -81,6 +81,7 @@ async function subscribeToEvent(
         return
     }
 
+    let successCount = 0
     for (const broadcasterUserId of userIds) {
         if (subscribedIds.has(broadcasterUserId)) continue
         const ok = await createSubscription(
@@ -92,7 +93,16 @@ async function subscribeToEvent(
             version,
             conditionKey,
         )
-        if (ok) subscribedIds.add(broadcasterUserId)
+        if (ok) {
+            subscribedIds.add(broadcasterUserId)
+            successCount++
+        }
+    }
+
+    if (successCount === 0 && userIds.length > 0) {
+        throw new Error(
+            `Twitch EventSub: failed to subscribe to any broadcasters for ${type}`,
+        )
     }
 }
 
