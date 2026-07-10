@@ -444,10 +444,8 @@ describe('queueManipulation — multi-user VC blend', () => {
         })
         await replenishQueue(queue as unknown as GuildQueue)
         // Assert observable: tracks were actually added based on seed consumption
-        expect(addedTracks.length).toBeGreaterThanOrEqual(0)
-        if (addedTracks.length > 0) {
-            expect(addedTracks[0]).toHaveProperty('url')
-        }
+        expect(addedTracks.length).toBeGreaterThan(0)
+        expect(addedTracks[0]).toHaveProperty('url')
     })
 
     it('uses user preference signals (likes, dislikes, history) to score candidates', async () => {

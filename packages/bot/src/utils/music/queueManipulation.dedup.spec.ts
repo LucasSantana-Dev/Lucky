@@ -31,12 +31,6 @@ jest.mock('discord-player', () => ({
     },
 }))
 
-const QueryType = {
-    AUTO: 'auto',
-    YOUTUBE_SEARCH: 'youtubeSearch',
-    SPOTIFY_SEARCH: 'spotifySearch',
-} as const
-
 type GuildQueue = any
 type Track = any
 
