@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import type { Client, Guild } from 'discord.js'
 import { discordOAuthService, type DiscordGuild } from './DiscordOAuthService'
 import { debugLog, errorLog } from '@lucky/shared/utils'
@@ -77,6 +78,25 @@ export interface GuildEmojiOption {
     animated: boolean
 }
 
+// Zod validation schemas for Discord API responses
+const discordGuildChannelSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+    type: z.number().int(),
+    position: z.number().optional(),
+})
+
+const discordGuildRoleSchema = z.object({
+    id: z.string().min(1),
+    name: z.string(),
+    color: z.number().optional(),
+    position: z.number().optional(),
+    hoist: z.boolean().optional(),
+    mentionable: z.boolean().optional(),
+    permissions: z.string().optional(),
+    managed: z.boolean().optional(),
+})
+
 export function setBotClient(client: Client | null): void {
     botClient = client
     guildService.clearBotGuildCache()
@@ -135,6 +155,66 @@ class GuildService {
     private getBotToken(): string | null {
         const token = process.env.DISCORD_TOKEN?.trim()
         return token && token.length > 0 ? token : null
+    }
+
+    private validateChannelArray(data: unknown): DiscordGuildChannel[] {
+        if (!Array.isArray(data)) {
+            errorLog({
+                message: 'Invalid channels response from Discord API',
+                data: { expectedArray: true, receivedType: typeof data },
+            })
+            return []
+        }
+
+        const validated: DiscordGuildChannel[] = []
+        for (const item of data) {
+            const result = discordGuildChannelSchema.safeParse(item)
+            if (result.success) {
+                validated.push(result.data)
+            } else {
+                debugLog({
+                    message: 'Skipping invalid channel in Discord API response',
+                    data: { errors: result.error.issues },
+                })
+            }
+        }
+        return validated
+    }
+
+    private validateRoleArray(data: unknown): DiscordGuildRole[] {
+        if (!Array.isArray(data)) {
+            errorLog({
+                message: 'Invalid roles response from Discord API',
+                data: { expectedArray: true, receivedType: typeof data },
+            })
+            return []
+        }
+
+        const validated: DiscordGuildRole[] = []
+        for (const item of data) {
+            const result = discordGuildRoleSchema.safeParse(item)
+            if (result.success) {
+                validated.push(result.data)
+            } else {
+                debugLog({
+                    message: 'Skipping invalid role in Discord API response',
+                    data: { errors: result.error.issues },
+                })
+            }
+        }
+        return validated
+    }
+
+    private validateSingleRole(data: unknown): DiscordGuildRole | null {
+        const result = discordGuildRoleSchema.safeParse(data)
+        if (!result.success) {
+            errorLog({
+                message: 'Invalid role response from Discord API',
+                data: { errors: result.error.issues },
+            })
+            return null
+        }
+        return result.data
     }
 
     private async fetchBotGuildIds(token: string): Promise<Set<string> | null> {
@@ -404,12 +484,19 @@ class GuildService {
             }
 
             const channelsPayload = channelsResponse.ok
-                ? ((await channelsResponse.json()) as DiscordGuildChannel[])
+                ? this.validateChannelArray(await channelsResponse.json())
                 : []
 
-            const rolesPayload = rolesResponse.ok
-                ? ((await rolesResponse.json()) as DiscordGuildRole[])
+            // Only the array length is used here (not individual role
+            // fields), so a shape check is enough — validateRoleArray's full
+            // per-item schema would silently drop roles missing optional
+            // fields this endpoint never reads, undercounting them.
+            const rawRolesPayload = rolesResponse.ok
+                ? await rolesResponse.json()
                 : []
+            const roleCount = Array.isArray(rawRolesPayload)
+                ? rawRolesPayload.length
+                : null
 
             const counts = this.countChannelTypes(channelsPayload)
 
@@ -421,7 +508,7 @@ class GuildService {
                 categoryCount: counts.categoryCount,
                 textChannelCount: counts.textChannelCount,
                 voiceChannelCount: counts.voiceChannelCount,
-                roleCount: rolesPayload.length || null,
+                roleCount: roleCount || null,
             }
         } catch (error) {
             errorLog({
@@ -569,7 +656,7 @@ class GuildService {
                 return []
             }
 
-            const payload = (await response.json()) as DiscordGuildRole[]
+            const payload = this.validateRoleArray(await response.json())
 
             return payload
                 .map((role) => ({
@@ -641,11 +728,16 @@ class GuildService {
                 return []
             }
 
-            const payload = (await response.json()) as DiscordGuildChannel[]
+            const payload = this.validateChannelArray(await response.json())
 
             return payload
                 .filter(
-                    (channel) =>
+                    (
+                        channel,
+                    ): channel is typeof channel & {
+                        id: string
+                        name: string
+                    } =>
                         typeof channel.id === 'string' &&
                         typeof channel.name === 'string' &&
                         (channel.type === 0 ||
@@ -655,8 +747,8 @@ class GuildService {
                 )
                 .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
                 .map((channel) => ({
-                    id: channel.id as string,
-                    name: `#${channel.name as string}`,
+                    id: channel.id,
+                    name: `#${channel.name}`,
                 }))
         } catch (error) {
             errorLog({
@@ -937,7 +1029,7 @@ class GuildService {
                 return []
             }
 
-            const payload = (await response.json()) as DiscordGuildRole[]
+            const payload = this.validateRoleArray(await response.json())
 
             return payload
                 .filter((role) => role.id !== guildId)
@@ -1022,7 +1114,12 @@ class GuildService {
                 throw new Error(`Discord API error: ${error}`)
             }
 
-            const payload = (await response.json()) as DiscordGuildRole
+            const payload = this.validateSingleRole(await response.json())
+            if (!payload) {
+                throw new Error(
+                    'Discord API error: Failed to validate role response from Discord API',
+                )
+            }
             return {
                 id: payload.id,
                 name: payload.name,
@@ -1108,7 +1205,12 @@ class GuildService {
                 throw new Error(`Discord API error: ${error}`)
             }
 
-            const payload = (await response.json()) as DiscordGuildRole
+            const payload = this.validateSingleRole(await response.json())
+            if (!payload) {
+                throw new Error(
+                    'Discord API error: Failed to validate role response from Discord API',
+                )
+            }
             return {
                 id: payload.id,
                 name: payload.name,
