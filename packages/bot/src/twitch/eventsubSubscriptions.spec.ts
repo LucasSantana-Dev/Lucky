@@ -166,10 +166,14 @@ describe('eventsubSubscriptions', () => {
             fetchSpy.mockResolvedValue(mockResponse as any)
 
             const subscribedUserIds = new Set<string>()
-            await subscribeToStreamOnline(
-                'session123',
-                'client-id',
-                subscribedUserIds,
+            await expect(
+                subscribeToStreamOnline(
+                    'session123',
+                    'client-id',
+                    subscribedUserIds,
+                ),
+            ).rejects.toThrow(
+                'Twitch EventSub: failed to subscribe to any broadcasters for stream.online',
             )
 
             expect(errorLogMock).toHaveBeenCalled()
