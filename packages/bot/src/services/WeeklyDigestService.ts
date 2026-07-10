@@ -7,6 +7,7 @@ import type {
     Message,
 } from 'discord.js'
 import { ChannelType, EmbedBuilder } from 'discord.js'
+import Parser from 'rss-parser'
 import { COLOR } from '@lucky/shared/constants'
 import {
     getPrismaClient,
@@ -104,13 +105,13 @@ export class WeeklyDigestService {
             const now = this.clock()
             const utcDate = new Date(now)
 
-            // Only send on Mondays between 12:00 and 12:59 UTC
+            // Only send on Sundays between 12:00 and 12:59 UTC
             const dayOfWeek = utcDate.getUTCDay()
             const hour = utcDate.getUTCHours()
 
-            if (dayOfWeek !== 1 || hour !== 12) {
+            if (dayOfWeek !== 0 || hour !== 12) {
                 debugLog({
-                    message: 'Weekly digest: not Monday 12:00 UTC',
+                    message: 'Weekly digest: not Sunday 12:00 UTC',
                     data: { dayOfWeek, hour },
                 })
                 return
@@ -210,8 +211,9 @@ export class WeeklyDigestService {
                 const lastPosted = new Date(previousSnapshot.postedAt)
                 const now = new Date(this.clock())
                 const startOfThisWeek = new Date(now)
+                // Sunday-anchored: day - getUTCDay() (0 for Sunday = no offset, 1 for Monday = -1, etc.)
                 startOfThisWeek.setUTCDate(
-                    now.getUTCDate() - now.getUTCDay() + 1,
+                    now.getUTCDate() - now.getUTCDay(),
                 )
                 startOfThisWeek.setUTCHours(0, 0, 0, 0)
 
@@ -234,12 +236,16 @@ export class WeeklyDigestService {
             // Fetch upcoming events in next 7 days
             const upcomingEvents = await this.getUpcomingEvents(guild)
 
+            // Fetch new guides from RSS feed this week
+            const newGuides = await this.getNewGuidesThisWeek()
+
             // Build embed
             const embed = this.buildDigestEmbed(
                 currentMemberCount,
                 memberDelta,
                 topMessages,
                 upcomingEvents,
+                newGuides,
             )
 
             // Send embed first — persisting the snapshot only after a
@@ -361,11 +367,69 @@ export class WeeklyDigestService {
         }
     }
 
+    private async getNewGuidesThisWeek(): Promise<
+        Array<{ title: string; link: string }>
+    > {
+        try {
+            const feedUrl =
+                process.env.CRIATIVARIA_GUIDES_FEED_URL ||
+                'https://criativaria.com.br/rss.xml'
+
+            const parser = new Parser()
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+            const feed = await parser.parseURL(feedUrl)
+
+            if (!feed.items || feed.items.length === 0) {
+                return []
+            }
+
+            const now = this.clock()
+            const oneWeekAgo = now - MS_PER_WEEK
+            const guides: Array<{ title: string; link: string }> = []
+
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            for (const item of feed.items) {
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                if (!item.title || !item.link) continue
+
+                // Filter by this week (pubDate within last 7 days)
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                if (item.pubDate) {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+                    const itemTime = new Date(item.pubDate).getTime()
+                    if (itemTime < oneWeekAgo) {
+                        // Feeds are newest-first; stop when we hit older items
+                        break
+                    }
+                }
+
+                guides.push({
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                    title: item.title,
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                    link: item.link,
+                })
+
+                if (guides.length >= 3) break
+            }
+
+            return guides
+        } catch (error: unknown) {
+            errorLog({
+                message: 'Failed to fetch RSS feed for guides',
+                error: error as Error,
+            })
+            // Fail soft: return empty array, digest will send without this section
+            return []
+        }
+    }
+
     private buildDigestEmbed(
         memberCount: number,
         memberDelta: number,
         topMessages: ReactionCount[],
         upcomingEvents: string[],
+        newGuides: Array<{ title: string; link: string }>,
     ): EmbedBuilder {
         const embed = new EmbedBuilder()
             .setColor(COLOR.LUCKY_PURPLE)
@@ -418,6 +482,18 @@ export class WeeklyDigestService {
             embed.addFields({
                 name: '🗓️ Esta semana',
                 value: 'Nada agendado',
+                inline: false,
+            })
+        }
+
+        // New guides field — only if there are items
+        if (newGuides.length > 0) {
+            const guidesList = newGuides
+                .map((guide) => `[📚 ${guide.title}](${guide.link})`)
+                .join('\n')
+            embed.addFields({
+                name: '📚 Novos guias da semana',
+                value: guidesList,
                 inline: false,
             })
         }
