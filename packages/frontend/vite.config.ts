@@ -3,6 +3,7 @@ import path from 'path'
 import { defineConfig, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 const rootModules = path.resolve(__dirname, '../../node_modules')
 
@@ -68,7 +69,15 @@ const manualChunkGroups: Array<{ name: string; packages: string[] }> = [
 
 export default defineConfig({
   base: process.env.NODE_ENV === 'development' ? '/' : process.env.VITE_BASE_PATH || '/',
-  plugins: [react(), ...sentryPlugins],
+  plugins: [
+    react(),
+    ...sentryPlugins,
+    visualizer({
+      open: false,
+      filename: 'dist/bundle-analysis.html',
+      title: 'Lucky Frontend Bundle Analysis',
+    }),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
