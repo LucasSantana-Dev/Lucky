@@ -217,25 +217,34 @@ export function setupLastFmRoutes(app: Express): void {
                     )
                 }
 
-                // Extract and validate state from query or cookies
+                // Extract and validate state from query and cookies
                 const stateFromQuery = parsedQuery.data.state
                 const stateFromCookieRaw: unknown =
                     req.cookies?.[LASTFM_STATE_COOKIE]
                 const stateFromCookieValidated =
                     stateCookieSchema.safeParse(stateFromCookieRaw)
 
-                const state =
-                    typeof stateFromQuery === 'string'
-                        ? stateFromQuery
-                        : stateFromCookieValidated.success
-                          ? stateFromCookieValidated.data
-                          : null
-
-                if (!state) {
+                // Both query state and cookie state must exist
+                if (!stateFromQuery) {
                     return res.redirect(
                         `${frontendUrl}/?error=lastfm_missing_state`,
                     )
                 }
+
+                if (!stateFromCookieValidated.success) {
+                    return res.redirect(
+                        `${frontendUrl}/?error=lastfm_missing_state`,
+                    )
+                }
+
+                // Query state must exactly match cookie state to prevent replay attacks
+                if (stateFromQuery !== stateFromCookieValidated.data) {
+                    return res.redirect(
+                        `${frontendUrl}/?error=lastfm_invalid_state`,
+                    )
+                }
+
+                const state = stateFromQuery
                 const secret = getLinkSecret()
                 const discordId = decodeAndVerifyState(state, secret)
                 if (!discordId) {
