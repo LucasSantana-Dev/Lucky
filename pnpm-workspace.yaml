@@ -6,3 +6,7 @@ allowBuilds:
   msgpackr-extract: true
   prisma: true
   unrs-resolver: true
+
+blockExoticSubdeps: true
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
