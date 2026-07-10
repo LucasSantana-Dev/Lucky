@@ -185,10 +185,17 @@ COPY --from=build /app/packages/shared/src/generated ./packages/shared/src/gener
 COPY --from=build /app/packages/shared/src/generated ./packages/shared/dist/generated
 COPY --from=build /app/packages/backend/dist ./packages/backend/dist
 COPY --from=build /app/prisma ./prisma
+# prisma/@prisma/engines are devDeps, so deps-production's `npm ci --omit=dev`
+# ships node_modules WITHOUT the migrate schema-engine — `prisma migrate deploy`
+# (run via this backend image, see scripts/deploy.sh) then fails to write the
+# engine binary as the non-root `backend` user. The bot stage above already
+# works around this by copying the build stage's full @prisma from ./node_modules
+# (#1734/#1735); backend needs the same copy + chown, it just never got it.
+COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S backend -u 1001 -G nodejs && \
-    chown -R backend:nodejs /app/packages/backend/dist /app/prisma
+    chown -R backend:nodejs /app/packages/backend/dist /app/prisma /app/node_modules/@prisma
 
 USER backend
 
