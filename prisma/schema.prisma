@@ -161,6 +161,21 @@ model TwitchNotification {
   @@map("twitch_notifications")
 }
 
+/// Tracks posted live notification messages for deletion when stream goes offline or TTL expires (4h).
+model LiveNotificationMessage {
+  id            String   @id @default(cuid())
+  discordChannelId String
+  discordMessageId String
+  platform      String   // "twitch" or "youtube"
+  streamId      String   // Twitch stream ID or YouTube broadcast ID
+  broadcastId   String?  // YouTube broadcast ID (for video lookup)
+  postedAt      DateTime @default(now())
+
+  @@unique([discordChannelId, discordMessageId])
+  @@index([platform, streamId])
+  @@map("live_notification_messages")
+}
+
 model ScheduledEventNotification {
   id            String   @id @default(cuid())
   guildId       String   @unique
