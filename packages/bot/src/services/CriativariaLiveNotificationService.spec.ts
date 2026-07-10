@@ -578,3 +578,103 @@ describe('CriativariaLiveNotificationService', () => {
         })
     })
 })
+
+describe('coverage: lifecycle, error paths, youtube mapping', () => {
+    let service: CriativariaLiveNotificationService
+    let mockClient: Partial<Client>
+
+    beforeEach(() => {
+        mockClient = {
+            channels: { fetch: jest.fn(async () => null) },
+        } as unknown as Partial<Client>
+        service = new CriativariaLiveNotificationService(
+            () => Date.now(),
+            50,
+            50,
+        )
+        process.env.CRIATIVARIA_LIVES_CHANNEL_ID = 'chan'
+        process.env.CRIATIVARIA_TWITCH_USER_LOGIN = 'criativaria'
+    })
+
+    afterEach(() => {
+        service.stop()
+        jest.restoreAllMocks()
+        delete process.env.YOUTUBE_API_KEY
+    })
+
+    test('start registers twitch and youtube intervals when key present', () => {
+        process.env.YOUTUBE_API_KEY = 'k'
+        jest.spyOn(service as any, 'twitchTick').mockResolvedValue(undefined)
+        jest.spyOn(service as any, 'youtubeTick').mockResolvedValue(undefined)
+        service.start(mockClient as Client)
+        expect((service as any).twitchIntervalHandle).not.toBeNull()
+        expect((service as any).youtubeIntervalHandle).not.toBeNull()
+    })
+
+    test('start skips youtube interval without key', () => {
+        jest.spyOn(service as any, 'twitchTick').mockResolvedValue(undefined)
+        service.start(mockClient as Client)
+        expect((service as any).twitchIntervalHandle).not.toBeNull()
+        expect((service as any).youtubeIntervalHandle).toBeNull()
+    })
+
+    test('twitchTick swallows errors and resets in-progress flag', async () => {
+        jest.spyOn(service, 'checkAndNotifyTwitch').mockRejectedValue(
+            new Error('boom'),
+        )
+        await (service as any).twitchTick(mockClient as Client)
+        expect((service as any).twitchTickInProgress).toBe(false)
+    })
+
+    test('youtubeTick swallows errors and resets in-progress flag', async () => {
+        jest.spyOn(service as any, 'checkAndNotifyYoutube').mockRejectedValue(
+            new Error('boom'),
+        )
+        await (service as any).youtubeTick(mockClient as Client)
+        expect((service as any).youtubeTickInProgress).toBe(false)
+    })
+
+    test('fetchYoutubeLiveBroadcast maps a live search result', async () => {
+        const fetchSpy = jest
+            .spyOn(globalThis, 'fetch' as any)
+            .mockResolvedValue({
+                ok: true,
+                status: 200,
+                headers: { get: () => null },
+                json: async () => ({
+                    items: [
+                        {
+                            id: { videoId: 'vid1' },
+                            snippet: {
+                                title: 'Live!',
+                                channelTitle: 'Criativaria',
+                                thumbnails: {
+                                    default: { url: 'http://t/img.jpg' },
+                                },
+                            },
+                        },
+                    ],
+                }),
+            } as unknown as Response)
+        const video = await service.fetchYoutubeLiveBroadcast('UCabc', 'key')
+        expect(video).toEqual({
+            id: 'vid1',
+            title: 'Live!',
+            thumbnail: 'http://t/img.jpg',
+            channelTitle: 'Criativaria',
+        })
+        expect(String(fetchSpy.mock.calls[0][0])).toContain('eventType=live')
+        expect(String(fetchSpy.mock.calls[0][0])).toContain('channelId=UCabc')
+    })
+
+    test('fetchYoutubeLiveBroadcast returns null on non-ok response', async () => {
+        jest.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+            ok: false,
+            status: 403,
+            headers: { get: () => null },
+            json: async () => ({}),
+        } as unknown as Response)
+        const video = await service.fetchYoutubeLiveBroadcast('UCabc', 'key')
+        expect(video).toBeNull()
+    })
+})

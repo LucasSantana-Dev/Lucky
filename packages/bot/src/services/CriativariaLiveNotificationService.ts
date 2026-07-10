@@ -1,3 +1,5 @@
+import { randomInt } from 'node:crypto'
+
 import type { Client, TextChannel, Message } from 'discord.js'
 import { EmbedBuilder } from 'discord.js'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
@@ -34,6 +36,12 @@ type NotificationMessage = {
     postedAt: number
 }
 
+// Jitter uses crypto.randomInt purely to satisfy S2245 — backoff spread is not
+// security-sensitive, but the gate treats Math.random as a finding.
+function jitterMs(): number {
+    return randomInt(0, 1000)
+}
+
 // Exponential backoff helper: respects Retry-After, with jitter.
 // Usage: backoffFetch(url, options, 3) returns response or throws after 3 attempts.
 async function backoffFetch(
@@ -56,10 +64,7 @@ async function backoffFetch(
                 const retryAfter = res.headers.get('Retry-After')
                 const delayMs = retryAfter
                     ? Math.min(parseInt(retryAfter, 10) * 1000, 30000)
-                    : Math.min(
-                          1000 * Math.pow(2, attempt) + Math.random() * 1000,
-                          30000,
-                      )
+                    : Math.min(1000 * Math.pow(2, attempt) + jitterMs(), 30000)
                 await new Promise((resolve) => setTimeout(resolve, delayMs))
                 continue
             }
@@ -68,7 +73,7 @@ async function backoffFetch(
             lastError = err instanceof Error ? err : new Error(String(err))
             if (attempt < maxAttempts - 1) {
                 const delayMs = Math.min(
-                    1000 * Math.pow(2, attempt) + Math.random() * 1000,
+                    1000 * Math.pow(2, attempt) + jitterMs(),
                     30000,
                 )
                 await new Promise((resolve) => setTimeout(resolve, delayMs))
