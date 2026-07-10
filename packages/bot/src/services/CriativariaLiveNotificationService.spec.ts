@@ -515,7 +515,10 @@ describe('CriativariaLiveNotificationService', () => {
                     items: [],
                 }),
             } as unknown as Response)
-            const video = await service.fetchYoutubeLiveBroadcast('UCabc', 'key')
+            const video = await service.fetchYoutubeLiveBroadcast(
+                'UCabc',
+                'key',
+            )
             expect(video).toBeNull()
         })
 
@@ -536,7 +539,6 @@ describe('CriativariaLiveNotificationService', () => {
         })
     })
 
-    describe('existing tests
     describe('existing tests (Twitch baseline)', () => {
         test('should not start when env vars are missing', async () => {
             delete process.env.CRIATIVARIA_LIVES_CHANNEL_ID
