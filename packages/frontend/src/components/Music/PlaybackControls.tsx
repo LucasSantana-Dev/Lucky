@@ -118,14 +118,24 @@ export function VolumeSlider({ volume, onChange }: VolumeSliderProps) {
         }
     }, [])
 
+    const cancelPendingChange = useCallback(() => {
+        if (timerRef.current !== null) {
+            clearTimeout(timerRef.current)
+            timerRef.current = null
+        }
+    }, [])
+
     const handleChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
             const v = parseInt(e.target.value)
             setLocalVol(v)
-            if (timerRef.current) clearTimeout(timerRef.current)
-            timerRef.current = setTimeout(() => onChangeRef.current(v), 150)
+            cancelPendingChange()
+            timerRef.current = setTimeout(() => {
+                timerRef.current = null
+                onChangeRef.current(v)
+            }, 150)
         },
-        [],
+        [cancelPendingChange],
     )
 
     const displayVol =
@@ -140,6 +150,7 @@ export function VolumeSlider({ volume, onChange }: VolumeSliderProps) {
             <button
                 onClick={() => {
                     const v = volume === 0 ? 50 : 0
+                    cancelPendingChange()
                     setLocalVol(v)
                     onChange(v)
                 }}

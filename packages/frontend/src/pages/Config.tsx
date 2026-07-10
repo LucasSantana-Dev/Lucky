@@ -192,8 +192,16 @@ export default function ConfigPage() {
                         </div>
                         <Suspense
                             fallback={
-                                <div className='flex justify-center py-12'>
-                                    <Loader2 className='text-primary animate-spin w-6 h-6' />
+                                <div
+                                    className='flex justify-center py-12'
+                                    role='status'
+                                    aria-label='Loading...'
+                                    aria-live='polite'
+                                >
+                                    <Loader2
+                                        className='text-primary animate-spin w-6 h-6'
+                                        aria-hidden='true'
+                                    />
                                 </div>
                             }
                         >
