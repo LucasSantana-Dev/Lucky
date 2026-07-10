@@ -2,7 +2,7 @@ import {
     type GuildTextBasedChannel,
     type Collection,
     type Message,
-    GuildPremiumTier,
+    type AttachmentBuilder,
     PermissionFlagsBits,
 } from 'discord.js'
 import {
@@ -141,6 +141,20 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
                 }
             }
 
+            // Re-validate client connection mid-loop
+            const currentClient = getStoredClient() as CustomClient | null
+            if (!currentClient) {
+                debugLog({
+                    message: `Bot disconnected during batch job ${jobId}, pausing execution`,
+                })
+                return {
+                    moved: movedMessages.length,
+                    failed: failedIds.length,
+                    skipped,
+                    paused: true,
+                }
+            }
+
             // Fetch a page of messages
             const messages = (await sourceChannel.messages
                 .fetch({
@@ -197,7 +211,16 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
                         tooLarge,
                     })
 
-                    const files = await fetchAttachments(toUpload)
+                    let files: AttachmentBuilder[] = []
+                    try {
+                        files = await fetchAttachments(toUpload)
+                    } catch (fetchError) {
+                        errorLog({
+                            message: `Failed to fetch attachments for message ${message.id}, continuing without files`,
+                            error: fetchError,
+                        })
+                        // Continue with empty files array — embed will be posted without attachments
+                    }
 
                     const movedMessage = await destChannel.send({
                         embeds: [embed],
