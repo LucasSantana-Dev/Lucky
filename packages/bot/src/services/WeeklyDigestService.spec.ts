@@ -782,6 +782,9 @@ describe('WeeklyDigestService', () => {
             setClient(svc, client)
             const mockParser = jest.requireMock('rss-parser')
             const veryLongTitle = 'A'.repeat(150)
+            // Overlong URL makes bullet #2 exceed the 1024 cap by itself, so the
+            // cap logic MUST fire (non-vacuous) and MUST NOT suppress bullet #3.
+            const overlongLink = `https://criativaria.com.br/${'x'.repeat(1200)}`
             mockParser.mockImplementation(() => ({
                 parseURL: jest.fn(async () => ({
                     items: [
@@ -794,7 +797,7 @@ describe('WeeklyDigestService', () => {
                         },
                         {
                             title: veryLongTitle,
-                            link: 'https://criativaria.com.br/long-2',
+                            link: overlongLink,
                             pubDate: new Date(
                                 SUNDAY_12_UTC - 2 * 60 * 60 * 1000,
                             ).toISOString(),
@@ -819,6 +822,10 @@ describe('WeeklyDigestService', () => {
             expect(guidesField.value.length).toBeLessThanOrEqual(1024)
             // Title should be truncated (contain ellipsis)
             expect(guidesField.value).toContain('…')
+            // The over-long bullet was dropped, not the whole tail: #1 and #3 present
+            expect(guidesField.value).toContain('long-1')
+            expect(guidesField.value).not.toContain('xxxxxxxxxx')
+            expect(guidesField.value).toContain('long-3')
         })
     })
 })

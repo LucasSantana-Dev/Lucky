@@ -212,9 +212,7 @@ export class WeeklyDigestService {
                 const now = new Date(this.clock())
                 const startOfThisWeek = new Date(now)
                 // Sunday-anchored: day - getUTCDay() (0 for Sunday = no offset, 1 for Monday = -1, etc.)
-                startOfThisWeek.setUTCDate(
-                    now.getUTCDate() - now.getUTCDay(),
-                )
+                startOfThisWeek.setUTCDate(now.getUTCDate() - now.getUTCDay())
                 startOfThisWeek.setUTCHours(0, 0, 0, 0)
 
                 if (lastPosted >= startOfThisWeek) {
@@ -376,7 +374,7 @@ export class WeeklyDigestService {
                 'https://criativaria.com.br/rss.xml'
 
             const parser = new Parser()
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+
             const feed = await parser.parseURL(feedUrl)
 
             if (!feed.items || feed.items.length === 0) {
@@ -387,15 +385,12 @@ export class WeeklyDigestService {
             const oneWeekAgo = now - MS_PER_WEEK
             const guides: Array<{ title: string; link: string }> = []
 
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             for (const item of feed.items) {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                 if (!item.title || !item.link) continue
 
                 // Filter by this week (pubDate must be valid, within last 7 days, not future)
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
                 if (item.pubDate) {
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
                     const parsed = Date.parse(item.pubDate as string)
                     if (Number.isNaN(parsed)) {
                         // Unparsable date — skip
@@ -417,9 +412,8 @@ export class WeeklyDigestService {
                 }
 
                 guides.push({
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                     title: item.title,
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
                     link: item.link,
                 })
 
@@ -516,8 +510,8 @@ export class WeeklyDigestService {
             for (const guide of truncatedGuides) {
                 const line = `${guidesList ? '\n' : ''}${guide}`
                 if ((guidesList + line).length > MAX_FIELD_VALUE) {
-                    // Stop adding when we exceed limit
-                    break
+                    // Skip only this over-long entry; later (shorter) guides still fit
+                    continue
                 }
                 guidesList = guidesList + line
             }
