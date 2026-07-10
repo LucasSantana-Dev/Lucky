@@ -54,9 +54,9 @@ export const getContextMenus = async (): Promise<ContextMenuCommand[]> => {
     try {
         debugLog({ message: 'Loading context-menu commands' })
 
-        const [moderationList] = await Promise.all([moderationContextMenus()])
+        const moderationList = await moderationContextMenus()
 
-        return [...moderationList]
+        return moderationList
     } catch (error) {
         errorLog({ message: 'Error loading context menus:', error })
         return []
