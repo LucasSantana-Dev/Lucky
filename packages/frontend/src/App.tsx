@@ -8,15 +8,31 @@ import {
 } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ShieldAlert } from 'lucide-react'
+import { ShieldAlert, Loader2 } from 'lucide-react'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useAuthStore } from './stores/authStore'
 import { useGuildStore } from './stores/guildStore'
 import Layout from './components/Layout/Layout'
-import PageLoader from './components/ui/PageLoader'
 import EmptyState from './components/ui/EmptyState'
 import { hasModuleAccess } from './lib/rbac'
 import type { AccessMode, ModuleKey } from './types'
+
+// ponytail: inlined from PageLoader component for single-use
+function PageLoader() {
+    return (
+        <div className='min-h-screen bg-lucky-bg-primary flex items-center justify-center'>
+            <div
+                className='flex flex-col items-center gap-4'
+                role='status'
+                aria-label='Loading...'
+                aria-live='polite'
+            >
+                <Loader2 className='w-10 h-10 text-primary animate-spin' />
+                <p className='text-lucky-text-secondary'>Loading...</p>
+            </div>
+        </div>
+    )
+}
 
 const LandingPage = lazy(() => import('./pages/Landing'))
 const LoginPage = lazy(() => import('./pages/Login'))

@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: 'primary' | 'secondary' | 'accent' | 'ghost' | 'destructive'
+    variant?: 'primary' | 'secondary' | 'ghost' | 'destructive'
     size?: 'sm' | 'md' | 'lg'
     loading?: boolean
 }
@@ -31,7 +31,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                     'active:scale-[0.98]',
                     {
                         'bg-lucky-brand text-white hover:bg-lucky-brand-strong':
-                            variant === 'primary' || variant === 'accent',
+                            variant === 'primary',
                         'bg-lucky-bg-tertiary border border-lucky-border text-lucky-text-primary hover:border-lucky-border-strong hover:bg-lucky-bg-active':
                             variant === 'secondary',
                         'bg-transparent hover:bg-lucky-bg-tertiary text-lucky-text-secondary hover:text-lucky-text-primary':
