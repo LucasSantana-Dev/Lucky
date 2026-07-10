@@ -294,6 +294,7 @@ describe('consumeLastFmSeedSlice', () => {
     )
 
     it('returns empty array when no cache or on error', async () => {
+        getByDiscordIdMock.mockResolvedValue(null)
         const unknownSlice = await consumeLastFmSeedSlice('unknown-user', 3)
         expect(unknownSlice).toEqual([])
 
