@@ -173,7 +173,15 @@ export function setupLastFmRoutes(app: Express): void {
                         `${frontendUrl}/?error=lastfm_invalid_state`,
                     )
                 }
-                const state = providedState ?? encodeState(discordId, secret)
+                // Authenticated requests always get a fresh state bound to the
+                // authenticated identity — a client-supplied `providedState` here
+                // could encode a DIFFERENT discordId (e.g. a state value seen from
+                // another user's connect/callback flow), which would otherwise let
+                // an authenticated session get its Last.fm link written under a
+                // different Discord account than the one it's actually signed in as.
+                const state = req.user?.id
+                    ? encodeState(req.user.id, secret)
+                    : (providedState ?? encodeState(discordId, secret))
 
                 res.cookie(LASTFM_STATE_COOKIE, state, {
                     httpOnly: true,
