@@ -73,9 +73,9 @@ describe('CriativariaLiveNotificationService', () => {
             expect((service2 as any).twitchPollIntervalMs).toBe(5 * 60 * 1000)
         })
 
-        test('should use 10-min interval for YouTube polling', () => {
+        test('should use 30-min interval for YouTube polling (quota-safe: 48×100 units/day)', () => {
             const service2 = new CriativariaLiveNotificationService()
-            expect((service2 as any).youtubePollIntervalMs).toBe(10 * 60 * 1000)
+            expect((service2 as any).youtubePollIntervalMs).toBe(30 * 60 * 1000)
         })
     })
 
@@ -160,7 +160,7 @@ describe('CriativariaLiveNotificationService', () => {
                 'utf8',
             )
             expect(source).toContain('14.4k units/day')
-            expect(source).toContain('10k free quota')
+            expect(source).toContain('10k/day free quota')
         })
     })
 
@@ -209,7 +209,11 @@ describe('CriativariaLiveNotificationService', () => {
         test('should delete stale messages after 4h TTL', async () => {
             const now = Date.now()
             const mockClock = jest.fn(() => now)
-            const service2 = new CriativariaLiveNotificationService(mockClock, 1000, 2000)
+            const service2 = new CriativariaLiveNotificationService(
+                mockClock,
+                1000,
+                2000,
+            )
 
             // Post a message at t=0
             jest.spyOn(service2, 'fetchStream').mockResolvedValue({
@@ -253,7 +257,9 @@ describe('CriativariaLiveNotificationService', () => {
             await service.checkAndNotifyTwitch(mockClient as Client)
 
             // Simulate deletion error
-            const mockClock = jest.fn(() => Date.now() + 4 * 60 * 60 * 1000 + 1000)
+            const mockClock = jest.fn(
+                () => Date.now() + 4 * 60 * 60 * 1000 + 1000,
+            )
             const service2 = new CriativariaLiveNotificationService(
                 mockClock,
                 1000,
@@ -302,15 +308,18 @@ describe('CriativariaLiveNotificationService', () => {
                     status: 200,
                     ok: true,
                     json: async () => ({
-                        data: [{
-                            id: 'stream-1',
-                            user_login: 'criativaria',
-                            title: 'Live',
-                            viewer_count: 100,
-                            game_name: 'Creative',
-                            thumbnail_url: 'https://example.com/{width}x{height}.jpg',
-                            started_at: new Date().toISOString(),
-                        }],
+                        data: [
+                            {
+                                id: 'stream-1',
+                                user_login: 'criativaria',
+                                title: 'Live',
+                                viewer_count: 100,
+                                game_name: 'Creative',
+                                thumbnail_url:
+                                    'https://example.com/{width}x{height}.jpg',
+                                started_at: new Date().toISOString(),
+                            },
+                        ],
                     }),
                 }
             }) as any
@@ -331,15 +340,18 @@ describe('CriativariaLiveNotificationService', () => {
                     status: 200,
                     ok: true,
                     json: async () => ({
-                        data: [{
-                            id: 'stream-1',
-                            user_login: 'criativaria',
-                            title: 'Live',
-                            viewer_count: 100,
-                            game_name: 'Creative',
-                            thumbnail_url: 'https://example.com/{width}x{height}.jpg',
-                            started_at: new Date().toISOString(),
-                        }],
+                        data: [
+                            {
+                                id: 'stream-1',
+                                user_login: 'criativaria',
+                                title: 'Live',
+                                viewer_count: 100,
+                                game_name: 'Creative',
+                                thumbnail_url:
+                                    'https://example.com/{width}x{height}.jpg',
+                                started_at: new Date().toISOString(),
+                            },
+                        ],
                     }),
                 }
             }) as any
@@ -367,15 +379,18 @@ describe('CriativariaLiveNotificationService', () => {
                     status: 200,
                     ok: true,
                     json: async () => ({
-                        data: [{
-                            id: 'stream-1',
-                            user_login: 'criativaria',
-                            title: 'Live',
-                            viewer_count: 100,
-                            game_name: 'Creative',
-                            thumbnail_url: 'https://example.com/{width}x{height}.jpg',
-                            started_at: new Date().toISOString(),
-                        }],
+                        data: [
+                            {
+                                id: 'stream-1',
+                                user_login: 'criativaria',
+                                title: 'Live',
+                                viewer_count: 100,
+                                game_name: 'Creative',
+                                thumbnail_url:
+                                    'https://example.com/{width}x{height}.jpg',
+                                started_at: new Date().toISOString(),
+                            },
+                        ],
                     }),
                 }
             }) as any
