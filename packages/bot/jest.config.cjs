@@ -65,7 +65,6 @@ module.exports = {
     testPathIgnorePatterns: ['/node_modules/', '/dist/'],
     verbose: true,
     clearMocks: true,
-    resetMocks: true,
     restoreMocks: true,
     // Deliberate: Discord integration tests use shorter timeout than backend (30000)
     testTimeout: 15000,
