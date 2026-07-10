@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
     Play,
     Pause,
@@ -10,7 +10,6 @@ import {
     Repeat,
     Repeat1,
 } from 'lucide-react'
-import { useDebounce } from '@/hooks/useDebounce'
 
 interface PlaybackControlsProps {
     isPlaying: boolean
@@ -109,15 +108,34 @@ interface VolumeSliderProps {
 
 export function VolumeSlider({ volume, onChange }: VolumeSliderProps) {
     const [localVol, setLocalVol] = useState(volume)
-    const debouncedChange = useDebounce(onChange, 150)
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const onChangeRef = useRef(onChange)
+    onChangeRef.current = onChange
+
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) clearTimeout(timerRef.current)
+        }
+    }, [])
+
+    const cancelPendingChange = useCallback(() => {
+        if (timerRef.current !== null) {
+            clearTimeout(timerRef.current)
+            timerRef.current = null
+        }
+    }, [])
 
     const handleChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
             const v = parseInt(e.target.value)
             setLocalVol(v)
-            debouncedChange(v)
+            cancelPendingChange()
+            timerRef.current = setTimeout(() => {
+                timerRef.current = null
+                onChangeRef.current(v)
+            }, 150)
         },
-        [debouncedChange],
+        [cancelPendingChange],
     )
 
     const displayVol =
@@ -132,6 +150,7 @@ export function VolumeSlider({ volume, onChange }: VolumeSliderProps) {
             <button
                 onClick={() => {
                     const v = volume === 0 ? 50 : 0
+                    cancelPendingChange()
                     setLocalVol(v)
                     onChange(v)
                 }}
