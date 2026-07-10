@@ -1,8 +1,10 @@
-import type { Client, TextChannel } from 'discord.js'
+import type { TextChannel } from 'discord.js'
 import { EmbedBuilder } from '@discordjs/builders'
 import { COLOR } from '@lucky/shared/constants'
 import { reminderService, MAX_DELIVERY_ATTEMPTS } from '@lucky/shared/services'
 import { errorLog, infoLog } from '@lucky/shared/utils'
+
+import { IntervalScheduler } from './IntervalScheduler'
 
 const DEFAULT_TICK_INTERVAL_MS = 60 * 1000 // 60 seconds
 
@@ -10,81 +12,57 @@ type ReminderSchedulerOptions = {
     tickIntervalMs?: number
 }
 
-export class ReminderScheduler {
-    private readonly tickIntervalMs: number
-    private timer: ReturnType<typeof setInterval> | null = null
-    private client: Client | null = null
-    private tickInProgress = false
+export class ReminderScheduler extends IntervalScheduler {
 
     constructor(options: ReminderSchedulerOptions = {}) {
-        this.tickIntervalMs = options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS
+        const tickIntervalMs = options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS
+        super(tickIntervalMs)
     }
 
-    start(client: Client): void {
-        if (this.timer) return
-        this.client = client
+    protected onStart(): void {
         infoLog({
             message: `Reminder scheduler started (interval: ${this.tickIntervalMs}ms)`,
         })
         void this.tick()
-        this.timer = setInterval(() => void this.tick(), this.tickIntervalMs)
     }
 
-    stop(): void {
-        if (this.timer) {
-            clearInterval(this.timer)
-            this.timer = null
-        }
-    }
+    protected async execute(): Promise<void> {
+        const dueReminders = await reminderService.getDueReminders(25)
 
-    async tick(): Promise<void> {
-        if (this.tickInProgress || !this.client) return
-        this.tickInProgress = true
-        try {
-            const dueReminders = await reminderService.getDueReminders(25)
-
-            for (const reminder of dueReminders) {
-                // Per-reminder isolation: one failure must not abort the batch.
-                try {
-                    const delivered = await this.deliverReminder(reminder)
-                    if (delivered) {
-                        await reminderService.markDelivered(reminder.id)
-                    } else if (
-                        reminder.deliveryAttempts + 1 >=
-                        MAX_DELIVERY_ATTEMPTS
-                    ) {
-                        // Give up after MAX attempts so an undeliverable
-                        // reminder can't monopolize the 25-row due window
-                        // (review P1) — counter, not elapsed time, so a
-                        // future-dated reminder isn't dropped on first failure.
-                        await reminderService.markDelivered(reminder.id)
-                    } else {
-                        // Back off 5 minutes and bump the attempt counter.
-                        await reminderService.recordFailedAttempt(
-                            reminder.id,
-                            new Date(Date.now() + 5 * 60 * 1000),
-                        )
-                    }
-                } catch (error) {
-                    errorLog({
-                        message: 'reminder delivery iteration failed',
-                        error: error as Error,
-                    })
+        for (const reminder of dueReminders) {
+            // Per-reminder isolation: one failure must not abort the batch.
+            try {
+                const delivered = await this.deliverReminder(reminder)
+                if (delivered) {
+                    await reminderService.markDelivered(reminder.id)
+                } else if (
+                    reminder.deliveryAttempts + 1 >=
+                    MAX_DELIVERY_ATTEMPTS
+                ) {
+                    // Give up after MAX attempts so an undeliverable
+                    // reminder can't monopolize the 25-row due window
+                    // (review P1) — counter, not elapsed time, so a
+                    // future-dated reminder isn't dropped on first failure.
+                    await reminderService.markDelivered(reminder.id)
+                } else {
+                    // Back off 5 minutes and bump the attempt counter.
+                    await reminderService.recordFailedAttempt(
+                        reminder.id,
+                        new Date(Date.now() + 5 * 60 * 1000),
+                    )
                 }
-            }
-
-            if (dueReminders.length > 0) {
-                infoLog({
-                    message: `reminder scheduler delivered ${dueReminders.length} reminders`,
+            } catch (error) {
+                errorLog({
+                    message: 'reminder delivery iteration failed',
+                    error: error as Error,
                 })
             }
-        } catch (error) {
-            errorLog({
-                message: 'reminder scheduler tick failed',
-                error: error as Error,
+        }
+
+        if (dueReminders.length > 0) {
+            infoLog({
+                message: `reminder scheduler delivered ${dueReminders.length} reminders`,
             })
-        } finally {
-            this.tickInProgress = false
         }
     }
 
