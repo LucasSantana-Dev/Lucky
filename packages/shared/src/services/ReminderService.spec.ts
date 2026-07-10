@@ -1,4 +1,4 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
+import { describe, test, expect, jest, beforeEach, afterEach } from '@jest/globals'
 
 const mockPrisma = {
     reminder: {
@@ -146,6 +146,10 @@ describe('ReminderService', () => {
     })
 
     describe('getDueReminders', () => {
+        afterEach(() => {
+            jest.useRealTimers()
+        })
+
         test('fetches undelivered reminders with remindAt <= now', async () => {
             jest.useFakeTimers()
             const now = new Date()
@@ -173,8 +177,6 @@ describe('ReminderService', () => {
             expect(call.orderBy).toEqual({ remindAt: 'asc' })
             expect(call.take).toBe(25)
             expect(result).toHaveLength(1)
-
-            jest.useRealTimers()
         })
     })
 
