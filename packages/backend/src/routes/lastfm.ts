@@ -93,6 +93,7 @@ export function setupLastFmRoutes(app: Express): void {
     app.get(
         '/api/lastfm/status',
         requireAuth,
+        apiLimiter,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             try {
                 const discordId = req.user?.id
@@ -117,6 +118,7 @@ export function setupLastFmRoutes(app: Express): void {
     app.delete(
         '/api/lastfm/unlink',
         requireAuth,
+        apiLimiter,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             try {
                 const discordId = req.user?.id
@@ -159,7 +161,7 @@ export function setupLastFmRoutes(app: Express): void {
                 const discordIdFromState = providedState
                     ? decodeAndVerifyState(providedState, secret)
                     : null
-                const discordId = discordIdFromState ?? req.user?.id
+                const discordId = req.user?.id ?? discordIdFromState
 
                 if (!discordId) {
                     const frontendUrl = getFrontendUrl()
