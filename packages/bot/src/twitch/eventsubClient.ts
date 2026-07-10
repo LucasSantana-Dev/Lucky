@@ -163,7 +163,7 @@ export class TwitchEventSubClient {
                         if (result.status === 'rejected') {
                             errorLog({
                                 message: `Twitch EventSub: ${EVENT_LABELS[index]} subscription failed`,
-                                error: result.reason,
+                                error: result.reason as unknown,
                             })
                         }
                     })
