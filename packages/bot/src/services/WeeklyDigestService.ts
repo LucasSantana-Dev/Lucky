@@ -392,15 +392,28 @@ export class WeeklyDigestService {
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                 if (!item.title || !item.link) continue
 
-                // Filter by this week (pubDate within last 7 days)
+                // Filter by this week (pubDate must be valid, within last 7 days, not future)
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                 if (item.pubDate) {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-                    const itemTime = new Date(item.pubDate).getTime()
-                    if (itemTime < oneWeekAgo) {
-                        // Feeds are newest-first; stop when we hit older items
-                        break
+                    const parsed = Date.parse(item.pubDate as string)
+                    if (Number.isNaN(parsed)) {
+                        // Unparsable date — skip
+                        continue
                     }
+                    const itemTime = parsed
+                    // Skip if older than one week ago
+                    if (itemTime < oneWeekAgo) {
+                        // Feeds may not be sorted; use continue to check remaining items
+                        continue
+                    }
+                    // Skip if in the future
+                    if (itemTime > now) {
+                        continue
+                    }
+                } else {
+                    // No pubDate — skip undated items
+                    continue
                 }
 
                 guides.push({
@@ -488,14 +501,34 @@ export class WeeklyDigestService {
 
         // New guides field — only if there are items
         if (newGuides.length > 0) {
-            const guidesList = newGuides
-                .map((guide) => `[📚 ${guide.title}](${guide.link})`)
-                .join('\n')
-            embed.addFields({
-                name: '📚 Novos guias da semana',
-                value: guidesList,
-                inline: false,
+            const MAX_FIELD_VALUE = 1024
+            const MAX_TITLE_LENGTH = 80
+            const truncatedGuides = newGuides.map((guide) => {
+                const title =
+                    guide.title.length > MAX_TITLE_LENGTH
+                        ? `${guide.title.substring(0, MAX_TITLE_LENGTH)}…`
+                        : guide.title
+                return `[📚 ${title}](${guide.link})`
             })
+
+            // Assemble guide list and enforce field value cap
+            let guidesList = ''
+            for (const guide of truncatedGuides) {
+                const line = `${guidesList ? '\n' : ''}${guide}`
+                if ((guidesList + line).length > MAX_FIELD_VALUE) {
+                    // Stop adding when we exceed limit
+                    break
+                }
+                guidesList = guidesList + line
+            }
+
+            if (guidesList) {
+                embed.addFields({
+                    name: '📚 Novos guias da semana',
+                    value: guidesList,
+                    inline: false,
+                })
+            }
         }
 
         return embed

@@ -578,6 +578,14 @@ describe('WeeklyDigestService', () => {
             }))
             await svc.tick()
             expect(digestChannel.send).toHaveBeenCalled()
+            const sendCall = (digestChannel.send as jest.Mock).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const guidesField = embed.data.fields.find(
+                (f: { name: string }) => f.name === '📚 Novos guias da semana',
+            )
+            expect(guidesField).toBeDefined()
+            expect(guidesField.value).toContain('Guide 1')
+            expect(guidesField.value).toContain('Guide 2')
         })
 
         test('omits guides section when RSS feed has no items', async () => {
@@ -601,6 +609,12 @@ describe('WeeklyDigestService', () => {
             }))
             await svc.tick()
             expect(digestChannel.send).toHaveBeenCalled()
+            const sendCall = (digestChannel.send as jest.Mock).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const guidesField = embed.data.fields.find(
+                (f: { name: string }) => f.name === '📚 Novos guias da semana',
+            )
+            expect(guidesField).toBeUndefined()
         })
 
         test('fails soft when RSS feed fetch throws', async () => {
@@ -632,6 +646,179 @@ describe('WeeklyDigestService', () => {
                     message: 'Failed to fetch RSS feed for guides',
                 }),
             )
+        })
+
+        test('skips RSS item with undated pubDate', async () => {
+            const svc = makeSvc()
+            const guild = makeMockGuild()
+            const forumChannel = makeMockTextChannel(guild)
+            ;(
+                guild.channels!.fetch as jest.MockedFunction<
+                    () => Promise<unknown>
+                >
+            ).mockResolvedValue(forumChannel as unknown as TextChannel)
+            const digestChannel = makeMockTextChannel(guild)
+            const client = {
+                channels: { fetch: jest.fn(async () => digestChannel) },
+            } as unknown as Client
+            setClient(svc, client)
+            const mockParser = jest.requireMock('rss-parser')
+            mockParser.mockImplementation(() => ({
+                parseURL: jest.fn(async () => ({
+                    items: [
+                        {
+                            title: 'Undated Guide',
+                            link: 'https://criativaria.com.br/undated',
+                            // No pubDate
+                        },
+                    ],
+                })),
+            }))
+            await svc.tick()
+            const sendCall = (digestChannel.send as jest.Mock).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const guidesField = embed.data.fields.find(
+                (f: { name: string }) => f.name === '📚 Novos guias da semana',
+            )
+            expect(guidesField).toBeUndefined()
+        })
+
+        test('skips RSS item with future pubDate', async () => {
+            const svc = makeSvc()
+            const guild = makeMockGuild()
+            const forumChannel = makeMockTextChannel(guild)
+            ;(
+                guild.channels!.fetch as jest.MockedFunction<
+                    () => Promise<unknown>
+                >
+            ).mockResolvedValue(forumChannel as unknown as TextChannel)
+            const digestChannel = makeMockTextChannel(guild)
+            const client = {
+                channels: { fetch: jest.fn(async () => digestChannel) },
+            } as unknown as Client
+            setClient(svc, client)
+            const mockParser = jest.requireMock('rss-parser')
+            mockParser.mockImplementation(() => ({
+                parseURL: jest.fn(async () => ({
+                    items: [
+                        {
+                            title: 'Future Guide',
+                            link: 'https://criativaria.com.br/future',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC + 2 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                    ],
+                })),
+            }))
+            await svc.tick()
+            const sendCall = (digestChannel.send as jest.Mock).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const guidesField = embed.data.fields.find(
+                (f: { name: string }) => f.name === '📚 Novos guias da semana',
+            )
+            expect(guidesField).toBeUndefined()
+        })
+
+        test('includes newer in-window item from unsorted feed (older first, newer later)', async () => {
+            const svc = makeSvc()
+            const guild = makeMockGuild()
+            const forumChannel = makeMockTextChannel(guild)
+            ;(
+                guild.channels!.fetch as jest.MockedFunction<
+                    () => Promise<unknown>
+                >
+            ).mockResolvedValue(forumChannel as unknown as TextChannel)
+            const digestChannel = makeMockTextChannel(guild)
+            const client = {
+                channels: { fetch: jest.fn(async () => digestChannel) },
+            } as unknown as Client
+            setClient(svc, client)
+            const mockParser = jest.requireMock('rss-parser')
+            mockParser.mockImplementation(() => ({
+                parseURL: jest.fn(async () => ({
+                    items: [
+                        {
+                            title: 'Old Guide',
+                            link: 'https://criativaria.com.br/old',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC - 8 * 24 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                        {
+                            title: 'New In-Window Guide',
+                            link: 'https://criativaria.com.br/new',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC - 1 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                    ],
+                })),
+            }))
+            await svc.tick()
+            const sendCall = (digestChannel.send as jest.Mock).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const guidesField = embed.data.fields.find(
+                (f: { name: string }) => f.name === '📚 Novos guias da semana',
+            )
+            expect(guidesField).toBeDefined()
+            expect(guidesField.value).toContain('New In-Window Guide')
+            expect(guidesField.value).not.toContain('Old Guide')
+        })
+
+        test('truncates long titles and enforces field value cap at 1024 chars', async () => {
+            const svc = makeSvc()
+            const guild = makeMockGuild()
+            const forumChannel = makeMockTextChannel(guild)
+            ;(
+                guild.channels!.fetch as jest.MockedFunction<
+                    () => Promise<unknown>
+                >
+            ).mockResolvedValue(forumChannel as unknown as TextChannel)
+            const digestChannel = makeMockTextChannel(guild)
+            const client = {
+                channels: { fetch: jest.fn(async () => digestChannel) },
+            } as unknown as Client
+            setClient(svc, client)
+            const mockParser = jest.requireMock('rss-parser')
+            const veryLongTitle = 'A'.repeat(150)
+            mockParser.mockImplementation(() => ({
+                parseURL: jest.fn(async () => ({
+                    items: [
+                        {
+                            title: veryLongTitle,
+                            link: 'https://criativaria.com.br/long-1',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC - 1 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                        {
+                            title: veryLongTitle,
+                            link: 'https://criativaria.com.br/long-2',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC - 2 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                        {
+                            title: veryLongTitle,
+                            link: 'https://criativaria.com.br/long-3',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC - 3 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                    ],
+                })),
+            }))
+            await svc.tick()
+            const sendCall = (digestChannel.send as jest.Mock).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const guidesField = embed.data.fields.find(
+                (f: { name: string }) => f.name === '📚 Novos guias da semana',
+            )
+            expect(guidesField).toBeDefined()
+            expect(guidesField.value.length).toBeLessThanOrEqual(1024)
+            // Title should be truncated (contain ellipsis)
+            expect(guidesField.value).toContain('…')
         })
     })
 })
