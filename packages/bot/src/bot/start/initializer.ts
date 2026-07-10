@@ -3,8 +3,8 @@ import {
     createClient,
     startClient,
     stopPresenceRotation,
-} from '../../handlers/clientHandler'
-import { createPlayer } from '../../handlers/playerHandler'
+} from '../../handlers/clientHandler/service'
+import { createPlayerWithHandlers } from '../../handlers/player'
 import { setCommands, setContextMenus } from '../../handlers/commandsHandler'
 import { getCommands, getContextMenus } from '../../register'
 import handleEvents from '../../handlers/eventHandler'
@@ -80,7 +80,7 @@ export class BotInitializer {
         options: BotInitializationOptions,
     ): Promise<void> {
         if (options.skipPlayer !== true && this.client) {
-            const player = await createPlayer({ client: this.client })
+            const player = await createPlayerWithHandlers({ client: this.client })
             this.client.player = player
             musicWatchdogService.startOrphanSessionMonitor(player)
         }
