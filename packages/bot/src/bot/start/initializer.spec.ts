@@ -40,14 +40,16 @@ jest.mock('@lucky/shared/utils', () => ({
     warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
-jest.mock('../../handlers/clientHandler', () => ({
+jest.mock('../../handlers/clientHandler/service', () => ({
     createClient: (...args: unknown[]) => createClientMock(...args),
     startClient: (...args: unknown[]) => startClientMock(...args),
     stopPresenceRotation: jest.fn(),
 }))
 
-jest.mock('../../handlers/playerHandler', () => ({
-    createPlayer: (...args: unknown[]) => createPlayerMock(...args),
+jest.mock('../../handlers/player', () => ({
+    createPlayerWithHandlers: (...args: unknown[]) => createPlayerMock(...args),
+    lastPlayedTracks: new Map(),
+    recentlyPlayedTracks: [],
 }))
 
 jest.mock('../../handlers/commandsHandler', () => ({

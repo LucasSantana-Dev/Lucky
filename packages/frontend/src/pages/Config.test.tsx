@@ -16,9 +16,6 @@ vi.mock('@/components/Config/CommandsConfig', () => ({
 vi.mock('@/components/Config/ModerationConfig', () => ({
     default: () => <div>ModerationConfig</div>,
 }))
-vi.mock('@/components/ui/LoadingSpinner', () => ({
-    default: () => <div>Loading...</div>,
-}))
 
 const mockGuild = { id: '123', name: 'Test Guild' }
 
