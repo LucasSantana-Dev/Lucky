@@ -142,5 +142,8 @@
         "esbuild": "0.28.1",
         "qs": "^6.15.2",
         "@opentelemetry/core": "^2.8.0"
+    },
+    "allowScripts": {
+        "@discordjs/opus@0.10.0": true
     }
 }
