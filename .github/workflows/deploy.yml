@@ -370,9 +370,17 @@ jobs:
                     echo "==> No Docker rebuild — checking for homelab-deploy commit status (SHA: $expected)..."
 
                     status_was_seen=false
-                    for attempt in $(seq 1 20); do
-                      echo "Attempt ${attempt}/20..."
-                      deploy_state=$(gh api \
+                    # Use wall-clock deadline instead of attempt counts to ensure
+                    # exactly 10 minutes of total polling time regardless of response latency.
+                    deadline=$(($(date +%s) + 600))
+                    attempt=0
+
+                    while [ "$(date +%s)" -lt "$deadline" ]; do
+                      attempt=$((attempt + 1))
+                      now=$(date +%s)
+                      remaining=$((deadline - now))
+                      echo "Attempt ${attempt} (${remaining}s remaining)..."
+                      deploy_state=$(timeout "$((remaining < 20 ? (remaining > 0 ? remaining : 1) : 20))" gh api \
                         "repos/${{ github.repository }}/commits/${expected}/statuses" \
                         --jq '[.[] | select(.context == "homelab-deploy")] | first | .state // ""' \
                         2>/dev/null || echo "")
@@ -390,23 +398,36 @@ jobs:
 
                       if [ "$status_was_seen" = "false" ] && [ "$attempt" -eq 6 ]; then
                         echo "::notice::No homelab-deploy status after ~90s — GITHUB_DEPLOY_STATUS_TOKEN not configured on homelab. Falling back to HTTP health check."
-                        for http_attempt in $(seq 1 20); do
-                          echo "HTTP attempt ${http_attempt}/20..."
-                          response=$(curl -sS --max-time 20 -w "\n%{http_code}" "$health_url" || true)
+                        http_attempt=0
+
+                        while [ "$(date +%s)" -lt "$deadline" ]; do
+                          http_attempt=$((http_attempt + 1))
+                          now=$(date +%s)
+                          remaining=$((deadline - now))
+                          echo "HTTP attempt ${http_attempt} (${remaining}s remaining)..."
+                          response=$(curl -sS --max-time "$((remaining < 20 ? (remaining > 0 ? remaining : 1) : 20))" -w "\n%{http_code}" "$health_url" || true)
                           http_code=$(echo "$response" | tail -1)
                           if [ "$http_code" = "200" ]; then
                             echo "==> Service healthy. Done."
                             exit 0
                           fi
-                          echo "Not ready (HTTP $http_code). Waiting 15s..."
-                          sleep 15
+                          now=$(date +%s)
+                          remaining=$((deadline - now))
+                          [ "$remaining" -le 0 ] && break
+                          sleep_for=$((remaining < 15 ? remaining : 15))
+                          echo "Not ready (HTTP $http_code). Waiting ${sleep_for}s..."
+                          sleep "$sleep_for"
                         done
-                        echo "::error::Service did not become healthy after all attempts"
+                        echo "::error::Service did not become healthy before deadline"
                         exit 1
                       fi
 
-                      echo "Deploy status: ${deploy_state:-none}. Waiting 15s..."
-                      sleep 15
+                      now=$(date +%s)
+                      remaining=$((deadline - now))
+                      [ "$remaining" -le 0 ] && break
+                      sleep_for=$((remaining < 15 ? remaining : 15))
+                      echo "Deploy status: ${deploy_state:-none}. Waiting ${sleep_for}s..."
+                      sleep "$sleep_for"
                     done
 
                     echo "::error::Deploy validation timed out"
@@ -416,9 +437,15 @@ jobs:
                   version_url="${base_url}/api/health/version"
                   echo "==> Validating deployed SHA at $version_url (expected: $expected)..."
 
-                  for attempt in $(seq 1 20); do
-                    echo "Attempt ${attempt}/20..."
-                    response=$(curl -sS --max-time 20 -w "\n%{http_code}" "$version_url" || true)
+                  deadline=$(($(date +%s) + 600))
+                  attempt=0
+
+                  while [ "$(date +%s)" -lt "$deadline" ]; do
+                    attempt=$((attempt + 1))
+                    now=$(date +%s)
+                    remaining=$((deadline - now))
+                    echo "Attempt ${attempt} (${remaining}s remaining)..."
+                    response=$(curl -sS --max-time "$((remaining < 20 ? (remaining > 0 ? remaining : 1) : 20))" -w "\n%{http_code}" "$version_url" || true)
                     http_code=$(echo "$response" | tail -1)
                     body=$(echo "$response" | sed '$d')
 
@@ -433,14 +460,19 @@ jobs:
                         echo "==> Deployed SHA matches: $actual"
                         exit 0
                       fi
-                      echo "SHA mismatch (expected=$expected, actual=$actual). Waiting 15s..."
+                      echo "SHA mismatch (expected=$expected, actual=$actual)."
                     else
-                      echo "Not ready (HTTP $http_code). Waiting 15s..."
+                      echo "Not ready (HTTP $http_code)."
                     fi
-                    sleep 15
+                    now=$(date +%s)
+                    remaining=$((deadline - now))
+                    [ "$remaining" -le 0 ] && break
+                    sleep_for=$((remaining < 15 ? remaining : 15))
+                    echo "Waiting ${sleep_for}s..."
+                    sleep "$sleep_for"
                   done
 
-                  echo "::error::Deployed version SHA did not match expected after all attempts"
+                  echo "::error::Deployed version SHA did not match expected before deadline"
                   exit 1
 
             - name: Sentry release — finalize
