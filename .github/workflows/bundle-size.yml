@@ -33,6 +33,20 @@ jobs:
                   node-version: '22'
                   cache: 'npm'
 
+            # preactjs/compressed-size-action@v3 picks its package manager from
+            # lockfile presence — this repo has both package-lock.json (canonical,
+            # used by npm ci/Docker) and a root pnpm-lock.yaml (CONTRIBUTING.md's
+            # documented alt dev workflow), so it always invokes `pnpm run
+            # <build-script>` regardless of the `install-script` input above.
+            # pnpm-workspace.yaml previously had no `packages:` field, which pnpm
+            # requires even for a non-recursive `pnpm run` at the workspace root —
+            # see the packages: field added there.
+            - name: Setup pnpm
+              uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6
+              with:
+                  version: 9
+                  run_install: false
+
             - name: Compressed Size Diff
               uses: preactjs/compressed-size-action@66325aad6443cb7cf89c4bfcd414aea2367cda94 # v3
               with:
