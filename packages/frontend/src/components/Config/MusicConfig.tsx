@@ -1,5 +1,5 @@
 import { reportError } from '@/lib/sentry'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod/v3'
@@ -36,6 +36,7 @@ interface MusicConfigProps {
 export default function MusicConfig({ guildId }: MusicConfigProps) {
     const [isLoading, setIsLoading] = useState(false)
     const { selectedGuild } = useGuildSelection()
+    const isMounted = useRef(true)
 
     const form = useForm<MusicConfigValues>({
         resolver: zodResolver(musicConfigSchema),
@@ -48,13 +49,19 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
     })
 
     useEffect(() => {
+        return () => {
+            isMounted.current = false
+        }
+    }, [])
+
+    useEffect(() => {
         if (guildId) loadSettings()
     }, [guildId])
 
     const loadSettings = async () => {
         try {
             const response = await api.modules.getSettings(guildId, 'music')
-            if (response.data.settings) {
+            if (isMounted.current && response.data.settings) {
                 form.reset({
                     volume: (response.data.settings.volume as number) ?? 50,
                     autoplay:
@@ -80,15 +87,21 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
         setIsLoading(true)
         try {
             await api.modules.updateSettings(guildId, 'music', data)
-            toast.success('Music configuration saved successfully!')
+            if (isMounted.current) {
+                toast.success('Music configuration saved successfully!')
+            }
         } catch (error) {
-            toast.error('Failed to save music configuration')
+            if (isMounted.current) {
+                toast.error('Failed to save music configuration')
+            }
             reportError('Error saving music config:', error, {
                 component: 'MusicConfig',
                 action: 'save',
             })
         } finally {
-            setIsLoading(false)
+            if (isMounted.current) {
+                setIsLoading(false)
+            }
         }
     }
 
