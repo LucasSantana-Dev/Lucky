@@ -62,9 +62,32 @@ async function backoffFetch(
                 attempt < maxAttempts - 1
             ) {
                 const retryAfter = res.headers.get('Retry-After')
-                const delayMs = retryAfter
-                    ? Math.min(parseInt(retryAfter, 10) * 1000, 30000)
-                    : Math.min(1000 * Math.pow(2, attempt) + jitterMs(), 30000)
+                let delayMs: number
+                if (retryAfter) {
+                    // Try parsing as integer seconds first
+                    const seconds = parseInt(retryAfter, 10)
+                    if (!isNaN(seconds) && seconds > 0) {
+                        delayMs = Math.min(seconds * 1000, 30000)
+                    } else {
+                        // Try parsing as HTTP-date (e.g., "Wed, 21 Oct 2026 07:28:00 GMT")
+                        const dateMs = Date.parse(retryAfter)
+                        const waitMs = dateMs - Date.now()
+                        if (!isNaN(dateMs) && waitMs > 0) {
+                            delayMs = Math.min(waitMs, 30000)
+                        } else {
+                            // Fall back to exponential+jitter
+                            delayMs = Math.min(
+                                1000 * Math.pow(2, attempt) + jitterMs(),
+                                30000,
+                            )
+                        }
+                    }
+                } else {
+                    delayMs = Math.min(
+                        1000 * Math.pow(2, attempt) + jitterMs(),
+                        30000,
+                    )
+                }
                 await new Promise((resolve) => setTimeout(resolve, delayMs))
                 continue
             }
@@ -112,23 +135,34 @@ export class CriativariaLiveNotificationService {
     start(client: Client): void {
         const channelId = process.env.CRIATIVARIA_LIVES_CHANNEL_ID
         const userLogin = process.env.CRIATIVARIA_TWITCH_USER_LOGIN
-        if (!channelId || !userLogin) {
+        const youtubeApiKey = process.env.YOUTUBE_API_KEY
+        const youtubeChannelId = process.env.YOUTUBE_CHANNEL_ID
+
+        // Check if we can post anywhere: need Discord channel for both
+        if (!channelId) {
             infoLog({
-                message: 'CriativariaLiveNotification: env not set, skipping',
+                message:
+                    'CriativariaLiveNotification: CRIATIVARIA_LIVES_CHANNEL_ID not set, skipping all',
             })
             return
         }
 
-        // Start Twitch polling (5 min interval)
-        void this.twitchTick(client)
-        this.twitchIntervalHandle = setInterval(
-            () => void this.twitchTick(client),
-            this.twitchPollIntervalMs,
-        )
+        // Start Twitch polling if Twitch login is configured
+        if (userLogin) {
+            void this.twitchTick(client)
+            this.twitchIntervalHandle = setInterval(
+                () => void this.twitchTick(client),
+                this.twitchPollIntervalMs,
+            )
+        } else {
+            infoLog({
+                message:
+                    'CriativariaLiveNotification: CRIATIVARIA_TWITCH_USER_LOGIN not set, Twitch polling disabled',
+            })
+        }
 
-        // Start YouTube polling (10 min interval) if key is present
-        const youtubeApiKey = process.env.YOUTUBE_API_KEY
-        if (youtubeApiKey) {
+        // Start YouTube polling if YouTube credentials are configured
+        if (youtubeApiKey && youtubeChannelId) {
             void this.youtubeTick(client)
             this.youtubeIntervalHandle = setInterval(
                 () => void this.youtubeTick(client),
@@ -137,7 +171,7 @@ export class CriativariaLiveNotificationService {
         } else {
             infoLog({
                 message:
-                    'CriativariaLiveNotification: YOUTUBE_API_KEY not set, YouTube polling disabled',
+                    'CriativariaLiveNotification: YouTube credentials not set, YouTube polling disabled',
             })
         }
     }
@@ -375,6 +409,7 @@ export class CriativariaLiveNotificationService {
      * Single search.list call (channelId + eventType=live) = 100 quota units.
      * At the 30-min interval: 48 checks/day × 100 = 4.8k units/day, inside the
      * 10k/day free quota with headroom for retries.
+     * Interval: 30 min (not 10 min; 10 min would burn 14.4k units/day, exceeding quota).
      */
     async fetchYoutubeLiveBroadcast(
         channelId: string,

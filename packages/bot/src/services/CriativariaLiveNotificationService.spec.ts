@@ -299,101 +299,115 @@ describe('CriativariaLiveNotificationService', () => {
     })
 
     describe('backoff & rate-limit safety (GAP 4)', () => {
+        afterEach(() => {
+            jest.restoreAllMocks()
+        })
+
         test('should retry on 429 (rate limit)', async () => {
             let attempts = 0
-            global.fetch = jest.fn(async () => {
-                attempts++
-                if (attempts === 1) return { status: 429, headers: new Map() }
-                return {
-                    status: 200,
-                    ok: true,
-                    json: async () => ({
-                        data: [
-                            {
-                                id: 'stream-1',
-                                user_login: 'criativaria',
-                                title: 'Live',
-                                viewer_count: 100,
-                                game_name: 'Creative',
-                                thumbnail_url:
-                                    'https://example.com/{width}x{height}.jpg',
-                                started_at: new Date().toISOString(),
-                            },
-                        ],
-                    }),
-                }
-            }) as any
+            const fetchSpy = jest
+                .spyOn(globalThis, 'fetch' as any)
+                .mockImplementation(async () => {
+                    attempts++
+                    if (attempts === 1)
+                        return { status: 429, headers: { get: () => null } }
+                    return {
+                        status: 200,
+                        ok: true,
+                        json: async () => ({
+                            data: [
+                                {
+                                    id: 'stream-1',
+                                    user_login: 'criativaria',
+                                    title: 'Live',
+                                    viewer_count: 100,
+                                    game_name: 'Creative',
+                                    thumbnail_url:
+                                        'https://example.com/{width}x{height}.jpg',
+                                    started_at: new Date().toISOString(),
+                                },
+                            ],
+                        }),
+                    }
+                })
 
             mockGetToken.mockResolvedValue('test-token')
             const stream = await service.fetchStream('criativaria')
 
             expect(attempts).toBeGreaterThan(1)
             expect(stream).not.toBeNull()
+            fetchSpy.mockRestore()
         })
 
         test('should retry on 5xx with backoff', async () => {
             let attempts = 0
-            global.fetch = jest.fn(async () => {
-                attempts++
-                if (attempts <= 2) return { status: 503 }
-                return {
-                    status: 200,
-                    ok: true,
-                    json: async () => ({
-                        data: [
-                            {
-                                id: 'stream-1',
-                                user_login: 'criativaria',
-                                title: 'Live',
-                                viewer_count: 100,
-                                game_name: 'Creative',
-                                thumbnail_url:
-                                    'https://example.com/{width}x{height}.jpg',
-                                started_at: new Date().toISOString(),
-                            },
-                        ],
-                    }),
-                }
-            }) as any
+            const fetchSpy = jest
+                .spyOn(globalThis, 'fetch' as any)
+                .mockImplementation(async () => {
+                    attempts++
+                    if (attempts <= 2)
+                        return { status: 503, headers: { get: () => null } }
+                    return {
+                        status: 200,
+                        ok: true,
+                        json: async () => ({
+                            data: [
+                                {
+                                    id: 'stream-1',
+                                    user_login: 'criativaria',
+                                    title: 'Live',
+                                    viewer_count: 100,
+                                    game_name: 'Creative',
+                                    thumbnail_url:
+                                        'https://example.com/{width}x{height}.jpg',
+                                    started_at: new Date().toISOString(),
+                                },
+                            ],
+                        }),
+                    }
+                })
 
             mockGetToken.mockResolvedValue('test-token')
             const stream = await service.fetchStream('criativaria')
 
             expect(attempts).toBe(3)
             expect(stream).not.toBeNull()
+            fetchSpy.mockRestore()
         })
 
-        test('should respect Retry-After header', async () => {
+        test('should respect Retry-After header (integer seconds)', async () => {
             const startTime = Date.now()
             let attempts = 0
 
-            global.fetch = jest.fn(async () => {
-                attempts++
-                if (attempts === 1) {
-                    return {
-                        status: 429,
-                        headers: new Map([['Retry-After', '1']]),
+            const fetchSpy = jest
+                .spyOn(globalThis, 'fetch' as any)
+                .mockImplementation(async () => {
+                    attempts++
+                    if (attempts === 1) {
+                        return {
+                            status: 429,
+                            headers: { get: () => '1' },
+                        }
                     }
-                }
-                return {
-                    status: 200,
-                    ok: true,
-                    json: async () => ({
-                        data: [
-                            {
-                                id: 'stream-1',
-                                user_login: 'criativaria',
-                                title: 'Live',
-                                viewer_count: 100,
-                                game_name: 'Creative',
-                                thumbnail_url:
-                                    'https://example.com/{width}x{height}.jpg',
-                                started_at: new Date().toISOString(),
-                            },
-                        ],
-                    }),
-                }
-            }) as any
+                    return {
+                        status: 200,
+                        ok: true,
+                        json: async () => ({
+                            data: [
+                                {
+                                    id: 'stream-1',
+                                    user_login: 'criativaria',
+                                    title: 'Live',
+                                    viewer_count: 100,
+                                    game_name: 'Creative',
+                                    thumbnail_url:
+                                        'https://example.com/{width}x{height}.jpg',
+                                    started_at: new Date().toISOString(),
+                                },
+                            ],
+                        }),
+                    }
+                })
 
             mockGetToken.mockResolvedValue('test-token')
             const stream = await service.fetchStream('criativaria')
@@ -401,9 +415,128 @@ describe('CriativariaLiveNotificationService', () => {
             const elapsed = Date.now() - startTime
             expect(elapsed).toBeGreaterThanOrEqual(900) // ~1s delay
             expect(stream).not.toBeNull()
+            fetchSpy.mockRestore()
+        })
+
+        test('should parse Retry-After as HTTP-date (~2s delay)', async () => {
+            const startTime = Date.now()
+            let attempts = 0
+
+            const fetchSpy = jest
+                .spyOn(globalThis, 'fetch' as any)
+                .mockImplementation(async () => {
+                    attempts++
+                    if (attempts === 1) {
+                        // HTTP-date format: "Wed, 21 Oct 2026 07:28:00 GMT"
+                        const futureDate = new Date(Date.now() + 2000)
+                        return {
+                            status: 429,
+                            headers: {
+                                get: () => futureDate.toUTCString(),
+                            },
+                        }
+                    }
+                    return {
+                        status: 200,
+                        ok: true,
+                        json: async () => ({
+                            data: [
+                                {
+                                    id: 'stream-1',
+                                    user_login: 'criativaria',
+                                    title: 'Live',
+                                    viewer_count: 100,
+                                    game_name: 'Creative',
+                                    thumbnail_url:
+                                        'https://example.com/{width}x{height}.jpg',
+                                    started_at: new Date().toISOString(),
+                                },
+                            ],
+                        }),
+                    }
+                })
+
+            mockGetToken.mockResolvedValue('test-token')
+            const stream = await service.fetchStream('criativaria')
+
+            const elapsed = Date.now() - startTime
+            expect(elapsed).toBeGreaterThanOrEqual(1900) // ~2s delay
+            expect(stream).not.toBeNull()
+            fetchSpy.mockRestore()
+        })
+
+        test('should fall back to exponential backoff for garbage Retry-After', async () => {
+            let attempts = 0
+
+            const fetchSpy = jest
+                .spyOn(globalThis, 'fetch' as any)
+                .mockImplementation(async () => {
+                    attempts++
+                    if (attempts === 1) {
+                        return {
+                            status: 429,
+                            headers: { get: () => 'not-a-date-or-number' },
+                        }
+                    }
+                    return {
+                        status: 200,
+                        ok: true,
+                        json: async () => ({
+                            data: [
+                                {
+                                    id: 'stream-1',
+                                    user_login: 'criativaria',
+                                    title: 'Live',
+                                    viewer_count: 100,
+                                    game_name: 'Creative',
+                                    thumbnail_url:
+                                        'https://example.com/{width}x{height}.jpg',
+                                    started_at: new Date().toISOString(),
+                                },
+                            ],
+                        }),
+                    }
+                })
+
+            mockGetToken.mockResolvedValue('test-token')
+            const stream = await service.fetchStream('criativaria')
+
+            expect(attempts).toBeGreaterThan(1)
+            expect(stream).not.toBeNull()
+            fetchSpy.mockRestore()
+        })
+
+        test('fetchYoutubeLiveBroadcast returns null for empty items array', async () => {
+            jest.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+                ok: true,
+                status: 200,
+                headers: { get: () => null },
+                json: async () => ({
+                    items: [],
+                }),
+            } as unknown as Response)
+            const video = await service.fetchYoutubeLiveBroadcast('UCabc', 'key')
+            expect(video).toBeNull()
+        })
+
+        test('should start YouTube interval without Twitch env when YouTube env present', () => {
+            delete process.env.CRIATIVARIA_TWITCH_USER_LOGIN
+            process.env.YOUTUBE_API_KEY = 'yt-key'
+            process.env.YOUTUBE_CHANNEL_ID = 'UCxxx'
+            const service2 = new CriativariaLiveNotificationService(
+                () => Date.now(),
+                50,
+                50,
+            )
+            service2.start(mockClient as Client)
+
+            expect((service2 as any).twitchIntervalHandle).toBeNull()
+            expect((service2 as any).youtubeIntervalHandle).not.toBeNull()
+            service2.stop()
         })
     })
 
+    describe('existing tests
     describe('existing tests (Twitch baseline)', () => {
         test('should not start when env vars are missing', async () => {
             delete process.env.CRIATIVARIA_LIVES_CHANNEL_ID
