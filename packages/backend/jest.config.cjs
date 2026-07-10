@@ -38,8 +38,11 @@ module.exports = {
   resolver: '<rootDir>/jest-resolver.cjs',
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 30000,
-  // Limit parallelism for stability with large test suite
-  maxWorkers: '50%',
+  // ponytail: conservative maxWorkers to reduce concurrent database connections during
+  // parallel test execution. ECONNRESET failures observed during full suite runs suggest
+  // connection pool pressure under high parallelism. Reduced from '50%' to '25%' as baseline;
+  // further reduction to specific number (2-4) if flakiness persists.
+  maxWorkers: '25%',
   moduleNameMapper: {
     '^@lucky/shared$': '<rootDir>/../shared/src/index',
     '^@lucky/shared/services$': '<rootDir>/../shared/src/services/index',
