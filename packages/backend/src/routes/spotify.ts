@@ -25,6 +25,9 @@ const spotifyCallbackQuery = z.object({
     state: z.string().min(1).optional(),
 })
 
+// Schema for validating the state value extracted from cookies
+const stateCookieSchema = z.string().min(1, 'State cookie must be non-empty')
+
 function getLinkSecret(): string {
     const secret =
         process.env.SPOTIFY_LINK_SECRET || process.env.WEBAPP_SESSION_SECRET
@@ -196,8 +199,7 @@ export function setupSpotifyRoutes(app: Express): void {
         apiLimiter,
         asyncHandler(async (req: Request, res: Response) => {
             const frontendUrl = getFrontendUrl()
-            const cookies = req.cookies as Record<string, unknown> | undefined
-            const stateFromCookie = cookies?.[SPOTIFY_STATE_COOKIE]
+            // Validate query parameters
             const parsedQuery = spotifyCallbackQuery.safeParse(req.query)
             res.clearCookie(SPOTIFY_STATE_COOKIE, { path: '/' })
 
@@ -207,11 +209,17 @@ export function setupSpotifyRoutes(app: Express): void {
                 )
             }
 
+            // Extract and validate state from query or cookies
+            const stateFromQuery = parsedQuery.data.state
+            const stateFromCookieRaw: unknown =
+                req.cookies?.[SPOTIFY_STATE_COOKIE]
+            const stateFromCookieValidated = stateCookieSchema.safeParse(stateFromCookieRaw)
+
             const state =
-                typeof parsedQuery.data.state === 'string'
-                    ? parsedQuery.data.state
-                    : typeof stateFromCookie === 'string'
-                      ? stateFromCookie
+                typeof stateFromQuery === 'string'
+                    ? stateFromQuery
+                    : stateFromCookieValidated.success
+                      ? stateFromCookieValidated.data
                       : null
 
             if (!state) {
