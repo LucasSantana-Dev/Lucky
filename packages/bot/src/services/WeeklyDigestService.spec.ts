@@ -9,6 +9,13 @@ import {
 import { ChannelType } from 'discord.js'
 import type { Client, TextChannel, Guild, Collection } from 'discord.js'
 
+// Mock rss-parser before importing WeeklyDigestService
+jest.mock('rss-parser', () => {
+    return jest.fn().mockImplementation(() => ({
+        parseURL: jest.fn(),
+    }))
+})
+
 jest.mock('@lucky/shared/utils', () => ({
     getPrismaClient: jest.fn(),
     debugLog: jest.fn(),
@@ -75,12 +82,12 @@ function makeMockTextChannel(
     }
 }
 
-// Monday 2026-06-22 at 12:15 UTC
+// Sunday 2026-06-21 at 12:15 UTC
+const SUNDAY_12_UTC = new Date('2026-06-21T12:15:00.000Z').getTime()
+// Monday 2026-06-22 at 12:15 UTC — should NOT trigger (no longer)
 const MONDAY_12_UTC = new Date('2026-06-22T12:15:00.000Z').getTime()
-// Tuesday — should NOT trigger
-const TUESDAY_12_UTC = new Date('2026-06-23T12:15:00.000Z').getTime()
-// Monday at 13:00 UTC — wrong hour
-const MONDAY_13_UTC = new Date('2026-06-22T13:00:00.000Z').getTime()
+// Sunday at 13:00 UTC — wrong hour
+const SUNDAY_13_UTC = new Date('2026-06-21T13:00:00.000Z').getTime()
 
 /** Set the private client field directly to avoid start() side effects */
 function setClient(svc: WeeklyDigestService, client: Client | null): void {
@@ -194,8 +201,8 @@ describe('WeeklyDigestService', () => {
     })
 
     describe('tick — timing guards', () => {
-        test('returns early when not Monday', async () => {
-            const svc = new WeeklyDigestService({ clock: () => TUESDAY_12_UTC })
+        test('returns early when not Sunday', async () => {
+            const svc = new WeeklyDigestService({ clock: () => MONDAY_12_UTC })
             const client = {
                 channels: { fetch: jest.fn() },
             } as unknown as Client
@@ -207,7 +214,7 @@ describe('WeeklyDigestService', () => {
         })
 
         test('returns early when hour is not 12', async () => {
-            const svc = new WeeklyDigestService({ clock: () => MONDAY_13_UTC })
+            const svc = new WeeklyDigestService({ clock: () => SUNDAY_13_UTC })
             const client = {
                 channels: { fetch: jest.fn() },
             } as unknown as Client
@@ -227,7 +234,7 @@ describe('WeeklyDigestService', () => {
         })
 
         test('skips re-entrant tick (tickInProgress guard)', async () => {
-            const svc = new WeeklyDigestService({ clock: () => MONDAY_12_UTC })
+            const svc = new WeeklyDigestService({ clock: () => SUNDAY_12_UTC })
             const client = {
                 channels: { fetch: jest.fn(async () => null) },
             } as unknown as Client
@@ -238,7 +245,7 @@ describe('WeeklyDigestService', () => {
         })
 
         test('skips if digest was sent within last 30 minutes', async () => {
-            const now = MONDAY_12_UTC
+            const now = SUNDAY_12_UTC
             const svc = new WeeklyDigestService({ clock: () => now })
             const client = {
                 channels: { fetch: jest.fn(async () => null) },
@@ -254,9 +261,9 @@ describe('WeeklyDigestService', () => {
         })
     })
 
-    describe('sendDigestForGuild — via tick on Monday 12 UTC', () => {
+    describe('sendDigestForGuild — via tick on Sunday 12 UTC', () => {
         function makeSvc() {
-            return new WeeklyDigestService({ clock: () => MONDAY_12_UTC })
+            return new WeeklyDigestService({ clock: () => SUNDAY_12_UTC })
         }
 
         test('skips when digest channel fetch returns null', async () => {
@@ -332,7 +339,7 @@ describe('WeeklyDigestService', () => {
                 // Anchor to the mocked clock, one week back — a real `new
                 // Date()` here becomes an idempotency skip (and a failing
                 // test) as soon as the wall clock leaves the mocked week
-                postedAt: new Date(MONDAY_12_UTC - 7 * 24 * 60 * 60 * 1000),
+                postedAt: new Date(SUNDAY_12_UTC - 7 * 24 * 60 * 60 * 1000),
             })
             const svc = makeSvc()
             const guild = makeMockGuild()
@@ -531,6 +538,294 @@ describe('WeeklyDigestService', () => {
             await svc.tick()
             // digest still sent (events = [])
             expect(digestChannel.send).toHaveBeenCalled()
+        })
+
+        test('includes new guides from RSS feed in embed', async () => {
+            const svc = makeSvc()
+            const guild = makeMockGuild()
+            const forumChannel = makeMockTextChannel(guild)
+            ;(
+                guild.channels!.fetch as jest.MockedFunction<
+                    () => Promise<unknown>
+                >
+            ).mockResolvedValue(forumChannel as unknown as TextChannel)
+            const digestChannel = makeMockTextChannel(guild)
+            const client = {
+                channels: { fetch: jest.fn(async () => digestChannel) },
+            } as unknown as Client
+            setClient(svc, client)
+            // Mock successful RSS feed with items
+            const mockParser = jest.requireMock('rss-parser')
+            mockParser.mockImplementation(() => ({
+                parseURL: jest.fn(async () => ({
+                    items: [
+                        {
+                            title: 'Guide 1',
+                            link: 'https://criativaria.com.br/guide-1',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC - 1 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                        {
+                            title: 'Guide 2',
+                            link: 'https://criativaria.com.br/guide-2',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC - 2 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                    ],
+                })),
+            }))
+            await svc.tick()
+            expect(digestChannel.send).toHaveBeenCalled()
+            const sendCall = (digestChannel.send as jest.Mock).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const guidesField = embed.data.fields.find(
+                (f: { name: string }) => f.name === '📚 Novos guias da semana',
+            )
+            expect(guidesField).toBeDefined()
+            expect(guidesField.value).toContain('Guide 1')
+            expect(guidesField.value).toContain('Guide 2')
+        })
+
+        test('omits guides section when RSS feed has no items', async () => {
+            const svc = makeSvc()
+            const guild = makeMockGuild()
+            const forumChannel = makeMockTextChannel(guild)
+            ;(
+                guild.channels!.fetch as jest.MockedFunction<
+                    () => Promise<unknown>
+                >
+            ).mockResolvedValue(forumChannel as unknown as TextChannel)
+            const digestChannel = makeMockTextChannel(guild)
+            const client = {
+                channels: { fetch: jest.fn(async () => digestChannel) },
+            } as unknown as Client
+            setClient(svc, client)
+            // Mock RSS feed with zero items
+            const mockParser = jest.requireMock('rss-parser')
+            mockParser.mockImplementation(() => ({
+                parseURL: jest.fn(async () => ({ items: [] })),
+            }))
+            await svc.tick()
+            expect(digestChannel.send).toHaveBeenCalled()
+            const sendCall = (digestChannel.send as jest.Mock).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const guidesField = embed.data.fields.find(
+                (f: { name: string }) => f.name === '📚 Novos guias da semana',
+            )
+            expect(guidesField).toBeUndefined()
+        })
+
+        test('fails soft when RSS feed fetch throws', async () => {
+            const svc = makeSvc()
+            const guild = makeMockGuild()
+            const forumChannel = makeMockTextChannel(guild)
+            ;(
+                guild.channels!.fetch as jest.MockedFunction<
+                    () => Promise<unknown>
+                >
+            ).mockResolvedValue(forumChannel as unknown as TextChannel)
+            const digestChannel = makeMockTextChannel(guild)
+            const client = {
+                channels: { fetch: jest.fn(async () => digestChannel) },
+            } as unknown as Client
+            setClient(svc, client)
+            // Mock RSS feed fetch failure
+            const mockParser = jest.requireMock('rss-parser')
+            mockParser.mockImplementation(() => ({
+                parseURL: jest.fn(async () => {
+                    throw new Error('Feed unavailable')
+                }),
+            }))
+            await svc.tick()
+            // digest still sent without guides section (fail-soft)
+            expect(digestChannel.send).toHaveBeenCalled()
+            expect(errorLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Failed to fetch RSS feed for guides',
+                }),
+            )
+        })
+
+        test('skips RSS item with undated pubDate', async () => {
+            const svc = makeSvc()
+            const guild = makeMockGuild()
+            const forumChannel = makeMockTextChannel(guild)
+            ;(
+                guild.channels!.fetch as jest.MockedFunction<
+                    () => Promise<unknown>
+                >
+            ).mockResolvedValue(forumChannel as unknown as TextChannel)
+            const digestChannel = makeMockTextChannel(guild)
+            const client = {
+                channels: { fetch: jest.fn(async () => digestChannel) },
+            } as unknown as Client
+            setClient(svc, client)
+            const mockParser = jest.requireMock('rss-parser')
+            mockParser.mockImplementation(() => ({
+                parseURL: jest.fn(async () => ({
+                    items: [
+                        {
+                            title: 'Undated Guide',
+                            link: 'https://criativaria.com.br/undated',
+                            // No pubDate
+                        },
+                    ],
+                })),
+            }))
+            await svc.tick()
+            const sendCall = (digestChannel.send as jest.Mock).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const guidesField = embed.data.fields.find(
+                (f: { name: string }) => f.name === '📚 Novos guias da semana',
+            )
+            expect(guidesField).toBeUndefined()
+        })
+
+        test('skips RSS item with future pubDate', async () => {
+            const svc = makeSvc()
+            const guild = makeMockGuild()
+            const forumChannel = makeMockTextChannel(guild)
+            ;(
+                guild.channels!.fetch as jest.MockedFunction<
+                    () => Promise<unknown>
+                >
+            ).mockResolvedValue(forumChannel as unknown as TextChannel)
+            const digestChannel = makeMockTextChannel(guild)
+            const client = {
+                channels: { fetch: jest.fn(async () => digestChannel) },
+            } as unknown as Client
+            setClient(svc, client)
+            const mockParser = jest.requireMock('rss-parser')
+            mockParser.mockImplementation(() => ({
+                parseURL: jest.fn(async () => ({
+                    items: [
+                        {
+                            title: 'Future Guide',
+                            link: 'https://criativaria.com.br/future',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC + 2 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                    ],
+                })),
+            }))
+            await svc.tick()
+            const sendCall = (digestChannel.send as jest.Mock).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const guidesField = embed.data.fields.find(
+                (f: { name: string }) => f.name === '📚 Novos guias da semana',
+            )
+            expect(guidesField).toBeUndefined()
+        })
+
+        test('includes newer in-window item from unsorted feed (older first, newer later)', async () => {
+            const svc = makeSvc()
+            const guild = makeMockGuild()
+            const forumChannel = makeMockTextChannel(guild)
+            ;(
+                guild.channels!.fetch as jest.MockedFunction<
+                    () => Promise<unknown>
+                >
+            ).mockResolvedValue(forumChannel as unknown as TextChannel)
+            const digestChannel = makeMockTextChannel(guild)
+            const client = {
+                channels: { fetch: jest.fn(async () => digestChannel) },
+            } as unknown as Client
+            setClient(svc, client)
+            const mockParser = jest.requireMock('rss-parser')
+            mockParser.mockImplementation(() => ({
+                parseURL: jest.fn(async () => ({
+                    items: [
+                        {
+                            title: 'Old Guide',
+                            link: 'https://criativaria.com.br/old',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC - 8 * 24 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                        {
+                            title: 'New In-Window Guide',
+                            link: 'https://criativaria.com.br/new',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC - 1 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                    ],
+                })),
+            }))
+            await svc.tick()
+            const sendCall = (digestChannel.send as jest.Mock).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const guidesField = embed.data.fields.find(
+                (f: { name: string }) => f.name === '📚 Novos guias da semana',
+            )
+            expect(guidesField).toBeDefined()
+            expect(guidesField.value).toContain('New In-Window Guide')
+            expect(guidesField.value).not.toContain('Old Guide')
+        })
+
+        test('truncates long titles and enforces field value cap at 1024 chars', async () => {
+            const svc = makeSvc()
+            const guild = makeMockGuild()
+            const forumChannel = makeMockTextChannel(guild)
+            ;(
+                guild.channels!.fetch as jest.MockedFunction<
+                    () => Promise<unknown>
+                >
+            ).mockResolvedValue(forumChannel as unknown as TextChannel)
+            const digestChannel = makeMockTextChannel(guild)
+            const client = {
+                channels: { fetch: jest.fn(async () => digestChannel) },
+            } as unknown as Client
+            setClient(svc, client)
+            const mockParser = jest.requireMock('rss-parser')
+            const veryLongTitle = 'A'.repeat(150)
+            // Overlong URL makes bullet #2 exceed the 1024 cap by itself, so the
+            // cap logic MUST fire (non-vacuous) and MUST NOT suppress bullet #3.
+            const overlongLink = `https://criativaria.com.br/${'x'.repeat(1200)}`
+            mockParser.mockImplementation(() => ({
+                parseURL: jest.fn(async () => ({
+                    items: [
+                        {
+                            title: veryLongTitle,
+                            link: 'https://criativaria.com.br/long-1',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC - 1 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                        {
+                            title: veryLongTitle,
+                            link: overlongLink,
+                            pubDate: new Date(
+                                SUNDAY_12_UTC - 2 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                        {
+                            title: veryLongTitle,
+                            link: 'https://criativaria.com.br/long-3',
+                            pubDate: new Date(
+                                SUNDAY_12_UTC - 3 * 60 * 60 * 1000,
+                            ).toISOString(),
+                        },
+                    ],
+                })),
+            }))
+            await svc.tick()
+            const sendCall = (digestChannel.send as jest.Mock).mock.calls[0]
+            const embed = sendCall[0].embeds[0]
+            const guidesField = embed.data.fields.find(
+                (f: { name: string }) => f.name === '📚 Novos guias da semana',
+            )
+            expect(guidesField).toBeDefined()
+            expect(guidesField.value.length).toBeLessThanOrEqual(1024)
+            // Title should be truncated (contain ellipsis)
+            expect(guidesField.value).toContain('…')
+            // The over-long bullet was dropped, not the whole tail: #1 and #3 present
+            expect(guidesField.value).toContain('long-1')
+            expect(guidesField.value).not.toContain('xxxxxxxxxx')
+            expect(guidesField.value).toContain('long-3')
         })
     })
 })
