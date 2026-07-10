@@ -428,7 +428,9 @@ describe('CriativariaLiveNotificationService', () => {
                     attempts++
                     if (attempts === 1) {
                         // HTTP-date format: "Wed, 21 Oct 2026 07:28:00 GMT"
-                        const futureDate = new Date(Date.now() + 2000)
+                        // toUTCString() truncates milliseconds, so +3000ms
+                        // guarantees an effective wait of at least ~2000ms.
+                        const futureDate = new Date(Date.now() + 3000)
                         return {
                             status: 429,
                             headers: {
@@ -460,7 +462,7 @@ describe('CriativariaLiveNotificationService', () => {
             const stream = await service.fetchStream('criativaria')
 
             const elapsed = Date.now() - startTime
-            expect(elapsed).toBeGreaterThanOrEqual(1900) // ~2s delay
+            expect(elapsed).toBeGreaterThanOrEqual(1900) // date path waited, not immediate (NaN regression guard)
             expect(stream).not.toBeNull()
             fetchSpy.mockRestore()
         })
