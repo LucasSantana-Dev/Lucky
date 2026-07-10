@@ -113,6 +113,7 @@
         "bullmq": "^5",
         "chalk": "^5.6.2",
         "discord-player-youtubei": "^3.0.0-beta.4",
+        "file-type": "^21.3.4",
         "jintr": "^3.3.1",
         "minipass-flush": "^2.0.0",
         "prisma": "^7.8.0",
@@ -120,6 +121,7 @@
         "ws": "^8.21.0"
     },
     "overrides": {
+        "file-type": "$file-type",
         "brace-expansion": ">=5.0.6",
         "handlebars": ">=4.7.9",
         "path-to-regexp": ">=8.4.0",
@@ -133,7 +135,6 @@
         "@hono/node-server": ">=1.19.13",
         "hono": ">=4.12.14",
         "lodash": ">=4.17.22",
-        "file-type": ">=21.3.2",
         "yauzl": ">=3.2.1",
         "picomatch": ">=2.3.2",
         "follow-redirects": "1.16.0",
