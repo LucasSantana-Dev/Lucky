@@ -1152,7 +1152,7 @@ model Session {
 
 // Forum thread ↔ web-slug mapping. Populated by the bot listener when a
 // forum thread tagged `<!-- official:v1:<slug> -->` is created or updated.
-// Used by the web app to render per-guia "Ver discussão no Discord" CTAs.
+// Used by the web app to render per-guild "Ver discussão no Discord" CTAs.
 model GuildForumThread {
   id        String   @id @default(cuid())
   guildId   String
