@@ -109,24 +109,14 @@ async function processBatchJob(
             boundOnProgress,
         )
 
-        // Check if executor signaled pause (e.g., client disconnect mid-loop)
-        if (summary && typeof summary === 'object' && (summary as { paused?: boolean }).paused === true) {
-            // Executor paused — mark as resumable, don't mark as completed
-            await batchJobService.markPaused(jobId)
-            infoLog({
-                message: 'Batch job paused',
-                data: { jobId, summary },
-            })
-        } else {
-            // Normal completion
-            await batchJobService.markCompleted(jobId)
-            infoLog({
-                message: 'Batch job completed successfully',
-                data: { jobId, summary },
-            })
-        }
-
+        // Mark as completed and store summary
+        await batchJobService.markCompleted(jobId)
         await batchJobService.setSummary(jobId, summary)
+
+        infoLog({
+            message: 'Batch job completed successfully',
+            data: { jobId, summary },
+        })
 
         return summary
     } catch (error) {

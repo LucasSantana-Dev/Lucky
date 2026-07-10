@@ -216,10 +216,12 @@ export class ChannelMoveBatchExecutor implements BatchJobExecutor {
                         files = await fetchAttachments(toUpload)
                     } catch (fetchError) {
                         errorLog({
-                            message: `Failed to fetch attachments for message ${message.id}, continuing without files`,
+                            message: `Failed to fetch attachments for message ${message.id}, marking item as failed`,
                             error: fetchError,
                         })
-                        // Continue with empty files array — embed will be posted without attachments
+                        // Fail this item rather than silently dropping attachments
+                        // Don't send to destination, don't delete original
+                        throw new Error(`Attachment fetch failed for message ${message.id}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`)
                     }
 
                     const movedMessage = await destChannel.send({
