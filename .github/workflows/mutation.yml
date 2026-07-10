@@ -20,6 +20,7 @@ on:
     paths:
       - 'packages/shared/**'
       - 'packages/backend/**'
+      - 'packages/bot/**'
       - '.github/workflows/mutation.yml'
 
 concurrency:
