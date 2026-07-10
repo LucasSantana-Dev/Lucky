@@ -38,10 +38,10 @@ module.exports = {
   resolver: '<rootDir>/jest-resolver.cjs',
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 30000,
-  // ponytail: conservative maxWorkers to prevent DB connection pool exhaustion under
-  // parallel test execution. ECONNRESET failures indicated pool size exceeded when running
-  // full integration suite. Reduced from '50%' to '25%' as baseline; further reduction to
-  // specific number (2-4) if this still shows flakiness.
+  // ponytail: conservative maxWorkers to reduce concurrent database connections during
+  // parallel test execution. ECONNRESET failures observed during full suite runs suggest
+  // connection pool pressure under high parallelism. Reduced from '50%' to '25%' as baseline;
+  // further reduction to specific number (2-4) if flakiness persists.
   maxWorkers: '25%',
   moduleNameMapper: {
     '^@lucky/shared$': '<rootDir>/../shared/src/index',
