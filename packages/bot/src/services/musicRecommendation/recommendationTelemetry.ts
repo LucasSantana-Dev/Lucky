@@ -134,6 +134,9 @@ export async function recordRecommendationSkipReason(
 ): Promise<void> {
     try {
         const prisma = getPrismaClient()
+        if (!prisma) {
+            return
+        }
 
         await prisma.recommendation.update({
             where: { id: args.recommendationId },
