@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.34.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.33.1...v2.34.0) (2026-07-10)
+
+
+### Features
+
+* **twitch:** use Promise.allSettled for per-event subscription error logging ([#1749](https://github.com/LucasSantana-Dev/Lucky/issues/1749)) ([6691305](https://github.com/LucasSantana-Dev/Lucky/commit/669130512380e61c534690e8e84bbb8732f60541))
+
+
+### Bug Fixes
+
+* [#1699](https://github.com/LucasSantana-Dev/Lucky/issues/1699) ([eef5aee](https://github.com/LucasSantana-Dev/Lucky/commit/eef5aee4cefa8a322a5f6f2f79a9209c011e246b))
+* **backend:** migrate webhooks to use canonical timingsafekey comparison ([#1747](https://github.com/LucasSantana-Dev/Lucky/issues/1747)) ([eef5aee](https://github.com/LucasSantana-Dev/Lucky/commit/eef5aee4cefa8a322a5f6f2f79a9209c011e246b))
+* **backend:** wrap lastfm routes with asynchandler ([#1726](https://github.com/LucasSantana-Dev/Lucky/issues/1726)) ([ce51d86](https://github.com/LucasSantana-Dev/Lucky/commit/ce51d86a63d8c9caf879b0afb45ea83a5a2b347b))
+* **batch-move:** graceful attachment-fetch degradation + mid-loop client re-check ([#1750](https://github.com/LucasSantana-Dev/Lucky/issues/1750)) ([f21a0ce](https://github.com/LucasSantana-Dev/Lucky/commit/f21a0cef2797d38f9874b44291ece3e96136ba59))
+* **bot:** approve @discordjs/opus install script — P0 music playback outage ([#1757](https://github.com/LucasSantana-Dev/Lucky/issues/1757)) ([9d894e4](https://github.com/LucasSantana-Dev/Lucky/commit/9d894e4cde3730c50e763166b930a26a44b8ba10))
+* **ci:** add missing packages field to pnpm-workspace.yaml ([#1760](https://github.com/LucasSantana-Dev/Lucky/issues/1760)) ([a4c585d](https://github.com/LucasSantana-Dev/Lucky/commit/a4c585d2d3227cc92ed3dbb84961ff17bf51564d))
+* **ci:** remove pnpm shim from bundle-size workflow ([#1759](https://github.com/LucasSantana-Dev/Lucky/issues/1759)) ([eaf676f](https://github.com/LucasSantana-Dev/Lucky/commit/eaf676f367ecbfe4e12a8daf887505177caacf3a))
+* **deploy:** increase validation timeout to 10min ([#1743](https://github.com/LucasSantana-Dev/Lucky/issues/1743)) ([07891ec](https://github.com/LucasSantana-Dev/Lucky/commit/07891eca1a22eab97b7c050656a6b26d287cf52f))
+* **docker:** copy+chown [@prisma](https://github.com/prisma) engines in production-backend — P0 deploy pipeline blocker ([#1758](https://github.com/LucasSantana-Dev/Lucky/issues/1758)) ([a70d0e8](https://github.com/LucasSantana-Dev/Lucky/commit/a70d0e875c8a5b091b173bf8f6cce1cfaec7776a))
+* eliminate mock state pollution in bot tests and remove resetMocks config ([#1741](https://github.com/LucasSantana-Dev/Lucky/issues/1741)) ([2e5fd94](https://github.com/LucasSantana-Dev/Lucky/commit/2e5fd940fee7d37c0521efcb1f07957f5cfc8429))
+* **frontend:** prevent state updates after unmount ([#1748](https://github.com/LucasSantana-Dev/Lucky/issues/1748)) ([f4e7c45](https://github.com/LucasSantana-Dev/Lucky/commit/f4e7c458122d950de68ff8c02a9acf90692de0bb))
+* pin file-type to resolve CI flake [#1740](https://github.com/LucasSantana-Dev/Lucky/issues/1740) ([#1753](https://github.com/LucasSantana-Dev/Lucky/issues/1753)) ([6b8e527](https://github.com/LucasSantana-Dev/Lucky/commit/6b8e52794236f3f84f2e3f75366df8f35846efab))
+* reduce Jest maxWorkers and add DB pool config for test stability ([#1751](https://github.com/LucasSantana-Dev/Lucky/issues/1751)) ([cfead33](https://github.com/LucasSantana-Dev/Lucky/commit/cfead333e2a64f369b3aa51fdef79e990775c222))
+* use fake timers in ReminderService.spec to prevent race condition ([#1745](https://github.com/LucasSantana-Dev/Lucky/issues/1745)) ([ba2908c](https://github.com/LucasSantana-Dev/Lucky/commit/ba2908c3ddce2bdbbf1357f3cd728ab001e35ad6))
+
 ## [2.33.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.33.0...v2.33.1) (2026-07-09)
 
 

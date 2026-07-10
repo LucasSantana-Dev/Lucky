@@ -213,7 +213,8 @@ export function setupSpotifyRoutes(app: Express): void {
             const stateFromQuery = parsedQuery.data.state
             const stateFromCookieRaw: unknown =
                 req.cookies?.[SPOTIFY_STATE_COOKIE]
-            const stateFromCookieValidated = stateCookieSchema.safeParse(stateFromCookieRaw)
+            const stateFromCookieValidated =
+                stateCookieSchema.safeParse(stateFromCookieRaw)
 
             const state =
                 typeof stateFromQuery === 'string'

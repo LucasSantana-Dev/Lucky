@@ -367,6 +367,7 @@ describe('Last.fm Routes Integration', () => {
         }
 
         test('should link account on valid callback', async () => {
+            const state = buildState(DISCORD_ID, LINK_SECRET)
             mockExchangeToken.mockResolvedValue({
                 sessionKey: 'sk_123',
                 username: 'fmuser',
@@ -375,8 +376,8 @@ describe('Last.fm Routes Integration', () => {
 
             const res = await request(app)
                 .get('/api/lastfm/callback')
-                .query({ token: 'valid_token' })
-                .set('Cookie', [getStateCookie()])
+                .query({ token: 'valid_token', state })
+                .set('Cookie', [`lastfm_state=${state}`])
                 .expect(302)
 
             expect(res.headers.location).toContain('lastfm_linked=true')
@@ -399,6 +400,7 @@ describe('Last.fm Routes Integration', () => {
             const res = await request(app)
                 .get('/api/lastfm/callback')
                 .query({ token: 'valid_token', state })
+                .set('Cookie', [`lastfm_state=${state}`])
                 .expect(302)
 
             expect(res.headers.location).toContain('lastfm_linked=true')
@@ -428,9 +430,10 @@ describe('Last.fm Routes Integration', () => {
         })
 
         test('should redirect with error on invalid state cookie', async () => {
+            const state = buildState(DISCORD_ID, LINK_SECRET)
             const res = await request(app)
                 .get('/api/lastfm/callback')
-                .query({ token: 'valid_token' })
+                .query({ token: 'valid_token', state })
                 .set('Cookie', ['lastfm_state=bad.signature'])
                 .expect(302)
 
@@ -441,25 +444,29 @@ describe('Last.fm Routes Integration', () => {
 
         test('should redirect with error on mismatched-length signature (not crash)', async () => {
             // Build a state with a signature that's intentionally the wrong length
-            const payload = Buffer.from(DISCORD_ID, 'utf8').toString('base64url')
+            const payload = Buffer.from(DISCORD_ID, 'utf8').toString(
+                'base64url',
+            )
             const wrongLengthSig = 'short' // Too short for a valid HMAC-SHA256 hex
             const mismatchedState = `${payload}.${wrongLengthSig}`
 
             const res = await request(app)
                 .get('/api/lastfm/callback')
                 .query({ token: 'valid_token', state: mismatchedState })
+                .set('Cookie', [`lastfm_state=${mismatchedState}`])
                 .expect(302)
 
             expect(res.headers.location).toContain('error=lastfm_invalid_state')
         })
 
         test('should redirect with error when exchange fails', async () => {
+            const state = buildState(DISCORD_ID, LINK_SECRET)
             mockExchangeToken.mockResolvedValue(null)
 
             const res = await request(app)
                 .get('/api/lastfm/callback')
-                .query({ token: 'bad_token' })
-                .set('Cookie', [getStateCookie()])
+                .query({ token: 'bad_token', state })
+                .set('Cookie', [`lastfm_state=${state}`])
                 .expect(302)
 
             expect(res.headers.location).toContain(
@@ -468,6 +475,7 @@ describe('Last.fm Routes Integration', () => {
         })
 
         test('should redirect with error when save fails', async () => {
+            const state = buildState(DISCORD_ID, LINK_SECRET)
             mockExchangeToken.mockResolvedValue({
                 sessionKey: 'sk_123',
                 username: 'fmuser',
@@ -476,20 +484,21 @@ describe('Last.fm Routes Integration', () => {
 
             const res = await request(app)
                 .get('/api/lastfm/callback')
-                .query({ token: 'valid_token' })
-                .set('Cookie', [getStateCookie()])
+                .query({ token: 'valid_token', state })
+                .set('Cookie', [`lastfm_state=${state}`])
                 .expect(302)
 
             expect(res.headers.location).toContain('error=lastfm_save_failed')
         })
 
         test('should redirect with error on exception', async () => {
+            const state = buildState(DISCORD_ID, LINK_SECRET)
             mockExchangeToken.mockRejectedValue(new Error('network'))
 
             const res = await request(app)
                 .get('/api/lastfm/callback')
-                .query({ token: 'valid_token' })
-                .set('Cookie', [getStateCookie()])
+                .query({ token: 'valid_token', state })
+                .set('Cookie', [`lastfm_state=${state}`])
                 .expect(302)
 
             expect(res.headers.location).toContain(
