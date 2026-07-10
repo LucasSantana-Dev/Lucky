@@ -46,8 +46,10 @@ jest.mock('../../handlers/clientHandler', () => ({
     stopPresenceRotation: jest.fn(),
 }))
 
-jest.mock('../../handlers/playerHandler', () => ({
-    createPlayer: (...args: unknown[]) => createPlayerMock(...args),
+jest.mock('../../handlers/player', () => ({
+    createPlayerWithHandlers: (...args: unknown[]) => createPlayerMock(...args),
+    lastPlayedTracks: new Map(),
+    recentlyPlayedTracks: [],
 }))
 
 jest.mock('../../handlers/commandsHandler', () => ({
