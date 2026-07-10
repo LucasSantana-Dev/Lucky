@@ -1,38 +1,38 @@
 [
-  {
-    "name": "Main bundle (gzip)",
-    "path": "dist/assets/index-*.js",
-    "limit": "75 KB",
-    "gzip": true
-  },
-  {
-    "name": "Vendor UI (gzip)",
-    "path": "dist/assets/vendor-ui-*.js",
-    "limit": "70 KB",
-    "gzip": true
-  },
-  {
-    "name": "Vendor React (gzip)",
-    "path": "dist/assets/vendor-react-*.js",
-    "limit": "60 KB",
-    "gzip": true
-  },
-  {
-    "name": "Vendor Radix (gzip)",
-    "path": "dist/assets/vendor-radix-*.js",
-    "limit": "43 KB",
-    "gzip": true
-  },
-  {
-    "name": "Vendor Forms (gzip)",
-    "path": "dist/assets/vendor-forms-*.js",
-    "limit": "28 KB",
-    "gzip": true
-  },
-  {
-    "name": "Vendor State (gzip)",
-    "path": "dist/assets/vendor-state-*.js",
-    "limit": "26 KB",
-    "gzip": true
-  }
+    {
+        "name": "Main bundle (gzip)",
+        "path": "dist/assets/index-*.js",
+        "limit": "75 KB",
+        "gzip": true
+    },
+    {
+        "name": "Vendor UI (gzip)",
+        "path": "dist/assets/vendor-ui-*.js",
+        "limit": "70 KB",
+        "gzip": true
+    },
+    {
+        "name": "Vendor React (gzip)",
+        "path": "dist/assets/vendor-react-*.js",
+        "limit": "60 KB",
+        "gzip": true
+    },
+    {
+        "name": "Vendor Radix (gzip)",
+        "path": "dist/assets/vendor-radix-*.js",
+        "limit": "43 KB",
+        "gzip": true
+    },
+    {
+        "name": "Vendor Forms (gzip)",
+        "path": "dist/assets/vendor-forms-*.js",
+        "limit": "28 KB",
+        "gzip": true
+    },
+    {
+        "name": "Vendor State (gzip)",
+        "path": "dist/assets/vendor-state-*.js",
+        "limit": "26 KB",
+        "gzip": true
+    }
 ]
