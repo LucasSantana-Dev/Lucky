@@ -11,7 +11,7 @@ FROM almir/webhook:2.8.3@sha256:f77cc91c91d1527b48052280af38b50791e842ad8dd291e9
 # NOSONAR: privileged operations required for apk and docker socket mount
 # nosemgrep: dockerfile.security.last-user-is-root.last-user-is-root
 USER root
-RUN apk add --no-cache git docker-cli docker-cli-compose bash
+RUN apk add --no-cache curl git docker-cli docker-cli-compose bash
 
 # Copy hooks config to /hooks/ — a path NOT declared as VOLUME by the
 # base image.  The base image declares VOLUME /etc/webhook which causes
