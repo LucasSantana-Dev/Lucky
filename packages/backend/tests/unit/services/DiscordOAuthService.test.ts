@@ -75,6 +75,24 @@ describe('DiscordOAuthService', () => {
                 discordOAuthService.exchangeCodeForToken(MOCK_AUTH_CODE),
             ).rejects.toThrow('Network error')
         })
+
+        test('should throw when token response is missing required fields', async () => {
+            const mockResponse = {
+                ok: true,
+                json: jest
+                    .fn<() => Promise<any>>()
+                    .mockResolvedValue({ token_type: 'Bearer' }),
+                text: jest.fn<() => Promise<string>>(),
+            } as unknown as Response
+
+            const mockFetch = jest.fn<typeof fetch>()
+            mockFetch.mockResolvedValue(mockResponse)
+            global.fetch = mockFetch as typeof fetch
+
+            await expect(
+                discordOAuthService.exchangeCodeForToken(MOCK_AUTH_CODE),
+            ).rejects.toThrow(/Invalid token response/)
+        })
     })
 
     describe('getUserInfo', () => {
@@ -124,6 +142,26 @@ describe('DiscordOAuthService', () => {
                     MOCK_TOKEN_RESPONSE.access_token,
                 ),
             ).rejects.toThrow()
+        })
+
+        test('should throw when user response is missing required fields', async () => {
+            const mockResponse = {
+                ok: true,
+                json: jest
+                    .fn<() => Promise<any>>()
+                    .mockResolvedValue({ username: 'nouserid' }),
+                text: jest.fn<() => Promise<string>>(),
+            } as unknown as Response
+
+            const mockFetch = jest.fn<typeof fetch>()
+            mockFetch.mockResolvedValue(mockResponse)
+            global.fetch = mockFetch as typeof fetch
+
+            await expect(
+                discordOAuthService.getUserInfo(
+                    MOCK_TOKEN_RESPONSE.access_token,
+                ),
+            ).rejects.toThrow(/Invalid user response/)
         })
     })
 
