@@ -11,6 +11,7 @@ import {
 } from '../../utils/music/searchQueryCleaner'
 import { providerHealthService } from '../../utils/music/search/providerHealth'
 import { streamViaSoundCloud } from './soundcloudMatcher'
+import { addBreadcrumb, captureMessage } from '../../utils/monitoring/sentry'
 
 const ALLOWED_YTDLP_DOMAINS = new Set([
     'youtube.com',
@@ -142,12 +143,35 @@ export async function createResilientStream(
     if (track.url && !isSpotifyUrl) {
         try {
             const stream = await streamViaYtDlp(track.url)
+            addBreadcrumb(
+                'YouTube stream resolved via yt-dlp',
+                'music.youtube-extraction',
+                'info',
+            )
             infoLog({
                 message: 'Bridge: streamed via yt-dlp',
                 data: { url: track.url, title: cleanedTitle || track.title },
             })
             return stream
         } catch (ytdlpError) {
+            addBreadcrumb(
+                'YouTube extraction failed via yt-dlp URL',
+                'music.youtube-extraction',
+                'warning',
+                {
+                    error: (ytdlpError as Error).message,
+                    url: track.url,
+                },
+            )
+            captureMessage(
+                `YouTube extraction failed: ${(ytdlpError as Error).message}`,
+                'warning',
+                {
+                    category: 'music.youtube-extraction',
+                    stage: 'yt-dlp-url',
+                    url: track.url,
+                },
+            )
             warnLog({
                 message: 'Bridge: yt-dlp failed, falling back to SoundCloud',
                 data: {
@@ -163,6 +187,11 @@ export async function createResilientStream(
         const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
         try {
             const stream = await streamViaYtDlpSearch(ytQuery)
+            addBreadcrumb(
+                'YouTube search stream resolved for Spotify source',
+                'music.youtube-extraction',
+                'info',
+            )
             infoLog({
                 message:
                     'Bridge: streamed via yt-dlp YouTube search (Spotify source)',
@@ -170,6 +199,24 @@ export async function createResilientStream(
             })
             return stream
         } catch (ytSearchError) {
+            addBreadcrumb(
+                'YouTube extraction failed via search',
+                'music.youtube-extraction',
+                'warning',
+                {
+                    error: (ytSearchError as Error).message,
+                    query: ytQuery,
+                },
+            )
+            captureMessage(
+                `YouTube search extraction failed: ${(ytSearchError as Error).message}`,
+                'warning',
+                {
+                    category: 'music.youtube-extraction',
+                    stage: 'yt-dlp-search',
+                    query: ytQuery,
+                },
+            )
             warnLog({
                 message:
                     'Bridge: yt-dlp YouTube search failed, falling back to SoundCloud',
@@ -192,6 +239,11 @@ export async function createResilientStream(
     }
 
     if (!providerHealthService.isAvailable('soundcloud')) {
+        addBreadcrumb(
+            'SoundCloud circuit open, skipping fallback',
+            'music.youtube-extraction',
+            'warning',
+        )
         warnLog({
             message:
                 'Bridge: SoundCloud circuit open, skipping fallback stages',
@@ -240,6 +292,22 @@ export async function createResilientStream(
         try {
             return await streamViaSoundCloud(coreTitle, track.duration)
         } catch (coreError) {
+            captureMessage(
+                'YouTube extraction exhausted all fallback stages',
+                'error',
+                {
+                    category: 'music.youtube-extraction',
+                    stage: 'all-exhausted',
+                    title: track.title,
+                    url: track.url,
+                    stages: [
+                        'yt-dlp',
+                        'soundcloud-full',
+                        'soundcloud-title',
+                        'soundcloud-core',
+                    ],
+                },
+            )
             warnLog({
                 message: 'Bridge: all stages exhausted',
                 error: coreError,
@@ -258,6 +326,17 @@ export async function createResilientStream(
             })
         }
     } else {
+        captureMessage(
+            'YouTube extraction exhausted all fallback stages',
+            'error',
+            {
+                category: 'music.youtube-extraction',
+                stage: 'all-exhausted',
+                title: track.title,
+                url: track.url,
+                stages: ['yt-dlp', 'soundcloud-full', 'soundcloud-title'],
+            },
+        )
         warnLog({
             message: 'Bridge: all stages exhausted',
             data: {
