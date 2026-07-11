@@ -23,11 +23,13 @@ export function captureException(
  * @param message The message to capture
  * @param level The severity level
  * @param extras Additional data to include with the message
+ * @param tags Searchable string tags for aggregation and filtering
  */
 export function captureMessage(
     message: string,
     level: Sentry.SeverityLevel = 'info',
     extras?: Record<string, unknown>,
+    tags?: Record<string, string>,
 ): void {
     if (!process.env.SENTRY_DSN || process.env.NODE_ENV === 'development') {
         return
@@ -36,6 +38,7 @@ export function captureMessage(
     Sentry.captureMessage(message, {
         level,
         extra: extras,
+        tags,
     })
 }
 

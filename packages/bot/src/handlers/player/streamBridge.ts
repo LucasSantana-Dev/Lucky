@@ -140,6 +140,8 @@ export async function createResilientStream(
         },
     })
 
+    let youtubeStage: string | undefined
+
     if (track.url && !isSpotifyUrl) {
         try {
             const stream = await streamViaYtDlp(track.url)
@@ -154,6 +156,7 @@ export async function createResilientStream(
             })
             return stream
         } catch (ytdlpError) {
+            youtubeStage = 'yt-dlp-url'
             addBreadcrumb(
                 'YouTube extraction failed via yt-dlp URL',
                 'music.youtube-extraction',
@@ -167,9 +170,11 @@ export async function createResilientStream(
                 `YouTube extraction failed: ${(ytdlpError as Error).message}`,
                 'warning',
                 {
+                    url: track.url,
+                },
+                {
                     category: 'music.youtube-extraction',
                     stage: 'yt-dlp-url',
-                    url: track.url,
                 },
             )
             warnLog({
@@ -199,6 +204,7 @@ export async function createResilientStream(
             })
             return stream
         } catch (ytSearchError) {
+            youtubeStage = 'yt-dlp-search'
             addBreadcrumb(
                 'YouTube extraction failed via search',
                 'music.youtube-extraction',
@@ -212,9 +218,11 @@ export async function createResilientStream(
                 `YouTube search extraction failed: ${(ytSearchError as Error).message}`,
                 'warning',
                 {
+                    query: ytQuery,
+                },
+                {
                     category: 'music.youtube-extraction',
                     stage: 'yt-dlp-search',
-                    query: ytQuery,
                 },
             )
             warnLog({
@@ -292,20 +300,23 @@ export async function createResilientStream(
         try {
             return await streamViaSoundCloud(coreTitle, track.duration)
         } catch (coreError) {
+            const attemptedStages = [
+                youtubeStage || 'yt-dlp',
+                'soundcloud-full',
+                'soundcloud-title',
+                'soundcloud-core',
+            ]
             captureMessage(
                 'YouTube extraction exhausted all fallback stages',
                 'error',
                 {
-                    category: 'music.youtube-extraction',
-                    stage: 'all-exhausted',
                     title: track.title,
                     url: track.url,
-                    stages: [
-                        'yt-dlp',
-                        'soundcloud-full',
-                        'soundcloud-title',
-                        'soundcloud-core',
-                    ],
+                    stages: attemptedStages,
+                },
+                {
+                    category: 'music.youtube-extraction',
+                    stage: 'all-exhausted',
                 },
             )
             warnLog({
@@ -316,25 +327,27 @@ export async function createResilientStream(
                     cleanedTitle,
                     coreTitle,
                     url: track.url,
-                    stages: [
-                        'yt-dlp',
-                        'soundcloud-full',
-                        'soundcloud-title',
-                        'soundcloud-core',
-                    ],
+                    stages: attemptedStages,
                 },
             })
         }
     } else {
+        const attemptedStages = [
+            youtubeStage || 'yt-dlp',
+            'soundcloud-full',
+            'soundcloud-title',
+        ]
         captureMessage(
             'YouTube extraction exhausted all fallback stages',
             'error',
             {
-                category: 'music.youtube-extraction',
-                stage: 'all-exhausted',
                 title: track.title,
                 url: track.url,
-                stages: ['yt-dlp', 'soundcloud-full', 'soundcloud-title'],
+                stages: attemptedStages,
+            },
+            {
+                category: 'music.youtube-extraction',
+                stage: 'all-exhausted',
             },
         )
         warnLog({
@@ -343,7 +356,7 @@ export async function createResilientStream(
                 title: track.title,
                 cleanedTitle,
                 url: track.url,
-                stages: ['yt-dlp', 'soundcloud-full', 'soundcloud-title'],
+                stages: attemptedStages,
             },
         })
     }

@@ -249,10 +249,11 @@ describe('createResilientStream', () => {
             'warning',
             expect.any(Object),
         )
-        // Verify captureMessage was called with correct stage
+        // Verify captureMessage was called with correct stage as tag
         expect(mockCaptureMessage).toHaveBeenCalledWith(
             expect.stringContaining('YouTube extraction failed'),
             'warning',
+            expect.any(Object),
             expect.objectContaining({
                 category: 'music.youtube-extraction',
                 stage: 'yt-dlp-url',
@@ -297,6 +298,7 @@ describe('createResilientStream', () => {
         expect(mockCaptureMessage).toHaveBeenCalledWith(
             expect.stringContaining('YouTube search extraction failed'),
             'warning',
+            expect.any(Object),
             expect.objectContaining({
                 category: 'music.youtube-extraction',
                 stage: 'yt-dlp-search',
@@ -332,6 +334,7 @@ describe('createResilientStream', () => {
         expect(mockCaptureMessage).toHaveBeenCalledWith(
             'YouTube extraction exhausted all fallback stages',
             'error',
+            expect.any(Object),
             expect.objectContaining({
                 category: 'music.youtube-extraction',
                 stage: 'all-exhausted',
@@ -351,6 +354,7 @@ describe('createResilientStream', () => {
         expect(mockCaptureMessage).toHaveBeenCalledWith(
             'YouTube extraction exhausted all fallback stages',
             'error',
+            expect.any(Object),
             expect.objectContaining({
                 category: 'music.youtube-extraction',
                 stage: 'all-exhausted',
