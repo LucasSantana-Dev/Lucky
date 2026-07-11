@@ -1,5 +1,5 @@
 import { infoLog, warnLog } from '@lucky/shared/utils'
-import { TOP_GG_BOT_ID } from '@lucky/shared/constants/topgg'
+import { TOP_GG_BOT_ID } from '@lucky/shared/constants'
 import { addBreadcrumb, captureMessage } from '../monitoring/sentry'
 
 import { IntervalScheduler } from './IntervalScheduler'
@@ -26,7 +26,8 @@ export class TopggStatsScheduler extends IntervalScheduler {
         if (!token) {
             if (!this.loggedMissingToken) {
                 infoLog({
-                    message: 'TOPGG_TOKEN not set — Top.gg stats posting disabled',
+                    message:
+                        'TOPGG_TOKEN not set — Top.gg stats posting disabled',
                 })
                 this.loggedMissingToken = true
             }
@@ -57,7 +58,7 @@ export class TopggStatsScheduler extends IntervalScheduler {
                 {
                     method: 'POST',
                     headers: {
-                        'Authorization': token,
+                        Authorization: token,
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ server_count: serverCount }),
@@ -66,7 +67,8 @@ export class TopggStatsScheduler extends IntervalScheduler {
 
             if (!response.ok) {
                 const text = await response.text()
-                const statusText = response.statusText || `HTTP ${response.status}`
+                const statusText =
+                    response.statusText || `HTTP ${response.status}`
                 warnLog({
                     message: `Top.gg stats POST failed: ${statusText}`,
                     data: {
@@ -87,7 +89,11 @@ export class TopggStatsScheduler extends IntervalScheduler {
                 captureMessage(
                     `Top.gg stats POST failed: ${statusText} (status ${response.status})`,
                     'warning',
-                    { category: 'topgg.stats', serverCount, status: response.status },
+                    {
+                        category: 'topgg.stats',
+                        serverCount,
+                        status: response.status,
+                    },
                 )
                 return
             }
