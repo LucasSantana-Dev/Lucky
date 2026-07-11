@@ -98,12 +98,35 @@ while true; do
     sleep "$HEALTH_CHECK_INTERVAL_SECS"
 done
 
-# Step 2: Update the nginx upstream config file
-log "Updating $UPSTREAM_CONFIG to point to $COLOR..."
+# Step 2: Update the nginx upstream config file.
+# Flip ONLY the target service's upstream — the other tier keeps its current
+# color (parsed from the existing config). Rewriting both lines would silently
+# repoint the untouched tier at a color whose container may not be running.
+log "Updating $UPSTREAM_CONFIG to point $SERVICE to $COLOR..."
 
-# Read current config and replace the upstream pointers
+# Current color of a service, read back from the active config (defaults to
+# blue if the line is missing — matches the initial-deploy default).
+current_color_of() {
+    local svc="$1"
+    grep -oE "${svc}-(blue|green)" "$UPSTREAM_CONFIG" 2> /dev/null \
+        | grep -oE '(blue|green)' | head -1 || true
+}
+
+if [[ "$SERVICE" == "backend" ]]; then
+    BACKEND_COLOR="$COLOR"
+    FRONTEND_COLOR="$(current_color_of frontend)"
+else
+    BACKEND_COLOR="$(current_color_of backend)"
+    FRONTEND_COLOR="$COLOR"
+fi
+BACKEND_COLOR="${BACKEND_COLOR:-blue}"
+FRONTEND_COLOR="${FRONTEND_COLOR:-blue}"
+
+# Snapshot the current config so we can roll back on a failed reload.
+PREV_CONFIG=$(mktemp)
 TEMP_CONFIG=$(mktemp)
-trap "rm -f $TEMP_CONFIG" EXIT
+trap 'rm -f "$TEMP_CONFIG" "$PREV_CONFIG"' EXIT
+cp "$UPSTREAM_CONFIG" "$PREV_CONFIG"
 
 cat > "$TEMP_CONFIG" << EOF
 # Blue/green upstream configuration (included by nginx.conf).
@@ -111,18 +134,22 @@ cat > "$TEMP_CONFIG" << EOF
 # between blue and green backend/frontend services.
 #
 # Last updated: $(date -u +'%Y-%m-%dT%H:%M:%SZ')
-# Active color: $COLOR
+# Active: backend=$BACKEND_COLOR frontend=$FRONTEND_COLOR
 
-set \$backend_upstream http://backend-${COLOR}:3000;
-set \$frontend_upstream http://frontend-${COLOR}:8080;
+set \$backend_upstream http://backend-${BACKEND_COLOR}:3000;
+set \$frontend_upstream http://frontend-${FRONTEND_COLOR}:8080;
 EOF
 
 cp "$TEMP_CONFIG" "$UPSTREAM_CONFIG"
-log "Updated $UPSTREAM_CONFIG"
+log "Updated $UPSTREAM_CONFIG (backend=$BACKEND_COLOR frontend=$FRONTEND_COLOR)"
 
-# Step 3: Reload nginx (zero-downtime reload)
+# Step 3: Reload nginx (zero-downtime reload). On failure, restore the previous
+# config so the on-disk file never drifts from the running nginx.
 log "Reloading nginx..."
-docker compose -f "$COMPOSE_FILE" exec -T nginx nginx -s reload
+if ! docker compose -f "$COMPOSE_FILE" exec -T nginx nginx -s reload; then
+    cp "$PREV_CONFIG" "$UPSTREAM_CONFIG"
+    die "nginx reload failed — rolled back $UPSTREAM_CONFIG, traffic unchanged"
+fi
 log "Nginx reloaded successfully"
 
 # Step 4: Stop the old container (after draining)
