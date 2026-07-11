@@ -23,8 +23,7 @@ COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.staging.yml}"
 NGINX_CONFIG_DIR="${NGINX_CONFIG_DIR:-nginx}"
 UPSTREAM_CONFIG="${NGINX_CONFIG_DIR}/upstream-active.conf"
 
-# Health check endpoint
-HEALTH_ENDPOINT="/health"
+# Health check tuning (HEALTH_ENDPOINT is set per-service below)
 HEALTH_TIMEOUT_SECS=90
 HEALTH_CHECK_INTERVAL_SECS=2
 
@@ -58,15 +57,19 @@ if [[ "$COLOR" != "blue" && "$COLOR" != "green" ]]; then
     die "COLOR must be 'blue' or 'green', got '$COLOR'"
 fi
 
-# Determine the container name and port based on service
+# Determine the container name, port, and health path per service.
+# Frontend serves the SPA at "/" (no dedicated /health route — matches its
+# compose healthcheck); backend exposes /health.
 case "$SERVICE" in
     backend)
         CONTAINER_NAME="lucky-staging-backend-$COLOR"
         PORT=3000
+        HEALTH_ENDPOINT="/health"
         ;;
     frontend)
         CONTAINER_NAME="lucky-staging-frontend-$COLOR"
         PORT=8080
+        HEALTH_ENDPOINT="/"
         ;;
 esac
 
