@@ -3,6 +3,21 @@ import { infoLog } from '@lucky/shared/utils'
 // import { nodeProfilingIntegration } from '@sentry/profiling-node'
 
 /**
+ * Extract the safe origin (protocol + hostname) from a URL string.
+ * Returns the origin if the URL is valid, otherwise returns a placeholder.
+ * Used to redact signed/private URLs before sending to Sentry.
+ */
+export function safeUrlOrigin(url: unknown): string {
+    if (typeof url !== 'string') return 'invalid-url'
+    try {
+        const parsed = new URL(url)
+        return parsed.origin
+    } catch {
+        return 'invalid-url'
+    }
+}
+
+/**
  * Capture an exception in Sentry
  * @param error The error to capture
  * @param extras Additional data to include with the exception

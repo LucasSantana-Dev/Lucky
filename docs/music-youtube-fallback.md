@@ -79,7 +79,7 @@ If `all-exhausted` events show SoundCloud succeeded (stages 2-4 completed), then
 
 ## Contacts
 
-- **On-call:** Check `.github/CODEOWNERS` for `packages/bot/src/handlers/player/`
+- **On-call:** File an issue on the bot's issue tracker for escalation
 - **Timeline:** If this procedure is triggered, log the date in a follow-up issue so future operators see the history
 
 ## See Also

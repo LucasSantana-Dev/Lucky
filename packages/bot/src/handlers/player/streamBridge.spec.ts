@@ -242,18 +242,22 @@ describe('createResilientStream', () => {
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
         setImmediate(() => proc.emit('close', 1))
         await createResilientStream(makeTrack())
-        // Verify breadcrumb was called for failure
+        // Verify breadcrumb was called for failure with redacted URL (origin only)
         expect(mockAddBreadcrumb).toHaveBeenCalledWith(
             'YouTube extraction failed via yt-dlp URL',
             'music.youtube-extraction',
             'warning',
-            expect.any(Object),
+            expect.objectContaining({
+                url: 'https://www.youtube.com', // redacted to origin
+            }),
         )
-        // Verify captureMessage was called with correct stage as tag
+        // Verify captureMessage was called with correct stage as tag and redacted URL
         expect(mockCaptureMessage).toHaveBeenCalledWith(
             expect.stringContaining('YouTube extraction failed'),
             'warning',
-            expect.any(Object),
+            expect.objectContaining({
+                url: 'https://www.youtube.com', // redacted to origin
+            }),
             expect.objectContaining({
                 category: 'music.youtube-extraction',
                 stage: 'yt-dlp-url',
@@ -333,7 +337,7 @@ describe('createResilientStream', () => {
         ).rejects.toThrow('Bridge exhausted')
         expect(mockCaptureMessage).toHaveBeenCalledWith(
             'YouTube extraction exhausted all fallback stages',
-            'error',
+            'warning',
             expect.any(Object),
             expect.objectContaining({
                 category: 'music.youtube-extraction',
@@ -353,7 +357,7 @@ describe('createResilientStream', () => {
         ).rejects.toThrow('Bridge exhausted')
         expect(mockCaptureMessage).toHaveBeenCalledWith(
             'YouTube extraction exhausted all fallback stages',
-            'error',
+            'warning',
             expect.any(Object),
             expect.objectContaining({
                 category: 'music.youtube-extraction',

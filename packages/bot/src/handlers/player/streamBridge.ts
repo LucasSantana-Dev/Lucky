@@ -11,7 +11,7 @@ import {
 } from '../../utils/music/searchQueryCleaner'
 import { providerHealthService } from '../../utils/music/search/providerHealth'
 import { streamViaSoundCloud } from './soundcloudMatcher'
-import { addBreadcrumb, captureMessage } from '../../utils/monitoring/sentry'
+import { addBreadcrumb, captureMessage, safeUrlOrigin } from '../../utils/monitoring/sentry'
 
 const ALLOWED_YTDLP_DOMAINS = new Set([
     'youtube.com',
@@ -163,14 +163,14 @@ export async function createResilientStream(
                 'warning',
                 {
                     error: (ytdlpError as Error).message,
-                    url: track.url,
+                    url: safeUrlOrigin(track.url),
                 },
             )
             captureMessage(
                 `YouTube extraction failed: ${(ytdlpError as Error).message}`,
                 'warning',
                 {
-                    url: track.url,
+                    url: safeUrlOrigin(track.url),
                 },
                 {
                     category: 'music.youtube-extraction',
@@ -211,14 +211,14 @@ export async function createResilientStream(
                 'warning',
                 {
                     error: (ytSearchError as Error).message,
-                    query: ytQuery,
+                    searchText: ytQuery,
                 },
             )
             captureMessage(
                 `YouTube search extraction failed: ${(ytSearchError as Error).message}`,
                 'warning',
                 {
-                    query: ytQuery,
+                    searchText: ytQuery,
                 },
                 {
                     category: 'music.youtube-extraction',
@@ -308,10 +308,10 @@ export async function createResilientStream(
             ]
             captureMessage(
                 'YouTube extraction exhausted all fallback stages',
-                'error',
+                'warning',
                 {
                     title: track.title,
-                    url: track.url,
+                    url: safeUrlOrigin(track.url),
                     stages: attemptedStages,
                 },
                 {
@@ -339,10 +339,10 @@ export async function createResilientStream(
         ]
         captureMessage(
             'YouTube extraction exhausted all fallback stages',
-            'error',
+            'warning',
             {
                 title: track.title,
-                url: track.url,
+                url: safeUrlOrigin(track.url),
                 stages: attemptedStages,
             },
             {
