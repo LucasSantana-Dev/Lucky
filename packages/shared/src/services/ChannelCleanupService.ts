@@ -95,6 +95,17 @@ export class ChannelCleanupService {
         })
     }
 
+    /**
+     * All enabled TTL-mode configs. The scheduler sweeps these each tick to
+     * delete messages older than their TTL — a durable backstop for deletes
+     * orphaned when the bot restarts mid-TTL (setTimeout state is lost).
+     */
+    async getTtlConfigs(): Promise<ChannelCleanupConfig[]> {
+        return await prisma.channelCleanupConfig.findMany({
+            where: { enabled: true, mode: 'ttl' },
+        })
+    }
+
     /** Marks a purge config as executed. */
     async markPurgeExecuted(id: string): Promise<ChannelCleanupConfig> {
         return await prisma.channelCleanupConfig.update({
