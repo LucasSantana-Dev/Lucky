@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import {
     type SpotifyArtist,
+    captureException,
     debugLog,
     errorLog,
     getPrismaClient,
@@ -434,16 +435,20 @@ export class ArtistSuggestionService {
             }
             return suggestions
         } catch (error) {
-            // Handle unexpected errors from getSuggestions as 503, not 500
-            // to avoid surfacing upstream provider timeouts as captureException
             if (error instanceof AppError) {
                 throw error
             }
-            // Wrap unexpected errors as 503 (service unavailable) rather than 500,
-            // since they likely stem from upstream provider timeouts
+            // getSuggestions swallows its own per-tier timeouts (see runTier),
+            // so anything reaching here is a genuinely unexpected failure —
+            // capture it for alerting (errorHandler only captures the 500
+            // path, and we're about to convert this to an AppError), while
+            // still returning 503 so the client sees a retryable status.
             warnLog({
                 message: 'Unexpected error in artist suggestions',
                 error,
+            })
+            captureException(error as Error, {
+                context: 'artist-suggestions-unexpected',
             })
             throw AppError.serviceUnavailable(
                 'Artist suggestions temporarily unavailable',
