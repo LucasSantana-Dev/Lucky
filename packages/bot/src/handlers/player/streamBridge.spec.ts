@@ -42,6 +42,14 @@ jest.mock('@lucky/shared/utils', () => ({
 jest.mock('../../utils/monitoring/sentry', () => ({
     addBreadcrumb: (...args: unknown[]) => mockAddBreadcrumb(...args),
     captureMessage: (...args: unknown[]) => mockCaptureMessage(...args),
+    safeUrlOrigin: (url: unknown) => {
+        if (typeof url !== 'string') return 'invalid-url'
+        try {
+            return new URL(url).origin
+        } catch {
+            return 'invalid-url'
+        }
+    },
 }))
 
 import {
