@@ -16,11 +16,11 @@ Deferred. Mechanism is sound and cost-benefit is clear, but the trigger conditio
 
 When agents work through multi-phase tasks (debugging, feature implementation, code review, test generation), they often re-read the same large source files multiple times.
 
-**Concrete case:** `packages/backend/src/services/GuildService.ts` (1,276 lines). A typical multi-agent debugging workflow reads this file:
+**Concrete case:** `packages/backend/src/services/GuildService.ts` (1,276 lines). A typical multi-agent debugging workflow reads this file five times:
 
 1. Initial exploration (primary model: full read)
 2. Implementation context (primary model: full read)
-3. Code-review context (primary model: full read)
+3. Code-review context (primary model: full read) ← re-read waste begins here
 4. Test-coverage validation (primary model: full read)
 5. Bug-fix verification (primary model: full read)
 
@@ -28,7 +28,8 @@ When agents work through multi-phase tasks (debugging, feature implementation, c
 
 - Full read cost: ~1,276 lines × 4 tokens/line ≈ 5,100 tokens per read
 - Total for 5 reads: 25,500 tokens
-- Estimated cost: ~$0.064/workflow (at Sonnet rates, $2.50 per 1M input tokens)
+- **Re-read waste (reads 3–5):** 3 × 5,100 = ~15,300 tokens per workflow
+- Estimated cost of waste: ~$0.038/workflow (at Sonnet rates, $2.50 per 1M input tokens)
 
 **Other large files in the codebase:**
 
@@ -40,7 +41,11 @@ When agents work through multi-phase tasks (debugging, feature implementation, c
  2,040 lines: GuildSettings.ts (Prisma model)
 ```
 
-A team running ~10 multi-agent workflows per week would accumulate ~132K tokens of re-read waste monthly, if no deduplication is applied.
+A team running ~10 multi-agent workflows per week, averaging ~10K tokens of re-read waste per workflow (accounting for smaller files and workflows with fewer re-reads), would accumulate ~100K tokens of re-read waste per week, or ~430K monthly, if no deduplication is applied.
+
+### Definition: Re-read waste
+
+**Re-read waste** = the token cost of the 3rd-and-later full reads of a file within a single workflow. Reads 1–2 establish baseline context and do not count as waste. Only reads ≥3 are candidates for routing to a cheap-model summary under Option B. In the concrete case above, reads 3–5 (15,300 tokens) are re-read waste; reads 1–2 (10,200 tokens) are baseline.
 
 ### Why it matters
 
@@ -128,8 +133,10 @@ Capture baseline metrics across 4 weeks of routine multi-agent workflows:
 
 **Trigger:** Implement when:
 
-- Re-read waste > 100K tokens/week (sustained across 2+ weeks), OR
+- Measured re-read waste exceeds 100K tokens/week (sustained across 2+ weeks), OR
 - Re-read waste causes a session to exceed budget (token-cap violation) in >1 session/week
+
+This trigger is directly evaluable: the Phase-1 estimate projects ~100K tokens/week under typical team load (10 workflows/week × ~10K average per workflow), so if instrumentation confirms sustained waste at or above this level, Phase 2 is unblocked.
 
 **Data source:** Session transcripts + tool logs in `~/.claude/sessions/`. Can be sampled via `session-insights` skill.
 
