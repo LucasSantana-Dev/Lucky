@@ -114,6 +114,7 @@ export class ChannelPurgeScheduler {
 
                     // Bulk delete recent messages up to 5 times (Discord limits bulk delete to 100 messages, and only for messages <14 days old)
                     let deletedTotal = 0
+                    let purgeFailed = false
                     for (let i = 0; i < 5; i++) {
                         try {
                             const messages = await textChannel.messages.fetch({
@@ -142,8 +143,17 @@ export class ChannelPurgeScheduler {
                                     attempt: i + 1,
                                 },
                             })
+                            purgeFailed = true
                             break
                         }
+                    }
+
+                    // On a mid-purge failure (permission revoked, rate limit,
+                    // transient API error) leave lastRunAt untouched so the next
+                    // tick retries instead of silently dropping the remaining
+                    // messages.
+                    if (purgeFailed) {
+                        continue
                     }
 
                     // Mark as executed

@@ -7,9 +7,9 @@ CREATE TABLE "channel_cleanup_configs" (
     "intervalMinutes" INTEGER,
     "ttlSeconds" INTEGER,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
-    "lastRunAt" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "lastRunAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "channel_cleanup_configs_guildId_channelId_key" UNIQUE ("guildId", "channelId")
 );
 
