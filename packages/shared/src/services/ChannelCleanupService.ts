@@ -101,9 +101,17 @@ export class ChannelCleanupService {
      * orphaned when the bot restarts mid-TTL (setTimeout state is lost).
      */
     async getTtlConfigs(): Promise<ChannelCleanupConfig[]> {
-        return await prisma.channelCleanupConfig.findMany({
+        const configs = await prisma.channelCleanupConfig.findMany({
             where: { enabled: true, mode: 'ttl' },
         })
+        // Drop rows with an out-of-range/null ttlSeconds so the sweep never
+        // acts on a malformed config (mirrors getPurgeConfigsDue's guard).
+        return configs.filter(
+            (config) =>
+                config.ttlSeconds != null &&
+                config.ttlSeconds >= 5 &&
+                config.ttlSeconds <= 86400,
+        )
     }
 
     /** Marks a purge config as executed. */

@@ -129,6 +129,49 @@ describe('cleanup command', () => {
                 channelCleanupServiceMock.upsertConfig,
             ).not.toHaveBeenCalled()
         })
+
+        it('should reject a channel with no permissionsFor (invalid type)', async () => {
+            const { createErrorEmbed } =
+                await import('../../../utils/general/embeds')
+            ;(mockInteraction.options as any).getChannel.mockReturnValue({
+                id: 'voice-1',
+            })
+
+            await cleanupCommand.execute({
+                interaction: mockInteraction as ChatInputCommandInteraction,
+            })
+
+            expect(createErrorEmbed).toHaveBeenCalledWith(
+                'Error',
+                'Invalid channel type.',
+            )
+            expect(
+                channelCleanupServiceMock.upsertConfig,
+            ).not.toHaveBeenCalled()
+        })
+
+        it('should reject when the bot lacks ManageMessages', async () => {
+            const { createErrorEmbed } =
+                await import('../../../utils/general/embeds')
+            const has = jest.fn().mockReturnValue(false)
+            ;(mockInteraction.options as any).getChannel.mockReturnValue({
+                id: 'channel-456',
+                permissionsFor: jest.fn().mockReturnValue({ has }),
+            })
+
+            await cleanupCommand.execute({
+                interaction: mockInteraction as ChatInputCommandInteraction,
+            })
+
+            expect(has).toHaveBeenCalledWith(PermissionFlagsBits.ManageMessages)
+            expect(createErrorEmbed).toHaveBeenCalledWith(
+                'Permission Missing',
+                expect.stringContaining('Manage Messages'),
+            )
+            expect(
+                channelCleanupServiceMock.upsertConfig,
+            ).not.toHaveBeenCalled()
+        })
     })
 
     describe('set-ttl subcommand', () => {

@@ -124,14 +124,19 @@ export default new Command({
     },
 })
 
-async function handleSetInterval(
+/**
+ * Resolve the target channel and run the shared cleanup-config guards (exists,
+ * text-based, bot has ManageMessages, not the starboard). Replies with the
+ * matching error and returns null on any failure; returns the channel on
+ * success. Shared by set-interval and set-ttl so the checks can't drift.
+ */
+async function resolveValidatedCleanupChannel(
     interaction: ChatInputCommandInteraction,
     guildId: string,
-) {
+): Promise<GuildChannel | null> {
     const channel = interaction.options.getChannel(
         'channel',
     ) as GuildChannel | null
-    const minutes = interaction.options.getInteger('minutos', true)
 
     if (!channel) {
         await interactionReply({
@@ -140,7 +145,7 @@ async function handleSetInterval(
                 embeds: [createErrorEmbed('Error', 'Channel not found.')],
             },
         })
-        return
+        return null
     }
 
     // Check if bot has ManageMessages permission in the target channel
@@ -151,7 +156,7 @@ async function handleSetInterval(
                 embeds: [createErrorEmbed('Error', 'Invalid channel type.')],
             },
         })
-        return
+        return null
     }
 
     const botPermissions = channel.permissionsFor(interaction.client.user)
@@ -167,7 +172,7 @@ async function handleSetInterval(
                 ],
             },
         })
-        return
+        return null
     }
 
     // Check if channel is the starboard
@@ -184,8 +189,19 @@ async function handleSetInterval(
                 ],
             },
         })
-        return
+        return null
     }
+
+    return channel
+}
+
+async function handleSetInterval(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+) {
+    const minutes = interaction.options.getInteger('minutos', true)
+    const channel = await resolveValidatedCleanupChannel(interaction, guildId)
+    if (!channel) return
 
     try {
         await channelCleanupService.upsertConfig(guildId, channel.id, {
@@ -222,64 +238,9 @@ async function handleSetTtl(
     interaction: ChatInputCommandInteraction,
     guildId: string,
 ) {
-    const channel = interaction.options.getChannel(
-        'channel',
-    ) as GuildChannel | null
     const seconds = interaction.options.getInteger('segundos', true)
-
-    if (!channel) {
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [createErrorEmbed('Error', 'Channel not found.')],
-            },
-        })
-        return
-    }
-
-    // Check if bot has ManageMessages permission in the target channel
-    if (!('permissionsFor' in channel)) {
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [createErrorEmbed('Error', 'Invalid channel type.')],
-            },
-        })
-        return
-    }
-
-    const botPermissions = channel.permissionsFor(interaction.client.user)
-    if (!botPermissions?.has(PermissionFlagsBits.ManageMessages)) {
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [
-                    createErrorEmbed(
-                        'Permission Missing',
-                        `I don't have **Manage Messages** permission in <#${channel.id}>. Please grant this permission before configuring cleanup.`,
-                    ),
-                ],
-            },
-        })
-        return
-    }
-
-    // Check if channel is the starboard
-    const starboardConfig = await starboardService.getConfig(guildId)
-    if (starboardConfig && starboardConfig.channelId === channel.id) {
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [
-                    createErrorEmbed(
-                        'Cannot Configure',
-                        'Cannot set cleanup for the starboard channel.',
-                    ),
-                ],
-            },
-        })
-        return
-    }
+    const channel = await resolveValidatedCleanupChannel(interaction, guildId)
+    if (!channel) return
 
     try {
         await channelCleanupService.upsertConfig(guildId, channel.id, {
@@ -422,10 +383,18 @@ async function handleList(
             }
         })
 
+        // Discord caps embeds at 25 fields; a guild with more configured
+        // channels would otherwise make the reply throw.
+        const MAX_EMBED_FIELDS = 25
         const embed = new EmbedBuilder()
             .setTitle('Channel Cleanup Configurations')
             .setColor(COLOR.SETUP_PURPLE)
-            .addFields(fields)
+            .addFields(fields.slice(0, MAX_EMBED_FIELDS))
+        if (fields.length > MAX_EMBED_FIELDS) {
+            embed.setFooter({
+                text: `Showing ${MAX_EMBED_FIELDS} of ${fields.length} configured channels`,
+            })
+        }
 
         await interactionReply({
             interaction,

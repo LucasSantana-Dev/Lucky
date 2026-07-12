@@ -23,16 +23,12 @@ jest.mock('./presence', () => ({
     }),
 }))
 
-jest.mock('../../utils/general/reminderScheduler', () => ({
-    reminderScheduler: { start: jest.fn(), stop: jest.fn() },
-}))
-
-jest.mock('../../utils/general/supportSessionScheduler', () => ({
-    supportSessionScheduler: { start: jest.fn(), stop: jest.fn() },
-}))
-
 jest.mock('../../utils/general/channelPurgeScheduler', () => ({
     channelPurgeScheduler: { start: jest.fn(), stop: jest.fn() },
+}))
+
+jest.mock('../../utils/general/reminderScheduler', () => ({
+    reminderScheduler: { start: jest.fn(), stop: jest.fn() },
 }))
 
 jest.mock('../../utils/moderation/modDigestScheduler', () => ({
@@ -361,7 +357,7 @@ describe('service', () => {
             )
         })
 
-        it('starts the support session scheduler in the ready handler', async () => {
+        itit('starts the support session scheduler in the ready handler', async () => {
             const { supportSessionScheduler } =
                 await import('../../utils/general/supportSessionScheduler')
             ;(supportSessionScheduler.start as jest.Mock).mockClear()
@@ -385,6 +381,36 @@ describe('service', () => {
             expect(supportSessionScheduler.start).toHaveBeenCalledWith(
                 mockClient,
             )
+        })
+
+        it('starts the channel purge scheduler in the ready handler', async () => {
+            const { channelPurgeScheduler } =
+                await import('../../utils/general/channelPurgeScheduler')
+            ;(channelPurgeScheduler.start as jest.Mock).mockClear()
+
+            const mockClient = {
+                login: jest.fn().mockResolvedValue('client'),
+                once: jest.fn((event, handler) => {
+                    if (event === 'ready') {
+                        Promise.resolve().then(() => handler())
+                    }
+                }),
+                user: null,
+                commands: {
+                    map: jest.fn().mockReturnValue([]),
+                },
+                guilds: {
+                    cache: {
+                        values: jest.fn().mockReturnValue([]),
+                    },
+                },
+            }
+
+            const startPromise = startClient({ client: mockClient as any })
+            await new Promise((resolve) => setImmediate(resolve))
+            await startPromise
+
+            expect(channelPurgeScheduler.start).toHaveBeenCalledWith(mockClient)
         })
 
         it('still starts the scheduler when an upstream ready step fails', async () => {
