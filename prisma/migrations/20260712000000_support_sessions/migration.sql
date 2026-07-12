@@ -24,5 +24,13 @@ CREATE INDEX "support_sessions_guildId_idx" ON "support_sessions"("guildId");
 -- CreateIndex
 CREATE INDEX "support_sessions_status_expiresAt_idx" ON "support_sessions"("status", "expiresAt");
 
+-- Enforce one OPEN ticket per (guild, requestor) at the DB level so concurrent
+-- /ticket open invocations can't race past the app-level check. Partial unique
+-- indexes are not expressible in schema.prisma, so this lives only in the
+-- migration (the generated client is unaffected; there is no CI drift check).
+CREATE UNIQUE INDEX "support_sessions_one_open_per_user"
+    ON "support_sessions"("guildId", "requestorId")
+    WHERE "status" = 'open';
+
 -- AddForeignKey
 ALTER TABLE "support_sessions" ADD CONSTRAINT "support_sessions_guildId_fkey" FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId") ON DELETE CASCADE ON UPDATE CASCADE;

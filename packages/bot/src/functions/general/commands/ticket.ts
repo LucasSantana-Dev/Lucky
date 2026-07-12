@@ -41,75 +41,39 @@ async function handleOpen(
         interaction.user.id,
     )
     if (existing) {
-        await interactionReply({
-            interaction,
-            content: {
-                content: `❌ You already have an open ticket: <#${existing.channelId}>. Close it before opening another.`,
-            },
-        })
-        return
+        // Only block if the channel still exists; if it was deleted out-of-band
+        // (a human removed it), close the orphan row and let the user reopen
+        // instead of stranding them until the 24h sweep.
+        const stillThere = await guild.channels
+            .fetch(existing.channelId)
+            .catch(() => null)
+        if (stillThere) {
+            await interactionReply({
+                interaction,
+                content: {
+                    content: `❌ You already have an open ticket: <#${existing.channelId}>. Close it before opening another.`,
+                },
+            })
+            return
+        }
+        await supportSessionService.close(existing.id).catch(() => {})
     }
 
-    // @everyone denied; requestor and every support agent (via the persistent
-    // role) get access — no per-session role is minted (avoids the 500-role cap).
-    const overwrites: OverwriteResolvable[] = [
-        {
-            id: guild.roles.everyone.id,
-            deny: [PermissionFlagsBits.ViewChannel],
-        },
-        {
-            id: interaction.user.id,
-            allow: [
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.ReadMessageHistory,
-            ],
-        },
-        {
-            id: agentRoleId,
-            allow: [
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.ReadMessageHistory,
-            ],
-        },
-    ]
-
+    let channel: TextChannel
     try {
-        const channel = (await guild.channels.create({
+        channel = (await guild.channels.create({
             name: `ticket-${interaction.user.username}`.slice(0, 90),
             type: ChannelType.GuildText,
             parent: categoryId,
-            permissionOverwrites: overwrites,
+            permissionOverwrites: buildTicketOverwrites(
+                guild,
+                interaction.user.id,
+                agentRoleId,
+            ),
             reason: `Support ticket opened by ${interaction.user.tag}`,
         })) as TextChannel
-
-        await supportSessionService.open({
-            guildId: guild.id,
-            channelId: channel.id,
-            requestorId: interaction.user.id,
-            expiresAt: new Date(Date.now() + TICKET_TTL_MS),
-        })
-
-        const reason = interaction.options.getString('reason')
-        await channel.send({
-            content: `👋 <@${interaction.user.id}> — a support agent (<@&${agentRoleId}>) will be with you.${
-                reason ? `\n**Reason:** ${reason}` : ''
-            }\n\nThis ticket auto-closes in 24h, or use \`/ticket close\`.`,
-        })
-
-        await interactionReply({
-            interaction,
-            content: {
-                content: `✅ Ticket opened: <#${channel.id}>`,
-            },
-        })
-        infoLog({
-            message: 'Support ticket opened',
-            data: { guildId: guild.id, channelId: channel.id },
-        })
     } catch (error) {
-        errorLog({ message: 'Failed to open support ticket', error })
+        errorLog({ message: 'Failed to create ticket channel', error })
         await interactionReply({
             interaction,
             content: {
@@ -117,7 +81,76 @@ async function handleOpen(
                     '❌ Could not create the ticket channel. Check the bot has Manage Channels in the support category.',
             },
         })
+        return
     }
+
+    try {
+        await supportSessionService.open({
+            guildId: guild.id,
+            channelId: channel.id,
+            requestorId: interaction.user.id,
+            expiresAt: new Date(Date.now() + TICKET_TTL_MS),
+        })
+    } catch (error) {
+        // Roll the channel back so a failed — or race-lost (P2002 on the
+        // one-open-per-user unique index) — record never orphans a channel.
+        await channel.delete('Ticket record failed').catch(() => {})
+        const raced = (error as { code?: string })?.code === 'P2002'
+        errorLog({ message: 'Failed to record ticket session', error })
+        await interactionReply({
+            interaction,
+            content: {
+                content: raced
+                    ? '❌ You already have an open ticket (opened moments ago).'
+                    : '❌ Could not open the ticket. Please try again.',
+            },
+        })
+        return
+    }
+
+    // Welcome message is best-effort — a send failure must not tear down an
+    // already-valid ticket.
+    const reason = interaction.options.getString('reason')
+    await channel
+        .send({
+            content: `👋 <@${interaction.user.id}> — a support agent (<@&${agentRoleId}>) will be with you.${
+                reason ? `\n**Reason:** ${reason}` : ''
+            }\n\nThis ticket auto-closes in 24h, or use \`/ticket close\`.`,
+        })
+        .catch((error) =>
+            errorLog({ message: 'Ticket welcome message failed', error }),
+        )
+
+    await interactionReply({
+        interaction,
+        content: { content: `✅ Ticket opened: <#${channel.id}>` },
+    })
+    infoLog({
+        message: 'Support ticket opened',
+        data: { guildId: guild.id, channelId: channel.id },
+    })
+}
+
+/** @everyone denied; the requestor and every support agent (via the persistent
+ * role) get access — no per-session role is minted (avoids the 500-role cap). */
+function buildTicketOverwrites(
+    guild: Guild,
+    requestorId: string,
+    agentRoleId: string,
+): OverwriteResolvable[] {
+    const allow = [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.ReadMessageHistory,
+    ]
+    return [
+        {
+            id: guild.roles.everyone.id,
+            deny: [PermissionFlagsBits.ViewChannel],
+        },
+        { id: requestorId, allow },
+        { id: agentRoleId, allow },
+    ]
 }
 
 async function handleClose(
