@@ -3,8 +3,10 @@
 - **Date:** 2026-07-11
 - **Status:** Accepted
 - **Deciders:** Lucas Santana
-- **Related:** `decisions/2026-07-11-bluegreen-web-tier.md` (web tier blue/green, shipped);
-  PRs #1785/#1786 (web blue/green); the bot is `packages/bot` (discord.js v14, unsharded, ~11 guilds)
+- **Related:** the web-tier blue/green decision — its ADR
+  `decisions/2026-07-11-bluegreen-web-tier.md` lands with PR #1786 (not yet on
+  `main` at the time of writing); the bot is `packages/bot` (discord.js v14,
+  unsharded, ~11 guilds)
 
 ## Context
 
