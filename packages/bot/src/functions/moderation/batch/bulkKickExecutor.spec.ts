@@ -137,4 +137,87 @@ describe('BulkKickExecutor', () => {
 
         expect(result).toMatchObject({ cancelled: true })
     })
+
+    test('initializes tally from prior run processedItems, skippedItems, failedItems', async () => {
+        const kickMember = jest.fn().mockResolvedValue(undefined)
+        getClientMock.mockReturnValue(
+            makeClient([member('100', { kick: kickMember })]),
+        )
+        // Resume: already processed 3 kicked, 2 skipped, 1 failed
+        batchJobServiceMock.getById.mockResolvedValue({
+            nextCursor: null,
+            status: 'in_progress',
+            processedItems: 3,
+            skippedItems: 2,
+            failedItems: 1,
+        })
+
+        const onProgressMock = jest.fn().mockResolvedValue(undefined)
+        const result = await new BulkKickExecutor().execute(
+            JOB({ totalItems: 7 }),
+            onProgressMock,
+        )
+
+        // New kick increments processedItems from 3 to 4 (kicked goes from 3 to 4)
+        expect(result).toMatchObject({ kicked: 4, skipped: 2, failed: 1 })
+        // Progress updates should include the resumed counts in message
+        expect(onProgressMock).toHaveBeenCalled()
+    })
+
+    test('checkpoints progress BEFORE kicking member (crash-safety)', async () => {
+        const callOrder: string[] = []
+
+        const kickMember = jest.fn(async () => {
+            callOrder.push('kick')
+        })
+
+        getClientMock.mockReturnValue(
+            makeClient([member('100', { kick: kickMember })]),
+        )
+
+        const onProgressMock = jest.fn(async () => {
+            callOrder.push('progress')
+        })
+
+        await new BulkKickExecutor().execute(
+            JOB({ totalItems: 1 }),
+            onProgressMock,
+        )
+
+        // Verify that progress is called before the kick happens in the loop
+        expect(onProgressMock).toHaveBeenCalled()
+        expect(kickMember).toHaveBeenCalled()
+        // The order should be: progress checkpoint is called, then kick is attempted
+        const progressIndex = callOrder.indexOf('progress')
+        const kickIndex = callOrder.indexOf('kick')
+        expect(progressIndex).toBeGreaterThanOrEqual(0)
+        expect(kickIndex).toBeGreaterThanOrEqual(0)
+        expect(progressIndex).toBeLessThan(kickIndex)
+    })
+
+    test('pauses when Discord client becomes unavailable mid-run', async () => {
+        let clientAvailable = true
+        const clientMockImpl = jest.fn(() =>
+            clientAvailable ? makeClient([member('100'), member('200')]) : null,
+        )
+        getClientMock.mockImplementation(clientMockImpl)
+
+        // First call returns the client; second onwards the client becomes null
+        batchJobServiceMock.getById
+            .mockResolvedValueOnce({ nextCursor: null, status: 'in_progress' })
+            .mockImplementation(async () => {
+                // After first iteration, client unavailable
+                if (clientMockImpl.mock.calls.length > 1) {
+                    clientAvailable = false
+                }
+                return { status: 'in_progress' }
+            })
+
+        const result = await new BulkKickExecutor().execute(
+            JOB({ totalItems: 2 }),
+            jest.fn() as any,
+        )
+
+        expect(result).toMatchObject({ paused: true })
+    })
 })
