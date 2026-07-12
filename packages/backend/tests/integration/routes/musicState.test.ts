@@ -141,6 +141,18 @@ describe('Music State Routes', () => {
                 const port = (server.address() as AddressInfo).port
                 const chunks: string[] = []
 
+                let finished = false
+                let fallback: NodeJS.Timeout
+                const finish = (assert?: () => void) => {
+                    if (finished) return
+                    finished = true
+                    clearTimeout(fallback)
+                    server.close(() => {
+                        assert?.()
+                        done()
+                    })
+                }
+
                 const req = http.get(
                     {
                         hostname: '127.0.0.1',
@@ -160,20 +172,14 @@ describe('Music State Routes', () => {
                     },
                 )
 
-                req.on('close', () => {
-                    server.close(() => {
-                        expect(chunks.join('')).toContain('data:')
-                        done()
-                    })
-                })
+                req.on('close', () =>
+                    finish(() => expect(chunks.join('')).toContain('data:')),
+                )
+                req.on('error', () => finish())
 
-                req.on('error', () => {
-                    server.close(() => done())
-                })
-
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish()
                 }, 2000)
             })
         }, 5000)
@@ -184,6 +190,15 @@ describe('Music State Routes', () => {
 
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
+
+                let finished = false
+                let fallback: NodeJS.Timeout
+                const finish = () => {
+                    if (finished) return
+                    finished = true
+                    clearTimeout(fallback)
+                    server.close(() => done())
+                }
 
                 const req = http.get(
                     {
@@ -201,17 +216,12 @@ describe('Music State Routes', () => {
                     },
                 )
 
-                req.on('close', () => {
-                    server.close(() => done())
-                })
+                req.on('close', finish)
+                req.on('error', finish)
 
-                req.on('error', () => {
-                    server.close(() => done())
-                })
-
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish()
                 }, 1000)
             })
         }, 5000)
@@ -222,6 +232,15 @@ describe('Music State Routes', () => {
 
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
+
+                let finished = false
+                let fallback: NodeJS.Timeout
+                const finish = () => {
+                    if (finished) return
+                    finished = true
+                    clearTimeout(fallback)
+                    server.close(() => done())
+                }
 
                 const req = http.get(
                     {
@@ -236,17 +255,16 @@ describe('Music State Routes', () => {
                     },
                 )
 
-                req.on('close', () => {
-                    server.close(() => done())
-                })
+                // req.destroy() emits both 'close' and (often) 'error', and the
+                // 1s fallback can also fire — all three previously called done()
+                // independently, causing "done called multiple times" under load.
+                // Route every path through a single guarded finish().
+                req.on('close', finish)
+                req.on('error', finish)
 
-                req.on('error', () => {
-                    server.close(() => done())
-                })
-
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish()
                 }, 1000)
             })
         }, 5000)
@@ -608,7 +626,6 @@ describe('Music State Routes', () => {
             })
         }, 5000)
 
-
         test('guild removed from sseClients when all clients disconnect', (done) => {
             authed()
             mockGetState.mockResolvedValue(null)
@@ -742,7 +759,9 @@ describe('Music State Routes', () => {
                     },
                     (res) => {
                         expect(res.statusCode).toBe(200)
-                        expect(res.headers['content-type']).toContain('text/event-stream')
+                        expect(res.headers['content-type']).toContain(
+                            'text/event-stream',
+                        )
                         res.on('data', (chunk: Buffer) => {
                             if (chunk.toString().includes('data:')) {
                                 dataReceived = true
