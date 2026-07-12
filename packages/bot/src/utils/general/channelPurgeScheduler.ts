@@ -1,5 +1,5 @@
 import type { Client, TextChannel } from 'discord.js'
-import { channelCleanupService } from '@lucky/shared/services'
+import { channelCleanupService, serverLogService } from '@lucky/shared/services'
 import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
 
 // Tick every 5 minutes by default to check for channels due for purge
@@ -69,12 +69,6 @@ export class ChannelPurgeScheduler {
 
         try {
             await this.processPurgeConfigs(this.client)
-
-            // Durable TTL backstop: sweep expired messages in ttl-mode channels.
-            // The per-message setTimeout in ttlDeleteHandler is lost on restart;
-            // this tick (run on startup and every interval) reclaims any deletes
-            // orphaned by downtime.
-            await this.sweepTtlConfigs(this.client)
         } catch (error) {
             errorLog({
                 message: 'Error in channel purge scheduler tick',
@@ -176,6 +170,29 @@ export class ChannelPurgeScheduler {
                 // Mark as executed
                 await channelCleanupService.markPurgeExecuted(config.id)
 
+                // Audit log: record the purge summary
+                try {
+                    await serverLogService.createLog(
+                        config.guildId,
+                        'mod_action',
+                        'Channel purge executed',
+                        {
+                            deletedMessages: deletedTotal,
+                            configId: config.id,
+                        },
+                        { channelId: config.channelId },
+                    )
+                } catch (logError) {
+                    errorLog({
+                        message: 'Failed to log channel purge audit entry',
+                        error: logError,
+                        data: {
+                            channelId: config.channelId,
+                            guildId: config.guildId,
+                        },
+                    })
+                }
+
                 infoLog({
                     message: 'Channel purge executed',
                     data: {
@@ -197,55 +214,6 @@ export class ChannelPurgeScheduler {
         }
     }
 
-    private async sweepTtlConfigs(client: Client): Promise<void> {
-        const ttlConfigs = await channelCleanupService.getTtlConfigs()
-        if (ttlConfigs.length === 0) return
-
-        const now = Date.now()
-        for (const config of ttlConfigs) {
-            const ttlSeconds = config.ttlSeconds
-            // Same bounds the command enforces; skip malformed configs.
-            if (!ttlSeconds || ttlSeconds < 5 || ttlSeconds > 86400) continue
-
-            try {
-                const channel = await client.channels
-                    .fetch(config.channelId)
-                    .catch(() => null)
-
-                if (!channel || !channel.isTextBased()) continue
-                if (
-                    !('guild' in channel) ||
-                    channel.guild?.id !== config.guildId
-                ) {
-                    continue
-                }
-
-                const textChannel = channel as TextChannel
-                const messages = await textChannel.messages.fetch({
-                    limit: 100,
-                })
-                // Match ttlDeleteHandler semantics: user messages only, expired
-                // past their TTL. bulkDelete(filterOld=true) skips >14d messages.
-                const expired = messages.filter(
-                    (m) =>
-                        !m.author.bot &&
-                        now - m.createdTimestamp > ttlSeconds * 1000,
-                )
-                if (expired.size === 0) continue
-
-                await textChannel.bulkDelete(expired, true)
-            } catch (error) {
-                errorLog({
-                    message: 'Error sweeping TTL channel',
-                    error,
-                    data: {
-                        channelId: config.channelId,
-                        guildId: config.guildId,
-                    },
-                })
-            }
-        }
-    }
 }
 
 /** Singleton instance of ChannelPurgeScheduler. */

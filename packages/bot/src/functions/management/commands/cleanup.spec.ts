@@ -174,48 +174,6 @@ describe('cleanup command', () => {
         })
     })
 
-    describe('set-ttl subcommand', () => {
-        beforeEach(() => {
-            ;(mockInteraction.options as any).getSubcommand.mockReturnValue(
-                'set-ttl',
-            )
-            ;(mockInteraction.options as any).getInteger.mockReturnValue(300) // 5 minutes
-        })
-
-        it('should configure TTL delete', async () => {
-            await cleanupCommand.execute({
-                interaction: mockInteraction as ChatInputCommandInteraction,
-            })
-
-            expect(channelCleanupServiceMock.upsertConfig).toHaveBeenCalledWith(
-                'guild-123',
-                'channel-456',
-                {
-                    mode: 'ttl',
-                    intervalMinutes: null,
-                    ttlSeconds: 300,
-                    enabled: true,
-                },
-            )
-        })
-
-        it('should prevent TTL on starboard channel', async () => {
-            starboardServiceMock.getConfig.mockResolvedValue({
-                guildId: 'guild-123',
-                channelId: 'channel-456',
-            })
-
-            await cleanupCommand.execute({
-                interaction: mockInteraction as ChatInputCommandInteraction,
-            })
-
-            expect(interactionReplyMock).toHaveBeenCalled()
-            expect(
-                channelCleanupServiceMock.upsertConfig,
-            ).not.toHaveBeenCalled()
-        })
-    })
-
     describe('disable subcommand', () => {
         beforeEach(() => {
             ;(mockInteraction.options as any).getSubcommand.mockReturnValue(

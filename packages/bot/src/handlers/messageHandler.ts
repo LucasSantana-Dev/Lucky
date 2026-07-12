@@ -8,12 +8,10 @@ import { customCommandHandler } from './message/customCommandHandler'
 import { afkHandler } from './message/afkHandler'
 import { xpHandler } from './message/xpHandler'
 import { starboardSeedHandler } from './message/starboardSeedHandler'
-import { ttlDeleteHandler } from './message/ttlDeleteHandler'
 import type { MessageContext } from './message/types'
 
 const pipeline = new MessagePipeline()
     .register(spamHandler)
-    .register(ttlDeleteHandler)
     .register(autoModHandler)
     .register(customCommandHandler)
     .register(afkHandler)

@@ -22,7 +22,7 @@ import { COLOR } from '@lucky/shared/constants'
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('cleanup')
-        .setDescription('Configure automatic channel cleanup (purge or TTL)')
+        .setDescription('Configure automatic channel cleanup (purge)')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addSubcommand((sub) =>
             sub
@@ -42,28 +42,6 @@ export default new Command({
                         .setName('minutos')
                         .setDescription('Minutes between purges (minimum 60)')
                         .setMinValue(60)
-                        .setRequired(true),
-                ),
-        )
-        .addSubcommand((sub) =>
-            sub
-                .setName('set-ttl')
-                .setDescription(
-                    'Enable TTL-based delete (deletes messages N seconds after posting)',
-                )
-                .addChannelOption((opt) =>
-                    opt
-                        .setName('channel')
-                        .setDescription('Channel to clean up')
-                        .addChannelTypes(ChannelType.GuildText)
-                        .setRequired(true),
-                )
-                .addIntegerOption((opt) =>
-                    opt
-                        .setName('segundos')
-                        .setDescription('Seconds before deletion (5-86400)')
-                        .setMinValue(5)
-                        .setMaxValue(86400)
                         .setRequired(true),
                 ),
         )
@@ -101,8 +79,6 @@ export default new Command({
         try {
             if (subcommand === 'set-interval') {
                 await handleSetInterval(interaction, guildId)
-            } else if (subcommand === 'set-ttl') {
-                await handleSetTtl(interaction, guildId)
             } else if (subcommand === 'disable') {
                 await handleDisable(interaction, guildId)
             } else if (subcommand === 'list') {
@@ -128,7 +104,7 @@ export default new Command({
  * Resolve the target channel and run the shared cleanup-config guards (exists,
  * text-based, bot has ManageMessages, not the starboard). Replies with the
  * matching error and returns null on any failure; returns the channel on
- * success. Shared by set-interval and set-ttl so the checks can't drift.
+ * success.
  */
 async function resolveValidatedCleanupChannel(
     interaction: ChatInputCommandInteraction,
@@ -218,54 +194,6 @@ async function handleSetInterval(
                     createSuccessEmbed(
                         'Cleanup Configured',
                         `Channel <#${channel.id}> will be purged every **${minutes} minutes**.`,
-                    ),
-                ],
-            },
-        })
-    } catch {
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [
-                    createErrorEmbed('Error', 'Failed to save configuration.'),
-                ],
-            },
-        })
-    }
-}
-
-async function handleSetTtl(
-    interaction: ChatInputCommandInteraction,
-    guildId: string,
-) {
-    const seconds = interaction.options.getInteger('segundos', true)
-    const channel = await resolveValidatedCleanupChannel(interaction, guildId)
-    if (!channel) return
-
-    try {
-        await channelCleanupService.upsertConfig(guildId, channel.id, {
-            mode: 'ttl',
-            intervalMinutes: null,
-            ttlSeconds: seconds,
-            enabled: true,
-        })
-
-        const minSec = Math.floor(seconds / 60)
-        const secOnly = seconds % 60
-        const timeStr =
-            minSec > 0
-                ? secOnly > 0
-                    ? `**${minSec}m ${secOnly}s**`
-                    : `**${minSec} minute${minSec === 1 ? '' : 's'}**`
-                : `**${seconds} second${seconds === 1 ? '' : 's'}**`
-
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [
-                    createSuccessEmbed(
-                        'Cleanup Configured',
-                        `Messages in <#${channel.id}> will be deleted ${timeStr} after posting.`,
                     ),
                 ],
             },
