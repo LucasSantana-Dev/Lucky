@@ -59,7 +59,6 @@ export function setupMiddleware(app: Express): void {
                         'https://lucky-api.lucassantana.tech',
                         'https://api.luk-homeserver.com.br',
                         'https://*.sentry.io',
-                        'https://cloudflareinsights.com',
                     ],
                     'worker-src': ["'self'", 'blob:'],
                     'frame-ancestors': ["'none'"],
