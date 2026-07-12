@@ -101,6 +101,10 @@ export {
     type StarboardEntry,
 } from './StarboardService.js'
 export {
+    supportSessionService,
+    SupportSessionService,
+} from './SupportSessionService.js'
+export {
     levelService,
     type LevelConfig,
     type MemberXP,
