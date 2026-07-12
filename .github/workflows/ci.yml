@@ -245,6 +245,9 @@ jobs:
         runs-on: ubuntu-latest
         needs: detect-docker-changes
         if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.detect-docker-changes.outputs.relevant == 'true'
+        concurrency:
+            group: docker-build-${{ github.ref }}
+            cancel-in-progress: true
         strategy:
             fail-fast: false
             matrix:
@@ -272,6 +275,8 @@ jobs:
                   target: ${{ matrix.target }}
                   push: false
                   load: false
+                  provenance: false
+                  sbom: false
                   cache-from: type=gha,scope=${{ matrix.service }}
                   cache-to: type=gha,mode=max,scope=${{ matrix.service }}
                   build-args: |
@@ -286,6 +291,8 @@ jobs:
                   target: ${{ matrix.target }}
                   push: false
                   load: false
+                  provenance: false
+                  sbom: false
                   cache-from: type=gha,scope=${{ matrix.service }}
                   cache-to: type=gha,mode=max,scope=${{ matrix.service }}
                   build-args: |

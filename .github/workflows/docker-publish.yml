@@ -82,6 +82,8 @@ jobs:
                   push: true
                   tags: ${{ steps.meta.outputs.tags }}
                   labels: ${{ steps.meta.outputs.labels }}
+                  provenance: false
+                  sbom: false
                   build-args: |
                       COMMIT_SHA=${{ github.sha }}
                       NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
