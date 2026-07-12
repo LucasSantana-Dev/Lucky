@@ -4,6 +4,7 @@ const reminderServiceMock = {
     getDueReminders: jest.fn() as jest.MockedFunction<any>,
     markDelivered: jest.fn() as jest.MockedFunction<any>,
     recordFailedAttempt: jest.fn() as jest.MockedFunction<any>,
+    markDeliveryFailed: jest.fn() as jest.MockedFunction<any>,
 }
 
 jest.mock('@lucky/shared/services', () => ({
@@ -13,6 +14,7 @@ jest.mock('@lucky/shared/services', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
     infoLog: jest.fn(),
+    warnLog: jest.fn(),
 }))
 jest.mock('@lucky/shared/constants', () => ({ COLOR: { LUCKY_PURPLE: 0 } }))
 
@@ -45,11 +47,9 @@ function failingClient() {
 function deliveringClient() {
     return {
         users: {
-            fetch: jest
-                .fn()
-                .mockResolvedValue({
-                    send: jest.fn().mockResolvedValue(undefined),
-                }),
+            fetch: jest.fn().mockResolvedValue({
+                send: jest.fn().mockResolvedValue(undefined),
+            }),
         },
         channels: { fetch: jest.fn() },
     } as never
@@ -112,5 +112,55 @@ describe('ReminderScheduler.tick', () => {
 
         // both reminders were processed despite r1's markDelivered throwing
         expect(reminderServiceMock.markDelivered).toHaveBeenCalledTimes(2)
+    })
+
+    // --- Broadcast (channel/role) reminders — #1767 ---
+
+    /** Client whose channel send succeeds; captures the send payload. */
+    function broadcastClient(send: jest.Mock) {
+        return {
+            users: { fetch: jest.fn() },
+            channels: {
+                fetch: jest.fn().mockResolvedValue({ send }),
+            },
+        } as never
+    }
+
+    it('posts a channel reminder once (no ping, no retry) and marks it delivered', async () => {
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        await runTick(broadcastClient(send), [
+            makeReminder({ targetType: 'channel' }),
+        ])
+
+        expect(send).toHaveBeenCalledTimes(1)
+        const payload = send.mock.calls[0][0] as Record<string, unknown>
+        expect(payload.content).toBeUndefined()
+        expect(payload.allowedMentions).toEqual({ parse: [] })
+        expect(reminderServiceMock.markDelivered).toHaveBeenCalledWith('r1')
+        expect(reminderServiceMock.markDeliveryFailed).not.toHaveBeenCalled()
+    })
+
+    it('pings the role and scopes the mention for a role reminder', async () => {
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        await runTick(broadcastClient(send), [
+            makeReminder({ targetType: 'role', roleId: 'role9' }),
+        ])
+
+        const payload = send.mock.calls[0][0] as Record<string, unknown>
+        expect(payload.content).toBe('<@&role9>')
+        expect(payload.allowedMentions).toEqual({ roles: ['role9'] })
+        expect(reminderServiceMock.markDelivered).toHaveBeenCalledWith('r1')
+    })
+
+    it('flags a failed broadcast (fire-once) instead of retrying', async () => {
+        await runTick(failingClient(), [
+            makeReminder({ targetType: 'channel' }),
+        ])
+
+        expect(reminderServiceMock.markDeliveryFailed).toHaveBeenCalledWith(
+            'r1',
+        )
+        expect(reminderServiceMock.recordFailedAttempt).not.toHaveBeenCalled()
+        expect(reminderServiceMock.markDelivered).not.toHaveBeenCalled()
     })
 })
