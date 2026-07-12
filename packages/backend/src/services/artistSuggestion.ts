@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import {
     type SpotifyArtist,
+    captureException,
     debugLog,
     errorLog,
     getPrismaClient,
@@ -12,6 +13,7 @@ import { withTimeout } from '@lucky/shared/utils/async'
 import { TtlCache } from '@lucky/shared/utils/cache'
 import { spotifyLinkService } from '@lucky/shared/services'
 import { POPULAR_ARTISTS } from '../constants/popularArtists'
+import { AppError } from '../errors/AppError'
 import {
     getSpotifyClientToken,
     isSpotifyAuthConfigured,
@@ -418,33 +420,53 @@ export class ArtistSuggestionService {
         discordUserId: string | undefined,
     ): Promise<ArtistSuggestion[]> {
         if (!discordUserId) {
-            throw { status: 401, error: 'Not authenticated' }
+            throw AppError.unauthorized()
         }
         if (!isSpotifyAuthConfigured()) {
-            throw { status: 503, error: 'Spotify not configured' }
+            throw AppError.serviceUnavailable('Spotify not configured')
         }
 
-        const suggestions = await this.getSuggestions(discordUserId)
-        if (suggestions.length === 0) {
-            throw {
-                status: 503,
-                error: 'Artist suggestions temporarily unavailable',
+        try {
+            const suggestions = await this.getSuggestions(discordUserId)
+            if (suggestions.length === 0) {
+                throw AppError.serviceUnavailable(
+                    'Artist suggestions temporarily unavailable',
+                )
             }
+            return suggestions
+        } catch (error) {
+            if (error instanceof AppError) {
+                throw error
+            }
+            // getSuggestions swallows its own per-tier timeouts (see runTier),
+            // so anything reaching here is a genuinely unexpected failure —
+            // capture it for alerting (errorHandler only captures the 500
+            // path, and we're about to convert this to an AppError), while
+            // still returning 503 so the client sees a retryable status.
+            warnLog({
+                message: 'Unexpected error in artist suggestions',
+                error,
+            })
+            captureException(error as Error, {
+                context: 'artist-suggestions-unexpected',
+            })
+            throw AppError.serviceUnavailable(
+                'Artist suggestions temporarily unavailable',
+            )
         }
-        return suggestions
     }
 
     async handleSearchArtists(query: unknown): Promise<SpotifyArtist[]> {
         const q = typeof query === 'string' ? query.trim() : ''
         if (!q) {
-            throw { status: 400, error: 'Missing query parameter q' }
+            throw AppError.badRequest('Missing query parameter q')
         }
         if (!isSpotifyAuthConfigured()) {
-            throw { status: 503, error: 'Spotify not configured' }
+            throw AppError.serviceUnavailable('Spotify not configured')
         }
         const token = await getSpotifyClientToken()
         if (!token) {
-            throw { status: 503, error: 'Failed to get Spotify token' }
+            throw AppError.serviceUnavailable('Failed to get Spotify token')
         }
         return searchSpotifyArtists(token, q, 12)
     }
@@ -453,14 +475,14 @@ export class ArtistSuggestionService {
         artistId: string | undefined,
     ): Promise<SpotifyArtist[]> {
         if (!artistId) {
-            throw { status: 400, error: 'Missing artistId parameter' }
+            throw AppError.badRequest('Missing artistId parameter')
         }
         if (!isSpotifyAuthConfigured()) {
-            throw { status: 503, error: 'Spotify not configured' }
+            throw AppError.serviceUnavailable('Spotify not configured')
         }
         const token = await getSpotifyClientToken()
         if (!token) {
-            throw { status: 503, error: 'Failed to get Spotify token' }
+            throw AppError.serviceUnavailable('Failed to get Spotify token')
         }
         return getSpotifyRelatedArtists(token, artistId)
     }
@@ -470,7 +492,7 @@ export class ArtistSuggestionService {
         guildId: unknown,
     ): Promise<unknown[]> {
         if (!discordUserId) {
-            throw { status: 401, error: 'Not authenticated' }
+            throw AppError.unauthorized()
         }
         const db = getPrismaClient()
         const guild = typeof guildId === 'string' ? guildId : undefined
@@ -485,7 +507,7 @@ export class ArtistSuggestionService {
         body: unknown,
     ): Promise<unknown> {
         if (!discordUserId) {
-            throw { status: 401, error: 'Not authenticated' }
+            throw AppError.unauthorized()
         }
 
         const schema = z.object({
@@ -499,7 +521,7 @@ export class ArtistSuggestionService {
 
         const parsed = schema.safeParse(body)
         if (!parsed.success) {
-            throw { status: 400, error: parsed.error.message }
+            throw AppError.badRequest(parsed.error.message)
         }
 
         const { guildId, artistName, spotifyId, imageUrl, preference } =
@@ -534,7 +556,7 @@ export class ArtistSuggestionService {
         body: unknown,
     ): Promise<unknown[]> {
         if (!discordUserId) {
-            throw { status: 401, error: 'Not authenticated' }
+            throw AppError.unauthorized()
         }
 
         const schema = z.object({
@@ -552,7 +574,7 @@ export class ArtistSuggestionService {
 
         const parsed = schema.safeParse(body)
         if (!parsed.success) {
-            throw { status: 400, error: parsed.error.message }
+            throw AppError.badRequest(parsed.error.message)
         }
 
         const { guildId, items } = parsed.data
@@ -597,14 +619,14 @@ export class ArtistSuggestionService {
         guildId: unknown,
     ): Promise<void> {
         if (!discordUserId) {
-            throw { status: 401, error: 'Not authenticated' }
+            throw AppError.unauthorized()
         }
         if (!artistKey) {
-            throw { status: 400, error: 'Missing artistKey parameter' }
+            throw AppError.badRequest('Missing artistKey parameter')
         }
         const guild = typeof guildId === 'string' ? guildId : undefined
         if (!guild) {
-            throw { status: 400, error: 'Missing guildId query param' }
+            throw AppError.badRequest('Missing guildId query param')
         }
         const db = getPrismaClient()
         await db.userArtistPreference.delete({
