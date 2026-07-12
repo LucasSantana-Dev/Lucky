@@ -33,7 +33,10 @@ export function setupMiddleware(app: Express): void {
                 reportOnly: false,
                 directives: {
                     'default-src': ["'self'"],
-                    'script-src': ["'self'"],
+                    'script-src': [
+                        "'self'",
+                        'https://static.cloudflareinsights.com',
+                    ],
                     'style-src': [
                         "'self'",
                         "'unsafe-inline'",
