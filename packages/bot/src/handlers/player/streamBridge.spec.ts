@@ -50,6 +50,14 @@ jest.mock('../../utils/monitoring/sentry', () => ({
             return 'invalid-url'
         }
     },
+    scrubUrls: (text: string) =>
+        text.replace(/https?:\/\/[^\s"'<>]+/g, (m: string) => {
+            try {
+                return new URL(m).origin
+            } catch {
+                return 'invalid-url'
+            }
+        }),
 }))
 
 import {
@@ -271,6 +279,40 @@ describe('createResilientStream', () => {
                 stage: 'yt-dlp-url',
             }),
         )
+    })
+
+    it('scrubs a tokenized URL out of the yt-dlp error before it reaches Sentry', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+        setImmediate(() => {
+            // yt-dlp's error message embeds stderr, which can carry a signed URL.
+            proc.stderr.emit(
+                'data',
+                Buffer.from(
+                    'ERROR: unable to download https://rr3---sn-abc.googlevideo.com/videoplayback?sig=SECRETTOKEN&expire=1',
+                ),
+            )
+            proc.emit('close', 1)
+        })
+        await createResilientStream(makeTrack())
+
+        const msgCall = mockCaptureMessage.mock.calls.find((c) =>
+            String(c[0]).includes('YouTube extraction failed'),
+        )
+        expect(msgCall).toBeDefined()
+        expect(String(msgCall?.[0])).not.toContain('SECRETTOKEN')
+        expect(String(msgCall?.[0])).not.toContain('sig=')
+        expect(String(msgCall?.[0])).toContain(
+            'https://rr3---sn-abc.googlevideo.com',
+        )
+
+        const bcCall = mockAddBreadcrumb.mock.calls.find(
+            (c) => c[0] === 'YouTube extraction failed via yt-dlp URL',
+        )
+        expect(
+            String((bcCall?.[3] as { error?: string })?.error),
+        ).not.toContain('SECRETTOKEN')
     })
 
     it('captures breadcrumb on successful YouTube search stream for Spotify source', async () => {

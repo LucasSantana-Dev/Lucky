@@ -1,5 +1,10 @@
 import * as Sentry from '@sentry/node'
-import { safeUrlOrigin, captureMessage, addBreadcrumb } from './sentry.js'
+import {
+    safeUrlOrigin,
+    scrubUrls,
+    captureMessage,
+    addBreadcrumb,
+} from './sentry.js'
 
 jest.mock('@sentry/node', () => ({
     captureMessage: jest.fn(),
@@ -25,6 +30,25 @@ describe('safeUrlOrigin', () => {
 
     it('returns a placeholder for a malformed URL', () => {
         expect(safeUrlOrigin('not a url')).toBe('invalid-url')
+    })
+})
+
+describe('scrubUrls', () => {
+    it('replaces a tokenized URL embedded in text with just its origin', () => {
+        const msg =
+            'ERROR: unable to download https://rr3---sn-abc.googlevideo.com/videoplayback?sig=SECRET&expire=123: HTTP 403'
+        const scrubbed = scrubUrls(msg)
+        expect(scrubbed).not.toContain('SECRET')
+        expect(scrubbed).not.toContain('sig=')
+        expect(scrubbed).toContain('https://rr3---sn-abc.googlevideo.com')
+        expect(scrubbed).toContain('HTTP 403')
+    })
+
+    it('scrubs multiple URLs and leaves URL-free text unchanged', () => {
+        expect(scrubUrls('a https://x.com/p?t=1 b http://y.io/q#z c')).toBe(
+            'a https://x.com b http://y.io c',
+        )
+        expect(scrubUrls('no urls here')).toBe('no urls here')
     })
 })
 

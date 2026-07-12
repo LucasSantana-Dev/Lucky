@@ -11,7 +11,12 @@ import {
 } from '../../utils/music/searchQueryCleaner'
 import { providerHealthService } from '../../utils/music/search/providerHealth'
 import { streamViaSoundCloud } from './soundcloudMatcher'
-import { addBreadcrumb, captureMessage, safeUrlOrigin } from '../../utils/monitoring/sentry'
+import {
+    addBreadcrumb,
+    captureMessage,
+    safeUrlOrigin,
+    scrubUrls,
+} from '../../utils/monitoring/sentry'
 
 const ALLOWED_YTDLP_DOMAINS = new Set([
     'youtube.com',
@@ -162,12 +167,12 @@ export async function createResilientStream(
                 'music.youtube-extraction',
                 'warning',
                 {
-                    error: (ytdlpError as Error).message,
+                    error: scrubUrls((ytdlpError as Error).message),
                     url: safeUrlOrigin(track.url),
                 },
             )
             captureMessage(
-                `YouTube extraction failed: ${(ytdlpError as Error).message}`,
+                `YouTube extraction failed: ${scrubUrls((ytdlpError as Error).message)}`,
                 'warning',
                 {
                     url: safeUrlOrigin(track.url),
@@ -210,12 +215,12 @@ export async function createResilientStream(
                 'music.youtube-extraction',
                 'warning',
                 {
-                    error: (ytSearchError as Error).message,
+                    error: scrubUrls((ytSearchError as Error).message),
                     searchText: ytQuery,
                 },
             )
             captureMessage(
-                `YouTube search extraction failed: ${(ytSearchError as Error).message}`,
+                `YouTube search extraction failed: ${scrubUrls((ytSearchError as Error).message)}`,
                 'warning',
                 {
                     searchText: ytQuery,

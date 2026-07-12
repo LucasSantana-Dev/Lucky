@@ -18,6 +18,18 @@ export function safeUrlOrigin(url: unknown): string {
 }
 
 /**
+ * Replace every URL-like substring in free text with just its origin, dropping
+ * the path/query where signed tokens live. Use on error messages (e.g. yt-dlp
+ * output) before they reach Sentry — {@link safeUrlOrigin} only redacts an
+ * explicit URL field, not URLs embedded in an Error.message.
+ */
+export function scrubUrls(text: string): string {
+    return text.replace(/https?:\/\/[^\s"'<>]+/g, (match) =>
+        safeUrlOrigin(match),
+    )
+}
+
+/**
  * Capture an exception in Sentry
  * @param error The error to capture
  * @param extras Additional data to include with the exception
