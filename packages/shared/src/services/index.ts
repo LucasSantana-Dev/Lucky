@@ -1,6 +1,7 @@
 export * from './FeatureToggleService'
 export * from './PremiumService'
 export * from './database/DatabaseService.js'
+export { afkService, type AfkStatusEntry } from './AfkService.js'
 export {
     MusicControlService,
     musicControlService,
@@ -103,6 +104,11 @@ export {
     type ChannelCleanupConfig,
 } from './ChannelCleanupService.js'
 export {
+    giveawayService,
+    parseDuration,
+    type GiveawayData,
+} from './GiveawayService.js'
+export {
     levelService,
     type LevelConfig,
     type MemberXP,
@@ -136,3 +142,10 @@ export {
     type BatchJobExecutor,
     type PermissionCheckResult,
 } from './batch/index.js'
+
+export {
+    reminderService,
+    ReminderService,
+    MAX_DELIVERY_ATTEMPTS,
+    type ReminderRecord,
+} from './ReminderService.js'

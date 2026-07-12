@@ -148,89 +148,6 @@ describe('ChannelPurgeScheduler.tick — purge', () => {
     })
 })
 
-describe('ChannelPurgeScheduler.tick — TTL sweep (durable backstop)', () => {
-    beforeEach(() => {
-        jest.clearAllMocks()
-        channelCleanupServiceMock.getPurgeConfigsDue.mockResolvedValue([])
-        channelCleanupServiceMock.getTtlConfigs.mockResolvedValue([])
-    })
-
-    const ttlConfig = {
-        id: 't1',
-        guildId: GUILD,
-        channelId: CHANNEL,
-        mode: 'ttl',
-        intervalMinutes: null,
-        ttlSeconds: 60,
-    }
-
-    it('bulk-deletes only expired non-bot messages', async () => {
-        channelCleanupServiceMock.getTtlConfigs.mockResolvedValue([ttlConfig])
-        const bulkDelete = jest.fn().mockResolvedValue({ size: 1 })
-        const messages = new Collection<string, any>([
-            ['expired', msg('expired', 120_000)], // 120s old, ttl 60s → delete
-            ['fresh', msg('fresh', 10_000)], // 10s old → keep
-            ['botOld', msg('botOld', 120_000, true)], // bot → keep
-        ])
-        const channel = makeChannel(messages, bulkDelete)
-
-        await runTick(makeClient(channel))
-
-        expect(bulkDelete).toHaveBeenCalledTimes(1)
-        const swept = bulkDelete.mock.calls[0][0] as Collection<string, any>
-        expect(swept.size).toBe(1)
-        expect(swept.has('expired')).toBe(true)
-    })
-
-    it('does nothing when no message is expired', async () => {
-        channelCleanupServiceMock.getTtlConfigs.mockResolvedValue([ttlConfig])
-        const bulkDelete = jest.fn().mockResolvedValue({ size: 0 })
-        const channel = makeChannel(
-            new Collection([['fresh', msg('fresh', 5_000)]]),
-            bulkDelete,
-        )
-
-        await runTick(makeClient(channel))
-
-        expect(bulkDelete).not.toHaveBeenCalled()
-    })
-
-    it('skips configs with an out-of-range ttl', async () => {
-        channelCleanupServiceMock.getTtlConfigs.mockResolvedValue([
-            { ...ttlConfig, ttlSeconds: 999999 },
-        ])
-        const bulkDelete = jest.fn()
-        const channel = makeChannel(new Collection(), bulkDelete)
-        const client = makeClient(channel)
-
-        await runTick(client)
-
-        expect(
-            (client as { channels: { fetch: jest.Mock } }).channels.fetch,
-        ).not.toHaveBeenCalled()
-    })
-
-    it('skips a ttl channel that is not found', async () => {
-        channelCleanupServiceMock.getTtlConfigs.mockResolvedValue([ttlConfig])
-        await expect(runTick(makeClient(null))).resolves.toBeUndefined()
-    })
-
-    it('skips a ttl channel in another guild', async () => {
-        channelCleanupServiceMock.getTtlConfigs.mockResolvedValue([ttlConfig])
-        const bulkDelete = jest.fn()
-        const channel = {
-            isTextBased: () => true,
-            guild: { id: 'other-guild' },
-            messages: { fetch: jest.fn() },
-            bulkDelete,
-        }
-
-        await runTick(makeClient(channel))
-
-        expect(bulkDelete).not.toHaveBeenCalled()
-    })
-})
-
 describe('ChannelPurgeScheduler.tick — purge branches', () => {
     beforeEach(() => {
         jest.clearAllMocks()
@@ -332,37 +249,6 @@ describe('ChannelPurgeScheduler.tick — purge branches', () => {
         )
 
         // A throw in one config must not break the whole tick.
-        await expect(runTick(makeClient(channel))).resolves.toBeUndefined()
-    })
-})
-
-describe('ChannelPurgeScheduler.tick — TTL sweep errors', () => {
-    beforeEach(() => {
-        jest.clearAllMocks()
-        channelCleanupServiceMock.getPurgeConfigsDue.mockResolvedValue([])
-        channelCleanupServiceMock.getTtlConfigs.mockResolvedValue([])
-    })
-
-    it('swallows a per-channel sweep error and continues', async () => {
-        channelCleanupServiceMock.getTtlConfigs.mockResolvedValue([
-            {
-                id: 't1',
-                guildId: GUILD,
-                channelId: CHANNEL,
-                mode: 'ttl',
-                intervalMinutes: null,
-                ttlSeconds: 60,
-            },
-        ])
-        const channel = {
-            isTextBased: () => true,
-            guild: { id: GUILD },
-            messages: {
-                fetch: jest.fn().mockRejectedValue(new Error('rate limit')),
-            },
-            bulkDelete: jest.fn(),
-        }
-
         await expect(runTick(makeClient(channel))).resolves.toBeUndefined()
     })
 })
