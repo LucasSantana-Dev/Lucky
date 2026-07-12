@@ -59,6 +59,7 @@ describe('TopggStatsScheduler', () => {
             fetch: mockFetch,
         })
         const client = makeClient(42) as any
+        const timeoutSpy = jest.spyOn(AbortSignal, 'timeout')
 
         scheduler.start(client)
 
@@ -78,6 +79,9 @@ describe('TopggStatsScheduler', () => {
                 signal: expect.any(AbortSignal),
             }),
         )
+        // ...and bounded to the intended 10s, not just any signal.
+        expect(timeoutSpy).toHaveBeenCalledWith(10_000)
+        timeoutSpy.mockRestore()
         expect(infoLog).toHaveBeenCalledWith({
             message: 'Top.gg stats posted successfully',
             data: { serverCount: 42 },
