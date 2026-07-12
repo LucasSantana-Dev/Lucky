@@ -1,12 +1,17 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import type { SpotifyArtist } from '@lucky/shared/utils'
 import { ArtistSuggestionService } from '../../../src/services/artistSuggestion'
+import { AppError } from '../../../src/errors/AppError'
 import {
     isSpotifyAuthConfigured,
     getSpotifyClientToken,
 } from '../../../src/services/SpotifyAuthService'
 import { spotifyLinkService } from '@lucky/shared/services'
-import { getPrismaClient, errorLog } from '@lucky/shared/utils'
+import {
+    getPrismaClient,
+    errorLog,
+    captureException,
+} from '@lucky/shared/utils'
 
 jest.mock('../../../src/services/SpotifyAuthService')
 jest.mock('@lucky/shared/services')
@@ -20,6 +25,7 @@ jest.mock('@lucky/shared/utils', () => {
         errorLog: jest.fn(),
         warnLog: jest.fn(),
         debugLog: jest.fn(),
+        captureException: jest.fn(),
     }
 })
 
@@ -148,8 +154,9 @@ describe('ArtistSuggestionService', () => {
                 .handleGetSuggestions(undefined)
                 .catch((e) => e)
 
-            expect(error.status).toBe(401)
-            expect(error.error).toBe('Not authenticated')
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(401)
+            expect(error.message).toBe('Not authenticated')
         })
 
         test('should throw 503 when Spotify not configured', async () => {
@@ -159,7 +166,8 @@ describe('ArtistSuggestionService', () => {
                 .handleGetSuggestions('user_123')
                 .catch((e) => e)
 
-            expect(error.status).toBe(503)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(503)
         })
 
         test('should throw 503 when suggestions are empty', async () => {
@@ -177,8 +185,9 @@ describe('ArtistSuggestionService', () => {
                 .handleGetSuggestions('user_123')
                 .catch((e) => e)
 
-            expect(error.status).toBe(503)
-            expect(error.error).toMatch(/temporarily unavailable/)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(503)
+            expect(error.message).toMatch(/temporarily unavailable/)
         })
 
         test('should return suggestions when all conditions met', async () => {
@@ -203,14 +212,66 @@ describe('ArtistSuggestionService', () => {
             expect(suggestions).toHaveLength(1)
             expect(suggestions[0]).toMatchObject({ id: 'artist_1' })
         })
+
+        test('converts an unexpected getSuggestions failure to 503 and captures it', async () => {
+            // getSuggestions itself swallows per-tier failures, so force it to
+            // reject directly — this is the only way to exercise the outer
+            // catch-all in handleGetSuggestions (where captureException lives).
+            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            const boom = new Error('unexpected: getSuggestions blew up')
+            const getSuggestionsSpy = jest
+                .spyOn(service, 'getSuggestions')
+                .mockRejectedValue(boom)
+
+            const error = await service
+                .handleGetSuggestions('user_123')
+                .catch((e) => e)
+
+            // 503 (not 500) to the client...
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(503)
+            expect(error.message).toMatch(/temporarily unavailable/)
+            // ...but the real error IS captured for alerting (errorHandler only
+            // captures the 500 path, which this conversion bypasses).
+            expect(captureException).toHaveBeenCalledWith(
+                boom,
+                expect.objectContaining({
+                    context: 'artist-suggestions-unexpected',
+                }),
+            )
+
+            getSuggestionsSpy.mockRestore()
+        })
+
+        test('does NOT captureException on expected empty-result unavailability', async () => {
+            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
+            ;(
+                spotifyLinkService.getValidAccessToken as jest.Mock
+            ).mockResolvedValue(null)
+            ;(getSpotifyClientToken as jest.Mock).mockResolvedValue(null)
+
+            const { searchSpotifyArtists } = await import('@lucky/shared/utils')
+            ;(searchSpotifyArtists as jest.Mock).mockResolvedValue([])
+
+            const error = await service
+                .handleGetSuggestions('user_123')
+                .catch((e) => e)
+
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(503)
+            // Empty result is an expected AppError, not a bug — must not alert.
+            expect(captureException).not.toHaveBeenCalled()
+        })
     })
 
     describe('handleSearchArtists', () => {
         test('should throw 400 when query is empty', async () => {
             const error = await service.handleSearchArtists('').catch((e) => e)
 
-            expect(error.status).toBe(400)
-            expect(error.error).toMatch(/Missing query/)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(400)
+            expect(error.message).toMatch(/Missing query/)
         })
 
         test('should throw 503 when Spotify not configured', async () => {
@@ -220,7 +281,8 @@ describe('ArtistSuggestionService', () => {
                 .handleSearchArtists('test')
                 .catch((e) => e)
 
-            expect(error.status).toBe(503)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(503)
         })
 
         test('should throw 503 when Spotify token unavailable', async () => {
@@ -231,7 +293,8 @@ describe('ArtistSuggestionService', () => {
                 .handleSearchArtists('test')
                 .catch((e) => e)
 
-            expect(error.status).toBe(503)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(503)
         })
 
         test('should return search results', async () => {
@@ -260,8 +323,9 @@ describe('ArtistSuggestionService', () => {
                 .handleGetRelatedArtists(undefined)
                 .catch((e) => e)
 
-            expect(error.status).toBe(400)
-            expect(error.error).toMatch(/Missing artistId/)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(400)
+            expect(error.message).toMatch(/Missing artistId/)
         })
 
         test('should throw 503 when Spotify not configured', async () => {
@@ -271,7 +335,8 @@ describe('ArtistSuggestionService', () => {
                 .handleGetRelatedArtists('artist_1')
                 .catch((e) => e)
 
-            expect(error.status).toBe(503)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(503)
         })
 
         test('should return related artists', async () => {
@@ -300,8 +365,9 @@ describe('ArtistSuggestionService', () => {
                 .handleGetPreferredArtists(undefined, undefined)
                 .catch((e) => e)
 
-            expect(error.status).toBe(401)
-            expect(error.error).toBe('Not authenticated')
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(401)
+            expect(error.message).toBe('Not authenticated')
         })
 
         test('should return preferences without guildId filter', async () => {
@@ -343,7 +409,8 @@ describe('ArtistSuggestionService', () => {
                 .handleSavePreferredArtist(undefined, {})
                 .catch((e) => e)
 
-            expect(error.status).toBe(401)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(401)
         })
 
         test('should throw 400 on invalid body', async () => {
@@ -351,8 +418,9 @@ describe('ArtistSuggestionService', () => {
                 .handleSavePreferredArtist('user_123', { guildId: 'guild_1' })
                 .catch((e) => e)
 
-            expect(error.status).toBe(400)
-            expect(typeof error.error).toBe('string')
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(400)
+            expect(typeof error.message).toBe('string')
         })
 
         test('should upsert preference', async () => {
@@ -384,7 +452,8 @@ describe('ArtistSuggestionService', () => {
                 })
                 .catch((e) => e)
 
-            expect(error.status).toBe(401)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(401)
         })
 
         test('should throw 400 on invalid body', async () => {
@@ -392,7 +461,8 @@ describe('ArtistSuggestionService', () => {
                 .handleBatchSavePreferences('user_123', { items: [] })
                 .catch((e) => e)
 
-            expect(error.status).toBe(400)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(400)
         })
 
         test('should batch upsert preferences', async () => {
@@ -423,7 +493,8 @@ describe('ArtistSuggestionService', () => {
                 .handleDeletePreferredArtist(undefined, 'key', 'guild')
                 .catch((e) => e)
 
-            expect(error.status).toBe(401)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(401)
         })
 
         test('should throw 400 when artistKey is missing', async () => {
@@ -431,8 +502,9 @@ describe('ArtistSuggestionService', () => {
                 .handleDeletePreferredArtist('user_123', undefined, 'guild')
                 .catch((e) => e)
 
-            expect(error.status).toBe(400)
-            expect(error.error).toMatch(/Missing artistKey/)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(400)
+            expect(error.message).toMatch(/Missing artistKey/)
         })
 
         test('should throw 400 when guildId is missing', async () => {
@@ -440,8 +512,9 @@ describe('ArtistSuggestionService', () => {
                 .handleDeletePreferredArtist('user_123', 'key', undefined)
                 .catch((e) => e)
 
-            expect(error.status).toBe(400)
-            expect(error.error).toMatch(/Missing guildId/)
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(400)
+            expect(error.message).toMatch(/Missing guildId/)
         })
 
         test('should delete preference', async () => {
@@ -577,7 +650,13 @@ describe('ArtistSuggestionService', () => {
                     return {
                         ok: true,
                         json: async () => ({
-                            items: [{ ...mockArtist, id: 'artist_2', name: 'Another Artist' }],
+                            items: [
+                                {
+                                    ...mockArtist,
+                                    id: 'artist_2',
+                                    name: 'Another Artist',
+                                },
+                            ],
                         }),
                     }
                 }
@@ -585,7 +664,9 @@ describe('ArtistSuggestionService', () => {
             global.fetch = fetch as unknown as typeof global.fetch
 
             try {
-                ;(spotifyLinkService as any).getValidAccessToken = jest.fn().mockResolvedValue('test-token')
+                ;(spotifyLinkService as any).getValidAccessToken = jest
+                    .fn()
+                    .mockResolvedValue('test-token')
                 const suggestions = await service.getSuggestions('user_123')
 
                 // Should have results from short_term and long_term, skipping the timed-out medium_term
