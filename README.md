@@ -20,6 +20,7 @@
 <p align="center">
   <a href="https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml"><img src="https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
   <a href="https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge"><img src="https://img.shields.io/badge/Invite-Lucky%20Bot-5865F2?logo=discord&logoColor=white" alt="Invite Lucky" /></a>
+  <a href="https://top.gg/bot/962198089161134131"><img src="https://img.shields.io/badge/top.gg-Lucky-FF3366?logo=discord&logoColor=white" alt="Lucky on top.gg" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22.x-green.svg" alt="Node.js 22" /></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-blue.svg" alt="TypeScript 5.9" /></a>
   <a href="https://discord.js.org/"><img src="https://img.shields.io/badge/Discord.js-14-purple.svg" alt="Discord.js 14" /></a>
@@ -34,12 +35,17 @@ Lucky is a **production-grade, self-hosted Discord music bot** — built as a Ty
 
 Unlike Groovy, Rythm, or Hydra (all shut down by third-party enforcement), Lucky can't be taken offline because **you host it.** Every feature is included — no paywall, no premium tier.
 
-- **Live demo**: [lucky.lucassantana.tech](https://lucassantana.tech)  
+- **Live demo**: [lucky.lucassantana.tech](https://lucky.lucassantana.tech)  
 - **Invite to your server**: [Add Lucky now](https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge)
 
 ---
 
 ## ✨ Features
+
+<p align="center">
+  <a href="https://lucky.lucassantana.tech"><img src="assets/screenshots/landing-features.png" alt="What Lucky does — feature overview" width="820" /></a>
+  <br /><sub><i>Everything most servers need, in one bot — <a href="https://lucky.lucassantana.tech">see it live</a>.</i></sub>
+</p>
 
 ### 🎵 Music Player
 - **Multi-source playback**: YouTube, Spotify, SoundCloud
