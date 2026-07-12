@@ -10,6 +10,7 @@ import { modDigestSchedulerService } from '../../utils/moderation/modDigestSched
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { reminderScheduler } from '../../utils/general/reminderScheduler'
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
+import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
 import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
 
 let presenceControls: {
@@ -146,6 +147,15 @@ export async function startClient({
             } catch (error) {
                 errorLog({
                     message: 'Failed to start giveaway scheduler',
+                    error,
+                })
+            }
+
+            try {
+                topggStatsScheduler.start(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to start Top.gg stats scheduler',
                     error,
                 })
             }
