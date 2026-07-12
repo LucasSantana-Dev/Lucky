@@ -2,6 +2,8 @@ import { getPrismaClient } from '../utils/database/prismaClient.js'
 
 const prisma = getPrismaClient()
 
+export type ReminderTarget = 'user' | 'channel' | 'role'
+
 export type ReminderRecord = {
     id: string
     guildId: string
@@ -12,6 +14,9 @@ export type ReminderRecord = {
     delivered: boolean
     deliveryAttempts: number
     createdAt: Date
+    targetType: string
+    roleId: string | null
+    deliveryFailed: boolean
 }
 
 // Give up after ~1h of 5-minute backoff so an undeliverable reminder
@@ -19,13 +24,19 @@ export type ReminderRecord = {
 export const MAX_DELIVERY_ATTEMPTS = 12
 
 export class ReminderService {
-    /** Create a new reminder for a user. */
+    /**
+     * Create a reminder. Defaults to a personal ('user') reminder; pass
+     * `options.targetType` 'channel' or 'role' for broadcast reminders (role
+     * also needs `options.roleId`). `channelId` is the origin channel for
+     * personal reminders and the delivery channel for broadcasts.
+     */
     async create(
         guildId: string,
         userId: string,
         channelId: string,
         message: string,
         remindAt: Date,
+        options?: { targetType?: ReminderTarget; roleId?: string | null },
     ): Promise<ReminderRecord> {
         return await prisma.reminder.create({
             data: {
@@ -34,7 +45,21 @@ export class ReminderService {
                 channelId,
                 message,
                 remindAt,
+                targetType: options?.targetType ?? 'user',
+                roleId: options?.roleId ?? null,
             },
+        })
+    }
+
+    /**
+     * Mark a broadcast reminder as failed-and-done: broadcasts are fire-once,
+     * so a failure sets deliveryFailed for operator visibility and marks it
+     * delivered so the scheduler never retries it.
+     */
+    async markDeliveryFailed(reminderId: string): Promise<void> {
+        await prisma.reminder.update({
+            where: { id: reminderId },
+            data: { deliveryFailed: true, delivered: true },
         })
     }
 

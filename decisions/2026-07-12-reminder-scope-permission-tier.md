@@ -24,6 +24,27 @@ against this repo's actual moderator-role conventions.
 Uniform **ManageGuild** for both broadcast forms, enforced via
 `setDefaultMemberPermissions` only (no additional runtime check — see below).
 
+### Amendment (2026-07-12, implementation) — subcommand exception
+
+The mechanism above (`setDefaultMemberPermissions` only) assumed the analogs'
+**standalone-command** shape (`vaga`, `automessage`). But `#1767` ships the broadcast
+forms as **subcommands** of the existing `/remind` (`channel`, `role`) alongside the
+ungated personal `set`/`list`/`delete`. Discord's `setDefaultMemberPermissions` is
+**command-level only** — it cannot gate individual subcommands — so applying it to
+`/remind` would also gate personal reminders, violating "personal reminders keep their
+zero-gate behavior".
+
+Resolution: gate the `channel`/`role` subcommands with a runtime
+`interaction.memberPermissions.has(ManageGuild)` check (`remind.ts`). This is **not** the
+hardening layer alternative #4 rejected below (a non-overridable check added _on top of_
+`setDefaultMemberPermissions`); it is the **sole feasible realization** of the ManageGuild
+intent for a mixed-permission subcommand command. The "admin-overridable UI delegation"
+consequence is structurally unavailable for subcommands regardless of mechanism, so nothing
+the ADR promised is lost. **Documented convention exception:** a single command mixing
+ungated and ManageGuild-gated subcommands uses a runtime `permissions.has()` check on the
+gated subcommands; the `setDefaultMemberPermissions`-only rule remains the default for
+standalone broadcast commands.
+
 ### Implementation requirements (non-negotiable)
 
 - Role-wide reminders **must** send with per-message

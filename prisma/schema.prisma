@@ -1286,6 +1286,13 @@ model Reminder {
   deliveryAttempts Int      @default(0) // gives up after MAX_DELIVERY_ATTEMPTS
   createdAt        DateTime @default(now())
 
+  // Broadcast reminders (#1767). targetType 'channel' posts to channelId;
+  // 'role' also pings roleId. Broadcasts are fire-once (no retry backoff):
+  // deliveryFailed records a delivery failure for operator visibility.
+  targetType     String  @default("user") // user | channel | role
+  roleId         String? // role to ping when targetType = 'role'
+  deliveryFailed Boolean @default(false)
+
   @@index([delivered, remindAt])
   @@index([userId, remindAt])
   @@map("reminders")

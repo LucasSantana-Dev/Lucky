@@ -140,4 +140,5 @@ export {
     ReminderService,
     MAX_DELIVERY_ATTEMPTS,
     type ReminderRecord,
+    type ReminderTarget,
 } from './ReminderService.js'
