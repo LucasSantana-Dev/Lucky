@@ -1,4 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from '@discordjs/builders'
+import { PermissionFlagsBits } from 'discord.js'
 import { COLOR } from '@lucky/shared/constants'
 import { reminderService } from '@lucky/shared/services'
 import { infoLog, errorLog } from '@lucky/shared/utils'
@@ -73,6 +74,64 @@ export default new Command({
                         .setDescription('Reminder ID to delete')
                         .setRequired(true),
                 ),
+        )
+        .addSubcommand((sub) =>
+            sub
+                .setName('channel')
+                .setDescription(
+                    'Post a reminder to a channel (needs Manage Server).',
+                )
+                .addStringOption((opt) =>
+                    opt
+                        .setName('tempo')
+                        .setDescription('Duration: 30s, 10m, 2h, 1d (max 30d)')
+                        .setRequired(true),
+                )
+                .addStringOption((opt) =>
+                    opt
+                        .setName('mensagem')
+                        .setDescription('Reminder message (max 500 chars)')
+                        .setMaxLength(500)
+                        .setRequired(true),
+                )
+                .addChannelOption((opt) =>
+                    opt
+                        .setName('canal')
+                        .setDescription('Channel to post the reminder in')
+                        .setRequired(true),
+                ),
+        )
+        .addSubcommand((sub) =>
+            sub
+                .setName('role')
+                .setDescription(
+                    'Ping a role with a reminder (needs Manage Server).',
+                )
+                .addStringOption((opt) =>
+                    opt
+                        .setName('tempo')
+                        .setDescription('Duration: 30s, 10m, 2h, 1d (max 30d)')
+                        .setRequired(true),
+                )
+                .addStringOption((opt) =>
+                    opt
+                        .setName('mensagem')
+                        .setDescription('Reminder message (max 500 chars)')
+                        .setMaxLength(500)
+                        .setRequired(true),
+                )
+                .addRoleOption((opt) =>
+                    opt
+                        .setName('cargo')
+                        .setDescription('Role to ping')
+                        .setRequired(true),
+                )
+                .addChannelOption((opt) =>
+                    opt
+                        .setName('canal')
+                        .setDescription('Channel to post the reminder in')
+                        .setRequired(true),
+                ),
         ),
     category: 'general',
     execute: async ({ interaction }) => {
@@ -135,6 +194,73 @@ export default new Command({
 
                 infoLog({
                     message: `reminder set by ${interaction.user.tag}: ${tempo}`,
+                    data: { guildId: guild.id, reminderId: reminder.id },
+                })
+                return
+            }
+
+            if (subcommand === 'channel' || subcommand === 'role') {
+                // Runtime Manage Server gate: broadcast reminders have a wide
+                // blast radius (a role ping hits every member). This can't be a
+                // setDefaultMemberPermissions on the command — that would gate
+                // the personal `set`/`list`/`delete` subcommands too — so it's
+                // enforced per-subcommand here (ADR 2026-07-12).
+                if (
+                    !interaction.memberPermissions?.has(
+                        PermissionFlagsBits.ManageGuild,
+                    )
+                ) {
+                    await replyText(
+                        '❌ You need the **Manage Server** permission to set channel or role reminders.',
+                    )
+                    return
+                }
+
+                const tempo = interaction.options.getString('tempo', true)
+                const mensagem = interaction.options.getString('mensagem', true)
+
+                const ms = parseDuration(tempo)
+                if (ms === null) {
+                    await replyText(
+                        '❌ Invalid duration. Use format like: 30s, 10m, 2h, 1d (max 30 days)',
+                    )
+                    return
+                }
+
+                const canal = interaction.options.getChannel('canal', true)
+                const isRole = subcommand === 'role'
+                const cargo = isRole
+                    ? interaction.options.getRole('cargo', true)
+                    : null
+
+                const remindAt = new Date(Date.now() + ms)
+                const reminder = await reminderService.create(
+                    guild.id,
+                    interaction.user.id,
+                    canal.id,
+                    mensagem,
+                    remindAt,
+                    {
+                        targetType: isRole ? 'role' : 'channel',
+                        roleId: cargo?.id ?? null,
+                    },
+                )
+
+                const target = cargo
+                    ? `<@&${cargo.id}> in <#${canal.id}>`
+                    : `<#${canal.id}>`
+                const embed = new EmbedBuilder()
+                    .setTitle('⏰ Reminder scheduled')
+                    .setDescription(
+                        `I'll remind ${target} with:\n\n${mensagem}`,
+                    )
+                    .setColor(COLOR.LUCKY_PURPLE)
+                    .setFooter({ text: `ID: ${reminder.id.slice(0, 8)}` })
+
+                await replyEmbed(embed)
+
+                infoLog({
+                    message: `${subcommand} reminder set by ${interaction.user.tag}: ${tempo}`,
                     data: { guildId: guild.id, reminderId: reminder.id },
                 })
                 return
