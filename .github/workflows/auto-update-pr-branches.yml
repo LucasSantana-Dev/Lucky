@@ -16,6 +16,13 @@ name: Auto-update PR branches
 on:
   push:
     branches: [main]
+  # Backstop: the push trigger fires the instant main advances, but GitHub often
+  # hasn't recomputed the other PRs' mergeStateStatus yet (it reads UNKNOWN, not
+  # BEHIND), so a merge-triggered run can update zero PRs and strand the queue
+  # with no further push to re-fire it. This cron catches any stranded PR within
+  # ~15 min regardless of the race.
+  schedule:
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -36,6 +43,10 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          # On a merge push, GitHub needs a moment to recompute the queued PRs'
+          # mergeStateStatus to BEHIND; without this settle the list reads them
+          # as UNKNOWN and updates none. The cron backstop covers the rest.
+          if [ "${GITHUB_EVENT_NAME:-}" = "push" ]; then sleep 45; fi
           gh pr list --repo "$REPO" --state open --base main \
             --json number,isDraft,mergeStateStatus,autoMergeRequest \
             --jq '.[]
