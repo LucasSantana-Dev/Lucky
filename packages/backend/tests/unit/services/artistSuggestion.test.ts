@@ -7,7 +7,11 @@ import {
     getSpotifyClientToken,
 } from '../../../src/services/SpotifyAuthService'
 import { spotifyLinkService } from '@lucky/shared/services'
-import { getPrismaClient, errorLog } from '@lucky/shared/utils'
+import {
+    getPrismaClient,
+    errorLog,
+    captureException,
+} from '@lucky/shared/utils'
 
 jest.mock('../../../src/services/SpotifyAuthService')
 jest.mock('@lucky/shared/services')
@@ -21,6 +25,7 @@ jest.mock('@lucky/shared/utils', () => {
         errorLog: jest.fn(),
         warnLog: jest.fn(),
         debugLog: jest.fn(),
+        captureException: jest.fn(),
     }
 })
 
@@ -208,23 +213,37 @@ describe('ArtistSuggestionService', () => {
             expect(suggestions[0]).toMatchObject({ id: 'artist_1' })
         })
 
-        test('should return 503 (not 500) when getSuggestions throws unexpected error', async () => {
+        test('converts an unexpected getSuggestions failure to 503 and captures it', async () => {
+            // getSuggestions itself swallows per-tier failures, so force it to
+            // reject directly — this is the only way to exercise the outer
+            // catch-all in handleGetSuggestions (where captureException lives).
             ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
-            mockPrisma.userArtistPreference.findMany.mockRejectedValue(
-                new Error('Database connection timeout'),
-            )
+            const boom = new Error('unexpected: getSuggestions blew up')
+            const getSuggestionsSpy = jest
+                .spyOn(service, 'getSuggestions')
+                .mockRejectedValue(boom)
 
             const error = await service
                 .handleGetSuggestions('user_123')
                 .catch((e) => e)
 
-            // Verify it's an AppError with 503 status (not 500)
+            // 503 (not 500) to the client...
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(503)
             expect(error.message).toMatch(/temporarily unavailable/)
+            // ...but the real error IS captured for alerting (errorHandler only
+            // captures the 500 path, which this conversion bypasses).
+            expect(captureException).toHaveBeenCalledWith(
+                boom,
+                expect.objectContaining({
+                    context: 'artist-suggestions-unexpected',
+                }),
+            )
+
+            getSuggestionsSpy.mockRestore()
         })
 
-        test('should not captureException for expected unavailability', async () => {
+        test('does NOT captureException on expected empty-result unavailability', async () => {
             ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
             mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
             ;(
@@ -241,6 +260,8 @@ describe('ArtistSuggestionService', () => {
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(503)
+            // Empty result is an expected AppError, not a bug — must not alert.
+            expect(captureException).not.toHaveBeenCalled()
         })
     })
 
@@ -629,7 +650,13 @@ describe('ArtistSuggestionService', () => {
                     return {
                         ok: true,
                         json: async () => ({
-                            items: [{ ...mockArtist, id: 'artist_2', name: 'Another Artist' }],
+                            items: [
+                                {
+                                    ...mockArtist,
+                                    id: 'artist_2',
+                                    name: 'Another Artist',
+                                },
+                            ],
                         }),
                     }
                 }
@@ -637,7 +664,9 @@ describe('ArtistSuggestionService', () => {
             global.fetch = fetch as unknown as typeof global.fetch
 
             try {
-                ;(spotifyLinkService as any).getValidAccessToken = jest.fn().mockResolvedValue('test-token')
+                ;(spotifyLinkService as any).getValidAccessToken = jest
+                    .fn()
+                    .mockResolvedValue('test-token')
                 const suggestions = await service.getSuggestions('user_123')
 
                 // Should have results from short_term and long_term, skipping the timed-out medium_term
