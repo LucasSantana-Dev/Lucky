@@ -10,7 +10,7 @@ jobs:
     quality:
         uses: LucasSantana-Dev/.github/.github/workflows/quality.yml@aae80785af816b7dde59e50f66855be65d120685
         with:
-            node-version: '22'
+            node-version: '24'
             has-dockerfile: true
             run-deadcode: true
             package-manager: npm
