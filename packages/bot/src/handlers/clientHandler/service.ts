@@ -9,7 +9,9 @@ import { startPresenceRotation } from './presence'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { reminderScheduler } from '../../utils/general/reminderScheduler'
+import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
+import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
 import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
 
 let presenceControls: {
@@ -142,10 +144,28 @@ export async function startClient({
             }
 
             try {
+                supportSessionScheduler.start(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to start support session scheduler',
+                    error,
+                })
+            }
+
+            try {
                 giveawayScheduler.start(client)
             } catch (error) {
                 errorLog({
                     message: 'Failed to start giveaway scheduler',
+                    error,
+                })
+            }
+
+            try {
+                topggStatsScheduler.start(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to start Top.gg stats scheduler',
                     error,
                 })
             }
