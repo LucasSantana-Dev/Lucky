@@ -7,6 +7,10 @@ import { IntervalScheduler } from './IntervalScheduler'
 // Tick every 30 minutes to post stats
 const DEFAULT_TICK_INTERVAL_MS = 30 * 60 * 1000
 
+// Bound each POST so a stalled connection can't leave the scheduler's
+// single-flight guard set forever (which would skip every later tick).
+const TOPGG_FETCH_TIMEOUT_MS = 10_000
+
 type TopggStatsSchedulerOptions = {
     tickIntervalMs?: number
     fetch?: typeof fetch
@@ -62,6 +66,7 @@ export class TopggStatsScheduler extends IntervalScheduler {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ server_count: serverCount }),
+                    signal: AbortSignal.timeout(TOPGG_FETCH_TIMEOUT_MS),
                 },
             )
 

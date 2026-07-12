@@ -12,7 +12,7 @@ jest.mock('../monitoring/sentry', () => ({
 
 import { TopggStatsScheduler } from './topggStatsScheduler'
 import { infoLog, warnLog } from '@lucky/shared/utils'
-import { addBreadcrumb, captureMessage } from '../monitoring/sentry'
+import { captureMessage } from '../monitoring/sentry'
 
 function makeClient(guildCount: number) {
     return {
@@ -41,6 +41,10 @@ describe('TopggStatsScheduler', () => {
             message: expect.stringContaining('TOPGG_TOKEN not set'),
         })
         expect(mockFetch).not.toHaveBeenCalled()
+
+        // start() arms the interval timer before the token check early-returns,
+        // so it must be stopped to avoid leaking a timer into later tests.
+        scheduler.stop()
     })
 
     test('should POST server count on ready and every interval when TOPGG_TOKEN is set', async () => {
@@ -63,14 +67,16 @@ describe('TopggStatsScheduler', () => {
 
         expect(mockFetch).toHaveBeenCalledWith(
             'https://top.gg/api/bots/962198089161134131/stats',
-            {
+            expect.objectContaining({
                 method: 'POST',
                 headers: {
-                    'Authorization': 'test-token-123',
+                    Authorization: 'test-token-123',
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ server_count: 42 }),
-            },
+                // Bounded so a stalled POST can't wedge the scheduler forever.
+                signal: expect.any(AbortSignal),
+            }),
         )
         expect(infoLog).toHaveBeenCalledWith({
             message: 'Top.gg stats posted successfully',
@@ -137,7 +143,9 @@ describe('TopggStatsScheduler', () => {
 
         expect(warnLog).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: expect.stringContaining('Top.gg stats POST request failed'),
+                message: expect.stringContaining(
+                    'Top.gg stats POST request failed',
+                ),
                 data: expect.objectContaining({
                     serverCount: 7,
                 }),
@@ -156,25 +164,29 @@ describe('TopggStatsScheduler', () => {
 
     test('should use global fetch when no fetch override provided', async () => {
         process.env.TOPGG_TOKEN = 'test-token-123'
+        const originalFetch = global.fetch
         global.fetch = jest.fn().mockResolvedValue({
             ok: true,
             status: 200,
             statusText: 'OK',
-        })
+        }) as typeof global.fetch
         const scheduler = new TopggStatsScheduler()
         const client = makeClient(3) as any
 
-        scheduler.start(client)
+        try {
+            scheduler.start(client)
 
-        await new Promise((resolve) => setTimeout(resolve, 50))
+            await new Promise((resolve) => setTimeout(resolve, 50))
 
-        expect(global.fetch).toHaveBeenCalledWith(
-            expect.stringContaining('top.gg/api/bots'),
-            expect.objectContaining({
-                method: 'POST',
-            }),
-        )
-
-        scheduler.stop()
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('top.gg/api/bots'),
+                expect.objectContaining({
+                    method: 'POST',
+                }),
+            )
+        } finally {
+            scheduler.stop()
+            global.fetch = originalFetch
+        }
     })
 })
