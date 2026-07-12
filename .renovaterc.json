@@ -11,6 +11,13 @@
     "prHourlyLimit": 4,
     "prConcurrentLimit": 8,
     "rebaseStalePrs": true,
+    "lockFileMaintenance": {
+        "description": "Keep package-lock.json at max-in-range so npm@12+ strict `npm ci` never rejects a stale lock when an in-range version publishes (broke every Docker build once — eslint 10.6.0 vs 10.7.0).",
+        "enabled": true,
+        "schedule": ["before 6am on monday"],
+        "automerge": true,
+        "platformAutomerge": true
+    },
     "vulnerabilityAlerts": {
         "enabled": true,
         "labels": ["security"],
