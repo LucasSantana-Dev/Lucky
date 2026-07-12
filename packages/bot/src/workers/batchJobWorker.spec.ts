@@ -82,6 +82,11 @@ function makeModule(opts: {
         execute: mockExecute,
     }))
 
+    const MockBulkKickExecutor = jest.fn().mockImplementation(() => ({
+        jobType: 'bulk_kick',
+        execute: mockExecute,
+    }))
+
     let mod: {
         startBatchJobWorker: () => Promise<void>
         stopBatchJobWorker: () => Promise<void>
@@ -128,6 +133,9 @@ function makeModule(opts: {
                 ChannelMoveBatchExecutor: MockChannelMoveBatchExecutor,
             }),
         )
+        jest.doMock('../functions/moderation/batch/bulkKickExecutor', () => ({
+            BulkKickExecutor: MockBulkKickExecutor,
+        }))
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         mod = require('./batchJobWorker')
     })
