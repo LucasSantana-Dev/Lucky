@@ -193,6 +193,10 @@ export async function startBatchJobWorker(): Promise<void> {
         const { ChannelMoveBatchExecutor } =
             await import('../functions/moderation/batch/channelMoveExecutor')
         registerExecutor(new ChannelMoveBatchExecutor())
+
+        const { BulkKickExecutor } =
+            await import('../functions/moderation/batch/bulkKickExecutor')
+        registerExecutor(new BulkKickExecutor())
     } catch (error) {
         errorLog({ message: 'Failed to register batch executors', error })
         // Clean up the bullmq redis connection on executor registration failure
