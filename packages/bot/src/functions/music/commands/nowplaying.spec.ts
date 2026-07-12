@@ -5,12 +5,15 @@ const requireQueueMock = jest.fn()
 const requireCurrentTrackMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
-const trackToDataMock = jest.fn((track: unknown) => ({ title: (track as { title: string }).title }))
+const trackToDataMock = jest.fn((track: unknown) => ({
+    title: (track as { title: string }).title,
+}))
 const buildTrackEmbedMock = jest.fn(() => ({ embed: 'nowplaying' }))
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
-    requireCurrentTrack: (...args: unknown[]) => requireCurrentTrackMock(...args),
+    requireCurrentTrack: (...args: unknown[]) =>
+        requireCurrentTrackMock(...args),
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -29,7 +32,10 @@ jest.mock('../../../utils/general/responseEmbeds', () => ({
 function makeInteraction() {
     return {
         guildId: 'guild-1',
-        user: { username: 'TestUser', displayAvatarURL: jest.fn(() => 'http://avatar') },
+        user: {
+            username: 'TestUser',
+            displayAvatarURL: jest.fn(() => 'http://avatar'),
+        },
     } as any
 }
 
@@ -42,14 +48,19 @@ describe('nowplaying command', () => {
 
     it('has correct command name and description', () => {
         expect(nowplayingCommand.data.name).toBe('nowplaying')
-        expect(nowplayingCommand.data.description).toContain('currently playing')
+        expect(nowplayingCommand.data.description).toContain(
+            'currently playing',
+        )
     })
 
     it('returns early when queue validation fails', async () => {
         requireQueueMock.mockResolvedValue(false)
         resolveGuildQueueMock.mockReturnValue({ queue: null })
 
-        await nowplayingCommand.execute({ client: {} as any, interaction: makeInteraction() } as any)
+        await nowplayingCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(),
+        } as any)
 
         expect(interactionReplyMock).not.toHaveBeenCalled()
     })
@@ -59,22 +70,61 @@ describe('nowplaying command', () => {
         const queue = { currentTrack: null }
         resolveGuildQueueMock.mockReturnValue({ queue })
 
-        await nowplayingCommand.execute({ client: {} as any, interaction: makeInteraction() } as any)
+        await nowplayingCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(),
+        } as any)
 
         expect(interactionReplyMock).not.toHaveBeenCalled()
     })
 
-    it('replies with track embed when track is playing', async () => {
+    it('replies with track embed including a progress bar when track is playing', async () => {
         const track = { title: 'Bohemian Rhapsody', author: 'Queen' }
-        const queue = { currentTrack: track }
+        const createProgressBar = jest.fn(() => '00:30 ┃🔘▬▬ 05:55')
+        const queue = { currentTrack: track, node: { createProgressBar } }
         resolveGuildQueueMock.mockReturnValue({ queue })
 
-        await nowplayingCommand.execute({ client: {} as any, interaction: makeInteraction() } as any)
+        await nowplayingCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(),
+        } as any)
 
         expect(trackToDataMock).toHaveBeenCalledWith(track)
-        const [, status, user] = buildTrackEmbedMock.mock.calls[0] as [unknown, string, unknown]
+        expect(createProgressBar).toHaveBeenCalledWith({
+            length: 18,
+            timecodes: true,
+        })
+        const [, status, user, options] = buildTrackEmbedMock.mock.calls[0] as [
+            unknown,
+            string,
+            unknown,
+            { progressBar: string | null },
+        ]
         expect(status).toBe('playing')
         expect(user).toMatchObject({ tag: 'TestUser' })
+        expect(options).toEqual({ progressBar: '00:30 ┃🔘▬▬ 05:55' })
         expect(interactionReplyMock).toHaveBeenCalled()
+    })
+
+    it('passes a null progress bar for a livestream (no position)', async () => {
+        const track = { title: 'Lofi Radio', author: 'Chillhop' }
+        const queue = {
+            currentTrack: track,
+            node: { createProgressBar: jest.fn(() => null) },
+        }
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await nowplayingCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(),
+        } as any)
+
+        const [, , , options] = buildTrackEmbedMock.mock.calls[0] as [
+            unknown,
+            string,
+            unknown,
+            { progressBar: string | null },
+        ]
+        expect(options).toEqual({ progressBar: null })
     })
 })

@@ -23,10 +23,21 @@ const KIND_LABELS: Record<TrackEmbedKind, string> = {
     history: 'From History',
 }
 
+export type TrackEmbedOptions = {
+    /**
+     * A pre-rendered playback progress bar (e.g. discord-player's
+     * `queue.node.createProgressBar()`). Rendered as its own field so a user
+     * can see how far into the track playback is. Null/undefined for tracks
+     * with no live position (queued/recommended/history, or a livestream).
+     */
+    progressBar?: string | null
+}
+
 export function buildTrackEmbed(
     track: TrackData,
     kind: TrackEmbedKind,
     requestedBy?: Pick<User, 'tag' | 'displayAvatarURL'>,
+    options?: TrackEmbedOptions,
 ): EmbedBuilder {
     const badge = detectSource(track)
     const label = KIND_LABELS[kind]
@@ -54,6 +65,14 @@ export function buildTrackEmbed(
         fields.push({ name: 'Duration', value: track.duration, inline: true })
     }
     fields.push({ name: 'Source', value: badge.label, inline: true })
+
+    if (options?.progressBar) {
+        fields.push({
+            name: 'Progress',
+            value: options.progressBar,
+            inline: false,
+        })
+    }
 
     embed.addFields(fields)
     return embed
