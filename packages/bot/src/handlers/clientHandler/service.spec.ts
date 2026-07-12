@@ -357,6 +357,32 @@ describe('service', () => {
             )
         })
 
+        it('starts the support session scheduler in the ready handler', async () => {
+            const { supportSessionScheduler } =
+                await import('../../utils/general/supportSessionScheduler')
+            ;(supportSessionScheduler.start as jest.Mock).mockClear()
+
+            const mockClient = {
+                login: jest.fn().mockResolvedValue('client'),
+                once: jest.fn((event, handler) => {
+                    if (event === 'ready') {
+                        Promise.resolve().then(() => handler())
+                    }
+                }),
+                user: null,
+                commands: { map: jest.fn().mockReturnValue([]) },
+                guilds: { cache: { values: jest.fn().mockReturnValue([]) } },
+            }
+
+            const startPromise = startClient({ client: mockClient as any })
+            await new Promise((resolve) => setImmediate(resolve))
+            await startPromise
+
+            expect(supportSessionScheduler.start).toHaveBeenCalledWith(
+                mockClient,
+            )
+        })
+
         it('still starts the scheduler when an upstream ready step fails', async () => {
             const { modDigestSchedulerService } =
                 await import('../../utils/moderation/modDigestScheduler')

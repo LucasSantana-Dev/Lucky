@@ -34,3 +34,8 @@ CREATE UNIQUE INDEX "support_sessions_one_open_per_user"
 
 -- AddForeignKey
 ALTER TABLE "support_sessions" ADD CONSTRAINT "support_sessions_guildId_fkey" FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Constrain the finite lifecycle state so a bad value can never become invisible
+-- to the active-ticket / expiry-sweep queries. (Not expressible in schema.prisma;
+-- migration-only, no CI drift check runs.)
+ALTER TABLE "support_sessions" ADD CONSTRAINT "support_sessions_status_check" CHECK ("status" IN ('open', 'closed'));

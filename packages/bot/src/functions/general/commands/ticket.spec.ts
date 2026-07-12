@@ -69,6 +69,7 @@ describe('/ticket command (smoke)', () => {
             supportCategoryId: 'cat-1',
             supportAgentRoleId: 'agent-role',
         })
+        supportSessionServiceMock.close.mockResolvedValue(undefined)
     })
 
     it('open: creates a channel, records the session, and confirms', async () => {
@@ -146,5 +147,57 @@ describe('/ticket command (smoke)', () => {
 
         expect(supportSessionServiceMock.close).toHaveBeenCalledWith('s1')
         expect(channel.delete).toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: { content: expect.stringContaining('Closing') },
+            }),
+        )
+    })
+
+    it('open: reopens after a stale row whose channel was deleted (10003)', async () => {
+        const channel = makeChannel()
+        supportSessionServiceMock.getActiveForUser.mockResolvedValue({
+            id: 'old',
+            channelId: 'gone',
+        })
+        supportSessionServiceMock.open.mockResolvedValue({ id: 's2' })
+
+        const interaction = makeInteraction('open', channel)
+        // Orphan check: fetching the old channel throws 10003 (confirmed gone).
+        interaction.guild.channels.fetch = jest
+            .fn()
+            .mockRejectedValue({ code: 10003 })
+
+        await ticketCommand.execute({ interaction } as any)
+
+        expect(supportSessionServiceMock.close).toHaveBeenCalledWith('old')
+        expect(interaction.guild.channels.create).toHaveBeenCalled()
+        expect(supportSessionServiceMock.open).toHaveBeenCalled()
+    })
+
+    it('open: blocks (does NOT reopen) on a transient fetch error for the existing ticket', async () => {
+        const channel = makeChannel()
+        supportSessionServiceMock.getActiveForUser.mockResolvedValue({
+            id: 'old',
+            channelId: 'ch-old',
+        })
+
+        const interaction = makeInteraction('open', channel)
+        // Transient error (not 10003) — must treat the ticket as still open.
+        interaction.guild.channels.fetch = jest
+            .fn()
+            .mockRejectedValue(new Error('gateway 503'))
+
+        await ticketCommand.execute({ interaction } as any)
+
+        expect(supportSessionServiceMock.close).not.toHaveBeenCalled()
+        expect(interaction.guild.channels.create).not.toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: {
+                    content: expect.stringContaining('already have an open'),
+                },
+            }),
+        )
     })
 })

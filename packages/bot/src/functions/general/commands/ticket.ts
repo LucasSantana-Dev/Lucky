@@ -18,6 +18,9 @@ import { interactionReply } from '../../../utils/general/interactionReply'
 // Tickets auto-close 24h after opening (swept by supportSessionScheduler).
 const TICKET_TTL_MS = 24 * 60 * 60 * 1000
 
+// Discord REST error code: the channel truly no longer exists.
+const UNKNOWN_CHANNEL = 10003
+
 async function handleOpen(
     interaction: ChatInputCommandInteraction,
     guild: Guild,
@@ -41,13 +44,16 @@ async function handleOpen(
         interaction.user.id,
     )
     if (existing) {
-        // Only block if the channel still exists; if it was deleted out-of-band
-        // (a human removed it), close the orphan row and let the user reopen
-        // instead of stranding them until the 24h sweep.
-        const stillThere = await guild.channels
-            .fetch(existing.channelId)
-            .catch(() => null)
-        if (stillThere) {
+        // Only reopen if the channel is CONFIRMED gone (10003). A transient
+        // fetch error must not close a live ticket and let a duplicate open —
+        // treat "not confirmed gone" as still-open and block.
+        let channelGone = false
+        try {
+            await guild.channels.fetch(existing.channelId)
+        } catch (err) {
+            channelGone = (err as { code?: number })?.code === UNKNOWN_CHANNEL
+        }
+        if (!channelGone) {
             await interactionReply({
                 interaction,
                 content: {
@@ -56,6 +62,7 @@ async function handleOpen(
             })
             return
         }
+        // Channel was deleted out-of-band — close the orphan row and continue.
         await supportSessionService.close(existing.id).catch(() => {})
     }
 
@@ -93,8 +100,15 @@ async function handleOpen(
         })
     } catch (error) {
         // Roll the channel back so a failed — or race-lost (P2002 on the
-        // one-open-per-user unique index) — record never orphans a channel.
-        await channel.delete('Ticket record failed').catch(() => {})
+        // one-open-per-user unique index) — record never orphans a channel. If
+        // the rollback delete itself fails, surface it (the sweep can't help —
+        // there's no session row to expire).
+        await channel.delete('Ticket record failed').catch((delErr) =>
+            errorLog({
+                message: `Failed to roll back orphaned ticket channel ${channel.id}`,
+                error: delErr,
+            }),
+        )
         const raced = (error as { code?: string })?.code === 'P2002'
         errorLog({ message: 'Failed to record ticket session', error })
         await interactionReply({
@@ -116,6 +130,12 @@ async function handleOpen(
             content: `👋 <@${interaction.user.id}> — a support agent (<@&${agentRoleId}>) will be with you.${
                 reason ? `\n**Reason:** ${reason}` : ''
             }\n\nThis ticket auto-closes in 24h, or use \`/ticket close\`.`,
+            // Scope mentions to the intended targets only, so a `reason`
+            // containing @everyone / a role mention can't ping the server.
+            allowedMentions: {
+                users: [interaction.user.id],
+                roles: [agentRoleId],
+            },
         })
         .catch((error) =>
             errorLog({ message: 'Ticket welcome message failed', error }),
@@ -191,22 +211,44 @@ async function handleClose(
         return
     }
 
-    // Mark closed first so the channel delete (which ends this interaction) can't
-    // leave an orphaned open record; the sweep is idempotent either way.
-    await supportSessionService.close(session.id)
+    // Reply before the delete — an ephemeral interaction reply survives the
+    // channel being removed, whereas a message in the channel would not.
     await interactionReply({
         interaction,
         content: { content: '✅ Closing this ticket…' },
     })
 
+    await teardownClosedTicket(guild, channelId, session.id)
+}
+
+/**
+ * Delete the ticket channel and close the record — but close ONLY when the
+ * channel is confirmed gone (successful delete or 10003). A 50013/transient
+ * delete failure keeps the session OPEN so the expiry sweep retries, rather
+ * than orphaning a still-live channel with no tracking row.
+ */
+async function teardownClosedTicket(
+    guild: Guild,
+    channelId: string,
+    sessionId: string,
+): Promise<void> {
     const channel = await guild.channels.fetch(channelId).catch(() => null)
-    if (channel) {
-        await channel.delete('Support ticket closed').catch((error) =>
-            errorLog({
-                message: `Failed to delete ticket channel ${channelId}`,
-                error,
-            }),
-        )
+    if (!channel) {
+        await supportSessionService.close(sessionId).catch(() => {})
+        return
+    }
+    try {
+        await channel.delete('Support ticket closed')
+        await supportSessionService.close(sessionId).catch(() => {})
+    } catch (error) {
+        if ((error as { code?: number })?.code === UNKNOWN_CHANNEL) {
+            await supportSessionService.close(sessionId).catch(() => {})
+            return
+        }
+        errorLog({
+            message: `Failed to delete ticket channel ${channelId}; leaving session open for the sweep`,
+            error,
+        })
     }
 }
 

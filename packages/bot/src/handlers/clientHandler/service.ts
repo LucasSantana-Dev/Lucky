@@ -136,10 +136,18 @@ export async function startClient({
 
             try {
                 reminderScheduler.start(client)
-                supportSessionScheduler.start(client)
             } catch (error) {
                 errorLog({
                     message: 'Failed to start reminder scheduler',
+                    error,
+                })
+            }
+
+            try {
+                supportSessionScheduler.start(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to start support session scheduler',
                     error,
                 })
             }
