@@ -515,23 +515,37 @@ describe('bulkMoveMessages command', () => {
             expect(errorLogMock).toHaveBeenCalled()
         })
 
-        test('samples messages to estimate count for "all" scope', async () => {
+        test('samples messages to estimate count for "all" scope with proper pagination', async () => {
             matchesScopeMock.mockReturnValue(true)
 
             const sourceChannel = createMockChannel()
-            sourceChannel.messages.fetch = jest.fn().mockResolvedValue(
-                new Map(
-                    Array.from({ length: 500 }, (_, i) => [
-                        `msg-${i}`,
-                        {
-                            id: `msg-${i}`,
-                            author: { id: 'user-1' },
-                            content: 'test',
-                            createdAt: new Date(),
-                        },
-                    ]),
-                ),
-            )
+
+            // Mock pagination: return 5 pages of 100 messages each, then empty
+            let callCount = 0
+            sourceChannel.messages.fetch = jest.fn().mockImplementation(() => {
+                callCount++
+                if (callCount <= 5) {
+                    // Return 100 messages per page
+                    return Promise.resolve(
+                        new Map(
+                            Array.from({ length: 100 }, (_, i) => {
+                                const msgIndex = (callCount - 1) * 100 + i
+                                return [
+                                    `msg-${msgIndex}`,
+                                    {
+                                        id: `msg-${msgIndex}`,
+                                        author: { id: 'user-1' },
+                                        content: 'test',
+                                        createdAt: new Date(),
+                                    },
+                                ]
+                            }),
+                        ),
+                    )
+                }
+                // Return empty map (end of messages)
+                return Promise.resolve(new Map())
+            })
 
             const interaction = createInteraction({
                 sourceChannel,
@@ -543,9 +557,26 @@ describe('bulkMoveMessages command', () => {
 
             await bulkMoveMessagesCommand.execute({ interaction } as any)
 
-            expect(sourceChannel.messages.fetch).toHaveBeenCalledWith(
-                expect.objectContaining({ limit: 500 }),
-            )
+            // Should fetch with limit ≤ 100 (the Discord API limit)
+            const fetchCalls = (sourceChannel.messages.fetch as jest.Mock).mock
+                .calls
+            expect(fetchCalls.length).toBeGreaterThan(0)
+
+            // Each call should respect the Discord limit of 100
+            for (const [callArgs] of fetchCalls) {
+                expect(callArgs.limit).toBeLessThanOrEqual(100)
+            }
+
+            // Should have paginated through multiple calls
+            expect(fetchCalls.length).toBeGreaterThan(1)
+
+            // First call should not have a cursor
+            expect(fetchCalls[0][0].before).toBeUndefined()
+
+            // Subsequent calls should have a cursor for pagination
+            if (fetchCalls.length > 1) {
+                expect(fetchCalls[1][0].before).toBeDefined()
+            }
         })
 
         test('uses exact count for "count" scope', async () => {
