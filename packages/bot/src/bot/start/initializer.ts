@@ -24,6 +24,7 @@ import { musicWatchdogService } from '../../utils/music/watchdog'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { reminderScheduler } from '../../utils/general/reminderScheduler'
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
+import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { aiDevToolkitService } from '../../services/AiDevToolkitService'
 import { dependencyCheckService } from '../../services/DependencyCheckService'
@@ -222,6 +223,12 @@ export class BotInitializer {
             giveawayScheduler.stop()
         } catch (error) {
             errorLog({ message: 'Error stopping giveaway scheduler:', error })
+        }
+
+        try {
+            topggStatsScheduler.stop()
+        } catch (error) {
+            errorLog({ message: 'Error stopping Top.gg stats scheduler:', error })
         }
 
         try {
