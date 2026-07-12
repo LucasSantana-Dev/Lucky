@@ -132,7 +132,15 @@ export default new Command({
                 estimatedMinutes,
             })
 
-            await enqueueBatchJob(job.id)
+            const enqueueResult = await enqueueBatchJob(
+                (job as { id: string }).id,
+            )
+            if (!enqueueResult) {
+                await interaction.editReply({
+                    content: '❌ Failed to queue bulk kick job (Redis unavailable). Please try again.',
+                })
+                return
+            }
 
             await interaction.editReply({
                 content: `✅ Bulk kick queued (ID: \`${job.id}\`) — ${totalEstimate} member(s). Track progress on the **Batch Jobs** dashboard page.`,

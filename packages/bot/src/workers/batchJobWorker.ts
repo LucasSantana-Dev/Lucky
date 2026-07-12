@@ -109,8 +109,14 @@ async function processBatchJob(
             boundOnProgress,
         )
 
-        // Mark as completed and store summary
-        await batchJobService.markCompleted(jobId)
+        // Handle completion state: distinguish between completed, cancelled, and paused
+        if ((summary as Record<string, unknown>).cancelled) {
+            await batchJobService.markCancelled(jobId)
+        } else if ((summary as Record<string, unknown>).paused) {
+            await batchJobService.markPaused(jobId)
+        } else {
+            await batchJobService.markCompleted(jobId)
+        }
         await batchJobService.setSummary(jobId, summary)
 
         infoLog({

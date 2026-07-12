@@ -56,13 +56,14 @@ export class BulkKickExecutor implements BatchJobExecutor {
             client,
             guildId,
             roleId,
-            dbJob?.nextCursor || undefined,
+            (dbJob as { nextCursor?: string })?.nextCursor || undefined,
         )
 
+        // Initialize tally with prior counts from resume, if any
         const tally: Record<KickOutcome, number> = {
-            kicked: 0,
-            skipped: 0,
-            failed: 0,
+            kicked: (dbJob as { processedItems?: number })?.processedItems ?? 0,
+            skipped: (dbJob as { skippedItems?: number })?.skippedItems ?? 0,
+            failed: (dbJob as { failedItems?: number })?.failedItems ?? 0,
         }
 
         for (const member of queue) {
@@ -75,19 +76,22 @@ export class BulkKickExecutor implements BatchJobExecutor {
                 return { ...this.summary(tally), paused: true }
             }
 
-            tally[await this.kickMember(member, reason)]++
-
-            const done = tally.kicked + tally.skipped + tally.failed
+            // Checkpoint BEFORE the destructive step to ensure crash-safety:
+            // if a crash occurs between checkpoint and kick, resume skips this
+            // member rather than double-kicking.
+            const done = tally.kicked + tally.skipped + tally.failed + 1
             await onProgress({
-                processed: tally.kicked,
+                processed: tally.kicked + 1,
                 failed: tally.failed,
                 skipped: tally.skipped,
                 total,
                 percentComplete:
                     total > 0 ? Math.round((done / total) * 100) : 100,
-                message: `Kicked ${tally.kicked}/${total} (skipped ${tally.skipped}, failed ${tally.failed})`,
+                message: `Kicking ${tally.kicked + 1}/${total} (skipped ${tally.skipped}, failed ${tally.failed})`,
                 nextCursor: member.id,
             })
+
+            tally[await this.kickMember(member, reason)]++
         }
 
         await onProgress({
