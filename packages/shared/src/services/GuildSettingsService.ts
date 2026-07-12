@@ -37,6 +37,8 @@ export interface GuildSettings {
     djRoleId?: string
     idleTimeoutMinutes?: number
     voteSkipThreshold?: number
+    supportCategoryId?: string
+    supportAgentRoleId?: string
     createdAt: Date
     updatedAt: Date
 }
@@ -109,6 +111,8 @@ export class GuildSettingsService {
         djRoleId: string | null
         idleTimeoutMinutes: number | null
         voteSkipThreshold: number | null
+        supportCategoryId: string | null
+        supportAgentRoleId: string | null
         createdAt: Date
         updatedAt: Date
     }): GuildSettings {
@@ -134,6 +138,8 @@ export class GuildSettingsService {
             djRoleId: row.djRoleId ?? undefined,
             idleTimeoutMinutes: row.idleTimeoutMinutes ?? 0,
             voteSkipThreshold: row.voteSkipThreshold ?? 50,
+            supportCategoryId: row.supportCategoryId ?? undefined,
+            supportAgentRoleId: row.supportAgentRoleId ?? undefined,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
         }
@@ -168,6 +174,8 @@ export class GuildSettingsService {
         copy('commandCooldown')
         copy('downloadCooldown')
         copy('djRoleId')
+        copy('supportCategoryId')
+        copy('supportAgentRoleId')
         copy('idleTimeoutMinutes')
         copy('voteSkipThreshold')
         return data

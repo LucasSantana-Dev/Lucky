@@ -1,0 +1,51 @@
+name: Auto-update PR branches
+
+# When main advances, bring every open PR that already has auto-merge enabled
+# up to date, so the branch-protection "require branches to be up to date" rule
+# doesn't strand a green, queued PR behind whatever just merged. This is the
+# manual `gh pr update-branch` loop (see the merge-train friction) automated.
+#
+# Scope is intentionally narrow: only PRs whose author has ALREADY enabled
+# auto-merge are touched — that's the opt-in signal, and it avoids surprising
+# other contributors' branches.
+#
+# Uses a PAT (RELEASE_PLEASE_TOKEN), not GITHUB_TOKEN, on purpose: a branch
+# update made with GITHUB_TOKEN does NOT re-trigger the PR's workflows, which
+# would leave required checks pending forever and the auto-merge never firing.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Serialize runs so overlapping main pushes don't fight over the same PRs.
+  group: auto-update-pr-branches
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update behind, auto-merge-enabled PRs
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh pr list --repo "$REPO" --state open --base main \
+            --json number,isDraft,mergeStateStatus,autoMergeRequest \
+            --jq '.[]
+              | select(.isDraft == false
+                       and .autoMergeRequest != null
+                       and .mergeStateStatus == "BEHIND")
+              | .number' \
+          | while read -r pr; do
+              [ -n "$pr" ] || continue
+              echo "Updating #$pr (behind base, auto-merge enabled)..."
+              gh pr update-branch "$pr" --repo "$REPO" \
+                || echo "::warning::update-branch failed for #$pr (likely a conflict) — skipping"
+            done

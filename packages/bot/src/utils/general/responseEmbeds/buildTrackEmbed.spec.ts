@@ -57,6 +57,29 @@ describe('buildTrackEmbed', () => {
         },
     )
 
+    it('adds a Progress field when a progress bar is provided', () => {
+        const bar = '00:30 ┃🔘▬▬▬ 05:55'
+        const embed = buildTrackEmbed(baseTrack, 'playing', fakeUser, {
+            progressBar: bar,
+        })
+        const progress = embed.data.fields?.find((f) => f.name === 'Progress')
+        expect(progress?.value).toBe(bar)
+        expect(progress?.inline).toBe(false)
+    })
+
+    it('omits the Progress field when no/null progress bar', () => {
+        const noOpts = buildTrackEmbed(baseTrack, 'playing', fakeUser)
+        const nullBar = buildTrackEmbed(baseTrack, 'playing', fakeUser, {
+            progressBar: null,
+        })
+        expect(noOpts.data.fields?.some((f) => f.name === 'Progress')).toBe(
+            false,
+        )
+        expect(nullBar.data.fields?.some((f) => f.name === 'Progress')).toBe(
+            false,
+        )
+    })
+
     it('handles missing/unknown fields and edge cases', () => {
         // Missing title
         const noTitle = buildTrackEmbed(
