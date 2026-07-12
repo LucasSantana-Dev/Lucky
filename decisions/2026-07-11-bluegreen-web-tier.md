@@ -31,7 +31,7 @@ Implement a **tiered approach**:
   5. Stop the old color.
   - Idempotent: safe to re-run if step N fails; state after success is reproducible.
 - **Result:** zero HTTP downtime for dashboard/API during deploy; old color is drained before shutdown.
-- **Deployment flow** (eventual, Phase 1b): `docker compose up -d --no-deps backend-blue && ./scripts/bluegreen-flip.sh backend blue && docker compose up -d --no-deps frontend-green && ./scripts/bluegreen-flip.sh frontend green`.
+- **Deployment flow** (eventual, Phase 1b): always deploy to the **currently-inactive** color, then flip — never `up -d` the color that is serving live traffic (that recreates the active container and drops requests). E.g. if backend is on blue: `docker compose up -d --no-deps backend-green && ./scripts/bluegreen-flip.sh backend green` (Phase 1b picks the target color from the active-config file, not a hardcoded one).
 
 ### Phase 2 — Bot fast-rollover (minimize the unavoidable blip) [DEFERRED]
 
@@ -58,7 +58,7 @@ Implement a **tiered approach**:
 ## Acceptance criteria
 
 ✓ (Phase 1 staging implementation)
-- A deploy of backend/frontend to staging causes **zero** failed HTTP requests through nginx (verify with `while true; do curl -s http://localhost:8093/health; done` during deploy).
+- A deploy of backend/frontend to staging causes **zero** failed HTTP requests through nginx (verify with `while true; do curl -s http://localhost:8093/api/health; done` during deploy — `/health` is not a route; nginx sends `/api/*` to the backend and everything else to the frontend).
 - `scripts/bluegreen-flip.sh` is idempotent: re-running after a successful flip leaves the system in the same state.
 - The flip script includes a clear header documenting that it's run by the deploy pipeline and that migrations must be backward-compatible.
 - Existing single-color deploy continues to work unmodified (blue/green is additive).

@@ -243,12 +243,10 @@ services:
                 max-size: "10m"
                 max-file: "3"
                 tag: "{{.Name}}"
-        healthcheck:
-            test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-            interval: 10s
-            timeout: 5s
-            retries: 3
-            start_period: 30s
+        # No healthcheck override: the backend image bakes a Node-based
+        # HEALTHCHECK (the image has no curl, and /health is not a backend
+        # route — the health route is /api/health). The flip script waits on
+        # that reported container health status.
 
     backend-green:
         <<: *medium-svc
@@ -287,12 +285,10 @@ services:
                 max-size: "10m"
                 max-file: "3"
                 tag: "{{.Name}}"
-        healthcheck:
-            test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-            interval: 10s
-            timeout: 5s
-            retries: 3
-            start_period: 30s
+        # No healthcheck override: the backend image bakes a Node-based
+        # HEALTHCHECK (the image has no curl, and /health is not a backend
+        # route — the health route is /api/health). The flip script waits on
+        # that reported container health status.
 
     frontend-blue:
         <<: *small-svc
@@ -351,6 +347,11 @@ services:
             context: .
             dockerfile: Dockerfile.nginx
         container_name: lucky-staging-nginx
+        volumes:
+            # The active-color upstream config is NOT baked into the image — the
+            # flip script rewrites this host file and reloads nginx, so it must be
+            # bind-mounted (read-only for nginx) at the path nginx.conf includes.
+            - ./nginx/upstream-active.conf:/etc/nginx/conf.d/upstream-active.conf:ro
         depends_on:
             - backend
             - frontend

@@ -23,7 +23,7 @@ COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.staging.yml}"
 NGINX_CONFIG_DIR="${NGINX_CONFIG_DIR:-nginx}"
 UPSTREAM_CONFIG="${NGINX_CONFIG_DIR}/upstream-active.conf"
 
-# Health check tuning (HEALTH_ENDPOINT is set per-service below)
+# Health check tuning (readiness comes from each image's baked HEALTHCHECK)
 HEALTH_TIMEOUT_SECS=90
 HEALTH_CHECK_INTERVAL_SECS=2
 
@@ -57,19 +57,14 @@ if [[ "$COLOR" != "blue" && "$COLOR" != "green" ]]; then
     die "COLOR must be 'blue' or 'green', got '$COLOR'"
 fi
 
-# Determine the container name, port, and health path per service.
-# Frontend serves the SPA at "/" (no dedicated /health route — matches its
-# compose healthcheck); backend exposes /health.
+# Determine the container name per service. Readiness is taken from the image's
+# baked HEALTHCHECK (see Step 1), so no per-service probe path/port is needed.
 case "$SERVICE" in
     backend)
         CONTAINER_NAME="lucky-staging-backend-$COLOR"
-        PORT=3000
-        HEALTH_ENDPOINT="/health"
         ;;
     frontend)
         CONTAINER_NAME="lucky-staging-frontend-$COLOR"
-        PORT=8080
-        HEALTH_ENDPOINT="/"
         ;;
 esac
 
@@ -90,14 +85,18 @@ while true; do
         die "Timeout waiting for $CONTAINER_NAME to become healthy (${HEALTH_TIMEOUT_SECS}s exceeded)"
     fi
 
-    # Use docker compose exec to check health via curl inside the container
-    if docker compose -f "$COMPOSE_FILE" exec -T "$SERVICE-$COLOR" \
-        curl -f -s "http://localhost:$PORT$HEALTH_ENDPOINT" > /dev/null 2>&1; then
+    # Read the container's reported health from its baked HEALTHCHECK — the
+    # backend image probes via Node (it ships no curl) and the frontend via
+    # curl, so this works for both without exec-ing a probe that may not exist.
+    STATUS=$(docker inspect \
+        --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' \
+        "$CONTAINER_NAME" 2>/dev/null || echo "missing")
+    if [[ "$STATUS" == "healthy" ]]; then
         log "$CONTAINER_NAME is healthy"
         break
     fi
 
-    log "Health check failed, retrying in ${HEALTH_CHECK_INTERVAL_SECS}s... ($ELAPSED/${HEALTH_TIMEOUT_SECS}s)"
+    log "Health status: $STATUS, retrying in ${HEALTH_CHECK_INTERVAL_SECS}s... ($ELAPSED/${HEALTH_TIMEOUT_SECS}s)"
     sleep "$HEALTH_CHECK_INTERVAL_SECS"
 done
 
@@ -146,8 +145,17 @@ EOF
 cp "$TEMP_CONFIG" "$UPSTREAM_CONFIG"
 log "Updated $UPSTREAM_CONFIG (backend=$BACKEND_COLOR frontend=$FRONTEND_COLOR)"
 
-# Step 3: Reload nginx (zero-downtime reload). On failure, restore the previous
-# config so the on-disk file never drifts from the running nginx.
+# Step 3: Validate the config BEFORE reloading. `nginx -s reload` only signals
+# the master, which keeps the old config on a bad apply — so without this test a
+# rejected config would still fall through to Step 4 and stop the live color.
+log "Validating nginx config..."
+if ! docker compose -f "$COMPOSE_FILE" exec -T nginx nginx -t; then
+    cp "$PREV_CONFIG" "$UPSTREAM_CONFIG"
+    die "nginx config test failed — rolled back $UPSTREAM_CONFIG, traffic unchanged"
+fi
+
+# Reload (zero-downtime). On failure, restore the previous config so the on-disk
+# file never drifts from the running nginx.
 log "Reloading nginx..."
 if ! docker compose -f "$COMPOSE_FILE" exec -T nginx nginx -s reload; then
     cp "$PREV_CONFIG" "$UPSTREAM_CONFIG"
