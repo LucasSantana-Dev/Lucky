@@ -24,7 +24,7 @@ export function safeUrlOrigin(url: unknown): string {
  * explicit URL field, not URLs embedded in an Error.message.
  */
 export function scrubUrls(text: string): string {
-    return text.replace(/https?:\/\/[^\s"'<>]+/g, (match) =>
+    return text.replace(/https?:\/\/[^\s"'<>]+/gi, (match) =>
         safeUrlOrigin(match),
     )
 }

@@ -50,6 +50,15 @@ describe('scrubUrls', () => {
         )
         expect(scrubUrls('no urls here')).toBe('no urls here')
     })
+
+    it('scrubs uppercase url schemes (http:// and https://)', () => {
+        expect(scrubUrls('Error: HTTPS://example.com/secret?token=ABC')).toBe(
+            'Error: https://example.com',
+        )
+        expect(scrubUrls('HTTP://api.test.io/endpoint?key=XYZ')).toBe(
+            'http://api.test.io',
+        )
+    })
 })
 
 describe('sentry telemetry helpers', () => {
