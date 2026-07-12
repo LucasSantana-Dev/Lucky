@@ -9,6 +9,7 @@ import { startPresenceRotation } from './presence'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { reminderScheduler } from '../../utils/general/reminderScheduler'
+import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
 import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
 import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
@@ -135,6 +136,7 @@ export async function startClient({
 
             try {
                 reminderScheduler.start(client)
+                supportSessionScheduler.start(client)
             } catch (error) {
                 errorLog({
                     message: 'Failed to start reminder scheduler',

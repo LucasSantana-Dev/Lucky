@@ -102,6 +102,7 @@ model Guild {
   batchJobs                    BatchJob[]
   afkStatuses                  AfkStatus[]
   reminders                   Reminder[]
+  supportSessions              SupportSession[]
 
   @@map("guilds")
 }
@@ -237,10 +238,36 @@ model GuildSettings {
   // clock rolls over.
   birthdayRoleId    String?
 
+  // Support/ticket feature. Both must be set for /ticket to work: the category
+  // new ticket channels are created under, and the persistent role that grants
+  // support agents access to every ticket channel (via per-channel overwrites).
+  supportCategoryId  String?
+  supportAgentRoleId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("guild_settings")
+}
+
+/// One temporary support/ticket channel. The channel is the source of truth for
+/// access (per-user + support-agent-role overwrites); this row tracks lifecycle
+/// so the sweep scheduler can auto-close expired tickets and enforce one open
+/// ticket per requestor.
+model SupportSession {
+  id          String   @id @default(cuid())
+  guildId     String
+  guild       Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  channelId   String   @unique
+  requestorId String
+  status      String   @default("open") // open | closed
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([guildId])
+  @@index([status, expiresAt])
+  @@map("support_sessions")
 }
 
 model GuildRoleGrant {
