@@ -415,15 +415,25 @@ describe('recommendationTelemetry', () => {
             )
         })
 
+        it('returns early without calling update when prisma client is unavailable', async () => {
+            mockGetPrismaClient.mockReturnValue(null)
+            const args: RecordSkipReasonArgs = {
+                recommendationId: 'rec-id-123',
+                skipReason: 'too_chill',
+            }
+
+            await recordRecommendationSkipReason(args)
+
+            expect(mockUpdate).not.toHaveBeenCalled()
+        })
+
         it('persistence failure does not break skip flow', async () => {
             const args: RecordSkipReasonArgs = {
                 recommendationId: 'rec-id-123',
                 skipReason: 'generic_dislike',
             }
 
-            mockUpdate.mockRejectedValue(
-                new Error('Network timeout'),
-            )
+            mockUpdate.mockRejectedValue(new Error('Network timeout'))
 
             const result = await recordRecommendationSkipReason(args)
 
