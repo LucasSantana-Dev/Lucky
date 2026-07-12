@@ -109,8 +109,14 @@ async function processBatchJob(
             boundOnProgress,
         )
 
-        // Mark as completed and store summary
-        await batchJobService.markCompleted(jobId)
+        // Handle completion state: distinguish between completed, cancelled, and paused
+        if ((summary as Record<string, unknown>).cancelled) {
+            await batchJobService.markCancelled(jobId)
+        } else if ((summary as Record<string, unknown>).paused) {
+            await batchJobService.markPaused(jobId)
+        } else {
+            await batchJobService.markCompleted(jobId)
+        }
         await batchJobService.setSummary(jobId, summary)
 
         infoLog({
@@ -193,6 +199,10 @@ export async function startBatchJobWorker(): Promise<void> {
         const { ChannelMoveBatchExecutor } =
             await import('../functions/moderation/batch/channelMoveExecutor')
         registerExecutor(new ChannelMoveBatchExecutor())
+
+        const { BulkKickExecutor } =
+            await import('../functions/moderation/batch/bulkKickExecutor')
+        registerExecutor(new BulkKickExecutor())
     } catch (error) {
         errorLog({ message: 'Failed to register batch executors', error })
         // Clean up the bullmq redis connection on executor registration failure
