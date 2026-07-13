@@ -522,8 +522,9 @@ jobs:
                             const warnings = Array.isArray(parsed?.warnings) ? parsed.warnings : [];
                             const clientId = typeof auth?.clientId === "string" ? auth.clientId : "";
                             const clientIdConfigured = auth?.clientIdConfigured === true;
-                            const sessionSecretConfigured = auth?.sessionSecretConfigured === true;
-                            const redisHealthy = auth?.redisHealthy === true;
+                            // Note: sessionSecretConfigured and redisHealthy are redacted in production
+                            // per #1710 (security: redact operational diagnostics). This gate only checks
+                            // fields that production exposes. See #1824 for context.
                             const redirectUri = typeof auth?.redirectUri === "string" ? auth.redirectUri : "";
                             const authorizeUrlPreview = typeof auth?.authorizeUrlPreview === "string"
                               ? auth.authorizeUrlPreview
@@ -538,13 +539,11 @@ jobs:
                               warnings.length > 0 ||
                               clientId.length === 0 ||
                               !clientIdConfigured ||
-                              !sessionSecretConfigured ||
-                              !redisHealthy ||
                               !callbackPathOk ||
                               !authorizePreviewOk
                             ) {
                               console.log(
-                                `auth-config contract not ready (status=${status}, warnings=${warnings.length}, clientId=${clientId}, clientIdConfigured=${clientIdConfigured}, sessionSecretConfigured=${sessionSecretConfigured}, redisHealthy=${redisHealthy}, callbackPathOk=${callbackPathOk}, authorizePreviewOk=${authorizePreviewOk})`,
+                                `auth-config contract not ready (status=${status}, warnings=${warnings.length}, clientId=${clientId}, clientIdConfigured=${clientIdConfigured}, callbackPathOk=${callbackPathOk}, authorizePreviewOk=${authorizePreviewOk})`,
                               );
                               if (warnings.length > 0) {
                                 console.log(`warnings: ${warnings.join(" | ")}`);
