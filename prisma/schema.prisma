@@ -254,13 +254,18 @@ model GuildSettings {
 /// access (per-user + support-agent-role overwrites); this row tracks lifecycle
 /// so the sweep scheduler can auto-close expired tickets and enforce one open
 /// ticket per requestor.
+enum SupportSessionStatus {
+  open
+  closed
+}
+
 model SupportSession {
   id          String   @id @default(cuid())
   guildId     String
   guild       Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   channelId   String   @unique
   requestorId String
-  status      String   @default("open") // open | closed
+  status      SupportSessionStatus @default(open)
   expiresAt   DateTime
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

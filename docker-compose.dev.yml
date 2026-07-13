@@ -63,6 +63,7 @@ services:
                 condition: service_healthy
         environment:
             - DATABASE_URL=postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
+            - DIRECT_URL=postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
             - NODE_ENV=development
             - DISCORD_TOKEN=${DISCORD_TOKEN}
             - CLIENT_ID=${CLIENT_ID}
