@@ -10,15 +10,30 @@ jest.mock('../monitoring/sentry', () => ({
     captureMessage: jest.fn(),
 }))
 
+jest.mock('@lucky/shared/services', () => ({
+    redisClient: { set: jest.fn() },
+}))
+
 import { TopggStatsScheduler } from './topggStatsScheduler'
 import { infoLog, warnLog } from '@lucky/shared/utils'
+import { redisClient } from '@lucky/shared/services'
+import { BOT_STATS_MEMBERS_KEY } from '@lucky/shared/constants'
 import { captureMessage } from '../monitoring/sentry'
 
-function makeClient(guildCount: number) {
+function makeClient(guildCount: number, memberCounts?: number[]) {
+    const members = memberCounts ?? new Array<number>(guildCount).fill(0)
     return {
         guilds: {
             cache: {
                 size: guildCount,
+                reduce: (
+                    fn: (acc: number, guild: { memberCount: number }) => number,
+                    initial: number,
+                ): number =>
+                    members.reduce(
+                        (acc, memberCount) => fn(acc, { memberCount }),
+                        initial,
+                    ),
             },
         },
     }
@@ -44,6 +59,29 @@ describe('TopggStatsScheduler', () => {
 
         // start() arms the interval timer before the token check early-returns,
         // so it must be stopped to avoid leaking a timer into later tests.
+        scheduler.stop()
+    })
+
+    test('publishes total member reach to Redis on tick, regardless of Top.gg token', async () => {
+        // No TOPGG_TOKEN (cleared in beforeEach) — member reach must still publish.
+        const mockFetch = jest.fn()
+        const scheduler = new TopggStatsScheduler({
+            tickIntervalMs: 100,
+            fetch: mockFetch,
+        })
+        const client = makeClient(3, [10, 20, 30]) as any
+
+        scheduler.start(client)
+        // onStart skips the immediate tick without a token, so drive one manually.
+        await scheduler.tick()
+
+        expect(redisClient.set).toHaveBeenCalledWith(
+            BOT_STATS_MEMBERS_KEY,
+            '60',
+            expect.any(Number),
+        )
+        expect(mockFetch).not.toHaveBeenCalled()
+
         scheduler.stop()
     })
 

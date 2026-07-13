@@ -1,5 +1,11 @@
+import type { Client } from 'discord.js'
 import { infoLog, warnLog } from '@lucky/shared/utils'
-import { TOP_GG_BOT_ID } from '@lucky/shared/constants'
+import {
+    TOP_GG_BOT_ID,
+    BOT_STATS_MEMBERS_KEY,
+    BOT_STATS_TTL_SECONDS,
+} from '@lucky/shared/constants'
+import { redisClient } from '@lucky/shared/services'
 import { addBreadcrumb, captureMessage } from '../monitoring/sentry'
 
 import { IntervalScheduler } from './IntervalScheduler'
@@ -46,13 +52,24 @@ export class TopggStatsScheduler extends IntervalScheduler {
     }
 
     protected async execute(): Promise<void> {
+        if (!this.client) return
+
+        // Publish live member reach to Redis without blocking the Top.gg post
+        // path — a slow/unavailable Redis must never delay (or wedge) stats
+        // posting. Runs every tick regardless of the Top.gg token so
+        // GET /api/stats/public reports real reach, not the near-empty User table.
+        void this.publishMemberReach(this.client).catch((error) =>
+            warnLog({
+                message: 'Failed to publish member reach to Redis',
+                error: error as Error,
+            }),
+        )
+
         const token = process.env.TOPGG_TOKEN
         if (!token) {
             // Silently return — already logged once at startup
             return
         }
-
-        if (!this.client) return
 
         const serverCount = this.client.guilds.cache.size
 
@@ -127,6 +144,18 @@ export class TopggStatsScheduler extends IntervalScheduler {
                 { category: 'topgg.stats', serverCount },
             )
         }
+    }
+
+    private async publishMemberReach(client: Client): Promise<void> {
+        const totalMembers = client.guilds.cache.reduce(
+            (sum, guild) => sum + (guild.memberCount ?? 0),
+            0,
+        )
+        await redisClient.set(
+            BOT_STATS_MEMBERS_KEY,
+            String(totalMembers),
+            BOT_STATS_TTL_SECONDS,
+        )
     }
 }
 
