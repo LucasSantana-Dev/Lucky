@@ -30,9 +30,13 @@ export function setupStatsRoutes(app: Express): void {
             // users (near-empty), so it is NOT the reach metric this stat represents.
             const membersRaw = await redisClient.get(BOT_STATS_MEMBERS_KEY)
             const parsedMembers = Number(membersRaw)
+            // The bot always publishes a stringified integer (sum of guild
+            // memberCounts), so a fractional/out-of-range parse signals a
+            // corrupt key — reject it to 0 rather than truncating a value that
+            // was never published.
             const totalUsers =
-                Number.isFinite(parsedMembers) && parsedMembers >= 0
-                    ? Math.trunc(parsedMembers)
+                Number.isSafeInteger(parsedMembers) && parsedMembers >= 0
+                    ? parsedMembers
                     : 0
 
             // Get backend uptime in seconds
