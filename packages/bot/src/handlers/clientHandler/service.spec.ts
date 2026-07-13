@@ -364,7 +364,7 @@ describe('service', () => {
             )
         })
 
-        itit('starts the support session scheduler in the ready handler', async () => {
+        it('starts the support session scheduler in the ready handler', async () => {
             const { supportSessionScheduler } =
                 await import('../../utils/general/supportSessionScheduler')
             ;(supportSessionScheduler.start as jest.Mock).mockClear()
