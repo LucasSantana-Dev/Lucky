@@ -51,6 +51,29 @@ function makeInteraction(
     }
 }
 
+/** Build a channel/role broadcast interaction with a Manage-Server toggle. */
+function makeBroadcastInteraction(
+    subcommand: 'channel' | 'role',
+    { tempo = '10m', mensagem = 'Standup!', canManage = true } = {},
+) {
+    return {
+        guild: { id: 'guild-1', name: 'TestGuild' },
+        user: { id: 'u1', tag: 'alice#0' },
+        channelId: 'channel-1',
+        memberPermissions: { has: () => canManage },
+        options: {
+            getSubcommand: () => subcommand,
+            getString: (name: string) => {
+                if (name === 'tempo') return tempo
+                if (name === 'mensagem') return mensagem
+                return null
+            },
+            getChannel: () => ({ id: 'target-chan' }),
+            getRole: () => ({ id: 'target-role' }),
+        },
+    }
+}
+
 describe('parseDuration', () => {
     test('parses seconds correctly', () => {
         expect(parseDuration('30s')).toBe(30 * 1000)
@@ -228,6 +251,47 @@ describe('/remind command', () => {
         }
         expect(args.content.content).toContain('not found')
         expect(args.content.ephemeral).toBe(true)
+    })
+
+    test('channel: rejects without Manage Server permission', async () => {
+        await remindCommand.execute({
+            interaction: makeBroadcastInteraction('channel', {
+                canManage: false,
+            }) as never,
+        })
+        const args = interactionReply.mock.calls[0][0] as {
+            content: { content: string }
+        }
+        expect(args.content.content).toContain('Manage Server')
+        expect(reminderServiceMock.create).not.toHaveBeenCalled()
+    })
+
+    test('channel: creates a channel-scoped reminder for a manager', async () => {
+        await remindCommand.execute({
+            interaction: makeBroadcastInteraction('channel') as never,
+        })
+        expect(reminderServiceMock.create).toHaveBeenCalledWith(
+            'guild-1',
+            'u1',
+            'target-chan',
+            'Standup!',
+            expect.any(Date),
+            { targetType: 'channel', roleId: null },
+        )
+    })
+
+    test('role: creates a role-scoped reminder carrying the roleId', async () => {
+        await remindCommand.execute({
+            interaction: makeBroadcastInteraction('role') as never,
+        })
+        expect(reminderServiceMock.create).toHaveBeenCalledWith(
+            'guild-1',
+            'u1',
+            'target-chan',
+            'Standup!',
+            expect.any(Date),
+            { targetType: 'role', roleId: 'target-role' },
+        )
     })
 
     test('delete: deletes reminder and confirms', async () => {

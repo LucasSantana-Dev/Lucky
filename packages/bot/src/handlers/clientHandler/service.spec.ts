@@ -8,6 +8,13 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
+// The real topggStatsScheduler (not mocked here) imports redisClient from the
+// services barrel, which transitively loads the Prisma client (import.meta) that
+// the bot's CJS jest transform can't parse. Mock the barrel like sibling specs do.
+jest.mock('@lucky/shared/services', () => ({
+    redisClient: { set: jest.fn(), get: jest.fn(), isHealthy: jest.fn() },
+}))
+
 jest.mock('@lucky/shared/config', () => ({
     config: jest.fn().mockReturnValue({
         TOKEN: 'test-token',
