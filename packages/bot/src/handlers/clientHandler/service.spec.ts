@@ -51,6 +51,10 @@ jest.mock('../../utils/general/giveawayScheduler', () => ({
     giveawayScheduler: { start: jest.fn(), stop: jest.fn() },
 }))
 
+jest.mock('../../utils/general/supportSessionScheduler', () => ({
+    supportSessionScheduler: { start: jest.fn(), stop: jest.fn() },
+}))
+
 jest.mock('discord.js', () => {
     const originalModule =
         jest.requireActual<typeof import('discord.js')>('discord.js')
