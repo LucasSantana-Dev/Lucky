@@ -53,3 +53,43 @@ export async function createTestApp() {
 
     return app
 }
+
+/**
+ * Creates guarded SSE test cleanup to prevent double-done() calls under load.
+ * req.destroy() emits both 'close' and 'error' (often), and the fallback
+ * setTimeout can also fire — routing all paths through a single guarded
+ * finish() prevents flakes when done() is called multiple times.
+ *
+ * Usage pattern (see musicState.test.ts for examples):
+ *   let fallback: NodeJS.Timeout
+ *   const { finish } = createSseTestFinish(server, done)
+ *   req.on('close', () => finish(fallback))
+ *   req.on('error', () => finish(fallback))
+ *   fallback = setTimeout(() => { req.destroy(); finish(fallback) }, 2000)
+ */
+export function createSseTestFinish(
+    server: any,
+    done: (err?: unknown) => void,
+    assert?: () => void,
+): { finish: (fallback?: NodeJS.Timeout) => void } {
+    let finished = false
+
+    const finish = (fallback?: NodeJS.Timeout) => {
+        if (finished) return
+        finished = true
+        if (fallback) clearTimeout(fallback)
+        server.close(() => {
+            // Surface a failing assert() as a clean test failure via done(err)
+            // instead of an uncaught throw in the close callback (which Jest
+            // reports as a confusing timeout).
+            try {
+                assert?.()
+                done()
+            } catch (err) {
+                done(err)
+            }
+        })
+    }
+
+    return { finish }
+}

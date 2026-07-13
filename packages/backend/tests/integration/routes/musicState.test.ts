@@ -9,6 +9,7 @@ import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
 import { sseClients } from '../../../src/routes/music/helpers'
+import { createSseTestFinish } from '../../fixtures/test-helpers'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -277,6 +278,9 @@ describe('Music State Routes', () => {
                 const port = (server.address() as AddressInfo).port
                 let writeCallCount = 0
 
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
+
                 const req = http.get(
                     {
                         hostname: '127.0.0.1',
@@ -297,20 +301,17 @@ describe('Music State Routes', () => {
                 req.on('close', () => {
                     // Wait longer than heartbeat interval to ensure no further writes
                     setTimeout(() => {
-                        server.close(() => {
-                            // Should only have header writes, no heartbeat data
-                            done()
-                        })
+                        finish(fallback)
                     }, 100)
                 })
 
                 req.on('error', () => {
-                    server.close(() => done())
+                    finish(fallback)
                 })
 
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 2000)
             })
         }, 5000)
@@ -322,6 +323,13 @@ describe('Music State Routes', () => {
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
                 let heartbeatWrites = 0
+
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(
+                    server,
+                    done,
+                    () => expect(heartbeatWrites).toBe(0),
+                )
 
                 const req = http.get(
                     {
@@ -346,21 +354,17 @@ describe('Music State Routes', () => {
                 req.on('close', () => {
                     // Wait to ensure heartbeat interval doesn't fire after abort
                     setTimeout(() => {
-                        server.close(() => {
-                            // Should have no heartbeat writes after disconnect
-                            expect(heartbeatWrites).toBe(0)
-                            done()
-                        })
+                        finish(fallback)
                     }, 150)
                 })
 
                 req.on('error', () => {
-                    server.close(() => done())
+                    finish(fallback)
                 })
 
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 3000)
             })
         }, 5000)
@@ -372,6 +376,9 @@ describe('Music State Routes', () => {
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
                 let initialHeartbeat = true
+
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
 
                 const req = http.get(
                     {
@@ -390,19 +397,17 @@ describe('Music State Routes', () => {
                 req.on('close', () => {
                     // If we reach here without error, writableEnded guard worked
                     setTimeout(() => {
-                        server.close(() => {
-                            done()
-                        })
+                        finish(fallback)
                     }, 150)
                 })
 
                 req.on('error', () => {
-                    server.close(() => done())
+                    finish(fallback)
                 })
 
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 2000)
             })
         }, 5000)
@@ -413,6 +418,9 @@ describe('Music State Routes', () => {
 
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
+
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
 
                 const req = http.get(
                     {
@@ -433,19 +441,17 @@ describe('Music State Routes', () => {
                 req.on('close', () => {
                     // If we reach here without error, destroyed guard worked
                     setTimeout(() => {
-                        server.close(() => {
-                            done()
-                        })
+                        finish(fallback)
                     }, 150)
                 })
 
                 req.on('error', () => {
-                    server.close(() => done())
+                    finish(fallback)
                 })
 
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 2000)
             })
         }, 5000)
@@ -456,6 +462,9 @@ describe('Music State Routes', () => {
 
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
+
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
 
                 const req = http.get(
                     {
@@ -474,19 +483,17 @@ describe('Music State Routes', () => {
                 req.on('close', () => {
                     // Verify that after close, no further interval operations happen
                     setTimeout(() => {
-                        server.close(() => {
-                            done()
-                        })
+                        finish(fallback)
                     }, 100)
                 })
 
                 req.on('error', () => {
-                    server.close(() => done())
+                    finish(fallback)
                 })
 
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 2000)
             })
         }, 5000)
@@ -497,6 +504,9 @@ describe('Music State Routes', () => {
 
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
+
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
 
                 const req = http.get(
                     {
@@ -513,19 +523,17 @@ describe('Music State Routes', () => {
 
                 req.on('close', () => {
                     setTimeout(() => {
-                        server.close(() => {
-                            done()
-                        })
+                        finish(fallback)
                     }, 50)
                 })
 
                 req.on('error', () => {
-                    server.close(() => done())
+                    finish(fallback)
                 })
 
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 2000)
             })
         }, 5000)
@@ -536,6 +544,9 @@ describe('Music State Routes', () => {
 
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
+
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
 
                 // Create first client connection
                 const req1 = http.get(
@@ -573,10 +584,8 @@ describe('Music State Routes', () => {
                 req2.on('error', () => {})
 
                 // Wait and then close server
-                setTimeout(() => {
-                    server.close(() => {
-                        done()
-                    })
+                fallback = setTimeout(() => {
+                    finish(fallback)
                 }, 500)
             })
         }, 5000)
@@ -602,6 +611,9 @@ describe('Music State Routes', () => {
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
 
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
+
                 const req = http.get(
                     {
                         hostname: '127.0.0.1',
@@ -618,10 +630,8 @@ describe('Music State Routes', () => {
 
                 req.on('error', () => {})
 
-                setTimeout(() => {
-                    server.close(() => {
-                        done()
-                    })
+                fallback = setTimeout(() => {
+                    finish(fallback)
                 }, 500)
             })
         }, 5000)
@@ -632,6 +642,9 @@ describe('Music State Routes', () => {
 
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
+
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
 
                 const req = http.get(
                     {
@@ -649,20 +662,18 @@ describe('Music State Routes', () => {
 
                 req.on('close', () => {
                     setTimeout(() => {
-                        server.close(() => {
-                            // Guild should be removed from sseClients when last client disconnects
-                            done()
-                        })
+                        // Guild should be removed from sseClients when last client disconnects
+                        finish(fallback)
                     }, 100)
                 })
 
                 req.on('error', () => {
-                    server.close(() => done())
+                    finish(fallback)
                 })
 
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 2000)
             })
         }, 5000)
@@ -687,6 +698,9 @@ describe('Music State Routes', () => {
 
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
+
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
 
                 const req = http.get(
                     {
@@ -713,17 +727,17 @@ describe('Music State Routes', () => {
 
                 req.on('close', () => {
                     setTimeout(() => {
-                        server.close(() => done())
+                        finish(fallback)
                     }, 50)
                 })
 
                 req.on('error', () => {
-                    server.close(() => done())
+                    finish(fallback)
                 })
 
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 1000)
             })
         }, 5000)
@@ -750,6 +764,13 @@ describe('Music State Routes', () => {
                 const port = (server.address() as AddressInfo).port
                 let dataReceived = false
 
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(
+                    server,
+                    done,
+                    () => expect(dataReceived).toBe(true),
+                )
+
                 const req = http.get(
                     {
                         hostname: '127.0.0.1',
@@ -773,20 +794,17 @@ describe('Music State Routes', () => {
 
                 req.on('close', () => {
                     setTimeout(() => {
-                        server.close(() => {
-                            expect(dataReceived).toBe(true)
-                            done()
-                        })
+                        finish(fallback)
                     }, 50)
                 })
 
                 req.on('error', () => {
-                    server.close(() => done())
+                    finish(fallback)
                 })
 
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 1000)
             })
         }, 5000)
@@ -812,6 +830,9 @@ describe('Music State Routes', () => {
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
 
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
+
                 const req = http.get(
                     {
                         hostname: '127.0.0.1',
@@ -830,11 +851,9 @@ describe('Music State Routes', () => {
                     // Expected because res is destroyed
                 })
 
-                setTimeout(() => {
-                    server.close(() => {
-                        // Test passes: server didn't crash even though write failed
-                        done()
-                    })
+                fallback = setTimeout(() => {
+                    // Test passes: server didn't crash even though write failed
+                    finish(fallback)
                 }, 500)
             })
         }, 5000)
@@ -845,6 +864,9 @@ describe('Music State Routes', () => {
 
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
+
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
 
                 const req = http.get(
                     {
@@ -864,10 +886,8 @@ describe('Music State Routes', () => {
 
                 req.on('close', () => {
                     setTimeout(() => {
-                        server.close(() => {
-                            // Test passes: server handled heartbeat write error gracefully
-                            done()
-                        })
+                        // Test passes: server handled heartbeat write error gracefully
+                        finish(fallback)
                     }, 150)
                 })
 
@@ -875,9 +895,9 @@ describe('Music State Routes', () => {
                     // Expected because res is destroyed
                 })
 
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 1500)
             })
         }, 5000)
@@ -890,9 +910,12 @@ describe('Music State Routes', () => {
                 const port = (server.address() as AddressInfo).port
 
                 let noHeartbeatFallback: ReturnType<typeof setTimeout>
-                const globalFallback = setTimeout(() => {
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
+
+                const globalFallback = fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 40000)
 
                 const req = http.get(
@@ -922,16 +945,14 @@ describe('Music State Routes', () => {
                 req.on('close', () => {
                     clearTimeout(globalFallback)
                     setTimeout(() => {
-                        server.close(() => {
-                            // Heartbeat interval should have fired
-                            done()
-                        })
+                        // Heartbeat interval should have fired
+                        finish(fallback)
                     }, 100)
                 })
 
                 req.on('error', () => {
                     clearTimeout(globalFallback)
-                    server.close(() => done())
+                    finish(fallback)
                 })
             })
         }, 45000)
@@ -942,6 +963,9 @@ describe('Music State Routes', () => {
 
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
+
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
 
                 const req = http.get(
                     {
@@ -959,10 +983,8 @@ describe('Music State Routes', () => {
 
                 req.on('close', () => {
                     setTimeout(() => {
-                        server.close(() => {
-                            // Controller should be aborted, preventing heartbeat writes
-                            done()
-                        })
+                        // Controller should be aborted, preventing heartbeat writes
+                        finish(fallback)
                     }, 100)
                 })
 
@@ -970,9 +992,9 @@ describe('Music State Routes', () => {
                     // Expected
                 })
 
-                setTimeout(() => {
+                fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 1000)
             })
         }, 5000)
@@ -998,6 +1020,9 @@ describe('Music State Routes', () => {
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
 
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(server, done)
+
                 const req = http.get(
                     {
                         hostname: '127.0.0.1',
@@ -1016,11 +1041,9 @@ describe('Music State Routes', () => {
                     // Expected - the destroy causes error
                 })
 
-                setTimeout(() => {
-                    server.close(() => {
-                        // If we reach here without server crash, the catch block worked (line 25-27)
-                        done()
-                    })
+                fallback = setTimeout(() => {
+                    // If we reach here without server crash, the catch block worked (line 25-27)
+                    finish(fallback)
                 }, 500)
             })
         }, 5000)
@@ -1033,9 +1056,16 @@ describe('Music State Routes', () => {
                 const port = (server.address() as AddressInfo).port
                 let heartbeatCount = 0
 
-                const globalFallback = setTimeout(() => {
+                let fallback: NodeJS.Timeout
+                const { finish } = createSseTestFinish(
+                    server,
+                    done,
+                    () => expect(heartbeatCount).toBeGreaterThan(0),
+                )
+
+                const globalFallback = fallback = setTimeout(() => {
                     req.destroy()
-                    server.close(() => done())
+                    finish(fallback)
                 }, 32000)
 
                 const req = http.get(
@@ -1062,11 +1092,8 @@ describe('Music State Routes', () => {
                 req.on('close', () => {
                     clearTimeout(globalFallback)
                     setTimeout(() => {
-                        server.close(() => {
-                            // At least one heartbeat should have been sent
-                            expect(heartbeatCount).toBeGreaterThan(0)
-                            done()
-                        })
+                        // At least one heartbeat should have been sent
+                        finish(fallback)
                     }, 100)
                 })
 
