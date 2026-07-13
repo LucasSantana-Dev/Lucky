@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.35.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.34.0...v2.35.0) (2026-07-13)
+
+
+### Features
+
+* **bot:** /bulk-kick — proof-of-pattern for the bulk-* command family ([#1802](https://github.com/LucasSantana-Dev/Lucky/issues/1802)) ([1c11f3e](https://github.com/LucasSantana-Dev/Lucky/commit/1c11f3e71f7491ffd9f392a688010d4088515271))
+* **bot:** add lucky_bot_gateway_connected zombie-detection gauge ([#1774](https://github.com/LucasSantana-Dev/Lucky/issues/1774)) ([6cc5287](https://github.com/LucasSantana-Dev/Lucky/commit/6cc528773a1eb5c86b4c516a4436722938b0e3c5))
+* **bot:** playback progress bar in nowplaying/songinfo embed ([#1797](https://github.com/LucasSantana-Dev/Lucky/issues/1797)) ([1138b59](https://github.com/LucasSantana-Dev/Lucky/commit/1138b5966a9e3cd0d8b2e06916b08fd448bb5075))
+* **bot:** post server-count stats to Top.gg for listing visibility ([#1789](https://github.com/LucasSantana-Dev/Lucky/issues/1789)) ([e8ca6b9](https://github.com/LucasSantana-Dev/Lucky/commit/e8ca6b9625e77a706ee1efd50c9bc68fe7edb482))
+* **bot:** temporary support ticket channels (/ticket) ([#1803](https://github.com/LucasSantana-Dev/Lucky/issues/1803)) ([49601a1](https://github.com/LucasSantana-Dev/Lucky/commit/49601a1b3476dbcff5a991d9d6a1b49a89d16116))
+* **live-notif:** youtube polling, message ttl cleanup, api backoff ([#1762](https://github.com/LucasSantana-Dev/Lucky/issues/1762)) ([a99b85a](https://github.com/LucasSantana-Dev/Lucky/commit/a99b85ab82c9bf6baed755abb9ff20c767b3d232))
+* **remind:** channel and role broadcast reminders ([#1767](https://github.com/LucasSantana-Dev/Lucky/issues/1767)) ([#1807](https://github.com/LucasSantana-Dev/Lucky/issues/1807)) ([83ade79](https://github.com/LucasSantana-Dev/Lucky/commit/83ade79e212577ba1116aeb52e3fcc85441d3229))
+
+
+### Bug Fixes
+
+* **backend:** artist suggestions 503 not 500 on upstream timeout ([#1787](https://github.com/LucasSantana-Dev/Lucky/issues/1787)) ([eadc20e](https://github.com/LucasSantana-Dev/Lucky/commit/eadc20e88383b9f8531f164e1e7177ae371f1cfc))
+* **bot:** guard skipReason telemetry against null prisma client ([#1773](https://github.com/LucasSantana-Dev/Lucky/issues/1773)) ([d73421e](https://github.com/LucasSantana-Dev/Lucky/commit/d73421eb3ada87a538964885f95c576fdef4d483))
+* **ci:** stop auto-update workflow racing on merge push ([#1811](https://github.com/LucasSantana-Dev/Lucky/issues/1811)) ([2ddd202](https://github.com/LucasSantana-Dev/Lucky/commit/2ddd202ab1d5ac7770063fe44d2c8af61a2ebc5b))
+* **csp:** allow Cloudflare Insights beacon in script-src/connect-src ([#1788](https://github.com/LucasSantana-Dev/Lucky/issues/1788)) ([f20c4cf](https://github.com/LucasSantana-Dev/Lucky/commit/f20c4cfda05851de880810dae15a61ec9c4ab8a9))
+* **deps:** bump eslint in lock to satisfy npm@12 ci (unblock release) ([#1809](https://github.com/LucasSantana-Dev/Lucky/issues/1809)) ([68fd0be](https://github.com/LucasSantana-Dev/Lucky/commit/68fd0be168dcd10628c5e6fbba623e3a7d7bdd1d))
+* paginate bulk-move message fetch to respect discord api limit ([#1776](https://github.com/LucasSantana-Dev/Lucky/issues/1776)) ([5b5d2fc](https://github.com/LucasSantana-Dev/Lucky/commit/5b5d2fc4892df049f3bb086f5844e31352175814))
+* **weekly-digest:** trigger on Sunday and add new-guides RSS section ([#1761](https://github.com/LucasSantana-Dev/Lucky/issues/1761)) ([f429fc6](https://github.com/LucasSantana-Dev/Lucky/commit/f429fc611c18fabc60101d1bb73d3ef5c0ed1fdd))
+
 ## [2.34.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.33.1...v2.34.0) (2026-07-10)
 
 
