@@ -2,6 +2,7 @@ import type { Express, Request, Response } from 'express'
 import { z } from 'zod'
 import { getPrismaClient } from '@lucky/shared/utils'
 import { redisClient } from '@lucky/shared/services'
+import { BOT_STATS_MEMBERS_KEY } from '@lucky/shared/constants'
 import { apiLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 
@@ -24,8 +25,15 @@ export function setupStatsRoutes(app: Express): void {
             // Fetch guild count from database
             const totalGuilds = await prisma.guild.count()
 
-            // Fetch user count from database
-            const totalUsers = await prisma.user.count()
+            // Total member reach across all guilds, published to Redis by the
+            // bot's stats scheduler. The User table only holds dashboard-registered
+            // users (near-empty), so it is NOT the reach metric this stat represents.
+            const membersRaw = await redisClient.get(BOT_STATS_MEMBERS_KEY)
+            const parsedMembers = Number(membersRaw)
+            const totalUsers =
+                Number.isFinite(parsedMembers) && parsedMembers >= 0
+                    ? Math.trunc(parsedMembers)
+                    : 0
 
             // Get backend uptime in seconds
             const uptimeSeconds = process.uptime()
@@ -46,7 +54,8 @@ export function setupStatsRoutes(app: Express): void {
 
             // Set caching headers: cache for 60 seconds, allow stale responses for up to 60 more seconds
             res.set({
-                'Cache-Control': 'public, max-age=60, s-maxage=60, stale-while-revalidate=60',
+                'Cache-Control':
+                    'public, max-age=60, s-maxage=60, stale-while-revalidate=60',
                 'Content-Type': 'application/json',
             })
 
