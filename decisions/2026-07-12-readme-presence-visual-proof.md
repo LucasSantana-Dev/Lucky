@@ -26,9 +26,12 @@ of text. The mascot + logo threads already closed (see
 
 **Ship visual proof from the polished PUBLIC LANDING, now, assistant-driven.** Concretely:
 
-1. Capture 2-3 clean screenshots of the live landing (hero, "What Lucky does" grid, the
+1. Capture clean screenshots of the live landing (hero, "What Lucky does" grid, the
    dashboard/feature section) and add them to the README with short captions. No auth, no operator
    dependency, no design work.
+   **Delivered scope (this PR):** shipped `assets/screenshots/landing-features.png` (the
+   feature grid). The hero shot is deferred pending #1818 (landing still renders "Apache 2.0"
+   while the project is ISC) so the README doesn't advertise the wrong license.
 2. Fix the two verified plumbing bugs (trivial, not a blocker): the README live-demo link
    (`href="https://lucassantana.tech"` → `https://lucky.lucassantana.tech`) and the wrong top.gg
    bot id (`839686019796811776` → `962198089161134131`); add a top.gg badge/link.
