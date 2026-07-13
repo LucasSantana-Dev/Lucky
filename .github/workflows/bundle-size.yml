@@ -59,6 +59,13 @@ jobs:
     size-limit:
         name: Size Limit Check
         runs-on: ubuntu-latest
+        env:
+            # This job runs a bare `npm ci` (needs the frontend build), so unlike
+            # ci.yml/madge it can't use --ignore-scripts. Without this, youtube-dl-exec's
+            # postinstall fetches the yt-dlp binary from GitHub unauthenticated (~60/hr/IP)
+            # and flakes red on shared-runner rate limits (#1827). The build doesn't need
+            # the binary — skip the download. Mirrors the compressed-size job above.
+            YOUTUBE_DL_SKIP_DOWNLOAD: 'true'
         steps:
             - name: Checkout PR
               uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
