@@ -34,6 +34,8 @@ function makeModule(opts: {
         : jest.fn().mockResolvedValue(undefined)
     const mockMarkInProgress = jest.fn().mockResolvedValue(undefined)
     const mockMarkCompleted = jest.fn().mockResolvedValue(undefined)
+    const mockMarkCancelled = jest.fn().mockResolvedValue(undefined)
+    const mockMarkPaused = jest.fn().mockResolvedValue(undefined)
     const mockMarkFailed = jest.fn().mockResolvedValue(undefined)
     const mockSetSummary = jest.fn().mockResolvedValue(undefined)
     const mockGetById = jest.fn().mockResolvedValue(dbJob)
@@ -82,6 +84,11 @@ function makeModule(opts: {
         execute: mockExecute,
     }))
 
+    const MockBulkKickExecutor = jest.fn().mockImplementation(() => ({
+        jobType: 'bulk_kick',
+        execute: mockExecute,
+    }))
+
     let mod: {
         startBatchJobWorker: () => Promise<void>
         stopBatchJobWorker: () => Promise<void>
@@ -98,6 +105,8 @@ function makeModule(opts: {
                 markInProgress: mockMarkInProgress,
                 markCompleted: mockMarkCompleted,
                 markFailed: mockMarkFailed,
+                markCancelled: mockMarkCancelled,
+                markPaused: mockMarkPaused,
                 setSummary: mockSetSummary,
                 checkpoint: mockCheckpoint,
             },
@@ -128,6 +137,9 @@ function makeModule(opts: {
                 ChannelMoveBatchExecutor: MockChannelMoveBatchExecutor,
             }),
         )
+        jest.doMock('../functions/moderation/batch/bulkKickExecutor', () => ({
+            BulkKickExecutor: MockBulkKickExecutor,
+        }))
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         mod = require('./batchJobWorker')
     })
@@ -144,6 +156,8 @@ function makeModule(opts: {
         mockGetById,
         mockMarkInProgress,
         mockMarkCompleted,
+        mockMarkCancelled,
+        mockMarkPaused,
         mockMarkFailed,
         mockSetSummary,
         mockCheckpoint,
@@ -413,5 +427,75 @@ describe('batchJobWorker', () => {
             const processor = capturedProcessor()!
             await expect(processor(makeJob())).rejects.toThrow('DB error')
         })
+    })
+
+    it('calls markCancelled when executor summary.cancelled=true', async () => {
+        const dbJob = {
+            id: 'job-abc',
+            guildId: 'g1',
+            jobType: 'bulk_move_messages',
+            totalItems: 10,
+            options: {},
+        }
+        const cancellingExecute = jest
+            .fn()
+            .mockResolvedValue({ cancelled: true, moved: 0 })
+        const { mod, capturedProcessor, mockMarkCancelled } = makeModule({
+            dbJob,
+            executorExecute: cancellingExecute,
+        })
+        await mod.startBatchJobWorker()
+        const processor = capturedProcessor()!
+        await processor(makeJob())
+        expect(mockMarkCancelled).toHaveBeenCalledWith('job-abc')
+    })
+
+    it('calls markPaused when executor summary.paused=true', async () => {
+        const dbJob = {
+            id: 'job-abc',
+            guildId: 'g1',
+            jobType: 'bulk_move_messages',
+            totalItems: 10,
+            options: {},
+        }
+        const pausingExecute = jest
+            .fn()
+            .mockResolvedValue({ paused: true, moved: 5 })
+        const { mod, capturedProcessor, mockMarkPaused } = makeModule({
+            dbJob,
+            executorExecute: pausingExecute,
+        })
+        await mod.startBatchJobWorker()
+        const processor = capturedProcessor()!
+        await processor(makeJob())
+        expect(mockMarkPaused).toHaveBeenCalledWith('job-abc')
+    })
+
+    it('calls markCompleted for normal completion (no cancelled/paused)', async () => {
+        const dbJob = {
+            id: 'job-abc',
+            guildId: 'g1',
+            jobType: 'bulk_move_messages',
+            totalItems: 10,
+            options: {},
+        }
+        const normalExecute = jest.fn().mockResolvedValue({ moved: 10 })
+        const {
+            mod,
+            capturedProcessor,
+            mockMarkCompleted,
+            mockMarkCancelled,
+            mockMarkPaused,
+        } = makeModule({
+            dbJob,
+            executorExecute: normalExecute,
+        })
+        await mod.startBatchJobWorker()
+        const processor = capturedProcessor()!
+        await processor(makeJob())
+        expect(mockMarkCompleted).toHaveBeenCalledWith('job-abc')
+        // Verify alternative branches are not taken
+        expect(mockMarkCancelled).not.toHaveBeenCalled()
+        expect(mockMarkPaused).not.toHaveBeenCalled()
     })
 })
