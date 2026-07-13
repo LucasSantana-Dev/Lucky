@@ -69,7 +69,7 @@ export async function createTestApp() {
  */
 export function createSseTestFinish(
     server: any,
-    done: () => void,
+    done: (err?: unknown) => void,
     assert?: () => void,
 ): { finish: (fallback?: NodeJS.Timeout) => void } {
     let finished = false
@@ -79,8 +79,15 @@ export function createSseTestFinish(
         finished = true
         if (fallback) clearTimeout(fallback)
         server.close(() => {
-            assert?.()
-            done()
+            // Surface a failing assert() as a clean test failure via done(err)
+            // instead of an uncaught throw in the close callback (which Jest
+            // reports as a confusing timeout).
+            try {
+                assert?.()
+                done()
+            } catch (err) {
+                done(err)
+            }
         })
     }
 
