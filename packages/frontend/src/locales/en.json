@@ -185,7 +185,7 @@
             "description": "YouTube, Spotify, SoundCloud music bot with genre-aware autoplay, smart radio, moderation, and web dashboard. Open-source, self-hostable, free forever."
         },
         "hero": {
-            "eyebrow": "Open source · Apache 2.0",
+            "eyebrow": "Open source · ISC",
             "headlineLine1": "A Discord bot built right.",
             "headlineLine2": "And yours to run.",
             "subtitle": "Music, moderation, custom commands, and a full web dashboard. Use the hosted version in two clicks, or run it on your own box if you'd rather.",
@@ -195,7 +195,7 @@
         "repoCard": {
             "name": "LucasSantana-Dev / Lucky",
             "description": "Self-hosted Discord music bot — Spotify + YouTube + SoundCloud, autoplay recommendations, React dashboard, moderation suite.",
-            "license": "Apache-2.0",
+            "license": "ISC",
             "lang": "TypeScript",
             "serversLabel": "servers",
             "usersLabel": "users",
@@ -215,7 +215,7 @@
                 },
                 "free": {
                     "title": "Free, with no premium tier",
-                    "description": "No feature paywall, no Patreon, no rate-limited tier. Apache 2.0. The hosted version exists for people who don't want to run a box."
+                    "description": "No feature paywall, no Patreon, no rate-limited tier. ISC licensed. The hosted version exists for people who don't want to run a box."
                 }
             }
         },
@@ -286,7 +286,7 @@
             }
         },
         "footerRepo": {
-            "heading": "Open source under Apache 2.0",
+            "heading": "Open source under ISC",
             "subheading": "Fork it, contribute, run it, deploy your own. The code is the spec."
         },
         "footer": {
@@ -300,7 +300,7 @@
             "docs": "Docs",
             "changelog": "Changelog",
             "discord": "Support server",
-            "copyright": "© 2026 Lucky. Apache 2.0."
+            "copyright": "© 2026 Lucky. ISC."
         },
         "features": {
             "heading": "What Lucky does",
