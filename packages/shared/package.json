@@ -94,6 +94,8 @@
         "chalk": "^5.6.2",
         "dotenv": "^17.4.2",
         "ioredis": "^5.10.1",
+        "luxon": "^3.5.0",
+        "rrule": "^2.8.1",
         "zod": "^4.4.3"
     },
     "optionalDependencies": {
@@ -102,6 +104,7 @@
     "devDependencies": {
         "@swc/cli": "^0.8.1",
         "@swc/core": "^1.15.40",
+        "@types/luxon": "^3.4.2",
         "@types/node": "^25.9.1",
         "glob": "^13.0.6",
         "typedoc": "^0.28.19",
