@@ -1,5 +1,17 @@
-import { RRule } from 'rrule'
+import * as rruleModule from 'rrule'
 import { DateTime } from 'luxon'
+
+// rrule is a CommonJS package. Node's ESM loader can't statically detect its
+// named exports, so `import { RRule } from 'rrule'` throws at runtime in the
+// built bot ESM ("does not provide an export named 'RRule'", #1842 prod
+// precheck) — while a plain default import breaks jest's CJS interop instead
+// (`.default` is undefined). Resolve the class from whichever shape the active
+// loader exposes: Node ESM puts the CJS exports under `.default`, jest's
+// __importStar puts them on the namespace directly.
+const RRule =
+    (rruleModule as { RRule?: typeof import('rrule').RRule }).RRule ??
+    (rruleModule as unknown as { default: typeof import('rrule') }).default
+        .RRule
 
 /**
  * Recurrence patterns exposed by the /remind command. Each maps to an RRULE
