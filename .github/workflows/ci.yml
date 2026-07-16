@@ -245,6 +245,11 @@ jobs:
         runs-on: ubuntu-latest
         needs: detect-docker-changes
         if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.detect-docker-changes.outputs.relevant == 'true'
+        concurrency:
+            # Must include matrix.service: a shared group makes the matrix legs
+            # cancel each other instead of cancelling superseded runs.
+            group: docker-build-${{ github.ref }}-${{ matrix.service }}
+            cancel-in-progress: true
         strategy:
             fail-fast: false
             matrix:
@@ -273,6 +278,8 @@ jobs:
                   push: false
                   load: ${{ matrix.service == 'bot' }}
                   tags: lucky-${{ matrix.service }}:ci
+                  provenance: false
+                  sbom: false
                   cache-from: type=gha,scope=${{ matrix.service }}
                   cache-to: type=gha,mode=max,scope=${{ matrix.service }}
                   build-args: |
@@ -288,6 +295,8 @@ jobs:
                   push: false
                   load: ${{ matrix.service == 'bot' }}
                   tags: lucky-${{ matrix.service }}:ci
+                  provenance: false
+                  sbom: false
                   cache-from: type=gha,scope=${{ matrix.service }}
                   cache-to: type=gha,mode=max,scope=${{ matrix.service }}
                   build-args: |
