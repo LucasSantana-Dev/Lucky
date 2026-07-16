@@ -9,13 +9,15 @@ name: Migration Gate
 # job applies the full migration chain against a Postgres pinned to the
 # production major version, then re-applies the PR's own migrations to prove
 # idempotency. It would have caught both the 2.35.1 and 2.35.2 prod failures.
+#
+# The job ALWAYS runs (no paths: filter) so it can be a REQUIRED status check:
+# a path-filtered required check never reports on unrelated PRs and would block
+# them forever. When a change touches no migrations, the job reports success
+# without spinning up Postgres.
 
 on:
     pull_request:
         branches: [main, 'release/**']
-        paths:
-            - 'prisma/migrations/**'
-            - '.github/workflows/migration-gate.yml'
     merge_group:
         branches: [main, 'release/**']
 
@@ -23,73 +25,87 @@ permissions:
     contents: read
 
 jobs:
-    migrate-apply:
+    migrate-gate:
         name: Migrations apply on Postgres 18
         runs-on: ubuntu-latest
-        services:
-            postgres:
-                # Pinned to the PRODUCTION major version. Bump this when prod
-                # Postgres changes — index-predicate re-validation and cast
-                # behaviour are version-sensitive (ADR revisit-when).
-                image: postgres:18-alpine
-                env:
-                    POSTGRES_USER: discordbot
-                    POSTGRES_PASSWORD: ci
-                    POSTGRES_DB: discordbot
-                ports:
-                    - 5432:5432
-                options: >-
-                    --health-cmd "pg_isready -U discordbot -d discordbot"
-                    --health-interval 5s
-                    --health-timeout 5s
-                    --health-retries 10
-        env:
-            PGPASSWORD: ci
         steps:
             - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
               with:
                   fetch-depth: 0
 
-            - name: Ensure psql client
-              run: psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+            - name: Detect migration changes
+              id: detect
+              run: |
+                  BASE_SHA="${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}"
+                  if [ "${{ github.event_name }}" = "pull_request" ]; then
+                      # Use the actual merge-base, not the PR-open snapshot, so
+                      # commits merged to base afterwards aren't picked up.
+                      BASE_SHA=$(git merge-base "$BASE_SHA" HEAD)
+                  fi
+                  if git diff --name-only "$BASE_SHA" HEAD -- prisma/migrations | grep -q '/migration.sql$'; then
+                      echo "changed=true" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "changed=false" >> "$GITHUB_OUTPUT"
+                  fi
+                  echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_OUTPUT"
 
-            # Clean-apply: mirrors `prisma migrate deploy` (per-statement,
-            # ON_ERROR_STOP) against a fresh prod-version DB. Catches migrations
-            # that fail to apply — e.g. an ALTER COLUMN TYPE blocked by a partial
-            # index predicate (the 2.35.1 failure, 42883/P3018).
+            - name: No migration changes — gate not applicable
+              if: steps.detect.outputs.changed != 'true'
+              run: echo "✅ No prisma/migrations changes in this diff — nothing to validate."
+
+            # Start Postgres via `docker run` (not a services: block) so it only
+            # spins up when migrations actually changed — non-migration PRs pay
+            # nothing while the check still reports success.
+            - name: Start Postgres 18
+              if: steps.detect.outputs.changed == 'true'
+              run: |
+                  docker run -d --name mgate-pg \
+                      -e POSTGRES_USER=discordbot \
+                      -e POSTGRES_PASSWORD=ci \
+                      -e POSTGRES_DB=discordbot \
+                      -p 5432:5432 \
+                      postgres:18-alpine
+                  for i in $(seq 1 30); do
+                      docker exec mgate-pg pg_isready -U discordbot -d discordbot && break
+                      sleep 1
+                  done
+
+            # Clean-apply: mirrors non-transactional `prisma migrate deploy`.
+            # Catches migrations that fail on a fresh prod-version DB (the 2.35.1
+            # failure: ALTER COLUMN TYPE blocked by a partial-index predicate).
             - name: Apply full migration chain (clean apply)
+              if: steps.detect.outputs.changed == 'true'
+              env:
+                  PGPASSWORD: ci
               run: |
                   set -euo pipefail
+                  psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
                   for f in $(find prisma/migrations -name migration.sql | sort); do
                       echo "==> applying ${f#prisma/migrations/}"
                       psql -h localhost -U discordbot -d discordbot -v ON_ERROR_STOP=1 -q -f "$f"
                   done
                   echo "✅ Full chain applied cleanly on Postgres 18."
 
-            # Idempotency: re-apply THIS PR's new migrations against the
-            # already-migrated DB. A migration authored per the idempotency ADR
-            # (IF EXISTS / IF NOT EXISTS / DO-EXCEPTION guards) re-applies cleanly;
-            # a non-idempotent one errors — catching the class that wedged 2.35.2
-            # (DROP CONSTRAINT on an already-dropped constraint, 42704). Only the
-            # PR's own migrations are re-checked: historic migrations predate this
-            # convention and are never re-run against a live prod row.
-            - name: Re-apply PR migrations (idempotency)
+            # Idempotency: re-apply THIS change's new migrations against the
+            # already-migrated DB. Idempotent migrations (per the ADR) re-apply
+            # cleanly; a non-idempotent one errors — catching the 2.35.2 class
+            # (DROP CONSTRAINT on an already-dropped constraint, 42704).
+            - name: Re-apply changed migrations (idempotency)
+              if: steps.detect.outputs.changed == 'true'
+              env:
+                  PGPASSWORD: ci
               run: |
                   set -euo pipefail
-                  BASE_SHA="${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}"
-                  if [ "${{ github.event_name }}" = "pull_request" ]; then
-                      BASE_SHA=$(git merge-base "$BASE_SHA" HEAD)
-                  fi
-                  NEW=$(git diff --name-only "$BASE_SHA" HEAD -- prisma/migrations \
+                  NEW=$(git diff --name-only "${{ steps.detect.outputs.BASE_SHA }}" HEAD -- prisma/migrations \
                       | grep '/migration.sql$' || true)
-                  if [ -z "$NEW" ]; then
-                      echo "No new migration files in this change — nothing to re-check."
-                      exit 0
-                  fi
-                  echo "Re-applying this PR's migrations against the migrated DB:"
+                  echo "Re-applying changed migrations against the migrated DB:"
                   echo "$NEW"
                   for f in $NEW; do
                       echo "==> re-applying ${f#prisma/migrations/}"
                       psql -h localhost -U discordbot -d discordbot -v ON_ERROR_STOP=1 -q -f "$f"
                   done
-                  echo "✅ PR migrations are idempotent (re-applied cleanly)."
+                  echo "✅ Changed migrations are idempotent (re-applied cleanly)."
+
+            - name: Stop Postgres
+              if: always() && steps.detect.outputs.changed == 'true'
+              run: docker rm -f mgate-pg || true
