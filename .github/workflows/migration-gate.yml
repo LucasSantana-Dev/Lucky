@@ -85,17 +85,36 @@ jobs:
             # nothing while the check still reports success.
             - name: Start Postgres 18
               if: steps.detect.outputs.changed == 'true'
+              env:
+                  PGPASSWORD: ci
               run: |
+                  set -euo pipefail
                   docker run -d --name mgate-pg \
                       -e POSTGRES_USER=discordbot \
                       -e POSTGRES_PASSWORD=ci \
                       -e POSTGRES_DB=discordbot \
                       -p 5432:5432 \
                       postgres:18-alpine
-                  for _ in $(seq 1 30); do
-                      docker exec mgate-pg pg_isready -U discordbot -d discordbot && break
+                  psql --version >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+                  # Readiness must be proven by a real HOST connection that runs a
+                  # query, NOT `docker exec pg_isready`: the postgres entrypoint
+                  # starts a temp server for DB init then restarts the real one, so
+                  # container-internal pg_isready reports ready during the temp
+                  # phase and the host connect lands mid-restart ("server closed the
+                  # connection unexpectedly", #1846). Force IPv4 (127.0.0.1) — the
+                  # -p publish binds v4, while `localhost` may resolve to ::1.
+                  ok=0
+                  for _ in $(seq 1 60); do
+                      if psql -h 127.0.0.1 -U discordbot -d discordbot -tAc 'select 1' >/dev/null 2>&1; then
+                          ok=1; break
+                      fi
                       sleep 1
                   done
+                  if [ "$ok" != "1" ]; then
+                      echo "::error::Postgres did not become ready in time"
+                      docker logs mgate-pg 2>&1 | tail -30
+                      exit 1
+                  fi
 
             # Clean-apply: mirrors non-transactional `prisma migrate deploy`.
             # Catches migrations that fail on a fresh prod-version DB (the 2.35.1
@@ -109,7 +128,7 @@ jobs:
                   psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
                   for f in $(find prisma/migrations -name migration.sql | sort); do
                       echo "==> applying ${f#prisma/migrations/}"
-                      psql -h localhost -U discordbot -d discordbot -v ON_ERROR_STOP=1 -q -f "$f"
+                      psql -h 127.0.0.1 -U discordbot -d discordbot -v ON_ERROR_STOP=1 -q -f "$f"
                   done
                   echo "✅ Full chain applied cleanly on Postgres 18."
 
@@ -133,7 +152,7 @@ jobs:
                   echo "$NEW"
                   for f in $NEW; do
                       echo "==> re-applying ${f#prisma/migrations/}"
-                      psql -h localhost -U discordbot -d discordbot -v ON_ERROR_STOP=1 -q -f "$f"
+                      psql -h 127.0.0.1 -U discordbot -d discordbot -v ON_ERROR_STOP=1 -q -f "$f"
                   done
                   echo "✅ Changed migrations are idempotent (re-applied cleanly)."
 
