@@ -1,0 +1,95 @@
+name: Migration Gate
+
+# Prevention gate for the migration-wedge incident (#1837, ADR
+# decisions/2026-07-16-idempotent-migrations.md). Prisma `migrate deploy` is
+# non-transactional, so a defective migration can (a) fail to apply on a clean
+# DB or (b) fail to re-apply against a partially-applied state — both of which
+# wedge production and are invisible to the schema-drift check (partial indexes,
+# CHECK constraints, and enum casts aren't expressible in schema.prisma). This
+# job applies the full migration chain against a Postgres pinned to the
+# production major version, then re-applies the PR's own migrations to prove
+# idempotency. It would have caught both the 2.35.1 and 2.35.2 prod failures.
+
+on:
+    pull_request:
+        branches: [main, 'release/**']
+        paths:
+            - 'prisma/migrations/**'
+            - '.github/workflows/migration-gate.yml'
+    merge_group:
+        branches: [main, 'release/**']
+
+permissions:
+    contents: read
+
+jobs:
+    migrate-apply:
+        name: Migrations apply on Postgres 18
+        runs-on: ubuntu-latest
+        services:
+            postgres:
+                # Pinned to the PRODUCTION major version. Bump this when prod
+                # Postgres changes — index-predicate re-validation and cast
+                # behaviour are version-sensitive (ADR revisit-when).
+                image: postgres:18-alpine
+                env:
+                    POSTGRES_USER: discordbot
+                    POSTGRES_PASSWORD: ci
+                    POSTGRES_DB: discordbot
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -U discordbot -d discordbot"
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 10
+        env:
+            PGPASSWORD: ci
+        steps:
+            - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+              with:
+                  fetch-depth: 0
+
+            - name: Ensure psql client
+              run: psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+
+            # Clean-apply: mirrors `prisma migrate deploy` (per-statement,
+            # ON_ERROR_STOP) against a fresh prod-version DB. Catches migrations
+            # that fail to apply — e.g. an ALTER COLUMN TYPE blocked by a partial
+            # index predicate (the 2.35.1 failure, 42883/P3018).
+            - name: Apply full migration chain (clean apply)
+              run: |
+                  set -euo pipefail
+                  for f in $(find prisma/migrations -name migration.sql | sort); do
+                      echo "==> applying ${f#prisma/migrations/}"
+                      psql -h localhost -U discordbot -d discordbot -v ON_ERROR_STOP=1 -q -f "$f"
+                  done
+                  echo "✅ Full chain applied cleanly on Postgres 18."
+
+            # Idempotency: re-apply THIS PR's new migrations against the
+            # already-migrated DB. A migration authored per the idempotency ADR
+            # (IF EXISTS / IF NOT EXISTS / DO-EXCEPTION guards) re-applies cleanly;
+            # a non-idempotent one errors — catching the class that wedged 2.35.2
+            # (DROP CONSTRAINT on an already-dropped constraint, 42704). Only the
+            # PR's own migrations are re-checked: historic migrations predate this
+            # convention and are never re-run against a live prod row.
+            - name: Re-apply PR migrations (idempotency)
+              run: |
+                  set -euo pipefail
+                  BASE_SHA="${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}"
+                  if [ "${{ github.event_name }}" = "pull_request" ]; then
+                      BASE_SHA=$(git merge-base "$BASE_SHA" HEAD)
+                  fi
+                  NEW=$(git diff --name-only "$BASE_SHA" HEAD -- prisma/migrations \
+                      | grep '/migration.sql$' || true)
+                  if [ -z "$NEW" ]; then
+                      echo "No new migration files in this change — nothing to re-check."
+                      exit 0
+                  fi
+                  echo "Re-applying this PR's migrations against the migrated DB:"
+                  echo "$NEW"
+                  for f in $NEW; do
+                      echo "==> re-applying ${f#prisma/migrations/}"
+                      psql -h localhost -U discordbot -d discordbot -v ON_ERROR_STOP=1 -q -f "$f"
+                  done
+                  echo "✅ PR migrations are idempotent (re-applied cleanly)."
