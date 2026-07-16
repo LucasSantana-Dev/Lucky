@@ -1,0 +1,142 @@
+name: Migration Gate
+
+# Prevention gate for the migration-wedge incident (#1837, ADR
+# decisions/2026-07-16-idempotent-migrations.md). Prisma `migrate deploy` is
+# non-transactional, so a defective migration can (a) fail to apply on a clean
+# DB or (b) fail to re-apply against a partially-applied state — both of which
+# wedge production and are invisible to the schema-drift check (partial indexes,
+# CHECK constraints, and enum casts aren't expressible in schema.prisma). This
+# job applies the full migration chain against a Postgres pinned to the
+# production major version, then re-applies the PR's own migrations to prove
+# idempotency. It would have caught both the 2.35.1 and 2.35.2 prod failures.
+#
+# The job ALWAYS runs (no paths: filter) so it can be a REQUIRED status check:
+# a path-filtered required check never reports on unrelated PRs and would block
+# them forever. When a change touches no migrations, the job reports success
+# without spinning up Postgres.
+
+on:
+    pull_request:
+        branches: [main, 'release/**']
+    merge_group:
+        branches: [main, 'release/**']
+
+permissions:
+    contents: read
+
+jobs:
+    migrate-gate:
+        name: Migrations apply on Postgres 18
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+              with:
+                  fetch-depth: 0
+                  # This job applies UNTRUSTED PR migration SQL via `psql -f`,
+                  # whose backslash commands (\!) can shell out. Don't leave the
+                  # GITHUB_TOKEN in .git/config for a malicious migration to read
+                  # — this job only reads locally and never pushes.
+                  persist-credentials: false
+
+            - name: Detect migration changes
+              id: detect
+              run: |
+                  BASE_SHA="${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}"
+                  if [ "${{ github.event_name }}" = "pull_request" ]; then
+                      # Use the actual merge-base, not the PR-open snapshot, so
+                      # commits merged to base afterwards aren't picked up.
+                      BASE_SHA=$(git merge-base "$BASE_SHA" HEAD)
+                  fi
+                  # ADDED migration files (the only ones idempotency re-apply can
+                  # meaningfully validate). Modified/deleted/renamed are handled
+                  # separately below — migrations are append-only.
+                  ADDED=$(git diff --name-only --diff-filter=A "$BASE_SHA" HEAD -- prisma/migrations | grep '/migration.sql$' || true)
+                  # Non-additive changes to existing migration files (history rewrite).
+                  REWRITTEN=$(git diff --name-only --diff-filter=MDR "$BASE_SHA" HEAD -- prisma/migrations | grep '/migration.sql$' || true)
+                  { echo "BASE_SHA=$BASE_SHA"; } >> "$GITHUB_OUTPUT"
+                  { echo "rewritten<<EOF"; echo "$REWRITTEN"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+                  if [ -n "$ADDED" ]; then
+                      echo "changed=true" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "changed=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+            # Migrations are append-only: an already-applied migration is
+            # checksum-tracked by Prisma, so editing/renaming/deleting one drifts
+            # from the databases where the original already ran — which this gate
+            # cannot model (it only sees the replacement). Fail loudly. Editing a
+            # migration that never successfully applied anywhere (e.g. a
+            # rolled-back one being repaired) is the rare exception; do it via an
+            # admin/override merge with the reason stated, not silently.
+            - name: Reject rewritten migration history
+              if: steps.detect.outputs.rewritten != ''
+              run: |
+                  echo "::error::Non-additive change to existing migration(s) — migrations are append-only:"
+                  echo "${{ steps.detect.outputs.rewritten }}"
+                  echo "If this is an intentional repair of a never-applied migration, override deliberately."
+                  exit 1
+
+            - name: No migration changes — gate not applicable
+              if: steps.detect.outputs.changed != 'true' && steps.detect.outputs.rewritten == ''
+              run: echo "✅ No added prisma/migrations in this diff — nothing to validate."
+
+            # Start Postgres via `docker run` (not a services: block) so it only
+            # spins up when migrations actually changed — non-migration PRs pay
+            # nothing while the check still reports success.
+            - name: Start Postgres 18
+              if: steps.detect.outputs.changed == 'true'
+              run: |
+                  docker run -d --name mgate-pg \
+                      -e POSTGRES_USER=discordbot \
+                      -e POSTGRES_PASSWORD=ci \
+                      -e POSTGRES_DB=discordbot \
+                      -p 5432:5432 \
+                      postgres:18-alpine
+                  for _ in $(seq 1 30); do
+                      docker exec mgate-pg pg_isready -U discordbot -d discordbot && break
+                      sleep 1
+                  done
+
+            # Clean-apply: mirrors non-transactional `prisma migrate deploy`.
+            # Catches migrations that fail on a fresh prod-version DB (the 2.35.1
+            # failure: ALTER COLUMN TYPE blocked by a partial-index predicate).
+            - name: Apply full migration chain (clean apply)
+              if: steps.detect.outputs.changed == 'true'
+              env:
+                  PGPASSWORD: ci
+              run: |
+                  set -euo pipefail
+                  psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+                  for f in $(find prisma/migrations -name migration.sql | sort); do
+                      echo "==> applying ${f#prisma/migrations/}"
+                      psql -h localhost -U discordbot -d discordbot -v ON_ERROR_STOP=1 -q -f "$f"
+                  done
+                  echo "✅ Full chain applied cleanly on Postgres 18."
+
+            # Idempotency: re-apply THIS change's new migrations against the
+            # already-migrated DB. Idempotent migrations (per the ADR) re-apply
+            # cleanly; a non-idempotent one errors — catching the 2.35.2 class
+            # (DROP CONSTRAINT on an already-dropped constraint, 42704).
+            - name: Re-apply changed migrations (idempotency)
+              if: steps.detect.outputs.changed == 'true'
+              env:
+                  PGPASSWORD: ci
+              run: |
+                  set -euo pipefail
+                  # ADDED migrations only — a re-apply models "the migration runs a
+                  # second time against a DB where it already ran". Editing an
+                  # existing migration is rejected earlier (append-only), so only
+                  # --diff-filter=A files reach here.
+                  NEW=$(git diff --name-only --diff-filter=A "${{ steps.detect.outputs.BASE_SHA }}" HEAD -- prisma/migrations \
+                      | grep '/migration.sql$' || true)
+                  echo "Re-applying added migrations against the migrated DB:"
+                  echo "$NEW"
+                  for f in $NEW; do
+                      echo "==> re-applying ${f#prisma/migrations/}"
+                      psql -h localhost -U discordbot -d discordbot -v ON_ERROR_STOP=1 -q -f "$f"
+                  done
+                  echo "✅ Changed migrations are idempotent (re-applied cleanly)."
+
+            - name: Stop Postgres
+              if: always() && steps.detect.outputs.changed == 'true'
+              run: docker rm -f mgate-pg || true
