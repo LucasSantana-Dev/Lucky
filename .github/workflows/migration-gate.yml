@@ -47,16 +47,38 @@ jobs:
                       # commits merged to base afterwards aren't picked up.
                       BASE_SHA=$(git merge-base "$BASE_SHA" HEAD)
                   fi
-                  if git diff --name-only "$BASE_SHA" HEAD -- prisma/migrations | grep -q '/migration.sql$'; then
+                  # ADDED migration files (the only ones idempotency re-apply can
+                  # meaningfully validate). Modified/deleted/renamed are handled
+                  # separately below — migrations are append-only.
+                  ADDED=$(git diff --name-only --diff-filter=A "$BASE_SHA" HEAD -- prisma/migrations | grep '/migration.sql$' || true)
+                  # Non-additive changes to existing migration files (history rewrite).
+                  REWRITTEN=$(git diff --name-only --diff-filter=MDR "$BASE_SHA" HEAD -- prisma/migrations | grep '/migration.sql$' || true)
+                  { echo "BASE_SHA=$BASE_SHA"; } >> "$GITHUB_OUTPUT"
+                  { echo "rewritten<<EOF"; echo "$REWRITTEN"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+                  if [ -n "$ADDED" ]; then
                       echo "changed=true" >> "$GITHUB_OUTPUT"
                   else
                       echo "changed=false" >> "$GITHUB_OUTPUT"
                   fi
-                  echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_OUTPUT"
+
+            # Migrations are append-only: an already-applied migration is
+            # checksum-tracked by Prisma, so editing/renaming/deleting one drifts
+            # from the databases where the original already ran — which this gate
+            # cannot model (it only sees the replacement). Fail loudly. Editing a
+            # migration that never successfully applied anywhere (e.g. a
+            # rolled-back one being repaired) is the rare exception; do it via an
+            # admin/override merge with the reason stated, not silently.
+            - name: Reject rewritten migration history
+              if: steps.detect.outputs.rewritten != ''
+              run: |
+                  echo "::error::Non-additive change to existing migration(s) — migrations are append-only:"
+                  echo "${{ steps.detect.outputs.rewritten }}"
+                  echo "If this is an intentional repair of a never-applied migration, override deliberately."
+                  exit 1
 
             - name: No migration changes — gate not applicable
-              if: steps.detect.outputs.changed != 'true'
-              run: echo "✅ No prisma/migrations changes in this diff — nothing to validate."
+              if: steps.detect.outputs.changed != 'true' && steps.detect.outputs.rewritten == ''
+              run: echo "✅ No added prisma/migrations in this diff — nothing to validate."
 
             # Start Postgres via `docker run` (not a services: block) so it only
             # spins up when migrations actually changed — non-migration PRs pay
@@ -101,9 +123,13 @@ jobs:
                   PGPASSWORD: ci
               run: |
                   set -euo pipefail
-                  NEW=$(git diff --name-only "${{ steps.detect.outputs.BASE_SHA }}" HEAD -- prisma/migrations \
+                  # ADDED migrations only — a re-apply models "the migration runs a
+                  # second time against a DB where it already ran". Editing an
+                  # existing migration is rejected earlier (append-only), so only
+                  # --diff-filter=A files reach here.
+                  NEW=$(git diff --name-only --diff-filter=A "${{ steps.detect.outputs.BASE_SHA }}" HEAD -- prisma/migrations \
                       | grep '/migration.sql$' || true)
-                  echo "Re-applying changed migrations against the migrated DB:"
+                  echo "Re-applying added migrations against the migrated DB:"
                   echo "$NEW"
                   for f in $NEW; do
                       echo "==> re-applying ${f#prisma/migrations/}"
