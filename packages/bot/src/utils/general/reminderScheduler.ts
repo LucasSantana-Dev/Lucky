@@ -1,8 +1,15 @@
 import type { TextChannel } from 'discord.js'
 import { EmbedBuilder } from '@discordjs/builders'
 import { COLOR } from '@lucky/shared/constants'
+import type { ReminderRecord } from '@lucky/shared/services'
 import { reminderService, MAX_DELIVERY_ATTEMPTS } from '@lucky/shared/services'
-import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
+import {
+    computeNextOccurrence,
+    DEFAULT_TIMEZONE,
+    errorLog,
+    infoLog,
+    warnLog,
+} from '@lucky/shared/utils'
 
 import { IntervalScheduler } from './IntervalScheduler'
 
@@ -46,7 +53,9 @@ export class ReminderScheduler extends IntervalScheduler {
 
                 const delivered = await this.deliverReminder(reminder)
                 if (delivered) {
-                    await reminderService.markDelivered(reminder.id)
+                    // Recurring reminders re-arm for their next occurrence
+                    // instead of being marked done; one-time reminders complete.
+                    await this.completeOrReschedule(reminder)
                 } else if (
                     reminder.deliveryAttempts + 1 >=
                     MAX_DELIVERY_ATTEMPTS
@@ -75,6 +84,41 @@ export class ReminderScheduler extends IntervalScheduler {
             infoLog({
                 message: `reminder scheduler delivered ${dueReminders.length} reminders`,
             })
+        }
+    }
+
+    /**
+     * After a successful fire: a one-time reminder is marked delivered; a
+     * recurring reminder is re-armed for its next occurrence. If the rule is
+     * exhausted (null) or unparseable, stop firing by marking it delivered so a
+     * bad rule can't re-fire every tick.
+     */
+    private async completeOrReschedule(reminder: ReminderRecord): Promise<void> {
+        if (!reminder.recurrenceRule) {
+            await reminderService.markDelivered(reminder.id)
+            return
+        }
+
+        let next: Date | null = null
+        try {
+            next = computeNextOccurrence(
+                reminder.recurrenceRule,
+                reminder.timezone ?? DEFAULT_TIMEZONE,
+                new Date(),
+            )
+        } catch (error) {
+            errorLog({
+                message:
+                    'recurring reminder: unparseable rule, stopping recurrence',
+                error: error as Error,
+                data: { reminderId: reminder.id },
+            })
+        }
+
+        if (next) {
+            await reminderService.rescheduleRecurring(reminder.id, next)
+        } else {
+            await reminderService.markDelivered(reminder.id)
         }
     }
 

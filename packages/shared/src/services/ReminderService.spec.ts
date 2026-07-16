@@ -63,6 +63,8 @@ describe('ReminderService', () => {
                     // Defaults to a personal reminder when no options passed.
                     targetType: 'user',
                     roleId: null,
+                    recurrenceRule: null,
+                    timezone: null,
                 },
             })
             expect(result.id).toBe('reminder-1')
@@ -90,6 +92,8 @@ describe('ReminderService', () => {
                     remindAt,
                     targetType: 'role',
                     roleId: 'role-9',
+                    recurrenceRule: null,
+                    timezone: null,
                 },
             })
         })
