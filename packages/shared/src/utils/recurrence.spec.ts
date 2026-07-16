@@ -30,6 +30,22 @@ function expectLocal(
 
 const SP = DEFAULT_TIMEZONE // America/Sao_Paulo
 
+// Build a JS Date from a wall-clock in a zone (collapses the repeated
+// DateTime.fromObject(...).toJSDate() setup across cases).
+function at(
+    zone: string,
+    y: number,
+    mo: number,
+    d: number,
+    h: number,
+    mi = 0,
+): Date {
+    return DateTime.fromObject(
+        { year: y, month: mo, day: d, hour: h, minute: mi },
+        { zone },
+    ).toJSDate()
+}
+
 describe('buildRecurrenceRule', () => {
     it('weekdays at 20:00', () => {
         expect(buildRecurrenceRule('weekdays', 20, 0)).toBe(
@@ -55,26 +71,17 @@ describe('computeNextOccurrence — every weekday at 20:00 SP', () => {
     const rule = buildRecurrenceRule('weekdays', 20, 0)
 
     it('same day when before the time (Mon 12:00 -> Mon 20:00)', () => {
-        const after = DateTime.fromObject(
-            { year: 2026, month: 7, day: 13, hour: 12 },
-            { zone: SP },
-        ).toJSDate() // 2026-07-13 is a Monday
+        const after = at(SP, 2026, 7, 13, 12) // 2026-07-13 is a Monday
         expectLocal(computeNextOccurrence(rule, SP, after), SP, 2026, 7, 13, 20, 0)
     })
 
     it('next day when past the time (Mon 20:30 -> Tue 20:00)', () => {
-        const after = DateTime.fromObject(
-            { year: 2026, month: 7, day: 13, hour: 20, minute: 30 },
-            { zone: SP },
-        ).toJSDate()
+        const after = at(SP, 2026, 7, 13, 20, 30)
         expectLocal(computeNextOccurrence(rule, SP, after), SP, 2026, 7, 14, 20, 0)
     })
 
     it('skips the weekend (Fri 21:00 -> Mon 20:00)', () => {
-        const after = DateTime.fromObject(
-            { year: 2026, month: 7, day: 17, hour: 21 },
-            { zone: SP },
-        ).toJSDate() // 2026-07-17 is a Friday
+        const after = at(SP, 2026, 7, 17, 21) // 2026-07-17 is a Friday
         expectLocal(computeNextOccurrence(rule, SP, after), SP, 2026, 7, 20, 20, 0)
     })
 })
@@ -82,10 +89,7 @@ describe('computeNextOccurrence — every weekday at 20:00 SP', () => {
 describe('computeNextOccurrence — every Friday at 19:00 SP', () => {
     const rule = buildRecurrenceRule('weekly', 19, 0, 5)
     it('Mon -> next Friday 19:00', () => {
-        const after = DateTime.fromObject(
-            { year: 2026, month: 7, day: 13, hour: 9 },
-            { zone: SP },
-        ).toJSDate()
+        const after = at(SP, 2026, 7, 13, 9)
         expectLocal(computeNextOccurrence(rule, SP, after), SP, 2026, 7, 17, 19, 0)
     })
 })
@@ -97,17 +101,11 @@ describe('computeNextOccurrence — DST correctness (America/New_York)', () => {
     const NY = 'America/New_York'
 
     it('holds local 08:00 across spring-forward', () => {
-        const beforeDst = DateTime.fromObject(
-            { year: 2026, month: 3, day: 7, hour: 9 },
-            { zone: NY },
-        ).toJSDate() // Sat before the change
+        const beforeDst = at(NY, 2026, 3, 7, 9) // Sat before the change
         // next = Sun 2026-03-08 08:00 local (a DST-transition day)
         expectLocal(computeNextOccurrence(rule, NY, beforeDst), NY, 2026, 3, 8, 8, 0)
 
-        const onDst = DateTime.fromObject(
-            { year: 2026, month: 3, day: 8, hour: 9 },
-            { zone: NY },
-        ).toJSDate()
+        const onDst = at(NY, 2026, 3, 8, 9)
         // next = Mon 2026-03-09 08:00 local
         expectLocal(computeNextOccurrence(rule, NY, onDst), NY, 2026, 3, 9, 8, 0)
     })
