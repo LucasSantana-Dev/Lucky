@@ -262,4 +262,18 @@ describe('ReminderService', () => {
             })
         })
     })
+
+    describe('rescheduleRecurring', () => {
+        test('moves remindAt to the next occurrence and resets the attempt counter', async () => {
+            ;(mockPrisma.reminder.update as any).mockResolvedValue({})
+            const next = new Date('2026-07-04T23:00:00Z')
+
+            await service.rescheduleRecurring('reminder-1', next)
+
+            expect(mockPrisma.reminder.update).toHaveBeenCalledWith({
+                where: { id: 'reminder-1' },
+                data: { remindAt: next, deliveryAttempts: 0 },
+            })
+        })
+    })
 })

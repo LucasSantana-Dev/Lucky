@@ -6,11 +6,7 @@ import { DateTime } from 'luxon'
  * BYDAY set; the time-of-day is supplied separately and encoded as BYHOUR/
  * BYMINUTE. `weekly` additionally pins a single BYDAY (the chosen day).
  */
-export type RecurrencePattern =
-    | 'daily'
-    | 'weekdays'
-    | 'weekends'
-    | 'weekly'
+export type RecurrencePattern = 'daily' | 'weekdays' | 'weekends' | 'weekly'
 
 /** IANA zone used when a reminder has no explicit timezone. */
 export const DEFAULT_TIMEZONE = 'America/Sao_Paulo'
@@ -94,6 +90,11 @@ export function computeNextOccurrence(
     // dtstart floors the search; the actual fire time is pinned by BYHOUR/
     // BYMINUTE, so a fixed early dtstart just gives rrule a valid anchor.
     const options = RRule.parseString(ruleStr)
+    // Bounded rules (COUNT/UNTIL) are not supported: the fixed year-2000 dtstart
+    // would make every counted/until-bounded occurrence historical, so `after()`
+    // returns null and the reminder silently never fires. buildRecurrenceRule
+    // never emits these, so reject them explicitly rather than mis-schedule.
+    if (options.count != null || options.until != null) return null
     options.dtstart = new Date(Date.UTC(2000, 0, 1, 0, 0, 0))
     const rule = new RRule(options)
 

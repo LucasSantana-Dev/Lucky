@@ -142,7 +142,20 @@ async function createRecurring(
         time.minute,
         weekday,
     )
-    const remindAt = computeNextOccurrence(rule, fuso, new Date())
+    let remindAt: Date | null
+    try {
+        remindAt = computeNextOccurrence(rule, fuso, new Date())
+    } catch (error) {
+        errorLog({
+            message: `failed to compute first occurrence for ${rule}`,
+            error: error as Error,
+            data: { guildId, timezone: fuso },
+        })
+        await replyText(
+            '❌ Could not schedule that recurrence. Try a different time or timezone.',
+        )
+        return
+    }
     if (!remindAt) {
         await replyText('❌ Could not compute the next occurrence.')
         return
@@ -235,7 +248,9 @@ export default new Command({
                 .addStringOption((opt) =>
                     opt
                         .setName('dia')
-                        .setDescription('Weekly day (only with repetir: weekly)')
+                        .setDescription(
+                            'Weekly day (only with repetir: weekly)',
+                        )
                         .setRequired(false)
                         .addChoices(
                             { name: 'Monday', value: '1' },

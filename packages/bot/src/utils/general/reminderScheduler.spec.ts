@@ -113,7 +113,25 @@ describe('ReminderScheduler.tick', () => {
     it('stops a recurring reminder whose rule is exhausted (next = null)', async () => {
         computeNextOccurrenceMock.mockReturnValue(null)
         await runTick(deliveringClient(), [
-            makeReminder({ recurrenceRule: 'FREQ=DAILY;COUNT=1', timezone: null }),
+            makeReminder({
+                recurrenceRule: 'FREQ=DAILY;COUNT=1',
+                timezone: null,
+            }),
+        ])
+
+        expect(reminderServiceMock.rescheduleRecurring).not.toHaveBeenCalled()
+        expect(reminderServiceMock.markDelivered).toHaveBeenCalledWith('r1')
+    })
+
+    it('stops a recurring reminder when the rule throws instead of re-arming', async () => {
+        computeNextOccurrenceMock.mockImplementation(() => {
+            throw new Error('unparseable rule')
+        })
+        await runTick(deliveringClient(), [
+            makeReminder({
+                recurrenceRule: 'NOT-A-RULE',
+                timezone: 'America/Sao_Paulo',
+            }),
         ])
 
         expect(reminderServiceMock.rescheduleRecurring).not.toHaveBeenCalled()
