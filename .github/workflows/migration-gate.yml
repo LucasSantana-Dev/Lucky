@@ -65,7 +65,7 @@ jobs:
                       -e POSTGRES_DB=discordbot \
                       -p 5432:5432 \
                       postgres:18-alpine
-                  for i in $(seq 1 30); do
+                  for _ in $(seq 1 30); do
                       docker exec mgate-pg pg_isready -U discordbot -d discordbot && break
                       sleep 1
                   done
