@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.36.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.3...v2.36.0) (2026-07-16)
+
+
+### Features
+
+* **reminders:** recurring reminders (RRULE + timezone) ([#1842](https://github.com/LucasSantana-Dev/Lucky/issues/1842)) ([d36c88c](https://github.com/LucasSantana-Dev/Lucky/commit/d36c88c8be9a03faf42952d598f0f0029fdbc1f7))
+
+
+### Bug Fixes
+
+* **ci:** harden migration-gate Postgres readiness ([#1846](https://github.com/LucasSantana-Dev/Lucky/issues/1846)) ([#1847](https://github.com/LucasSantana-Dev/Lucky/issues/1847)) ([cb1ced9](https://github.com/LucasSantana-Dev/Lucky/commit/cb1ced9be95d934018b0cc23a80016e1c32b113c))
+* **deploy:** use wget not curl for status/notify POSTs ([#1837](https://github.com/LucasSantana-Dev/Lucky/issues/1837)) ([#1844](https://github.com/LucasSantana-Dev/Lucky/issues/1844)) ([e459a41](https://github.com/LucasSantana-Dev/Lucky/commit/e459a4149a573fdefeeeefe771a6851f53b92c1f))
+
 ## [2.35.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.2...v2.35.3) (2026-07-16)
 
 
