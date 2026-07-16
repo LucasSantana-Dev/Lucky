@@ -276,7 +276,8 @@ jobs:
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
                   push: false
-                  load: false
+                  load: ${{ matrix.service == 'bot' }}
+                  tags: lucky-${{ matrix.service }}:ci
                   provenance: false
                   sbom: false
                   cache-from: type=gha,scope=${{ matrix.service }}
@@ -292,7 +293,8 @@ jobs:
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
                   push: false
-                  load: false
+                  load: ${{ matrix.service == 'bot' }}
+                  tags: lucky-${{ matrix.service }}:ci
                   provenance: false
                   sbom: false
                   cache-from: type=gha,scope=${{ matrix.service }}
@@ -300,6 +302,20 @@ jobs:
                   build-args: |
                       COMMIT_SHA=${{ github.sha }}
                       NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
+            # A built image is not a working image: the bot's native addons
+            # (@discordjs/opus) and the baked Prisma engines only fail at
+            # require()-time, which `docker build` never reaches. #1735 shipped a
+            # Prisma engine that crash-looped 262x behind a green build. Load the
+            # real production-bot image and require the modules for real.
+            - name: Verify native modules load — bot
+              if: matrix.service == 'bot'
+              run: |
+                  docker run --rm lucky-bot:ci node -e "
+                    const { OpusEncoder } = require('@discordjs/opus');
+                    const frame = new OpusEncoder(48000, 2).encode(Buffer.alloc(3840));
+                    if (!frame.length) throw new Error('opus encoded an empty frame');
+                    console.log('opus OK — encoded', frame.length, 'bytes');
+                  "
 
     docker-build-check:
         name: Build — Docker images
