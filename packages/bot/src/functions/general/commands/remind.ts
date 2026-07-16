@@ -1,8 +1,17 @@
 import { SlashCommandBuilder, EmbedBuilder } from '@discordjs/builders'
 import { PermissionFlagsBits } from 'discord.js'
+import type { ChatInputCommandInteraction } from 'discord.js'
 import { COLOR } from '@lucky/shared/constants'
 import { reminderService } from '@lucky/shared/services'
-import { infoLog, errorLog } from '@lucky/shared/utils'
+import {
+    buildRecurrenceRule,
+    computeNextOccurrence,
+    DEFAULT_TIMEZONE,
+    isValidTimezone,
+    infoLog,
+    errorLog,
+    type RecurrencePattern,
+} from '@lucky/shared/utils'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 
@@ -39,6 +48,144 @@ export function parseDuration(input: string): number | null {
     return ms
 }
 
+/**
+ * Parse a time-of-day for recurring reminders: 24h ("20:00", "8:30") or 12h
+ * ("8PM", "8:30 pm"). Returns {hour, minute} in 0–23 / 0–59, or null if invalid.
+ */
+export function parseTimeOfDay(
+    input: string,
+): { hour: number; minute: number } | null {
+    const s = input.trim().toLowerCase()
+
+    // 12-hour: 8pm, 8:30pm, "8 pm"
+    const twelve = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/)
+    if (twelve) {
+        let hour = parseInt(twelve[1], 10)
+        const minute = twelve[2] ? parseInt(twelve[2], 10) : 0
+        if (hour < 1 || hour > 12 || minute > 59) return null
+        if (twelve[3] === 'pm' && hour !== 12) hour += 12
+        if (twelve[3] === 'am' && hour === 12) hour = 0
+        return { hour, minute }
+    }
+
+    // 24-hour: 20:00, 8:30
+    const twentyFour = s.match(/^(\d{1,2}):(\d{2})$/)
+    if (twentyFour) {
+        const hour = parseInt(twentyFour[1], 10)
+        const minute = parseInt(twentyFour[2], 10)
+        if (hour > 23 || minute > 59) return null
+        return { hour, minute }
+    }
+
+    return null
+}
+
+const WEEKDAY_NAMES = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+]
+
+/**
+ * Create a recurring reminder from the `set` options. Validates the time-of-day,
+ * the weekly day (when repeat = weekly), and the timezone, builds an RRULE, and
+ * schedules the first occurrence as `remindAt`.
+ */
+async function createRecurring(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+    mensagem: string,
+    repetir: string,
+    replyText: (content: string) => Promise<unknown>,
+    replyEmbed: (embed: EmbedBuilder) => Promise<unknown>,
+): Promise<void> {
+    const horarioRaw = interaction.options.getString('horario')
+    if (!horarioRaw) {
+        await replyText(
+            '❌ Recurring reminders need a `horario` (time of day), e.g. 20:00 or 8PM.',
+        )
+        return
+    }
+    const time = parseTimeOfDay(horarioRaw)
+    if (!time) {
+        await replyText('❌ Invalid `horario`. Use 20:00 or 8PM.')
+        return
+    }
+
+    let weekday: number | undefined
+    if (repetir === 'weekly') {
+        const dia = interaction.options.getString('dia')
+        if (!dia) {
+            await replyText(
+                '❌ Weekly reminders need a `dia` (which day of the week).',
+            )
+            return
+        }
+        weekday = parseInt(dia, 10)
+    }
+
+    const fuso = interaction.options.getString('fuso') ?? DEFAULT_TIMEZONE
+    if (!isValidTimezone(fuso)) {
+        await replyText(
+            `❌ Unknown timezone \`${fuso}\`. Use an IANA name like America/Sao_Paulo.`,
+        )
+        return
+    }
+
+    const rule = buildRecurrenceRule(
+        repetir as RecurrencePattern,
+        time.hour,
+        time.minute,
+        weekday,
+    )
+    const remindAt = computeNextOccurrence(rule, fuso, new Date())
+    if (!remindAt) {
+        await replyText('❌ Could not compute the next occurrence.')
+        return
+    }
+
+    const reminder = await reminderService.create(
+        guildId,
+        interaction.user.id,
+        interaction.channelId,
+        mensagem,
+        remindAt,
+        { recurrenceRule: rule, timezone: fuso },
+    )
+
+    const when =
+        repetir === 'weekly'
+            ? `every ${WEEKDAY_NAMES[(weekday as number) - 1]}`
+            : repetir === 'weekdays'
+              ? 'every weekday'
+              : repetir === 'weekends'
+                ? 'every weekend day'
+                : 'every day'
+    const hh = String(time.hour).padStart(2, '0')
+    const mm = String(time.minute).padStart(2, '0')
+
+    const embed = new EmbedBuilder()
+        .setTitle('🔁 Recurring reminder set')
+        .setDescription(
+            `I'll remind you **${when} at ${hh}:${mm}** (${fuso}) with:\n\n${mensagem}`,
+        )
+        .setColor(COLOR.LUCKY_PURPLE)
+        .setFooter({
+            text: `ID: ${reminder.id.slice(0, 8)} · next: ${remindAt.toISOString()}`,
+        })
+
+    await replyEmbed(embed)
+
+    infoLog({
+        message: `recurring reminder set by ${interaction.user.tag}: ${rule}`,
+        data: { guildId, reminderId: reminder.id, timezone: fuso },
+    })
+}
+
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('remind')
@@ -46,19 +193,67 @@ export default new Command({
         .addSubcommand((sub) =>
             sub
                 .setName('set')
-                .setDescription('Set a reminder.')
-                .addStringOption((opt) =>
-                    opt
-                        .setName('tempo')
-                        .setDescription('Duration: 30s, 10m, 2h, 1d (max 30d)')
-                        .setRequired(true),
-                )
+                .setDescription('Set a one-time or recurring reminder.')
                 .addStringOption((opt) =>
                     opt
                         .setName('mensagem')
                         .setDescription('Reminder message (max 500 chars)')
                         .setMaxLength(500)
                         .setRequired(true),
+                )
+                // One-time: provide `tempo`. Recurring: provide `repetir` +
+                // `horario` (both are optional; the handler requires exactly one
+                // of the two modes).
+                .addStringOption((opt) =>
+                    opt
+                        .setName('tempo')
+                        .setDescription(
+                            'One-time duration: 30s, 10m, 2h, 1d (max 30d)',
+                        )
+                        .setRequired(false),
+                )
+                .addStringOption((opt) =>
+                    opt
+                        .setName('repetir')
+                        .setDescription('Recurring: how often to repeat')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: 'Every day', value: 'daily' },
+                            { name: 'Weekdays (Mon–Fri)', value: 'weekdays' },
+                            { name: 'Weekends (Sat–Sun)', value: 'weekends' },
+                            { name: 'Weekly (pick a day)', value: 'weekly' },
+                        ),
+                )
+                .addStringOption((opt) =>
+                    opt
+                        .setName('horario')
+                        .setDescription(
+                            'Recurring time of day: 20:00 or 8PM (with repetir)',
+                        )
+                        .setRequired(false),
+                )
+                .addStringOption((opt) =>
+                    opt
+                        .setName('dia')
+                        .setDescription('Weekly day (only with repetir: weekly)')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: 'Monday', value: '1' },
+                            { name: 'Tuesday', value: '2' },
+                            { name: 'Wednesday', value: '3' },
+                            { name: 'Thursday', value: '4' },
+                            { name: 'Friday', value: '5' },
+                            { name: 'Saturday', value: '6' },
+                            { name: 'Sunday', value: '7' },
+                        ),
+                )
+                .addStringOption((opt) =>
+                    opt
+                        .setName('fuso')
+                        .setDescription(
+                            'Timezone (IANA, e.g. America/Sao_Paulo). Default: São Paulo',
+                        )
+                        .setRequired(false),
                 ),
         )
         .addSubcommand((sub) =>
@@ -158,8 +353,36 @@ export default new Command({
 
         try {
             if (subcommand === 'set') {
-                const tempo = interaction.options.getString('tempo', true)
                 const mensagem = interaction.options.getString('mensagem', true)
+                const tempo = interaction.options.getString('tempo')
+                const repetir = interaction.options.getString('repetir')
+
+                // Exactly one mode: one-time (`tempo`) XOR recurring (`repetir`).
+                if (repetir && tempo) {
+                    await replyText(
+                        '❌ Use either `tempo` (one-time) or `repetir` (recurring), not both.',
+                    )
+                    return
+                }
+
+                if (repetir) {
+                    await createRecurring(
+                        interaction,
+                        guild.id,
+                        mensagem,
+                        repetir,
+                        replyText,
+                        replyEmbed,
+                    )
+                    return
+                }
+
+                if (!tempo) {
+                    await replyText(
+                        '❌ Provide `tempo` for a one-time reminder (e.g. 10m) or `repetir` for a recurring one.',
+                    )
+                    return
+                }
 
                 const ms = parseDuration(tempo)
                 if (ms === null) {
@@ -288,7 +511,13 @@ export default new Command({
                         when > 0
                             ? `in ${when} min`
                             : 'overdue (pending delivery)'
-                    return `• ${r.message.slice(0, 40)}${r.message.length > 40 ? '…' : ''} — ${whenStr} (ID: ${r.id.slice(0, 8)})`
+                    // Recurring reminders show a 🔁 and their next fire; the
+                    // remindAt is always the NEXT occurrence.
+                    const prefix = r.recurrenceRule ? '🔁 ' : '• '
+                    const nextStr = r.recurrenceRule
+                        ? `next ${whenStr}`
+                        : whenStr
+                    return `${prefix}${r.message.slice(0, 40)}${r.message.length > 40 ? '…' : ''} — ${nextStr} (ID: ${r.id.slice(0, 8)})`
                 })
 
                 const embed = new EmbedBuilder()

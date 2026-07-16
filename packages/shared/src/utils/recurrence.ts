@@ -15,6 +15,16 @@ export type RecurrencePattern =
 /** IANA zone used when a reminder has no explicit timezone. */
 export const DEFAULT_TIMEZONE = 'America/Sao_Paulo'
 
+/** True if `tz` is a valid IANA timezone the runtime recognises. */
+export function isValidTimezone(tz: string): boolean {
+    try {
+        Intl.DateTimeFormat(undefined, { timeZone: tz })
+        return true
+    } catch {
+        return false
+    }
+}
+
 const WEEKDAY_BYDAY = ['MO', 'TU', 'WE', 'TH', 'FR']
 const WEEKEND_BYDAY = ['SA', 'SU']
 // RRULE weekday tokens indexed 0 = Monday … 6 = Sunday, matching luxon weekday.
