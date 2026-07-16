@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.35.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.0...v2.35.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* **deploy:** reconcile auth-config smoke check with production redaction ([#1831](https://github.com/LucasSantana-Dev/Lucky/issues/1831)) ([866e16b](https://github.com/LucasSantana-Dev/Lucky/commit/866e16b3b749f03cf62bb533cc68b0c6453c8d8b))
+* **docker:** add direct_url to staging and dev compose for prisma migrations ([#1830](https://github.com/LucasSantana-Dev/Lucky/issues/1830)) ([aa1eefb](https://github.com/LucasSantana-Dev/Lucky/commit/aa1eefb76b42acfd0c41d65ae91debb48b184f22))
+* **frontend:** correct site license text apache 2.0 to isc ([#1826](https://github.com/LucasSantana-Dev/Lucky/issues/1826)) ([bdf63fe](https://github.com/LucasSantana-Dev/Lucky/commit/bdf63fe26420cc52923ac2325af139cc16920980))
+
+
+### Performance Improvements
+
+* **docker:** compile @discordjs/opus once, reuse in prod stage ([#1816](https://github.com/LucasSantana-Dev/Lucky/issues/1816)) ([9e80f12](https://github.com/LucasSantana-Dev/Lucky/commit/9e80f12a1c31cf76283b6e26a14d9e35c5b32893))
+
 ## [2.35.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.34.0...v2.35.0) (2026-07-13)
 
 
