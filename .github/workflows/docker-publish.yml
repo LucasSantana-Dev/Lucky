@@ -98,6 +98,39 @@ jobs:
                 IMAGE="$(printf '%s' "${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')"
                 docker run --rm "$IMAGE:${{ steps.meta.outputs.version }}" yt-dlp --version
 
+            - name: Verify ESM module load — bot
+              if: matrix.service == 'bot'
+              run: |
+                # ESM smoke test for the bot: trigger the recurrence.ts → rrule
+                # import chain to catch CJS/ESM compatibility errors before deploy.
+                # This imports the core recurrence utilities that the /remind command
+                # uses. The rrule package is a CommonJS package whose named exports
+                # aren't statically resolvable by Node's ESM loader, so this fires at
+                # import-time when the module graph is evaluated—exactly the error
+                # that #1842 escaped to production.
+                #
+                # Side-effect-free: recurrence.ts has no top-level async code or
+                # side effects, only pure function definitions that use rrule.
+                IMAGE="$(printf '%s' "${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')"
+                docker run --rm "$IMAGE:${{ steps.meta.outputs.version }}" \
+                  node --input-type=module -e "
+                    try {
+                      const { buildRecurrenceRule, computeNextOccurrence, isValidTimezone } =
+                        await import('@lucky/shared/utils');
+                      if (typeof buildRecurrenceRule !== 'function' ||
+                          typeof computeNextOccurrence !== 'function' ||
+                          typeof isValidTimezone !== 'function') {
+                        throw new Error('recurrence utilities missing or malformed');
+                      }
+                      console.log('✓ ESM module load OK — recurrence utilities loaded');
+                      process.exit(0);
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : String(error);
+                      console.error('✗ ESM module load failed:', message);
+                      process.exit(1);
+                    }
+                  "
+
             # Phase A of the image-scan rollout (ADR 2026-05-16). Runs against
             # the freshly-pushed image — audit-only, exit-code 0, never blocks
             # CI. Findings land in the Code Scanning tab via SARIF upload, one
