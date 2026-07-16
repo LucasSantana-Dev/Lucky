@@ -254,13 +254,18 @@ model GuildSettings {
 /// access (per-user + support-agent-role overwrites); this row tracks lifecycle
 /// so the sweep scheduler can auto-close expired tickets and enforce one open
 /// ticket per requestor.
+enum SupportSessionStatus {
+  open
+  closed
+}
+
 model SupportSession {
   id          String   @id @default(cuid())
   guildId     String
   guild       Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   channelId   String   @unique
   requestorId String
-  status      String   @default("open") // open | closed
+  status      SupportSessionStatus @default(open)
   expiresAt   DateTime
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1312,6 +1317,13 @@ model Reminder {
   delivered        Boolean  @default(false)
   deliveryAttempts Int      @default(0) // gives up after MAX_DELIVERY_ATTEMPTS
   createdAt        DateTime @default(now())
+
+  // Broadcast reminders (#1767). targetType 'channel' posts to channelId;
+  // 'role' also pings roleId. Broadcasts are fire-once (no retry backoff):
+  // deliveryFailed records a delivery failure for operator visibility.
+  targetType     String  @default("user") // user | channel | role
+  roleId         String? // role to ping when targetType = 'role'
+  deliveryFailed Boolean @default(false)
 
   @@index([delivered, remindAt])
   @@index([userId, remindAt])

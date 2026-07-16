@@ -1,4 +1,11 @@
-import { describe, test, expect, jest, beforeEach, afterEach } from '@jest/globals'
+import {
+    describe,
+    test,
+    expect,
+    jest,
+    beforeEach,
+    afterEach,
+} from '@jest/globals'
 
 const mockPrisma = {
     reminder: {
@@ -53,9 +60,38 @@ describe('ReminderService', () => {
                     channelId: 'channel-1',
                     message: 'Test reminder',
                     remindAt,
+                    // Defaults to a personal reminder when no options passed.
+                    targetType: 'user',
+                    roleId: null,
                 },
             })
             expect(result.id).toBe('reminder-1')
+        })
+
+        test('creates a role broadcast reminder from options', async () => {
+            const remindAt = new Date('2026-07-03T10:00:00Z')
+            mockPrisma.reminder.create.mockResolvedValue({ id: 'reminder-2' })
+
+            await service.create(
+                'guild-1',
+                'user-1',
+                'channel-1',
+                'Standup!',
+                remindAt,
+                { targetType: 'role', roleId: 'role-9' },
+            )
+
+            expect(mockPrisma.reminder.create).toHaveBeenCalledWith({
+                data: {
+                    guildId: 'guild-1',
+                    userId: 'user-1',
+                    channelId: 'channel-1',
+                    message: 'Standup!',
+                    remindAt,
+                    targetType: 'role',
+                    roleId: 'role-9',
+                },
+            })
         })
     })
 
@@ -206,6 +242,19 @@ describe('ReminderService', () => {
             expect(mockPrisma.reminder.update).toHaveBeenCalledWith({
                 where: { id: 'reminder-1' },
                 data: { delivered: true },
+            })
+        })
+    })
+
+    describe('markDeliveryFailed', () => {
+        test('flags a failed broadcast and marks it delivered (fire-once)', async () => {
+            ;(mockPrisma.reminder.update as any).mockResolvedValue({})
+
+            await service.markDeliveryFailed('reminder-1')
+
+            expect(mockPrisma.reminder.update).toHaveBeenCalledWith({
+                where: { id: 'reminder-1' },
+                data: { deliveryFailed: true, delivered: true },
             })
         })
     })
