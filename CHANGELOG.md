@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.35.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.1...v2.35.2) (2026-07-16)
+
+
+### Bug Fixes
+
+* **db:** drop/recreate partial index around support_sessions enum cast ([#1838](https://github.com/LucasSantana-Dev/Lucky/issues/1838)) ([4b35da0](https://github.com/LucasSantana-Dev/Lucky/commit/4b35da048ecfc45a095b559bdabdb125cb08dac5))
+
 ## [2.35.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.0...v2.35.1) (2026-07-16)
 
 
