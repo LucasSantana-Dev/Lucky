@@ -1,12 +1,12 @@
 import { z } from 'zod'
-import type { Client, Guild } from 'discord.js'
+import type { Client } from 'discord.js'
 import { discordOAuthService, type DiscordGuild } from './DiscordOAuthService'
 import {
     setClient as setDiscordClient,
     getClient as getDiscordClient,
     getServableGuild,
 } from '../utils/discordClientAccessor'
-import { metricsService, type GuildMetrics } from './MetricsCache'
+import { metricsService } from './MetricsCache'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
