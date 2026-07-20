@@ -47,6 +47,7 @@ permissions:
 jobs:
   claude-review:
     uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@bf372e78b4d3ce9a4d25362b5c75c661039c48ba # v1
+    continue-on-error: true  # Temporary: upstream action crashes, see #1836
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
