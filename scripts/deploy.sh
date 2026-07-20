@@ -82,15 +82,33 @@ resolve_http_probe_script() {
     echo "$DEPLOY_DIR/scripts/http-probe.sh"
 }
 
+# POST a JSON body to a URL. Uses busybox wget, NOT curl: this script runs
+# inside the webhook container (minimal Alpine), which ships wget but not curl —
+# curl calls here failed with "command not found", so a failed deploy could not
+# report its homelab-deploy commit status and surfaced as a SHA-mismatch timeout
+# instead of its real cause (#1837). Best-effort: never fail the deploy on a
+# reporting error. $3 is an optional GitHub token for the status API.
+post_json() {
+    local url="$1" body="$2" token="${3:-}"
+    if [[ -n "$token" ]]; then
+        wget -q -O /dev/null \
+            --header "Authorization: token $token" \
+            --header "Content-Type: application/json" \
+            --post-data "$body" "$url" || true
+    else
+        wget -q -O /dev/null \
+            --header "Content-Type: application/json" \
+            --post-data "$body" "$url" || true
+    fi
+}
+
 notify() {
     local color="$1" title="$2" desc="$3"
     [[ -z "$DISCORD_WEBHOOK" ]] && return
     local commit_msg commit_sha
     commit_sha=$(git -C "$DEPLOY_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
     commit_msg=$(git -C "$DEPLOY_DIR" log -1 --format='%s' 2>/dev/null || echo "unknown")
-    curl -s -o /dev/null -X POST "$DISCORD_WEBHOOK" \
-        -H "Content-Type: application/json" \
-        -d "{
+    post_json "$DISCORD_WEBHOOK" "{
             \"embeds\": [{
                 \"title\": \"$title\",
                 \"description\": \"$desc\",
@@ -104,7 +122,7 @@ notify() {
                 ],
                 \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
             }]
-        }" || true
+        }"
 }
 
 print_targeted_logs() {
@@ -355,12 +373,10 @@ acquire_lock() {
 post_deploy_status() {
     [[ -z "$GITHUB_DEPLOY_STATUS_TOKEN" ]] && return 0
     [[ -z "$DEPLOYED_SHA" ]] && return 0
-    curl -s -o /dev/null \
-        -X POST \
-        -H "Authorization: token $GITHUB_DEPLOY_STATUS_TOKEN" \
-        -H "Content-Type: application/json" \
+    post_json \
         "https://api.github.com/repos/${GITHUB_REPO}/statuses/${DEPLOYED_SHA}" \
-        -d "{\"state\":\"${1}\",\"description\":\"${2}\",\"context\":\"homelab-deploy\"}" || true
+        "{\"state\":\"${1}\",\"description\":\"${2}\",\"context\":\"homelab-deploy\"}" \
+        "$GITHUB_DEPLOY_STATUS_TOKEN"
 }
 
 # Runs all post-rollout health checks. Returns 0 if healthy, 1 on the first hard
@@ -515,12 +531,10 @@ fi
 if ! acquire_lock; then
     log "ERROR: LOCK_CONTENTION (another deploy is already running)"
     if [[ -n "$GITHUB_DEPLOY_STATUS_TOKEN" && -n "$incoming_sha" ]]; then
-        curl -s -o /dev/null \
-            -X POST \
-            -H "Authorization: token $GITHUB_DEPLOY_STATUS_TOKEN" \
-            -H "Content-Type: application/json" \
+        post_json \
             "https://api.github.com/repos/${GITHUB_REPO}/statuses/${incoming_sha}" \
-            -d '{"state":"error","description":"Deploy skipped — another deploy in progress","context":"homelab-deploy"}' || true
+            '{"state":"error","description":"Deploy skipped — another deploy in progress","context":"homelab-deploy"}' \
+            "$GITHUB_DEPLOY_STATUS_TOKEN"
         log "INFO: posted error status for ${incoming_sha}"
     fi
     notify 16711680 "Deploy Skipped" "Another deploy is already in progress"

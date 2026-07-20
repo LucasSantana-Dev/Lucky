@@ -21,7 +21,7 @@
   <a href="https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml"><img src="https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
   <a href="https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge"><img src="https://img.shields.io/badge/Invite-Lucky%20Bot-5865F2?logo=discord&logoColor=white" alt="Invite Lucky" /></a>
   <a href="https://top.gg/bot/962198089161134131"><img src="https://img.shields.io/badge/top.gg-Lucky-FF3366?logo=topdotgg&logoColor=white" alt="Lucky on top.gg" /></a>
-  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22.x-green.svg" alt="Node.js 22" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24.x-green.svg" alt="Node.js 24" /></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-blue.svg" alt="TypeScript 5.9" /></a>
   <a href="https://discord.js.org/"><img src="https://img.shields.io/badge/Discord.js-14-purple.svg" alt="Discord.js 14" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-ISC-yellow.svg" alt="ISC License" /></a>
@@ -105,7 +105,7 @@ Lucky solves this:
 | Layer | Technology |
 |-------|------------|
 | **Bot** | Discord.js 14, Discord Player 7, TypeScript 5.9 |
-| **Backend** | Express 5, REST API, Node.js 22 |
+| **Backend** | Express 5, REST API, Node.js 24 |
 | **Frontend** | React 19, Vite, Tailwind 4, shadcn/ui |
 | **Database** | PostgreSQL, Prisma ORM |
 | **Cache** | Redis |
@@ -119,7 +119,7 @@ Lucky solves this:
 
 ### Prerequisites
 
-- **Node.js 22+** (or Docker)
+- **Node.js 24+** (or Docker)
 - **PostgreSQL** and **Redis**
 - **FFmpeg** (for audio processing)
 - **Discord Bot Token** ([create one](https://discord.com/developers/applications))

@@ -63,6 +63,8 @@ describe('ReminderService', () => {
                     // Defaults to a personal reminder when no options passed.
                     targetType: 'user',
                     roleId: null,
+                    recurrenceRule: null,
+                    timezone: null,
                 },
             })
             expect(result.id).toBe('reminder-1')
@@ -90,6 +92,8 @@ describe('ReminderService', () => {
                     remindAt,
                     targetType: 'role',
                     roleId: 'role-9',
+                    recurrenceRule: null,
+                    timezone: null,
                 },
             })
         })
@@ -255,6 +259,20 @@ describe('ReminderService', () => {
             expect(mockPrisma.reminder.update).toHaveBeenCalledWith({
                 where: { id: 'reminder-1' },
                 data: { deliveryFailed: true, delivered: true },
+            })
+        })
+    })
+
+    describe('rescheduleRecurring', () => {
+        test('moves remindAt to the next occurrence and resets the attempt counter', async () => {
+            ;(mockPrisma.reminder.update as any).mockResolvedValue({})
+            const next = new Date('2026-07-04T23:00:00Z')
+
+            await service.rescheduleRecurring('reminder-1', next)
+
+            expect(mockPrisma.reminder.update).toHaveBeenCalledWith({
+                where: { id: 'reminder-1' },
+                data: { remindAt: next, deliveryAttempts: 0 },
             })
         })
     })

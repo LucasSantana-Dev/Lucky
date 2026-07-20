@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.36.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.36.0...v2.36.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* **reminders:** loader-agnostic rrule import (unbreak 2.36.0 deploy) ([#1850](https://github.com/LucasSantana-Dev/Lucky/issues/1850)) ([247b532](https://github.com/LucasSantana-Dev/Lucky/commit/247b532f922a4375f1e3dbf62146f65d7a773c87))
+
+## [2.36.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.3...v2.36.0) (2026-07-16)
+
+
+### Features
+
+* **reminders:** recurring reminders (RRULE + timezone) ([#1842](https://github.com/LucasSantana-Dev/Lucky/issues/1842)) ([d36c88c](https://github.com/LucasSantana-Dev/Lucky/commit/d36c88c8be9a03faf42952d598f0f0029fdbc1f7))
+
+
+### Bug Fixes
+
+* **ci:** harden migration-gate Postgres readiness ([#1846](https://github.com/LucasSantana-Dev/Lucky/issues/1846)) ([#1847](https://github.com/LucasSantana-Dev/Lucky/issues/1847)) ([cb1ced9](https://github.com/LucasSantana-Dev/Lucky/commit/cb1ced9be95d934018b0cc23a80016e1c32b113c))
+* **deploy:** use wget not curl for status/notify POSTs ([#1837](https://github.com/LucasSantana-Dev/Lucky/issues/1837)) ([#1844](https://github.com/LucasSantana-Dev/Lucky/issues/1844)) ([e459a41](https://github.com/LucasSantana-Dev/Lucky/commit/e459a4149a573fdefeeeefe771a6851f53b92c1f))
+
+## [2.35.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.2...v2.35.3) (2026-07-16)
+
+
+### Bug Fixes
+
+* **db:** make support_sessions enum migration idempotent + re-runnable ([#1840](https://github.com/LucasSantana-Dev/Lucky/issues/1840)) ([fe20b19](https://github.com/LucasSantana-Dev/Lucky/commit/fe20b19163faa34f54317fef7d14f1043a13cb26))
+
+## [2.35.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.1...v2.35.2) (2026-07-16)
+
+
+### Bug Fixes
+
+* **db:** drop/recreate partial index around support_sessions enum cast ([#1838](https://github.com/LucasSantana-Dev/Lucky/issues/1838)) ([4b35da0](https://github.com/LucasSantana-Dev/Lucky/commit/4b35da048ecfc45a095b559bdabdb125cb08dac5))
+
+## [2.35.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.0...v2.35.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* **deploy:** reconcile auth-config smoke check with production redaction ([#1831](https://github.com/LucasSantana-Dev/Lucky/issues/1831)) ([866e16b](https://github.com/LucasSantana-Dev/Lucky/commit/866e16b3b749f03cf62bb533cc68b0c6453c8d8b))
+* **docker:** add direct_url to staging and dev compose for prisma migrations ([#1830](https://github.com/LucasSantana-Dev/Lucky/issues/1830)) ([aa1eefb](https://github.com/LucasSantana-Dev/Lucky/commit/aa1eefb76b42acfd0c41d65ae91debb48b184f22))
+* **frontend:** correct site license text apache 2.0 to isc ([#1826](https://github.com/LucasSantana-Dev/Lucky/issues/1826)) ([bdf63fe](https://github.com/LucasSantana-Dev/Lucky/commit/bdf63fe26420cc52923ac2325af139cc16920980))
+
+
+### Performance Improvements
+
+* **docker:** compile @discordjs/opus once, reuse in prod stage ([#1816](https://github.com/LucasSantana-Dev/Lucky/issues/1816)) ([9e80f12](https://github.com/LucasSantana-Dev/Lucky/commit/9e80f12a1c31cf76283b6e26a14d9e35c5b32893))
+
 ## [2.35.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.34.0...v2.35.0) (2026-07-13)
 
 

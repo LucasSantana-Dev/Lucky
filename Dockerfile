@@ -115,11 +115,16 @@ COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
 COPY packages/frontend/package*.json ./packages/frontend/
 
-RUN --mount=type=cache,id=npm-deps-production-v4-${NPM_CACHE_KEY},target=/root/.npm,sharing=locked \
-    YOUTUBE_DL_SKIP_DOWNLOAD=1 \
-    YOUTUBE_DL_SKIP_PYTHON_CHECK=1 \
-    npm ci --legacy-peer-deps --omit=dev --no-audit --no-fund && \
-    (npm cache verify 2>/dev/null || true)
+# Reuse already-compiled node_modules from build stage (avoids double @discordjs/opus
+# compilation). Copy root + workspace node_modules, then prune devDeps in-place while
+# preserving the pre-built .node binary.
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=build /app/packages/bot/node_modules ./packages/bot/node_modules
+COPY --from=build /app/packages/backend/node_modules ./packages/backend/node_modules
+COPY --from=build /app/packages/frontend/node_modules ./packages/frontend/node_modules
+
+RUN npm prune --omit=dev --legacy-peer-deps
 
 # Production stage — bot (full runtime with ffmpeg/opus/yt-dlp)
 FROM base-runtime AS production-bot

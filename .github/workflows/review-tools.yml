@@ -46,9 +46,9 @@ permissions:
 
 jobs:
   claude-review:
-    uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@0e4a491c9ae4cae6859972da1813c6a581a1a082 # v1
+    uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@bf372e78b4d3ce9a4d25362b5c75c661039c48ba # v1
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
   danger:
-    uses: LucasSantana-Dev/.github/.github/workflows/danger.yml@0e4a491c9ae4cae6859972da1813c6a581a1a082 # v1
+    uses: LucasSantana-Dev/.github/.github/workflows/danger.yml@bf372e78b4d3ce9a4d25362b5c75c661039c48ba # v1

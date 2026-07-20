@@ -255,13 +255,18 @@ model GuildSettings {
 /// access (per-user + support-agent-role overwrites); this row tracks lifecycle
 /// so the sweep scheduler can auto-close expired tickets and enforce one open
 /// ticket per requestor.
+enum SupportSessionStatus {
+  open
+  closed
+}
+
 model SupportSession {
   id          String   @id @default(cuid())
   guildId     String
   guild       Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
   channelId   String   @unique
   requestorId String
-  status      String   @default("open") // open | closed
+  status      SupportSessionStatus @default(open)
   expiresAt   DateTime
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1339,6 +1344,16 @@ model Reminder {
   targetType     String  @default("user") // user | channel | role
   roleId         String? // role to ping when targetType = 'role'
   deliveryFailed Boolean @default(false)
+
+  // Recurring reminders (#1837 feature). recurrenceRule is an RFC-5545 RRULE
+  // string (e.g. FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=20;BYMINUTE=0); NULL =
+  // one-time (unchanged behaviour). On each successful fire the scheduler
+  // computes the next occurrence in `timezone` and pushes `remindAt` forward
+  // instead of marking delivered, so `remindAt` is always the NEXT fire time.
+  // timezone is an IANA zone; NULL falls back to the community default at
+  // compute time so "8PM" resolves deterministically across DST.
+  recurrenceRule String?
+  timezone       String?
 
   @@index([delivered, remindAt])
   @@index([userId, remindAt])

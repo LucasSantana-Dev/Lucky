@@ -26,7 +26,7 @@ jest.mock('../../../utils/general/interactionReply.js', () => ({
     interactionReply,
 }))
 
-import remindCommand, { parseDuration } from './remind.js'
+import remindCommand, { parseDuration, parseTimeOfDay } from './remind.js'
 
 function makeInteraction(
     subcommand: string,
@@ -111,6 +111,31 @@ describe('parseDuration', () => {
     test('accepts exactly 30 days', () => {
         const thirtyDays = 30 * 24 * 60 * 60 * 1000
         expect(parseDuration('30d')).toBe(thirtyDays)
+    })
+})
+
+describe('parseTimeOfDay', () => {
+    test('24-hour', () => {
+        expect(parseTimeOfDay('20:00')).toEqual({ hour: 20, minute: 0 })
+        expect(parseTimeOfDay('8:30')).toEqual({ hour: 8, minute: 30 })
+        expect(parseTimeOfDay('00:00')).toEqual({ hour: 0, minute: 0 })
+        expect(parseTimeOfDay('23:59')).toEqual({ hour: 23, minute: 59 })
+    })
+
+    test('12-hour with am/pm', () => {
+        expect(parseTimeOfDay('8PM')).toEqual({ hour: 20, minute: 0 })
+        expect(parseTimeOfDay('8:30 pm')).toEqual({ hour: 20, minute: 30 })
+        expect(parseTimeOfDay('12am')).toEqual({ hour: 0, minute: 0 })
+        expect(parseTimeOfDay('12pm')).toEqual({ hour: 12, minute: 0 })
+        expect(parseTimeOfDay('7pm')).toEqual({ hour: 19, minute: 0 })
+    })
+
+    test('rejects invalid', () => {
+        expect(parseTimeOfDay('25:00')).toBeNull()
+        expect(parseTimeOfDay('8:99')).toBeNull()
+        expect(parseTimeOfDay('13pm')).toBeNull()
+        expect(parseTimeOfDay('8')).toBeNull()
+        expect(parseTimeOfDay('')).toBeNull()
     })
 })
 

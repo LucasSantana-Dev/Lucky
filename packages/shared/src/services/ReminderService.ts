@@ -17,6 +17,8 @@ export type ReminderRecord = {
     targetType: string
     roleId: string | null
     deliveryFailed: boolean
+    recurrenceRule: string | null
+    timezone: string | null
 }
 
 // Give up after ~1h of 5-minute backoff so an undeliverable reminder
@@ -36,7 +38,12 @@ export class ReminderService {
         channelId: string,
         message: string,
         remindAt: Date,
-        options?: { targetType?: ReminderTarget; roleId?: string | null },
+        options?: {
+            targetType?: ReminderTarget
+            roleId?: string | null
+            recurrenceRule?: string | null
+            timezone?: string | null
+        },
     ): Promise<ReminderRecord> {
         return await prisma.reminder.create({
             data: {
@@ -47,6 +54,8 @@ export class ReminderService {
                 remindAt,
                 targetType: options?.targetType ?? 'user',
                 roleId: options?.roleId ?? null,
+                recurrenceRule: options?.recurrenceRule ?? null,
+                timezone: options?.timezone ?? null,
             },
         })
     }
@@ -153,6 +162,21 @@ export class ReminderService {
         await prisma.reminder.update({
             where: { id: reminderId },
             data: { delivered: true },
+        })
+    }
+
+    /**
+     * Re-arm a recurring reminder for its next occurrence: push `remindAt`
+     * forward and reset the delivery-attempt counter for the fresh cycle,
+     * leaving `delivered` false so the scheduler fires it again when due.
+     */
+    async rescheduleRecurring(
+        reminderId: string,
+        nextRemindAt: Date,
+    ): Promise<void> {
+        await prisma.reminder.update({
+            where: { id: reminderId },
+            data: { remindAt: nextRemindAt, deliveryAttempts: 0 },
         })
     }
 }
