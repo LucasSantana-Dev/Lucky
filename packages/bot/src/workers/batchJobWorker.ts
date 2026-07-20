@@ -204,9 +204,21 @@ export async function startBatchJobWorker(): Promise<void> {
             await import('../functions/moderation/batch/bulkKickExecutor')
         registerExecutor(new BulkKickExecutor())
 
+        const { BulkBanExecutor } =
+            await import('../functions/moderation/batch/bulkBanExecutor')
+        registerExecutor(new BulkBanExecutor())
+
         const { BulkWarnExecutor } =
             await import('../functions/moderation/batch/bulkWarnExecutor')
         registerExecutor(new BulkWarnExecutor())
+
+        const { BulkAddRoleExecutor } =
+            await import('../functions/moderation/batch/bulkAddRoleExecutor')
+        registerExecutor(new BulkAddRoleExecutor())
+
+        const { BulkRemoveRoleExecutor } =
+            await import('../functions/moderation/batch/bulkRemoveRoleExecutor')
+        registerExecutor(new BulkRemoveRoleExecutor())
     } catch (error) {
         errorLog({ message: 'Failed to register batch executors', error })
         // Clean up the bullmq redis connection on executor registration failure
