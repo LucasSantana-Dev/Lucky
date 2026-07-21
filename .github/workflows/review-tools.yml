@@ -50,5 +50,11 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
+  kimi-review:
+    # Pinned to branch until the reusable lands on .github release; re-pin to sha/tag after merge.
+    uses: LucasSantana-Dev/.github/.github/workflows/kimi-review.yml@feat/kimi-review
+    secrets:
+      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+
   danger:
     uses: LucasSantana-Dev/.github/.github/workflows/danger.yml@bf372e78b4d3ce9a4d25362b5c75c661039c48ba # v1
