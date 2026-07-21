@@ -14,6 +14,7 @@ import {
     createSuccessEmbed,
 } from '../../../utils/general/embeds'
 import { channelCleanupService, starboardService } from '@lucky/shared/services'
+import { errorLog, captureException } from '@lucky/shared/utils'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import type { CommandExecuteParams } from '../../../types/CommandData'
@@ -84,7 +85,17 @@ export default new Command({
             } else if (subcommand === 'list') {
                 await handleList(interaction, guildId)
             }
-        } catch {
+        } catch (error) {
+            errorLog({
+                message: 'Error executing cleanup command:',
+                error,
+            })
+            captureException(
+                error instanceof Error ? error : new Error(String(error)),
+                {
+                    context: 'cleanup.execute',
+                },
+            )
             await interactionReply({
                 interaction,
                 content: {
@@ -198,7 +209,17 @@ async function handleSetInterval(
                 ],
             },
         })
-    } catch {
+    } catch (error) {
+        errorLog({
+            message: 'cleanup: failed to save configuration:',
+            error,
+        })
+        captureException(
+            error instanceof Error ? error : new Error(String(error)),
+            {
+                context: 'cleanup.handleSetInterval',
+            },
+        )
         await interactionReply({
             interaction,
             content: {
@@ -260,7 +281,17 @@ async function handleDisable(
                 ],
             },
         })
-    } catch {
+    } catch (error) {
+        errorLog({
+            message: 'cleanup: failed to disable cleanup:',
+            error,
+        })
+        captureException(
+            error instanceof Error ? error : new Error(String(error)),
+            {
+                context: 'cleanup.handleDisable',
+            },
+        )
         await interactionReply({
             interaction,
             content: {
@@ -328,7 +359,17 @@ async function handleList(
             interaction,
             content: { embeds: [embed] },
         })
-    } catch {
+    } catch (error) {
+        errorLog({
+            message: 'cleanup: failed to retrieve configurations:',
+            error,
+        })
+        captureException(
+            error instanceof Error ? error : new Error(String(error)),
+            {
+                context: 'cleanup.handleList',
+            },
+        )
         await interactionReply({
             interaction,
             content: {
