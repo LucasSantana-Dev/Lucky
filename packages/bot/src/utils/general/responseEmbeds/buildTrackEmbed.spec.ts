@@ -67,6 +67,16 @@ describe('buildTrackEmbed', () => {
         expect(progress?.inline).toBe(false)
     })
 
+    it('adds a Why this track field when recommendationReason is set', () => {
+        const embed = buildTrackEmbed(
+            { ...baseTrack, recommendationReason: 'similar vibes' },
+            'playing',
+            fakeUser,
+        )
+        const why = embed.data.fields?.find((f) => f.name === 'Why this track')
+        expect(why?.value).toBe('similar vibes')
+    })
+
     it('omits the Progress field when no/null progress bar', () => {
         const noOpts = buildTrackEmbed(baseTrack, 'playing', fakeUser)
         const nullBar = buildTrackEmbed(baseTrack, 'playing', fakeUser, {
@@ -141,6 +151,14 @@ describe('trackToData', () => {
         expect(data.thumbnail).toBe(fakeTrack.thumbnail)
         expect(data.source).toBe('youtube')
         expect(data.duration).toBe('3:35')
+    })
+
+    it('forwards recommendationReason from track metadata', () => {
+        const data = trackToData({
+            ...fakeTrack,
+            metadata: { recommendationReason: 'same artist' },
+        } as never)
+        expect(data.recommendationReason).toBe('same artist')
     })
 
     it.each([

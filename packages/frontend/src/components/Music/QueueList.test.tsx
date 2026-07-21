@@ -78,6 +78,21 @@ describe('QueueList', () => {
         expect(screen.getByText('(3 tracks)')).toBeInTheDocument()
     })
 
+    test('shows recommendationReason when present on a track', () => {
+        const tracks = makeTracks(1)
+        tracks[0].recommendationReason = 'similar vibes'
+        render(
+            <QueueList
+                tracks={tracks}
+                onRemove={onRemove}
+                onMove={onMove}
+                onClear={onClear}
+            />,
+        )
+
+        expect(screen.getByText('similar vibes')).toBeInTheDocument()
+    })
+
     test('shows singular track count for 1 track', () => {
         render(
             <QueueList

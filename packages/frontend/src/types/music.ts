@@ -8,6 +8,8 @@ export interface TrackInfo {
     durationFormatted: string
     requestedBy?: string
     source: 'youtube' | 'spotify' | 'soundcloud' | 'unknown'
+    /** Why autoplay picked this track, when present. */
+    recommendationReason?: string
 }
 
 export interface QueueState {

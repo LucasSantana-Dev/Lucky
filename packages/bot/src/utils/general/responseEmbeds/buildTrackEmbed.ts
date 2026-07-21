@@ -14,6 +14,8 @@ export type TrackData = {
     thumbnail?: string
     duration?: string
     source?: string | null
+    /** Why autoplay picked this track, when present. */
+    recommendationReason?: string
 }
 
 const KIND_LABELS: Record<TrackEmbedKind, string> = {
@@ -66,6 +68,14 @@ export function buildTrackEmbed(
     }
     fields.push({ name: 'Source', value: badge.label, inline: true })
 
+    if (track.recommendationReason) {
+        fields.push({
+            name: 'Why this track',
+            value: track.recommendationReason,
+            inline: false,
+        })
+    }
+
     if (options?.progressBar) {
         fields.push({
             name: 'Progress',
@@ -90,6 +100,9 @@ export function buildCommandTrackEmbed(
 }
 
 export function trackToData(track: Track): TrackData {
+    const meta = (track.metadata ?? {}) as {
+        recommendationReason?: string
+    }
     return {
         title: track.title,
         author: track.author,
@@ -99,5 +112,8 @@ export function trackToData(track: Track): TrackData {
             ? formatDurationClock(Math.floor(track.durationMS / 1000))
             : undefined,
         source: trackSource(track) ?? null,
+        ...(meta.recommendationReason
+            ? { recommendationReason: meta.recommendationReason }
+            : {}),
     }
 }
