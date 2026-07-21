@@ -52,7 +52,7 @@ jobs:
 
   kimi-review:
     # Pinned to branch until the reusable lands on .github release; re-pin to sha/tag after merge.
-    uses: LucasSantana-Dev/.github/.github/workflows/kimi-review.yml@feat/kimi-review
+    uses: LucasSantana-Dev/.github/.github/workflows/kimi-review.yml@623a99b5c494fc3f8f2c196b852aab04dab74da2
     secrets:
       KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
 
