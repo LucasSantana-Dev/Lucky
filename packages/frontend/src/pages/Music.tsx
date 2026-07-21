@@ -12,6 +12,7 @@ import {
     Repeat,
     Repeat1,
     Volume2,
+    Loader2,
 } from 'lucide-react'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { useMusicPlayer } from '@/hooks/useMusicPlayer'
@@ -27,13 +28,16 @@ export default function MusicPage() {
     const { selectedGuild } = useGuildSelection()
     const guildId = selectedGuild?.id
     const player = useMusicPlayer(guildId)
+    const controlsEnabled = player.isConnected && !player.isLoading
 
     const handlePlayPause = useCallback(() => {
+        if (!player.isConnected || player.isLoading) return
         if (player.state.isPlaying) player.pause()
         else player.resume()
     }, [player])
 
     const handleRepeatCycle = useCallback(() => {
+        if (!player.isConnected || player.isLoading) return
         const modes: Array<'off' | 'track' | 'queue' | 'autoplay'> = [
             'off',
             'track',
@@ -92,22 +96,40 @@ export default function MusicPage() {
 
             <NowPlayingHero
                 state={player.state}
+                controlsEnabled={controlsEnabled}
+                pendingAction={player.pendingAction}
                 onPlayPause={handlePlayPause}
-                onPrevious={() => player.previous()}
-                onSkip={() => player.skip()}
-                onShuffle={() => player.shuffle()}
+                onPrevious={() => {
+                    if (controlsEnabled) player.previous()
+                }}
+                onSkip={() => {
+                    if (controlsEnabled) player.skip()
+                }}
+                onShuffle={() => {
+                    if (controlsEnabled) player.shuffle()
+                }}
                 onRepeatCycle={handleRepeatCycle}
-                onVolumeChange={(v) => player.setVolume(v)}
+                onVolumeChange={(v) => {
+                    if (controlsEnabled) player.setVolume(v)
+                }}
             />
 
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6'>
                 <SearchBar
+                    disabled={!controlsEnabled}
                     onPlay={async (q) => {
+                        if (!controlsEnabled) {
+                            throw new Error('Player is not connected')
+                        }
                         await player.play(q)
                     }}
                 />
                 <ImportPlaylist
+                    disabled={!controlsEnabled}
                     onImport={async (url) => {
+                        if (!controlsEnabled) {
+                            throw new Error('Player is not connected')
+                        }
                         await player.importPlaylist(url)
                     }}
                 />
@@ -121,18 +143,35 @@ export default function MusicPage() {
                 </h2>
                 <QueueList
                     tracks={player.state.tracks}
-                    onRemove={(i) => player.removeTrack(i)}
-                    onMove={(from, to) => player.moveTrack(from, to)}
-                    onClear={() => player.clearQueue()}
+                    disabled={!controlsEnabled}
+                    onRemove={(i) => {
+                        if (!controlsEnabled) return
+                        player.removeTrack(i)
+                    }}
+                    onMove={(from, to) => {
+                        if (!controlsEnabled) return
+                        player.moveTrack(from, to)
+                    }}
+                    onClear={() => {
+                        if (!controlsEnabled) return
+                        player.clearQueue()
+                    }}
                 />
             </div>
 
             {player.error && (
                 <div
-                    className='type-body-sm text-lucky-error bg-lucky-error/10 border border-lucky-error/20 rounded-lg p-3'
+                    className='type-body-sm text-lucky-error bg-lucky-error/10 border border-lucky-error/20 rounded-lg p-3 flex items-start justify-between gap-3'
                     role='alert'
                 >
-                    {player.error}
+                    <span>{player.error}</span>
+                    <button
+                        type='button'
+                        onClick={() => player.clearError()}
+                        className='shrink-0 type-meta text-lucky-error/80 hover:text-lucky-error underline'
+                    >
+                        dismiss
+                    </button>
                 </div>
             )}
         </div>
@@ -141,6 +180,8 @@ export default function MusicPage() {
 
 function NowPlayingHero({
     state,
+    controlsEnabled,
+    pendingAction,
     onPlayPause,
     onPrevious,
     onSkip,
@@ -149,6 +190,8 @@ function NowPlayingHero({
     onVolumeChange,
 }: {
     state: QueueState
+    controlsEnabled: boolean
+    pendingAction: string | null
     onPlayPause: () => void
     onPrevious: () => void
     onSkip: () => void
@@ -158,6 +201,7 @@ function NowPlayingHero({
 }) {
     const { t } = useTranslation()
     const currentTrack = state.tracks[0]
+    const busy = Boolean(pendingAction)
 
     if (!currentTrack) {
         return (
@@ -244,52 +288,101 @@ function NowPlayingHero({
                             onChange={(e) =>
                                 onVolumeChange(parseInt(e.target.value, 10))
                             }
-                            className='flex-1 h-1 bg-lucky-bg-active rounded-full appearance-none cursor-pointer'
+                            disabled={!controlsEnabled}
+                            className='flex-1 h-1 bg-lucky-bg-active rounded-full appearance-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
                             aria-label={t('music.volume')}
                         />
                     </div>
 
-                    <div className='flex justify-center gap-2'>
+                    <div
+                        className='flex justify-center gap-2'
+                        role='toolbar'
+                        aria-label={t('music.musicPlayer')}
+                        aria-disabled={!controlsEnabled}
+                    >
                         <ControlButton
-                            icon={<Shuffle className='h-4 w-4' />}
+                            icon={
+                                busy && pendingAction === 'shuffle' ? (
+                                    <Loader2 className='h-4 w-4 animate-spin' />
+                                ) : (
+                                    <Shuffle className='h-4 w-4' />
+                                )
+                            }
                             onClick={onShuffle}
                             active={state.shuffled}
+                            disabled={!controlsEnabled}
                             aria-label={t('music.shuffle')}
                         />
                         <ControlButton
-                            icon={<SkipBack className='h-5 w-5' />}
+                            icon={
+                                busy && pendingAction === 'previous' ? (
+                                    <Loader2 className='h-5 w-5 animate-spin' />
+                                ) : (
+                                    <SkipBack className='h-5 w-5' />
+                                )
+                            }
                             onClick={onPrevious}
+                            disabled={!controlsEnabled}
                             aria-label={t('music.previousTrack')}
                         />
                         <button
                             onClick={onPlayPause}
-                            className='h-12 w-12 rounded-full bg-lucky-brand text-lucky-bg-primary flex items-center justify-center hover:bg-lucky-brand-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-panel'
+                            disabled={!controlsEnabled}
+                            className='h-12 w-12 rounded-full bg-lucky-brand text-lucky-bg-primary flex items-center justify-center hover:bg-lucky-brand-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-panel disabled:opacity-40 disabled:cursor-not-allowed'
                             aria-label={
                                 state.isPlaying
                                     ? t('music.pause')
                                     : t('music.play')
                             }
+                            aria-busy={
+                                pendingAction === 'pause' ||
+                                pendingAction === 'resume'
+                            }
                         >
-                            {state.isPlaying ? (
+                            {pendingAction === 'pause' ||
+                            pendingAction === 'resume' ? (
+                                <Loader2 className='h-5 w-5 animate-spin' />
+                            ) : state.isPlaying ? (
                                 <Pause className='h-5 w-5' />
                             ) : (
                                 <Play className='h-5 w-5' />
                             )}
                         </button>
                         <ControlButton
-                            icon={<SkipForward className='h-5 w-5' />}
+                            icon={
+                                busy && pendingAction === 'skip' ? (
+                                    <Loader2 className='h-5 w-5 animate-spin' />
+                                ) : (
+                                    <SkipForward className='h-5 w-5' />
+                                )
+                            }
                             onClick={onSkip}
+                            disabled={!controlsEnabled}
                             aria-label={t('music.nextTrack')}
                         />
                         <ControlButton
-                            icon={getRepeatIcon(state.repeatMode)}
+                            icon={
+                                busy && pendingAction === 'repeat' ? (
+                                    <Loader2 className='h-4 w-4 animate-spin' />
+                                ) : (
+                                    getRepeatIcon(state.repeatMode)
+                                )
+                            }
                             onClick={onRepeatCycle}
                             active={state.repeatMode !== 'off'}
+                            disabled={!controlsEnabled}
                             aria-label={t('music.repeatMode', {
                                 mode: state.repeatMode,
                             })}
                         />
                     </div>
+                    {!controlsEnabled && (
+                        <p className='type-meta text-center text-lucky-text-tertiary'>
+                            {busy
+                                ? t('music.commandInProgress')
+                                : t('music.notConnectedToVoiceChannel')}
+                        </p>
+                    )}
                 </div>
             </div>
         </div>
@@ -300,16 +393,19 @@ function ControlButton({
     icon,
     onClick,
     active = false,
+    disabled = false,
     ...props
 }: {
     icon: React.ReactNode
     onClick: () => void
     active?: boolean
+    disabled?: boolean
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
     return (
         <button
             onClick={onClick}
-            className={`h-10 w-10 rounded-lg flex items-center justify-center transition-colors ${
+            disabled={disabled}
+            className={`h-10 w-10 rounded-lg flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                 active
                     ? 'bg-lucky-brand text-lucky-bg-primary'
                     : 'bg-lucky-bg-active text-lucky-text-secondary hover:bg-lucky-bg-active hover:text-lucky-text-primary'

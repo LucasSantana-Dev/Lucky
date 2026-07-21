@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 
 interface ImportPlaylistProps {
     onImport: (url: string) => Promise<void>
+    disabled?: boolean
 }
 
 const SOURCES = [
@@ -21,12 +22,15 @@ const SOURCES = [
     },
 ]
 
-export default memo(function ImportPlaylist({ onImport }: ImportPlaylistProps) {
+export default memo(function ImportPlaylist({
+    onImport,
+    disabled = false,
+}: ImportPlaylistProps) {
     const [url, setUrl] = useState('')
     const [isImporting, setIsImporting] = useState(false)
 
     const handleImport = useCallback(async () => {
-        if (!url.trim()) return
+        if (!url.trim() || disabled) return
         setIsImporting(true)
         try {
             await onImport(url.trim())
@@ -37,7 +41,7 @@ export default memo(function ImportPlaylist({ onImport }: ImportPlaylistProps) {
         } finally {
             setIsImporting(false)
         }
-    }, [url, onImport])
+    }, [url, onImport, disabled])
 
     return (
         <Card className='p-4 sm:p-6'>
@@ -73,7 +77,7 @@ export default memo(function ImportPlaylist({ onImport }: ImportPlaylistProps) {
                 />
                 <Button
                     type='submit'
-                    disabled={!url.trim() || isImporting}
+                    disabled={disabled || !url.trim() || isImporting}
                     loading={isImporting}
                     className='h-10 sm:h-9 px-4 shrink-0'
                 >

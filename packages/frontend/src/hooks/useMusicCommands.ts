@@ -5,6 +5,7 @@ import type { QueueState } from '@/types'
 type SendCommand = (
     action: () => Promise<unknown>,
     optimistic?: Partial<QueueState>,
+    actionKey?: string,
 ) => Promise<void> | undefined
 
 export function useMusicCommands(
@@ -15,8 +16,10 @@ export function useMusicCommands(
     const play = useCallback(
         (query: string, voiceChannelId?: string) => {
             if (!guildId) return
-            return sendCommand(() =>
-                api.music.play(guildId, query, voiceChannelId),
+            return sendCommand(
+                () => api.music.play(guildId, query, voiceChannelId),
+                undefined,
+                'play',
             )
         },
         [guildId, sendCommand],
@@ -24,61 +27,89 @@ export function useMusicCommands(
 
     const pause = useCallback(() => {
         if (!guildId) return
-        return sendCommand(() => api.music.pause(guildId), {
-            isPlaying: false,
-            isPaused: true,
-        })
+        return sendCommand(
+            () => api.music.pause(guildId),
+            {
+                isPlaying: false,
+                isPaused: true,
+            },
+            'pause',
+        )
     }, [guildId, sendCommand])
 
     const resume = useCallback(() => {
         if (!guildId) return
-        return sendCommand(() => api.music.resume(guildId), {
-            isPlaying: true,
-            isPaused: false,
-        })
+        return sendCommand(
+            () => api.music.resume(guildId),
+            {
+                isPlaying: true,
+                isPaused: false,
+            },
+            'resume',
+        )
     }, [guildId, sendCommand])
 
     const skip = useCallback(() => {
         if (!guildId) return
-        return sendCommand(() => api.music.skip(guildId))
+        return sendCommand(() => api.music.skip(guildId), undefined, 'skip')
     }, [guildId, sendCommand])
 
     const previous = useCallback(() => {
         if (!guildId) return
-        return sendCommand(() => api.music.previous(guildId))
+        return sendCommand(
+            () => api.music.previous(guildId),
+            undefined,
+            'previous',
+        )
     }, [guildId, sendCommand])
 
     const stop = useCallback(() => {
         if (!guildId) return
-        return sendCommand(() => api.music.stop(guildId), {
-            isPlaying: false,
-            isPaused: false,
-            currentTrack: null,
-            tracks: [],
-        })
+        return sendCommand(
+            () => api.music.stop(guildId),
+            {
+                isPlaying: false,
+                isPaused: false,
+                currentTrack: null,
+                tracks: [],
+            },
+            'stop',
+        )
     }, [guildId, sendCommand])
 
     const setVolume = useCallback(
         (volume: number) => {
             if (!guildId) return
-            return sendCommand(() => api.music.volume(guildId, volume), {
-                volume,
-            })
+            return sendCommand(
+                () => api.music.volume(guildId, volume),
+                {
+                    volume,
+                },
+                'volume',
+            )
         },
         [guildId, sendCommand],
     )
 
     const shuffle = useCallback(() => {
         if (!guildId) return
-        return sendCommand(() => api.music.shuffle(guildId))
+        return sendCommand(
+            () => api.music.shuffle(guildId),
+            undefined,
+            'shuffle',
+        )
     }, [guildId, sendCommand])
 
     const setRepeatMode = useCallback(
         (mode: 'off' | 'track' | 'queue' | 'autoplay') => {
             if (!guildId) return
-            return sendCommand(() => api.music.repeat(guildId, mode), {
-                repeatMode: mode,
-            })
+            return sendCommand(
+                () => api.music.repeat(guildId, mode),
+                {
+                    repeatMode: mode,
+                },
+                'repeat',
+            )
         },
         [guildId, sendCommand],
     )
@@ -86,9 +117,13 @@ export function useMusicCommands(
     const seek = useCallback(
         (position: number) => {
             if (!guildId) return
-            return sendCommand(() => api.music.seek(guildId, position), {
-                position,
-            })
+            return sendCommand(
+                () => api.music.seek(guildId, position),
+                {
+                    position,
+                },
+                'seek',
+            )
         },
         [guildId, sendCommand],
     )
@@ -96,9 +131,13 @@ export function useMusicCommands(
     const removeTrack = useCallback(
         (index: number) => {
             if (!guildId) return
-            return sendCommand(() => api.music.removeTrack(guildId, index), {
-                tracks: tracks.filter((_, i) => i !== index),
-            })
+            return sendCommand(
+                () => api.music.removeTrack(guildId, index),
+                {
+                    tracks: tracks.filter((_, i) => i !== index),
+                },
+                'remove',
+            )
         },
         [guildId, sendCommand, tracks],
     )
@@ -106,21 +145,31 @@ export function useMusicCommands(
     const moveTrack = useCallback(
         (from: number, to: number) => {
             if (!guildId) return
-            return sendCommand(() => api.music.moveTrack(guildId, from, to))
+            return sendCommand(
+                () => api.music.moveTrack(guildId, from, to),
+                undefined,
+                'move',
+            )
         },
         [guildId, sendCommand],
     )
 
     const clearQueue = useCallback(() => {
         if (!guildId) return
-        return sendCommand(() => api.music.clearQueue(guildId), { tracks: [] })
+        return sendCommand(
+            () => api.music.clearQueue(guildId),
+            { tracks: [] },
+            'clear',
+        )
     }, [guildId, sendCommand])
 
     const importPlaylist = useCallback(
         (url: string, voiceChannelId?: string) => {
             if (!guildId) return
-            return sendCommand(() =>
-                api.music.importPlaylist(guildId, url, voiceChannelId),
+            return sendCommand(
+                () => api.music.importPlaylist(guildId, url, voiceChannelId),
+                undefined,
+                'import',
             )
         },
         [guildId, sendCommand],

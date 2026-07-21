@@ -68,6 +68,30 @@ describe('PlaybackControls', () => {
         expect(screen.getByLabelText('Pause')).toBeInTheDocument()
     })
 
+    test('disables all controls when disconnected', () => {
+        const props = {
+            isPlaying: true,
+            isPaused: false,
+            hasTrack: true,
+            repeatMode: 'off' as const,
+            isConnected: false,
+            onPlayPause: vi.fn(),
+            onSkip: vi.fn(),
+            onStop: vi.fn(),
+            onShuffle: vi.fn(),
+            onRepeatCycle: vi.fn(),
+        }
+
+        render(<PlaybackControls {...props} />)
+
+        expect(screen.getByLabelText('Pause')).toBeDisabled()
+        expect(screen.getByLabelText('Previous')).toBeDisabled()
+        expect(screen.getByLabelText('Skip')).toBeDisabled()
+        expect(screen.getByLabelText('Stop')).toBeDisabled()
+        expect(screen.getByLabelText('Shuffle')).toBeDisabled()
+        expect(screen.getByLabelText('Repeat mode: off')).toBeDisabled()
+    })
+
     test('disables playback buttons when no track and not paused', () => {
         const props = {
             isPlaying: false,

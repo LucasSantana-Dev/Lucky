@@ -24,6 +24,7 @@ const BASE_RECONNECT_DELAY = 1_000
 export function useMusicPlayer(guildId: string | undefined) {
     const [state, setState] = useState<QueueState>(EMPTY_STATE)
     const [isLoading, setIsLoading] = useState(false)
+    const [pendingAction, setPendingAction] = useState<string | null>(null)
     const [isConnected, setIsConnected] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const sseRef = useRef<EventSource | null>(null)
@@ -31,6 +32,12 @@ export function useMusicPlayer(guildId: string | undefined) {
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
+        // Drop guild-scoped UI state so an error/pending from guild A never
+        // sticks around after switching to guild B (or deselecting).
+        setError(null)
+        setPendingAction(null)
+        setIsLoading(false)
+
         if (!guildId) {
             setState(EMPTY_STATE)
             setIsConnected(false)
@@ -98,9 +105,11 @@ export function useMusicPlayer(guildId: string | undefined) {
         async (
             action: () => Promise<unknown>,
             optimistic?: Partial<QueueState>,
+            actionKey?: string,
         ) => {
             if (!guildId) return
             setIsLoading(true)
+            if (actionKey) setPendingAction(actionKey)
             setError(null)
 
             if (optimistic) {
@@ -116,9 +125,12 @@ export function useMusicPlayer(guildId: string | undefined) {
                         .then((res) => setState(res.data))
                         .catch(() => {})
                 }
-                setError(err instanceof Error ? err.message : 'Command failed')
+                const base =
+                    err instanceof Error ? err.message : 'Command failed'
+                setError(actionKey ? `${actionKey}: ${base}` : base)
             } finally {
                 setIsLoading(false)
+                setPendingAction(null)
             }
         },
         [guildId],
@@ -129,8 +141,10 @@ export function useMusicPlayer(guildId: string | undefined) {
     return {
         state,
         isLoading,
+        pendingAction,
         isConnected,
         error,
+        clearError: () => setError(null),
         ...commands,
     }
 }
