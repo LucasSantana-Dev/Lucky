@@ -31,6 +31,10 @@ x-common-app-env: &common-app-env
     SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-}
     SENTRY_PROFILES_SAMPLE_RATE: ${SENTRY_PROFILES_SAMPLE_RATE:-}
     DATABASE_URL: postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
+    # The Prisma CLI (migrate deploy on startup) reads DIRECT_URL, not
+    # DATABASE_URL. Without this override it falls back to the .env value,
+    # which points at localhost and is unreachable from inside the container.
+    DIRECT_URL: postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
     REDIS_HOST: redis
     REDIS_PORT: 6379
     REDIS_DB: ${REDIS_DB:-0}
