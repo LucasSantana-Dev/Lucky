@@ -43,6 +43,19 @@ export interface GuildSettings {
     updatedAt: Date
 }
 
+/**
+ * Partial write for {@link GuildSettingsService.setGuildSettings}.
+ * `undefined` omits the column; `null` clears a nullable string column in Postgres.
+ */
+export type GuildSettingsPatch = Omit<
+    Partial<GuildSettings>,
+    'djRoleId' | 'supportCategoryId' | 'supportAgentRoleId'
+> & {
+    djRoleId?: string | null
+    supportCategoryId?: string | null
+    supportAgentRoleId?: string | null
+}
+
 /** Autoplay recommendation counter tracking for a guild. */
 export interface AutoplayCounter {
     guildId: string
@@ -148,13 +161,12 @@ export class GuildSettingsService {
     /**
      * Translates the public settings shape into Prisma column data, omitting
      * undefined keys (so a partial update only touches the fields provided, and
-     * never clobbers birthday columns this service doesn't own).
+     * never clobbers birthday columns this service doesn't own). Explicit `null`
+     * is kept so nullable columns (DJ role, ticket category/role) can be cleared.
      */
-    private toPrismaData(
-        settings: Partial<GuildSettings>,
-    ): Record<string, unknown> {
+    private toPrismaData(settings: GuildSettingsPatch): Record<string, unknown> {
         const data: Record<string, unknown> = {}
-        const copy = <K extends keyof GuildSettings>(k: K) => {
+        const copy = (k: keyof GuildSettingsPatch) => {
             if (settings[k] !== undefined) data[k as string] = settings[k]
         }
         copy('defaultVolume')
@@ -198,7 +210,7 @@ export class GuildSettingsService {
     /** Upserts guild settings (create with defaults+patch, or update in place). */
     async setGuildSettings(
         guildId: string,
-        settings: Partial<GuildSettings>,
+        settings: GuildSettingsPatch,
     ): Promise<boolean> {
         try {
             const prisma = getPrismaClient()
@@ -223,7 +235,7 @@ export class GuildSettingsService {
      */
     async updateGuildSettings(
         guildId: string,
-        updates: Partial<GuildSettings>,
+        updates: GuildSettingsPatch,
     ): Promise<boolean> {
         return this.setGuildSettings(guildId, updates)
     }

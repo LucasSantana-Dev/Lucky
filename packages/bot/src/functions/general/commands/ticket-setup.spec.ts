@@ -2,8 +2,12 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 const requireGuildMock = jest.fn()
 const interactionReplyMock = jest.fn()
-const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
-const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
+const createSuccessEmbedMock = jest.fn(
+    (title: string, desc?: string) => ({ title, description: desc }),
+)
+const createErrorEmbedMock = jest.fn(
+    (title: string, desc?: string) => ({ title, description: desc }),
+)
 const createEmbedMock = jest.fn((opts: Record<string, unknown>) => opts)
 const setGuildSettingsMock = jest.fn()
 const getGuildSettingsMock = jest.fn()
@@ -29,7 +33,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-import djroleCommand from './djrole'
+import ticketSetupCommand from './ticket-setup'
 
 function createInteraction(sub: string, overrides: Record<string, unknown> = {}) {
     return {
@@ -38,13 +42,14 @@ function createInteraction(sub: string, overrides: Record<string, unknown> = {})
         deferReply: jest.fn().mockResolvedValue(undefined),
         options: {
             getSubcommand: jest.fn().mockReturnValue(sub),
-            getRole: jest.fn().mockReturnValue({ id: 'role-1', name: 'DJ' }),
+            getChannel: jest.fn().mockReturnValue({ id: 'cat-1', name: 'Support' }),
+            getRole: jest.fn().mockReturnValue({ id: 'role-1', name: 'Agent' }),
         },
         ...overrides,
     } as any
 }
 
-describe('djrole command', () => {
+describe('ticket-setup command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         requireGuildMock.mockResolvedValue(true)
@@ -53,65 +58,90 @@ describe('djrole command', () => {
     })
 
     it('has correct name and category', () => {
-        expect(djroleCommand.data.name).toBe('djrole')
-        expect(djroleCommand.category).toBe('music')
+        expect(ticketSetupCommand.data.name).toBe('ticket-setup')
+        expect(ticketSetupCommand.category).toBe('general')
     })
 
     it('returns early when requireGuild fails', async () => {
         requireGuildMock.mockResolvedValue(false)
         const interaction = createInteraction('set')
-        await djroleCommand.execute({ client: {}, interaction } as any)
+        await ticketSetupCommand.execute({ client: {}, interaction } as any)
         expect(interaction.deferReply).not.toHaveBeenCalled()
     })
 
     describe('set subcommand', () => {
-        it('saves djRoleId and replies with success embed', async () => {
+        it('saves category and role and replies with success', async () => {
             const interaction = createInteraction('set')
-            await djroleCommand.execute({ client: {}, interaction } as any)
-            expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', { djRoleId: 'role-1' })
-            expect(createSuccessEmbedMock).toHaveBeenCalledWith('🎧 DJ Role Set', expect.stringContaining('role-1'))
+            await ticketSetupCommand.execute({ client: {}, interaction } as any)
+            expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+                supportCategoryId: 'cat-1',
+                supportAgentRoleId: 'role-1',
+            })
+            expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+                'Ticket Setup',
+                expect.stringContaining('cat-1'),
+            )
         })
 
         it('replies with error when persist fails', async () => {
             setGuildSettingsMock.mockResolvedValue(false)
             const interaction = createInteraction('set')
-            await djroleCommand.execute({ client: {}, interaction } as any)
-            expect(createErrorEmbedMock).toHaveBeenCalledWith('Error', expect.any(String))
+            await ticketSetupCommand.execute({ client: {}, interaction } as any)
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Error',
+                expect.any(String),
+            )
         })
     })
 
     describe('clear subcommand', () => {
-        it('clears djRoleId and replies with success embed', async () => {
+        it('clears category and role with explicit null (not undefined omit)', async () => {
             const interaction = createInteraction('clear')
-            await djroleCommand.execute({ client: {}, interaction } as any)
-            expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', { djRoleId: null })
-            expect(createSuccessEmbedMock).toHaveBeenCalledWith('🎧 DJ Role Cleared', expect.any(String))
+            await ticketSetupCommand.execute({ client: {}, interaction } as any)
+            expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+                supportCategoryId: null,
+                supportAgentRoleId: null,
+            })
+            expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+                'Ticket Setup Cleared',
+                expect.any(String),
+            )
         })
 
         it('replies with error when persist fails', async () => {
             setGuildSettingsMock.mockResolvedValue(false)
             const interaction = createInteraction('clear')
-            await djroleCommand.execute({ client: {}, interaction } as any)
-            expect(createErrorEmbedMock).toHaveBeenCalledWith('Error', expect.any(String))
+            await ticketSetupCommand.execute({ client: {}, interaction } as any)
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Error',
+                expect.any(String),
+            )
         })
     })
 
     describe('show subcommand', () => {
-        it('shows configured DJ role when set', async () => {
-            getGuildSettingsMock.mockResolvedValue({ djRoleId: 'role-99' })
+        it('shows configured category and role', async () => {
+            getGuildSettingsMock.mockResolvedValue({
+                supportCategoryId: 'cat-9',
+                supportAgentRoleId: 'role-9',
+            })
             const interaction = createInteraction('show')
-            await djroleCommand.execute({ client: {}, interaction } as any)
+            await ticketSetupCommand.execute({ client: {}, interaction } as any)
             expect(createEmbedMock).toHaveBeenCalledWith(
-                expect.objectContaining({ description: expect.stringContaining('role-99') }),
+                expect.objectContaining({
+                    description: expect.stringContaining('cat-9'),
+                }),
             )
         })
 
-        it('shows "no DJ role" when not configured', async () => {
+        it('shows not-configured message when unset', async () => {
             getGuildSettingsMock.mockResolvedValue(null)
             const interaction = createInteraction('show')
-            await djroleCommand.execute({ client: {}, interaction } as any)
+            await ticketSetupCommand.execute({ client: {}, interaction } as any)
             expect(createEmbedMock).toHaveBeenCalledWith(
-                expect.objectContaining({ description: expect.stringContaining('open to everyone') }),
+                expect.objectContaining({
+                    description: expect.stringContaining('not configured'),
+                }),
             )
         })
     })

@@ -33,7 +33,7 @@ async function handleOpen(
             interaction,
             content: {
                 content:
-                    '❌ Tickets are not configured. An admin must set the support category and support-agent role first.',
+                    '❌ Tickets are not configured. An admin must run `/ticket-setup set` first.',
             },
         })
         return

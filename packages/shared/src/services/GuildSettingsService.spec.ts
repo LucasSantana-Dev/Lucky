@@ -331,6 +331,29 @@ describe('GuildSettingsService — settings CRUD + counter methods', () => {
             sUpsert.mockRejectedValue(new Error('db'))
             expect(await service.setGuildSettings(GUILD, {})).toBe(false)
         })
+
+        it('writes null for nullable columns so clearers can disable features', async () => {
+            sUpsert.mockResolvedValue({})
+            await service.setGuildSettings(GUILD, {
+                supportCategoryId: null,
+                supportAgentRoleId: null,
+                djRoleId: null,
+            })
+            expect(sUpsert).toHaveBeenCalledWith({
+                where: { guildId: GUILD },
+                create: {
+                    guildId: GUILD,
+                    supportCategoryId: null,
+                    supportAgentRoleId: null,
+                    djRoleId: null,
+                },
+                update: {
+                    supportCategoryId: null,
+                    supportAgentRoleId: null,
+                    djRoleId: null,
+                },
+            })
+        })
     })
 
     describe('deleteGuildSettings', () => {
