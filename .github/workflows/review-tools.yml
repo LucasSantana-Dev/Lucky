@@ -31,12 +31,13 @@ concurrency:
   group: review-tools-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-# Minimum permissions for both reusable workflows. An explicit block sets
+# Minimum permissions for all three reusable workflows. An explicit block sets
 # every unlisted scope to `none`, and a called reusable workflow cannot
 # request scopes the caller withheld — so the caller must grant the UNION of
 # what the reusables declare, or the run fails at startup (see #1423):
 #   - claude-review.yml needs contents:read, pull-requests:write,
 #     issues:write, and id-token:write (OIDC)
+#   - kimi-review.yml needs contents:read, pull-requests:write, issues:write
 #   - danger.yml needs contents:read, pull-requests:write, issues:write
 permissions:
   contents: read
