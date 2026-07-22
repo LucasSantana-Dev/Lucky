@@ -15,6 +15,7 @@ describe('PlaybackControls', () => {
             hasTrack: true,
             repeatMode: 'off' as const,
             onPlayPause: vi.fn(),
+            onPrevious: vi.fn(),
             onSkip: vi.fn(),
             onStop: vi.fn(),
             onShuffle: vi.fn(),
@@ -38,6 +39,7 @@ describe('PlaybackControls', () => {
             hasTrack: true,
             repeatMode: 'off' as const,
             onPlayPause,
+            onPrevious: vi.fn(),
             onSkip: vi.fn(),
             onStop: vi.fn(),
             onShuffle: vi.fn(),
@@ -50,6 +52,29 @@ describe('PlaybackControls', () => {
         expect(onPlayPause).toHaveBeenCalledOnce()
     })
 
+    test('calls onPrevious when previous button is clicked', async () => {
+        const onPrevious = vi.fn()
+        const onSkip = vi.fn()
+        const props = {
+            isPlaying: true,
+            isPaused: false,
+            hasTrack: true,
+            repeatMode: 'off' as const,
+            onPlayPause: vi.fn(),
+            onPrevious,
+            onSkip,
+            onStop: vi.fn(),
+            onShuffle: vi.fn(),
+            onRepeatCycle: vi.fn(),
+        }
+
+        render(<PlaybackControls {...props} />)
+
+        await userEvent.click(screen.getByLabelText('Previous'))
+        expect(onPrevious).toHaveBeenCalledOnce()
+        expect(onSkip).not.toHaveBeenCalled()
+    })
+
     test('shows pause button when playing', () => {
         const props = {
             isPlaying: true,
@@ -57,6 +82,7 @@ describe('PlaybackControls', () => {
             hasTrack: true,
             repeatMode: 'off' as const,
             onPlayPause: vi.fn(),
+            onPrevious: vi.fn(),
             onSkip: vi.fn(),
             onStop: vi.fn(),
             onShuffle: vi.fn(),
@@ -68,6 +94,91 @@ describe('PlaybackControls', () => {
         expect(screen.getByLabelText('Pause')).toBeInTheDocument()
     })
 
+    test('disables all controls when disconnected', () => {
+        const props = {
+            isPlaying: true,
+            isPaused: false,
+            hasTrack: true,
+            repeatMode: 'off' as const,
+            isConnected: false,
+            onPlayPause: vi.fn(),
+            onPrevious: vi.fn(),
+            onSkip: vi.fn(),
+            onStop: vi.fn(),
+            onShuffle: vi.fn(),
+            onRepeatCycle: vi.fn(),
+        }
+
+        render(<PlaybackControls {...props} />)
+
+        expect(screen.getByLabelText('Pause')).toBeDisabled()
+        expect(screen.getByLabelText('Previous')).toBeDisabled()
+        expect(screen.getByLabelText('Skip')).toBeDisabled()
+        expect(screen.getByLabelText('Stop')).toBeDisabled()
+        expect(screen.getByLabelText('Shuffle')).toBeDisabled()
+        expect(screen.getByLabelText('Repeat mode: off')).toBeDisabled()
+    })
+
+    test('disables all controls while an action is pending', () => {
+        const props = {
+            isPlaying: true,
+            isPaused: false,
+            hasTrack: true,
+            repeatMode: 'off' as const,
+            pendingAction: 'stop',
+            onPlayPause: vi.fn(),
+            onPrevious: vi.fn(),
+            onSkip: vi.fn(),
+            onStop: vi.fn(),
+            onShuffle: vi.fn(),
+            onRepeatCycle: vi.fn(),
+        }
+
+        render(<PlaybackControls {...props} />)
+
+        for (const button of screen.getAllByRole('button')) {
+            expect(button).toBeDisabled()
+        }
+    })
+
+    test.each([
+        ['shuffle', 'Shuffle', true],
+        ['previous', 'Previous', true],
+        ['pause', 'Pause', true],
+        ['resume', 'Play', false],
+        ['skip', 'Skip', true],
+        ['stop', 'Stop', true],
+        ['repeat', 'Repeat mode: off', true],
+    ] as const)(
+        'shows the busy icon on the %s control',
+        (pendingAction, label, isPlaying) => {
+            const props = {
+                isPlaying,
+                isPaused: false,
+                hasTrack: true,
+                repeatMode: 'off' as const,
+                pendingAction,
+                onPlayPause: vi.fn(),
+                onPrevious: vi.fn(),
+                onSkip: vi.fn(),
+                onStop: vi.fn(),
+                onShuffle: vi.fn(),
+                onRepeatCycle: vi.fn(),
+            }
+
+            render(<PlaybackControls {...props} />)
+
+            const matchingControl = screen.getByLabelText(label)
+            expect(matchingControl).toHaveAttribute('aria-busy', 'true')
+            expect(
+                matchingControl.querySelector('.animate-spin'),
+            ).not.toBeNull()
+            expect(
+                screen.getByRole('toolbar').querySelectorAll('.animate-spin'),
+            ).toHaveLength(1)
+        },
+    )
+
     test('disables playback buttons when no track and not paused', () => {
         const props = {
             isPlaying: false,
@@ -75,6 +186,7 @@ describe('PlaybackControls', () => {
             hasTrack: false,
             repeatMode: 'off' as const,
             onPlayPause: vi.fn(),
+            onPrevious: vi.fn(),
             onSkip: vi.fn(),
             onStop: vi.fn(),
             onShuffle: vi.fn(),
@@ -95,6 +207,7 @@ describe('PlaybackControls', () => {
             hasTrack: true,
             repeatMode: 'track' as const,
             onPlayPause: vi.fn(),
+            onPrevious: vi.fn(),
             onSkip: vi.fn(),
             onStop: vi.fn(),
             onShuffle: vi.fn(),

@@ -7,14 +7,18 @@ import { toast } from 'sonner'
 
 interface SearchBarProps {
     onPlay: (query: string) => Promise<void>
+    disabled?: boolean
 }
 
-export default memo(function SearchBar({ onPlay }: SearchBarProps) {
+export default memo(function SearchBar({
+    onPlay,
+    disabled = false,
+}: SearchBarProps) {
     const [query, setQuery] = useState('')
     const [isSearching, setIsSearching] = useState(false)
 
     const handlePlay = useCallback(async () => {
-        if (!query.trim()) return
+        if (!query.trim() || disabled) return
         setIsSearching(true)
         try {
             await onPlay(query.trim())
@@ -25,7 +29,7 @@ export default memo(function SearchBar({ onPlay }: SearchBarProps) {
         } finally {
             setIsSearching(false)
         }
-    }, [query, onPlay])
+    }, [query, onPlay, disabled])
 
     return (
         <Card className='p-4 sm:p-6'>
@@ -61,7 +65,7 @@ export default memo(function SearchBar({ onPlay }: SearchBarProps) {
                 />
                 <Button
                     type='submit'
-                    disabled={!query.trim() || isSearching}
+                    disabled={disabled || !query.trim() || isSearching}
                     loading={isSearching}
                     className='h-10 sm:h-9 px-4 shrink-0'
                 >
