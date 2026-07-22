@@ -16,11 +16,16 @@ interface RawTrack {
     durationMS: number
     requestedBy?: { username?: string } | null
     source?: string
+    metadata?: {
+        isAutoplay?: boolean
+        recommendationReason?: string
+    } | null
 }
 
 const KNOWN_SOURCES = ['youtube', 'spotify', 'soundcloud']
 
 export function mapTrack(track: RawTrack): TrackInfo {
+    const reason = track.metadata?.recommendationReason
     return {
         id: track.id,
         title: track.title,
@@ -33,6 +38,7 @@ export function mapTrack(track: RawTrack): TrackInfo {
         source: (KNOWN_SOURCES.includes(track.source ?? '')
             ? track.source
             : 'unknown') as TrackInfo['source'],
+        ...(reason ? { recommendationReason: reason } : {}),
     }
 }
 

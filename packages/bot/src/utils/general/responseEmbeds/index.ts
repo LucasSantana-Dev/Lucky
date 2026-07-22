@@ -1,6 +1,7 @@
 export {
     buildTrackEmbed,
     buildCommandTrackEmbed,
+    playerTrackToData,
     trackToData,
     type TrackEmbedKind,
     type TrackData,

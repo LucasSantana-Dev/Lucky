@@ -225,6 +225,14 @@ const QueueItem = memo(function QueueItem({
                 <p className='type-meta text-lucky-text-secondary truncate'>
                     {track.author}
                 </p>
+                {track.recommendationReason ? (
+                    <p
+                        className='type-meta text-lucky-text-tertiary truncate'
+                        title={track.recommendationReason}
+                    >
+                        {track.recommendationReason}
+                    </p>
+                ) : null}
             </div>
 
             <span className='type-meta text-lucky-text-secondary tabular-nums shrink-0 hidden sm:block'>
