@@ -1,70 +1,28 @@
 import { z } from 'zod'
-import type { Client, Guild } from 'discord.js'
+import type { Client } from 'discord.js'
 import { discordOAuthService, type DiscordGuild } from './DiscordOAuthService'
+import {
+    setClient as setDiscordClient,
+    getClient as getDiscordClient,
+    getServableGuild,
+} from '../utils/discordClientAccessor'
+import { metricsService } from './MetricsCache'
+import {
+    roleService,
+    type GuildRoleOption,
+    type GuildRoleManage,
+    type RoleUpsertData,
+} from './RoleService'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 
-let botClient: Client | null = null
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
 const BOT_GUILD_CACHE_TTL_MS = 60_000
-const GUILD_METRICS_CACHE_TTL_MS = 30_000
 // Discord permission bitfield literal representing zero permissions granted
 const NO_PERMISSIONS = '0'
-
-interface GuildMetrics {
-    memberCount: number | null
-    categoryCount: number | null
-    textChannelCount: number | null
-    voiceChannelCount: number | null
-    roleCount: number | null
-}
-
-interface DiscordGuildChannel {
-    id?: string
-    name?: string
-    type: number
-    position?: number
-}
-
-interface DiscordGuildRole {
-    id: string
-    name: string
-    color?: number
-    position?: number
-    hoist?: boolean
-    mentionable?: boolean
-    permissions?: string
-    managed?: boolean
-}
 
 export interface GuildMemberContext {
     nickname: string | null
     roleIds: string[]
-}
-
-export interface GuildRoleOption {
-    id: string
-    name: string
-    color: number
-    position: number
-}
-
-export interface GuildRoleManage {
-    id: string
-    name: string
-    color: number
-    hoist: boolean
-    mentionable: boolean
-    permissions: string
-    position: number
-    managed: boolean
-}
-
-export interface RoleUpsertData {
-    name: string
-    color?: number
-    hoist?: boolean
-    mentionable?: boolean
-    permissions?: string
 }
 
 export interface GuildChannelOption {
@@ -78,32 +36,16 @@ export interface GuildEmojiOption {
     animated: boolean
 }
 
-// Zod validation schemas for Discord API responses
-const discordGuildChannelSchema = z.object({
-    id: z.string().optional(),
-    name: z.string().optional(),
-    type: z.number().int(),
-    position: z.number().optional(),
-})
-
-const discordGuildRoleSchema = z.object({
-    id: z.string().min(1),
-    name: z.string(),
-    color: z.number().optional(),
-    position: z.number().optional(),
-    hoist: z.boolean().optional(),
-    mentionable: z.boolean().optional(),
-    permissions: z.string().optional(),
-    managed: z.boolean().optional(),
-})
+// Re-export role interfaces from RoleService for backward compatibility
+export type {
+    GuildRoleOption,
+    GuildRoleManage,
+    RoleUpsertData,
+} from './RoleService'
 
 export function setBotClient(client: Client | null): void {
-    botClient = client
+    setDiscordClient(client)
     guildService.clearBotGuildCache()
-}
-
-function getClient(): Client | null {
-    return botClient
 }
 
 export interface GuildWithBotStatus extends DiscordGuild {
@@ -122,34 +64,16 @@ class GuildService {
         expiresAt: number
     } | null = null
 
-    private guildMetricsCache = new Map<
-        string,
-        { data: GuildMetrics; expiresAt: number }
-    >()
-
     private botGuildIdsInFlight: Promise<Set<string> | null> | null = null
 
     private getBotClient(): Client | null {
-        return getClient()
-    }
-
-    private async getServableGuild(guildId: string): Promise<Guild | null> {
-        const client = this.getBotClient()
-        if (!client) return null
-        try {
-            return (
-                client.guilds.cache.get(guildId) ??
-                (await client.guilds.fetch(guildId))
-            )
-        } catch {
-            return null
-        }
+        return getDiscordClient()
     }
 
     clearBotGuildCache(): void {
         this.botGuildIdsCache = null
         this.botGuildIdsInFlight = null
-        this.guildMetricsCache.clear()
+        metricsService.clearCache()
     }
 
     private getBotToken(): string | null {
@@ -157,7 +81,12 @@ class GuildService {
         return token && token.length > 0 ? token : null
     }
 
-    private validateChannelArray(data: unknown): DiscordGuildChannel[] {
+    private validateChannelArray(data: unknown): Array<{
+        id?: string
+        name?: string
+        type: number
+        position?: number
+    }> {
         if (!Array.isArray(data)) {
             errorLog({
                 message: 'Invalid channels response from Discord API',
@@ -166,9 +95,21 @@ class GuildService {
             return []
         }
 
-        const validated: DiscordGuildChannel[] = []
+        const channelSchema = z.object({
+            id: z.string().optional(),
+            name: z.string().optional(),
+            type: z.number().int(),
+            position: z.number().optional(),
+        })
+
+        const validated: Array<{
+            id?: string
+            name?: string
+            type: number
+            position?: number
+        }> = []
         for (const item of data) {
-            const result = discordGuildChannelSchema.safeParse(item)
+            const result = channelSchema.safeParse(item)
             if (result.success) {
                 validated.push(result.data)
             } else {
@@ -179,42 +120,6 @@ class GuildService {
             }
         }
         return validated
-    }
-
-    private validateRoleArray(data: unknown): DiscordGuildRole[] {
-        if (!Array.isArray(data)) {
-            errorLog({
-                message: 'Invalid roles response from Discord API',
-                data: { expectedArray: true, receivedType: typeof data },
-            })
-            return []
-        }
-
-        const validated: DiscordGuildRole[] = []
-        for (const item of data) {
-            const result = discordGuildRoleSchema.safeParse(item)
-            if (result.success) {
-                validated.push(result.data)
-            } else {
-                debugLog({
-                    message: 'Skipping invalid role in Discord API response',
-                    data: { errors: result.error.issues },
-                })
-            }
-        }
-        return validated
-    }
-
-    private validateSingleRole(data: unknown): DiscordGuildRole | null {
-        const result = discordGuildRoleSchema.safeParse(data)
-        if (!result.success) {
-            errorLog({
-                message: 'Invalid role response from Discord API',
-                data: { errors: result.error.issues },
-            })
-            return null
-        }
-        return result.data
     }
 
     private async fetchBotGuildIds(token: string): Promise<Set<string> | null> {
@@ -303,245 +208,12 @@ class GuildService {
         return this.botGuildIdsInFlight
     }
 
-    private getCachedMetrics(guildId: string): GuildMetrics | null {
-        const cached = this.guildMetricsCache.get(guildId)
-        if (!cached) {
-            return null
-        }
-
-        if (cached.expiresAt <= Date.now()) {
-            this.guildMetricsCache.delete(guildId)
-            return null
-        }
-
-        return cached.data
-    }
-
-    private setCachedMetrics(guildId: string, metrics: GuildMetrics): void {
-        this.guildMetricsCache.set(guildId, {
-            data: metrics,
-            expiresAt: Date.now() + GUILD_METRICS_CACHE_TTL_MS,
-        })
-    }
-
-    private emptyMetrics(): GuildMetrics {
-        return {
-            memberCount: null,
-            categoryCount: null,
-            textChannelCount: null,
-            voiceChannelCount: null,
-            roleCount: null,
-        }
-    }
-
-    private countChannelTypes(
-        channels: DiscordGuildChannel[],
-    ): Pick<
-        GuildMetrics,
-        'categoryCount' | 'textChannelCount' | 'voiceChannelCount'
-    > {
-        let categoryCount = 0
-        let textChannelCount = 0
-        let voiceChannelCount = 0
-
-        for (const channel of channels) {
-            if (channel.type === 4) {
-                categoryCount += 1
-                continue
-            }
-
-            if (channel.type === 2 || channel.type === 13) {
-                voiceChannelCount += 1
-                continue
-            }
-
-            if (
-                channel.type === 0 ||
-                channel.type === 5 ||
-                channel.type === 15 ||
-                channel.type === 16
-            ) {
-                textChannelCount += 1
-            }
-        }
-
-        return {
-            categoryCount,
-            textChannelCount,
-            voiceChannelCount,
-        }
-    }
-
-    private mergeMetrics(
-        primary: GuildMetrics,
-        fallback: GuildMetrics,
-    ): GuildMetrics {
-        return {
-            memberCount: primary.memberCount ?? fallback.memberCount,
-            categoryCount: primary.categoryCount ?? fallback.categoryCount,
-            textChannelCount:
-                primary.textChannelCount ?? fallback.textChannelCount,
-            voiceChannelCount:
-                primary.voiceChannelCount ?? fallback.voiceChannelCount,
-            roleCount: primary.roleCount ?? fallback.roleCount,
-        }
-    }
-
-    private buildMetricsFromClientGuild(guild: Guild): GuildMetrics {
-        const channelsCache = guild.channels?.cache
-        const channels =
-            channelsCache && channelsCache.size > 0
-                ? [...channelsCache.values()].map((channel) => ({
-                      type: channel.type,
-                  }))
-                : []
-        const hasChannelsSnapshot = channels.length > 0
-        const counts = hasChannelsSnapshot
-            ? this.countChannelTypes(channels)
-            : null
-        const roleCache = guild.roles?.cache
-
-        return {
-            memberCount: guild.memberCount || null,
-            categoryCount: counts?.categoryCount ?? null,
-            textChannelCount: counts?.textChannelCount ?? null,
-            voiceChannelCount: counts?.voiceChannelCount ?? null,
-            roleCount: roleCache ? roleCache.size || null : null,
-        }
-    }
-
-    private hasUnknownMetrics(metrics: GuildMetrics): boolean {
-        return (
-            metrics.memberCount === null ||
-            metrics.categoryCount === null ||
-            metrics.textChannelCount === null ||
-            metrics.voiceChannelCount === null ||
-            metrics.roleCount === null
-        )
-    }
-
-    private async resolveClientMetrics(
-        guildId: string,
-    ): Promise<GuildMetrics | null> {
-        const client = this.getBotClient()
-        if (!client) {
-            return null
-        }
-
-        const guild = client.guilds.cache.get(guildId)
-        if (!guild) {
-            return null
-        }
-
-        const metricsFromClient = this.buildMetricsFromClientGuild(guild)
-        if (!this.hasUnknownMetrics(metricsFromClient)) {
-            return metricsFromClient
-        }
-
-        const metricsFromApi = await this.fetchGuildMetricsFromApi(guildId)
-        return this.mergeMetrics(metricsFromClient, metricsFromApi)
-    }
-
-    private async fetchGuildMetricsFromApi(
-        guildId: string,
-    ): Promise<GuildMetrics> {
-        const token = this.getBotToken()
-        if (!token) {
-            return this.emptyMetrics()
-        }
-
-        try {
-            const headers = {
-                Authorization: `Bot ${token}`,
-            }
-
-            const [guildResponse, channelsResponse, rolesResponse] =
-                await Promise.all([
-                    fetch(
-                        `${DISCORD_API_BASE_URL}/guilds/${guildId}?with_counts=true`,
-                        { headers, signal: AbortSignal.timeout(10_000) },
-                    ),
-                    fetch(
-                        `${DISCORD_API_BASE_URL}/guilds/${guildId}/channels`,
-                        {
-                            headers,
-                            signal: AbortSignal.timeout(10_000),
-                        },
-                    ),
-                    fetch(`${DISCORD_API_BASE_URL}/guilds/${guildId}/roles`, {
-                        headers,
-                        signal: AbortSignal.timeout(10_000),
-                    }),
-                ])
-
-            if (!guildResponse.ok) {
-                return this.emptyMetrics()
-            }
-
-            const guildPayload = (await guildResponse.json()) as {
-                approximate_member_count?: number
-                member_count?: number
-            }
-
-            const channelsPayload = channelsResponse.ok
-                ? this.validateChannelArray(await channelsResponse.json())
-                : []
-
-            // Only the array length is used here (not individual role
-            // fields), so a shape check is enough — validateRoleArray's full
-            // per-item schema would silently drop roles missing optional
-            // fields this endpoint never reads, undercounting them.
-            const rawRolesPayload = rolesResponse.ok
-                ? await rolesResponse.json()
-                : []
-            const roleCount = Array.isArray(rawRolesPayload)
-                ? rawRolesPayload.length
-                : null
-
-            const counts = this.countChannelTypes(channelsPayload)
-
-            return {
-                memberCount:
-                    guildPayload.approximate_member_count ??
-                    guildPayload.member_count ??
-                    null,
-                categoryCount: counts.categoryCount,
-                textChannelCount: counts.textChannelCount,
-                voiceChannelCount: counts.voiceChannelCount,
-                roleCount: roleCount || null,
-            }
-        } catch (error) {
-            errorLog({
-                message: 'Error fetching guild metrics from Discord API',
-                error,
-            })
-            return this.emptyMetrics()
-        }
-    }
-
     async hasBotInGuild(guildId: string): Promise<boolean> {
         const botGuildIds = await this.getBotGuildIds()
         return (
             this.checkBotInGuild(guildId) ||
             (botGuildIds?.has(guildId) ?? false)
         )
-    }
-
-    async getGuildMetrics(guildId: string): Promise<GuildMetrics> {
-        const cached = this.getCachedMetrics(guildId)
-        if (cached) {
-            return cached
-        }
-
-        const clientMetrics = await this.resolveClientMetrics(guildId)
-        if (clientMetrics) {
-            this.setCachedMetrics(guildId, clientMetrics)
-            return clientMetrics
-        }
-
-        const metrics = await this.fetchGuildMetricsFromApi(guildId)
-        this.setCachedMetrics(guildId, metrics)
-        return metrics
     }
 
     async getGuildMemberContext(
@@ -611,68 +283,7 @@ class GuildService {
     }
 
     async getGuildRoleOptions(guildId: string): Promise<GuildRoleOption[]> {
-        const client = this.getBotClient()
-
-        if (client) {
-            try {
-                const guild =
-                    client.guilds.cache.get(guildId) ??
-                    (await client.guilds.fetch(guildId))
-                const roles = await guild.roles.fetch()
-                return [...roles.values()]
-                    .filter((role) => role.id !== guild.id)
-                    .map((role) => ({
-                        id: role.id,
-                        name: role.name,
-                        color: role.color ?? 0,
-                        position: role.position ?? 0,
-                    }))
-                    .sort((a, b) => b.position - a.position)
-            } catch (error) {
-                debugLog({
-                    message: 'Failed to fetch guild roles from bot client',
-                    error,
-                })
-            }
-        }
-
-        const token = this.getBotToken()
-        if (!token) {
-            return []
-        }
-
-        try {
-            const response = await fetch(
-                `${DISCORD_API_BASE_URL}/guilds/${guildId}/roles`,
-                {
-                    headers: {
-                        Authorization: `Bot ${token}`,
-                    },
-                    signal: AbortSignal.timeout(10_000),
-                },
-            )
-
-            if (!response.ok) {
-                return []
-            }
-
-            const payload = this.validateRoleArray(await response.json())
-
-            return payload
-                .map((role) => ({
-                    id: role.id,
-                    name: role.name,
-                    color: role.color ?? 0,
-                    position: role.position ?? 0,
-                }))
-                .sort((a, b) => b.position - a.position)
-        } catch (error) {
-            errorLog({
-                message: 'Failed to fetch guild roles',
-                error,
-            })
-            return []
-        }
+        return roleService.getGuildRoleOptions(guildId)
     }
 
     async getGuildTextChannelOptions(
@@ -730,26 +341,51 @@ class GuildService {
 
             const payload = this.validateChannelArray(await response.json())
 
-            return payload
-                .filter(
+            const filteredChannels = payload.filter(
+                (
+                    channel,
+                ): channel is {
+                    id: string
+                    name: string
+                    type: number
+                    position?: number
+                } =>
+                    typeof channel.id === 'string' &&
+                    typeof channel.name === 'string' &&
+                    (channel.type === 0 ||
+                        channel.type === 5 ||
+                        channel.type === 15 ||
+                        channel.type === 16),
+            )
+
+            return filteredChannels
+                .sort(
                     (
-                        channel,
-                    ): channel is typeof channel & {
+                        a: {
+                            id: string
+                            name: string
+                            type: number
+                            position?: number
+                        },
+                        b: {
+                            id: string
+                            name: string
+                            type: number
+                            position?: number
+                        },
+                    ) => (a.position ?? 0) - (b.position ?? 0),
+                )
+                .map(
+                    (channel: {
                         id: string
                         name: string
-                    } =>
-                        typeof channel.id === 'string' &&
-                        typeof channel.name === 'string' &&
-                        (channel.type === 0 ||
-                            channel.type === 5 ||
-                            channel.type === 15 ||
-                            channel.type === 16),
+                        type: number
+                        position?: number
+                    }) => ({
+                        id: channel.id,
+                        name: `#${channel.name}`,
+                    }),
                 )
-                .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-                .map((channel) => ({
-                    id: channel.id,
-                    name: `#${channel.name}`,
-                }))
         } catch (error) {
             errorLog({
                 message: 'Failed to fetch guild channels',
@@ -764,7 +400,7 @@ class GuildService {
 
         if (client) {
             try {
-                const guild = await this.getServableGuild(guildId)
+                const guild = await getServableGuild(guildId)
                 if (guild) {
                     return [...guild.emojis.cache.values()].map((emoji) => ({
                         id: emoji.id,
@@ -898,8 +534,14 @@ class GuildService {
                     ? undefined
                     : this.generateBotInviteUrl(guild.id)
                 const metrics = hasBot
-                    ? await this.getGuildMetrics(guild.id)
-                    : this.emptyMetrics()
+                    ? await metricsService.getGuildMetrics(guild.id)
+                    : {
+                          memberCount: null,
+                          categoryCount: null,
+                          textChannelCount: null,
+                          voiceChannelCount: null,
+                          roleCount: null,
+                      }
 
                 return {
                     ...guild,
@@ -926,7 +568,7 @@ class GuildService {
 
         const hasBot = true
         const botInviteUrl = this.generateBotInviteUrl(guildId)
-        const metrics = await this.getGuildMetrics(guildId)
+        const metrics = await metricsService.getGuildMetrics(guildId)
 
         return {
             id: guild.id,
@@ -961,7 +603,7 @@ class GuildService {
 
         return Promise.all(
             guilds.map(async (guild) => {
-                const metrics = await this.getGuildMetrics(guild.id)
+                const metrics = await metricsService.getGuildMetrics(guild.id)
                 const iconUrl = guild.icon
                     ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
                     : null
@@ -980,296 +622,26 @@ class GuildService {
     }
 
     async getFullGuildRoles(guildId: string): Promise<GuildRoleManage[]> {
-        const client = this.getBotClient()
-
-        if (client) {
-            try {
-                const guild =
-                    client.guilds.cache.get(guildId) ??
-                    (await client.guilds.fetch(guildId))
-                const roles = await guild.roles.fetch()
-                return [...roles.values()]
-                    .filter((role) => role.id !== guild.id)
-                    .map((role) => ({
-                        id: role.id,
-                        name: role.name,
-                        color: role.color ?? 0,
-                        hoist: role.hoist ?? false,
-                        mentionable: role.mentionable ?? false,
-                        permissions: role.permissions.bitfield.toString(),
-                        position: role.position ?? 0,
-                        managed: role.managed ?? false,
-                    }))
-                    .sort((a, b) => b.position - a.position)
-            } catch (error) {
-                debugLog({
-                    message: 'Failed to fetch full guild roles from bot client',
-                    error,
-                })
-            }
-        }
-
-        const token = this.getBotToken()
-        if (!token) {
-            return []
-        }
-
-        try {
-            const response = await fetch(
-                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/roles`,
-                {
-                    headers: {
-                        Authorization: `Bot ${token}`,
-                    },
-                    signal: AbortSignal.timeout(10_000),
-                },
-            )
-
-            if (!response.ok) {
-                return []
-            }
-
-            const payload = this.validateRoleArray(await response.json())
-
-            return payload
-                .filter((role) => role.id !== guildId)
-                .map((role) => ({
-                    id: role.id,
-                    name: role.name,
-                    color: role.color ?? 0,
-                    hoist: role.hoist ?? false,
-                    mentionable: role.mentionable ?? false,
-                    permissions: role.permissions ?? NO_PERMISSIONS,
-                    position: role.position ?? 0,
-                    managed: role.managed ?? false,
-                }))
-                .sort((a, b) => b.position - a.position)
-        } catch (error) {
-            errorLog({
-                message: 'Failed to fetch full guild roles',
-                error,
-            })
-            return []
-        }
+        return roleService.getFullGuildRoles(guildId)
     }
 
-    // eslint-disable-next-line complexity
     async createGuildRole(
         guildId: string,
         data: RoleUpsertData,
     ): Promise<GuildRoleManage> {
-        const guild = await this.getServableGuild(guildId)
-
-        if (guild) {
-            const role = await guild.roles.create({
-                name: data.name,
-                color: data.color,
-                hoist: data.hoist,
-                mentionable: data.mentionable,
-                permissions:
-                    data.permissions !== undefined
-                        ? BigInt(data.permissions)
-                        : undefined,
-                reason: 'Created via dashboard',
-            })
-            return {
-                id: role.id,
-                name: role.name,
-                color: role.color ?? 0,
-                hoist: role.hoist ?? false,
-                mentionable: role.mentionable ?? false,
-                permissions: role.permissions.bitfield.toString(),
-                position: role.position ?? 0,
-                managed: role.managed ?? false,
-            }
-        }
-
-        const token = this.getBotToken()
-        if (!token) {
-            throw new Error('No bot token available')
-        }
-
-        try {
-            const response = await fetch(
-                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/roles`,
-                {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bot ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        name: data.name,
-                        color: data.color,
-                        hoist: data.hoist,
-                        mentionable: data.mentionable,
-                        permissions: data.permissions,
-                    }),
-                    signal: AbortSignal.timeout(10_000),
-                },
-            )
-
-            if (!response.ok) {
-                const error = await response.text()
-                throw new Error(`Discord API error: ${error}`)
-            }
-
-            const payload = this.validateSingleRole(await response.json())
-            if (!payload) {
-                throw new Error(
-                    'Discord API error: Failed to validate role response from Discord API',
-                )
-            }
-            return {
-                id: payload.id,
-                name: payload.name,
-                color: payload.color ?? 0,
-                hoist: payload.hoist ?? false,
-                mentionable: payload.mentionable ?? false,
-                permissions: payload.permissions ?? NO_PERMISSIONS,
-                position: payload.position ?? 0,
-                managed: payload.managed ?? false,
-            }
-        } catch (error) {
-            errorLog({
-                message: 'Failed to create guild role via API',
-                error,
-            })
-            throw error
-        }
+        return roleService.createGuildRole(guildId, data)
     }
 
-    // eslint-disable-next-line complexity
     async updateGuildRole(
         guildId: string,
         roleId: string,
         data: RoleUpsertData,
     ): Promise<GuildRoleManage> {
-        const guild = await this.getServableGuild(guildId)
-
-        if (guild) {
-            const role = await guild.roles.fetch(roleId)
-            if (!role) {
-                throw new Error('Role not found')
-            }
-            const updated = await role.edit({
-                name: data.name,
-                color: data.color,
-                hoist: data.hoist,
-                mentionable: data.mentionable,
-                permissions:
-                    data.permissions !== undefined
-                        ? BigInt(data.permissions)
-                        : undefined,
-                reason: 'Updated via dashboard',
-            })
-            return {
-                id: updated.id,
-                name: updated.name,
-                color: updated.color ?? 0,
-                hoist: updated.hoist ?? false,
-                mentionable: updated.mentionable ?? false,
-                permissions: updated.permissions.bitfield.toString(),
-                position: updated.position ?? 0,
-                managed: updated.managed ?? false,
-            }
-        }
-
-        const token = this.getBotToken()
-        if (!token) {
-            throw new Error('No bot token available')
-        }
-
-        try {
-            const response = await fetch(
-                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/roles/${encodeURIComponent(roleId)}`,
-                {
-                    method: 'PATCH',
-                    headers: {
-                        Authorization: `Bot ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        name: data.name,
-                        color: data.color,
-                        hoist: data.hoist,
-                        mentionable: data.mentionable,
-                        permissions: data.permissions,
-                    }),
-                    signal: AbortSignal.timeout(10_000),
-                },
-            )
-
-            if (!response.ok) {
-                const error = await response.text()
-                throw new Error(`Discord API error: ${error}`)
-            }
-
-            const payload = this.validateSingleRole(await response.json())
-            if (!payload) {
-                throw new Error(
-                    'Discord API error: Failed to validate role response from Discord API',
-                )
-            }
-            return {
-                id: payload.id,
-                name: payload.name,
-                color: payload.color ?? 0,
-                hoist: payload.hoist ?? false,
-                mentionable: payload.mentionable ?? false,
-                permissions: payload.permissions ?? NO_PERMISSIONS,
-                position: payload.position ?? 0,
-                managed: payload.managed ?? false,
-            }
-        } catch (error) {
-            errorLog({
-                message: 'Failed to update guild role via API',
-                error,
-            })
-            throw error
-        }
+        return roleService.updateGuildRole(guildId, roleId, data)
     }
 
     async deleteGuildRole(guildId: string, roleId: string): Promise<void> {
-        const guild = await this.getServableGuild(guildId)
-
-        if (guild) {
-            const role = await guild.roles.fetch(roleId)
-            if (!role) {
-                throw new Error('Role not found')
-            }
-            await role.delete('Deleted via dashboard')
-            return
-        }
-
-        const token = this.getBotToken()
-        if (!token) {
-            throw new Error('No bot token available')
-        }
-
-        try {
-            const response = await fetch(
-                `${DISCORD_API_BASE_URL}/guilds/${encodeURIComponent(guildId)}/roles/${encodeURIComponent(roleId)}`,
-                {
-                    method: 'DELETE',
-                    headers: {
-                        Authorization: `Bot ${token}`,
-                    },
-                    signal: AbortSignal.timeout(10_000),
-                },
-            )
-
-            if (!response.ok) {
-                const error = await response.text()
-                throw new Error(`Discord API error: ${error}`)
-            }
-        } catch (error) {
-            errorLog({
-                message: 'Failed to delete guild role via API',
-                error,
-            })
-            throw error
-        }
+        return roleService.deleteGuildRole(guildId, roleId)
     }
 }
 

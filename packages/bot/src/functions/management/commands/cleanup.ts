@@ -1,0 +1,385 @@
+import {
+    ChannelType,
+    type ChatInputCommandInteraction,
+    MessageFlags,
+    PermissionFlagsBits,
+    SlashCommandBuilder,
+    EmbedBuilder,
+    type GuildChannel,
+} from 'discord.js'
+import Command from '../../../models/Command'
+import { interactionReply } from '../../../utils/general/interactionReply'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
+import { channelCleanupService, starboardService } from '@lucky/shared/services'
+import { errorLog, captureException } from '@lucky/shared/utils'
+import { requireGuild } from '../../../utils/command/commandValidations'
+import { assertDefined } from '@lucky/shared/utils/guards'
+import type { CommandExecuteParams } from '../../../types/CommandData'
+import { COLOR } from '@lucky/shared/constants'
+
+export default new Command({
+    data: new SlashCommandBuilder()
+        .setName('cleanup')
+        .setDescription('Configure automatic channel cleanup (purge)')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+        .addSubcommand((sub) =>
+            sub
+                .setName('set-interval')
+                .setDescription(
+                    'Enable interval-based purge (wipes channel every N minutes)',
+                )
+                .addChannelOption((opt) =>
+                    opt
+                        .setName('channel')
+                        .setDescription('Channel to clean up')
+                        .addChannelTypes(ChannelType.GuildText)
+                        .setRequired(true),
+                )
+                .addIntegerOption((opt) =>
+                    opt
+                        .setName('minutos')
+                        .setDescription('Minutes between purges (minimum 60)')
+                        .setMinValue(60)
+                        .setRequired(true),
+                ),
+        )
+        .addSubcommand((sub) =>
+            sub
+                .setName('disable')
+                .setDescription('Disable cleanup for a channel')
+                .addChannelOption((opt) =>
+                    opt
+                        .setName('channel')
+                        .setDescription('Channel to stop cleaning up')
+                        .addChannelTypes(ChannelType.GuildText)
+                        .setRequired(true),
+                ),
+        )
+        .addSubcommand((sub) =>
+            sub
+                .setName('list')
+                .setDescription(
+                    'List all configured cleanup channels for this guild',
+                ),
+        ),
+    category: 'management',
+    execute: async ({ interaction }: CommandExecuteParams) => {
+        if (!(await requireGuild(interaction))) return
+        const guildId = assertDefined(
+            interaction.guildId,
+            'Guild ID required after requireGuild check',
+        )
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
+        const subcommand = interaction.options.getSubcommand()
+
+        try {
+            if (subcommand === 'set-interval') {
+                await handleSetInterval(interaction, guildId)
+            } else if (subcommand === 'disable') {
+                await handleDisable(interaction, guildId)
+            } else if (subcommand === 'list') {
+                await handleList(interaction, guildId)
+            }
+        } catch (error) {
+            errorLog({
+                message: 'Error executing cleanup command:',
+                error,
+            })
+            captureException(
+                error instanceof Error ? error : new Error(String(error)),
+                {
+                    context: 'cleanup.execute',
+                },
+            )
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createErrorEmbed(
+                            'Error',
+                            'An error occurred while processing your request.',
+                        ),
+                    ],
+                },
+            })
+        }
+    },
+})
+
+/**
+ * Resolve the target channel and run the shared cleanup-config guards (exists,
+ * text-based, bot has ManageMessages, not the starboard). Replies with the
+ * matching error and returns null on any failure; returns the channel on
+ * success.
+ */
+async function resolveValidatedCleanupChannel(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+): Promise<GuildChannel | null> {
+    const channel = interaction.options.getChannel(
+        'channel',
+    ) as GuildChannel | null
+
+    if (!channel) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Error', 'Channel not found.')],
+            },
+        })
+        return null
+    }
+
+    // Check if bot has ManageMessages permission in the target channel
+    if (!('permissionsFor' in channel)) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Error', 'Invalid channel type.')],
+            },
+        })
+        return null
+    }
+
+    const botPermissions = channel.permissionsFor(interaction.client.user)
+    if (!botPermissions?.has(PermissionFlagsBits.ManageMessages)) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Permission Missing',
+                        `I don't have **Manage Messages** permission in <#${channel.id}>. Please grant this permission before configuring cleanup.`,
+                    ),
+                ],
+            },
+        })
+        return null
+    }
+
+    // Check if channel is the starboard
+    const starboardConfig = await starboardService.getConfig(guildId)
+    if (starboardConfig && starboardConfig.channelId === channel.id) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Cannot Configure',
+                        'Cannot set cleanup for the starboard channel.',
+                    ),
+                ],
+            },
+        })
+        return null
+    }
+
+    return channel
+}
+
+async function handleSetInterval(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+) {
+    const minutes = interaction.options.getInteger('minutos', true)
+    const channel = await resolveValidatedCleanupChannel(interaction, guildId)
+    if (!channel) return
+
+    try {
+        await channelCleanupService.upsertConfig(guildId, channel.id, {
+            mode: 'purge_interval',
+            intervalMinutes: minutes,
+            ttlSeconds: null,
+            enabled: true,
+        })
+
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createSuccessEmbed(
+                        'Cleanup Configured',
+                        `Channel <#${channel.id}> will be purged every **${minutes} minutes**.`,
+                    ),
+                ],
+            },
+        })
+    } catch (error) {
+        errorLog({
+            message: 'cleanup: failed to save configuration:',
+            error,
+        })
+        captureException(
+            error instanceof Error ? error : new Error(String(error)),
+            {
+                context: 'cleanup.handleSetInterval',
+            },
+        )
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed('Error', 'Failed to save configuration.'),
+                ],
+            },
+        })
+    }
+}
+
+async function handleDisable(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+) {
+    const channel = interaction.options.getChannel('channel')
+
+    if (!channel) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Error', 'Channel not found.')],
+            },
+        })
+        return
+    }
+
+    try {
+        const config = await channelCleanupService.getConfig(
+            guildId,
+            channel.id,
+        )
+
+        if (!config) {
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createErrorEmbed(
+                            'Not Configured',
+                            'This channel does not have cleanup configured.',
+                        ),
+                    ],
+                },
+            })
+            return
+        }
+
+        await channelCleanupService.disableCleanup(guildId, channel.id)
+
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createSuccessEmbed(
+                        'Cleanup Disabled',
+                        `Cleanup disabled for <#${channel.id}>.`,
+                    ),
+                ],
+            },
+        })
+    } catch (error) {
+        errorLog({
+            message: 'cleanup: failed to disable cleanup:',
+            error,
+        })
+        captureException(
+            error instanceof Error ? error : new Error(String(error)),
+            {
+                context: 'cleanup.handleDisable',
+            },
+        )
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed('Error', 'Failed to disable cleanup.'),
+                ],
+            },
+        })
+    }
+}
+
+async function handleList(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+) {
+    try {
+        const configs = await channelCleanupService.listConfigs(guildId)
+
+        if (configs.length === 0) {
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        new EmbedBuilder()
+                            .setTitle('Channel Cleanup Configs')
+                            .setDescription('No cleanup configurations found.')
+                            .setColor(COLOR.SETUP_PURPLE),
+                    ],
+                },
+            })
+            return
+        }
+
+        const fields = configs.map((config) => {
+            const enabled = config.enabled ? '✅' : '❌'
+            let modeStr = ''
+
+            if (config.mode === 'purge_interval') {
+                modeStr = `**Purge every ${config.intervalMinutes} min**`
+            } else if (config.mode === 'ttl') {
+                modeStr = `**Delete after ${config.ttlSeconds}s**`
+            }
+
+            return {
+                name: `${enabled} <#${config.channelId}>`,
+                value: modeStr,
+                inline: false,
+            }
+        })
+
+        // Discord caps embeds at 25 fields; a guild with more configured
+        // channels would otherwise make the reply throw.
+        const MAX_EMBED_FIELDS = 25
+        const embed = new EmbedBuilder()
+            .setTitle('Channel Cleanup Configurations')
+            .setColor(COLOR.SETUP_PURPLE)
+            .addFields(fields.slice(0, MAX_EMBED_FIELDS))
+        if (fields.length > MAX_EMBED_FIELDS) {
+            embed.setFooter({
+                text: `Showing ${MAX_EMBED_FIELDS} of ${fields.length} configured channels`,
+            })
+        }
+
+        await interactionReply({
+            interaction,
+            content: { embeds: [embed] },
+        })
+    } catch (error) {
+        errorLog({
+            message: 'cleanup: failed to retrieve configurations:',
+            error,
+        })
+        captureException(
+            error instanceof Error ? error : new Error(String(error)),
+            {
+                context: 'cleanup.handleList',
+            },
+        )
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Error',
+                        'Failed to retrieve configurations.',
+                    ),
+                ],
+            },
+        })
+    }
+}
