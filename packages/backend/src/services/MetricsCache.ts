@@ -251,7 +251,11 @@ export class MetricsCache {
                 ? this.countChannelTypes(
                       this.validateChannelArray(await channelsResponse.json()),
                   )
-                : { categoryCount: null, textChannelCount: null, voiceChannelCount: null }
+                : {
+                      categoryCount: null,
+                      textChannelCount: null,
+                      voiceChannelCount: null,
+                  }
 
             // Only the array length is used here (not individual role
             // fields), so a shape check is enough — validateRoleArray's full
