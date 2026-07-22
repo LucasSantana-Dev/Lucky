@@ -199,6 +199,148 @@ services:
                 max-file: "3"
                 tag: "{{.Name}}"
 
+    # Blue/green web tier services for zero-downtime deploys (ADR 2026-07-11).
+    # See decisions/2026-07-11-bluegreen-web-tier.md and scripts/bluegreen-flip.sh.
+    #
+    # backend-blue and backend-green run the same backend service on different
+    # container names and network aliases, sharing the same postgres/redis.
+    # Only one color is active (nginx points to it); flips are idempotent via
+    # scripts/bluegreen-flip.sh.
+
+    backend-blue:
+        <<: *medium-svc
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-backend:${IMAGE_TAG:-staging}
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: production-backend
+            args:
+                SERVICE: backend
+                NODE_ENV: production
+        container_name: lucky-staging-backend-blue
+        env_file:
+            - .env.staging
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        environment:
+            <<: *common-app-env
+            SENTRY_SERVICE_NAME: ${SENTRY_SERVICE_NAME:-backend}
+            LUCKY_NOTIFY_API_KEY: ${LUCKY_NOTIFY_API_KEY:-}
+            CLIENT_SECRET: ${CLIENT_SECRET}
+            WEBAPP_PORT: 3000
+            DEVELOPER_USER_IDS: ${DEVELOPER_USER_IDS:-}
+            WEBAPP_FRONTEND_URL: ${WEBAPP_FRONTEND_URL:-}
+            WEBAPP_BACKEND_URL: ${WEBAPP_BACKEND_URL:-}
+        networks:
+            lucky-staging-network:
+                aliases:
+                    - backend-blue
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+        # No healthcheck override: the backend image bakes a Node-based
+        # HEALTHCHECK (the image has no curl, and /health is not a backend
+        # route — the health route is /api/health). The flip script waits on
+        # that reported container health status.
+
+    backend-green:
+        <<: *medium-svc
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-backend:${IMAGE_TAG:-staging}
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: production-backend
+            args:
+                SERVICE: backend
+                NODE_ENV: production
+        container_name: lucky-staging-backend-green
+        env_file:
+            - .env.staging
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        environment:
+            <<: *common-app-env
+            SENTRY_SERVICE_NAME: ${SENTRY_SERVICE_NAME:-backend}
+            LUCKY_NOTIFY_API_KEY: ${LUCKY_NOTIFY_API_KEY:-}
+            CLIENT_SECRET: ${CLIENT_SECRET}
+            WEBAPP_PORT: 3000
+            DEVELOPER_USER_IDS: ${DEVELOPER_USER_IDS:-}
+            WEBAPP_FRONTEND_URL: ${WEBAPP_FRONTEND_URL:-}
+            WEBAPP_BACKEND_URL: ${WEBAPP_BACKEND_URL:-}
+        networks:
+            lucky-staging-network:
+                aliases:
+                    - backend-green
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+        # No healthcheck override: the backend image bakes a Node-based
+        # HEALTHCHECK (the image has no curl, and /health is not a backend
+        # route — the health route is /api/health). The flip script waits on
+        # that reported container health status.
+
+    frontend-blue:
+        <<: *small-svc
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-frontend:${IMAGE_TAG:-staging}
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: production-frontend
+        container_name: lucky-staging-frontend-blue
+        networks:
+            lucky-staging-network:
+                aliases:
+                    - frontend-blue
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+            interval: 10s
+            timeout: 5s
+            retries: 3
+            start_period: 30s
+
+    frontend-green:
+        <<: *small-svc
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-frontend:${IMAGE_TAG:-staging}
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: production-frontend
+        container_name: lucky-staging-frontend-green
+        networks:
+            lucky-staging-network:
+                aliases:
+                    - frontend-green
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+            interval: 10s
+            timeout: 5s
+            retries: 3
+            start_period: 30s
+
     nginx:
         <<: *small-svc
         image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-nginx:${IMAGE_TAG:-staging}
@@ -206,6 +348,11 @@ services:
             context: .
             dockerfile: Dockerfile.nginx
         container_name: lucky-staging-nginx
+        volumes:
+            # The active-color upstream config is NOT baked into the image — the
+            # flip script rewrites this host file and reloads nginx, so it must be
+            # bind-mounted (read-only for nginx) at the path nginx.conf includes.
+            - ./nginx/upstream-active.conf:/etc/nginx/conf.d/upstream-active.conf:ro
         depends_on:
             - backend
             - frontend
