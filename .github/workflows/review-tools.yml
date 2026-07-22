@@ -46,12 +46,9 @@ permissions:
   id-token: write
 
 jobs:
-  claude-review:
-    uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@bf372e78b4d3ce9a4d25362b5c75c661039c48ba # v1
-    continue-on-error: true  # Temporary: upstream action crashes, see #1836
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-
+  # claude-review removed: the upstream action crashes on every PR (#1836) and
+  # `continue-on-error` is not valid on reusable-workflow jobs (actionlint).
+  # kimi-review is the replacement AI reviewer.
   kimi-review:
     # Pinned to branch until the reusable lands on .github release; re-pin to sha/tag after merge.
     uses: LucasSantana-Dev/.github/.github/workflows/kimi-review.yml@623a99b5c494fc3f8f2c196b852aab04dab74da2
