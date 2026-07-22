@@ -27,6 +27,7 @@ import { supportSessionScheduler } from '../../utils/general/supportSessionSched
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
 import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
+import { channelPurgeScheduler } from '../../utils/general/channelPurgeScheduler'
 import { aiDevToolkitService } from '../../services/AiDevToolkitService'
 import { dependencyCheckService } from '../../services/DependencyCheckService'
 import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
@@ -250,6 +251,15 @@ export class BotInitializer {
             modDigestSchedulerService.stop()
         } catch (error) {
             errorLog({ message: 'Error stopping mod digest scheduler:', error })
+        }
+
+        try {
+            channelPurgeScheduler.stop()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping channel purge scheduler:',
+                error,
+            })
         }
 
         try {
