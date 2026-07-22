@@ -4,6 +4,7 @@ const mockFindUnique = jest.fn<any>()
 const mockUpsert = jest.fn<any>()
 const mockUpdateMany = jest.fn<any>()
 const mockGetPrismaClient = jest.fn<any>()
+const mockErrorLog = jest.fn<any>()
 
 jest.mock('../utils/database/prismaClient', () => ({
     getPrismaClient: mockGetPrismaClient,
@@ -16,6 +17,11 @@ jest.mock('./redis', () => ({
         setex: jest.fn(),
         del: jest.fn(),
     },
+}))
+
+jest.mock('../utils/general/log', () => ({
+    infoLog: jest.fn(),
+    errorLog: (...args: unknown[]) => mockErrorLog(...args),
 }))
 
 import { GuildSettingsService } from './GuildSettingsService'
@@ -327,9 +333,16 @@ describe('GuildSettingsService — settings CRUD + counter methods', () => {
             })
         })
 
-        it('returns false on error', async () => {
-            sUpsert.mockRejectedValue(new Error('db'))
+        it('logs the error and guild context before returning false', async () => {
+            const error = new Error('db')
+            sUpsert.mockRejectedValue(error)
+
             expect(await service.setGuildSettings(GUILD, {})).toBe(false)
+            expect(mockErrorLog).toHaveBeenCalledWith({
+                message: 'Failed to set guild settings',
+                error,
+                data: { guildId: GUILD },
+            })
         })
 
         it('writes null for nullable columns so clearers can disable features', async () => {

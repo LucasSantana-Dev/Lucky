@@ -164,7 +164,9 @@ export class GuildSettingsService {
      * never clobbers birthday columns this service doesn't own). Explicit `null`
      * is kept so nullable columns (DJ role, ticket category/role) can be cleared.
      */
-    private toPrismaData(settings: GuildSettingsPatch): Record<string, unknown> {
+    private toPrismaData(
+        settings: GuildSettingsPatch,
+    ): Record<string, unknown> {
         const data: Record<string, unknown> = {}
         const copy = (k: keyof GuildSettingsPatch) => {
             if (settings[k] !== undefined) data[k as string] = settings[k]
@@ -223,7 +225,11 @@ export class GuildSettingsService {
             infoLog({ message: `Updated guild settings for ${guildId}` })
             return true
         } catch (error) {
-            errorLog({ message: 'Failed to set guild settings', error })
+            errorLog({
+                message: 'Failed to set guild settings',
+                error,
+                data: { guildId },
+            })
             return false
         }
     }
