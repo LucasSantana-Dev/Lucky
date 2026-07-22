@@ -154,14 +154,16 @@ function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
                         lucky<span className='text-lucky-brand'>.</span>
                     </span>
                 </a>
-                <nav className='flex items-center gap-1 font-mono text-xs text-lucky-text-muted'>
+                <nav className='flex items-center gap-0.5 sm:gap-1 font-mono text-xs text-lucky-text-muted min-w-0'>
                     <a
                         href={REPO_URL}
                         target='_blank'
                         rel='noreferrer'
-                        className='inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors'
+                        className='inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 sm:px-2.5 hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors'
+                        aria-label='GitHub'
                     >
-                        <GithubMark size={13} /> github
+                        <GithubMark size={13} />
+                        <span className='hidden min-[400px]:inline'>github</span>
                     </a>
                     <a
                         href='/docs'
@@ -180,18 +182,35 @@ function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
                             href={botInviteUrl}
                             target='_blank'
                             rel='noopener noreferrer'
-                            className='ml-1 inline-flex items-center gap-1 rounded-md bg-lucky-brand px-3 py-1.5 font-semibold text-white hover:bg-lucky-brand-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas'
+                            aria-label='Add to Discord'
+                            className='ml-1 inline-flex items-center gap-1 rounded-md bg-lucky-brand px-2.5 py-1.5 sm:px-3 font-semibold text-white hover:bg-lucky-brand-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas whitespace-nowrap'
                         >
-                            add to discord{' '}
+                            <span className='min-[400px]:hidden' aria-hidden>
+                                add
+                            </span>
+                            <span
+                                className='hidden min-[400px]:inline'
+                                aria-hidden
+                            >
+                                add to discord
+                            </span>{' '}
                             <ArrowUpRight size={12} aria-hidden />
                         </a>
                     ) : (
                         <button
                             disabled
-                            className='ml-1 inline-flex items-center gap-1 rounded-md bg-lucky-border-soft px-3 py-1.5 font-semibold text-lucky-text-muted cursor-not-allowed opacity-50'
+                            className='ml-1 inline-flex items-center gap-1 rounded-md bg-lucky-border-soft px-2.5 py-1.5 sm:px-3 font-semibold text-lucky-text-muted cursor-not-allowed opacity-50 whitespace-nowrap'
                             aria-label='Add to Discord (not configured)'
                         >
-                            add to discord{' '}
+                            <span className='min-[400px]:hidden' aria-hidden>
+                                add
+                            </span>
+                            <span
+                                className='hidden min-[400px]:inline'
+                                aria-hidden
+                            >
+                                add to discord
+                            </span>{' '}
                             <ArrowUpRight size={12} aria-hidden />
                         </button>
                     )}
@@ -254,7 +273,7 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
                         />
                         {t('landing.hero.eyebrow')}
                     </p>
-                    <h1 className='mb-6 max-w-[16ch] text-[clamp(2.6rem,5.5vw,4.4rem)] font-black leading-[1.02] tracking-[-0.035em] text-lucky-text-strong'>
+                    <h1 className='mb-6 max-w-[16ch] text-[clamp(2rem,8vw,4.4rem)] font-black leading-[1.05] tracking-[-0.035em] text-lucky-text-strong break-words'>
                         <span className='block'>
                             {t('landing.hero.headlineLine1')}
                         </span>
@@ -433,14 +452,14 @@ function RepoCard({ stats, locale }: { stats: RepoStats; locale: string }) {
             className='surface-panel font-mono text-sm overflow-hidden rounded-xl border border-lucky-border-soft bg-lucky-surface-sidebar shadow-[0_30px_80px_-40px_rgba(236,72,153,0.25)]'
             aria-label={t('landing.repoCard.name')}
         >
-            <header className='flex items-center justify-between gap-3 border-b border-lucky-border-soft bg-lucky-surface-elevated px-4 py-3'>
-                <div className='flex items-center gap-2 text-lucky-text-strong'>
+            <header className='flex items-center justify-between gap-2 sm:gap-3 border-b border-lucky-border-soft bg-lucky-surface-elevated px-3 sm:px-4 py-3 min-w-0'>
+                <div className='flex items-center gap-2 text-lucky-text-strong min-w-0'>
                     <GithubMark size={15} />
-                    <span className='font-semibold tracking-tight'>
+                    <span className='font-semibold tracking-tight truncate'>
                         {t('landing.repoCard.name')}
                     </span>
                 </div>
-                <span className='inline-flex items-center gap-1 rounded-full border border-lucky-border-soft px-2 py-0.5 text-[11px] text-lucky-text-muted'>
+                <span className='inline-flex shrink-0 items-center gap-1 rounded-full border border-lucky-border-soft px-2 py-0.5 text-[11px] text-lucky-text-muted'>
                     <Scale size={11} aria-hidden />{' '}
                     {t('landing.repoCard.license')}
                 </span>
@@ -490,8 +509,8 @@ function RepoCard({ stats, locale }: { stats: RepoStats; locale: string }) {
                     </span>
                 </div>
 
-                <div className='rounded-md border border-lucky-border-soft bg-lucky-surface-canvas px-3 py-2.5 text-[12px] flex items-center justify-between gap-2 group'>
-                    <code className='truncate text-lucky-text-body'>
+                <div className='rounded-md border border-lucky-border-soft bg-lucky-surface-canvas px-3 py-2.5 text-[12px] flex items-center justify-between gap-2 group min-w-0'>
+                    <code className='min-w-0 truncate text-lucky-text-body'>
                         <span className='text-lucky-text-muted select-none'>
                             ${' '}
                         </span>
@@ -560,11 +579,14 @@ function WhySelfHost() {
                 </h2>
                 <ul className='grid gap-px overflow-hidden rounded-xl border border-lucky-border-soft bg-lucky-border-soft md:grid-cols-3'>
                     {items.map((key) => (
-                        <li key={key} className='bg-lucky-surface-sidebar p-7'>
+                        <li
+                            key={key}
+                            className='bg-lucky-surface-sidebar p-5 sm:p-7 min-w-0'
+                        >
                             <h3 className='mb-2.5 text-base font-semibold text-lucky-text-strong tracking-tight'>
                                 {t(`landing.whySelfHost.items.${key}.title`)}
                             </h3>
-                            <p className='text-sm text-lucky-text-body leading-relaxed'>
+                            <p className='text-sm text-lucky-text-body leading-relaxed break-words'>
                                 {t(
                                     `landing.whySelfHost.items.${key}.description`,
                                 )}
@@ -613,26 +635,28 @@ function CommandList() {
                         return (
                             <li
                                 key={key}
-                                className={`group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-lucky-surface-panel md:px-5 ${
+                                className={`group flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-4 px-4 py-3.5 transition-colors hover:bg-lucky-surface-panel md:px-5 ${
                                     idx > 0
                                         ? 'border-t border-lucky-border-soft'
                                         : ''
                                 }`}
                             >
-                                <code className='shrink-0 font-mono text-sm font-semibold text-lucky-text-strong w-[120px] md:w-[140px]'>
-                                    {name}
-                                </code>
-                                <p className='flex-1 truncate text-sm text-lucky-text-body'>
+                                <div className='flex items-center justify-between gap-2 sm:contents'>
+                                    <code className='shrink-0 font-mono text-sm font-semibold text-lucky-text-strong sm:w-[120px] md:w-[140px]'>
+                                        {name}
+                                    </code>
+                                    <span
+                                        className={`shrink-0 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider sm:order-last ${
+                                            kindColor[kbd] ??
+                                            'text-lucky-text-muted bg-lucky-surface-elevated border-lucky-border-soft'
+                                        }`}
+                                    >
+                                        {kbd}
+                                    </span>
+                                </div>
+                                <p className='min-w-0 flex-1 text-sm text-lucky-text-body sm:truncate'>
                                     {desc}
                                 </p>
-                                <span
-                                    className={`shrink-0 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
-                                        kindColor[kbd] ??
-                                        'text-lucky-text-muted bg-lucky-surface-elevated border-lucky-border-soft'
-                                    }`}
-                                >
-                                    {kbd}
-                                </span>
                             </li>
                         )
                     })}
