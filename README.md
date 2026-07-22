@@ -7,7 +7,7 @@
 
 <p align="center">
   <b>🎵 The Discord music bot that can't be shut down — because you host it.</b><br>
-  <strong>Self-hosted · Open-source · TypeScript monorepo · ~2500 tests · Zero prod incidents</strong>
+  <strong>Self-hosted · Open-source · TypeScript monorepo · ~6,300 tests · Zero prod incidents</strong>
 </p>
 
 <p align="center">
@@ -76,7 +76,7 @@ Unlike Groovy, Rythm, or Hydra (all shut down by third-party enforcement), Lucky
 - **Feature toggles**: Enable/disable per-guild
 
 ### 📈 Reliability & Monitoring
-- **CI/CD**: Every PR runs lint + build + ~2500 tests + SonarCloud gates
+- **CI/CD**: Every PR runs lint + build + ~6,300 tests + SonarCloud gates
 - **Zero incidents**: Battle-tested in production with full test coverage
 - **Sentry monitoring**: Real-time error tracking and telemetry
 - **Security scanning**: Trivy container scans on every Docker publish
@@ -110,7 +110,7 @@ Lucky solves this:
 | **Database** | PostgreSQL, Prisma ORM |
 | **Cache** | Redis |
 | **DevOps** | Docker, Docker Compose, Cloudflare Tunnel |
-| **Testing** | ~2500 unit + integration tests, Playwright e2e |
+| **Testing** | ~6,300 unit + integration tests, Playwright e2e |
 | **Quality** | SonarCloud, Trivy, Dependabot, ESLint |
 
 ---
@@ -253,7 +253,7 @@ SENTRY_DSN=...
 # Run all checks before committing (lint + build + test)
 npm run verify
 
-# Run all tests (~2500 total)
+# Run all tests (~6,300 total)
 npm run test:all
 
 # Run e2e smoke tests (Playwright)
@@ -351,7 +351,7 @@ Lucky is a **solo personal project** — actively developed and deployed to prod
 1. **Fork** the repository
 2. **Create a branch**: `feature/cool-thing` or `fix/bug-name`
 3. **Follow conventions**: Conventional commits, <50 line functions, tests first
-4. **Run the gate**: `npm run verify` (lint + build + ~2500 tests)
+4. **Run the gate**: `npm run verify` (lint + build + ~6,300 tests)
 5. **Open a PR** with a clear description
 
 **Response time** is best-effort due to solo maintenance, but all PRs are reviewed.
