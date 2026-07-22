@@ -7,6 +7,7 @@ import {
     jest,
 } from '@jest/globals'
 import { guildService, setBotClient } from '../../../src/services/GuildService'
+import { metricsService } from '../../../src/services/MetricsCache'
 import { discordOAuthService } from '../../../src/services/DiscordOAuthService'
 import {
     MOCK_DISCORD_GUILDS,
@@ -267,7 +268,8 @@ describe('GuildService', () => {
                 json: async () => [{ id: '111111111111111111' }],
             } as never) as unknown as typeof fetch
 
-            const result = await guildService.hasBotInGuild('111111111111111111')
+            const result =
+                await guildService.hasBotInGuild('111111111111111111')
 
             expect(result).toBe(true)
         })
@@ -316,7 +318,9 @@ describe('GuildService', () => {
             const mockClient = {
                 guilds: {
                     cache: new Map(),
-                    fetch: jest.fn().mockRejectedValue(new Error('unavailable')),
+                    fetch: jest
+                        .fn()
+                        .mockRejectedValue(new Error('unavailable')),
                 },
             } as unknown as Client
 
@@ -388,9 +392,8 @@ describe('GuildService', () => {
 
             setBotClient(mockClient)
 
-            const result = await guildService.getGuildRoleOptions(
-                '111111111111111111',
-            )
+            const result =
+                await guildService.getGuildRoleOptions('111111111111111111')
 
             expect(result).toEqual([
                 {
@@ -429,9 +432,8 @@ describe('GuildService', () => {
                 ],
             } as never) as unknown as typeof fetch
 
-            const result = await guildService.getGuildRoleOptions(
-                '111111111111111111',
-            )
+            const result =
+                await guildService.getGuildRoleOptions('111111111111111111')
 
             expect(result).toEqual([
                 {
@@ -497,9 +499,8 @@ describe('GuildService', () => {
                 },
             } as unknown as Client)
 
-            const channels = await guildService.getGuildTextChannelOptions(
-                guildId,
-            )
+            const channels =
+                await guildService.getGuildTextChannelOptions(guildId)
 
             expect(channels).toEqual([
                 { id: '3', name: '#general' },
@@ -530,9 +531,8 @@ describe('GuildService', () => {
                 ],
             } as never) as unknown as typeof fetch
 
-            const channels = await guildService.getGuildTextChannelOptions(
-                guildId,
-            )
+            const channels =
+                await guildService.getGuildTextChannelOptions(guildId)
 
             expect(channels).toEqual([
                 { id: '1', name: '#general' },
@@ -544,9 +544,10 @@ describe('GuildService', () => {
             delete process.env.DISCORD_TOKEN
             setBotClient(null)
 
-            const channels = await guildService.getGuildTextChannelOptions(
-                '111111111111111111',
-            )
+            const channels =
+                await guildService.getGuildTextChannelOptions(
+                    '111111111111111111',
+                )
 
             expect(channels).toEqual([])
         })
@@ -637,7 +638,7 @@ describe('GuildService', () => {
                 },
             } as unknown as Client)
 
-            const metrics = await guildService.getGuildMetrics(guildId)
+            const metrics = await metricsService.getGuildMetrics(guildId)
 
             expect(metrics).toEqual({
                 memberCount: 123,
@@ -681,7 +682,7 @@ describe('GuildService', () => {
                     json: async () => [{ id: '1' }, { id: '2' }],
                 } as never) as unknown as typeof fetch
 
-            const metrics = await guildService.getGuildMetrics(guildId)
+            const metrics = await metricsService.getGuildMetrics(guildId)
 
             expect(metrics).toEqual({
                 memberCount: 99,
@@ -700,7 +701,7 @@ describe('GuildService', () => {
             } as never) as unknown as typeof fetch
 
             const metrics =
-                await guildService.getGuildMetrics('111111111111111111')
+                await metricsService.getGuildMetrics('111111111111111111')
 
             expect(metrics).toEqual({
                 memberCount: null,
@@ -719,7 +720,7 @@ describe('GuildService', () => {
                 .mockRejectedValue(new Error('boom')) as unknown as typeof fetch
 
             const metrics =
-                await guildService.getGuildMetrics('111111111111111111')
+                await metricsService.getGuildMetrics('111111111111111111')
 
             expect(metrics).toEqual({
                 memberCount: null,
@@ -1043,8 +1044,7 @@ describe('GuildService', () => {
                 },
             } as unknown as Client)
 
-            const roles =
-                await guildService.getFullGuildRoles(guildId)
+            const roles = await guildService.getFullGuildRoles(guildId)
 
             expect(roles).toEqual([
                 {
@@ -1109,8 +1109,7 @@ describe('GuildService', () => {
                 ],
             } as never) as unknown as typeof fetch
 
-            const roles =
-                await guildService.getFullGuildRoles(guildId)
+            const roles = await guildService.getFullGuildRoles(guildId)
 
             expect(roles).toEqual([
                 {
@@ -1455,9 +1454,7 @@ describe('GuildService', () => {
                 guildService.deleteGuildRole(guildId, roleId),
             ).resolves.toBeUndefined()
             expect(
-                (
-                    await mockGuild.roles.fetch(roleId)
-                ).delete,
+                (await mockGuild.roles.fetch(roleId)).delete,
             ).toHaveBeenCalled()
         })
 
@@ -1488,7 +1485,10 @@ describe('GuildService', () => {
             setBotClient(null)
 
             await expect(
-                guildService.deleteGuildRole('111111111111111111', '999999999999999999'),
+                guildService.deleteGuildRole(
+                    '111111111111111111',
+                    '999999999999999999',
+                ),
             ).rejects.toThrow('No bot token available')
         })
 
