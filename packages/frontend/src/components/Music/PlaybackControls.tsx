@@ -37,6 +37,7 @@ interface PlaybackControlsProps {
     /** Which action is in flight, if any (shows busy state on that control). */
     pendingAction?: string | null
     onPlayPause: () => void
+    onPrevious: () => void
     onSkip: () => void
     onStop: () => void
     onShuffle: () => void
@@ -51,6 +52,7 @@ export function PlaybackControls({
     isConnected = true,
     pendingAction = null,
     onPlayPause,
+    onPrevious,
     onSkip,
     onStop,
     onShuffle,
@@ -82,13 +84,13 @@ export function PlaybackControls({
             </button>
             <div className='flex items-center gap-2 sm:gap-3'>
                 <button
-                    onClick={onSkip}
+                    onClick={onPrevious}
                     className='p-2.5 sm:p-2 rounded-lg hover:bg-lucky-bg-tertiary active:bg-lucky-bg-tertiary text-lucky-text-secondary hover:text-white transition-colors rotate-180 disabled:opacity-40'
                     aria-label='Previous'
                     disabled={!canTrack}
-                    aria-busy={pendingAction === 'skip'}
+                    aria-busy={pendingAction === 'previous'}
                 >
-                    <BusyIcon busy={pendingAction === 'skip'}>
+                    <BusyIcon busy={pendingAction === 'previous'}>
                         <SkipForward className='h-5 w-5' />
                     </BusyIcon>
                 </button>

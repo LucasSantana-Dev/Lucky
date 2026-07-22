@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+    useState,
+    useEffect,
+    useLayoutEffect,
+    useCallback,
+    useMemo,
+    useRef,
+} from 'react'
 import { api } from '@/services/api'
 import { useMusicCommands } from './useMusicCommands'
 import type { QueueState } from '@/types'
@@ -30,14 +37,29 @@ export function useMusicPlayer(guildId: string | undefined) {
     const sseRef = useRef<EventSource | null>(null)
     const retryRef = useRef(0)
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const guildToken = useMemo(() => Symbol('guild'), [guildId])
+    const activeGuildTokenRef = useRef<symbol | null>(null)
+    const commandIdRef = useRef(0)
+    const activeCommandsRef = useRef(
+        new Map<number, { guildToken: symbol; actionKey?: string }>(),
+    )
 
-    useEffect(() => {
-        // Drop guild-scoped UI state so an error/pending from guild A never
-        // sticks around after switching to guild B (or deselecting).
+    useLayoutEffect(() => {
+        activeGuildTokenRef.current = guildToken
+        activeCommandsRef.current.clear()
+        setState(EMPTY_STATE)
         setError(null)
         setPendingAction(null)
         setIsLoading(false)
 
+        return () => {
+            if (activeGuildTokenRef.current === guildToken) {
+                activeGuildTokenRef.current = null
+            }
+        }
+    }, [guildToken])
+
+    useEffect(() => {
         if (!guildId) {
             setState(EMPTY_STATE)
             setIsConnected(false)
@@ -107,7 +129,13 @@ export function useMusicPlayer(guildId: string | undefined) {
             optimistic?: Partial<QueueState>,
             actionKey?: string,
         ) => {
-            if (!guildId) return
+            if (!guildId || activeGuildTokenRef.current !== guildToken) return
+
+            const commandId = ++commandIdRef.current
+            const isCurrentGuild = () =>
+                activeGuildTokenRef.current === guildToken
+
+            activeCommandsRef.current.set(commandId, { guildToken, actionKey })
             setIsLoading(true)
             if (actionKey) setPendingAction(actionKey)
             setError(null)
@@ -119,21 +147,46 @@ export function useMusicPlayer(guildId: string | undefined) {
             try {
                 await action()
             } catch (err) {
-                if (optimistic) {
-                    api.music
-                        .getState(guildId)
-                        .then((res) => setState(res.data))
-                        .catch(() => {})
-                }
+                if (!isCurrentGuild()) return
+
                 const base =
                     err instanceof Error ? err.message : 'Command failed'
-                setError(actionKey ? `${actionKey}: ${base}` : base)
+                const commandError = actionKey ? `${actionKey}: ${base}` : base
+
+                if (optimistic) {
+                    try {
+                        const response = await api.music.getState(guildId)
+                        if (isCurrentGuild()) setState(response.data)
+                    } catch (refreshError) {
+                        if (!isCurrentGuild()) return
+                        const refreshMessage =
+                            refreshError instanceof Error
+                                ? refreshError.message
+                                : 'Unknown error'
+                        setError(
+                            `${commandError}. Queue refresh failed: ${refreshMessage}`,
+                        )
+                        return
+                    }
+                }
+
+                if (isCurrentGuild()) setError(commandError)
             } finally {
-                setIsLoading(false)
-                setPendingAction(null)
+                activeCommandsRef.current.delete(commandId)
+                if (isCurrentGuild()) {
+                    const activeCommands = Array.from(
+                        activeCommandsRef.current.values(),
+                    ).filter((command) => command.guildToken === guildToken)
+                    const pendingCommand = activeCommands
+                        .slice()
+                        .reverse()
+                        .find((command) => command.actionKey)
+                    setIsLoading(activeCommands.length > 0)
+                    setPendingAction(pendingCommand?.actionKey ?? null)
+                }
             }
         },
-        [guildId],
+        [guildId, guildToken],
     )
 
     const commands = useMusicCommands(guildId, sendCommand, state.tracks)
