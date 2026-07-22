@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
     Music2,
@@ -92,6 +92,7 @@ export default function MusicPage() {
 
             <NowPlayingHero
                 state={player.state}
+                lastStateUpdate={player.lastStateUpdate}
                 onPlayPause={handlePlayPause}
                 onPrevious={() => player.previous()}
                 onSkip={() => player.skip()}
@@ -139,8 +140,12 @@ export default function MusicPage() {
     )
 }
 
+/** Progress is considered stale when no state payload has arrived this long. */
+const STALE_AFTER_MS = 5_000
+
 function NowPlayingHero({
     state,
+    lastStateUpdate,
     onPlayPause,
     onPrevious,
     onSkip,
@@ -149,6 +154,7 @@ function NowPlayingHero({
     onVolumeChange,
 }: {
     state: QueueState
+    lastStateUpdate: number | null
     onPlayPause: () => void
     onPrevious: () => void
     onSkip: () => void
@@ -158,6 +164,19 @@ function NowPlayingHero({
 }) {
     const { t } = useTranslation()
     const currentTrack = state.tracks[0]
+    const [now, setNow] = useState(() => Date.now())
+
+    // Re-tick while playing so the bar can flip to stale without a new SSE event.
+    useEffect(() => {
+        if (!state.isPlaying) return
+        const id = window.setInterval(() => setNow(Date.now()), 1000)
+        return () => window.clearInterval(id)
+    }, [state.isPlaying])
+
+    const isStale =
+        state.isPlaying &&
+        lastStateUpdate !== null &&
+        now - lastStateUpdate > STALE_AFTER_MS
 
     if (!currentTrack) {
         return (
@@ -215,15 +234,38 @@ function NowPlayingHero({
 
                         <div>
                             <div className='flex items-center gap-2 mb-3'>
-                                <div className='flex-1 h-1 bg-lucky-bg-active rounded-full overflow-hidden'>
+                                <div
+                                    className={`flex-1 h-1 bg-lucky-bg-active rounded-full overflow-hidden ${
+                                        isStale ? 'opacity-50' : ''
+                                    }`}
+                                    title={
+                                        isStale
+                                            ? t('music.progressMayBeOutdatedTitle')
+                                            : undefined
+                                    }
+                                    aria-label={
+                                        isStale
+                                            ? t('music.progressMayBeOutdatedAria')
+                                            : undefined
+                                    }
+                                >
                                     <div
-                                        className='h-full bg-lucky-brand rounded-full'
+                                        className={`h-full rounded-full ${
+                                            isStale
+                                                ? 'bg-lucky-warning'
+                                                : 'bg-lucky-brand'
+                                        }`}
                                         style={{ width: `${progress}%` }}
                                     />
                                 </div>
                             </div>
                             <div className='flex justify-between type-body-sm text-lucky-text-tertiary'>
                                 <span>{formatSeconds(position)}</span>
+                                {isStale ? (
+                                    <span className='text-lucky-warning'>
+                                        {t('music.progressMayBeOutdated')}
+                                    </span>
+                                ) : null}
                                 <span>{formatSeconds(duration)}</span>
                             </div>
                         </div>

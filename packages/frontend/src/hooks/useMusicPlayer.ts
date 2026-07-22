@@ -26,14 +26,22 @@ export function useMusicPlayer(guildId: string | undefined) {
     const [isLoading, setIsLoading] = useState(false)
     const [isConnected, setIsConnected] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    /** Wall-clock ms of the last successful state payload (SSE or REST). */
+    const [lastStateUpdate, setLastStateUpdate] = useState<number | null>(null)
     const sseRef = useRef<EventSource | null>(null)
     const retryRef = useRef(0)
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    const applyState = useCallback((next: QueueState) => {
+        setState(next)
+        setLastStateUpdate(Date.now())
+    }, [])
 
     useEffect(() => {
         if (!guildId) {
             setState(EMPTY_STATE)
             setIsConnected(false)
+            setLastStateUpdate(null)
             return
         }
 
@@ -54,7 +62,7 @@ export function useMusicPlayer(guildId: string | undefined) {
             sse.onmessage = (event) => {
                 if (cancelled) return
                 try {
-                    setState(JSON.parse(event.data))
+                    applyState(JSON.parse(event.data))
                 } catch {
                     /* heartbeat or malformed data */
                 }
@@ -81,7 +89,7 @@ export function useMusicPlayer(guildId: string | undefined) {
         api.music
             .getState(guildId)
             .then((res) => {
-                if (!cancelled) setState(res.data)
+                if (!cancelled) applyState(res.data)
             })
             .catch(() => {})
 
@@ -92,7 +100,7 @@ export function useMusicPlayer(guildId: string | undefined) {
             if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
             setIsConnected(false)
         }
-    }, [guildId])
+    }, [guildId, applyState])
 
     const sendCommand = useCallback(
         async (
@@ -113,7 +121,7 @@ export function useMusicPlayer(guildId: string | undefined) {
                 if (optimistic) {
                     api.music
                         .getState(guildId)
-                        .then((res) => setState(res.data))
+                        .then((res) => applyState(res.data))
                         .catch(() => {})
                 }
                 setError(err instanceof Error ? err.message : 'Command failed')
@@ -121,7 +129,7 @@ export function useMusicPlayer(guildId: string | undefined) {
                 setIsLoading(false)
             }
         },
-        [guildId],
+        [guildId, applyState],
     )
 
     const commands = useMusicCommands(guildId, sendCommand, state.tracks)
@@ -131,6 +139,7 @@ export function useMusicPlayer(guildId: string | undefined) {
         isLoading,
         isConnected,
         error,
+        lastStateUpdate,
         ...commands,
     }
 }
