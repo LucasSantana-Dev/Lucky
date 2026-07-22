@@ -31,12 +31,13 @@ concurrency:
   group: review-tools-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-# Minimum permissions for both reusable workflows. An explicit block sets
+# Minimum permissions for all three reusable workflows. An explicit block sets
 # every unlisted scope to `none`, and a called reusable workflow cannot
 # request scopes the caller withheld — so the caller must grant the UNION of
 # what the reusables declare, or the run fails at startup (see #1423):
 #   - claude-review.yml needs contents:read, pull-requests:write,
 #     issues:write, and id-token:write (OIDC)
+#   - kimi-review.yml needs contents:read, pull-requests:write, issues:write
 #   - danger.yml needs contents:read, pull-requests:write, issues:write
 permissions:
   contents: read
@@ -50,6 +51,12 @@ jobs:
     continue-on-error: true  # Temporary: upstream action crashes, see #1836
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  kimi-review:
+    # Pinned to branch until the reusable lands on .github release; re-pin to sha/tag after merge.
+    uses: LucasSantana-Dev/.github/.github/workflows/kimi-review.yml@623a99b5c494fc3f8f2c196b852aab04dab74da2
+    secrets:
+      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
 
   danger:
     uses: LucasSantana-Dev/.github/.github/workflows/danger.yml@bf372e78b4d3ce9a4d25362b5c75c661039c48ba # v1
