@@ -1,6 +1,7 @@
 import { EmbedBuilder } from 'discord.js'
 import type { User } from 'discord.js'
 import type { Track } from 'discord-player'
+import type { TrackMetadata } from '@lucky/shared/types'
 import { detectSource } from '../../music/nowPlayingEmbed'
 import { trackSource } from '../../music/trackFields'
 import { formatDurationClock } from '../formatDuration'
@@ -24,6 +25,18 @@ const KIND_LABELS: Record<TrackEmbedKind, string> = {
     recommended: 'Recommended',
     history: 'From History',
 }
+
+type TrackDataSource = Pick<
+    Track<TrackMetadata>,
+    'title' | 'author' | 'url' | 'thumbnail' | 'durationMS' | 'source'
+> &
+    Partial<Pick<Track<TrackMetadata>, 'metadata'>>
+
+type PlayerTrackDataSource = Pick<
+    Track<unknown>,
+    'title' | 'author' | 'url' | 'thumbnail' | 'durationMS' | 'source'
+> &
+    Partial<Pick<Track<unknown>, 'metadata'>>
 
 export type TrackEmbedOptions = {
     /**
@@ -89,20 +102,31 @@ export function buildTrackEmbed(
 }
 
 export function buildCommandTrackEmbed(
-    track: Track,
+    track: PlayerTrackDataSource,
     statusLabel: string,
     requestedBy: Pick<User, 'tag' | 'displayAvatarURL'>,
 ): ReturnType<typeof buildTrackEmbed> {
-    const trackData = trackToData(track)
+    const trackData = playerTrackToData(track)
     const embed = buildTrackEmbed(trackData, 'playing', requestedBy)
     embed.setAuthor({ name: statusLabel })
     return embed
 }
 
-export function trackToData(track: Track): TrackData {
-    const meta = (track.metadata ?? {}) as {
-        recommendationReason?: string
-    }
+export function playerTrackToData(track: PlayerTrackDataSource): TrackData {
+    return trackToData({
+        title: track.title,
+        author: track.author,
+        url: track.url,
+        thumbnail: track.thumbnail,
+        durationMS: track.durationMS,
+        source: track.source,
+        metadata: normalizeTrackMetadata(track.metadata),
+    })
+}
+
+export function trackToData(track: TrackDataSource): TrackData {
+    const recommendationReason = track.metadata?.recommendationReason
+
     return {
         title: track.title,
         author: track.author,
@@ -112,8 +136,19 @@ export function trackToData(track: Track): TrackData {
             ? formatDurationClock(Math.floor(track.durationMS / 1000))
             : undefined,
         source: trackSource(track) ?? null,
-        ...(meta.recommendationReason
-            ? { recommendationReason: meta.recommendationReason }
-            : {}),
+        ...(recommendationReason ? { recommendationReason } : {}),
     }
+}
+
+function normalizeTrackMetadata(metadata: unknown): TrackMetadata | null {
+    if (
+        typeof metadata !== 'object' ||
+        metadata === null ||
+        !('recommendationReason' in metadata) ||
+        typeof metadata.recommendationReason !== 'string'
+    ) {
+        return null
+    }
+
+    return { recommendationReason: metadata.recommendationReason }
 }

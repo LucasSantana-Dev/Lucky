@@ -8,6 +8,7 @@ export interface TrackMetadata {
     isAutoplay?: boolean
     source?: string
     engine?: string
+    recommendationReason?: string
 }
 
 export interface TrackTimestamp {

@@ -2,6 +2,7 @@ import { describe, it, expect } from '@jest/globals'
 import {
     buildTrackEmbed,
     buildCommandTrackEmbed,
+    playerTrackToData,
     trackToData,
 } from './buildTrackEmbed'
 import { detectSource } from '../../music/nowPlayingEmbed'
@@ -144,7 +145,7 @@ describe('trackToData', () => {
     }
 
     it('maps all fields and formats duration correctly', () => {
-        const data = trackToData(fakeTrack as never)
+        const data = trackToData(fakeTrack)
         expect(data.title).toBe('Test Song')
         expect(data.author).toBe('Test Artist')
         expect(data.url).toBe(fakeTrack.url)
@@ -157,21 +158,29 @@ describe('trackToData', () => {
         const data = trackToData({
             ...fakeTrack,
             metadata: { recommendationReason: 'same artist' },
-        } as never)
+        })
         expect(data.recommendationReason).toBe('same artist')
+    })
+
+    it('rejects invalid recommendation metadata from discord-player', () => {
+        const data = playerTrackToData({
+            ...fakeTrack,
+            metadata: { recommendationReason: 123 },
+        })
+        expect(data.recommendationReason).toBeUndefined()
     })
 
     it.each([
         [0, undefined],
         [65000, '1:05'],
     ])('handles edge cases: durationMS=%i → %s', (durationMS, expected) => {
-        const data = trackToData({ ...fakeTrack, durationMS } as never)
+        const data = trackToData({ ...fakeTrack, durationMS })
         expect(data.duration).toBe(expected)
         if (durationMS === 0) {
             const noSource = trackToData({
                 ...fakeTrack,
                 source: undefined,
-            } as never)
+            })
             expect(noSource.source).toBeNull()
         }
     })
@@ -188,11 +197,7 @@ describe('buildCommandTrackEmbed', () => {
     }
 
     it('builds embed with status label and track data', () => {
-        const embed = buildCommandTrackEmbed(
-            track as never,
-            '⏸️ Paused',
-            fakeUser,
-        )
+        const embed = buildCommandTrackEmbed(track, '⏸️ Paused', fakeUser)
         expect(embed.data.author?.name).toBe('⏸️ Paused')
         expect(embed.data.title).toBe(track.title)
         expect(embed.data.footer?.text).toContain(fakeUser.tag)

@@ -4,7 +4,7 @@ import { assertDefined } from '@lucky/shared/utils/guards'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import {
     buildTrackEmbed,
-    trackToData,
+    playerTrackToData,
 } from '../../../utils/general/responseEmbeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import {
@@ -27,7 +27,7 @@ export default new Command({
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireCurrentTrack(queue, interaction))) return
 
-        const trackData = trackToData(
+        const trackData = playerTrackToData(
             assertDefined(
                 track,
                 'track present after requireCurrentTrack guard',
