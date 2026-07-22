@@ -1,4 +1,11 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
+import {
+    describe,
+    test,
+    expect,
+    jest,
+    beforeEach,
+    afterEach,
+} from '@jest/globals'
 
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
@@ -41,10 +48,26 @@ function makeInteraction() {
     }
 }
 
+const realFetch = global.fetch
+
 beforeEach(() => {
     interactionReply.mockClear().mockResolvedValue(undefined)
     delete process.env.WEBAPP_BACKEND_URL
     delete process.env.LUCKY_NOTIFY_API_KEY
+    // Deterministic backend: every nominal test gets a valid VoteState without
+    // touching the network (previously hit http://localhost:3000 for real).
+    global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+            hasVoted: false,
+            streak: 10,
+            nextVoteInSeconds: 43200,
+        }),
+    }) as never
+})
+
+afterEach(() => {
+    global.fetch = realFetch
 })
 
 describe('/voterewards', () => {
