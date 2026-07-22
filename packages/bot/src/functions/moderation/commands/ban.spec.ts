@@ -1,5 +1,4 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-import { EmbedBuilder } from 'discord.js'
 
 const moderationServiceMock = {
     createCase: jest.fn(),
