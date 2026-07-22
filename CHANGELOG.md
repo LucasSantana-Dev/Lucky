@@ -104,7 +104,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-* [#1699](https://github.com/LucasSantana-Dev/Lucky/issues/1699) ([eef5aee](https://github.com/LucasSantana-Dev/Lucky/commit/eef5aee4cefa8a322a5f6f2f79a9209c011e246b))
 * **backend:** migrate webhooks to use canonical timingsafekey comparison ([#1747](https://github.com/LucasSantana-Dev/Lucky/issues/1747)) ([eef5aee](https://github.com/LucasSantana-Dev/Lucky/commit/eef5aee4cefa8a322a5f6f2f79a9209c011e246b))
 * **backend:** wrap lastfm routes with asynchandler ([#1726](https://github.com/LucasSantana-Dev/Lucky/issues/1726)) ([ce51d86](https://github.com/LucasSantana-Dev/Lucky/commit/ce51d86a63d8c9caf879b0afb45ea83a5a2b347b))
 * **batch-move:** graceful attachment-fetch degradation + mid-loop client re-check ([#1750](https://github.com/LucasSantana-Dev/Lucky/issues/1750)) ([f21a0ce](https://github.com/LucasSantana-Dev/Lucky/commit/f21a0cef2797d38f9874b44291ece3e96136ba59))
