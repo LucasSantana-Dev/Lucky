@@ -12,6 +12,7 @@ import { reminderScheduler } from '../../utils/general/reminderScheduler'
 import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
 import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
+import { channelPurgeScheduler } from '../../utils/general/channelPurgeScheduler'
 import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
 
 let presenceControls: {
@@ -166,6 +167,15 @@ export async function startClient({
             } catch (error) {
                 errorLog({
                     message: 'Failed to start Top.gg stats scheduler',
+                    error,
+                })
+            }
+
+            try {
+                channelPurgeScheduler.start(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to start channel purge scheduler',
                     error,
                 })
             }
