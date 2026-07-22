@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.36.1...v2.37.0) (2026-07-22)
+
+
+### Features
+
+* **bot:** channel cleanup with interval purge and ttl delete ([#1687](https://github.com/LucasSantana-Dev/Lucky/issues/1687)) ([11285da](https://github.com/LucasSantana-Dev/Lucky/commit/11285da1655a0d677f10c0d19af545eb55b0e024))
+* **security:** add hsts and permissions-policy to vercel.json headers ([#1868](https://github.com/LucasSantana-Dev/Lucky/issues/1868)) ([b6e88e3](https://github.com/LucasSantana-Dev/Lucky/commit/b6e88e37930c2c852a321cfd2c541dfda2d230fd))
+
+
+### Bug Fixes
+
+* **ci:** bump org workflow SHA to fix claude-review failures ([#1836](https://github.com/LucasSantana-Dev/Lucky/issues/1836)) ([8a05edd](https://github.com/LucasSantana-Dev/Lucky/commit/8a05edd0160c6b8078b282a9c880a394ce0bd4fd))
+* **ci:** make claude-review non-blocking — upstream action crash ([#1836](https://github.com/LucasSantana-Dev/Lucky/issues/1836)) ([#1862](https://github.com/LucasSantana-Dev/Lucky/issues/1862)) ([1e6357a](https://github.com/LucasSantana-Dev/Lucky/commit/1e6357a970717dd8ed82d40a3d0084ac218c16f0))
+* **deploy:** poll docker-publish until terminal state ([#1848](https://github.com/LucasSantana-Dev/Lucky/issues/1848)) ([#1853](https://github.com/LucasSantana-Dev/Lucky/issues/1853)) ([6d45871](https://github.com/LucasSantana-Dev/Lucky/commit/6d45871d7404e98acca99d04b6fde2a66e257d11))
+* **deps:** clear new-baseline npm audit findings ([#1871](https://github.com/LucasSantana-Dev/Lucky/issues/1871)) ([8251e61](https://github.com/LucasSantana-Dev/Lucky/commit/8251e610a9808700db2eb4b4ba86bba08f1a48fc))
+* **deps:** resolve high-severity npm audit findings ([#1869](https://github.com/LucasSantana-Dev/Lucky/issues/1869)) ([10b4a8c](https://github.com/LucasSantana-Dev/Lucky/commit/10b4a8cbcf6e9a9fb7f713a05100c5449da18a64))
+
 ## [2.36.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.36.0...v2.36.1) (2026-07-16)
 
 
@@ -87,7 +104,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-* [#1699](https://github.com/LucasSantana-Dev/Lucky/issues/1699) ([eef5aee](https://github.com/LucasSantana-Dev/Lucky/commit/eef5aee4cefa8a322a5f6f2f79a9209c011e246b))
 * **backend:** migrate webhooks to use canonical timingsafekey comparison ([#1747](https://github.com/LucasSantana-Dev/Lucky/issues/1747)) ([eef5aee](https://github.com/LucasSantana-Dev/Lucky/commit/eef5aee4cefa8a322a5f6f2f79a9209c011e246b))
 * **backend:** wrap lastfm routes with asynchandler ([#1726](https://github.com/LucasSantana-Dev/Lucky/issues/1726)) ([ce51d86](https://github.com/LucasSantana-Dev/Lucky/commit/ce51d86a63d8c9caf879b0afb45ea83a5a2b347b))
 * **batch-move:** graceful attachment-fetch degradation + mid-loop client re-check ([#1750](https://github.com/LucasSantana-Dev/Lucky/issues/1750)) ([f21a0ce](https://github.com/LucasSantana-Dev/Lucky/commit/f21a0cef2797d38f9874b44291ece3e96136ba59))
