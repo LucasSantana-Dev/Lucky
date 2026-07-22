@@ -319,6 +319,7 @@ class RoleService {
             'Failed to fetch guild roles',
         )
         return apiRoles
+            .filter((role) => role.id !== guildId)
             .map((role) => this.mapApiRoleToOption(role))
             .sort((a, b) => b.position - a.position)
     }
