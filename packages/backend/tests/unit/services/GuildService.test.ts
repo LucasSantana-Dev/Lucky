@@ -15,6 +15,36 @@ import {
 } from '../../fixtures/mock-data'
 import type { Client, Guild } from 'discord.js'
 
+interface MockRoleOption {
+    id: string
+    name: string
+    color: number
+    position: number
+}
+
+interface MockClientRole extends MockRoleOption {
+    hoist: boolean
+    mentionable: boolean
+    managed: boolean
+    permissions: { bitfield: bigint }
+}
+
+type MockEditableRole = MockClientRole & {
+    edit: (data?: unknown) => Promise<MockClientRole>
+}
+
+interface MockMemberContext {
+    nickname: string
+    roles: { cache: Map<string, unknown> }
+}
+
+interface MockTextChannel {
+    id: string
+    name: string
+    type: number
+    rawPosition: number
+}
+
 const originalFetch = global.fetch
 
 jest.mock('../../../src/services/DiscordOAuthService', () => ({
@@ -280,16 +310,18 @@ describe('GuildService', () => {
             const mockGuild = {
                 id: '111111111111111111',
                 members: {
-                    fetch: jest.fn().mockResolvedValue({
-                        nickname: 'nickname',
-                        roles: {
-                            cache: new Map([
-                                ['111111111111111111', {}],
-                                ['222222222222222222', {}],
-                                ['333333333333333333', {}],
-                            ]),
-                        },
-                    }),
+                    fetch: jest
+                        .fn<() => Promise<MockMemberContext>>()
+                        .mockResolvedValue({
+                            nickname: 'nickname',
+                            roles: {
+                                cache: new Map([
+                                    ['111111111111111111', {}],
+                                    ['222222222222222222', {}],
+                                    ['333333333333333333', {}],
+                                ]),
+                            },
+                        }),
                 },
             } as unknown as Guild
 
@@ -319,7 +351,7 @@ describe('GuildService', () => {
                 guilds: {
                     cache: new Map(),
                     fetch: jest
-                        .fn()
+                        .fn<() => Promise<never>>()
                         .mockRejectedValue(new Error('unavailable')),
                 },
             } as unknown as Client
@@ -350,37 +382,39 @@ describe('GuildService', () => {
             const mockGuild = {
                 id: '111111111111111111',
                 roles: {
-                    fetch: jest.fn().mockResolvedValue(
-                        new Map([
-                            [
-                                '111111111111111111',
-                                {
-                                    id: '111111111111111111',
-                                    name: '@everyone',
-                                    color: 0,
-                                    position: 0,
-                                },
-                            ],
-                            [
-                                '999999999999999999',
-                                {
-                                    id: '999999999999999999',
-                                    name: 'Admins',
-                                    color: 16711680,
-                                    position: 9,
-                                },
-                            ],
-                            [
-                                '888888888888888888',
-                                {
-                                    id: '888888888888888888',
-                                    name: 'Mods',
-                                    color: 255,
-                                    position: 5,
-                                },
-                            ],
-                        ]),
-                    ),
+                    fetch: jest
+                        .fn<() => Promise<Map<string, MockRoleOption>>>()
+                        .mockResolvedValue(
+                            new Map([
+                                [
+                                    '111111111111111111',
+                                    {
+                                        id: '111111111111111111',
+                                        name: '@everyone',
+                                        color: 0,
+                                        position: 0,
+                                    },
+                                ],
+                                [
+                                    '999999999999999999',
+                                    {
+                                        id: '999999999999999999',
+                                        name: 'Admins',
+                                        color: 16711680,
+                                        position: 9,
+                                    },
+                                ],
+                                [
+                                    '888888888888888888',
+                                    {
+                                        id: '888888888888888888',
+                                        name: 'Mods',
+                                        color: 255,
+                                        position: 5,
+                                    },
+                                ],
+                            ]),
+                        ),
                 },
             } as unknown as Guild
 
@@ -458,37 +492,39 @@ describe('GuildService', () => {
             const mockGuild = {
                 id: guildId,
                 channels: {
-                    fetch: jest.fn().mockResolvedValue(
-                        new Map([
-                            [
-                                '1',
-                                {
-                                    id: '1',
-                                    name: 'updates',
-                                    type: 0,
-                                    rawPosition: 20,
-                                },
-                            ],
-                            [
-                                '2',
-                                {
-                                    id: '2',
-                                    name: 'voice-room',
-                                    type: 2,
-                                    rawPosition: 1,
-                                },
-                            ],
-                            [
-                                '3',
-                                {
-                                    id: '3',
-                                    name: 'general',
-                                    type: 5,
-                                    rawPosition: 2,
-                                },
-                            ],
-                        ]),
-                    ),
+                    fetch: jest
+                        .fn<() => Promise<Map<string, MockTextChannel>>>()
+                        .mockResolvedValue(
+                            new Map([
+                                [
+                                    '1',
+                                    {
+                                        id: '1',
+                                        name: 'updates',
+                                        type: 0,
+                                        rawPosition: 20,
+                                    },
+                                ],
+                                [
+                                    '2',
+                                    {
+                                        id: '2',
+                                        name: 'voice-room',
+                                        type: 2,
+                                        rawPosition: 1,
+                                    },
+                                ],
+                                [
+                                    '3',
+                                    {
+                                        id: '3',
+                                        name: 'general',
+                                        type: 5,
+                                        rawPosition: 2,
+                                    },
+                                ],
+                            ]),
+                        ),
                 },
             } as unknown as Guild
 
@@ -516,7 +552,7 @@ describe('GuildService', () => {
                 guilds: {
                     cache: new Map(),
                     fetch: jest
-                        .fn()
+                        .fn<() => Promise<never>>()
                         .mockRejectedValue(new Error('client fail')),
                 },
             } as unknown as Client)
@@ -716,7 +752,7 @@ describe('GuildService', () => {
             process.env.DISCORD_TOKEN = 'test-bot-token'
             setBotClient(null)
             global.fetch = jest
-                .fn()
+                .fn<typeof fetch>()
                 .mockRejectedValue(new Error('boom')) as unknown as typeof fetch
 
             const metrics =
@@ -739,18 +775,20 @@ describe('GuildService', () => {
             const mockGuild = {
                 id: guildId,
                 members: {
-                    fetch: jest.fn().mockResolvedValue({
-                        nickname: 'Mod Nick',
-                        roles: {
-                            cache: new Map([
-                                [guildId, { id: guildId }],
-                                [
-                                    '333333333333333333',
-                                    { id: '333333333333333333' },
-                                ],
-                            ]),
-                        },
-                    }),
+                    fetch: jest
+                        .fn<() => Promise<MockMemberContext>>()
+                        .mockResolvedValue({
+                            nickname: 'Mod Nick',
+                            roles: {
+                                cache: new Map([
+                                    [guildId, { id: guildId }],
+                                    [
+                                        '333333333333333333',
+                                        { id: '333333333333333333' },
+                                    ],
+                                ]),
+                            },
+                        }),
                 },
             } as unknown as Guild
 
@@ -781,7 +819,7 @@ describe('GuildService', () => {
                 guilds: {
                     cache: new Map(),
                     fetch: jest
-                        .fn()
+                        .fn<() => Promise<never>>()
                         .mockRejectedValue(new Error('client fail')),
                 },
             } as unknown as Client)
@@ -824,37 +862,39 @@ describe('GuildService', () => {
             const mockGuild = {
                 id: guildId,
                 roles: {
-                    fetch: jest.fn().mockResolvedValue(
-                        new Map([
-                            [
-                                guildId,
-                                {
-                                    id: guildId,
-                                    name: '@everyone',
-                                    position: 0,
-                                    color: 0,
-                                },
-                            ],
-                            [
-                                '1',
-                                {
-                                    id: '1',
-                                    name: 'Mods',
-                                    position: 10,
-                                    color: 255,
-                                },
-                            ],
-                            [
-                                '2',
-                                {
-                                    id: '2',
-                                    name: 'Helpers',
-                                    position: 2,
-                                    color: 0,
-                                },
-                            ],
-                        ]),
-                    ),
+                    fetch: jest
+                        .fn<() => Promise<Map<string, MockRoleOption>>>()
+                        .mockResolvedValue(
+                            new Map([
+                                [
+                                    guildId,
+                                    {
+                                        id: guildId,
+                                        name: '@everyone',
+                                        position: 0,
+                                        color: 0,
+                                    },
+                                ],
+                                [
+                                    '1',
+                                    {
+                                        id: '1',
+                                        name: 'Mods',
+                                        position: 10,
+                                        color: 255,
+                                    },
+                                ],
+                                [
+                                    '2',
+                                    {
+                                        id: '2',
+                                        name: 'Helpers',
+                                        position: 2,
+                                        color: 0,
+                                    },
+                                ],
+                            ]),
+                        ),
                 },
             } as unknown as Guild
 
@@ -881,7 +921,7 @@ describe('GuildService', () => {
                 guilds: {
                     cache: new Map(),
                     fetch: jest
-                        .fn()
+                        .fn<() => Promise<never>>()
                         .mockRejectedValue(new Error('client fail')),
                 },
             } as unknown as Client)
@@ -985,55 +1025,57 @@ describe('GuildService', () => {
             const mockGuild = {
                 id: guildId,
                 roles: {
-                    fetch: jest.fn().mockResolvedValue(
-                        new Map([
-                            [
-                                guildId,
-                                {
-                                    id: guildId,
-                                    name: '@everyone',
-                                    color: 0,
-                                    position: 0,
-                                    hoist: false,
-                                    mentionable: false,
-                                    managed: false,
-                                    permissions: {
-                                        bitfield: BigInt('0'),
+                    fetch: jest
+                        .fn<() => Promise<Map<string, MockClientRole>>>()
+                        .mockResolvedValue(
+                            new Map([
+                                [
+                                    guildId,
+                                    {
+                                        id: guildId,
+                                        name: '@everyone',
+                                        color: 0,
+                                        position: 0,
+                                        hoist: false,
+                                        mentionable: false,
+                                        managed: false,
+                                        permissions: {
+                                            bitfield: BigInt('0'),
+                                        },
                                     },
-                                },
-                            ],
-                            [
-                                '999999999999999999',
-                                {
-                                    id: '999999999999999999',
-                                    name: 'Admin',
-                                    color: 16711680,
-                                    position: 10,
-                                    hoist: true,
-                                    mentionable: true,
-                                    managed: false,
-                                    permissions: {
-                                        bitfield: BigInt('8'),
+                                ],
+                                [
+                                    '999999999999999999',
+                                    {
+                                        id: '999999999999999999',
+                                        name: 'Admin',
+                                        color: 16711680,
+                                        position: 10,
+                                        hoist: true,
+                                        mentionable: true,
+                                        managed: false,
+                                        permissions: {
+                                            bitfield: BigInt('8'),
+                                        },
                                     },
-                                },
-                            ],
-                            [
-                                '888888888888888888',
-                                {
-                                    id: '888888888888888888',
-                                    name: 'Mod',
-                                    color: 255,
-                                    position: 5,
-                                    hoist: false,
-                                    mentionable: false,
-                                    managed: true,
-                                    permissions: {
-                                        bitfield: BigInt('16'),
+                                ],
+                                [
+                                    '888888888888888888',
+                                    {
+                                        id: '888888888888888888',
+                                        name: 'Mod',
+                                        color: 255,
+                                        position: 5,
+                                        hoist: false,
+                                        mentionable: false,
+                                        managed: true,
+                                        permissions: {
+                                            bitfield: BigInt('16'),
+                                        },
                                     },
-                                },
-                            ],
-                        ]),
-                    ),
+                                ],
+                            ]),
+                        ),
                 },
             } as unknown as Guild
 
@@ -1078,7 +1120,7 @@ describe('GuildService', () => {
                 guilds: {
                     cache: new Map(),
                     fetch: jest
-                        .fn()
+                        .fn<() => Promise<never>>()
                         .mockRejectedValue(new Error('client fail')),
                 },
             } as unknown as Client)
@@ -1162,25 +1204,29 @@ describe('GuildService', () => {
             const mockGuild = {
                 id: guildId,
                 roles: {
-                    create: jest.fn().mockResolvedValue({
-                        id: '999999999999999999',
-                        name: 'New Role',
-                        color: 16711680,
-                        position: 5,
-                        hoist: true,
-                        mentionable: false,
-                        managed: false,
-                        permissions: {
-                            bitfield: BigInt('8'),
-                        },
-                    }),
+                    create: jest
+                        .fn<() => Promise<MockClientRole>>()
+                        .mockResolvedValue({
+                            id: '999999999999999999',
+                            name: 'New Role',
+                            color: 16711680,
+                            position: 5,
+                            hoist: true,
+                            mentionable: false,
+                            managed: false,
+                            permissions: {
+                                bitfield: BigInt('8'),
+                            },
+                        }),
                 },
             } as unknown as Guild
 
             setBotClient({
                 guilds: {
                     cache: new Map([[guildId, mockGuild]]),
-                    fetch: jest.fn().mockResolvedValue(mockGuild),
+                    fetch: jest
+                        .fn<() => Promise<Guild>>()
+                        .mockResolvedValue(mockGuild),
                 },
             } as unknown as Client)
 
@@ -1291,18 +1337,9 @@ describe('GuildService', () => {
             const mockGuild = {
                 id: guildId,
                 roles: {
-                    fetch: jest.fn().mockResolvedValue({
-                        id: roleId,
-                        name: 'Updated Role',
-                        color: 65280,
-                        position: 5,
-                        hoist: false,
-                        mentionable: true,
-                        managed: false,
-                        permissions: {
-                            bitfield: BigInt('16'),
-                        },
-                        edit: jest.fn().mockResolvedValue({
+                    fetch: jest
+                        .fn<() => Promise<MockEditableRole>>()
+                        .mockResolvedValue({
                             id: roleId,
                             name: 'Updated Role',
                             color: 65280,
@@ -1313,15 +1350,30 @@ describe('GuildService', () => {
                             permissions: {
                                 bitfield: BigInt('16'),
                             },
+                            edit: jest
+                                .fn<() => Promise<MockClientRole>>()
+                                .mockResolvedValue({
+                                    id: roleId,
+                                    name: 'Updated Role',
+                                    color: 65280,
+                                    position: 5,
+                                    hoist: false,
+                                    mentionable: true,
+                                    managed: false,
+                                    permissions: {
+                                        bitfield: BigInt('16'),
+                                    },
+                                }),
                         }),
-                    }),
                 },
             } as unknown as Guild
 
             setBotClient({
                 guilds: {
                     cache: new Map([[guildId, mockGuild]]),
-                    fetch: jest.fn().mockResolvedValue(mockGuild),
+                    fetch: jest
+                        .fn<() => Promise<Guild>>()
+                        .mockResolvedValue(mockGuild),
                 },
             } as unknown as Client)
 
@@ -1436,17 +1488,28 @@ describe('GuildService', () => {
             const mockGuild = {
                 id: guildId,
                 roles: {
-                    fetch: jest.fn().mockResolvedValue({
-                        id: roleId,
-                        delete: jest.fn().mockResolvedValue(undefined),
-                    }),
+                    fetch: jest
+                        .fn<
+                            () => Promise<{
+                                id: string
+                                delete: () => Promise<void>
+                            }>
+                        >()
+                        .mockResolvedValue({
+                            id: roleId,
+                            delete: jest
+                                .fn<() => Promise<void>>()
+                                .mockResolvedValue(undefined),
+                        }),
                 },
             } as unknown as Guild
 
             setBotClient({
                 guilds: {
                     cache: new Map([[guildId, mockGuild]]),
-                    fetch: jest.fn().mockResolvedValue(mockGuild),
+                    fetch: jest
+                        .fn<() => Promise<Guild>>()
+                        .mockResolvedValue(mockGuild),
                 },
             } as unknown as Client)
 
@@ -1454,7 +1517,7 @@ describe('GuildService', () => {
                 guildService.deleteGuildRole(guildId, roleId),
             ).resolves.toBeUndefined()
             expect(
-                (await mockGuild.roles.fetch(roleId)).delete,
+                (await mockGuild.roles.fetch(roleId))!.delete,
             ).toHaveBeenCalled()
         })
 

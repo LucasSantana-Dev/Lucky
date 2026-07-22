@@ -1,12 +1,12 @@
 import { z } from 'zod'
-import type { Client, Guild } from 'discord.js'
+import type { Client } from 'discord.js'
 import { discordOAuthService, type DiscordGuild } from './DiscordOAuthService'
 import {
     setClient as setDiscordClient,
     getClient as getDiscordClient,
     getServableGuild,
 } from '../utils/discordClientAccessor'
-import { metricsService, type GuildMetrics } from './MetricsCache'
+import { metricsService } from './MetricsCache'
 import {
     roleService,
     type GuildRoleOption,
