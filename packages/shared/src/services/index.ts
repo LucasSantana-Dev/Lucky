@@ -92,11 +92,6 @@ export {
 } from './GuildRoleAccessService'
 export { redisClient } from './redis/index.js'
 export {
-    giveawayService,
-    parseDuration,
-    type GiveawayData,
-} from './GiveawayService.js'
-export {
     starboardService,
     type StarboardConfig,
     type StarboardEntry,
@@ -105,6 +100,15 @@ export {
     supportSessionService,
     SupportSessionService,
 } from './SupportSessionService.js'
+export {
+    channelCleanupService,
+    type ChannelCleanupConfig,
+} from './ChannelCleanupService.js'
+export {
+    giveawayService,
+    parseDuration,
+    type GiveawayData,
+} from './GiveawayService.js'
 export {
     levelService,
     type LevelConfig,
