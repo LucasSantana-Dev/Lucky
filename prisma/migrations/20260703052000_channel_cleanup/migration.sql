@@ -26,7 +26,9 @@ CREATE INDEX IF NOT EXISTS "channel_cleanup_configs_enabled_mode_idx" ON "channe
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'channel_cleanup_configs_guildId_fkey'
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'channel_cleanup_configs_guildId_fkey'
+          AND conrelid = 'channel_cleanup_configs'::regclass
     ) THEN
         ALTER TABLE "channel_cleanup_configs"
             ADD CONSTRAINT "channel_cleanup_configs_guildId_fkey"
