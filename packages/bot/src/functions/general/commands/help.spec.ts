@@ -26,6 +26,7 @@ jest.mock('../../../utils/general/embeds.js', () => ({
     EMBED_COLORS: { INFO: 0x3b82f6 },
 }))
 
+import { errorLog } from '@lucky/shared/utils'
 import helpCommand from './help.js'
 
 function makeCommand(name: string, description: string, category = 'general') {
@@ -57,6 +58,7 @@ function makeClient(commands: unknown[]) {
 
 beforeEach(() => {
     interactionReply.mockClear().mockResolvedValue(undefined)
+    ;(errorLog as jest.Mock).mockClear()
 })
 
 describe('/help', () => {
@@ -78,7 +80,9 @@ describe('/help', () => {
 
         await helpCommand.execute({ client: client as never, interaction })
 
+        // A single command fits on one page: exactly one reply, no pagination.
         expect(interactionReply.mock.calls.length).toBeGreaterThanOrEqual(1)
+        expect(interactionReply).toHaveBeenCalledTimes(1)
     })
 
     test('handles empty command list', async () => {
@@ -91,43 +95,69 @@ describe('/help', () => {
     })
 
     test('handles many commands with pagination', async () => {
-        const commands = Array.from({ length: 50 }, (_, i) =>
-            makeCommand(`cmd${i}`, `Command ${i}`),
+        // Enough long command lines to exceed the per-page character budget
+        // in help.ts (PAGE_CHAR_BUDGET), forcing more than one embed page.
+        const commands = Array.from({ length: 250 }, (_, i) =>
+            makeCommand(
+                `cmd${i}`,
+                `Description for command number ${i} that is long enough to fill pages`,
+            ),
         )
         const client = makeClient(commands)
         const interaction = makeInteraction() as never
 
         await helpCommand.execute({ client: client as never, interaction })
 
-        expect(interactionReply.mock.calls.length).toBeGreaterThanOrEqual(1)
+        expect(interactionReply.mock.calls.length).toBeGreaterThan(1)
     })
 
     test('pages large command lists across multiple embeds', async () => {
-        // Create many commands to trigger pagination
-        const commands = Array.from({ length: 50 }, (_, i) =>
-            makeCommand(`cmd${i}`, `Command ${i}`),
+        const commands = Array.from({ length: 250 }, (_, i) =>
+            makeCommand(
+                `cmd${i}`,
+                `Description for command number ${i} that is long enough to fill pages`,
+            ),
         )
         const client = makeClient(commands)
         const interaction = makeInteraction() as never
 
         await helpCommand.execute({ client: client as never, interaction })
 
-        expect(interactionReply.mock.calls.length).toBeGreaterThanOrEqual(1)
+        const calls = interactionReply.mock.calls
+        expect(calls.length).toBeGreaterThan(1)
+        // The first page title carries the "1/N" page counter when paginated.
+        const firstCall = calls[0][0] as {
+            content: { embeds: Array<{ data: { title?: string } }> }
+        }
+        expect(firstCall.content.embeds[0].data.title).toContain(
+            `1/${calls.length}`,
+        )
     })
 
     test('catches errors and replies with error message', async () => {
-        const client = {
-            commands: new Map(), // Empty to trigger error during processing
-            user: null, // Missing displayAvatarURL
+        const client = makeClient([makeCommand('ping', 'Check latency')])
+        // Force a real exception inside help.ts: the footer builder calls
+        // interaction.user.displayAvatarURL() while rendering the first page.
+        const interaction = {
+            ...makeInteraction(),
+            user: {
+                id: 'u1',
+                tag: 'alice#0000',
+                displayAvatarURL: () => {
+                    throw new Error('avatar unavailable')
+                },
+            },
         } as never
-        const interaction = makeInteraction() as never
 
-        await helpCommand.execute({ client, interaction })
+        await helpCommand.execute({ client: client as never, interaction })
 
+        // The catch block sends exactly one reply: the error message.
+        expect(interactionReply).toHaveBeenCalledTimes(1)
         const call = interactionReply.mock.calls[0][0] as {
             content: { content?: string }
         }
         expect(call.content.content).toContain('error')
+        expect(errorLog).toHaveBeenCalled()
     })
 
     test('handles empty command list', async () => {

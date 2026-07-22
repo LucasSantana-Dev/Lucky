@@ -235,6 +235,8 @@ describe('/level', () => {
         })
 
         test('includes pagination buttons when needed', async () => {
+            // 10 entries at 5 items per page = 2 pages, so the leaderboard
+            // must include the pagination button row.
             const entries = Array.from({ length: 10 }, (_, i) => ({
                 userId: `u${i}`,
                 level: i,
@@ -247,10 +249,13 @@ describe('/level', () => {
             await levelCommand.execute({ interaction })
 
             const call = interactionReply.mock.calls[0][0] as {
-                content: { components?: unknown[] }
+                content: { components?: Array<{ type: string }> }
             }
-            // May or may not have buttons depending on page count
-            expect(typeof call.content.components).toBeDefined()
+            expect(Array.isArray(call.content.components)).toBe(true)
+            expect(call.content.components).toHaveLength(1)
+            expect(call.content.components?.[0]).toEqual({
+                type: 'button_row',
+            })
         })
     })
 
