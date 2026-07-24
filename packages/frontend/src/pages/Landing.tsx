@@ -234,7 +234,7 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
         <section className='relative overflow-hidden px-4 py-16 md:py-24 md:px-8'>
             <BlueprintGrid />
             <div className='relative mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1.05fr_1fr] lg:items-center'>
-                <motion.div {...animProps}>
+                <motion.div className='min-w-0' {...animProps}>
                     <motion.div {...catFloat} className='mb-6 inline-block'>
                         <img
                             src='/lucky-logo.png'
@@ -307,6 +307,7 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
                 </motion.div>
 
                 <motion.div
+                    className='min-w-0'
                     {...(prefersReducedMotion
                         ? {}
                         : {
@@ -491,7 +492,7 @@ function RepoCard({ stats, locale }: { stats: RepoStats; locale: string }) {
                 </div>
 
                 <div className='rounded-md border border-lucky-border-soft bg-lucky-surface-canvas px-3 py-2.5 text-[12px] flex items-center justify-between gap-2 group'>
-                    <code className='truncate text-lucky-text-body'>
+                    <code className='min-w-0 flex-1 truncate text-lucky-text-body'>
                         <span className='text-lucky-text-muted select-none'>
                             ${' '}
                         </span>
