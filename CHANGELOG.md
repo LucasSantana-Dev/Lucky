@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.1...v2.37.2) (2026-07-26)
+
+
+### Bug Fixes
+
+* **docker:** ship packages/shared's nested node_modules to runtime ([#1875](https://github.com/LucasSantana-Dev/Lucky/issues/1875)) ([6516ad2](https://github.com/LucasSantana-Dev/Lucky/commit/6516ad2e3fd8459e3910cf89de690eaf7042fe85))
+
 ## [2.37.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.0...v2.37.1) (2026-07-26)
 
 
