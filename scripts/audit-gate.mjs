@@ -85,8 +85,8 @@ const ACCEPTED = {
     // TEMPORARY. Remove with the react-router v8 migration (#1878).
     'react-router': {
         reason:
-            'Five advisories. Four are fixed in react-router 7.18.0; the fifth ' +
-            '(GHSA-qwww-vcr4-c8h2, RSC mode CSRF bypass) is only fixed in 8.3.0 and does not ' +
+            'Only the RSC-mode CSRF bypass is left; the other four advisories were cleared by ' +
+            'bumping react-router-dom to ^7.18.1. This one is fixed only in 8.3.0 and does not ' +
             'apply here, since this app is a Vite SPA and does not use RSC. Clearing it cannot ' +
             'be a version bump: react-router-dom has no 8.x line (v8 consolidated it into ' +
             'react-router), so the fix means switching the import source across ~49 frontend ' +
@@ -94,12 +94,13 @@ const ACCEPTED = {
             'rather than smuggling a router migration into a CI config PR.',
         until: 'The react-router v8 migration lands (#1878). This entry must go with it.',
         advisories: {
-            1124268: 'GHSA-wrjc-x8rr-h8h6, open redirect via backslash in <Link>/useNavigate',
-            1124271: 'GHSA-h8fp-f39c-q6mh, RSCErrorHandler missing protocol validation (XSS)',
-            1124272: 'GHSA-337j-9hxr-rhxg, constructor injection via deserializeErrors()',
-            1124276: 'GHSA-chx6-hx7r-mcp5, DoS via inefficient route matching',
-            1124282: 'GHSA-qwww-vcr4-c8h2, RSC mode CSRF bypass',
+            1124282: 'GHSA-qwww-vcr4-c8h2, RSC mode CSRF bypass (RSC only; this app is an SPA)',
         },
+    },
+    'react-router-dom': {
+        reason: 'Transitive via react-router.',
+        until: 'Same as react-router (#1878).',
+        advisories: TRANSITIVE,
     },
 };
 
