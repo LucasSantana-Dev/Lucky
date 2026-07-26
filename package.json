@@ -36,7 +36,7 @@
         "verify:backend": "npm run lint --workspace=packages/backend && npm run type:check --workspace=packages/backend && npm run build:backend && npm run test:backend && npm audit --audit-level=high --workspace=packages/backend",
         "verify:frontend": "npm run lint --workspace=packages/frontend && npm run type:check --workspace=packages/frontend && npm run build:frontend && npm run test:frontend",
         "audit:critical": "npm audit --audit-level=critical",
-        "audit:high": "npm audit --audit-level=high",
+        "audit:high": "node scripts/audit-gate.mjs",
         "lint:secrets": "secretlint \"**/*\"",
         "check:outdated": "npm outdated || true",
         "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://localhost:5432/postgres} prisma generate --config prisma/prisma.config.ts",
