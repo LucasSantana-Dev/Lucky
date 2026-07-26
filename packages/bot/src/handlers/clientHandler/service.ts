@@ -103,20 +103,14 @@ export async function startClient({
                     message: `Global commands registered: ${commandsData.length}`,
                 })
 
-                // MIGRATION (#1886): guild-scoped copies written by earlier
-                // versions survive until explicitly cleared, and would shadow
-                // the global set with definitions frozen at whatever the last
-                // redeploy wrote. Clearing runs after the global put so no
-                // guild is ever left with an empty command list mid-rollout.
-                for (const guild of client.guilds.cache.values()) {
-                    await rest.put(
-                        Routes.applicationGuildCommands(CLIENT_ID, guild.id),
-                        { body: [] },
-                    )
-                    infoLog({
-                        message: `Cleared guild-scoped commands: ${guild.name}`,
-                    })
-                }
+                // Guild-scoped copies written by earlier versions are NOT
+                // cleared here on purpose. Ordering the two REST calls does not
+                // order Discord's propagation: global commands are documented
+                // as taking up to an hour to appear, so clearing a guild's
+                // instant guild-scoped set in this same handler could leave a
+                // live server with no commands at all until global caught up.
+                // The one-off cleanup is `npm run commands:clear-guild` (#1886),
+                // run once global registration is confirmed live.
 
                 const { startTwitchService } =
                     await import('../../twitch/index.js')

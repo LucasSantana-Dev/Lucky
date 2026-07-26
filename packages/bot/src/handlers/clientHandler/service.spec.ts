@@ -208,7 +208,7 @@ describe('service', () => {
         // from the ready-time cache, so any server that added the bot while the
         // process was running got no slash commands until the next redeploy.
         // That is what failed the Top.gg review.
-        it('registers commands globally, then clears guild-scoped copies', async () => {
+        it('registers commands globally and never per guild', async () => {
             const commandJson = { name: 'play' }
             const contextMenuJson = { name: 'Track info' }
             const mockClient = {
@@ -247,23 +247,19 @@ describe('service', () => {
                 Routes.applicationCommands('test-client-id'),
                 { body: [commandJson, contextMenuJson] },
             )
-            expect(put).toHaveBeenCalledWith(
-                Routes.applicationGuildCommands('test-client-id', 'guild-1'),
-                { body: [] },
+            // Guild-scoped writes must not happen at boot in either direction.
+            // Registering per guild is the #1885 bug. Clearing per guild here
+            // would be the opposite hazard: a new global set is documented as
+            // taking up to an hour to propagate, so dropping a live guild's
+            // instant set in this same handler could leave it with no commands
+            // at all. Cleanup is the one-off `commands:clear-guild` script
+            // (#1886), run once global registration is confirmed live.
+            const guildRoute = Routes.applicationGuildCommands(
+                'test-client-id',
+                'guild-1',
             )
-
-            // Order matters: clearing before the global put would leave the
-            // guild with no commands at all until propagation caught up.
-            const calls = put.mock.calls.map((call) => call[0])
-            expect(
-                calls.indexOf(Routes.applicationCommands('test-client-id')),
-            ).toBeLessThan(
-                calls.indexOf(
-                    Routes.applicationGuildCommands(
-                        'test-client-id',
-                        'guild-1',
-                    ),
-                ),
+            expect(put.mock.calls.some((call) => call[0] === guildRoute)).toBe(
+                false,
             )
         })
 
