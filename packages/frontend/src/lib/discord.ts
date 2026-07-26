@@ -29,6 +29,5 @@ const DEFAULT_DISCORD_CLIENT_ID = '962198089161134131'
 export function getBotInviteUrl(): string {
     const clientId =
         import.meta.env.VITE_DISCORD_CLIENT_ID || DEFAULT_DISCORD_CLIENT_ID
-    if (!clientId) return ''
     return `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot%20applications.commands&permissions=${BOT_INVITE_PERMISSIONS}`
 }
