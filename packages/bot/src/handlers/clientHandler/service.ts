@@ -90,13 +90,31 @@ export async function startClient({
                     ...client.contextMenus.map((cmd) => cmd.data.toJSON()),
                 ]
 
+                // Register globally, not per guild. Guild-scoped registration
+                // only ever covered guilds already in the cache at ready, so a
+                // server that added Lucky while the process was running saw no
+                // slash commands at all until the next redeploy. That is what
+                // failed the Top.gg review (#1885): their verification bot
+                // joined after boot and found an empty command list.
+                await rest.put(Routes.applicationCommands(CLIENT_ID), {
+                    body: commandsData,
+                })
+                infoLog({
+                    message: `Global commands registered: ${commandsData.length}`,
+                })
+
+                // MIGRATION (#1886): guild-scoped copies written by earlier
+                // versions survive until explicitly cleared, and would shadow
+                // the global set with definitions frozen at whatever the last
+                // redeploy wrote. Clearing runs after the global put so no
+                // guild is ever left with an empty command list mid-rollout.
                 for (const guild of client.guilds.cache.values()) {
                     await rest.put(
                         Routes.applicationGuildCommands(CLIENT_ID, guild.id),
-                        { body: commandsData },
+                        { body: [] },
                     )
                     infoLog({
-                        message: `Guild commands registered: ${guild.name}`,
+                        message: `Cleared guild-scoped commands: ${guild.name}`,
                     })
                 }
 

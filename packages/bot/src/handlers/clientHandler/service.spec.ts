@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
-import { Client, Collection } from 'discord.js'
+import { Client, Collection, REST, Routes } from 'discord.js'
 import { createClient, startClient, stopPresenceRotation } from './service'
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -202,6 +202,69 @@ describe('service', () => {
             expect(mockClient.login).toHaveBeenCalledWith('test-token')
 
             await startPromise
+        })
+
+        // Regression guard for #1885: commands used to be registered per guild
+        // from the ready-time cache, so any server that added the bot while the
+        // process was running got no slash commands until the next redeploy.
+        // That is what failed the Top.gg review.
+        it('registers commands globally, then clears guild-scoped copies', async () => {
+            const commandJson = { name: 'play' }
+            const contextMenuJson = { name: 'Track info' }
+            const mockClient = {
+                login: jest.fn().mockResolvedValue('client'),
+                once: jest.fn((event: string, handler: () => void) => {
+                    if (event === 'ready') {
+                        Promise.resolve().then(() => handler())
+                    }
+                }),
+                user: null,
+                commands: { map: jest.fn().mockReturnValue([commandJson]) },
+                contextMenus: {
+                    map: jest.fn().mockReturnValue([contextMenuJson]),
+                },
+                guilds: {
+                    cache: {
+                        values: jest
+                            .fn()
+                            .mockReturnValue([
+                                { id: 'guild-1', name: 'Guild One' },
+                            ]),
+                    },
+                },
+            }
+
+            const startPromise = startClient({ client: mockClient as any })
+            await new Promise((resolve) => setImmediate(resolve))
+            await startPromise
+            await new Promise((resolve) => setImmediate(resolve))
+
+            const restResults = (REST as unknown as jest.Mock).mock.results
+            const put = restResults[restResults.length - 1]?.value
+                .put as jest.Mock
+
+            expect(put).toHaveBeenCalledWith(
+                Routes.applicationCommands('test-client-id'),
+                { body: [commandJson, contextMenuJson] },
+            )
+            expect(put).toHaveBeenCalledWith(
+                Routes.applicationGuildCommands('test-client-id', 'guild-1'),
+                { body: [] },
+            )
+
+            // Order matters: clearing before the global put would leave the
+            // guild with no commands at all until propagation caught up.
+            const calls = put.mock.calls.map((call) => call[0])
+            expect(
+                calls.indexOf(Routes.applicationCommands('test-client-id')),
+            ).toBeLessThan(
+                calls.indexOf(
+                    Routes.applicationGuildCommands(
+                        'test-client-id',
+                        'guild-1',
+                    ),
+                ),
+            )
         })
 
         it('should register ready event handler', async () => {
