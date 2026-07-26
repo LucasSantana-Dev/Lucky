@@ -54,6 +54,37 @@ export async function clearGuildCommands(
     return result
 }
 
+/** Discord's page size for GET /users/@me/guilds. */
+const GUILD_PAGE_SIZE = 200
+
+/**
+ * `/users/@me/guilds` is paginated and returns at most 200 entries. Taking only
+ * the first page would silently skip every guild after that, leaving them
+ * shadowing the global commands with no error — the exact failure this script
+ * exists to prevent. Lucky is well under 200 today, but growing past it is the
+ * point of being listed, and a migration that quietly half-runs is worse than
+ * one that fails.
+ */
+export async function fetchAllGuilds(
+    rest: Pick<REST, 'get'>,
+): Promise<GuildRef[]> {
+    const all: GuildRef[] = []
+    let after: string | undefined
+
+    for (;;) {
+        const query = new URLSearchParams({ limit: String(GUILD_PAGE_SIZE) })
+        if (after) query.set('after', after)
+
+        const page = (await rest.get(Routes.userGuilds(), {
+            query,
+        })) as GuildRef[]
+
+        all.push(...page)
+        if (page.length < GUILD_PAGE_SIZE) return all
+        after = page[page.length - 1].id
+    }
+}
+
 /**
  * Logs in only far enough to read the guild list, clears each guild's commands,
  * then exits non-zero if any guild was missed so the operator re-runs it.
@@ -65,7 +96,7 @@ export async function runClearGuildCommands(): Promise<ClearResult> {
     }
 
     const rest = new REST({ version: '10' }).setToken(TOKEN)
-    const guilds = (await rest.get(Routes.userGuilds())) as GuildRef[]
+    const guilds = await fetchAllGuilds(rest)
 
     infoLog({
         message: `Clearing guild-scoped commands for ${guilds.length} guild(s)`,
