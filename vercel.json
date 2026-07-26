@@ -28,6 +28,13 @@
             ]
         }
     ],
+    "redirects": [
+        {
+            "source": "/invite",
+            "destination": "https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=3165184",
+            "permanent": false
+        }
+    ],
     "rewrites": [
         {
             "source": "/api/:path*",
