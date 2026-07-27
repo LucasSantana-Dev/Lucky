@@ -1,6 +1,7 @@
 import { useMemo, type ReactElement } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
+import { getBotInviteUrl } from '@/lib/discord'
 import DocsShell, {
     type DocsNavGroup,
     type DocsTocItem,
@@ -15,8 +16,7 @@ type DocsPage = {
 }
 
 const REPO = 'https://github.com/LucasSantana-Dev/Lucky'
-const BOT_INVITE =
-    'https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=8'
+const BOT_INVITE = getBotInviteUrl()
 
 const NAV: DocsNavGroup[] = [
     {

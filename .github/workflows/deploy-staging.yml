@@ -35,6 +35,11 @@ jobs:
              contains(github.event.pull_request.labels.*.name, 'staging'))
         runs-on: ubuntu-latest
         steps:
+            - name: Checkout
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+              with:
+                  persist-credentials: false
+
             - name: Resolve ref to deploy
               id: ref
               env:
@@ -54,16 +59,10 @@ jobs:
                   WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
                   DEPLOY_REF: ${{ steps.ref.outputs.ref }}
               run: |
-                  # shellcheck disable=SC2016  # ${...} below is JS, evaluated by node, not bash
                   set -euo pipefail
                   # Derive the staging hook URL (origin + /webhook/deploy-staging)
                   # from the prod webhook secret, keeping the curl injection-safe.
-                  STAGING_URL=$(node -e '
-                      const raw = (process.env.WEBHOOK_URL ?? "").trim();
-                      if (!raw) { console.error("DEPLOY_WEBHOOK_URL not set"); process.exit(1); }
-                      const u = new URL(raw);
-                      console.log(`${u.protocol}//${u.host}/webhook/deploy-staging`);
-                  ')
+                  STAGING_URL="$(bash scripts/deploy/derive-webhook-origin.sh "$WEBHOOK_URL")/webhook/deploy-staging"
                   echo "POST $STAGING_URL (ref=$DEPLOY_REF)"
                   code=$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
                       -X POST \

@@ -58,8 +58,8 @@ jobs:
                       --search "in:body \"$marker\"" --json number --jq '.[0].number // ""')
 
                   if [ "$dashboard_fresh" -eq 0 ] && [ "$recent_prs" -eq 0 ]; then
-                      echo "::error::Renovate appears DARK — no Dashboard update and no bot PRs in 21d."
                       if [ -z "$existing" ]; then
+                          echo "::error::Renovate appears DARK — no Dashboard update and no bot PRs in 21d."
                           body=$(printf '%s\n\n%s\n\n%s' \
                               "$marker" \
                               "The \`Renovate Health\` scheduled check found **no open Dependency Dashboard issue** and **no renovate[bot] PR activity in the last 21 days**." \
@@ -68,10 +68,14 @@ jobs:
                               --title "ci(deps): Renovate automation appears dark — no Dashboard / recent PRs" \
                               --label "needs-triage" \
                               --body "$body"
-                      else
-                          echo "Tracking issue #$existing already open — not duplicating."
+                          # New detection: fail red so the fresh outage is visible.
+                          exit 1
                       fi
-                      exit 1
+                      # Already tracked (e.g. #1835): log and stay green. Failing red
+                      # every week while the tracking issue sits open is pure noise and
+                      # trains people to ignore real failures on this workflow.
+                      echo "::warning::Renovate still dark, but outage is already tracked by issue #$existing. Exiting green."
+                      exit 0
                   fi
 
                   echo "Renovate is alive."

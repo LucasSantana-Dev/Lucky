@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.2...v2.37.3) (2026-07-27)
+
+
+### Bug Fixes
+
+* **invite:** route /invite through the backend and unify the permissions ([#1893](https://github.com/LucasSantana-Dev/Lucky/issues/1893)) ([9372961](https://github.com/LucasSantana-Dev/Lucky/commit/93729617812dbde06ee12e8e0d3dfb1c424a22d3))
+
+## [2.37.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.1...v2.37.2) (2026-07-26)
+
+
+### Bug Fixes
+
+* **docker:** ship packages/shared's nested node_modules to runtime ([#1875](https://github.com/LucasSantana-Dev/Lucky/issues/1875)) ([6516ad2](https://github.com/LucasSantana-Dev/Lucky/commit/6516ad2e3fd8459e3910cf89de690eaf7042fe85))
+
+## [2.37.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.0...v2.37.1) (2026-07-26)
+
+
+### Bug Fixes
+
+* **bot:** register slash commands globally, not per cached guild ([#1887](https://github.com/LucasSantana-Dev/Lucky/issues/1887)) ([f7d38d5](https://github.com/LucasSantana-Dev/Lucky/commit/f7d38d535f5a4fe2f4488c888f3bb81de7680eed))
+* **ci:** make the security gate passable and clear production advisories ([#1876](https://github.com/LucasSantana-Dev/Lucky/issues/1876)) ([ca410d2](https://github.com/LucasSantana-Dev/Lucky/commit/ca410d2cb0f303c941e185548ccfe083a33d127c))
+* **frontend:** make /invite reach discord and stop asking for admin ([#1889](https://github.com/LucasSantana-Dev/Lucky/issues/1889)) ([c322834](https://github.com/LucasSantana-Dev/Lucky/commit/c3228345c8f5d7b12aa6fe306a5c86e6d755a47c))
+
 ## [2.37.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.36.1...v2.37.0) (2026-07-22)
 
 
