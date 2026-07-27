@@ -15,6 +15,8 @@ jobs:
             run-deadcode: true
             package-manager: npm
             pre-lint-script: 'npm run db:generate && npm run build:shared'
+            # ci.yml's checks job already lints all four workspaces.
+            lint-script: ''
         permissions:
             contents: read
             security-events: write

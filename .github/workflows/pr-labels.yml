@@ -1,16 +1,28 @@
-name: PR Size Label
+name: PR Labels
+
+# Unified PR labeling: path-based labels (actions/labeler, config in
+# .github/labeler.yml) plus size labels (codelytv/pr-size-labeler) in a single
+# job. Merged from the former labeler.yml and pr-size.yml workflows.
+# Uses pull_request_target so fork PRs get labeled; never add a checkout step
+# that runs PR code under this trigger.
 
 on:
-    pull_request:
+    pull_request_target:
         types: [opened, synchronize]
 
 permissions:
+    contents: read
     pull-requests: write
 
 jobs:
-    size-label:
+    label:
         runs-on: ubuntu-latest
         steps:
+            - name: Label PR by changed files
+              uses: actions/labeler@f27b608878404679385c85cfa523b85ccb86e213 # v6
+              with:
+                  sync-labels: true
+
             - name: Label PR by size
               uses: codelytv/pr-size-labeler@095a41fca88b8764fd9e008ad269bcdb82bb38b9 # v1
               with:
