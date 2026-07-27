@@ -129,12 +129,17 @@ async function checkLockfileGuard(): Promise<void> {
 // --- 5. .env protection -----------------------------------------------------
 // CLAUDE.md notes .env* is hooked-protected, but PRs can still slip
 // through if the hook was bypassed locally. Belt and suspenders.
-const envFiles = all.filter((p) => /(^|\/)\.env(\.|$)/.test(p))
+// Standard templates (.env.example/.env.sample/.env.template) are tracked in
+// the repo and safe; only real env files fail.
+const envTemplate = /(^|\/)\.env\.(example|sample|template)$/
+const envFiles = all.filter(
+    (p) => /(^|\/)\.env(\.|$)/.test(p) && !envTemplate.test(p),
+)
 if (envFiles.length > 0) {
     fail(
         `**.env* files in PR:** ${envFiles.join(', ')}. ` +
-            `These should never be committed. If this is \`.env.example\`, ` +
-            `it still needs explicit confirmation per project policy.`,
+            `These should never be committed. Templates ` +
+            `(\`.env.example\`, \`.env.sample\`, \`.env.template\`) are exempt.`,
     )
 }
 
