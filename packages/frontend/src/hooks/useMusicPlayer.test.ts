@@ -173,6 +173,20 @@ describe('useMusicPlayer', () => {
         await waitFor(() => {
             expect(result.current.state.volume).toBe(80)
         })
+        expect(result.current.lastStateUpdate).toEqual(expect.any(Number))
+    })
+
+    test('sets lastStateUpdate from initial REST state', async () => {
+        const { sse } = makeMockSSE()
+        mockCreateSSEConnection.mockReturnValue(sse)
+        const restState = { guildId: 'guild-1', isPlaying: true, tracks: [], currentTrack: null, isPaused: false, volume: 60, repeatMode: 'off', shuffled: false, position: 0, voiceChannelId: null, voiceChannelName: null, timestamp: 0 }
+        mockGetState.mockResolvedValue({ data: restState })
+
+        const { result } = renderHook(() => useMusicPlayer('guild-1'))
+
+        await waitFor(() => {
+            expect(result.current.lastStateUpdate).toEqual(expect.any(Number))
+        })
     })
 
     test('ignores malformed SSE messages gracefully', async () => {
@@ -183,10 +197,31 @@ describe('useMusicPlayer', () => {
         const volumeBefore = result.current.state.volume
 
         act(() => {
-            listeners.onmessage?.({ data: ': heartbeat' })
+            listeners.onmessage?.({ data: 'not-json' })
         })
 
         expect(result.current.state.volume).toBe(volumeBefore)
+    })
+
+    test('heartbeat payload refreshes lastStateUpdate without changing state', async () => {
+        const { sse, listeners } = makeMockSSE()
+        mockCreateSSEConnection.mockReturnValue(sse)
+
+        const { result } = renderHook(() => useMusicPlayer('guild-1'))
+        const volumeBefore = result.current.state.volume
+        const before = result.current.lastStateUpdate
+
+        act(() => {
+            listeners.onmessage?.({
+                data: JSON.stringify({ type: 'heartbeat' }),
+            })
+        })
+
+        expect(result.current.state.volume).toBe(volumeBefore)
+        expect(result.current.lastStateUpdate).toEqual(expect.any(Number))
+        if (before !== null) {
+            expect(result.current.lastStateUpdate).toBeGreaterThanOrEqual(before)
+        }
     })
 
     test('sets isConnected false and calls close on SSE error', async () => {

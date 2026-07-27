@@ -763,6 +763,7 @@
         "pause": "Pausar",
         "nextTrack": "Próxima faixa",
         "repeatMode": "Repetição: {{mode}}",
+        "progressMayBeOutdated": "pode estar desatualizado",
         "commandInProgress": "Executando o comando…",
         "dismissError": "Dispensar",
         "playerNotConnected": "O player não está conectado"

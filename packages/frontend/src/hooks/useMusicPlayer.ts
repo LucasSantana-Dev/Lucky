@@ -40,6 +40,8 @@ export function useMusicPlayer(guildId: string | undefined) {
     )
     const [isConnected, setIsConnected] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    /** Wall-clock ms of the last successful state payload (SSE or REST). */
+    const [lastStateUpdate, setLastStateUpdate] = useState<number | null>(null)
     const sseRef = useRef<EventSource | null>(null)
     const retryRef = useRef(0)
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -64,10 +66,16 @@ export function useMusicPlayer(guildId: string | undefined) {
         setIsLoading(false)
     }, [guildId])
 
+    const applyState = useCallback((next: QueueState) => {
+        setState(next)
+        setLastStateUpdate(Date.now())
+    }, [])
+
     useEffect(() => {
         if (!guildId) {
             setState(EMPTY_STATE)
             setIsConnected(false)
+            setLastStateUpdate(null)
             return
         }
 
@@ -88,9 +96,17 @@ export function useMusicPlayer(guildId: string | undefined) {
             sse.onmessage = (event) => {
                 if (cancelled) return
                 try {
-                    setState(JSON.parse(event.data))
+                    const payload = JSON.parse(event.data) as {
+                        type?: string
+                    } & QueueState
+                    // Heartbeat is liveness only; do not clobber queue state.
+                    if (payload?.type === 'heartbeat') {
+                        setLastStateUpdate(Date.now())
+                        return
+                    }
+                    applyState(payload)
                 } catch {
-                    /* heartbeat or malformed data */
+                    /* malformed data */
                 }
             }
 
@@ -115,7 +131,7 @@ export function useMusicPlayer(guildId: string | undefined) {
         api.music
             .getState(guildId)
             .then((res) => {
-                if (!cancelled) setState(res.data)
+                if (!cancelled) applyState(res.data)
             })
             .catch(() => {})
 
@@ -126,7 +142,7 @@ export function useMusicPlayer(guildId: string | undefined) {
             if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
             setIsConnected(false)
         }
-    }, [guildId])
+    }, [guildId, applyState])
 
     const sendCommand = useCallback(
         async (
@@ -168,7 +184,9 @@ export function useMusicPlayer(guildId: string | undefined) {
                     try {
                         const response =
                             await api.music.getState(commandGuildId)
-                        if (isLiveCommand()) setState(response.data)
+                        // applyState (not setState) so the rollback refresh
+                        // also stamps liveness for the stale-progress logic.
+                        if (isLiveCommand()) applyState(response.data)
                     } catch (refreshError) {
                         if (!isLiveCommand()) return
                         const refreshMessage =
@@ -199,7 +217,7 @@ export function useMusicPlayer(guildId: string | undefined) {
                 }
             }
         },
-        [guildId],
+        [guildId, applyState],
     )
 
     const clearError = useCallback(() => setError(null), [])
@@ -212,6 +230,7 @@ export function useMusicPlayer(guildId: string | undefined) {
         pendingAction,
         isConnected,
         error,
+        lastStateUpdate,
         clearError,
         ...commands,
     }
