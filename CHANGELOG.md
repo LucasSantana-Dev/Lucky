@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.2...v2.37.3) (2026-07-27)
+
+
+### Bug Fixes
+
+* **invite:** route /invite through the backend and unify the permissions ([#1893](https://github.com/LucasSantana-Dev/Lucky/issues/1893)) ([9372961](https://github.com/LucasSantana-Dev/Lucky/commit/93729617812dbde06ee12e8e0d3dfb1c424a22d3))
+
 ## [2.37.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.1...v2.37.2) (2026-07-26)
 
 
