@@ -762,7 +762,10 @@
         "play": "Reproduzir",
         "pause": "Pausar",
         "nextTrack": "Próxima faixa",
-        "repeatMode": "Repetição: {{mode}}"
+        "repeatMode": "Repetição: {{mode}}",
+        "commandInProgress": "Executando o comando…",
+        "dismissError": "Dispensar",
+        "playerNotConnected": "O player não está conectado"
     },
     "preferredArtists": {
         "noServerSelected": "Nenhum Servidor Selecionado",

@@ -141,6 +141,14 @@ COPY --from=deps-production /app/package*.json ./
 COPY --from=deps-production /app/packages/shared/package*.json ./packages/shared/
 COPY --from=deps-production /app/packages/bot/package*.json ./packages/bot/
 COPY --from=deps-production /app/packages/bot/node_modules ./packages/bot/node_modules
+# packages/shared's own node_modules. npm nests a dep here instead of hoisting
+# it whenever another workspace pins a conflicting range (packages/frontend also
+# depends on axios, so both copies nested). shared/dist imports these at
+# runtime, so omitting this directory kills the container with
+# ERR_MODULE_NOT_FOUND. 9 packages are nested here as of this commit, which is
+# why this copies the whole directory rather than naming one dep. It comes from
+# deps-production, so it is already devDep-pruned.
+COPY --from=deps-production /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/packages/shared/src/generated ./packages/shared/src/generated
 COPY --from=build /app/packages/shared/src/generated ./packages/shared/dist/generated
@@ -185,6 +193,14 @@ COPY --from=deps-production /app/package*.json ./
 COPY --from=deps-production /app/packages/shared/package*.json ./packages/shared/
 COPY --from=deps-production /app/packages/backend/package*.json ./packages/backend/
 COPY --from=deps-production /app/packages/backend/node_modules ./packages/backend/node_modules
+# packages/shared's own node_modules. npm nests a dep here instead of hoisting
+# it whenever another workspace pins a conflicting range (packages/frontend also
+# depends on axios, so both copies nested). shared/dist imports these at
+# runtime, so omitting this directory kills the container with
+# ERR_MODULE_NOT_FOUND. 9 packages are nested here as of this commit, which is
+# why this copies the whole directory rather than naming one dep. It comes from
+# deps-production, so it is already devDep-pruned.
+COPY --from=deps-production /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/packages/shared/src/generated ./packages/shared/src/generated
 COPY --from=build /app/packages/shared/src/generated ./packages/shared/dist/generated

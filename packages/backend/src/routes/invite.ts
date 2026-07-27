@@ -1,10 +1,14 @@
 import type { Express, Request, Response } from 'express'
 import { infoLog } from '@lucky/shared/utils'
 import { logAndSwallow } from '@lucky/shared/utils/error'
+import { buildBotInviteUrl } from '@lucky/shared/constants'
 import { apiLimiter } from '../middleware/rateLimit'
 
-const DISCORD_INVITE_URL =
-    'https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=36970496'
+// Was a hardcoded permissions=36970496 (Manage Messages, Connect, Speak) —
+// over-scoped on message deletion and missing View Channels / Send Messages,
+// so it neither matched the landing page nor actually worked. Single source of
+// truth now lives in shared (#1894).
+const DISCORD_INVITE_URL = buildBotInviteUrl()
 
 function toUtmString(value: unknown): string | undefined {
     return typeof value === 'string' ? value : undefined

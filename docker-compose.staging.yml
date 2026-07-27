@@ -43,8 +43,8 @@ x-common-app-env: &common-app-env
     SENTRY_DSN: ${SENTRY_DSN:-}
     SENTRY_ENABLED: ${SENTRY_ENABLED:-false}
     SENTRY_ENVIRONMENT: staging
-    DATABASE_URL: postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
-    DIRECT_URL: postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
+    DATABASE_URL: postgresql://discordbot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
+    DIRECT_URL: postgresql://discordbot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
     REDIS_HOST: redis
     REDIS_PORT: 6379
     REDIS_DB: ${REDIS_DB:-0}
@@ -66,7 +66,7 @@ services:
         environment:
             POSTGRES_DB: discordbot
             POSTGRES_USER: discordbot
-            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD_required}
             PGDATA: /var/lib/postgresql/data
         volumes:
             - staging_postgres_data:/var/lib/postgresql/data

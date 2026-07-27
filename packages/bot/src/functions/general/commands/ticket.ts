@@ -33,7 +33,7 @@ async function handleOpen(
             interaction,
             content: {
                 content:
-                    '❌ Tickets are not configured. An admin must set the support category and support-agent role first.',
+                    '❌ Tickets are not configured. An admin must run `/ticket-setup set` first.',
             },
         })
         return
@@ -163,14 +163,19 @@ function buildTicketOverwrites(
         PermissionFlagsBits.SendMessages,
         PermissionFlagsBits.ReadMessageHistory,
     ]
-    return [
+    // Never allow agentRoleId to overwrite the @everyone deny. A stale config
+    // (or a setup path that missed the guard) would otherwise make tickets public.
+    const overwrites: OverwriteResolvable[] = [
         {
             id: guild.roles.everyone.id,
             deny: [PermissionFlagsBits.ViewChannel],
         },
         { id: requestorId, allow },
-        { id: agentRoleId, allow },
     ]
+    if (agentRoleId !== guild.roles.everyone.id) {
+        overwrites.push({ id: agentRoleId, allow })
+    }
+    return overwrites
 }
 
 async function handleClose(

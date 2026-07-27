@@ -766,7 +766,10 @@
         "play": "Play",
         "pause": "Pause",
         "nextTrack": "Next track",
-        "repeatMode": "Repeat: {{mode}}"
+        "repeatMode": "Repeat: {{mode}}",
+        "commandInProgress": "Working on that command…",
+        "dismissError": "Dismiss",
+        "playerNotConnected": "Player is not connected"
     },
     "preferredArtists": {
         "noServerSelected": "No Server Selected",

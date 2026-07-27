@@ -114,6 +114,31 @@ describe('/ticket command (smoke)', () => {
         )
     })
 
+    it('open: never grants the agent overwrite when agent role is @everyone', async () => {
+        // Stale configs (settings API before the setup guard) can store everyone.
+        // buildTicketOverwrites must keep the deny and skip the allow entry.
+        guildSettingsServiceMock.getGuildSettings.mockResolvedValue({
+            supportCategoryId: 'cat-1',
+            supportAgentRoleId: 'everyone',
+        })
+        const channel = makeChannel()
+        supportSessionServiceMock.getActiveForUser.mockResolvedValue(null)
+        supportSessionServiceMock.open.mockResolvedValue({ id: 's1' })
+        const interaction = makeInteraction('open', channel)
+
+        await ticketCommand.execute({ interaction } as any)
+
+        const createArgs = interaction.guild.channels.create.mock.calls[0][0]
+        const overwrites = createArgs.permissionOverwrites as Array<{
+            id: string
+            allow?: unknown
+            deny?: unknown
+        }>
+        expect(overwrites).toHaveLength(2)
+        expect(overwrites.map((o) => o.id)).toEqual(['everyone', 'u1'])
+        expect(overwrites.find((o) => o.id === 'everyone')?.deny).toBeDefined()
+    })
+
     it('open: rolls the channel back when recording the session fails', async () => {
         const channel = makeChannel()
         supportSessionServiceMock.getActiveForUser.mockResolvedValue(null)

@@ -84,7 +84,7 @@ describe('djrole command', () => {
         it('clears djRoleId and replies with success embed', async () => {
             const interaction = createInteraction('clear')
             await djroleCommand.execute({ client: {}, interaction } as any)
-            expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', { djRoleId: undefined })
+            expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', { djRoleId: null })
             expect(createSuccessEmbedMock).toHaveBeenCalledWith('🎧 DJ Role Cleared', expect.any(String))
         })
 

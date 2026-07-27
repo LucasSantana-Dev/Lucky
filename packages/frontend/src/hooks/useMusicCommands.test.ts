@@ -102,34 +102,66 @@ describe('useMusicCommands', () => {
             'vc-1',
         )
 
-        expect(sendCommand).toHaveBeenCalledWith(expect.any(Function), {
-            isPlaying: false,
-            isPaused: true,
-        })
-        expect(sendCommand).toHaveBeenCalledWith(expect.any(Function), {
-            isPlaying: true,
-            isPaused: false,
-        })
-        expect(sendCommand).toHaveBeenCalledWith(expect.any(Function), {
-            isPlaying: false,
-            isPaused: false,
-            currentTrack: null,
-            tracks: [],
-        })
-        expect(sendCommand).toHaveBeenCalledWith(expect.any(Function), {
-            volume: 30,
-        })
-        expect(sendCommand).toHaveBeenCalledWith(expect.any(Function), {
-            repeatMode: 'queue',
-        })
-        expect(sendCommand).toHaveBeenCalledWith(expect.any(Function), {
-            position: 9000,
-        })
-        expect(sendCommand).toHaveBeenCalledWith(expect.any(Function), {
-            tracks: [tracks[0], tracks[2]],
-        })
-        expect(sendCommand).toHaveBeenCalledWith(expect.any(Function), {
-            tracks: [],
-        })
+        expect(sendCommand).toHaveBeenCalledWith(
+            expect.any(Function),
+            {
+                isPlaying: false,
+                isPaused: true,
+            },
+            'pause',
+        )
+        expect(sendCommand).toHaveBeenCalledWith(
+            expect.any(Function),
+            {
+                isPlaying: true,
+                isPaused: false,
+            },
+            'resume',
+        )
+        expect(sendCommand).toHaveBeenCalledWith(
+            expect.any(Function),
+            {
+                isPlaying: false,
+                isPaused: false,
+                currentTrack: null,
+                tracks: [],
+            },
+            'stop',
+        )
+        expect(sendCommand).toHaveBeenCalledWith(
+            expect.any(Function),
+            {
+                volume: 30,
+            },
+            'volume',
+        )
+        expect(sendCommand).toHaveBeenCalledWith(
+            expect.any(Function),
+            {
+                repeatMode: 'queue',
+            },
+            'repeat',
+        )
+        expect(sendCommand).toHaveBeenCalledWith(
+            expect.any(Function),
+            {
+                position: 9000,
+            },
+            'seek',
+        )
+        expect(sendCommand).toHaveBeenCalledWith(
+            expect.any(Function),
+            {
+                tracks: [tracks[0], tracks[2]],
+            },
+            'remove',
+        )
+        expect(sendCommand).toHaveBeenCalledWith(
+            expect.any(Function),
+            {
+                tracks: [],
+            },
+            'clear',
+        )
     })
 })

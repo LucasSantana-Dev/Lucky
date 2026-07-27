@@ -11,8 +11,9 @@
 
 ## Context
 
-`docker-compose.yml` interpolates the Postgres password into three places, each with what looks
-like a fail-fast guard:
+The compose files interpolate the Postgres password into several places, each with what looks
+like a fail-fast guard (shown for `docker-compose.yml`; the same pattern exists in
+`docker-compose.staging.yml` and `docker-compose.dev.yml`):
 
 ```yaml
 DATABASE_URL: postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
@@ -31,8 +32,11 @@ on the homelab, and the repo is public, so self-hosters inherit the same default
 
 Three parts.
 
-1. **Change all three guards from `${VAR?err}` to `${VAR:?err}`.** This is the actual fix and it
-   corrects a pre-existing weakness, not something #1674 introduced.
+1. **Change all guards from `${VAR?err}` to `${VAR:?err}`, in all three compose files** (prod,
+   staging, dev). This is the actual fix and it corrects a pre-existing weakness, not something
+   #1674 introduced. The staging/dev sites matter as much as prod: `deploy-staging.sh` has no
+   independent password guard (unlike `deploy.sh`), so the compose guard is the only line of
+   defense on that path.
 2. **`.env.example` ships `POSTGRES_PASSWORD=` (empty)**, keeping #1674's comment block, which
    correctly explains the URL-safe-hex requirement and gives the `openssl rand -hex 24` command.
 3. **README setup becomes two portable lines:**
