@@ -157,7 +157,9 @@ function NowPlayingHero({
     onVolumeChange: (v: number) => void
 }) {
     const { t } = useTranslation()
-    const currentTrack = state.tracks[0]
+    // Prefer the live currentTrack from SSE; fall back to the head of the
+    // upcoming queue for older state payloads that only filled tracks[].
+    const currentTrack = state.currentTrack ?? state.tracks[0]
 
     if (!currentTrack) {
         return (
@@ -208,9 +210,16 @@ function NowPlayingHero({
                             <h2 className='type-h2 text-lucky-text-primary mb-1 line-clamp-2'>
                                 {currentTrack.title || t('music.unknown')}
                             </h2>
-                            <p className='type-body text-lucky-text-secondary mb-4'>
+                            <p className='type-body text-lucky-text-secondary mb-1'>
                                 {currentTrack.author || t('music.unknown')}
                             </p>
+                            {currentTrack.recommendationReason ? (
+                                <p className='type-body-sm text-lucky-text-tertiary mb-4 line-clamp-2'>
+                                    {currentTrack.recommendationReason}
+                                </p>
+                            ) : (
+                                <div className='mb-4' />
+                            )}
                         </div>
 
                         <div>
