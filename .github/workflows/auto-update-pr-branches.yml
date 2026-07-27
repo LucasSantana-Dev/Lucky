@@ -20,9 +20,10 @@ on:
   # hasn't recomputed the other PRs' mergeStateStatus yet (it reads UNKNOWN, not
   # BEHIND), so a merge-triggered run can update zero PRs and strand the queue
   # with no further push to re-fire it. This cron catches any stranded PR within
-  # ~15 min regardless of the race.
+  # ~1 hour regardless of the race. (Was every 15 min; the push trigger and
+  # workflow_dispatch carry the real load, so hourly is enough for a backstop.)
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "23 * * * *"
   workflow_dispatch:
 
 permissions:

@@ -7,6 +7,30 @@ This document describes the continuous integration and deployment setup for Luck
 - **CI**: Runs on every push and pull request to `main` and `develop`. Two jobs: **Quality Gates** (lint, type-check, build, unit/integration tests, coverage, security audit) and **E2E** (Playwright tests for the frontend), with E2E depending on Quality Gates.
 - **CD**: Deploy workflow runs on push to `main` (and manual trigger). It calls a protected homelab webhook that performs pull/build/restart.
 
+## External contributors
+
+Three workflows keep fork PRs moving without manual babysitting:
+
+- **External PR Notify** (`external-pr-notify.yml`): posts a Discord alert to
+  `DISCORD_DEPLOY_ALERT_WEBHOOK` when an external author opens/reopens/marks a PR
+  ready, plus a daily digest (12:07 UTC) of all open external PRs. Runs on
+  `pull_request_target` / `schedule`, reads PR metadata only, never checks out code.
+- **Fork CI Auto-Approve** (`fork-ci-autoapprove.yml`): the repo requires
+  maintainer approval for outside-contributor runs (GitHub policy, no API to
+  change). This workflow auto-approves pending runs when the author is a returning
+  contributor (`CONTRIBUTOR` association or better) or is listed in the repo
+  variable `CI_AUTO_APPROVE_AUTHORS` (comma-separated logins; edit with
+  `gh variable set CI_AUTO_APPROVE_AUTHORS --body "login1,login2"`). True
+  first-timers get a PR comment and the Discord ping brings a maintainer in to
+  approve manually. Approved runs still execute under `pull_request` semantics
+  (no secrets, read-only token).
+- **PR Agent** (`pr-agent.yml`): uses `pull_request_target` so fork PRs receive
+  AI review (fork `pull_request` runs get no secrets, so the review silently
+  never ran otherwise). It reads the diff via the GitHub API only.
+
+Safety rule for all three: never add a `checkout` step or any step that executes
+PR code to a `pull_request_target` workflow.
+
 ## Lock file
 
 The root `package-lock.json` must be committed. CI uses `cache: 'npm'` and `npm ci`, which require it. Do not add it to `.gitignore`.
@@ -24,31 +48,35 @@ To bypass hooks (use sparingly): `git commit --no-verify`.
 
 ## CI jobs
 
-### Quality Gates
+`ci.yml` (CI/CD Pipeline) runs on push/PR/merge_group to `main` and `release/**`:
 
-1. Checkout, Node 22, `npm ci` (with cache).
-2. **Lint**: `npm run lint` (root ESLint).
-3. **Type check**: `npm run type:check` (shared, bot, backend, frontend).
-4. **Build**: `npm run build` (shared, bot, backend, frontend).
-5. **Tests**: `npm run test:ci` (backend Jest, unit + integration).
-6. **Coverage**: `npm run test:coverage` (backend; enforces thresholds, outputs `packages/backend/coverage/`).
-7. **Security**: `npm audit --audit-level high`.
-8. **Secrets scan**: `npm run lint:secrets` (Secretlint on full codebase; blocks PRs that introduce credentials).
-9. **Outdated**: `npm run check:outdated` (informational; does not fail).
-10. **Codecov**: Uploads `packages/backend/coverage/lcov.info`.
+1. **build-shared**: install, Prisma generate, build `packages/shared`, upload the `shared-build` artifact (1-day retention) that downstream jobs reuse.
+2. **checks**: lint (all four workspaces), shared-exports verification, type check, docs coverage, full build, and the path-portability guard (`scripts/check-path-portability.sh`).
+3. **test-shared / test-backend / test-bot / test-frontend**: per-package Jest/Vitest with coverage artifacts. `test-bot` also runs the music incident regression and the discord-player major-pin guard (installed major must not exceed the pinned major).
+4. **test-youtube-smoke**: advisory, only on dependabot/renovate PRs whose title names a YouTube-adjacent package.
+5. **docker-build**: matrix (bot/backend/frontend/nginx) building images with gha cache, plus a require-time check of the bot's native modules (opus, Prisma engines). The build invocation lives in the composite action `.github/actions/docker-build-service` (initial attempt + one retry).
+6. **madge / packages/bot**: circular-dependency gate for the bot package (required check; name kept verbatim for the branch ruleset).
+7. **Quality Gates**: aggregator job asserting all of the above succeeded (required check).
+8. **SonarCloud Scan**: quality gate on PRs (blocking, one retry for transient scanner-download 403s), informational on push.
+9. **Security**: `npm audit --audit-level high` + Secretlint (blocking). GitGuardian (app) and Socket (app) cover PR-level secrets and supply chain outside the workflow.
+
+Other PR gates live in their own workflows: **Migration Gate** (applies the full Prisma chain on Postgres 18; required), **Destructive Interaction Gate** (required), **Mutation Testing** (matrix over shared/backend/bot, path-filtered), **Bundle Size** (`size-limit` hard budget), **PR Labels** (path + size labels, fork-safe), **Review Tools** (danger), **PR Agent** (AI review).
 
 ### E2E (Playwright)
 
 Runs after Quality Gates succeed:
 
-1. Checkout, Node 22, `npm ci`.
+1. Checkout, Node 24, `npm ci`.
 2. Install Playwright Chromium: `cd packages/frontend && npx playwright install --with-deps chromium`.
 3. Run E2E: `npm run test:e2e` (starts frontend dev server and runs Playwright tests).
 
 ## Deployment
 
-The deploy workflow (`.github/workflows/deploy.yml`) runs on push to `main` and on
-manual dispatch. It:
+The deploy workflow (`.github/workflows/deploy.yml`) runs on `release: published`
+and on manual dispatch (with optional `rollback_sha`). Its inline logic lives in
+`scripts/deploy/` (`derive-webhook-origin.sh`, `trigger-deploy-webhook.sh`,
+`wait-homelab-status.sh`, `oauth-smoke.sh`), so the webhook, polling, and smoke
+behavior can be tested locally with bash/shellcheck. It:
 
 1. Validates `DEPLOY_WEBHOOK_SECRET` and `DEPLOY_WEBHOOK_URL`.
 2. Normalizes deploy webhook candidates from `DEPLOY_WEBHOOK_URL` (URL-parse +
@@ -88,11 +116,11 @@ migration/schema error and runtime services are not restarted.
 
 Add these repository secrets in **Settings → Secrets and variables → Actions**:
 
-| Secret                    | Description                                                              |
-| ------------------------- | ------------------------------------------------------------------------ |
-| `DEPLOY_WEBHOOK_SECRET`   | Shared secret validated by `scripts/deploy.sh`                           |
-| `DEPLOY_WEBHOOK_URL`      | Public deploy endpoint (`https://<domain>/webhook/deploy`)               |
-| `DISCORD_DEPLOY_WEBHOOK`  | Optional Discord webhook URL for deploy start/success/failure embeds     |
+| Secret                   | Description                                                          |
+| ------------------------ | -------------------------------------------------------------------- |
+| `DEPLOY_WEBHOOK_SECRET`  | Shared secret validated by `scripts/deploy.sh`                       |
+| `DEPLOY_WEBHOOK_URL`     | Public deploy endpoint (`https://<domain>/webhook/deploy`)           |
+| `DISCORD_DEPLOY_WEBHOOK` | Optional Discord webhook URL for deploy start/success/failure embeds |
 
 #### One-time setup via GitHub CLI
 
@@ -164,13 +192,13 @@ If deploy trigger fails with `502` and nginx logs show `host not found in
 upstream "webhook"`:
 
 1. Confirm webhook container is running:
-   - `docker compose ps webhook`
+    - `docker compose ps webhook`
 2. Confirm service discovery from nginx:
-   - `docker exec lucky-nginx getent hosts webhook backend frontend`
+    - `docker exec lucky-nginx getent hosts webhook backend frontend`
 3. Restart only webhook if needed:
-   - `docker compose up -d webhook`
+    - `docker compose up -d webhook`
 4. Check recent logs:
-   - `docker compose logs --tail=200 --no-color webhook nginx`
+    - `docker compose logs --tail=200 --no-color webhook nginx`
 
 To reduce recurrence, deploy rollout now restarts target services with
 `--no-deps`, and nginx no longer depends on webhook service startup.
@@ -213,10 +241,10 @@ If `Auth config smoke check` times out with repeated `HTTP 502`:
 
 1. Treat this as upstream backend/nginx availability, not OAuth contract shape.
 2. Trigger deploy again with:
-   - `npm run deploy:homelab`
+    - `npm run deploy:homelab`
 3. Inspect run logs for:
-   - `upstream unavailable` counters in `Auth config smoke summary`
-   - deploy-side service/log diagnostics from `scripts/deploy.sh`
+    - `upstream unavailable` counters in `Auth config smoke summary`
+    - deploy-side service/log diagnostics from `scripts/deploy.sh`
 4. Confirm public probes recover:
     - `https://lucky.lucassantana.tech/api/health` -> `200`
     - `https://lucky.lucassantana.tech/api/health/auth-config` -> `200`

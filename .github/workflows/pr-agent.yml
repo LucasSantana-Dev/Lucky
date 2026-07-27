@@ -1,7 +1,10 @@
 name: PR Agent
 
+# pull_request_target so fork PRs receive AI review (fork pull_request runs get
+# no secrets). NEVER add a checkout step or any step that executes PR code in
+# this workflow; PR-Agent reads the diff via the GitHub API only.
 on:
-    pull_request:
+    pull_request_target:
         types: [opened, reopened, ready_for_review]
     issue_comment:
         types: [created]
@@ -11,7 +14,9 @@ on:
         types: [submitted]
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.ref }}
+    # Under pull_request_target github.ref is the base branch, so key on the PR
+    # number to avoid serializing reviews across unrelated PRs.
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
     cancel-in-progress: false
 
 permissions:
