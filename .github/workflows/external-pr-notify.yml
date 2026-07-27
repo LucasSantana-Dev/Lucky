@@ -38,7 +38,10 @@ jobs:
                           : 'External PR ready for review';
                       const payload = {
                           embeds: [{
-                              title: `${action}: #${pr.number} ${pr.title}`,
+                              // Discord caps embed titles at 256 chars; PR
+                              // titles are contributor-controlled, so a huge
+                              // title would 400 the webhook and drop the alert.
+                              title: `${action}: #${pr.number} ${pr.title}`.slice(0, 256),
                               url: pr.html_url,
                               color: 0xf59e0b,
                               fields: [
@@ -48,12 +51,19 @@ jobs:
                               ],
                           }],
                       };
-                      const res = await fetch(webhook, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(payload),
-                      });
-                      if (!res.ok) throw new Error(`Discord webhook failed: ${res.status}`);
+                      const controller = new AbortController();
+                      const timeout = setTimeout(() => controller.abort(), 10000);
+                      try {
+                          const res = await fetch(webhook, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify(payload),
+                              signal: controller.signal,
+                          });
+                          if (!res.ok) throw new Error(`Discord webhook failed: ${res.status}`);
+                      } finally {
+                          clearTimeout(timeout);
+                      }
 
     digest:
         name: External PR digest
@@ -94,7 +104,7 @@ jobs:
                           return;
                       }
                       const fmtAge = (h) => (h >= 24 ? `${Math.floor(h / 24)}d` : `${Math.floor(h)}h`);
-                      const lines = rows.map((r) => `[#${r.number}](${r.url}) ${r.title} — ${r.author}, open ${fmtAge(r.ageHours)}`);
+                      const lines = rows.map((r) => `[#${r.number}](${r.url}) ${r.title} - ${r.author}, open ${fmtAge(r.ageHours)}`);
                       const payload = {
                           embeds: [{
                               title: `External PR digest: ${rows.length} open`,
@@ -102,9 +112,16 @@ jobs:
                               color: 0x3b82f6,
                           }],
                       };
-                      const res = await fetch(webhook, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(payload),
-                      });
-                      if (!res.ok) throw new Error(`Discord webhook failed: ${res.status}`);
+                      const controller = new AbortController();
+                      const timeout = setTimeout(() => controller.abort(), 10000);
+                      try {
+                          const res = await fetch(webhook, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify(payload),
+                              signal: controller.signal,
+                          });
+                          if (!res.ok) throw new Error(`Discord webhook failed: ${res.status}`);
+                      } finally {
+                          clearTimeout(timeout);
+                      }
