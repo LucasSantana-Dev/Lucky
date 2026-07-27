@@ -5,7 +5,7 @@ const requireQueueMock = jest.fn()
 const requireCurrentTrackMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
-const trackToDataMock = jest.fn((track: unknown) => ({
+const playerTrackToDataMock = jest.fn((track: unknown) => ({
     title: (track as { title: string }).title,
 }))
 const buildTrackEmbedMock = jest.fn(() => ({ embed: 'nowplaying' }))
@@ -25,7 +25,7 @@ jest.mock('../../../utils/music/queueResolver', () => ({
 }))
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
-    trackToData: (...args: unknown[]) => trackToDataMock(...args),
+    playerTrackToData: (...args: unknown[]) => playerTrackToDataMock(...args),
     buildTrackEmbed: (...args: unknown[]) => buildTrackEmbedMock(...args),
 }))
 
@@ -89,7 +89,7 @@ describe('nowplaying command', () => {
             interaction: makeInteraction(),
         } as any)
 
-        expect(trackToDataMock).toHaveBeenCalledWith(track)
+        expect(playerTrackToDataMock).toHaveBeenCalledWith(track)
         expect(createProgressBar).toHaveBeenCalledWith({
             length: 18,
             timecodes: true,
