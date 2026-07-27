@@ -241,11 +241,6 @@ function NowPlayingHero({
                                     className={`flex-1 h-1 bg-lucky-bg-active rounded-full overflow-hidden ${
                                         isStale ? 'opacity-50' : ''
                                     }`}
-                                    title={
-                                        isStale
-                                            ? t('music.progressMayBeOutdatedTitle')
-                                            : undefined
-                                    }
                                 >
                                     <div
                                         className={`h-full rounded-full ${
@@ -261,7 +256,10 @@ function NowPlayingHero({
                             <div className='relative flex justify-between type-body-sm text-lucky-text-tertiary'>
                                 <span>{formatSeconds(position)}</span>
                                 {isStale ? (
-                                    <span className='pointer-events-none absolute left-1/2 -translate-x-1/2 text-lucky-warning'>
+                                    <span
+                                        role='status'
+                                        className='pointer-events-none absolute left-1/2 -translate-x-1/2 text-lucky-warning'
+                                    >
                                         {t('music.progressMayBeOutdated')}
                                     </span>
                                 ) : null}
