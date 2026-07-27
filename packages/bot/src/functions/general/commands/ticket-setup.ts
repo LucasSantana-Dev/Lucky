@@ -104,10 +104,22 @@ export default new Command({
             }
 
             const me = interaction.guild?.members.me
-            const categoryIdForPerms = category.id
+            if (!me) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            createErrorEmbed(
+                                'Bot member not cached',
+                                'I could not resolve my own member object to check Manage Channels in that category. Try again in a moment, or re-invite me if this keeps happening.',
+                            ),
+                        ],
+                    },
+                })
+                return
+            }
             if (
-                me &&
-                !me.permissionsIn(categoryIdForPerms).has(
+                !me.permissionsIn(category.id).has(
                     PermissionFlagsBits.ManageChannels,
                 )
             ) {
