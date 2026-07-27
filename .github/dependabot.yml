@@ -10,8 +10,28 @@ updates:
         update-types:
           - "minor"
           - "patch"
+        # YouTube-adjacent deps must get standalone PRs: ci.yml's
+        # test-youtube-smoke guard matches on PR title, and a grouped PR
+        # title would bypass it. These packages break on minor bumps often
+        # enough that the repo pins them manually elsewhere (7-day age).
+        exclude-patterns:
+          - "youtubei.js"
+          - "discord-player-youtubei"
+          - "yt-dlp"
+          - "youtube-dl-exec"
+          - "play-dl"
   - package-ecosystem: "docker"
     directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+  - package-ecosystem: "docker"
+    directory: "/deploy"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
