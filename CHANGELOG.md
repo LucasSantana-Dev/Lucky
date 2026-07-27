@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.38.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.3...v2.38.0) (2026-07-27)
+
+
+### Features
+
+* **bot:** add /ticket-setup for support category and agent role ([#1863](https://github.com/LucasSantana-Dev/Lucky/issues/1863)) ([3f4af39](https://github.com/LucasSantana-Dev/Lucky/commit/3f4af39f6d4a94f03773d07a753a253a233159e1))
+* **frontend:** per-action loading and connection gating on music controls ([#1866](https://github.com/LucasSantana-Dev/Lucky/issues/1866)) ([2dda60f](https://github.com/LucasSantana-Dev/Lucky/commit/2dda60f25cc029632049af592f0626d6f8192cfc))
+* **frontend:** show stale progress when music SSE lags ([#1867](https://github.com/LucasSantana-Dev/Lucky/issues/1867)) ([4952e73](https://github.com/LucasSantana-Dev/Lucky/commit/4952e73da2800d061950ec81e80e12eeba36679f))
+* **music:** surface recommendationReason in nowplaying and queue ([#1864](https://github.com/LucasSantana-Dev/Lucky/issues/1864)) ([960fd62](https://github.com/LucasSantana-Dev/Lucky/commit/960fd62deba4aef7c83d1a2a43c3c56efb3b0283))
+* **ops:** blue/green zero-downtime deploys — Phase 1 web tier ([#1786](https://github.com/LucasSantana-Dev/Lucky/issues/1786)) ([f5f7597](https://github.com/LucasSantana-Dev/Lucky/commit/f5f7597f827ea68e30501db64bf7b1110fdbc552))
+
+
+### Bug Fixes
+
+* **docker:** make compose stack boot from a fresh .env ([#1674](https://github.com/LucasSantana-Dev/Lucky/issues/1674)) ([babe0ef](https://github.com/LucasSantana-Dev/Lucky/commit/babe0efabc7f8bd2a71620a17c62910f8665f6b0))
+* **docker:** treat an empty db password as missing in compose guards ([#1881](https://github.com/LucasSantana-Dev/Lucky/issues/1881)) ([718c0ad](https://github.com/LucasSantana-Dev/Lucky/commit/718c0ad311bd2ea46e9f1d7e7a55530a57b96a64))
+* **frontend:** make landing page usable at mobile widths ([#1865](https://github.com/LucasSantana-Dev/Lucky/issues/1865)) ([6190350](https://github.com/LucasSantana-Dev/Lucky/commit/6190350e5ba866126e7464bc4cd7cba312e779b1))
+* **frontend:** stop hero grid columns overflowing on narrow viewports ([#1874](https://github.com/LucasSantana-Dev/Lucky/issues/1874)) ([ce5cea0](https://github.com/LucasSantana-Dev/Lucky/commit/ce5cea09e1051142f3871921d3fdfc5b39cb4eab))
+* **invite:** add /invite where cloudflare pages reads it ([#1895](https://github.com/LucasSantana-Dev/Lucky/issues/1895)) ([0528f66](https://github.com/LucasSantana-Dev/Lucky/commit/0528f66b5a9422c81f2a72bbce700d8da197bba3))
+
 ## [2.37.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.2...v2.37.3) (2026-07-27)
 
 
