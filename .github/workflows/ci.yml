@@ -64,10 +64,12 @@ jobs:
                   npm run lint --workspace=packages/bot
                   npm run lint --workspace=packages/shared
             # Exits 1 on drift in either mode, so a single human-readable run
-            # is the CI assertion (jq and ripgrep are preinstalled on
-            # ubuntu-latest). Absorbs the deleted path-portability.yml workflow.
+            # is the CI assertion. Absorbs the deleted path-portability.yml
+            # workflow. ripgrep is NOT preinstalled on ubuntu-latest.
             - name: Path portability
-              run: bash scripts/check-path-portability.sh
+              run: |
+                  sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep jq
+                  bash scripts/check-path-portability.sh
             - name: Verify shared package exports
               run: npm run verify:shared-exports
               env:
