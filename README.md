@@ -135,6 +135,11 @@ cd Lucky
 
 # Configure environment
 cp .env.example .env
+
+# Generate the in-container Postgres password (must be URL-safe: it goes
+# straight into a postgres:// URL). Compose refuses to start without it.
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
+
 # Edit .env to fill in:
 #   - DISCORD_TOKEN (from Discord Developer Portal)
 #   - CLIENT_ID (your bot's client ID)
