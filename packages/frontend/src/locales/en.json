@@ -766,7 +766,10 @@
         "play": "Play",
         "pause": "Pause",
         "nextTrack": "Next track",
-        "repeatMode": "Repeat: {{mode}}"
+        "repeatMode": "Repeat: {{mode}}",
+        "progressMayBeOutdated": "may be outdated",
+        "progressMayBeOutdatedTitle": "Playback position may be outdated",
+        "progressMayBeOutdatedAria": "Progress may be outdated"
     },
     "preferredArtists": {
         "noServerSelected": "No Server Selected",
