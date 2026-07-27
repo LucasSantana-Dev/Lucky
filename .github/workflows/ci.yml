@@ -63,6 +63,11 @@ jobs:
                   npm run lint --workspace=packages/backend
                   npm run lint --workspace=packages/bot
                   npm run lint --workspace=packages/shared
+            # Exits 1 on drift in either mode, so a single human-readable run
+            # is the CI assertion (jq and ripgrep are preinstalled on
+            # ubuntu-latest). Absorbs the deleted path-portability.yml workflow.
+            - name: Path portability
+              run: bash scripts/check-path-portability.sh
             - name: Verify shared package exports
               run: npm run verify:shared-exports
               env:
@@ -137,6 +142,27 @@ jobs:
               with:
                   name: shared-build
                   path: packages/shared
+            # Absorbed from the deleted queueresolver-canary.yml: guard against
+            # discord-player major bumps beyond the version pinned in
+            # package-lock.json before running the bot suites.
+            - name: Check discord-player version
+              id: discord_player
+              run: |
+                  VERSION=$(npm list discord-player 2>/dev/null | grep discord-player | head -1 | grep -oP '\d+\.\d+\.\d+')
+                  PINNED=$(grep '"discord-player"' package-lock.json | head -1 | grep -oP '\d+\.\d+\.\d+')
+                  echo "installed=$VERSION" >> "$GITHUB_OUTPUT"
+                  echo "pinned=$PINNED" >> "$GITHUB_OUTPUT"
+            - name: Detect discord-player major bump beyond pinned
+              run: |
+                  PINNED_MAJOR=$(echo "${{ steps.discord_player.outputs.pinned }}" | cut -d. -f1)
+                  INSTALLED_MAJOR=$(echo "${{ steps.discord_player.outputs.installed }}" | cut -d. -f1)
+                  if [ "$INSTALLED_MAJOR" -gt "$PINNED_MAJOR" ]; then
+                      echo "ERROR: discord-player MAJOR bump detected"
+                      echo "Pinned: ${{ steps.discord_player.outputs.pinned }} (major: $PINNED_MAJOR)"
+                      echo "Installed: ${{ steps.discord_player.outputs.installed }} (major: $INSTALLED_MAJOR)"
+                      exit 1
+                  fi
+                  echo "discord-player version compatible (pinned: ${{ steps.discord_player.outputs.pinned }}, installed: ${{ steps.discord_player.outputs.installed }})"
             - name: Run bot tests
               run: npm run test --workspace=packages/bot -- --ci --coverage
             - name: Run music incident regression
@@ -207,6 +233,65 @@ jobs:
                   path: packages/frontend/coverage/lcov.info
                   retention-days: 1
 
+    # Hard gate. Blocks merges if cycle count exceeds baseline.
+    # Baseline: COUNT > 1 (permits 1 known residual type-only cycle).
+    #
+    # 1 known residual: types/CustomClient.ts > models/Command.ts > types/CommandData.ts
+    # All imports in this cycle are `import type`; breaking it requires structural
+    # refactoring (moving types to shared file) that cascades into command-loader
+    # consumers (help.ts). Deferred pending command-loader contract review.
+    #
+    # See decisions/2026-05-16-next-refactor-target-bot-circular-deps.md.
+    # The job name must stay exactly "madge / packages/bot": the branch ruleset
+    # requires that check context (absorbed from the deleted madge.yml workflow).
+    madge:
+        name: madge / packages/bot
+        runs-on: ubuntu-latest
+        needs: build-shared
+        steps:
+            - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+              with:
+                  persist-credentials: false
+            - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+              with:
+                  node-version: '24'
+                  cache: 'npm'
+            - name: Install dependencies
+              run: npm ci --legacy-peer-deps --ignore-scripts
+            - name: Download shared artifact
+              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+              with:
+                  name: shared-build
+                  path: packages/shared
+            - name: Install madge
+              # --ignore-scripts: this static-analysis job needs only the source
+              # tree, not any postinstall binaries. Without it, the full install
+              # runs youtube-dl-exec's postinstall, which fetches the yt-dlp
+              # binary from GitHub releases unauthenticated and flakes on the
+              # ~60/hr anonymous rate limit (blocked #1105). Matches the
+              # --ignore-scripts convention already used throughout ci.yml.
+              run: npm install --no-save madge@^7 --ignore-scripts
+            - name: Run madge --circular on packages/bot/src
+              run: |
+                  npx madge --circular --extensions ts packages/bot/src \
+                      | tee madge-bot.txt
+                  COUNT=$(grep -cE '^[0-9]+\)' madge-bot.txt || echo 0)
+                  echo "bot_cycles=$COUNT" >> "$GITHUB_OUTPUT"
+                  {
+                      echo "## madge circular deps - packages/bot/src"
+                      echo ""
+                      echo "**Cycle count:** $COUNT (max: 1)"
+                      echo ""
+                      echo '```'
+                      cat madge-bot.txt
+                      echo '```'
+                  } >> "$GITHUB_STEP_SUMMARY"
+                  if [ "$COUNT" -gt 1 ]; then
+                      echo "❌ Cycle count exceeds baseline (> 1)" >&2
+                      exit 1
+                  fi
+              id: madge
+
     detect-docker-changes:
         name: Detect Docker-relevant changes
         runs-on: ubuntu-latest
@@ -260,48 +345,25 @@ jobs:
                     - {service: nginx, file: Dockerfile.nginx, target: ''}
         steps:
             - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-            - name: Set up Docker Buildx
-              id: buildx
-              uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
-              continue-on-error: true
-            - name: Set up Docker Buildx — retry once on transient failure
-              if: steps.buildx.outcome == 'failure'
-              uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
             - name: Build ${{ matrix.service }}
               id: build
-              uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+              uses: ./.github/actions/docker-build-service
               continue-on-error: true
               with:
-                  context: .
+                  service: ${{ matrix.service }}
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
-                  push: false
                   load: ${{ matrix.service == 'bot' }}
-                  tags: lucky-${{ matrix.service }}:ci
-                  provenance: false
-                  sbom: false
-                  cache-from: type=gha,scope=${{ matrix.service }}
-                  cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-                  build-args: |
-                      COMMIT_SHA=${{ github.sha }}
-                      NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
-            - name: Build ${{ matrix.service }} — retry once on transient failure
+            # Retry once on transient failure (buildx setup and build re-run
+            # together, matching the previous separate retry steps).
+            - name: Build ${{ matrix.service }} - retry once on transient failure
               if: steps.build.outcome == 'failure'
-              uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+              uses: ./.github/actions/docker-build-service
               with:
-                  context: .
+                  service: ${{ matrix.service }}
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
-                  push: false
                   load: ${{ matrix.service == 'bot' }}
-                  tags: lucky-${{ matrix.service }}:ci
-                  provenance: false
-                  sbom: false
-                  cache-from: type=gha,scope=${{ matrix.service }}
-                  cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-                  build-args: |
-                      COMMIT_SHA=${{ github.sha }}
-                      NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
             # A built image is not a working image: the bot's native addons
             # (@discordjs/opus) and the baked Prisma engines only fail at
             # require()-time, which `docker build` never reaches. #1735 shipped a
@@ -447,11 +509,3 @@ jobs:
               run: npm run audit:high
             - name: Secrets scan
               run: npx secretlint "**/*"
-            - name: TruffleHog secret scan
-              uses: trufflesecurity/trufflehog@0ec3634f6cf66a61912a923fee9d20cc45633a67  # post-v3.95.2 (2026-05-07)
-              with:
-                  extra_args: --only-verified
-              continue-on-error: true
-            - name: Socket.dev supply chain scan
-              run: echo "Socket.dev scan -- GitHub App (apps/socket-security) covers PR-level blocking"
-              # SocketDev/socket-security-action@v1 is unavailable; removed to unblock CI
