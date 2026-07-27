@@ -20,6 +20,11 @@
 set -euo pipefail
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.staging.yml}"
+# The staging compose file requires POSTGRES_PASSWORD (":? guard), which lives
+# in .env.staging, not .env. Without --env-file every compose call below aborts
+# before touching nginx. Override with ENV_FILE when pointing at another env.
+ENV_FILE="${ENV_FILE:-.env.staging}"
+COMPOSE=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 NGINX_CONFIG_DIR="${NGINX_CONFIG_DIR:-nginx}"
 UPSTREAM_CONFIG="${NGINX_CONFIG_DIR}/upstream-active.conf"
 
@@ -106,8 +111,8 @@ done
 # repoint the untouched tier at a color whose container may not be running.
 log "Updating $UPSTREAM_CONFIG to point $SERVICE to $COLOR..."
 
-# Current color of a service, read back from the active config (defaults to
-# blue if the line is missing — matches the initial-deploy default).
+# Current color of a service, read back from the active config. Empty when the
+# tier still points at the single-color service (the committed initial state).
 current_color_of() {
     local svc="$1"
     grep -oE "${svc}-(blue|green)" "$UPSTREAM_CONFIG" 2> /dev/null \
@@ -121,8 +126,20 @@ else
     BACKEND_COLOR="$(current_color_of backend)"
     FRONTEND_COLOR="$COLOR"
 fi
-BACKEND_COLOR="${BACKEND_COLOR:-blue}"
-FRONTEND_COLOR="${FRONTEND_COLOR:-blue}"
+
+# Per-tier upstream line: colored service when the tier has been flipped
+# before, single-color service while it has not. Writing a color for a tier
+# that was never flipped would repoint it at a container that may not exist.
+upstream_line_for() {
+    local svc="$1" color="$2" port="$3"
+    if [[ -n "$color" ]]; then
+        echo "set \$${svc}_upstream http://${svc}-${color}:${port};"
+    else
+        echo "set \$${svc}_upstream http://${svc}:${port};"
+    fi
+}
+BACKEND_LABEL="${BACKEND_COLOR:-single}"
+FRONTEND_LABEL="${FRONTEND_COLOR:-single}"
 
 # Snapshot the current config so we can roll back on a failed reload.
 PREV_CONFIG=$(mktemp)
@@ -136,20 +153,20 @@ cat > "$TEMP_CONFIG" << EOF
 # between blue and green backend/frontend services.
 #
 # Last updated: $(date -u +'%Y-%m-%dT%H:%M:%SZ')
-# Active: backend=$BACKEND_COLOR frontend=$FRONTEND_COLOR
+# Active: backend=$BACKEND_LABEL frontend=$FRONTEND_LABEL
 
-set \$backend_upstream http://backend-${BACKEND_COLOR}:3000;
-set \$frontend_upstream http://frontend-${FRONTEND_COLOR}:8080;
+$(upstream_line_for backend "$BACKEND_COLOR" 3000)
+$(upstream_line_for frontend "$FRONTEND_COLOR" 8080)
 EOF
 
 cp "$TEMP_CONFIG" "$UPSTREAM_CONFIG"
-log "Updated $UPSTREAM_CONFIG (backend=$BACKEND_COLOR frontend=$FRONTEND_COLOR)"
+log "Updated $UPSTREAM_CONFIG (backend=$BACKEND_LABEL frontend=$FRONTEND_LABEL)"
 
 # Step 3: Validate the config BEFORE reloading. `nginx -s reload` only signals
 # the master, which keeps the old config on a bad apply — so without this test a
 # rejected config would still fall through to Step 4 and stop the live color.
 log "Validating nginx config..."
-if ! docker compose -f "$COMPOSE_FILE" exec -T nginx nginx -t; then
+if ! "${COMPOSE[@]}" exec -T nginx nginx -t; then
     cp "$PREV_CONFIG" "$UPSTREAM_CONFIG"
     die "nginx config test failed — rolled back $UPSTREAM_CONFIG, traffic unchanged"
 fi
@@ -157,7 +174,7 @@ fi
 # Reload (zero-downtime). On failure, restore the previous config so the on-disk
 # file never drifts from the running nginx.
 log "Reloading nginx..."
-if ! docker compose -f "$COMPOSE_FILE" exec -T nginx nginx -s reload; then
+if ! "${COMPOSE[@]}" exec -T nginx nginx -s reload; then
     cp "$PREV_CONFIG" "$UPSTREAM_CONFIG"
     die "nginx reload failed — rolled back $UPSTREAM_CONFIG, traffic unchanged"
 fi
@@ -169,7 +186,7 @@ log "Draining connections from $SERVICE-$OLD_COLOR (5s)..."
 sleep 5
 
 log "Stopping $SERVICE-$OLD_COLOR..."
-docker compose -f "$COMPOSE_FILE" stop "$SERVICE-$OLD_COLOR"
+"${COMPOSE[@]}" stop "$SERVICE-$OLD_COLOR"
 log "Stopped $SERVICE-$OLD_COLOR"
 
 log "Flip complete: $SERVICE is now running on $COLOR"
