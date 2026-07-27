@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
     Music2,
@@ -97,6 +97,7 @@ export default function MusicPage() {
 
             <NowPlayingHero
                 state={player.state}
+                lastStateUpdate={player.lastStateUpdate}
                 controlsEnabled={controlsEnabled}
                 pendingAction={player.pendingAction}
                 onPlayPause={handlePlayPause}
@@ -179,8 +180,15 @@ export default function MusicPage() {
     )
 }
 
+/**
+ * Progress is stale when no SSE/REST state or heartbeat arrives this long.
+ * Server heartbeat is 30s (stateRoutes stream); 1.5x that misses one ping.
+ */
+const STALE_AFTER_MS = 45_000
+
 function NowPlayingHero({
     state,
+    lastStateUpdate,
     controlsEnabled,
     pendingAction,
     onPlayPause,
@@ -191,6 +199,7 @@ function NowPlayingHero({
     onVolumeChange,
 }: {
     state: QueueState
+    lastStateUpdate: number | null
     controlsEnabled: boolean
     pendingAction: MusicActionKey | null
     onPlayPause: () => void
@@ -205,6 +214,19 @@ function NowPlayingHero({
     // upcoming queue for older state payloads that only filled tracks[].
     const currentTrack = state.currentTrack ?? state.tracks[0]
     const busy = Boolean(pendingAction)
+    const [now, setNow] = useState(() => Date.now())
+
+    // Re-tick while playing so the bar can flip to stale without a new SSE event.
+    useEffect(() => {
+        if (!state.isPlaying) return
+        const id = window.setInterval(() => setNow(Date.now()), 1000)
+        return () => window.clearInterval(id)
+    }, [state.isPlaying])
+
+    const isStale =
+        state.isPlaying &&
+        lastStateUpdate !== null &&
+        now - lastStateUpdate > STALE_AFTER_MS
 
     if (!currentTrack) {
         return (
@@ -269,15 +291,32 @@ function NowPlayingHero({
 
                         <div>
                             <div className='flex items-center gap-2 mb-3'>
-                                <div className='flex-1 h-1 bg-lucky-bg-active rounded-full overflow-hidden'>
+                                <div
+                                    className={`flex-1 h-1 bg-lucky-bg-active rounded-full overflow-hidden ${
+                                        isStale ? 'opacity-50' : ''
+                                    }`}
+                                >
                                     <div
-                                        className='h-full bg-lucky-brand rounded-full'
+                                        className={`h-full rounded-full ${
+                                            isStale
+                                                ? 'bg-lucky-warning'
+                                                : 'bg-lucky-brand'
+                                        }`}
                                         style={{ width: `${progress}%` }}
                                     />
                                 </div>
                             </div>
-                            <div className='flex justify-between type-body-sm text-lucky-text-tertiary'>
+                            {/* Relative wrapper so the stale notice does not shift the timestamps. */}
+                            <div className='relative flex justify-between type-body-sm text-lucky-text-tertiary'>
                                 <span>{formatSeconds(position)}</span>
+                                {isStale ? (
+                                    <span
+                                        role='status'
+                                        className='pointer-events-none absolute left-1/2 -translate-x-1/2 text-lucky-warning'
+                                    >
+                                        {t('music.progressMayBeOutdated')}
+                                    </span>
+                                ) : null}
                                 <span>{formatSeconds(duration)}</span>
                             </div>
                         </div>
