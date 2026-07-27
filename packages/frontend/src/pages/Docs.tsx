@@ -537,6 +537,8 @@ const PAGES: DocsPage[] = [
                     <code>{`git clone ${REPO}.git lucky
 cd lucky
 cp .env.example .env
+# required for compose — empty placeholder fails the guard on purpose
+openssl rand -hex 24   # paste into POSTGRES_PASSWORD
 $EDITOR .env`}</code>
                 </pre>
                 <p>
@@ -544,7 +546,11 @@ $EDITOR .env`}</code>
                     <code>DISCORD_CLIENT_ID</code>,{' '}
                     <code>DISCORD_CLIENT_SECRET</code>,{' '}
                     <code>POSTGRES_PASSWORD</code>, <code>SESSION_SECRET</code>,{' '}
-                    <code>DASHBOARD_URL</code>. Optional integrations like
+                    <code>DASHBOARD_URL</code>. Generate{' '}
+                    <code>POSTGRES_PASSWORD</code> with{' '}
+                    <code>openssl rand -hex 24</code> before the first{' '}
+                    <code>docker compose up</code>. An empty value fails the
+                    compose guard on purpose. Optional integrations like
                     Spotify and Last.fm get their own keys. The full list with
                     notes lives in{' '}
                     <a href='/docs?page=env'>Environment variables</a>.
