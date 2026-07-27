@@ -16,46 +16,6 @@ permissions:
     pull-requests: write
 
 jobs:
-    compressed-size:
-        runs-on: ubuntu-latest
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            YOUTUBE_DL_SKIP_DOWNLOAD: 'true'
-        steps:
-            - name: Checkout PR
-              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-              with:
-                  persist-credentials: false
-
-            - name: Setup Node.js
-              uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-              with:
-                  node-version: '24'
-                  cache: 'npm'
-
-            # preactjs/compressed-size-action@v3 picks its package manager from
-            # lockfile presence — this repo has both package-lock.json (canonical,
-            # used by npm ci/Docker) and a root pnpm-lock.yaml (CONTRIBUTING.md's
-            # documented alt dev workflow), so it always invokes `pnpm run
-            # <build-script>` regardless of the `install-script` input above.
-            # pnpm-workspace.yaml previously had no `packages:` field, which pnpm
-            # requires even for a non-recursive `pnpm run` at the workspace root —
-            # see the packages: field added there.
-            - name: Setup pnpm
-              uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6
-              with:
-                  version: 9
-                  run_install: false
-
-            - name: Compressed Size Diff
-              uses: preactjs/compressed-size-action@66325aad6443cb7cf89c4bfcd414aea2367cda94 # v3
-              with:
-                  install-script: 'npm ci'
-                  build-script: 'build'
-                  pattern: 'packages/frontend/dist/**/*.{js,css}'
-                  strip-hash: '\\b\\w{8}\\.'
-                  minimum-change-threshold: 100
-
     size-limit:
         name: Size Limit Check
         runs-on: ubuntu-latest
@@ -64,7 +24,7 @@ jobs:
             # ci.yml/madge it can't use --ignore-scripts. Without this, youtube-dl-exec's
             # postinstall fetches the yt-dlp binary from GitHub unauthenticated (~60/hr/IP)
             # and flakes red on shared-runner rate limits (#1827). The build doesn't need
-            # the binary — skip the download. Mirrors the compressed-size job above.
+            # the binary — skip the download.
             YOUTUBE_DL_SKIP_DOWNLOAD: 'true'
         steps:
             - name: Checkout PR
