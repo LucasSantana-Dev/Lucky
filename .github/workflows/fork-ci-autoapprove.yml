@@ -1,0 +1,79 @@
+name: Fork CI Auto-Approve
+
+# Approves "action required" workflow runs for trusted external contributors so
+# their CI does not wait on a manual click. Runs on pull_request_target to get
+# actions:write on fork PRs. NEVER add a checkout step or any step that executes
+# PR code here; this workflow only reads PR metadata and flips the approval bit.
+# The runs it approves still execute under pull_request semantics (no secrets,
+# read-only GITHUB_TOKEN).
+#
+# Trusted = author_association OWNER/MEMBER/COLLABORATOR/CONTRIBUTOR, or the
+# login appears in the repo variable CI_AUTO_APPROVE_AUTHORS (comma-separated).
+# True first-timers get a comment instead; the team is pinged on Discord by the
+# External PR Notify workflow.
+
+on:
+    pull_request_target:
+        types: [opened, synchronize, reopened]
+
+permissions:
+    actions: write
+    pull-requests: write
+    contents: read
+
+jobs:
+    auto-approve:
+        name: Approve CI for trusted contributors
+        runs-on: ubuntu-latest
+        steps:
+            - name: Approve pending runs
+              uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+              env:
+                  ALLOWLIST: ${{ vars.CI_AUTO_APPROVE_AUTHORS }}
+              with:
+                  script: |
+                      const pr = context.payload.pull_request;
+                      const author = pr.user.login;
+                      const trustedAssociations = new Set(['OWNER', 'MEMBER', 'COLLABORATOR', 'CONTRIBUTOR']);
+                      const allowlist = (process.env.ALLOWLIST || '')
+                          .split(',')
+                          .map((s) => s.trim())
+                          .filter(Boolean);
+                      const trusted = trustedAssociations.has(pr.author_association) || allowlist.includes(author);
+
+                      if (!trusted) {
+                          core.info(`${author} (${pr.author_association}) is not trusted for auto-approval`);
+                          await github.rest.issues.createComment({
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              issue_number: pr.number,
+                              body: 'Thanks for the PR! CI on PRs from first-time contributors needs a one-time maintainer approval. The team has been notified and will approve the runs shortly.',
+                          });
+                          return;
+                      }
+
+                      const approvePending = async () => {
+                          const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              head_sha: pr.head.sha,
+                              event: 'pull_request',
+                              per_page: 100,
+                          });
+                          const pending = runs.filter((r) => r.conclusion === 'action_required');
+                          for (const run of pending) {
+                              await github.rest.actions.approveWorkflowRun({
+                                  owner: context.repo.owner,
+                                  repo: context.repo.repo,
+                                  run_id: run.id,
+                              });
+                              core.info(`approved run ${run.id} (${run.name})`);
+                          }
+                          return pending.length;
+                      };
+
+                      let approved = await approvePending();
+                      // Runs register a few seconds after the event; sweep once more.
+                      await new Promise((resolve) => setTimeout(resolve, 30000));
+                      approved += await approvePending();
+                      core.info(`approved ${approved} run(s) for ${author} @ ${pr.head.sha}`);

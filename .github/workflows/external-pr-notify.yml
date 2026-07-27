@@ -1,0 +1,110 @@
+name: External PR Notify
+
+# Awareness for outside contributors. Runs on pull_request_target so it can read
+# the Discord webhook secret on fork PRs. NEVER add a checkout step or any step
+# that executes PR code here; the jobs below only read PR metadata via the API.
+
+on:
+    pull_request_target:
+        types: [opened, reopened, ready_for_review]
+    schedule:
+        - cron: '7 12 * * *' # daily external PR digest
+    workflow_dispatch:
+
+permissions:
+    pull-requests: read
+
+jobs:
+    notify:
+        name: Notify new external PR
+        if: github.event_name == 'pull_request_target'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Post Discord alert
+              if: contains(fromJSON('["FIRST_TIMER","FIRST_TIME_CONTRIBUTOR","CONTRIBUTOR","NONE"]'), github.event.pull_request.author_association)
+              uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+              env:
+                  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_ALERT_WEBHOOK }}
+              with:
+                  script: |
+                      const pr = context.payload.pull_request;
+                      const webhook = process.env.DISCORD_WEBHOOK_URL;
+                      if (!webhook) {
+                          core.warning('DISCORD_DEPLOY_ALERT_WEBHOOK not set; skipping notification');
+                          return;
+                      }
+                      const action = context.payload.action === 'opened' ? 'New external PR'
+                          : context.payload.action === 'reopened' ? 'External PR reopened'
+                          : 'External PR ready for review';
+                      const payload = {
+                          embeds: [{
+                              title: `${action}: #${pr.number} ${pr.title}`,
+                              url: pr.html_url,
+                              color: 0xf59e0b,
+                              fields: [
+                                  { name: 'Author', value: pr.user.login, inline: true },
+                                  { name: 'Size', value: `+${pr.additions}/-${pr.deletions} (${pr.changed_files} files)`, inline: true },
+                                  { name: 'Association', value: pr.author_association, inline: true },
+                              ],
+                          }],
+                      };
+                      const res = await fetch(webhook, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(payload),
+                      });
+                      if (!res.ok) throw new Error(`Discord webhook failed: ${res.status}`);
+
+    digest:
+        name: External PR digest
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Post digest of open external PRs
+              uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+              env:
+                  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_ALERT_WEBHOOK }}
+              with:
+                  script: |
+                      const webhook = process.env.DISCORD_WEBHOOK_URL;
+                      if (!webhook) {
+                          core.warning('DISCORD_DEPLOY_ALERT_WEBHOOK not set; skipping digest');
+                          return;
+                      }
+                      const external = new Set(['FIRST_TIMER', 'FIRST_TIME_CONTRIBUTOR', 'CONTRIBUTOR', 'NONE']);
+                      const prs = await github.paginate(github.rest.pulls.list, {
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          state: 'open',
+                          per_page: 100,
+                      });
+                      const now = Date.now();
+                      const rows = prs
+                          .filter((pr) => external.has(pr.author_association) && !pr.draft)
+                          .map((pr) => ({
+                              number: pr.number,
+                              title: pr.title,
+                              author: pr.user.login,
+                              url: pr.html_url,
+                              ageHours: (now - new Date(pr.created_at).getTime()) / 3_600_000,
+                          }))
+                          .sort((a, b) => b.ageHours - a.ageHours);
+                      if (rows.length === 0) {
+                          core.info('No open external PRs; digest skipped');
+                          return;
+                      }
+                      const fmtAge = (h) => (h >= 24 ? `${Math.floor(h / 24)}d` : `${Math.floor(h)}h`);
+                      const lines = rows.map((r) => `[#${r.number}](${r.url}) ${r.title} — ${r.author}, open ${fmtAge(r.ageHours)}`);
+                      const payload = {
+                          embeds: [{
+                              title: `External PR digest: ${rows.length} open`,
+                              description: lines.join('\n').slice(0, 4000),
+                              color: 0x3b82f6,
+                          }],
+                      };
+                      const res = await fetch(webhook, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(payload),
+                      });
+                      if (!res.ok) throw new Error(`Discord webhook failed: ${res.status}`);
