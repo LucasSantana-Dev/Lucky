@@ -70,8 +70,9 @@ export default new Command({
                 },
             })
         } else if (sub === 'clear') {
+            // null clears the column; undefined would be omitted and leave the old role.
             const persisted = await guildSettingsService.setGuildSettings(guildId, {
-                djRoleId: undefined,
+                djRoleId: null,
             })
             if (!persisted) {
                 await interactionReply({
