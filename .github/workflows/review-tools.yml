@@ -15,7 +15,11 @@ name: Review Tools
 #   - cubic dashboard (AI review custom rules — see docs/review-tools.md)
 
 on:
-  pull_request:
+  # pull_request_target so danger can comment on fork PRs (fork pull_request
+  # tokens are forced read-only, so the comment POST 403s and fails the job).
+  # The reusable workflow checks out and executes BASE repo code only; never
+  # add a step here that checks out or runs PR head code.
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
