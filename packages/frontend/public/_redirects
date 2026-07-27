@@ -1,1 +1,10 @@
-/* /index.html 200
+# Cloudflare Pages serves lucky.lucassantana.tech (project lucky-webapp), so
+# this file — not vercel.json and not nginx/nginx.conf — is what governs the
+# public site. Rules are evaluated top to bottom, so /invite must come before
+# the SPA catch-all or the catch-all swallows it (#1888).
+#
+# Proxied to the backend rather than sent straight to Discord: the backend
+# handler logs the utm_* parameters before redirecting, which is what
+# .agents/tracking-urls.md is built around (#1894).
+/invite  https://lucky-api.lucassantana.tech/invite  302
+/*       /index.html                                 200

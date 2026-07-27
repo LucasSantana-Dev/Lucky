@@ -90,15 +90,27 @@ export async function startClient({
                     ...client.contextMenus.map((cmd) => cmd.data.toJSON()),
                 ]
 
-                for (const guild of client.guilds.cache.values()) {
-                    await rest.put(
-                        Routes.applicationGuildCommands(CLIENT_ID, guild.id),
-                        { body: commandsData },
-                    )
-                    infoLog({
-                        message: `Guild commands registered: ${guild.name}`,
-                    })
-                }
+                // Register globally, not per guild. Guild-scoped registration
+                // only ever covered guilds already in the cache at ready, so a
+                // server that added Lucky while the process was running saw no
+                // slash commands at all until the next redeploy. That is what
+                // failed the Top.gg review (#1885): their verification bot
+                // joined after boot and found an empty command list.
+                await rest.put(Routes.applicationCommands(CLIENT_ID), {
+                    body: commandsData,
+                })
+                infoLog({
+                    message: `Global commands registered: ${commandsData.length}`,
+                })
+
+                // Guild-scoped copies written by earlier versions are NOT
+                // cleared here on purpose. Ordering the two REST calls does not
+                // order Discord's propagation: global commands are documented
+                // as taking up to an hour to appear, so clearing a guild's
+                // instant guild-scoped set in this same handler could leave a
+                // live server with no commands at all until global caught up.
+                // The one-off cleanup is `npm run commands:clear-guild` (#1886),
+                // run once global registration is confirmed live.
 
                 const { startTwitchService } =
                     await import('../../twitch/index.js')

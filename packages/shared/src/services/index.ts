@@ -45,6 +45,7 @@ export {
 export {
     guildSettingsService,
     type GuildSettings,
+    type GuildSettingsPatch,
     type AutoplayCounter,
 } from './GuildSettingsService'
 export { roleManagementService } from './RoleManagementService'
