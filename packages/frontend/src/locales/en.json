@@ -768,9 +768,8 @@
         "nextTrack": "Next track",
         "repeatMode": "Repeat: {{mode}}",
         "commandInProgress": "Working on that command…",
-        "progressMayBeOutdated": "may be outdated",
-        "progressMayBeOutdatedTitle": "Playback position may be outdated",
-        "progressMayBeOutdatedAria": "Progress may be outdated"
+        "dismissError": "Dismiss",
+        "playerNotConnected": "Player is not connected"
     },
     "preferredArtists": {
         "noServerSelected": "No Server Selected",

@@ -2,10 +2,27 @@ import { useCallback } from 'react'
 import { api } from '@/services/api'
 import type { QueueState } from '@/types'
 
+/** Keys passed through sendCommand for per-control busy state. */
+export type MusicActionKey =
+    | 'play'
+    | 'pause'
+    | 'resume'
+    | 'skip'
+    | 'previous'
+    | 'stop'
+    | 'volume'
+    | 'shuffle'
+    | 'repeat'
+    | 'seek'
+    | 'remove'
+    | 'move'
+    | 'clear'
+    | 'import'
+
 type SendCommand = (
     action: () => Promise<unknown>,
     optimistic?: Partial<QueueState>,
-    actionKey?: string,
+    actionKey?: MusicActionKey,
 ) => Promise<void> | undefined
 
 export function useMusicCommands(

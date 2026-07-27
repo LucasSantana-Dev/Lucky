@@ -22,6 +22,7 @@ import QueueList from '@/components/Music/QueueList'
 import AutoplayGenres from '@/components/Music/AutoplayGenres'
 import EmptyState from '@/components/ui/EmptyState'
 import type { QueueState } from '@/types'
+import type { MusicActionKey } from '@/hooks/useMusicPlayer'
 
 export default function MusicPage() {
     const { t } = useTranslation()
@@ -119,7 +120,7 @@ export default function MusicPage() {
                     disabled={!controlsEnabled}
                     onPlay={async (q) => {
                         if (!controlsEnabled) {
-                            throw new Error('Player is not connected')
+                            throw new Error(t('music.playerNotConnected'))
                         }
                         await player.play(q)
                     }}
@@ -128,7 +129,7 @@ export default function MusicPage() {
                     disabled={!controlsEnabled}
                     onImport={async (url) => {
                         if (!controlsEnabled) {
-                            throw new Error('Player is not connected')
+                            throw new Error(t('music.playerNotConnected'))
                         }
                         await player.importPlaylist(url)
                     }}
@@ -170,7 +171,7 @@ export default function MusicPage() {
                         onClick={() => player.clearError()}
                         className='shrink-0 type-meta text-lucky-error/80 hover:text-lucky-error underline'
                     >
-                        dismiss
+                        {t('music.dismissError')}
                     </button>
                 </div>
             )}
@@ -191,7 +192,7 @@ function NowPlayingHero({
 }: {
     state: QueueState
     controlsEnabled: boolean
-    pendingAction: string | null
+    pendingAction: MusicActionKey | null
     onPlayPause: () => void
     onPrevious: () => void
     onSkip: () => void

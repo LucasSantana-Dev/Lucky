@@ -764,9 +764,8 @@
         "nextTrack": "Próxima faixa",
         "repeatMode": "Repetição: {{mode}}",
         "commandInProgress": "Executando o comando…",
-        "progressMayBeOutdated": "pode estar desatualizado",
-        "progressMayBeOutdatedTitle": "A posição da reprodução pode estar desatualizada",
-        "progressMayBeOutdatedAria": "Progresso pode estar desatualizado"
+        "dismissError": "Dispensar",
+        "playerNotConnected": "O player não está conectado"
     },
     "preferredArtists": {
         "noServerSelected": "Nenhum Servidor Selecionado",

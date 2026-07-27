@@ -457,4 +457,83 @@ describe('MusicPage', () => {
         expect(screen.getByText('1:05')).toBeInTheDocument()
         expect(screen.getByText('3:00')).toBeInTheDocument()
     })
+
+    test('disables hero controls when SSE is disconnected', () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        const mockSkip = vi.fn()
+        vi.mocked(useMusicPlayer).mockReturnValue({
+            ...mockPlayer,
+            state: {
+                ...mockPlayer.state,
+                tracks: [mockTrack],
+                isPlaying: true,
+            },
+            isConnected: false,
+            skip: mockSkip,
+        } as any)
+        render(
+            <MemoryRouter>
+                <MusicPage />
+            </MemoryRouter>,
+        )
+        const pause = screen.getByRole('button', { name: 'Pause' })
+        const next = screen.getByRole('button', { name: 'Next track' })
+        const shuffle = screen.getByRole('button', { name: 'Shuffle' })
+        expect(pause).toBeDisabled()
+        expect(next).toBeDisabled()
+        expect(shuffle).toBeDisabled()
+        fireEvent.click(next)
+        expect(mockSkip).not.toHaveBeenCalled()
+    })
+
+    test('disables hero controls and shows busy label while a command is pending', () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        const mockSkip = vi.fn()
+        vi.mocked(useMusicPlayer).mockReturnValue({
+            ...mockPlayer,
+            state: {
+                ...mockPlayer.state,
+                tracks: [mockTrack],
+                isPlaying: true,
+            },
+            isLoading: true,
+            pendingAction: 'volume',
+            skip: mockSkip,
+        } as any)
+        render(
+            <MemoryRouter>
+                <MusicPage />
+            </MemoryRouter>,
+        )
+        expect(screen.getByRole('button', { name: 'Pause' })).toBeDisabled()
+        expect(
+            screen.getByRole('button', { name: 'Next track' }),
+        ).toBeDisabled()
+        expect(screen.getByText('Working on that command…')).toBeInTheDocument()
+        fireEvent.click(screen.getByRole('button', { name: 'Next track' }))
+        expect(mockSkip).not.toHaveBeenCalled()
+    })
+
+    test('dismisses the error alert', () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        const clearError = vi.fn()
+        vi.mocked(useMusicPlayer).mockReturnValue({
+            ...mockPlayer,
+            error: 'volume: Command failed',
+            clearError,
+        } as any)
+        render(
+            <MemoryRouter>
+                <MusicPage />
+            </MemoryRouter>,
+        )
+        fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+        expect(clearError).toHaveBeenCalledOnce()
+    })
 })

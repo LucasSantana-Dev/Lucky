@@ -125,7 +125,7 @@ describe('PlaybackControls', () => {
             isPaused: false,
             hasTrack: true,
             repeatMode: 'off' as const,
-            pendingAction: 'stop',
+            pendingAction: 'stop' as const,
             onPlayPause: vi.fn(),
             onPrevious: vi.fn(),
             onSkip: vi.fn(),

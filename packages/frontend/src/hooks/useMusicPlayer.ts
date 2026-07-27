@@ -6,8 +6,10 @@ import {
     useRef,
 } from 'react'
 import { api } from '@/services/api'
-import { useMusicCommands } from './useMusicCommands'
+import { useMusicCommands, type MusicActionKey } from './useMusicCommands'
 import type { QueueState } from '@/types'
+
+export type { MusicActionKey }
 
 const EMPTY_STATE: QueueState = {
     guildId: '',
@@ -33,18 +35,24 @@ export function useMusicPlayer(guildId: string | undefined) {
     // Global lockout key while any command is in flight (spinner is per-action;
     // disabling is intentionally all-or-nothing so concurrent mutations cannot
     // race on the same queue).
-    const [pendingAction, setPendingAction] = useState<string | null>(null)
+    const [pendingAction, setPendingAction] = useState<MusicActionKey | null>(
+        null,
+    )
     const [isConnected, setIsConnected] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const sseRef = useRef<EventSource | null>(null)
     const retryRef = useRef(0)
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-    // guildId identity for in-flight command guards. useRef (not useMemo+Symbol)
-    // so React cache invalidation cannot invent a "guild switch" mid-session.
+    // Tracks the selected guild for UI resets. Command validity uses the
+    // activeCommands map (cleared on every guild change), not guild id alone,
+    // so a navigate-away-and-back cannot revive a stale in-flight command.
     const guildRef = useRef(guildId)
     const commandIdRef = useRef(0)
     const activeCommandsRef = useRef(
-        new Map<number, { guildId: string | undefined; actionKey?: string }>(),
+        new Map<
+            number,
+            { guildId: string | undefined; actionKey?: MusicActionKey }
+        >(),
     )
 
     useLayoutEffect(() => {
@@ -124,15 +132,16 @@ export function useMusicPlayer(guildId: string | undefined) {
         async (
             action: () => Promise<unknown>,
             optimistic?: Partial<QueueState>,
-            actionKey?: string,
+            actionKey?: MusicActionKey,
         ) => {
-            // Capture the guild this command was issued for. guildRef tracks the
-            // current selection; mismatch means the user switched servers.
             const commandGuildId = guildId
             if (!commandGuildId || guildRef.current !== commandGuildId) return
 
             const commandId = ++commandIdRef.current
-            const isCurrentGuild = () => guildRef.current === commandGuildId
+            // Membership in activeCommands means "issued during the current visit".
+            // The map is cleared on every guildId change, so A→B→A cannot revive a
+            // command from the first visit to A (guild-id equality alone would).
+            const isLiveCommand = () => activeCommandsRef.current.has(commandId)
 
             activeCommandsRef.current.set(commandId, {
                 guildId: commandGuildId,
@@ -149,7 +158,7 @@ export function useMusicPlayer(guildId: string | undefined) {
             try {
                 await action()
             } catch (err) {
-                if (!isCurrentGuild()) return
+                if (!isLiveCommand()) return
 
                 const base =
                     err instanceof Error ? err.message : 'Command failed'
@@ -157,10 +166,11 @@ export function useMusicPlayer(guildId: string | undefined) {
 
                 if (optimistic) {
                     try {
-                        const response = await api.music.getState(commandGuildId)
-                        if (isCurrentGuild()) setState(response.data)
+                        const response =
+                            await api.music.getState(commandGuildId)
+                        if (isLiveCommand()) setState(response.data)
                     } catch (refreshError) {
-                        if (!isCurrentGuild()) return
+                        if (!isLiveCommand()) return
                         const refreshMessage =
                             refreshError instanceof Error
                                 ? refreshError.message
@@ -172,13 +182,14 @@ export function useMusicPlayer(guildId: string | undefined) {
                     }
                 }
 
-                if (isCurrentGuild()) setError(commandError)
+                if (isLiveCommand()) setError(commandError)
             } finally {
+                const wasLive = activeCommandsRef.current.has(commandId)
                 activeCommandsRef.current.delete(commandId)
-                if (isCurrentGuild()) {
+                if (wasLive) {
                     const activeCommands = Array.from(
                         activeCommandsRef.current.values(),
-                    ).filter((command) => command.guildId === commandGuildId)
+                    )
                     // FIFO: show spinner on the oldest in-flight actionKey.
                     const pendingCommand = activeCommands.find(
                         (command) => command.actionKey,

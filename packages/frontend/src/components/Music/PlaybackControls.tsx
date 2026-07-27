@@ -11,6 +11,7 @@ import {
     Repeat1,
     Loader2,
 } from 'lucide-react'
+import type { MusicActionKey } from '@/hooks/useMusicPlayer'
 
 function BusyIcon({
     busy,
@@ -34,8 +35,11 @@ interface PlaybackControlsProps {
     repeatMode: string
     /** When false, all controls are disabled (e.g. SSE disconnected). */
     isConnected?: boolean
-    /** Which action is in flight, if any (shows busy state on that control). */
-    pendingAction?: string | null
+    /**
+     * Which action is in flight, if any. Spinner is per-action; non-null
+     * also locks every control (global lockout is intentional).
+     */
+    pendingAction?: MusicActionKey | null
     onPlayPause: () => void
     onPrevious: () => void
     onSkip: () => void
