@@ -1890,7 +1890,11 @@ docker compose up -d <service>`}</code>
                             <td>
                                 <code>POSTGRES_PASSWORD</code>
                             </td>
-                            <td>Set in compose or the .env.</td>
+                            <td>
+                                Use a URL-safe hexadecimal value. Generate one
+                                with <code>openssl rand -hex 24</code> and set
+                                it in <code>.env</code>.
+                            </td>
                         </tr>
                         <tr>
                             <td>
@@ -2039,7 +2043,9 @@ docker compose up -d <service>`}</code>
                         off the gateway. Bot will reconnect on restart.
                     </li>
                     <li>
-                        <strong>POSTGRES_PASSWORD</strong> — rotate inside
+                        <strong>POSTGRES_PASSWORD</strong>. Generate a new
+                        URL-safe hexadecimal value with{' '}
+                        <code>openssl rand -hex 24</code>. Rotate it inside
                         postgres first (<code>ALTER USER</code>), then update
                         the env and restart backend + bot.
                     </li>
