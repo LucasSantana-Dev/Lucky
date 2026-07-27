@@ -27,6 +27,9 @@
 }
 
 @theme {
+  /* Nav compact/expanded label flip used on the landing TopNav. */
+  --breakpoint-xs: 400px;
+
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));

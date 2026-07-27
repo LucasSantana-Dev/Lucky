@@ -1,7 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+    useState,
+    useEffect,
+    useLayoutEffect,
+    useCallback,
+    useRef,
+} from 'react'
 import { api } from '@/services/api'
-import { useMusicCommands } from './useMusicCommands'
+import { useMusicCommands, type MusicActionKey } from './useMusicCommands'
 import type { QueueState } from '@/types'
+
+export type { MusicActionKey }
 
 const EMPTY_STATE: QueueState = {
     guildId: '',
@@ -24,6 +32,12 @@ const BASE_RECONNECT_DELAY = 1_000
 export function useMusicPlayer(guildId: string | undefined) {
     const [state, setState] = useState<QueueState>(EMPTY_STATE)
     const [isLoading, setIsLoading] = useState(false)
+    // Global lockout key while any command is in flight (spinner is per-action;
+    // disabling is intentionally all-or-nothing so concurrent mutations cannot
+    // race on the same queue).
+    const [pendingAction, setPendingAction] = useState<MusicActionKey | null>(
+        null,
+    )
     const [isConnected, setIsConnected] = useState(false)
     const [error, setError] = useState<string | null>(null)
     /** Wall-clock ms of the last successful state payload (SSE or REST). */
@@ -31,6 +45,26 @@ export function useMusicPlayer(guildId: string | undefined) {
     const sseRef = useRef<EventSource | null>(null)
     const retryRef = useRef(0)
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Tracks the selected guild for UI resets. Command validity uses the
+    // activeCommands map (cleared on every guild change), not guild id alone,
+    // so a navigate-away-and-back cannot revive a stale in-flight command.
+    const guildRef = useRef(guildId)
+    const commandIdRef = useRef(0)
+    const activeCommandsRef = useRef(
+        new Map<
+            number,
+            { guildId: string | undefined; actionKey?: MusicActionKey }
+        >(),
+    )
+
+    useLayoutEffect(() => {
+        guildRef.current = guildId
+        activeCommandsRef.current.clear()
+        setState(EMPTY_STATE)
+        setError(null)
+        setPendingAction(null)
+        setIsLoading(false)
+    }, [guildId])
 
     const applyState = useCallback((next: QueueState) => {
         setState(next)
@@ -114,9 +148,23 @@ export function useMusicPlayer(guildId: string | undefined) {
         async (
             action: () => Promise<unknown>,
             optimistic?: Partial<QueueState>,
+            actionKey?: MusicActionKey,
         ) => {
-            if (!guildId) return
+            const commandGuildId = guildId
+            if (!commandGuildId || guildRef.current !== commandGuildId) return
+
+            const commandId = ++commandIdRef.current
+            // Membership in activeCommands means "issued during the current visit".
+            // The map is cleared on every guildId change, so A→B→A cannot revive a
+            // command from the first visit to A (guild-id equality alone would).
+            const isLiveCommand = () => activeCommandsRef.current.has(commandId)
+
+            activeCommandsRef.current.set(commandId, {
+                guildId: commandGuildId,
+                actionKey,
+            })
             setIsLoading(true)
+            if (actionKey) setPendingAction(actionKey)
             setError(null)
 
             if (optimistic) {
@@ -126,28 +174,64 @@ export function useMusicPlayer(guildId: string | undefined) {
             try {
                 await action()
             } catch (err) {
+                if (!isLiveCommand()) return
+
+                const base =
+                    err instanceof Error ? err.message : 'Command failed'
+                const commandError = actionKey ? `${actionKey}: ${base}` : base
+
                 if (optimistic) {
-                    api.music
-                        .getState(guildId)
-                        .then((res) => applyState(res.data))
-                        .catch(() => {})
+                    try {
+                        const response =
+                            await api.music.getState(commandGuildId)
+                        // applyState (not setState) so the rollback refresh
+                        // also stamps liveness for the stale-progress logic.
+                        if (isLiveCommand()) applyState(response.data)
+                    } catch (refreshError) {
+                        if (!isLiveCommand()) return
+                        const refreshMessage =
+                            refreshError instanceof Error
+                                ? refreshError.message
+                                : 'Unknown error'
+                        setError(
+                            `${commandError}. Queue refresh failed: ${refreshMessage}`,
+                        )
+                        return
+                    }
                 }
-                setError(err instanceof Error ? err.message : 'Command failed')
+
+                if (isLiveCommand()) setError(commandError)
             } finally {
-                setIsLoading(false)
+                const wasLive = activeCommandsRef.current.has(commandId)
+                activeCommandsRef.current.delete(commandId)
+                if (wasLive) {
+                    const activeCommands = Array.from(
+                        activeCommandsRef.current.values(),
+                    )
+                    // FIFO: show spinner on the oldest in-flight actionKey.
+                    const pendingCommand = activeCommands.find(
+                        (command) => command.actionKey,
+                    )
+                    setIsLoading(activeCommands.length > 0)
+                    setPendingAction(pendingCommand?.actionKey ?? null)
+                }
             }
         },
         [guildId, applyState],
     )
+
+    const clearError = useCallback(() => setError(null), [])
 
     const commands = useMusicCommands(guildId, sendCommand, state.tracks)
 
     return {
         state,
         isLoading,
+        pendingAction,
         isConnected,
         error,
         lastStateUpdate,
+        clearError,
         ...commands,
     }
 }

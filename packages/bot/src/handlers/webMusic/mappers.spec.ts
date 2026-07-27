@@ -81,6 +81,20 @@ describe('mapTrack', () => {
         const track = mapTrack(makeRawTrack({ requestedBy: null }))
         expect(track.requestedBy).toBeUndefined()
     })
+
+    it('forwards recommendationReason from track metadata', () => {
+        const track = mapTrack(
+            makeRawTrack({
+                metadata: { isAutoplay: true, recommendationReason: 'similar vibes' },
+            }),
+        )
+        expect(track.recommendationReason).toBe('similar vibes')
+    })
+
+    it('omits recommendationReason when metadata has none', () => {
+        const track = mapTrack(makeRawTrack({ metadata: { isAutoplay: true } }))
+        expect(track.recommendationReason).toBeUndefined()
+    })
 })
 
 describe('repeatModeToString', () => {
