@@ -49,8 +49,11 @@ const mockPlayer = {
         voiceChannelId: null,
         timestamp: Date.now(),
     },
-    isConnected: false,
+    isConnected: true,
+    isLoading: false,
+    pendingAction: null,
     error: null,
+    clearError: vi.fn(),
     play: vi.fn(),
     pause: vi.fn(),
     resume: vi.fn(),
@@ -138,6 +141,10 @@ describe('MusicPage', () => {
     test('shows reconnecting badge when disconnected', () => {
         vi.mocked(useGuildSelection).mockReturnValue({
             selectedGuild: mockGuild,
+        } as any)
+        vi.mocked(useMusicPlayer).mockReturnValue({
+            ...mockPlayer,
+            isConnected: false,
         } as any)
         render(
             <MemoryRouter>

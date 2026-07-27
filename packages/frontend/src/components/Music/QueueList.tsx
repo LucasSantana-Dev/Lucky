@@ -16,6 +16,8 @@ import type { TrackInfo } from '@/types'
 interface QueueListProps {
     tracks: TrackInfo[]
     isLoading?: boolean
+    /** When true, remove/move/clear controls are inactive. */
+    disabled?: boolean
     onRemove: (index: number) => void
     onMove: (from: number, to: number) => void
     onClear: () => void
@@ -26,6 +28,7 @@ const INITIAL_VISIBLE = 20
 export default memo(function QueueList({
     tracks,
     isLoading,
+    disabled = false,
     onRemove,
     onMove,
     onClear,
@@ -40,17 +43,30 @@ export default memo(function QueueList({
         setVisibleCount((c) => Math.min(c + 20, tracks.length))
     }, [tracks.length])
 
-    const handleDragStart = useCallback((index: number) => {
-        dragIndexRef.current = index
-    }, [])
+    const handleDragStart = useCallback(
+        (index: number) => {
+            if (disabled) return
+            dragIndexRef.current = index
+        },
+        [disabled],
+    )
 
-    const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
-        e.preventDefault()
-        setDropTarget(index)
-    }, [])
+    const handleDragOver = useCallback(
+        (e: React.DragEvent, index: number) => {
+            if (disabled) return
+            e.preventDefault()
+            setDropTarget(index)
+        },
+        [disabled],
+    )
 
     const handleDrop = useCallback(
         (index: number) => {
+            if (disabled) {
+                dragIndexRef.current = null
+                setDropTarget(null)
+                return
+            }
             const from = dragIndexRef.current
             if (from !== null && from !== index) {
                 onMove(from, index)
@@ -59,7 +75,7 @@ export default memo(function QueueList({
             dragIndexRef.current = null
             setDropTarget(null)
         },
-        [onMove],
+        [onMove, disabled],
     )
 
     const handleDragEnd = useCallback(() => {
@@ -88,7 +104,9 @@ export default memo(function QueueList({
                     <Button
                         variant='ghost'
                         size='sm'
+                        disabled={disabled}
                         onClick={() => {
+                            if (disabled) return
                             onClear()
                             toast.success('Queue cleared')
                         }}
@@ -119,6 +137,7 @@ export default memo(function QueueList({
                                 key={`${track.id}-${index}`}
                                 track={track}
                                 index={index}
+                                disabled={disabled}
                                 isDropTarget={dropTarget === index}
                                 onRemove={onRemove}
                                 onDragStart={handleDragStart}
@@ -176,6 +195,7 @@ function QueueSkeleton() {
 const QueueItem = memo(function QueueItem({
     track,
     index,
+    disabled = false,
     isDropTarget,
     onRemove,
     onDragStart,
@@ -185,6 +205,7 @@ const QueueItem = memo(function QueueItem({
 }: {
     track: TrackInfo
     index: number
+    disabled?: boolean
     isDropTarget: boolean
     onRemove: (i: number) => void
     onDragStart: (index: number) => void
@@ -198,9 +219,9 @@ const QueueItem = memo(function QueueItem({
                 isDropTarget
                     ? 'ring-1 ring-lucky-red/50 bg-lucky-bg-tertiary'
                     : ''
-            }`}
+            } ${disabled ? 'opacity-60' : ''}`}
             role='listitem'
-            draggable
+            draggable={!disabled}
             onDragStart={() => onDragStart(index)}
             onDragOver={(e) => onDragOver(e, index)}
             onDrop={() => onDrop(index)}
@@ -233,10 +254,12 @@ const QueueItem = memo(function QueueItem({
 
             <button
                 onClick={() => {
+                    if (disabled) return
                     onRemove(index)
                     toast.success('Track removed')
                 }}
-                className='min-h-[44px] min-w-[44px] flex items-center justify-center rounded hover:bg-red-500/10 active:bg-red-500/10 text-lucky-text-secondary hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0'
+                disabled={disabled}
+                className='min-h-[44px] min-w-[44px] flex items-center justify-center rounded hover:bg-red-500/10 active:bg-red-500/10 text-lucky-text-secondary hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed'
                 aria-label={`Remove ${track.title} from queue`}
             >
                 <Trash2 className='h-4 w-4' />

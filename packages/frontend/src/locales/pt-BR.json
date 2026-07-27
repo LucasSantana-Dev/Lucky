@@ -762,7 +762,11 @@
         "play": "Reproduzir",
         "pause": "Pausar",
         "nextTrack": "Próxima faixa",
-        "repeatMode": "Repetição: {{mode}}"
+        "repeatMode": "Repetição: {{mode}}",
+        "commandInProgress": "Executando o comando…",
+        "progressMayBeOutdated": "pode estar desatualizado",
+        "progressMayBeOutdatedTitle": "A posição da reprodução pode estar desatualizada",
+        "progressMayBeOutdatedAria": "Progresso pode estar desatualizado"
     },
     "preferredArtists": {
         "noServerSelected": "Nenhum Servidor Selecionado",
