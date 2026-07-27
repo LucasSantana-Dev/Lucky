@@ -88,7 +88,7 @@
     },
     "dependencies": {
         "@prisma/client": "^7.8.0",
-        "@sentry/node": "^10.53.1",
+        "@sentry/node": "^10.68.0",
         "axios": "^1.18.1",
         "bullmq": "^5.79.1",
         "chalk": "^5.6.2",
@@ -103,11 +103,11 @@
     },
     "devDependencies": {
         "@swc/cli": "^0.8.1",
-        "@swc/core": "^1.15.40",
+        "@swc/core": "^1.15.46",
         "@types/luxon": "^3.4.2",
         "@types/node": "^25.9.1",
         "glob": "^13.0.6",
-        "typedoc": "^0.28.19",
+        "typedoc": "^0.28.20",
         "typedoc-plugin-coverage": "^4.0.3",
         "typescript": "^6.0.3"
     }
