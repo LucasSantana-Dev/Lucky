@@ -16,7 +16,9 @@ import type { Track, TrackSource } from 'discord-player'
  * {@link TrackSource} union. Returns `undefined` when the source is absent at
  * runtime so callers keep their existing fallbacks.
  */
-export function trackSource(track: Track): TrackSource | undefined {
+export function trackSource(
+    track: Pick<Track, 'source'>,
+): TrackSource | undefined {
     const source: unknown = track.source
     return typeof source === 'string' ? (source as TrackSource) : undefined
 }

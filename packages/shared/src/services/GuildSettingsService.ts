@@ -37,8 +37,23 @@ export interface GuildSettings {
     djRoleId?: string
     idleTimeoutMinutes?: number
     voteSkipThreshold?: number
+    supportCategoryId?: string
+    supportAgentRoleId?: string
     createdAt: Date
     updatedAt: Date
+}
+
+/**
+ * Partial write for {@link GuildSettingsService.setGuildSettings}.
+ * `undefined` omits the column; `null` clears a nullable string column in Postgres.
+ */
+export type GuildSettingsPatch = Omit<
+    Partial<GuildSettings>,
+    'djRoleId' | 'supportCategoryId' | 'supportAgentRoleId'
+> & {
+    djRoleId?: string | null
+    supportCategoryId?: string | null
+    supportAgentRoleId?: string | null
 }
 
 /** Autoplay recommendation counter tracking for a guild. */
@@ -109,6 +124,8 @@ export class GuildSettingsService {
         djRoleId: string | null
         idleTimeoutMinutes: number | null
         voteSkipThreshold: number | null
+        supportCategoryId: string | null
+        supportAgentRoleId: string | null
         createdAt: Date
         updatedAt: Date
     }): GuildSettings {
@@ -134,6 +151,8 @@ export class GuildSettingsService {
             djRoleId: row.djRoleId ?? undefined,
             idleTimeoutMinutes: row.idleTimeoutMinutes ?? 0,
             voteSkipThreshold: row.voteSkipThreshold ?? 50,
+            supportCategoryId: row.supportCategoryId ?? undefined,
+            supportAgentRoleId: row.supportAgentRoleId ?? undefined,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
         }
@@ -142,13 +161,14 @@ export class GuildSettingsService {
     /**
      * Translates the public settings shape into Prisma column data, omitting
      * undefined keys (so a partial update only touches the fields provided, and
-     * never clobbers birthday columns this service doesn't own).
+     * never clobbers birthday columns this service doesn't own). Explicit `null`
+     * is kept so nullable columns (DJ role, ticket category/role) can be cleared.
      */
     private toPrismaData(
-        settings: Partial<GuildSettings>,
+        settings: GuildSettingsPatch,
     ): Record<string, unknown> {
         const data: Record<string, unknown> = {}
-        const copy = <K extends keyof GuildSettings>(k: K) => {
+        const copy = (k: keyof GuildSettingsPatch) => {
             if (settings[k] !== undefined) data[k as string] = settings[k]
         }
         copy('defaultVolume')
@@ -168,6 +188,8 @@ export class GuildSettingsService {
         copy('commandCooldown')
         copy('downloadCooldown')
         copy('djRoleId')
+        copy('supportCategoryId')
+        copy('supportAgentRoleId')
         copy('idleTimeoutMinutes')
         copy('voteSkipThreshold')
         return data
@@ -190,7 +212,7 @@ export class GuildSettingsService {
     /** Upserts guild settings (create with defaults+patch, or update in place). */
     async setGuildSettings(
         guildId: string,
-        settings: Partial<GuildSettings>,
+        settings: GuildSettingsPatch,
     ): Promise<boolean> {
         try {
             const prisma = getPrismaClient()
@@ -203,7 +225,11 @@ export class GuildSettingsService {
             infoLog({ message: `Updated guild settings for ${guildId}` })
             return true
         } catch (error) {
-            errorLog({ message: 'Failed to set guild settings', error })
+            errorLog({
+                message: 'Failed to set guild settings',
+                error,
+                data: { guildId },
+            })
             return false
         }
     }
@@ -215,7 +241,7 @@ export class GuildSettingsService {
      */
     async updateGuildSettings(
         guildId: string,
-        updates: Partial<GuildSettings>,
+        updates: GuildSettingsPatch,
     ): Promise<boolean> {
         return this.setGuildSettings(guildId, updates)
     }

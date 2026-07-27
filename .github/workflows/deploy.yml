@@ -43,6 +43,11 @@ jobs:
             SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT || 'lucky' }}
 
         steps:
+            - name: Checkout
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+              with:
+                  persist-credentials: false
+
             - name: Validate secrets
               env:
                   WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
@@ -125,9 +130,8 @@ jobs:
                     exit 0
                   fi
                   commit_sha="$RESOLVED_SHA"
-                  max_wait=600
+                  max_wait=1800
                   interval=15
-                  elapsed=0
 
                   echo "==> Checking if docker-publish is running for ${commit_sha}..."
 
@@ -202,11 +206,15 @@ jobs:
                     fi
                   fi
 
-                  echo "==> Docker build in progress (run $run_id), waiting up to ${max_wait}s..."
+                  echo "==> Docker build in progress (run $run_id), polling until terminal state (max wait: ${max_wait}s)..."
 
-                  while [ $elapsed -lt $max_wait ]; do
+                  deadline=$(($(date +%s) + max_wait))
+
+                  while true; do
                     sleep $interval
-                    elapsed=$((elapsed + interval))
+
+                    now=$(date +%s)
+                    elapsed=$((now - deadline + max_wait))
 
                     run_info=$(gh run view "$run_id" \
                       --repo "${{ github.repository }}" \
@@ -228,10 +236,12 @@ jobs:
                         exit 1
                       fi
                     fi
-                  done
 
-                  echo "::error::Timed out waiting for Docker images after ${max_wait}s"
-                  exit 1
+                    if [ "$(date +%s)" -ge $deadline ]; then
+                      echo "::error::Timed out waiting for Docker images after ${max_wait}s"
+                      exit 1
+                    fi
+                  done
 
             - name: Sentry release — create
               if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
@@ -252,104 +262,7 @@ jobs:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
                   WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
                   DEPLOY_SHA: ${{ steps.resolve_sha.outputs.sha }}
-              run: |
-                  set -euo pipefail
-                  echo "==> Triggering deploy webhook..."
-
-                  # Deploy the exact :<sha> image tag resolved above. Read from
-                  # env (never inlined) to keep the curl headers injection-safe.
-                  echo "==> Deploying SHA $DEPLOY_SHA"
-
-                  call_webhook() {
-                    local url="$1"
-                    curl -s -w "\n%{http_code}" \
-                      -X POST \
-                      -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
-                      -H "X-Deploy-SHA: $DEPLOY_SHA" \
-                      --connect-timeout 10 \
-                      --max-time 30 \
-                      "$url"
-                  }
-
-                  call_webhook_with_retry() {
-                    local url="$1"
-                    local attempt http body response max_attempts
-                    max_attempts=3
-
-                    for attempt in $(seq 1 "$max_attempts"); do
-                      response=$(call_webhook "$url" || true)
-                      http=$(echo "$response" | tail -1)
-                      body=$(echo "$response" | sed '$d')
-
-                      echo "Response from $url (attempt $attempt/$max_attempts): $body (HTTP $http)" >&2
-
-                      if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
-                        echo "$response"
-                        return 0
-                      fi
-
-                      if [ "$attempt" -lt "$max_attempts" ] && { [ "$http" -ge 500 ] || [ "$http" = "000" ]; }; then
-                        sleep $((attempt * 5))
-                        continue
-                      fi
-
-                      echo "$response"
-                      return 0
-                    done
-                  }
-
-                  try_webhook_url() {
-                    local url="$1"
-                    local response http_code body
-                    response=$(call_webhook_with_retry "$url")
-                    http_code=$(echo "$response" | tail -1)
-                    body=$(echo "$response" | sed '$d')
-                    echo "$http_code"$'\n'"$body"
-                  }
-
-                  normalize_webhook_candidates() {
-                    node -e 'const raw = (process.env.WEBHOOK_URL ?? "").trim(); if (!raw) { process.exit(1); } let parsed; try { parsed = new URL(raw); } catch (error) { console.error(`Invalid DEPLOY_WEBHOOK_URL: ${error.message}`); process.exit(1); } const origin = `${parsed.protocol}//${parsed.host}`; const trimmedPath = parsed.pathname.replace(/\/+$/, ""); const originalPath = trimmedPath.length > 0 ? trimmedPath : "/"; const originalUrl = `${origin}${originalPath}${parsed.search}`; let canonicalPath = trimmedPath; if (!canonicalPath || canonicalPath === "/") { canonicalPath = "/webhook/deploy"; } else if (!canonicalPath.endsWith("/webhook/deploy")) { canonicalPath = `${canonicalPath}/webhook/deploy`; } const canonicalUrl = `${origin}${canonicalPath}`; const candidates = [originalUrl, canonicalUrl].filter((value, index, all) => all.indexOf(value) === index); for (const candidate of candidates) { console.log(candidate); }'
-                  }
-
-                  mapfile -t webhook_candidates < <(normalize_webhook_candidates)
-                  if [ "${#webhook_candidates[@]}" -eq 0 ]; then
-                    echo "::error::Unable to derive webhook retry candidates from DEPLOY_WEBHOOK_URL"
-                    exit 1
-                  fi
-
-                  selected_code=""
-                  selected_body=""
-
-                  for index in "${!webhook_candidates[@]}"; do
-                    candidate="${webhook_candidates[$index]}"
-                    if [ "$index" -gt 0 ]; then
-                      echo "==> Retrying against canonical webhook path: $candidate" >&2
-                    fi
-
-                    result=$(try_webhook_url "$candidate")
-                    selected_code=$(echo "$result" | head -1)
-                    selected_body=$(echo "$result" | sed '1d')
-
-                    if [ "$selected_code" -ge 200 ] && [ "$selected_code" -lt 300 ]; then
-                      echo "==> Deploy triggered successfully!"
-                      exit 0
-                    fi
-                  done
-
-                  failure_body_compact="$(echo "$selected_body" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | sed 's/^ //; s/ $//')"
-                  if echo "$failure_body_compact" | grep -qi "another deploy is already running"; then
-                    echo "::error title=LOCK_CONTENTION::Deploy webhook lock contention: $failure_body_compact"
-                  elif echo "$failure_body_compact" \
-                    | grep -Eqi "would be overwritten by merge|unmerged files|fatal: Exiting because of an unresolved conflict|Aborting"; then
-                    echo "::error title=CHECKOUT_RECOVERY_FAILED::Deploy checkout recovery failed: $failure_body_compact"
-                  elif echo "$failure_body_compact" \
-                    | grep -Eqi "compose preflight|migration|health|required services|cloudflared|relation"; then
-                    echo "::error title=RUNTIME_PRECHECK_FAILED::Deploy runtime precheck failed: $failure_body_compact"
-                  fi
-
-                  echo "::error::Deploy webhook failed with HTTP $selected_code"
-                  echo "::error::Response body: $failure_body_compact"
-                  exit 1
+              run: bash scripts/deploy/trigger-deploy-webhook.sh
 
             - name: Validate deployed version
               env:
@@ -357,81 +270,23 @@ jobs:
                   DOCKER_REBUILT: ${{ steps.docker_wait.outputs.docker_rebuilt }}
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   EXPECTED_SHA: ${{ steps.resolve_sha.outputs.sha }}
+                  REPO: ${{ github.repository }}
               run: |
                   set -euo pipefail
-                  base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
+                  base_url=$(bash scripts/deploy/derive-webhook-origin.sh "$WEBHOOK_URL")
                   # Validate the exact SHA deployed (resolved once above): verify
                   # the homelab posted a successful deploy status for it (deploy.sh
                   # posts success only after the rollout passes health checks).
                   expected="$EXPECTED_SHA"
 
                   if [ "${DOCKER_REBUILT:-false}" != "true" ]; then
-                    health_url="${base_url}/api/health"
-                    echo "==> No Docker rebuild — checking for homelab-deploy commit status (SHA: $expected)..."
-
-                    status_was_seen=false
-                    # Use wall-clock deadline instead of attempt counts to ensure
-                    # exactly 10 minutes of total polling time regardless of response latency.
-                    deadline=$(($(date +%s) + 600))
-                    attempt=0
-
-                    while [ "$(date +%s)" -lt "$deadline" ]; do
-                      attempt=$((attempt + 1))
-                      now=$(date +%s)
-                      remaining=$((deadline - now))
-                      echo "Attempt ${attempt} (${remaining}s remaining)..."
-                      deploy_state=$(timeout "$((remaining < 20 ? (remaining > 0 ? remaining : 1) : 20))" gh api \
-                        "repos/${{ github.repository }}/commits/${expected}/statuses" \
-                        --jq '[.[] | select(.context == "homelab-deploy")] | first | .state // ""' \
-                        2>/dev/null || echo "")
-
-                      [ "$deploy_state" = "pending" ] && status_was_seen=true
-
-                      if [ "$deploy_state" = "success" ]; then
-                        echo "==> Homelab deploy completed successfully."
-                        exit 0
-                      fi
-                      if [ "$deploy_state" = "failure" ] || [ "$deploy_state" = "error" ]; then
-                        echo "::error::Homelab deploy reported failure — check deploy logs on homelab"
-                        exit 1
-                      fi
-
-                      if [ "$status_was_seen" = "false" ] && [ "$attempt" -eq 6 ]; then
-                        echo "::notice::No homelab-deploy status after ~90s — GITHUB_DEPLOY_STATUS_TOKEN not configured on homelab. Falling back to HTTP health check."
-                        http_attempt=0
-
-                        while [ "$(date +%s)" -lt "$deadline" ]; do
-                          http_attempt=$((http_attempt + 1))
-                          now=$(date +%s)
-                          remaining=$((deadline - now))
-                          echo "HTTP attempt ${http_attempt} (${remaining}s remaining)..."
-                          response=$(curl -sS --max-time "$((remaining < 20 ? (remaining > 0 ? remaining : 1) : 20))" -w "\n%{http_code}" "$health_url" || true)
-                          http_code=$(echo "$response" | tail -1)
-                          if [ "$http_code" = "200" ]; then
-                            echo "==> Service healthy. Done."
-                            exit 0
-                          fi
-                          now=$(date +%s)
-                          remaining=$((deadline - now))
-                          [ "$remaining" -le 0 ] && break
-                          sleep_for=$((remaining < 15 ? remaining : 15))
-                          echo "Not ready (HTTP $http_code). Waiting ${sleep_for}s..."
-                          sleep "$sleep_for"
-                        done
-                        echo "::error::Service did not become healthy before deadline"
-                        exit 1
-                      fi
-
-                      now=$(date +%s)
-                      remaining=$((deadline - now))
-                      [ "$remaining" -le 0 ] && break
-                      sleep_for=$((remaining < 15 ? remaining : 15))
-                      echo "Deploy status: ${deploy_state:-none}. Waiting ${sleep_for}s..."
-                      sleep "$sleep_for"
-                    done
-
-                    echo "::error::Deploy validation timed out"
-                    exit 1
+                    # Polls the homelab-deploy commit status (with HTTP health
+                    # fallback) and exits non-zero on failure or timeout. On
+                    # success the step ends here, matching the original inline
+                    # exit 0 that skipped the version check below.
+                    HEALTH_URL="${base_url}/api/health" \
+                      bash scripts/deploy/wait-homelab-status.sh validate
+                    exit 0
                   fi
 
                   version_url="${base_url}/api/health/version"
@@ -489,276 +344,19 @@ jobs:
             - name: Auth config smoke check
               env:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
-              run: |
-                  set -euo pipefail
-
-                  base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
-                  health_url="${base_url}/api/health/auth-config"
-                  upstream_unavailable_count=0
-                  contract_invalid_count=0
-                  other_http_count=0
-
-                  echo "==> Running deploy smoke check: $health_url"
-
-                  for attempt in $(seq 1 18); do
-                      echo "Attempt ${attempt}/18..."
-                      response=$(curl -sS --max-time 20 -w "\n%{http_code}" "$health_url" || true)
-                      http_code=$(echo "$response" | tail -1)
-                      body=$(echo "$response" | sed '$d')
-
-                      if [ "$http_code" = "200" ]; then
-                          if HEALTH_BODY="$body" node -e '
-                            const body = process.env.HEALTH_BODY ?? "";
-                            let parsed;
-                            try {
-                              parsed = JSON.parse(body);
-                            } catch {
-                              console.log("auth-config returned invalid JSON");
-                              process.exit(1);
-                            }
-
-                            const status = parsed?.status ?? "unknown";
-                            const auth = parsed?.auth ?? {};
-                            const warnings = Array.isArray(parsed?.warnings) ? parsed.warnings : [];
-                            const clientId = typeof auth?.clientId === "string" ? auth.clientId : "";
-                            const clientIdConfigured = auth?.clientIdConfigured === true;
-                            const sessionSecretConfigured = auth?.sessionSecretConfigured === true;
-                            const redisHealthy = auth?.redisHealthy === true;
-                            const redirectUri = typeof auth?.redirectUri === "string" ? auth.redirectUri : "";
-                            const authorizeUrlPreview = typeof auth?.authorizeUrlPreview === "string"
-                              ? auth.authorizeUrlPreview
-                              : "";
-                            const callbackPathOk = redirectUri.includes("/api/auth/callback");
-                            const authorizePreviewOk = authorizeUrlPreview.includes(
-                              "discord.com/api/oauth2/authorize",
-                            );
-
-                            if (
-                              status !== "ok" ||
-                              warnings.length > 0 ||
-                              clientId.length === 0 ||
-                              !clientIdConfigured ||
-                              !sessionSecretConfigured ||
-                              !redisHealthy ||
-                              !callbackPathOk ||
-                              !authorizePreviewOk
-                            ) {
-                              console.log(
-                                `auth-config contract not ready (status=${status}, warnings=${warnings.length}, clientId=${clientId}, clientIdConfigured=${clientIdConfigured}, sessionSecretConfigured=${sessionSecretConfigured}, redisHealthy=${redisHealthy}, callbackPathOk=${callbackPathOk}, authorizePreviewOk=${authorizePreviewOk})`,
-                              );
-                              if (warnings.length > 0) {
-                                console.log(`warnings: ${warnings.join(" | ")}`);
-                              }
-                              process.exit(1);
-                            }
-
-                            console.log("OAuth auth-config contract ready");
-                          '; then
-                              echo "==> OAuth auth-config smoke check passed"
-                              exit 0
-                          fi
-                          contract_invalid_count=$((contract_invalid_count + 1))
-                          echo "Auth-config contract invalid/unready (HTTP 200). Waiting 10s..."
-                      elif [[ "$http_code" =~ ^5[0-9][0-9]$ ]]; then
-                          upstream_unavailable_count=$((upstream_unavailable_count + 1))
-                          echo "Upstream unavailable at $health_url (HTTP $http_code). Waiting 10s..."
-                      else
-                          other_http_count=$((other_http_count + 1))
-                          echo "Service not ready yet at $health_url (HTTP $http_code). Waiting 10s..."
-                      fi
-
-                      sleep 10
-                  done
-
-                  echo "::error::Timed out waiting for OAuth auth-config contract"
-                  echo "::error::Auth-config smoke summary: upstream_unavailable=${upstream_unavailable_count}, contract_invalid=${contract_invalid_count}, other_http=${other_http_count}"
-                  exit 1
+              run: bash scripts/deploy/oauth-smoke.sh auth-config
 
             - name: OAuth redirect contract smoke check
               env:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
                   EXPECTED_CLIENT_ID: ${{ secrets.WEBAPP_EXPECTED_CLIENT_ID }}
                   ALLOW_DEPLOY_UNVERIFIED_OAUTH: ${{ inputs.allow_deploy_unverified_oauth || '' }}
-              run: |
-                  set -euo pipefail
-
-                  configured_expected_client_id="${EXPECTED_CLIENT_ID:-}"
-                  if [ -z "$configured_expected_client_id" ]; then
-                    echo "::error::Missing required secret WEBAPP_EXPECTED_CLIENT_ID"
-                    exit 1
-                  fi
-                  base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
-                  auth_url="${base_url}/api/auth/discord"
-                  auth_config_url="${base_url}/api/health/auth-config"
-
-                  config_response="$(curl -sS --max-time 20 -w "\n%{http_code}" "$auth_config_url" || true)"
-                  config_http_code="$(echo "$config_response" | tail -1)"
-                  config_body="$(echo "$config_response" | sed '$d')"
-
-                  if [ "$config_http_code" != "200" ]; then
-                    echo "::error::Unable to derive OAuth expectations from auth-config (HTTP $config_http_code)"
-                    exit 1
-                  fi
-
-                  expected_values="$(
-                    AUTH_CONFIG_BODY="$config_body" node -e '
-                      const body = process.env.AUTH_CONFIG_BODY ?? "";
-                      let parsed;
-                      try {
-                        parsed = JSON.parse(body);
-                      } catch {
-                        console.log("invalid-auth-config-json");
-                        process.exit(1);
-                      }
-                      const auth = parsed?.auth ?? {};
-                      const clientId = typeof auth.clientId === "string" ? auth.clientId : "";
-                      const redirectUri =
-                        typeof auth.redirectUri === "string" ? auth.redirectUri : "";
-                      if (!clientId || !redirectUri) {
-                        console.log("missing-auth-config-fields");
-                        process.exit(1);
-                      }
-                      process.stdout.write(`${clientId}\n${redirectUri}`);
-                    '
-                  )"
-
-                  auth_config_client_id="$(echo "$expected_values" | sed -n '1p')"
-                  expected_redirect_uri="$(echo "$expected_values" | sed -n '2p')"
-
-                  if [ -z "$auth_config_client_id" ] || [ -z "$expected_redirect_uri" ]; then
-                    echo "::error::Unable to derive OAuth expectations from auth-config payload"
-                    exit 1
-                  fi
-
-                  if [ "$auth_config_client_id" != "$configured_expected_client_id" ]; then
-                    echo "::error::Auth-config client_id (${auth_config_client_id}) does not match WEBAPP_EXPECTED_CLIENT_ID secret"
-                    exit 1
-                  fi
-
-                  expected_client_id="$configured_expected_client_id"
-
-                  echo "==> Running OAuth redirect contract smoke check: $auth_url"
-                  rate_limited_count=0
-                  non_rate_limited_attempts=0
-
-                  for attempt in $(seq 1 18); do
-                    echo "Attempt ${attempt}/18..."
-                    headers_file="$(mktemp)"
-                    http_code="$(curl -sS -o /dev/null -D "$headers_file" --max-time 20 "$auth_url" -w "%{http_code}" || true)"
-
-                    if [ "$http_code" = "429" ]; then
-                      rate_limited_count=$((rate_limited_count + 1))
-                      rm -f "$headers_file"
-                      echo "OAuth redirect contract check is rate-limited (429). Waiting 10s..."
-                      sleep 10
-                      continue
-                    fi
-
-                    non_rate_limited_attempts=$((non_rate_limited_attempts + 1))
-
-                    if [ "$http_code" = "302" ]; then
-                      location_header="$(awk 'BEGIN{IGNORECASE=1} /^location: /{print $2}' "$headers_file" | tr -d '\r')"
-                      if [ -n "$location_header" ] && OAUTH_LOCATION="$location_header" \
-                      EXPECTED_CLIENT_ID="$expected_client_id" \
-                      EXPECTED_REDIRECT_URI="$expected_redirect_uri" \
-                      node -e '
-                        const location = process.env.OAUTH_LOCATION ?? "";
-                        const expectedClientId = process.env.EXPECTED_CLIENT_ID ?? "";
-                        const expectedRedirectUri = process.env.EXPECTED_REDIRECT_URI ?? "";
-
-                        const parsed = new URL(location);
-                        const actualClientId = parsed.searchParams.get("client_id") ?? "";
-                        const actualRedirectUri = parsed.searchParams.get("redirect_uri") ?? "";
-                        const isDiscordHost = parsed.hostname === "discord.com";
-                        const isAuthorizePath = parsed.pathname.endsWith("/oauth2/authorize");
-
-                        if (!isDiscordHost || !isAuthorizePath) {
-                          console.log(
-                            `OAuth location host/path not ready: ${parsed.hostname}${parsed.pathname}`,
-                          );
-                          process.exit(1);
-                        }
-
-                        if (actualClientId !== expectedClientId) {
-                          console.log(
-                            `OAuth client_id not ready (expected=${expectedClientId}, actual=${actualClientId})`,
-                          );
-                          process.exit(1);
-                        }
-
-                        if (actualRedirectUri !== expectedRedirectUri) {
-                          console.log(
-                            `OAuth redirect_uri not ready (expected=${expectedRedirectUri}, actual=${actualRedirectUri})`,
-                          );
-                          process.exit(1);
-                        }
-                      '; then
-                        rm -f "$headers_file"
-                        echo "==> OAuth redirect contract smoke check passed"
-                        exit 0
-                      fi
-                    fi
-
-                    rm -f "$headers_file"
-                    echo "OAuth redirect contract not ready yet (HTTP $http_code). Waiting 10s..."
-                    sleep 10
-                  done
-
-                  if [ "$non_rate_limited_attempts" -eq 0 ] && [ "$rate_limited_count" -gt 0 ]; then
-                    if [ "${ALLOW_DEPLOY_UNVERIFIED_OAUTH:-false}" = "true" ]; then
-                      echo "::warning::OAuth redirect contract check was rate-limited on all attempts; bypassing because ALLOW_DEPLOY_UNVERIFIED_OAUTH=true — verify OAuth flow manually."
-                      exit 0
-                    fi
-                    echo "::error::OAuth redirect contract check was rate-limited (429) on all $rate_limited_count attempts — contract not verified."
-                    echo "::error::Options: (1) redeploy after Discord rate-limit clears (~5 min); (2) trigger workflow_dispatch with allow_deploy_unverified_oauth=true to bypass"
-                    exit 1
-                  fi
-
-                  echo "::error::Timed out waiting for OAuth redirect contract"
-                  echo "::error::OAuth redirect smoke summary: non_rate_limited_attempts=$non_rate_limited_attempts, rate_limited_count=$rate_limited_count"
-                  exit 1
+              run: bash scripts/deploy/oauth-smoke.sh redirect
 
             - name: Wait for homelab deploy completion
               if: steps.docker_wait.outputs.docker_rebuilt == 'true'
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   EXPECTED_SHA: ${{ steps.resolve_sha.outputs.sha }}
-              run: |
-                  set -euo pipefail
-                  expected="$EXPECTED_SHA"
-
-                  echo "==> Waiting for homelab deploy to complete (SHA: $expected)..."
-                  status_was_seen=false
-
-                  for attempt in $(seq 1 12); do
-                    echo "Attempt ${attempt}/12..."
-                    deploy_state=$(gh api \
-                      "repos/${{ github.repository }}/commits/${expected}/statuses" \
-                      --jq '[.[] | select(.context == "homelab-deploy")] | first | .state // ""' \
-                      2>/dev/null || echo "")
-
-                    [ "$deploy_state" = "pending" ] && status_was_seen=true
-
-                    if [ "$deploy_state" = "success" ]; then
-                      echo "==> Homelab deploy completed successfully."
-                      exit 0
-                    fi
-                    if [ "$deploy_state" = "failure" ] || [ "$deploy_state" = "error" ]; then
-                      echo "::error::Homelab deploy reported failure after image deployment — check deploy logs on homelab"
-                      exit 1
-                    fi
-
-                    if [ "$status_was_seen" = "false" ] && [ "$attempt" -eq 6 ]; then
-                      echo "::warning::No homelab-deploy status after ~90s — GITHUB_DEPLOY_STATUS_TOKEN likely not configured on homelab. Cannot confirm full deploy completion."
-                      exit 0
-                    fi
-
-                    echo "Deploy status: ${deploy_state:-none}. Waiting 15s..."
-                    sleep 15
-                  done
-
-                  echo "::warning::Deploy completion timed out after 3 min — bot health gate may still be running. Check Discord notification for full outcome."
-
-            - name: Notify failure
-              if: failure()
-              run: echo "::error::Homelab deployment failed — check logs above"
+                  REPO: ${{ github.repository }}
+              run: bash scripts/deploy/wait-homelab-status.sh wait

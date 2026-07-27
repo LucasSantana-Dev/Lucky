@@ -23,8 +23,11 @@ import { initProviderHealth } from '../../utils/music/search/providerHealth'
 import { musicWatchdogService } from '../../utils/music/watchdog'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { reminderScheduler } from '../../utils/general/reminderScheduler'
+import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
+import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
+import { channelPurgeScheduler } from '../../utils/general/channelPurgeScheduler'
 import { aiDevToolkitService } from '../../services/AiDevToolkitService'
 import { dependencyCheckService } from '../../services/DependencyCheckService'
 import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
@@ -80,7 +83,9 @@ export class BotInitializer {
         options: BotInitializationOptions,
     ): Promise<void> {
         if (options.skipPlayer !== true && this.client) {
-            const player = await createPlayerWithHandlers({ client: this.client })
+            const player = await createPlayerWithHandlers({
+                client: this.client,
+            })
             this.client.player = player
             musicWatchdogService.startOrphanSessionMonitor(player)
         }
@@ -213,6 +218,15 @@ export class BotInitializer {
         }
 
         try {
+            supportSessionScheduler.stop()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping support session scheduler:',
+                error,
+            })
+        }
+
+        try {
             reminderScheduler.stop()
         } catch (error) {
             errorLog({ message: 'Error stopping reminder scheduler:', error })
@@ -225,9 +239,27 @@ export class BotInitializer {
         }
 
         try {
+            topggStatsScheduler.stop()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping Top.gg stats scheduler:',
+                error,
+            })
+        }
+
+        try {
             modDigestSchedulerService.stop()
         } catch (error) {
             errorLog({ message: 'Error stopping mod digest scheduler:', error })
+        }
+
+        try {
+            channelPurgeScheduler.stop()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping channel purge scheduler:',
+                error,
+            })
         }
 
         try {

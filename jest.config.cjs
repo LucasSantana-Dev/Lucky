@@ -39,10 +39,7 @@ module.exports = {
   },
   transform: {
     '^.+\\.ts$': ['ts-jest', {
-      tsconfig: {
-        esModuleInterop: true,
-        allowSyntheticDefaultImports: true
-      }
+      tsconfig: '<rootDir>/packages/backend/tsconfig.jest-root.json'
     }]
   },
   transformIgnorePatterns: [

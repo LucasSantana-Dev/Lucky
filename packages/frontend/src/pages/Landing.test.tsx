@@ -165,7 +165,7 @@ describe('Landing', () => {
     test('renders repo card with name, license and language', async () => {
         render(<Landing />)
         expect(screen.getByText('LucasSantana-Dev / Lucky')).toBeInTheDocument()
-        expect(screen.getByText('Apache-2.0')).toBeInTheDocument()
+        expect(screen.getByText('ISC')).toBeInTheDocument()
         expect(screen.getByText('TypeScript')).toBeInTheDocument()
         await waitFor(() => {
             expect(screen.getByText('servers')).toBeInTheDocument()
@@ -284,12 +284,8 @@ describe('Landing', () => {
 
     test('renders repo footer banner and footer copyright', () => {
         render(<Landing />)
-        expect(
-            screen.getByText(/Open source under Apache 2.0/i),
-        ).toBeInTheDocument()
-        expect(
-            screen.getByText(/© 2026 Lucky\. Apache 2\.0\./),
-        ).toBeInTheDocument()
+        expect(screen.getByText(/Open source under ISC/i)).toBeInTheDocument()
+        expect(screen.getByText(/© 2026 Lucky\. ISC\./)).toBeInTheDocument()
     })
 
     test('renders footer with Terms, Privacy and Discord support links', () => {

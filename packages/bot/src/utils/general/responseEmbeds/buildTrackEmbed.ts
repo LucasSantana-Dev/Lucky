@@ -1,6 +1,7 @@
 import { EmbedBuilder } from 'discord.js'
 import type { User } from 'discord.js'
 import type { Track } from 'discord-player'
+import type { TrackMetadata } from '@lucky/shared/types'
 import { detectSource } from '../../music/nowPlayingEmbed'
 import { trackSource } from '../../music/trackFields'
 import { formatDurationClock } from '../formatDuration'
@@ -14,6 +15,8 @@ export type TrackData = {
     thumbnail?: string
     duration?: string
     source?: string | null
+    /** Why autoplay picked this track, when present. */
+    recommendationReason?: string
 }
 
 const KIND_LABELS: Record<TrackEmbedKind, string> = {
@@ -23,10 +26,33 @@ const KIND_LABELS: Record<TrackEmbedKind, string> = {
     history: 'From History',
 }
 
+type TrackDataSource = Pick<
+    Track<TrackMetadata>,
+    'title' | 'author' | 'url' | 'thumbnail' | 'durationMS' | 'source'
+> &
+    Partial<Pick<Track<TrackMetadata>, 'metadata'>>
+
+type PlayerTrackDataSource = Pick<
+    Track<unknown>,
+    'title' | 'author' | 'url' | 'thumbnail' | 'durationMS' | 'source'
+> &
+    Partial<Pick<Track<unknown>, 'metadata'>>
+
+export type TrackEmbedOptions = {
+    /**
+     * A pre-rendered playback progress bar (e.g. discord-player's
+     * `queue.node.createProgressBar()`). Rendered as its own field so a user
+     * can see how far into the track playback is. Null/undefined for tracks
+     * with no live position (queued/recommended/history, or a livestream).
+     */
+    progressBar?: string | null
+}
+
 export function buildTrackEmbed(
     track: TrackData,
     kind: TrackEmbedKind,
     requestedBy?: Pick<User, 'tag' | 'displayAvatarURL'>,
+    options?: TrackEmbedOptions,
 ): EmbedBuilder {
     const badge = detectSource(track)
     const label = KIND_LABELS[kind]
@@ -55,22 +81,58 @@ export function buildTrackEmbed(
     }
     fields.push({ name: 'Source', value: badge.label, inline: true })
 
+    if (track.recommendationReason) {
+        // Discord embed field values cap at 1024; open-ended autoplay signals
+        // from Last.fm/Spotify can theoretically exceed that and drop the embed.
+        const reason =
+            track.recommendationReason.length > 1024
+                ? `${track.recommendationReason.slice(0, 1021)}...`
+                : track.recommendationReason
+        fields.push({
+            name: 'Why this track',
+            value: reason,
+            inline: false,
+        })
+    }
+
+    if (options?.progressBar) {
+        fields.push({
+            name: 'Progress',
+            value: options.progressBar,
+            inline: false,
+        })
+    }
+
     embed.addFields(fields)
     return embed
 }
 
 export function buildCommandTrackEmbed(
-    track: Track,
+    track: PlayerTrackDataSource,
     statusLabel: string,
     requestedBy: Pick<User, 'tag' | 'displayAvatarURL'>,
 ): ReturnType<typeof buildTrackEmbed> {
-    const trackData = trackToData(track)
+    const trackData = playerTrackToData(track)
     const embed = buildTrackEmbed(trackData, 'playing', requestedBy)
     embed.setAuthor({ name: statusLabel })
     return embed
 }
 
-export function trackToData(track: Track): TrackData {
+export function playerTrackToData(track: PlayerTrackDataSource): TrackData {
+    return trackToData({
+        title: track.title,
+        author: track.author,
+        url: track.url,
+        thumbnail: track.thumbnail,
+        durationMS: track.durationMS,
+        source: track.source,
+        metadata: normalizeTrackMetadata(track.metadata),
+    })
+}
+
+export function trackToData(track: TrackDataSource): TrackData {
+    const recommendationReason = track.metadata?.recommendationReason
+
     return {
         title: track.title,
         author: track.author,
@@ -80,5 +142,19 @@ export function trackToData(track: Track): TrackData {
             ? formatDurationClock(Math.floor(track.durationMS / 1000))
             : undefined,
         source: trackSource(track) ?? null,
+        ...(recommendationReason ? { recommendationReason } : {}),
     }
+}
+
+function normalizeTrackMetadata(metadata: unknown): TrackMetadata | null {
+    if (
+        typeof metadata !== 'object' ||
+        metadata === null ||
+        !('recommendationReason' in metadata) ||
+        typeof metadata.recommendationReason !== 'string'
+    ) {
+        return null
+    }
+
+    return { recommendationReason: metadata.recommendationReason }
 }

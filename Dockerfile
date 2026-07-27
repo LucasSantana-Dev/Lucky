@@ -30,7 +30,7 @@ RUN apk add --no-cache \
     && /opt/ytdlp/bin/pip install --no-cache-dir --upgrade pip yt-dlp \
     && ln -s /opt/ytdlp/bin/yt-dlp /usr/local/bin/yt-dlp \
     && rm -rf /var/cache/apk/* /root/.cache \
-    && npm install -g npm@12.0.0 \
+    && npm install -g npm@latest \
     && npm cache clean --force
 
 WORKDIR /app
@@ -56,7 +56,7 @@ CMD ["sh", "-c", "npm ci --legacy-peer-deps --no-audit --no-fund && npx prisma g
 FROM node:${NODE_VERSION} AS build
 ARG NPM_CACHE_KEY
 
-RUN apk add --no-cache git build-base python3 python3-dev opus-dev && rm -rf /var/cache/apk/* && npm install -g npm@12.0.0 && npm cache clean --force
+RUN apk add --no-cache git build-base python3 python3-dev opus-dev && rm -rf /var/cache/apk/* && npm install -g npm@latest && npm cache clean --force
 
 WORKDIR /app
 
@@ -105,7 +105,7 @@ ARG NPM_CACHE_KEY
 # (alpine/musl bumps rename the prebuilt — 404'd 2026-06-12, #1309). Same
 # toolchain the build stage carries (L50) and the same failure class the
 # frontend stage comment below documents from PR #846.
-RUN apk add --no-cache build-base python3 python3-dev opus-dev && rm -rf /var/cache/apk/* && npm install -g npm@12.0.0 && npm cache clean --force
+RUN apk add --no-cache build-base python3 python3-dev opus-dev && rm -rf /var/cache/apk/* && npm install -g npm@latest && npm cache clean --force
 
 WORKDIR /app
 
@@ -115,11 +115,16 @@ COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
 COPY packages/frontend/package*.json ./packages/frontend/
 
-RUN --mount=type=cache,id=npm-deps-production-v4-${NPM_CACHE_KEY},target=/root/.npm,sharing=locked \
-    YOUTUBE_DL_SKIP_DOWNLOAD=1 \
-    YOUTUBE_DL_SKIP_PYTHON_CHECK=1 \
-    npm ci --legacy-peer-deps --omit=dev --no-audit --no-fund && \
-    (npm cache verify 2>/dev/null || true)
+# Reuse already-compiled node_modules from build stage (avoids double @discordjs/opus
+# compilation). Copy root + workspace node_modules, then prune devDeps in-place while
+# preserving the pre-built .node binary.
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=build /app/packages/bot/node_modules ./packages/bot/node_modules
+COPY --from=build /app/packages/backend/node_modules ./packages/backend/node_modules
+COPY --from=build /app/packages/frontend/node_modules ./packages/frontend/node_modules
+
+RUN npm prune --omit=dev --legacy-peer-deps
 
 # Production stage — bot (full runtime with ffmpeg/opus/yt-dlp)
 FROM base-runtime AS production-bot
@@ -136,6 +141,14 @@ COPY --from=deps-production /app/package*.json ./
 COPY --from=deps-production /app/packages/shared/package*.json ./packages/shared/
 COPY --from=deps-production /app/packages/bot/package*.json ./packages/bot/
 COPY --from=deps-production /app/packages/bot/node_modules ./packages/bot/node_modules
+# packages/shared's own node_modules. npm nests a dep here instead of hoisting
+# it whenever another workspace pins a conflicting range (packages/frontend also
+# depends on axios, so both copies nested). shared/dist imports these at
+# runtime, so omitting this directory kills the container with
+# ERR_MODULE_NOT_FOUND. 9 packages are nested here as of this commit, which is
+# why this copies the whole directory rather than naming one dep. It comes from
+# deps-production, so it is already devDep-pruned.
+COPY --from=deps-production /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/packages/shared/src/generated ./packages/shared/src/generated
 COPY --from=build /app/packages/shared/src/generated ./packages/shared/dist/generated
@@ -180,6 +193,14 @@ COPY --from=deps-production /app/package*.json ./
 COPY --from=deps-production /app/packages/shared/package*.json ./packages/shared/
 COPY --from=deps-production /app/packages/backend/package*.json ./packages/backend/
 COPY --from=deps-production /app/packages/backend/node_modules ./packages/backend/node_modules
+# packages/shared's own node_modules. npm nests a dep here instead of hoisting
+# it whenever another workspace pins a conflicting range (packages/frontend also
+# depends on axios, so both copies nested). shared/dist imports these at
+# runtime, so omitting this directory kills the container with
+# ERR_MODULE_NOT_FOUND. 9 packages are nested here as of this commit, which is
+# why this copies the whole directory rather than naming one dep. It comes from
+# deps-production, so it is already devDep-pruned.
+COPY --from=deps-production /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/packages/shared/src/generated ./packages/shared/src/generated
 COPY --from=build /app/packages/shared/src/generated ./packages/shared/dist/generated

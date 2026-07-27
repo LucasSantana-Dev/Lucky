@@ -248,19 +248,46 @@ export default new Command({
             return
         }
 
-        // Estimate total by sampling (cap at 500 fetches for performance)
+        // Estimate total by sampling (cap at 500 messages for performance)
         await interaction.deferReply({ ephemeral: true })
 
         let totalEstimate = 0
         const SAMPLE_SIZE = 500
+        const PAGE_SIZE = 100
         try {
-            const sampleMessages = (await sourceChannel.messages.fetch({
-                limit: SAMPLE_SIZE,
-            })) as Collection<string, Message<true>>
-
             let sampleMatched = 0
             let messageIndex = 0
-            for (const msg of sampleMessages.values()) {
+            let cursor: string | undefined
+            const allSampleMessages: Message<true>[] = []
+
+            // Paginate through messages in pages of ≤100 (Discord API limit)
+            // until we collect SAMPLE_SIZE messages or reach the end
+            while (allSampleMessages.length < SAMPLE_SIZE) {
+                const pageMessages = (await sourceChannel.messages.fetch({
+                    limit: PAGE_SIZE,
+                    before: cursor,
+                })) as Collection<string, Message<true>>
+
+                if (pageMessages.size === 0) {
+                    break
+                }
+
+                // Convert to array and add to collection
+                const messageArray = Array.from(pageMessages.values())
+                allSampleMessages.push(...messageArray)
+
+                // Update cursor for next page
+                cursor = messageArray[messageArray.length - 1]?.id
+
+                // Stop if we've collected enough samples
+                if (allSampleMessages.length >= SAMPLE_SIZE) {
+                    allSampleMessages.splice(SAMPLE_SIZE)
+                    break
+                }
+            }
+
+            // Count matches in the sample
+            for (const msg of allSampleMessages) {
                 const matches = matchesScope(
                     {
                         id: msg.id,

@@ -1,6 +1,6 @@
 {
     "name": "lucky-bot",
-    "version": "2.34.0",
+    "version": "2.37.3",
     "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
     "type": "module",
     "workspaces": [
@@ -36,7 +36,7 @@
         "verify:backend": "npm run lint --workspace=packages/backend && npm run type:check --workspace=packages/backend && npm run build:backend && npm run test:backend && npm audit --audit-level=high --workspace=packages/backend",
         "verify:frontend": "npm run lint --workspace=packages/frontend && npm run type:check --workspace=packages/frontend && npm run build:frontend && npm run test:frontend",
         "audit:critical": "npm audit --audit-level=critical",
-        "audit:high": "npm audit --audit-level=high",
+        "audit:high": "node scripts/audit-gate.mjs",
         "lint:secrets": "secretlint \"**/*\"",
         "check:outdated": "npm outdated || true",
         "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://localhost:5432/postgres} prisma generate --config prisma/prisma.config.ts",
@@ -122,7 +122,7 @@
     },
     "overrides": {
         "file-type": "$file-type",
-        "brace-expansion": ">=5.0.6",
+        "brace-expansion": ">=5.0.8",
         "handlebars": ">=4.7.9",
         "path-to-regexp": ">=8.4.0",
         "fast-xml-parser": ">=5.5.6",
@@ -141,7 +141,8 @@
         "ip-address": ">=10.1.1",
         "esbuild": "0.28.1",
         "qs": "^6.15.2",
-        "@opentelemetry/core": "^2.8.0"
+        "@opentelemetry/core": "^2.8.0",
+        "find-my-way": ">=9.7.0"
     },
     "allowScripts": {
         "@discordjs/opus@0.10.0": true

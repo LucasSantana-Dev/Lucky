@@ -45,6 +45,7 @@ export {
 export {
     guildSettingsService,
     type GuildSettings,
+    type GuildSettingsPatch,
     type AutoplayCounter,
 } from './GuildSettingsService'
 export { roleManagementService } from './RoleManagementService'
@@ -91,15 +92,23 @@ export {
 } from './GuildRoleAccessService'
 export { redisClient } from './redis/index.js'
 export {
-    giveawayService,
-    parseDuration,
-    type GiveawayData,
-} from './GiveawayService.js'
-export {
     starboardService,
     type StarboardConfig,
     type StarboardEntry,
 } from './StarboardService.js'
+export {
+    supportSessionService,
+    SupportSessionService,
+} from './SupportSessionService.js'
+export {
+    channelCleanupService,
+    type ChannelCleanupConfig,
+} from './ChannelCleanupService.js'
+export {
+    giveawayService,
+    parseDuration,
+    type GiveawayData,
+} from './GiveawayService.js'
 export {
     levelService,
     type LevelConfig,
@@ -140,4 +149,5 @@ export {
     ReminderService,
     MAX_DELIVERY_ATTEMPTS,
     type ReminderRecord,
+    type ReminderTarget,
 } from './ReminderService.js'

@@ -5,6 +5,118 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.2...v2.37.3) (2026-07-27)
+
+
+### Bug Fixes
+
+* **invite:** route /invite through the backend and unify the permissions ([#1893](https://github.com/LucasSantana-Dev/Lucky/issues/1893)) ([9372961](https://github.com/LucasSantana-Dev/Lucky/commit/93729617812dbde06ee12e8e0d3dfb1c424a22d3))
+
+## [2.37.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.1...v2.37.2) (2026-07-26)
+
+
+### Bug Fixes
+
+* **docker:** ship packages/shared's nested node_modules to runtime ([#1875](https://github.com/LucasSantana-Dev/Lucky/issues/1875)) ([6516ad2](https://github.com/LucasSantana-Dev/Lucky/commit/6516ad2e3fd8459e3910cf89de690eaf7042fe85))
+
+## [2.37.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.0...v2.37.1) (2026-07-26)
+
+
+### Bug Fixes
+
+* **bot:** register slash commands globally, not per cached guild ([#1887](https://github.com/LucasSantana-Dev/Lucky/issues/1887)) ([f7d38d5](https://github.com/LucasSantana-Dev/Lucky/commit/f7d38d535f5a4fe2f4488c888f3bb81de7680eed))
+* **ci:** make the security gate passable and clear production advisories ([#1876](https://github.com/LucasSantana-Dev/Lucky/issues/1876)) ([ca410d2](https://github.com/LucasSantana-Dev/Lucky/commit/ca410d2cb0f303c941e185548ccfe083a33d127c))
+* **frontend:** make /invite reach discord and stop asking for admin ([#1889](https://github.com/LucasSantana-Dev/Lucky/issues/1889)) ([c322834](https://github.com/LucasSantana-Dev/Lucky/commit/c3228345c8f5d7b12aa6fe306a5c86e6d755a47c))
+
+## [2.37.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.36.1...v2.37.0) (2026-07-22)
+
+
+### Features
+
+* **bot:** channel cleanup with interval purge and ttl delete ([#1687](https://github.com/LucasSantana-Dev/Lucky/issues/1687)) ([11285da](https://github.com/LucasSantana-Dev/Lucky/commit/11285da1655a0d677f10c0d19af545eb55b0e024))
+* **security:** add hsts and permissions-policy to vercel.json headers ([#1868](https://github.com/LucasSantana-Dev/Lucky/issues/1868)) ([b6e88e3](https://github.com/LucasSantana-Dev/Lucky/commit/b6e88e37930c2c852a321cfd2c541dfda2d230fd))
+
+
+### Bug Fixes
+
+* **ci:** bump org workflow SHA to fix claude-review failures ([#1836](https://github.com/LucasSantana-Dev/Lucky/issues/1836)) ([8a05edd](https://github.com/LucasSantana-Dev/Lucky/commit/8a05edd0160c6b8078b282a9c880a394ce0bd4fd))
+* **ci:** make claude-review non-blocking — upstream action crash ([#1836](https://github.com/LucasSantana-Dev/Lucky/issues/1836)) ([#1862](https://github.com/LucasSantana-Dev/Lucky/issues/1862)) ([1e6357a](https://github.com/LucasSantana-Dev/Lucky/commit/1e6357a970717dd8ed82d40a3d0084ac218c16f0))
+* **deploy:** poll docker-publish until terminal state ([#1848](https://github.com/LucasSantana-Dev/Lucky/issues/1848)) ([#1853](https://github.com/LucasSantana-Dev/Lucky/issues/1853)) ([6d45871](https://github.com/LucasSantana-Dev/Lucky/commit/6d45871d7404e98acca99d04b6fde2a66e257d11))
+* **deps:** clear new-baseline npm audit findings ([#1871](https://github.com/LucasSantana-Dev/Lucky/issues/1871)) ([8251e61](https://github.com/LucasSantana-Dev/Lucky/commit/8251e610a9808700db2eb4b4ba86bba08f1a48fc))
+* **deps:** resolve high-severity npm audit findings ([#1869](https://github.com/LucasSantana-Dev/Lucky/issues/1869)) ([10b4a8c](https://github.com/LucasSantana-Dev/Lucky/commit/10b4a8cbcf6e9a9fb7f713a05100c5449da18a64))
+
+## [2.36.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.36.0...v2.36.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* **reminders:** loader-agnostic rrule import (unbreak 2.36.0 deploy) ([#1850](https://github.com/LucasSantana-Dev/Lucky/issues/1850)) ([247b532](https://github.com/LucasSantana-Dev/Lucky/commit/247b532f922a4375f1e3dbf62146f65d7a773c87))
+
+## [2.36.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.3...v2.36.0) (2026-07-16)
+
+
+### Features
+
+* **reminders:** recurring reminders (RRULE + timezone) ([#1842](https://github.com/LucasSantana-Dev/Lucky/issues/1842)) ([d36c88c](https://github.com/LucasSantana-Dev/Lucky/commit/d36c88c8be9a03faf42952d598f0f0029fdbc1f7))
+
+
+### Bug Fixes
+
+* **ci:** harden migration-gate Postgres readiness ([#1846](https://github.com/LucasSantana-Dev/Lucky/issues/1846)) ([#1847](https://github.com/LucasSantana-Dev/Lucky/issues/1847)) ([cb1ced9](https://github.com/LucasSantana-Dev/Lucky/commit/cb1ced9be95d934018b0cc23a80016e1c32b113c))
+* **deploy:** use wget not curl for status/notify POSTs ([#1837](https://github.com/LucasSantana-Dev/Lucky/issues/1837)) ([#1844](https://github.com/LucasSantana-Dev/Lucky/issues/1844)) ([e459a41](https://github.com/LucasSantana-Dev/Lucky/commit/e459a4149a573fdefeeeefe771a6851f53b92c1f))
+
+## [2.35.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.2...v2.35.3) (2026-07-16)
+
+
+### Bug Fixes
+
+* **db:** make support_sessions enum migration idempotent + re-runnable ([#1840](https://github.com/LucasSantana-Dev/Lucky/issues/1840)) ([fe20b19](https://github.com/LucasSantana-Dev/Lucky/commit/fe20b19163faa34f54317fef7d14f1043a13cb26))
+
+## [2.35.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.1...v2.35.2) (2026-07-16)
+
+
+### Bug Fixes
+
+* **db:** drop/recreate partial index around support_sessions enum cast ([#1838](https://github.com/LucasSantana-Dev/Lucky/issues/1838)) ([4b35da0](https://github.com/LucasSantana-Dev/Lucky/commit/4b35da048ecfc45a095b559bdabdb125cb08dac5))
+
+## [2.35.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.35.0...v2.35.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* **deploy:** reconcile auth-config smoke check with production redaction ([#1831](https://github.com/LucasSantana-Dev/Lucky/issues/1831)) ([866e16b](https://github.com/LucasSantana-Dev/Lucky/commit/866e16b3b749f03cf62bb533cc68b0c6453c8d8b))
+* **docker:** add direct_url to staging and dev compose for prisma migrations ([#1830](https://github.com/LucasSantana-Dev/Lucky/issues/1830)) ([aa1eefb](https://github.com/LucasSantana-Dev/Lucky/commit/aa1eefb76b42acfd0c41d65ae91debb48b184f22))
+* **frontend:** correct site license text apache 2.0 to isc ([#1826](https://github.com/LucasSantana-Dev/Lucky/issues/1826)) ([bdf63fe](https://github.com/LucasSantana-Dev/Lucky/commit/bdf63fe26420cc52923ac2325af139cc16920980))
+
+
+### Performance Improvements
+
+* **docker:** compile @discordjs/opus once, reuse in prod stage ([#1816](https://github.com/LucasSantana-Dev/Lucky/issues/1816)) ([9e80f12](https://github.com/LucasSantana-Dev/Lucky/commit/9e80f12a1c31cf76283b6e26a14d9e35c5b32893))
+
+## [2.35.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.34.0...v2.35.0) (2026-07-13)
+
+
+### Features
+
+* **bot:** /bulk-kick — proof-of-pattern for the bulk-* command family ([#1802](https://github.com/LucasSantana-Dev/Lucky/issues/1802)) ([1c11f3e](https://github.com/LucasSantana-Dev/Lucky/commit/1c11f3e71f7491ffd9f392a688010d4088515271))
+* **bot:** add lucky_bot_gateway_connected zombie-detection gauge ([#1774](https://github.com/LucasSantana-Dev/Lucky/issues/1774)) ([6cc5287](https://github.com/LucasSantana-Dev/Lucky/commit/6cc528773a1eb5c86b4c516a4436722938b0e3c5))
+* **bot:** playback progress bar in nowplaying/songinfo embed ([#1797](https://github.com/LucasSantana-Dev/Lucky/issues/1797)) ([1138b59](https://github.com/LucasSantana-Dev/Lucky/commit/1138b5966a9e3cd0d8b2e06916b08fd448bb5075))
+* **bot:** post server-count stats to Top.gg for listing visibility ([#1789](https://github.com/LucasSantana-Dev/Lucky/issues/1789)) ([e8ca6b9](https://github.com/LucasSantana-Dev/Lucky/commit/e8ca6b9625e77a706ee1efd50c9bc68fe7edb482))
+* **bot:** temporary support ticket channels (/ticket) ([#1803](https://github.com/LucasSantana-Dev/Lucky/issues/1803)) ([49601a1](https://github.com/LucasSantana-Dev/Lucky/commit/49601a1b3476dbcff5a991d9d6a1b49a89d16116))
+* **live-notif:** youtube polling, message ttl cleanup, api backoff ([#1762](https://github.com/LucasSantana-Dev/Lucky/issues/1762)) ([a99b85a](https://github.com/LucasSantana-Dev/Lucky/commit/a99b85ab82c9bf6baed755abb9ff20c767b3d232))
+* **remind:** channel and role broadcast reminders ([#1767](https://github.com/LucasSantana-Dev/Lucky/issues/1767)) ([#1807](https://github.com/LucasSantana-Dev/Lucky/issues/1807)) ([83ade79](https://github.com/LucasSantana-Dev/Lucky/commit/83ade79e212577ba1116aeb52e3fcc85441d3229))
+
+
+### Bug Fixes
+
+* **backend:** artist suggestions 503 not 500 on upstream timeout ([#1787](https://github.com/LucasSantana-Dev/Lucky/issues/1787)) ([eadc20e](https://github.com/LucasSantana-Dev/Lucky/commit/eadc20e88383b9f8531f164e1e7177ae371f1cfc))
+* **bot:** guard skipReason telemetry against null prisma client ([#1773](https://github.com/LucasSantana-Dev/Lucky/issues/1773)) ([d73421e](https://github.com/LucasSantana-Dev/Lucky/commit/d73421eb3ada87a538964885f95c576fdef4d483))
+* **ci:** stop auto-update workflow racing on merge push ([#1811](https://github.com/LucasSantana-Dev/Lucky/issues/1811)) ([2ddd202](https://github.com/LucasSantana-Dev/Lucky/commit/2ddd202ab1d5ac7770063fe44d2c8af61a2ebc5b))
+* **csp:** allow Cloudflare Insights beacon in script-src/connect-src ([#1788](https://github.com/LucasSantana-Dev/Lucky/issues/1788)) ([f20c4cf](https://github.com/LucasSantana-Dev/Lucky/commit/f20c4cfda05851de880810dae15a61ec9c4ab8a9))
+* **deps:** bump eslint in lock to satisfy npm@12 ci (unblock release) ([#1809](https://github.com/LucasSantana-Dev/Lucky/issues/1809)) ([68fd0be](https://github.com/LucasSantana-Dev/Lucky/commit/68fd0be168dcd10628c5e6fbba623e3a7d7bdd1d))
+* paginate bulk-move message fetch to respect discord api limit ([#1776](https://github.com/LucasSantana-Dev/Lucky/issues/1776)) ([5b5d2fc](https://github.com/LucasSantana-Dev/Lucky/commit/5b5d2fc4892df049f3bb086f5844e31352175814))
+* **weekly-digest:** trigger on Sunday and add new-guides RSS section ([#1761](https://github.com/LucasSantana-Dev/Lucky/issues/1761)) ([f429fc6](https://github.com/LucasSantana-Dev/Lucky/commit/f429fc611c18fabc60101d1bb73d3ef5c0ed1fdd))
+
 ## [2.34.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.33.1...v2.34.0) (2026-07-10)
 
 
@@ -15,7 +127,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-* [#1699](https://github.com/LucasSantana-Dev/Lucky/issues/1699) ([eef5aee](https://github.com/LucasSantana-Dev/Lucky/commit/eef5aee4cefa8a322a5f6f2f79a9209c011e246b))
 * **backend:** migrate webhooks to use canonical timingsafekey comparison ([#1747](https://github.com/LucasSantana-Dev/Lucky/issues/1747)) ([eef5aee](https://github.com/LucasSantana-Dev/Lucky/commit/eef5aee4cefa8a322a5f6f2f79a9209c011e246b))
 * **backend:** wrap lastfm routes with asynchandler ([#1726](https://github.com/LucasSantana-Dev/Lucky/issues/1726)) ([ce51d86](https://github.com/LucasSantana-Dev/Lucky/commit/ce51d86a63d8c9caf879b0afb45ea83a5a2b347b))
 * **batch-move:** graceful attachment-fetch degradation + mid-loop client re-check ([#1750](https://github.com/LucasSantana-Dev/Lucky/issues/1750)) ([f21a0ce](https://github.com/LucasSantana-Dev/Lucky/commit/f21a0cef2797d38f9874b44291ece3e96136ba59))

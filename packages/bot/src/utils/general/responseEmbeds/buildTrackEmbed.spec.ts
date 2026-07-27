@@ -2,6 +2,7 @@ import { describe, it, expect } from '@jest/globals'
 import {
     buildTrackEmbed,
     buildCommandTrackEmbed,
+    playerTrackToData,
     trackToData,
 } from './buildTrackEmbed'
 import { detectSource } from '../../music/nowPlayingEmbed'
@@ -57,6 +58,39 @@ describe('buildTrackEmbed', () => {
         },
     )
 
+    it('adds a Progress field when a progress bar is provided', () => {
+        const bar = '00:30 ┃🔘▬▬▬ 05:55'
+        const embed = buildTrackEmbed(baseTrack, 'playing', fakeUser, {
+            progressBar: bar,
+        })
+        const progress = embed.data.fields?.find((f) => f.name === 'Progress')
+        expect(progress?.value).toBe(bar)
+        expect(progress?.inline).toBe(false)
+    })
+
+    it('adds a Why this track field when recommendationReason is set', () => {
+        const embed = buildTrackEmbed(
+            { ...baseTrack, recommendationReason: 'similar vibes' },
+            'playing',
+            fakeUser,
+        )
+        const why = embed.data.fields?.find((f) => f.name === 'Why this track')
+        expect(why?.value).toBe('similar vibes')
+    })
+
+    it('omits the Progress field when no/null progress bar', () => {
+        const noOpts = buildTrackEmbed(baseTrack, 'playing', fakeUser)
+        const nullBar = buildTrackEmbed(baseTrack, 'playing', fakeUser, {
+            progressBar: null,
+        })
+        expect(noOpts.data.fields?.some((f) => f.name === 'Progress')).toBe(
+            false,
+        )
+        expect(nullBar.data.fields?.some((f) => f.name === 'Progress')).toBe(
+            false,
+        )
+    })
+
     it('handles missing/unknown fields and edge cases', () => {
         // Missing title
         const noTitle = buildTrackEmbed(
@@ -111,7 +145,7 @@ describe('trackToData', () => {
     }
 
     it('maps all fields and formats duration correctly', () => {
-        const data = trackToData(fakeTrack as never)
+        const data = trackToData(fakeTrack)
         expect(data.title).toBe('Test Song')
         expect(data.author).toBe('Test Artist')
         expect(data.url).toBe(fakeTrack.url)
@@ -120,17 +154,33 @@ describe('trackToData', () => {
         expect(data.duration).toBe('3:35')
     })
 
+    it('forwards recommendationReason from track metadata', () => {
+        const data = trackToData({
+            ...fakeTrack,
+            metadata: { recommendationReason: 'same artist' },
+        })
+        expect(data.recommendationReason).toBe('same artist')
+    })
+
+    it('rejects invalid recommendation metadata from discord-player', () => {
+        const data = playerTrackToData({
+            ...fakeTrack,
+            metadata: { recommendationReason: 123 },
+        })
+        expect(data.recommendationReason).toBeUndefined()
+    })
+
     it.each([
         [0, undefined],
         [65000, '1:05'],
     ])('handles edge cases: durationMS=%i → %s', (durationMS, expected) => {
-        const data = trackToData({ ...fakeTrack, durationMS } as never)
+        const data = trackToData({ ...fakeTrack, durationMS })
         expect(data.duration).toBe(expected)
         if (durationMS === 0) {
             const noSource = trackToData({
                 ...fakeTrack,
                 source: undefined,
-            } as never)
+            })
             expect(noSource.source).toBeNull()
         }
     })
@@ -147,11 +197,7 @@ describe('buildCommandTrackEmbed', () => {
     }
 
     it('builds embed with status label and track data', () => {
-        const embed = buildCommandTrackEmbed(
-            track as never,
-            '⏸️ Paused',
-            fakeUser,
-        )
+        const embed = buildCommandTrackEmbed(track, '⏸️ Paused', fakeUser)
         expect(embed.data.author?.name).toBe('⏸️ Paused')
         expect(embed.data.title).toBe(track.title)
         expect(embed.data.footer?.text).toContain(fakeUser.tag)

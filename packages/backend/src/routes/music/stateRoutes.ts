@@ -51,7 +51,11 @@ export function setupStateRoutes(app: Express): void {
                         return
                     }
                     try {
-                        res.write(': heartbeat\n\n')
+                        // Real data: payload (not an SSE comment) so clients can
+                        // treat the heartbeat as a liveness stamp for progress UI.
+                        res.write(
+                            `data: ${JSON.stringify({ type: 'heartbeat' })}\n\n`,
+                        )
                     } catch {
                         // NOSONAR: Intentionally swallowing heartbeat write exceptions — client disconnected mid-send. The close event handler will clean up the connection.
                     }

@@ -37,12 +37,16 @@ describe('Stats Routes Integration', () => {
         test('should return stats with valid schema', async () => {
             const mockDb = {
                 guild: { count: jest.fn().mockResolvedValue(100) },
-                user: { count: jest.fn().mockResolvedValue(500) },
+                user: { count: jest.fn().mockResolvedValue(0) },
             }
             getPrismaClientMock.mockReturnValue(mockDb)
             mockRedis.isHealthy.mockReturnValue(true)
+            // totalUsers is member reach published to Redis by the bot, not a DB count.
+            mockRedis.get.mockResolvedValue('500')
 
-            const response = await request(app).get('/api/stats/public').expect(200)
+            const response = await request(app)
+                .get('/api/stats/public')
+                .expect(200)
 
             expect(response.body).toMatchObject({
                 totalGuilds: 100,
@@ -59,16 +63,20 @@ describe('Stats Routes Integration', () => {
         test('should handle redis unhealthy', async () => {
             const mockDb = {
                 guild: { count: jest.fn().mockResolvedValue(50) },
-                user: { count: jest.fn().mockResolvedValue(250) },
+                user: { count: jest.fn().mockResolvedValue(0) },
             }
             getPrismaClientMock.mockReturnValue(mockDb)
             mockRedis.isHealthy.mockReturnValue(false)
+            // Redis unhealthy → no member-reach key → totalUsers falls back to 0.
+            mockRedis.get.mockResolvedValue(null)
 
-            const response = await request(app).get('/api/stats/public').expect(200)
+            const response = await request(app)
+                .get('/api/stats/public')
+                .expect(200)
 
             expect(response.body.serversOnline).toBe(0)
             expect(response.body.totalGuilds).toBe(50)
-            expect(response.body.totalUsers).toBe(250)
+            expect(response.body.totalUsers).toBe(0)
         })
 
         test('should return correct cache headers', async () => {
@@ -79,11 +87,15 @@ describe('Stats Routes Integration', () => {
             getPrismaClientMock.mockReturnValue(mockDb)
             mockRedis.isHealthy.mockReturnValue(true)
 
-            const response = await request(app).get('/api/stats/public').expect(200)
+            const response = await request(app)
+                .get('/api/stats/public')
+                .expect(200)
 
             expect(response.headers['cache-control']).toContain('max-age=60')
             expect(response.headers['cache-control']).toContain('public')
-            expect(response.headers['content-type']).toContain('application/json')
+            expect(response.headers['content-type']).toContain(
+                'application/json',
+            )
         })
     })
 })

@@ -150,7 +150,9 @@ describe('GuildService - getGuildEmojis', () => {
     test('should throw on fetch network error', async () => {
         process.env.DISCORD_TOKEN = 'test-bot-token'
         setBotClient(null)
-        global.fetch = jest.fn().mockRejectedValue(new Error('Network error'))
+        global.fetch = jest
+            .fn<typeof fetch>()
+            .mockRejectedValue(new Error('Network error'))
 
         await expect(
             guildService.getGuildEmojis('111111111111111111'),

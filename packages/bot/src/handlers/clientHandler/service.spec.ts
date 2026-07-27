@@ -1,11 +1,18 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
-import { Client, Collection } from 'discord.js'
+import { Client, Collection, REST, Routes } from 'discord.js'
 import { createClient, startClient, stopPresenceRotation } from './service'
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     infoLog: jest.fn(),
     errorLog: jest.fn(),
+}))
+
+// The real topggStatsScheduler (not mocked here) imports redisClient from the
+// services barrel, which transitively loads the Prisma client (import.meta) that
+// the bot's CJS jest transform can't parse. Mock the barrel like sibling specs do.
+jest.mock('@lucky/shared/services', () => ({
+    redisClient: { set: jest.fn(), get: jest.fn(), isHealthy: jest.fn() },
 }))
 
 jest.mock('@lucky/shared/config', () => ({
@@ -23,6 +30,10 @@ jest.mock('./presence', () => ({
     }),
 }))
 
+jest.mock('../../utils/general/channelPurgeScheduler', () => ({
+    channelPurgeScheduler: { start: jest.fn(), stop: jest.fn() },
+}))
+
 jest.mock('../../utils/general/reminderScheduler', () => ({
     reminderScheduler: { start: jest.fn(), stop: jest.fn() },
 }))
@@ -38,6 +49,10 @@ jest.mock('../../utils/moderation/modDigestScheduler', () => ({
 // bot jest cannot compile — mock it so this suite loads.
 jest.mock('../../utils/general/giveawayScheduler', () => ({
     giveawayScheduler: { start: jest.fn(), stop: jest.fn() },
+}))
+
+jest.mock('../../utils/general/supportSessionScheduler', () => ({
+    supportSessionScheduler: { start: jest.fn(), stop: jest.fn() },
 }))
 
 jest.mock('discord.js', () => {
@@ -187,6 +202,65 @@ describe('service', () => {
             expect(mockClient.login).toHaveBeenCalledWith('test-token')
 
             await startPromise
+        })
+
+        // Regression guard for #1885: commands used to be registered per guild
+        // from the ready-time cache, so any server that added the bot while the
+        // process was running got no slash commands until the next redeploy.
+        // That is what failed the Top.gg review.
+        it('registers commands globally and never per guild', async () => {
+            const commandJson = { name: 'play' }
+            const contextMenuJson = { name: 'Track info' }
+            const mockClient = {
+                login: jest.fn().mockResolvedValue('client'),
+                once: jest.fn((event: string, handler: () => void) => {
+                    if (event === 'ready') {
+                        Promise.resolve().then(() => handler())
+                    }
+                }),
+                user: null,
+                commands: { map: jest.fn().mockReturnValue([commandJson]) },
+                contextMenus: {
+                    map: jest.fn().mockReturnValue([contextMenuJson]),
+                },
+                guilds: {
+                    cache: {
+                        values: jest
+                            .fn()
+                            .mockReturnValue([
+                                { id: 'guild-1', name: 'Guild One' },
+                            ]),
+                    },
+                },
+            }
+
+            const startPromise = startClient({ client: mockClient as any })
+            await new Promise((resolve) => setImmediate(resolve))
+            await startPromise
+            await new Promise((resolve) => setImmediate(resolve))
+
+            const restResults = (REST as unknown as jest.Mock).mock.results
+            const put = restResults[restResults.length - 1]?.value
+                .put as jest.Mock
+
+            expect(put).toHaveBeenCalledWith(
+                Routes.applicationCommands('test-client-id'),
+                { body: [commandJson, contextMenuJson] },
+            )
+            // Guild-scoped writes must not happen at boot in either direction.
+            // Registering per guild is the #1885 bug. Clearing per guild here
+            // would be the opposite hazard: a new global set is documented as
+            // taking up to an hour to propagate, so dropping a live guild's
+            // instant set in this same handler could leave it with no commands
+            // at all. Cleanup is the one-off `commands:clear-guild` script
+            // (#1886), run once global registration is confirmed live.
+            const guildRoute = Routes.applicationGuildCommands(
+                'test-client-id',
+                'guild-1',
+            )
+            expect(put.mock.calls.some((call) => call[0] === guildRoute)).toBe(
+                false,
+            )
         })
 
         it('should register ready event handler', async () => {
@@ -351,6 +425,62 @@ describe('service', () => {
             expect(modDigestSchedulerService.start).toHaveBeenCalledWith(
                 mockClient,
             )
+        })
+
+        it('starts the support session scheduler in the ready handler', async () => {
+            const { supportSessionScheduler } =
+                await import('../../utils/general/supportSessionScheduler')
+            ;(supportSessionScheduler.start as jest.Mock).mockClear()
+
+            const mockClient = {
+                login: jest.fn().mockResolvedValue('client'),
+                once: jest.fn((event, handler) => {
+                    if (event === 'ready') {
+                        Promise.resolve().then(() => handler())
+                    }
+                }),
+                user: null,
+                commands: { map: jest.fn().mockReturnValue([]) },
+                guilds: { cache: { values: jest.fn().mockReturnValue([]) } },
+            }
+
+            const startPromise = startClient({ client: mockClient as any })
+            await new Promise((resolve) => setImmediate(resolve))
+            await startPromise
+
+            expect(supportSessionScheduler.start).toHaveBeenCalledWith(
+                mockClient,
+            )
+        })
+
+        it('starts the channel purge scheduler in the ready handler', async () => {
+            const { channelPurgeScheduler } =
+                await import('../../utils/general/channelPurgeScheduler')
+            ;(channelPurgeScheduler.start as jest.Mock).mockClear()
+
+            const mockClient = {
+                login: jest.fn().mockResolvedValue('client'),
+                once: jest.fn((event, handler) => {
+                    if (event === 'ready') {
+                        Promise.resolve().then(() => handler())
+                    }
+                }),
+                user: null,
+                commands: {
+                    map: jest.fn().mockReturnValue([]),
+                },
+                guilds: {
+                    cache: {
+                        values: jest.fn().mockReturnValue([]),
+                    },
+                },
+            }
+
+            const startPromise = startClient({ client: mockClient as any })
+            await new Promise((resolve) => setImmediate(resolve))
+            await startPromise
+
+            expect(channelPurgeScheduler.start).toHaveBeenCalledWith(mockClient)
         })
 
         it('still starts the scheduler when an upstream ready step fails', async () => {

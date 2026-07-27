@@ -1,8 +1,15 @@
 import type { TextChannel } from 'discord.js'
 import { EmbedBuilder } from '@discordjs/builders'
 import { COLOR } from '@lucky/shared/constants'
+import type { ReminderRecord } from '@lucky/shared/services'
 import { reminderService, MAX_DELIVERY_ATTEMPTS } from '@lucky/shared/services'
-import { errorLog, infoLog } from '@lucky/shared/utils'
+import {
+    computeNextOccurrence,
+    DEFAULT_TIMEZONE,
+    errorLog,
+    infoLog,
+    warnLog,
+} from '@lucky/shared/utils'
 
 import { IntervalScheduler } from './IntervalScheduler'
 
@@ -13,9 +20,9 @@ type ReminderSchedulerOptions = {
 }
 
 export class ReminderScheduler extends IntervalScheduler {
-
     constructor(options: ReminderSchedulerOptions = {}) {
-        const tickIntervalMs = options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS
+        const tickIntervalMs =
+            options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS
         super(tickIntervalMs)
     }
 
@@ -32,9 +39,23 @@ export class ReminderScheduler extends IntervalScheduler {
         for (const reminder of dueReminders) {
             // Per-reminder isolation: one failure must not abort the batch.
             try {
+                // Broadcast reminders (channel/role) are fire-once — no retry
+                // backoff, since there's no future scheduled run to fall back on
+                // (matches TwitchNotification/birthday). A failure is logged and
+                // flagged for operators, then the reminder is done.
+                if (
+                    reminder.targetType === 'channel' ||
+                    reminder.targetType === 'role'
+                ) {
+                    await this.deliverBroadcastOnce(reminder)
+                    continue
+                }
+
                 const delivered = await this.deliverReminder(reminder)
                 if (delivered) {
-                    await reminderService.markDelivered(reminder.id)
+                    // Recurring reminders re-arm for their next occurrence
+                    // instead of being marked done; one-time reminders complete.
+                    await this.completeOrReschedule(reminder)
                 } else if (
                     reminder.deliveryAttempts + 1 >=
                     MAX_DELIVERY_ATTEMPTS
@@ -63,6 +84,41 @@ export class ReminderScheduler extends IntervalScheduler {
             infoLog({
                 message: `reminder scheduler delivered ${dueReminders.length} reminders`,
             })
+        }
+    }
+
+    /**
+     * After a successful fire: a one-time reminder is marked delivered; a
+     * recurring reminder is re-armed for its next occurrence. If the rule is
+     * exhausted (null) or unparseable, stop firing by marking it delivered so a
+     * bad rule can't re-fire every tick.
+     */
+    private async completeOrReschedule(reminder: ReminderRecord): Promise<void> {
+        if (!reminder.recurrenceRule) {
+            await reminderService.markDelivered(reminder.id)
+            return
+        }
+
+        let next: Date | null = null
+        try {
+            next = computeNextOccurrence(
+                reminder.recurrenceRule,
+                reminder.timezone ?? DEFAULT_TIMEZONE,
+                new Date(),
+            )
+        } catch (error) {
+            errorLog({
+                message:
+                    'recurring reminder: unparseable rule, stopping recurrence',
+                error: error as Error,
+                data: { reminderId: reminder.id },
+            })
+        }
+
+        if (next) {
+            await reminderService.rescheduleRecurring(reminder.id, next)
+        } else {
+            await reminderService.markDelivered(reminder.id)
         }
     }
 
@@ -114,6 +170,69 @@ export class ReminderScheduler extends IntervalScheduler {
             }
         }
         return false
+    }
+
+    /** Deliver a broadcast (channel/role) reminder exactly once, flagging a
+     * failure for operators rather than retrying. */
+    private async deliverBroadcastOnce(reminder: {
+        id: string
+        message: string
+        remindAt: Date
+        channelId: string
+        targetType: string
+        roleId: string | null
+    }): Promise<void> {
+        if (await this.deliverBroadcast(reminder)) {
+            await reminderService.markDelivered(reminder.id)
+            return
+        }
+        warnLog({
+            message:
+                'Broadcast reminder delivery failed (fire-once, not retried)',
+            data: {
+                reminderId: reminder.id,
+                targetType: reminder.targetType,
+                channelId: reminder.channelId,
+            },
+        })
+        await reminderService.markDeliveryFailed(reminder.id)
+    }
+
+    private async deliverBroadcast(reminder: {
+        message: string
+        remindAt: Date
+        channelId: string
+        targetType: string
+        roleId: string | null
+    }): Promise<boolean> {
+        if (!this.client) return false
+        const channel = await this.client.channels
+            .fetch(reminder.channelId)
+            .catch(() => null)
+        if (!channel || !('send' in channel)) return false
+
+        const embed = new EmbedBuilder()
+            .setTitle('⏰ Reminder')
+            .setDescription(reminder.message)
+            .setColor(COLOR.LUCKY_PURPLE)
+            .setTimestamp()
+
+        const isRolePing =
+            reminder.targetType === 'role' && Boolean(reminder.roleId)
+        try {
+            await (channel as TextChannel).send({
+                content: isRolePing ? `<@&${reminder.roleId}>` : undefined,
+                embeds: [embed.toJSON()],
+                // Scope mentions: a role ping fires only the intended role
+                // (never @everyone); a plain channel reminder pings nothing.
+                allowedMentions: isRolePing
+                    ? { roles: [reminder.roleId as string] }
+                    : { parse: [] },
+            })
+            return true
+        } catch {
+            return false
+        }
     }
 }
 

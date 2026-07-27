@@ -13,6 +13,8 @@ const mockDebugLog = jest.fn()
 const mockInfoLog = jest.fn()
 const mockWarnLog = jest.fn()
 const mockErrorLog = jest.fn()
+const mockAddBreadcrumb = jest.fn()
+const mockCaptureMessage = jest.fn()
 
 jest.mock('child_process', () => ({
     spawn: (...args: unknown[]) => mockSpawn(...args),
@@ -36,6 +38,26 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => mockInfoLog(...args),
     warnLog: (...args: unknown[]) => mockWarnLog(...args),
     errorLog: (...args: unknown[]) => mockErrorLog(...args),
+}))
+jest.mock('../../utils/monitoring/sentry', () => ({
+    addBreadcrumb: (...args: unknown[]) => mockAddBreadcrumb(...args),
+    captureMessage: (...args: unknown[]) => mockCaptureMessage(...args),
+    safeUrlOrigin: (url: unknown) => {
+        if (typeof url !== 'string') return 'invalid-url'
+        try {
+            return new URL(url).origin
+        } catch {
+            return 'invalid-url'
+        }
+    },
+    scrubUrls: (text: string) =>
+        text.replace(/https?:\/\/[^\s"'<>]+/g, (m: string) => {
+            try {
+                return new URL(m).origin
+            } catch {
+                return 'invalid-url'
+            }
+        }),
 }))
 
 import {
@@ -164,11 +186,12 @@ describe('streamViaYtDlpSearch', () => {
 })
 
 // ---------------------------------------------------------------------------
-// createResilientStream — fallback chain
+// createResilientStream — fallback chain + Sentry instrumentation
 // ---------------------------------------------------------------------------
 
 describe('createResilientStream', () => {
     beforeEach(() => {
+        jest.clearAllMocks()
         mockCleanTitle.mockReturnValue('Test Track')
         mockCleanAuthor.mockReturnValue('Test Artist')
         mockCleanSearchQuery.mockReturnValue('test track test artist')
@@ -213,5 +236,183 @@ describe('createResilientStream', () => {
             createResilientStream(makeTrack({ title: '' })),
         ).rejects.toThrow('Bridge exhausted: no stream for empty title')
         expect(mockStreamViaSoundCloud).not.toHaveBeenCalled()
+    })
+
+    it('captures breadcrumb on successful YouTube yt-dlp URL stream', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => {
+            proc.stdout.emit('data', Buffer.from('stream data'))
+        })
+        await createResilientStream(makeTrack())
+        expect(mockAddBreadcrumb).toHaveBeenCalledWith(
+            'YouTube stream resolved via yt-dlp',
+            'music.youtube-extraction',
+            'info',
+        )
+    })
+
+    it('captures breadcrumb and message on yt-dlp URL extraction failure', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+        setImmediate(() => proc.emit('close', 1))
+        await createResilientStream(makeTrack())
+        // Verify breadcrumb was called for failure with redacted URL (origin only)
+        expect(mockAddBreadcrumb).toHaveBeenCalledWith(
+            'YouTube extraction failed via yt-dlp URL',
+            'music.youtube-extraction',
+            'warning',
+            expect.objectContaining({
+                url: 'https://www.youtube.com', // redacted to origin
+            }),
+        )
+        // Verify captureMessage was called with correct stage as tag and redacted URL
+        expect(mockCaptureMessage).toHaveBeenCalledWith(
+            expect.stringContaining('YouTube extraction failed'),
+            'warning',
+            expect.objectContaining({
+                url: 'https://www.youtube.com', // redacted to origin
+            }),
+            expect.objectContaining({
+                category: 'music.youtube-extraction',
+                stage: 'yt-dlp-url',
+            }),
+        )
+    })
+
+    it('scrubs a tokenized URL out of the yt-dlp error before it reaches Sentry', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+        setImmediate(() => {
+            // yt-dlp's error message embeds stderr, which can carry a signed URL.
+            proc.stderr.emit(
+                'data',
+                Buffer.from(
+                    'ERROR: unable to download https://rr3---sn-abc.googlevideo.com/videoplayback?sig=SECRETTOKEN&expire=1',
+                ),
+            )
+            proc.emit('close', 1)
+        })
+        await createResilientStream(makeTrack())
+
+        const msgCall = mockCaptureMessage.mock.calls.find((c) =>
+            String(c[0]).includes('YouTube extraction failed'),
+        )
+        expect(msgCall).toBeDefined()
+        expect(String(msgCall?.[0])).not.toContain('SECRETTOKEN')
+        expect(String(msgCall?.[0])).not.toContain('sig=')
+        expect(String(msgCall?.[0])).toContain(
+            'https://rr3---sn-abc.googlevideo.com',
+        )
+
+        const bcCall = mockAddBreadcrumb.mock.calls.find(
+            (c) => c[0] === 'YouTube extraction failed via yt-dlp URL',
+        )
+        expect(
+            String((bcCall?.[3] as { error?: string })?.error),
+        ).not.toContain('SECRETTOKEN')
+    })
+
+    it('captures breadcrumb on successful YouTube search stream for Spotify source', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => {
+            proc.stdout.emit('data', Buffer.from('stream data'))
+        })
+        const track = makeTrack({
+            url: 'https://open.spotify.com/track/123',
+        })
+        mockCleanSearchQuery.mockReturnValue('song name')
+        await createResilientStream(track)
+        expect(mockAddBreadcrumb).toHaveBeenCalledWith(
+            'YouTube search stream resolved for Spotify source',
+            'music.youtube-extraction',
+            'info',
+        )
+    })
+
+    it('captures breadcrumb and message on YouTube search extraction failure for Spotify', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+        setImmediate(() => proc.emit('close', 1))
+        const track = makeTrack({
+            url: 'https://open.spotify.com/track/123',
+        })
+        mockCleanSearchQuery.mockReturnValue('song name')
+        await createResilientStream(track)
+        expect(mockAddBreadcrumb).toHaveBeenCalledWith(
+            'YouTube extraction failed via search',
+            'music.youtube-extraction',
+            'warning',
+            expect.any(Object),
+        )
+        expect(mockCaptureMessage).toHaveBeenCalledWith(
+            expect.stringContaining('YouTube search extraction failed'),
+            'warning',
+            expect.any(Object),
+            expect.objectContaining({
+                category: 'music.youtube-extraction',
+                stage: 'yt-dlp-search',
+            }),
+        )
+    })
+
+    it('captures breadcrumb when SoundCloud circuit is open', async () => {
+        mockIsAvailable.mockReturnValue(false)
+        mockCleanTitle.mockReturnValue('Track Name')
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.emit('close', 1))
+        await expect(createResilientStream(makeTrack())).rejects.toThrow(
+            'Bridge exhausted',
+        )
+        expect(mockAddBreadcrumb).toHaveBeenCalledWith(
+            'SoundCloud circuit open, skipping fallback',
+            'music.youtube-extraction',
+            'warning',
+        )
+    })
+
+    it('captures message on exhausted all-fallback stages (with parentheticals)', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
+        mockCleanTitle.mockReturnValue('Song (Official) Mix')
+        await expect(
+            createResilientStream(makeTrack({ title: 'Song (Official) Mix' })),
+        ).rejects.toThrow('Bridge exhausted')
+        expect(mockCaptureMessage).toHaveBeenCalledWith(
+            'YouTube extraction exhausted all fallback stages',
+            'warning',
+            expect.any(Object),
+            expect.objectContaining({
+                category: 'music.youtube-extraction',
+                stage: 'all-exhausted',
+            }),
+        )
+    })
+
+    it('captures message on exhausted all-fallback stages (no parentheticals)', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
+        mockCleanTitle.mockReturnValue('Simple Song Name')
+        await expect(
+            createResilientStream(makeTrack({ title: 'Simple Song Name' })),
+        ).rejects.toThrow('Bridge exhausted')
+        expect(mockCaptureMessage).toHaveBeenCalledWith(
+            'YouTube extraction exhausted all fallback stages',
+            'warning',
+            expect.any(Object),
+            expect.objectContaining({
+                category: 'music.youtube-extraction',
+                stage: 'all-exhausted',
+            }),
+        )
     })
 })

@@ -36,7 +36,9 @@ describe('GuildService - Role Write Operations Error Handling', () => {
             const mockGuild = {
                 id: '111111111111111111',
                 roles: {
-                    fetch: jest.fn().mockResolvedValue(null),
+                    fetch: jest
+                        .fn<() => Promise<Role | null>>()
+                        .mockResolvedValue(null),
                 },
             } as unknown as Guild
 
@@ -77,14 +79,16 @@ describe('GuildService - Role Write Operations Error Handling', () => {
             const mockRole = {
                 id: '999999999999999999',
                 edit: jest
-                    .fn()
+                    .fn<() => Promise<Role>>()
                     .mockRejectedValue(new Error('Permission denied')),
             } as unknown as Role
 
             const mockGuild = {
                 id: '111111111111111111',
                 roles: {
-                    fetch: jest.fn().mockResolvedValue(mockRole),
+                    fetch: jest
+                        .fn<() => Promise<Role | null>>()
+                        .mockResolvedValue(mockRole),
                 },
             } as unknown as Guild
 
@@ -171,7 +175,9 @@ describe('GuildService - Role Write Operations Error Handling', () => {
             const mockGuild = {
                 id: '111111111111111111',
                 roles: {
-                    fetch: jest.fn().mockResolvedValue(null),
+                    fetch: jest
+                        .fn<() => Promise<Role | null>>()
+                        .mockResolvedValue(null),
                 },
             } as unknown as Guild
 
@@ -202,13 +208,17 @@ describe('GuildService - Role Write Operations Error Handling', () => {
         test('should return void when role is successfully deleted via bot client', async () => {
             const mockRole = {
                 id: '999999999999999999',
-                delete: jest.fn().mockResolvedValue(undefined),
+                delete: jest
+                    .fn<() => Promise<void>>()
+                    .mockResolvedValue(undefined),
             } as unknown as Role
 
             const mockGuild = {
                 id: '111111111111111111',
                 roles: {
-                    fetch: jest.fn().mockResolvedValue(mockRole),
+                    fetch: jest
+                        .fn<() => Promise<Role | null>>()
+                        .mockResolvedValue(mockRole),
                 },
             } as unknown as Guild
 
@@ -269,7 +279,7 @@ describe('GuildService - Role Write Operations Error Handling', () => {
                 id: '111111111111111111',
                 roles: {
                     create: jest
-                        .fn()
+                        .fn<() => Promise<Role>>()
                         .mockRejectedValue(new Error('Rate limited')),
                 },
             } as unknown as Guild

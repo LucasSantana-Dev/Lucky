@@ -100,8 +100,10 @@ model Guild {
   roleGroups                   RoleGroup[]
   forumThreads                 GuildForumThread[]
   batchJobs                    BatchJob[]
-  afkStatuses                  AfkStatus[]
+afkStatuses                  AfkStatus[]
   reminders                   Reminder[]
+  supportSessions              SupportSession[]
+  channelCleanupConfigs        ChannelCleanupConfig[]
 
   @@map("guilds")
 }
@@ -237,10 +239,41 @@ model GuildSettings {
   // clock rolls over.
   birthdayRoleId    String?
 
+  // Support/ticket feature. Both must be set for /ticket to work: the category
+  // new ticket channels are created under, and the persistent role that grants
+  // support agents access to every ticket channel (via per-channel overwrites).
+  supportCategoryId  String?
+  supportAgentRoleId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("guild_settings")
+}
+
+/// One temporary support/ticket channel. The channel is the source of truth for
+/// access (per-user + support-agent-role overwrites); this row tracks lifecycle
+/// so the sweep scheduler can auto-close expired tickets and enforce one open
+/// ticket per requestor.
+enum SupportSessionStatus {
+  open
+  closed
+}
+
+model SupportSession {
+  id          String   @id @default(cuid())
+  guildId     String
+  guild       Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  channelId   String   @unique
+  requestorId String
+  status      SupportSessionStatus @default(open)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([guildId])
+  @@index([status, expiresAt])
+  @@map("support_sessions")
 }
 
 model GuildRoleGrant {
@@ -929,6 +962,25 @@ model StarboardDmSent {
   @@map("starboard_dm_sents")
 }
 
+model ChannelCleanupConfig {
+  id              String   @id @default(cuid())
+  guildId         String
+  guild           Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  channelId       String
+  mode            String   // "purge_interval" | "ttl"
+  intervalMinutes Int?     // for purge_interval mode, min 60
+  ttlSeconds      Int?     // for ttl mode, min 5 max 86400
+  enabled         Boolean  @default(true)
+  lastRunAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([guildId, channelId])
+  @@index([guildId])
+  @@index([enabled, mode])
+  @@map("channel_cleanup_configs")
+}
+
 model LevelConfig {
   id              String   @id @default(cuid())
   guildId         String   @unique
@@ -1285,6 +1337,23 @@ model Reminder {
   delivered        Boolean  @default(false)
   deliveryAttempts Int      @default(0) // gives up after MAX_DELIVERY_ATTEMPTS
   createdAt        DateTime @default(now())
+
+  // Broadcast reminders (#1767). targetType 'channel' posts to channelId;
+  // 'role' also pings roleId. Broadcasts are fire-once (no retry backoff):
+  // deliveryFailed records a delivery failure for operator visibility.
+  targetType     String  @default("user") // user | channel | role
+  roleId         String? // role to ping when targetType = 'role'
+  deliveryFailed Boolean @default(false)
+
+  // Recurring reminders (#1837 feature). recurrenceRule is an RFC-5545 RRULE
+  // string (e.g. FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=20;BYMINUTE=0); NULL =
+  // one-time (unchanged behaviour). On each successful fire the scheduler
+  // computes the next occurrence in `timezone` and pushes `remindAt` forward
+  // instead of marking delivered, so `remindAt` is always the NEXT fire time.
+  // timezone is an IANA zone; NULL falls back to the community default at
+  // compute time so "8PM" resolves deterministically across DST.
+  recurrenceRule String?
+  timezone       String?
 
   @@index([delivered, remindAt])
   @@index([userId, remindAt])

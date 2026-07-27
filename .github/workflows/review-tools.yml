@@ -15,7 +15,11 @@ name: Review Tools
 #   - cubic dashboard (AI review custom rules — see docs/review-tools.md)
 
 on:
-  pull_request:
+  # pull_request_target so danger can comment on fork PRs (fork pull_request
+  # tokens are forced read-only, so the comment POST 403s and fails the job).
+  # The reusable workflow checks out and executes BASE repo code only; never
+  # add a step here that checks out or runs PR head code.
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
@@ -31,24 +35,31 @@ concurrency:
   group: review-tools-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-# Minimum permissions for both reusable workflows. An explicit block sets
-# every unlisted scope to `none`, and a called reusable workflow cannot
-# request scopes the caller withheld — so the caller must grant the UNION of
-# what the reusables declare, or the run fails at startup (see #1423):
-#   - claude-review.yml needs contents:read, pull-requests:write,
-#     issues:write, and id-token:write (OIDC)
+# Minimum permissions for the reusable workflows called below. An explicit
+# block sets every unlisted scope to `none`, and a called reusable workflow
+# cannot request scopes the caller withheld — so the caller must grant the
+# UNION of what the reusables declare, or the run fails at startup (see #1423):
 #   - danger.yml needs contents:read, pull-requests:write, issues:write
+#
+# id-token:write was here for claude-review's OIDC. That job is gone, and so is
+# kimi-review, so nothing left needs it.
 permissions:
   contents: read
   pull-requests: write
   issues: write
-  id-token: write
 
 jobs:
-  claude-review:
-    uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@0e4a491c9ae4cae6859972da1813c6a581a1a082 # v1
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-
+  # claude-review removed: the upstream action crashes on every PR (#1836) and
+  # `continue-on-error` is not valid on reusable-workflow jobs (actionlint).
+  #
+  # kimi-review removed too (#1877): KIMI_API_KEY was never set, so the job
+  # failed on every PR in the repo with "KIMI_API_KEY secret is empty" and made
+  # the check list permanently red. Gating it on the secret is not an option
+  # here — the `secrets` context is not available in a job-level `if`, and
+  # `continue-on-error` is invalid on reusable-workflow jobs, same as above.
+  # To re-enable: set the KIMI_API_KEY repo secret and restore the job.
+  #
+  # AI review is currently covered by cubic and CodeRabbit, which run as apps
+  # rather than workflow jobs.
   danger:
-    uses: LucasSantana-Dev/.github/.github/workflows/danger.yml@0e4a491c9ae4cae6859972da1813c6a581a1a082 # v1
+    uses: LucasSantana-Dev/.github/.github/workflows/danger.yml@bf372e78b4d3ce9a4d25362b5c75c661039c48ba # v1

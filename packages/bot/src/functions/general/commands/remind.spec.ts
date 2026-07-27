@@ -26,7 +26,7 @@ jest.mock('../../../utils/general/interactionReply.js', () => ({
     interactionReply,
 }))
 
-import remindCommand, { parseDuration } from './remind.js'
+import remindCommand, { parseDuration, parseTimeOfDay } from './remind.js'
 
 function makeInteraction(
     subcommand: string,
@@ -47,6 +47,29 @@ function makeInteraction(
                 if (name === 'id') return reminderId ?? null
                 return null
             },
+        },
+    }
+}
+
+/** Build a channel/role broadcast interaction with a Manage-Server toggle. */
+function makeBroadcastInteraction(
+    subcommand: 'channel' | 'role',
+    { tempo = '10m', mensagem = 'Standup!', canManage = true } = {},
+) {
+    return {
+        guild: { id: 'guild-1', name: 'TestGuild' },
+        user: { id: 'u1', tag: 'alice#0' },
+        channelId: 'channel-1',
+        memberPermissions: { has: () => canManage },
+        options: {
+            getSubcommand: () => subcommand,
+            getString: (name: string) => {
+                if (name === 'tempo') return tempo
+                if (name === 'mensagem') return mensagem
+                return null
+            },
+            getChannel: () => ({ id: 'target-chan' }),
+            getRole: () => ({ id: 'target-role' }),
         },
     }
 }
@@ -88,6 +111,31 @@ describe('parseDuration', () => {
     test('accepts exactly 30 days', () => {
         const thirtyDays = 30 * 24 * 60 * 60 * 1000
         expect(parseDuration('30d')).toBe(thirtyDays)
+    })
+})
+
+describe('parseTimeOfDay', () => {
+    test('24-hour', () => {
+        expect(parseTimeOfDay('20:00')).toEqual({ hour: 20, minute: 0 })
+        expect(parseTimeOfDay('8:30')).toEqual({ hour: 8, minute: 30 })
+        expect(parseTimeOfDay('00:00')).toEqual({ hour: 0, minute: 0 })
+        expect(parseTimeOfDay('23:59')).toEqual({ hour: 23, minute: 59 })
+    })
+
+    test('12-hour with am/pm', () => {
+        expect(parseTimeOfDay('8PM')).toEqual({ hour: 20, minute: 0 })
+        expect(parseTimeOfDay('8:30 pm')).toEqual({ hour: 20, minute: 30 })
+        expect(parseTimeOfDay('12am')).toEqual({ hour: 0, minute: 0 })
+        expect(parseTimeOfDay('12pm')).toEqual({ hour: 12, minute: 0 })
+        expect(parseTimeOfDay('7pm')).toEqual({ hour: 19, minute: 0 })
+    })
+
+    test('rejects invalid', () => {
+        expect(parseTimeOfDay('25:00')).toBeNull()
+        expect(parseTimeOfDay('8:99')).toBeNull()
+        expect(parseTimeOfDay('13pm')).toBeNull()
+        expect(parseTimeOfDay('8')).toBeNull()
+        expect(parseTimeOfDay('')).toBeNull()
     })
 })
 
@@ -228,6 +276,47 @@ describe('/remind command', () => {
         }
         expect(args.content.content).toContain('not found')
         expect(args.content.ephemeral).toBe(true)
+    })
+
+    test('channel: rejects without Manage Server permission', async () => {
+        await remindCommand.execute({
+            interaction: makeBroadcastInteraction('channel', {
+                canManage: false,
+            }) as never,
+        })
+        const args = interactionReply.mock.calls[0][0] as {
+            content: { content: string }
+        }
+        expect(args.content.content).toContain('Manage Server')
+        expect(reminderServiceMock.create).not.toHaveBeenCalled()
+    })
+
+    test('channel: creates a channel-scoped reminder for a manager', async () => {
+        await remindCommand.execute({
+            interaction: makeBroadcastInteraction('channel') as never,
+        })
+        expect(reminderServiceMock.create).toHaveBeenCalledWith(
+            'guild-1',
+            'u1',
+            'target-chan',
+            'Standup!',
+            expect.any(Date),
+            { targetType: 'channel', roleId: null },
+        )
+    })
+
+    test('role: creates a role-scoped reminder carrying the roleId', async () => {
+        await remindCommand.execute({
+            interaction: makeBroadcastInteraction('role') as never,
+        })
+        expect(reminderServiceMock.create).toHaveBeenCalledWith(
+            'guild-1',
+            'u1',
+            'target-chan',
+            'Standup!',
+            expect.any(Date),
+            { targetType: 'role', roleId: 'target-role' },
+        )
     })
 
     test('delete: deletes reminder and confirms', async () => {
