@@ -20,25 +20,25 @@ Implement a **tiered approach**:
 ### Phase 1 — Web tier true blue/green (backend + frontend) [THIS PR]
 
 - Define `backend-blue`, `backend-green`, `frontend-blue`, `frontend-green` services in `docker-compose.staging.yml`.
-  - Same images + environment as the existing single-color services.
-  - Distinct `container_name` and Docker network alias per color.
-  - Both colors live on the same Postgres + Redis (shared during the flip).
+    - Same images + environment as the existing single-color services.
+    - Distinct `container_name` and Docker network alias per color.
+    - Both colors live on the same Postgres + Redis (shared during the flip).
 - **Flip mechanism** (idempotent): `scripts/bluegreen-flip.sh <backend|frontend> <blue|green>`:
-  1. Bring up the target color with the new image (docker compose up -d).
-  2. Wait for its `/health` to pass (bounded retries, timeout ~90s).
-  3. Atomically repoint nginx via an include file (`nginx/upstream-active.conf`): rewrite the active-color variable.
-  4. Reload nginx (zero-downtime via `nginx -s reload`).
-  5. Stop the old color.
-  - Idempotent: safe to re-run if step N fails; state after success is reproducible.
+    1. Bring up the target color with the new image (docker compose up -d).
+    2. Wait for its `/health` to pass (bounded retries, timeout ~90s).
+    3. Atomically repoint nginx via an include file (`nginx/upstream-active.conf`): rewrite the active-color variable.
+    4. Reload nginx (zero-downtime via `nginx -s reload`).
+    5. Stop the old color.
+    - Idempotent: safe to re-run if step N fails; state after success is reproducible.
 - **Result:** zero HTTP downtime for dashboard/API during deploy; old color is drained before shutdown.
 - **Deployment flow** (eventual, Phase 1b): always deploy to the **currently-inactive** color, then flip — never `up -d` the color that is serving live traffic (that recreates the active container and drops requests). E.g. if backend is on blue: `docker compose up -d --no-deps backend-green && ./scripts/bluegreen-flip.sh backend green` (Phase 1b picks the target color from the active-config file, not a hardcoded one).
 
 ### Phase 2 — Bot fast-rollover (minimize the unavoidable blip) [DEFERRED]
 
 - Do NOT implement dual bot containers. Single-color fast-rollover only:
-  - `docker compose pull lucky-bot` (no downtime).
-  - `docker compose up -d --no-deps lucky-bot` (triggers IDENTIFY → Discord moves session → old exits; downtime ~2–5s).
-  - Rely on the existing post-deploy **bot health-gate** (gateway-connected gauge from #1774) as go/no-go; auto-reconnect handles queue backlog.
+    - `docker compose pull lucky-bot` (no downtime).
+    - `docker compose up -d --no-deps lucky-bot` (triggers IDENTIFY → Discord moves session → old exits; downtime ~2–5s).
+    - Rely on the existing post-deploy **bot health-gate** (gateway-connected gauge from #1774) as go/no-go; auto-reconnect handles queue backlog.
 - Note: cross-process gateway RESUME (persist session_id+seq to Redis) or sharding rolling-restart are **YAGNI** — only justified at scale. Future option if the blip matters at scale.
 
 ### Phase 3 — Migration safety (blocks safe B/G) [DEFERRED]
@@ -58,28 +58,34 @@ Implement a **tiered approach**:
 ## Acceptance criteria
 
 ✓ (Phase 1 staging implementation)
+
 - A deploy of backend/frontend to staging causes **zero** failed HTTP requests through nginx (verify with `while true; do curl -s http://localhost:8093/api/health; done` during deploy — `/health` is not a route; nginx sends `/api/*` to the backend and everything else to the frontend).
 - `scripts/bluegreen-flip.sh` is idempotent: re-running after a successful flip leaves the system in the same state.
 - The flip script includes a clear header documenting that it's run by the deploy pipeline and that migrations must be backward-compatible.
 - Existing single-color deploy continues to work unmodified (blue/green is additive).
 
 ⏸ (Phase 1b, deferred for operator sign-off)
+
 - `.github/workflows/deploy.yml` wires the web-tier flip flow to the production stack.
 - Operator validates the flow on a staging run with a real branch, confirms zero HTTP downtime, and signs off before prod cutover.
 
 ⏸ (Phase 2, deferred)
+
 - Post-deploy health-gate confirms bot gateway is re-connected.
 
 ⏸ (Phase 3, deferred)
+
 - CI pipeline flags destructive Prisma migrations or requires manual approval before ship.
 
 ## Alternatives considered
 
 **A. Do nothing / live with downtime**
+
 - Cost: 30s–1m downtime per deploy, blocking the Top.gg review's uptime requirement.
 - Rejected: explicit operator goal to stay online.
 
 **B. Dual-bot containers with session persistence**
+
 - Add a Redis-backed gateway session cache (session_id, seq, etc.) so a new bot container can RESUME instead of IDENTIFY.
 - Cost: new state invariant (session must be durable + correct), new operational concern (cache TTL, invalidation, clarity on Discord's RESUME semantics).
 - Complexity: discord.js does not expose session_id/seq directly; would require patching or a custom client.
@@ -87,6 +93,7 @@ Implement a **tiered approach**:
 - Decision: YAGNI for 11 guilds. Revisit only if blip causes production incidents.
 
 **C. Pre-build and stash the green image before the flip**
+
 - Separate build and deploy phases: build green image in CI, stash it; deploy just pulls and runs it.
 - Cost: new artifact store (S3 or registry), new CI phase, new complexity.
 - Gain: saves ~30–60s of build time during the flip (but nginx reload is still < 1s).
@@ -99,7 +106,13 @@ The first production deploy shipping this change failed twice and auto-rolled ba
 1. **Ship it in the image, not just as a mount.** `Dockerfile.nginx` originally COPYed only `nginx.conf`; `upstream-active.conf` existed only as a staging bind mount, so production nginx crash-looped on the missing include target. Every file referenced by an `include` must exist in the baked image with a sane default; mounts are overrides, never the only source.
 2. **Keep `set`-bearing files out of `conf.d/*.conf`.** The base image's `/etc/nginx/nginx.conf` includes `conf.d/*.conf` at http level, where `set` is invalid. Even though our `default.conf` includes the file inside a `server` block (where `set` is legal), the glob loaded it a second time at http level and failed. `upstream-active.conf` now lives at `/etc/nginx/upstream-active.conf`, outside the glob. Any future included fragment that uses `set` (or any server/location-only directive) must live outside `conf.d/`.
 
-Validation rule that follows: `nginx -t` against the real base image with the real files must pass before merge for any nginx config change. This was added to the blue/green test plan after the fact; it would have caught both failures pre-merge.
+Validation rule that follows: `nginx -t` against the real base image with the real files must pass before merge for any nginx config change. This was added to the blue/green test plan after the fact; it would have caught both failures pre-merge. The executable gate, run from the repo root against the PR tree:
+
+```sh
+docker build -f Dockerfile.nginx -t lucky-nginx:pr . && docker run --rm lucky-nginx:pr nginx -t
+```
+
+Wiring this into CI as a required check is still open; until then it is a manual pre-merge step for any PR touching `nginx/` or `Dockerfile.nginx`.
 
 ## Revisit when
 
