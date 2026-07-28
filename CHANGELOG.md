@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.38.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.38.0...v2.38.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **docker:** move upstream-active.conf out of conf.d glob ([#1910](https://github.com/LucasSantana-Dev/Lucky/issues/1910)) ([d556c91](https://github.com/LucasSantana-Dev/Lucky/commit/d556c9168979fd339b20a3a1295743fa56596e63))
+* **docker:** ship upstream-active.conf in nginx image ([#1908](https://github.com/LucasSantana-Dev/Lucky/issues/1908)) ([e10f025](https://github.com/LucasSantana-Dev/Lucky/commit/e10f0258dabca9a4a57a734e9ada5825a6b5668f))
+
 ## [2.38.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.37.3...v2.38.0) (2026-07-27)
 
 
