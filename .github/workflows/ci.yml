@@ -202,13 +202,11 @@ jobs:
                   name: shared-build
                   path: packages/shared
             - name: Run YouTube smoke test
-              run: YOUTUBE_SMOKE_TEST=true npm run test --workspace=packages/bot -- --testPathPatterns="youtube.smoke" --ci --coverage
-            - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-              if: always()
-              with:
-                  name: coverage-bot-youtube-smoke
-                  path: packages/bot/coverage/lcov.info
-                  retention-days: 1
+              # Advisory dependency guard, not a coverage gate: a single smoke
+              # spec covers ~0% of the codebase, so --coverage always fails the
+              # global thresholds and makes this advisory job look red.
+              run: YOUTUBE_SMOKE_TEST=true npm run test --workspace=packages/bot -- --testPathPatterns="youtube.smoke" --ci
+
 
     test-frontend:
         name: Test — frontend
