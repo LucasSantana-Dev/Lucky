@@ -92,6 +92,15 @@ Implement a **tiered approach**:
 - Gain: saves ~30–60s of build time during the flip (but nginx reload is still < 1s).
 - Decision: YAGNI for Phase 1. Revisit if docker-build wall-clock is a blocker.
 
+## Lessons from the 2.38.0 deploy rollback (2026-07-28)
+
+The first production deploy shipping this change failed twice and auto-rolled back (zero user-facing downtime; the rollback machinery worked as designed). Two durable rules for any future nginx include file:
+
+1. **Ship it in the image, not just as a mount.** `Dockerfile.nginx` originally COPYed only `nginx.conf`; `upstream-active.conf` existed only as a staging bind mount, so production nginx crash-looped on the missing include target. Every file referenced by an `include` must exist in the baked image with a sane default; mounts are overrides, never the only source.
+2. **Keep `set`-bearing files out of `conf.d/*.conf`.** The base image's `/etc/nginx/nginx.conf` includes `conf.d/*.conf` at http level, where `set` is invalid. Even though our `default.conf` includes the file inside a `server` block (where `set` is legal), the glob loaded it a second time at http level and failed. `upstream-active.conf` now lives at `/etc/nginx/upstream-active.conf`, outside the glob. Any future included fragment that uses `set` (or any server/location-only directive) must live outside `conf.d/`.
+
+Validation rule that follows: `nginx -t` against the real base image with the real files must pass before merge for any nginx config change. This was added to the blue/green test plan after the fact; it would have caught both failures pre-merge.
+
 ## Revisit when
 
 - **Top.gg review resolves** (~2026-07-25): downtime tolerance may increase; deprioritize uptime-critical work if the listing is approved.
