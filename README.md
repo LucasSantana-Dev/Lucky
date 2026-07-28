@@ -349,17 +349,25 @@ Multiple admin IDs can be comma-separated: `DEVELOPER_USER_IDS=id1,id2,id3`
 
 ## 🤝 Contributing
 
-Lucky is a **solo personal project** — actively developed and deployed to production, but not seeking external contributors. The codebase is open-source so you can learn from it, self-host it, and adapt it for your needs.
+**Contributions are welcome.** Lucky runs in production and is small enough that a single PR can visibly change how it behaves — bug fixes, features, docs, and tests are all fair game.
 
-**To contribute:**
+**Where to start**
+
+- Issues labelled [`ready-for-human`](https://github.com/LucasSantana-Dev/Lucky/issues?q=is%3Aissue+is%3Aopen+label%3Aready-for-human) are specified and unclaimed — that is the shortest path in.
+- Found something broken? Open an issue. A reproduction case is a genuinely useful contribution on its own.
+- Not sure whether an idea fits? Open an issue before building it and we will figure it out together, rather than after you have spent a weekend on it.
+
+**Making the change**
 
 1. **Fork** the repository
 2. **Create a branch**: `feature/cool-thing` or `fix/bug-name`
-3. **Follow conventions**: Conventional commits, <50 line functions, tests first
+3. **Follow conventions**: Conventional commits, <50 line functions, tests alongside the change
 4. **Run the gate**: `npm run verify` (lint + build + tests)
-5. **Open a PR** with a clear description
+5. **Open a PR** describing what changed and why
 
-**Response time** is best-effort due to solo maintenance, but all PRs are reviewed.
+CI runs the same gate on your PR, so a red check is information rather than a rejection. Automated reviewers (CodeRabbit, cubic, SonarCloud) will comment too — treat those as suggestions to weigh, not orders.
+
+**What to expect.** This is maintained alongside a full-time job, so review latency varies. Every PR gets read and gets a real answer; if something cannot be merged you will get the reasoning, not silence. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the repo-specific details that are easy to miss.
 
 ---
 
