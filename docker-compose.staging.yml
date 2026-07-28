@@ -352,7 +352,7 @@ services:
             # The active-color upstream config is NOT baked into the image — the
             # flip script rewrites this host file and reloads nginx, so it must be
             # bind-mounted (read-only for nginx) at the path nginx.conf includes.
-            - ./nginx/upstream-active.conf:/etc/nginx/conf.d/upstream-active.conf:ro
+            - ./nginx/upstream-active.conf:/etc/nginx/upstream-active.conf:ro
         depends_on:
             - backend
             - frontend
