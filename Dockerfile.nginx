@@ -12,6 +12,12 @@ RUN apk upgrade --no-cache && rm -rf /var/cache/apk/*
 USER nginx
 
 COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
+# Default upstream targets so the blue/green include in nginx.conf resolves.
+# Kept OUTSIDE conf.d/ on purpose: the base nginx.conf globs conf.d/*.conf at
+# http level, where `set` is invalid. Staging bind-mounts its own
+# upstream-active.conf over this (rewritten by scripts/bluegreen-flip.sh);
+# production uses this single-color default.
+COPY nginx/upstream-active.conf /etc/nginx/upstream-active.conf
 
 EXPOSE 8080
 
