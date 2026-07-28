@@ -55,7 +55,7 @@ jobs:
               uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
             - name: Log in to ghcr.io
-              uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
+              uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
               with:
                   registry: ${{ env.REGISTRY }}
                   username: ${{ github.actor }}
@@ -156,7 +156,7 @@ jobs:
 
             - name: Upload Trivy SARIF
               if: always()
-              uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+              uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
               with:
                   sarif_file: trivy-image-${{ matrix.service }}.sarif
                   category: trivy-image-${{ matrix.service }}
