@@ -59,7 +59,7 @@ Implement a **tiered approach**:
 
 ✓ (Phase 1 staging implementation)
 
-- A deploy of backend/frontend to staging causes **zero** failed HTTP requests through nginx (verify with `while true; do curl -s http://localhost:8093/api/health; done` during deploy — `/health` is not a route; nginx sends `/api/*` to the backend and everything else to the frontend).
+- A deploy of backend/frontend to staging causes **zero** failed HTTP requests through nginx (verify with `while true; do curl -sS --fail-with-body --max-time 5 http://localhost:8093/api/health || echo PROBE_FAILED; done` during deploy — `--fail-with-body` exits non-zero on 4xx/5xx so failures are visible; `/health` is not a route; nginx sends `/api/*` to the backend and everything else to the frontend).
 - `scripts/bluegreen-flip.sh` is idempotent: re-running after a successful flip leaves the system in the same state.
 - The flip script includes a clear header documenting that it's run by the deploy pipeline and that migrations must be backward-compatible.
 - Existing single-color deploy continues to work unmodified (blue/green is additive).
