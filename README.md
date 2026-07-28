@@ -368,7 +368,7 @@ Lucky is a **solo personal project** — actively developed and deployed to prod
 - **Automated scanning**: Trivy on every Docker build, Dependabot for dependencies
 - **Merge strategy**: Auto-merge for patch updates, manual review for major changes
 - **Monitoring**: Sentry for error tracking, custom telemetry in production
-- **Incident response**: Zero production incidents to date; post-incident reviews are public
+- **Incident response**: Incidents are tracked as public GitHub issues, with the root cause and fix written up in the open
 
 ---
 
