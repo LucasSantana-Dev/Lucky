@@ -7,7 +7,7 @@
 
 <p align="center">
   <b>🎵 The Discord music bot that can't be shut down — because you host it.</b><br>
-  <strong>Self-hosted · Open-source · TypeScript monorepo · ~6,300 tests · Zero prod incidents</strong>
+  <strong>Self-hosted · Open-source · TypeScript monorepo · No paywall, no premium tier</strong>
 </p>
 
 <p align="center">
@@ -76,8 +76,8 @@ Unlike Groovy, Rythm, or Hydra (all shut down by third-party enforcement), Lucky
 - **Feature toggles**: Enable/disable per-guild
 
 ### 📈 Reliability & Monitoring
-- **CI/CD**: Every PR runs lint + build + ~6,300 tests + SonarCloud gates
-- **Zero incidents**: Battle-tested in production with full test coverage
+- **CI/CD**: Every PR runs lint, build, the full test suite, and SonarCloud gates
+- **Auto-rollback**: A deploy that fails its health checks reverts to the last good build
 - **Sentry monitoring**: Real-time error tracking and telemetry
 - **Security scanning**: Trivy container scans on every Docker publish
 - **Dependency management**: Dependabot with auto-merge for patches
@@ -110,7 +110,7 @@ Lucky solves this:
 | **Database** | PostgreSQL, Prisma ORM |
 | **Cache** | Redis |
 | **DevOps** | Docker, Docker Compose, Cloudflare Tunnel |
-| **Testing** | ~6,300 unit + integration tests, Playwright e2e |
+| **Testing** | Jest + Vitest unit/integration, Playwright e2e |
 | **Quality** | SonarCloud, Trivy, Dependabot, ESLint |
 
 ---
@@ -258,7 +258,7 @@ SENTRY_DSN=...
 # Run all checks before committing (lint + build + test)
 npm run verify
 
-# Run all tests (~6,300 total)
+# Run all tests
 npm run test:all
 
 # Run e2e smoke tests (Playwright)
@@ -349,17 +349,25 @@ Multiple admin IDs can be comma-separated: `DEVELOPER_USER_IDS=id1,id2,id3`
 
 ## 🤝 Contributing
 
-Lucky is a **solo personal project** — actively developed and deployed to production, but not seeking external contributors. The codebase is open-source so you can learn from it, self-host it, and adapt it for your needs.
+**Contributions are welcome.** Lucky runs in production and is small enough that a single PR can visibly change how it behaves — bug fixes, features, docs, and tests are all fair game.
 
-**To contribute:**
+**Where to start**
+
+- Issues labelled [`ready-for-human`](https://github.com/LucasSantana-Dev/Lucky/issues?q=is%3Aissue+is%3Aopen+label%3Aready-for-human) are specified and unclaimed — that is the shortest path in.
+- Found something broken? Open an issue. A reproduction case is a genuinely useful contribution on its own.
+- Not sure whether an idea fits? Open an issue before building it and we will figure it out together, rather than after you have spent a weekend on it.
+
+**Making the change**
 
 1. **Fork** the repository
 2. **Create a branch**: `feature/cool-thing` or `fix/bug-name`
-3. **Follow conventions**: Conventional commits, <50 line functions, tests first
-4. **Run the gate**: `npm run verify` (lint + build + ~6,300 tests)
-5. **Open a PR** with a clear description
+3. **Follow conventions**: Conventional commits, <50 line functions, tests alongside the change
+4. **Run the gate**: `npm run verify` (lint + build + tests)
+5. **Open a PR** describing what changed and why
 
-**Response time** is best-effort due to solo maintenance, but all PRs are reviewed.
+CI runs the same gate on your PR, so a red check is information rather than a rejection. Automated reviewers (CodeRabbit, cubic, SonarCloud) will comment too — treat those as suggestions to weigh, not orders.
+
+**What to expect.** This is maintained alongside a full-time job, so review latency varies. Every PR gets read and gets a real answer; if something cannot be merged you will get the reasoning, not silence. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the repo-specific details that are easy to miss.
 
 ---
 
@@ -368,7 +376,7 @@ Lucky is a **solo personal project** — actively developed and deployed to prod
 - **Automated scanning**: Trivy on every Docker build, Dependabot for dependencies
 - **Merge strategy**: Auto-merge for patch updates, manual review for major changes
 - **Monitoring**: Sentry for error tracking, custom telemetry in production
-- **Incident response**: Zero production incidents to date; post-incident reviews are public
+- **Incident response**: Incidents are tracked as public GitHub issues, with the root cause and fix written up in the open
 
 ---
 
