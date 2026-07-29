@@ -19,6 +19,7 @@ import {
     scrobble as lastFmScrobble,
 } from '../../lastfm'
 import { getSkipReasonEmojis } from '../../utils/music/skipReasonMap'
+import { getStreamBridgeFallbackLabel } from './streamBridge'
 
 /**
  * Track which guilds have logged a skip-reason prefill failure in this session.
@@ -234,10 +235,14 @@ export async function sendNowPlayingEmbed(
     const baseFooter = isAutoplay
         ? `Autoplay • ${autoplayCount ?? 0}/${constants.MAX_AUTOPLAY_TRACKS ?? 50} songs`
         : requesterInfo
-    const footer =
+    let footer =
         baseFooter && !baseFooter.includes('/invite')
             ? `${baseFooter} • /invite to add Lucky`
             : baseFooter
+    // Subtle footnote when the streamBridge resolved via a fallback stage
+    // instead of the primary yt-dlp source (#1769).
+    const fallbackLabel = getStreamBridgeFallbackLabel(track)
+    if (fallbackLabel) footer = `${footer} • via fallback: ${fallbackLabel}`
 
     const fields = [
         {
