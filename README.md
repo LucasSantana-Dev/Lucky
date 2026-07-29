@@ -353,7 +353,8 @@ Multiple admin IDs can be comma-separated: `DEVELOPER_USER_IDS=id1,id2,id3`
 
 **Where to start**
 
-- Issues labelled [`ready-for-human`](https://github.com/LucasSantana-Dev/Lucky/issues?q=is%3Aissue+is%3Aopen+label%3Aready-for-human) are specified and unclaimed — that is the shortest path in.
+- [`good first issue`](https://github.com/LucasSantana-Dev/Lucky/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) — self-contained, scoped, and written so you can start without asking anything first.
+- [`ready-for-human`](https://github.com/LucasSantana-Dev/Lucky/issues?q=is%3Aissue+is%3Aopen+label%3Aready-for-human) — specified and unclaimed, but assumes more repo context.
 - Found something broken? Open an issue. A reproduction case is a genuinely useful contribution on its own.
 - Not sure whether an idea fits? Open an issue before building it and we will figure it out together, rather than after you have spent a weekend on it.
 
