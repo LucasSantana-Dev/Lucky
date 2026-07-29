@@ -83,7 +83,7 @@
         "test:ci": "jest --ci",
         "test:mutation": "stryker run",
         "docs:check": "node check-docs-coverage.mjs",
-        "lint": "eslint . -c ../../eslint.config.js",
+        "lint": "eslint .",
         "lint:fix": "npm run lint -- --fix"
     },
     "dependencies": {
