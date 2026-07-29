@@ -64,6 +64,8 @@ import {
     streamViaYtDlp,
     streamViaYtDlpSearch,
     createResilientStream,
+    getStreamBridgeFallbackLabel,
+    STREAM_BRIDGE_FALLBACK_METADATA_KEY,
 } from './streamBridge.js'
 
 // ---------------------------------------------------------------------------
@@ -414,5 +416,117 @@ describe('createResilientStream', () => {
                 stage: 'all-exhausted',
             }),
         )
+    })
+})
+
+// ---------------------------------------------------------------------------
+// fallback stage stamping — surfaces the resolved stage to the user (#1769)
+// ---------------------------------------------------------------------------
+
+describe('fallback stage stamping', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockCleanTitle.mockReturnValue('Test Track')
+        mockCleanAuthor.mockReturnValue('Test Artist')
+        mockCleanSearchQuery.mockReturnValue('test track test artist')
+        mockIsAvailable.mockReturnValue(true)
+    })
+
+    it('does not stamp metadata when the primary yt-dlp URL stage resolves', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => {
+            proc.stdout.emit('data', Buffer.from('stream data'))
+        })
+        const track = makeTrack()
+        await createResilientStream(track)
+        expect((track as { metadata?: unknown }).metadata).not.toEqual(
+            expect.objectContaining({
+                [STREAM_BRIDGE_FALLBACK_METADATA_KEY]: expect.anything(),
+            }),
+        )
+        expect(getStreamBridgeFallbackLabel(track)).toBeUndefined()
+    })
+
+    it('does not stamp metadata when the yt-dlp search stage resolves a Spotify track', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => {
+            proc.stdout.emit('data', Buffer.from('stream data'))
+        })
+        const track = makeTrack({ url: 'https://open.spotify.com/track/123' })
+        mockCleanSearchQuery.mockReturnValue('song name')
+        await createResilientStream(track)
+        expect(getStreamBridgeFallbackLabel(track)).toBeUndefined()
+    })
+
+    it('stamps soundcloud-full when the full SoundCloud search resolves', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+        setImmediate(() => proc.emit('close', 1))
+        const track = makeTrack()
+        await createResilientStream(track)
+        expect(getStreamBridgeFallbackLabel(track)).toBe('SoundCloud search')
+    })
+
+    it('stamps soundcloud-title when only the title-only search resolves', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaSoundCloud
+            .mockRejectedValueOnce(new Error('no results'))
+            .mockResolvedValueOnce(fakeStream)
+        const track = makeTrack()
+        await createResilientStream(track)
+        expect(getStreamBridgeFallbackLabel(track)).toBe(
+            'SoundCloud title-only search',
+        )
+    })
+
+    it('stamps soundcloud-core when only the core-title search resolves', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaSoundCloud
+            .mockRejectedValueOnce(new Error('no results'))
+            .mockRejectedValueOnce(new Error('no results'))
+            .mockResolvedValueOnce(fakeStream)
+        mockCleanTitle.mockReturnValue('Song (Official) Mix')
+        const track = makeTrack({ title: 'Song (Official) Mix' })
+        await createResilientStream(track)
+        expect(getStreamBridgeFallbackLabel(track)).toBe(
+            'SoundCloud simplified-title search',
+        )
+    })
+
+    it('preserves existing track metadata when stamping the fallback stage', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+        setImmediate(() => proc.emit('close', 1))
+        const track = {
+            ...makeTrack(),
+            metadata: { isAutoplay: true },
+        }
+        await createResilientStream(track)
+        expect(track.metadata).toEqual({
+            isAutoplay: true,
+            [STREAM_BRIDGE_FALLBACK_METADATA_KEY]: 'soundcloud-full',
+        })
+    })
+})
+
+describe('getStreamBridgeFallbackLabel', () => {
+    it('returns undefined for a track without bridge metadata', () => {
+        expect(getStreamBridgeFallbackLabel({})).toBeUndefined()
+        expect(
+            getStreamBridgeFallbackLabel({ metadata: undefined }),
+        ).toBeUndefined()
+        expect(
+            getStreamBridgeFallbackLabel({
+                metadata: { isAutoplay: true },
+            }),
+        ).toBeUndefined()
     })
 })

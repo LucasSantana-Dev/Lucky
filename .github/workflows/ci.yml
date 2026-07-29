@@ -353,7 +353,7 @@ jobs:
                   service: ${{ matrix.service }}
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
-                  load: ${{ matrix.service == 'bot' }}
+                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
             # Retry once on transient failure (buildx setup and build re-run
             # together, matching the previous separate retry steps).
             - name: Build ${{ matrix.service }} - retry once on transient failure
@@ -363,7 +363,7 @@ jobs:
                   service: ${{ matrix.service }}
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
-                  load: ${{ matrix.service == 'bot' }}
+                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
             # A built image is not a working image: the bot's native addons
             # (@discordjs/opus) and the baked Prisma engines only fail at
             # require()-time, which `docker build` never reaches. #1735 shipped a
@@ -378,6 +378,14 @@ jobs:
                     if (!frame.length) throw new Error('opus encoded an empty frame');
                     console.log('opus OK — encoded', frame.length, 'bytes');
                   "
+            # Include files are the #1908/#1910 rollback class: a missing or
+            # http-level-loaded include crashes nginx at boot, which
+            # `docker build` never reaches. Gate per
+            # decisions/2026-07-11-bluegreen-web-tier.md: `nginx -t` in the
+            # real image must pass before merge.
+            - name: Validate nginx config — nginx
+              if: matrix.service == 'nginx'
+              run: docker run --rm lucky-nginx:ci nginx -t
 
     docker-build-check:
         name: Build — Docker images
