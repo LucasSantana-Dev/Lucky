@@ -15,7 +15,7 @@
         "test": "jest",
         "test:coverage": "jest --coverage",
         "test:mutation": "stryker run",
-        "lint": "eslint . -c ../../eslint.config.js",
+        "lint": "eslint .",
         "lint:fix": "npm run lint -- --fix",
         "commands:clear-guild": "tsx src/scripts/clearGuildCommandsCli.ts",
         "commands:clear-guild:dist": "node dist/scripts/clearGuildCommandsCli.js"
