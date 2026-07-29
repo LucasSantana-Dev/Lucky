@@ -153,6 +153,12 @@ jobs:
                   ignore-unfixed: true
                   exit-code: '0'
                   vuln-type: os,library
+                  # Exclude the yt-dlp pip venv (/opt/ytdlp, see Dockerfile).
+                  # yt-dlp's extractor modules ship hardcoded public API and
+                  # test tokens (jwt-token, aws-access-key-id rules) that are
+                  # false positives against Lucky: they live in a third-party
+                  # package and cannot be edited by us. See issue #1703.
+                  skip-dirs: /opt/ytdlp/**
 
             - name: Upload Trivy SARIF
               if: always()
