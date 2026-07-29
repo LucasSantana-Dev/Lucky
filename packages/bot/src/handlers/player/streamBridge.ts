@@ -125,6 +125,55 @@ export function streamViaYtDlpSearch(query: string): Promise<Readable> {
     return streamViaYtDlp(`ytsearch1:${query}`)
 }
 
+/**
+ * SoundCloud fallback stages that can resolve a track when the primary
+ * yt-dlp paths fail. When one of these resolves, the stage is stamped onto
+ * the track's metadata so the Now Playing embed can tell the user a fallback
+ * happened. Primary yt-dlp resolutions leave the metadata untouched.
+ */
+export type StreamBridgeFallbackStage =
+    | 'soundcloud-full'
+    | 'soundcloud-title'
+    | 'soundcloud-core'
+
+export const STREAM_BRIDGE_FALLBACK_METADATA_KEY = 'streamBridgeFallbackStage'
+
+const FALLBACK_STAGE_LABELS: Record<StreamBridgeFallbackStage, string> = {
+    'soundcloud-full': 'SoundCloud search',
+    'soundcloud-title': 'SoundCloud title-only search',
+    'soundcloud-core': 'SoundCloud simplified-title search',
+}
+
+/**
+ * Human-readable label of the fallback stage that resolved this track, or
+ * undefined when the primary yt-dlp source resolved it (or no stream was
+ * bridged at all). Used to render a subtle footnote in the Now Playing embed.
+ */
+export function getStreamBridgeFallbackLabel(track: {
+    metadata?: unknown
+}): string | undefined {
+    const stage = (track.metadata as Record<string, unknown> | undefined)?.[
+        STREAM_BRIDGE_FALLBACK_METADATA_KEY
+    ]
+    if (typeof stage !== 'string') return undefined
+    return FALLBACK_STAGE_LABELS[stage as StreamBridgeFallbackStage]
+}
+
+function stampFallbackStage(
+    track: Pick<Track, 'title' | 'author' | 'duration' | 'url'>,
+    stage: StreamBridgeFallbackStage,
+): void {
+    const mutable = track as { metadata?: unknown }
+    const existing =
+        typeof mutable.metadata === 'object' && mutable.metadata !== null
+            ? (mutable.metadata as Record<string, unknown>)
+            : {}
+    mutable.metadata = {
+        ...existing,
+        [STREAM_BRIDGE_FALLBACK_METADATA_KEY]: stage,
+    }
+}
+
 export async function createResilientStream(
     track: Pick<Track, 'title' | 'author' | 'duration' | 'url'>,
     _ext?: unknown,
@@ -270,10 +319,12 @@ export async function createResilientStream(
     }
 
     try {
-        return await streamViaSoundCloud(
+        const stream = await streamViaSoundCloud(
             cleanSearchQuery(cleanedTitle, cleanedAuthor),
             track.duration,
         )
+        stampFallbackStage(track, 'soundcloud-full')
+        return stream
     } catch (primaryError) {
         debugLog({
             message:
@@ -286,7 +337,9 @@ export async function createResilientStream(
     }
 
     try {
-        return await streamViaSoundCloud(cleanedTitle, track.duration)
+        const stream = await streamViaSoundCloud(cleanedTitle, track.duration)
+        stampFallbackStage(track, 'soundcloud-title')
+        return stream
     } catch (titleOnlyError) {
         debugLog({
             message:
@@ -303,7 +356,9 @@ export async function createResilientStream(
         openParen > 0 ? cleanedTitle.slice(0, openParen).trim() : cleanedTitle
     if (coreTitle && coreTitle !== cleanedTitle) {
         try {
-            return await streamViaSoundCloud(coreTitle, track.duration)
+            const stream = await streamViaSoundCloud(coreTitle, track.duration)
+            stampFallbackStage(track, 'soundcloud-core')
+            return stream
         } catch (coreError) {
             const attemptedStages = [
                 youtubeStage || 'yt-dlp',
