@@ -33,6 +33,37 @@ function buildApp() {
     return app
 }
 
+describe('GET /api/health', () => {
+    const originalEnv = process.env
+
+    beforeEach(() => {
+        process.env = { ...originalEnv }
+    })
+
+    afterEach(() => {
+        process.env = originalEnv
+    })
+
+    test('includes the deployed commitSha from COMMIT_SHA', async () => {
+        process.env.COMMIT_SHA = 'abc123def456'
+
+        const res = await request(buildApp()).get('/api/health')
+
+        expect(res.status).toBe(200)
+        expect(res.body.status).toBe('ok')
+        expect(res.body.commitSha).toBe('abc123def456')
+    })
+
+    test('returns commitSha null when COMMIT_SHA is unset', async () => {
+        delete process.env.COMMIT_SHA
+
+        const res = await request(buildApp()).get('/api/health')
+
+        expect(res.status).toBe(200)
+        expect(res.body.commitSha).toBeNull()
+    })
+})
+
 describe('GET /api/health/version', () => {
     const originalEnv = process.env
 

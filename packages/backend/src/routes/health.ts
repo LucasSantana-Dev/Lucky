@@ -56,15 +56,20 @@ export function setupHealthRoutes(app: Express): void {
             status: 'ok',
             redis: redisClient.isHealthy(),
             uptime: process.uptime(),
+            commitSha: process.env.COMMIT_SHA ?? null,
         })
     })
 
-    app.get('/api/health/version', apiLimiter, (_req: Request, res: Response) => {
-        res.json({
-            commitSha: process.env.COMMIT_SHA ?? null,
-            version: resolveRuntimeVersion(),
-        })
-    })
+    app.get(
+        '/api/health/version',
+        apiLimiter,
+        (_req: Request, res: Response) => {
+            res.json({
+                commitSha: process.env.COMMIT_SHA ?? null,
+                version: resolveRuntimeVersion(),
+            })
+        },
+    )
 
     app.get('/api/health/cache', apiLimiter, (_req: Request, res: Response) => {
         const metrics = redisClient.getMetrics()
@@ -77,55 +82,61 @@ export function setupHealthRoutes(app: Express): void {
         })
     })
 
-    app.get('/api/health/auth-config', apiLimiter, (req: Request, res: Response) => {
-        const redirectUri = getOAuthRedirectUri(req)
-        const requestOrigin = resolveRequestOrigin(req)
-        const frontendOrigins = getFrontendOrigins()
-        const backendOrigins = (process.env.WEBAPP_BACKEND_URL ?? '')
-            .split(',')
-            .map((origin) => origin.trim())
-            .filter((origin) => origin.length > 0)
-        const clientId = process.env.CLIENT_ID?.trim() ?? ''
-        const expectedClientId =
-            process.env.WEBAPP_EXPECTED_CLIENT_ID?.trim() ?? ''
-        const sessionSecretConfigured = Boolean(
-            process.env.WEBAPP_SESSION_SECRET?.trim(),
-        )
-        const redisHealthy = redisClient.isHealthy()
+    app.get(
+        '/api/health/auth-config',
+        apiLimiter,
+        (req: Request, res: Response) => {
+            const redirectUri = getOAuthRedirectUri(req)
+            const requestOrigin = resolveRequestOrigin(req)
+            const frontendOrigins = getFrontendOrigins()
+            const backendOrigins = (process.env.WEBAPP_BACKEND_URL ?? '')
+                .split(',')
+                .map((origin) => origin.trim())
+                .filter((origin) => origin.length > 0)
+            const clientId = process.env.CLIENT_ID?.trim() ?? ''
+            const expectedClientId =
+                process.env.WEBAPP_EXPECTED_CLIENT_ID?.trim() ?? ''
+            const sessionSecretConfigured = Boolean(
+                process.env.WEBAPP_SESSION_SECRET?.trim(),
+            )
+            const redisHealthy = redisClient.isHealthy()
 
-        const healthResponse = buildAuthConfigHealth({
-            clientId,
-            redirectUri,
-            frontendOrigins,
-            backendOrigins,
-            requestOrigin,
-            sessionSecretConfigured,
-            redisHealthy,
-            expectedClientId,
-        })
-
-        // This endpoint is unauthenticated (it's used to verify OAuth config
-        // before a session can exist). clientId/redirectUri are already
-        // public — they're embedded in the OAuth login URL every visitor
-        // sees. But operational details (session/redis state, config
-        // validation warnings) aren't needed by anonymous callers and only
-        // help an attacker fingerprint the deployment, so they're redacted
-        // outside development. NODE_ENV=production covers staging too
-        // (docker-compose.staging.yml sets it), which is correct — staging
-        // is internet-facing and shouldn't leak diagnostics either.
-        if (process.env.NODE_ENV === 'production') {
-            res.json({
-                auth: {
-                    clientId: healthResponse.auth.clientId,
-                    redirectUri: healthResponse.auth.redirectUri,
-                    frontendOrigins: healthResponse.auth.frontendOrigins,
-                    clientIdConfigured: healthResponse.auth.clientIdConfigured,
-                    authorizeUrlPreview: healthResponse.auth.authorizeUrlPreview,
-                },
+            const healthResponse = buildAuthConfigHealth({
+                clientId,
+                redirectUri,
+                frontendOrigins,
+                backendOrigins,
+                requestOrigin,
+                sessionSecretConfigured,
+                redisHealthy,
+                expectedClientId,
             })
-            return
-        }
 
-        res.json(healthResponse)
-    })
+            // This endpoint is unauthenticated (it's used to verify OAuth config
+            // before a session can exist). clientId/redirectUri are already
+            // public — they're embedded in the OAuth login URL every visitor
+            // sees. But operational details (session/redis state, config
+            // validation warnings) aren't needed by anonymous callers and only
+            // help an attacker fingerprint the deployment, so they're redacted
+            // outside development. NODE_ENV=production covers staging too
+            // (docker-compose.staging.yml sets it), which is correct — staging
+            // is internet-facing and shouldn't leak diagnostics either.
+            if (process.env.NODE_ENV === 'production') {
+                res.json({
+                    auth: {
+                        clientId: healthResponse.auth.clientId,
+                        redirectUri: healthResponse.auth.redirectUri,
+                        frontendOrigins: healthResponse.auth.frontendOrigins,
+                        clientIdConfigured:
+                            healthResponse.auth.clientIdConfigured,
+                        authorizeUrlPreview:
+                            healthResponse.auth.authorizeUrlPreview,
+                    },
+                })
+                return
+            }
+
+            res.json(healthResponse)
+        },
+    )
 }

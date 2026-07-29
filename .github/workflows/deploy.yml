@@ -294,6 +294,7 @@ jobs:
 
                   deadline=$(($(date +%s) + 600))
                   attempt=0
+                  last_actual=""
 
                   while [ "$(date +%s)" -lt "$deadline" ]; do
                     attempt=$((attempt + 1))
@@ -315,6 +316,7 @@ jobs:
                         echo "==> Deployed SHA matches: $actual"
                         exit 0
                       fi
+                      last_actual="$actual"
                       echo "SHA mismatch (expected=$expected, actual=$actual)."
                     else
                       echo "Not ready (HTTP $http_code)."
@@ -327,7 +329,10 @@ jobs:
                     sleep "$sleep_for"
                   done
 
-                  echo "::error::Deployed version SHA did not match expected before deadline"
+                  echo "::error::Deployed version SHA did not match expected before deadline (expected=$expected, production=${last_actual:-unknown})"
+                  if [ -n "$last_actual" ] && [ "$last_actual" != "$expected" ]; then
+                    echo "::error::Production is running $last_actual instead of $expected. If the homelab auto-rollback restored service, this red check is a silent rollback, not a flaky probe. See the Notify failure step for details."
+                  fi
                   exit 1
 
             - name: Sentry release — finalize
@@ -360,3 +365,17 @@ jobs:
                   EXPECTED_SHA: ${{ steps.resolve_sha.outputs.sha }}
                   REPO: ${{ github.repository }}
               run: bash scripts/deploy/wait-homelab-status.sh wait
+
+            # Runs only when an earlier step failed. Annotates the run with the
+            # SHA production is actually serving so an auto-rollback to the
+            # last-good image is not indistinguishable from a flaky red check
+            # (#1892).
+            - name: Notify failure
+              if: failure()
+              env:
+                  WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  EXPECTED_SHA: ${{ steps.resolve_sha.outputs.sha }}
+                  RELEASE_TAG: ${{ github.event.release.tag_name }}
+                  REPO: ${{ github.repository }}
+              run: bash scripts/deploy/notify-deploy-failure.sh
