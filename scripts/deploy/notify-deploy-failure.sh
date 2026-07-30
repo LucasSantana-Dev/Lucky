@@ -6,18 +6,29 @@ set -euo pipefail
 # check (#1892): state whether the rollback restored service on an older
 # SHA and which SHA production serves now.
 #
-# Required env: WEBHOOK_URL, EXPECTED_SHA, REPO, GH_TOKEN (used by gh).
-# Optional env: RELEASE_TAG (release tag that triggered the deploy, if any).
+# Required env: WEBHOOK_URL, REPO, GH_TOKEN (used by gh).
+# Optional env: EXPECTED_SHA (empty means the run failed before the rollout),
+#               RELEASE_TAG (release tag that triggered the deploy, if any).
 
-expected="${EXPECTED_SHA:?EXPECTED_SHA is required}"
+expected="${EXPECTED_SHA:-}"
+
+# No resolved deploy SHA means the failure happened before the webhook fired:
+# there is no rollout (and no rollback) to diagnose. Say so plainly instead of
+# mislabeling a pre-deploy failure as an auto-rollback.
+if [ -z "$expected" ]; then
+    echo "::error::Deploy failed before the rollout started (no deploy SHA resolved). This is a pre-deploy failure, not an auto-rollback."
+    exit 0
+fi
+
 repo="${REPO:?REPO is required}"
 webhook_url="${WEBHOOK_URL:?WEBHOOK_URL is required}"
 tag_label="${RELEASE_TAG:-no release tag}"
 
 base_url=$(bash "$(dirname "$0")/derive-webhook-origin.sh" "$webhook_url")
 
-actual=$(curl -sS --max-time 15 "${base_url}/api/health/version" 2>/dev/null \
-    | node -e '
+health=$(curl -sS --max-time 15 "${base_url}/api/health/version" 2>/dev/null || true)
+
+actual=$(printf '%s' "$health" | node -e '
         let d=""; process.stdin.on("data",c=>d+=c);
         process.stdin.on("end",()=>{
           try { const p=JSON.parse(d); console.log(p.commitSha ?? ""); }
@@ -25,7 +36,14 @@ actual=$(curl -sS --max-time 15 "${base_url}/api/health/version" 2>/dev/null \
         })' || true)
 
 if [ -z "$actual" ]; then
-    echo "::error::Deploy failed and the running production SHA could not be determined (health endpoint unreachable). Check the homelab deploy log (/tmp/lucky-deploy.log) for a possible auto-rollback."
+    if [ -n "$health" ]; then
+        # The endpoint answered but carries no commitSha (older image without
+        # a baked-in SHA). That is not "unreachable": we simply cannot tell
+        # which SHA production serves.
+        echo "::error::Deploy failed and the health endpoint is reachable but reports no commitSha (pre-versioning image?). Check the homelab deploy log (/tmp/lucky-deploy.log) for a possible auto-rollback."
+    else
+        echo "::error::Deploy failed and the running production SHA could not be determined (health endpoint unreachable). Check the homelab deploy log (/tmp/lucky-deploy.log) for a possible auto-rollback."
+    fi
     exit 0
 fi
 
@@ -40,7 +58,7 @@ fi
 # that triggered this deploy (a strictly worse state than never deploying).
 echo "::error::DEPLOY FAILED: auto-rollback restored service on $actual. Production is running $actual, NOT the deployed target $expected ($tag_label)."
 
-compare=$(gh api "repos/${repo}/compare/${actual}...${expected}" \
+compare=$(timeout 15 gh api "repos/${repo}/compare/${actual}...${expected}" \
     --jq '"\(.ahead_by) \(.behind_by)"' 2>/dev/null || echo "")
 ahead=$(echo "$compare" | awk '{print $1}')
 behind=$(echo "$compare" | awk '{print $2}')

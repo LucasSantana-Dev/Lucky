@@ -369,9 +369,10 @@ jobs:
             # Runs only when an earlier step failed. Annotates the run with the
             # SHA production is actually serving so an auto-rollback to the
             # last-good image is not indistinguishable from a flaky red check
-            # (#1892).
+            # (#1892). Skipped when no deploy SHA was resolved: that failure
+            # predates the rollout and is handled by the step below.
             - name: Notify failure
-              if: failure()
+              if: failure() && steps.resolve_sha.outputs.sha != ''
               env:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -379,3 +380,10 @@ jobs:
                   RELEASE_TAG: ${{ github.event.release.tag_name }}
                   REPO: ${{ github.repository }}
               run: bash scripts/deploy/notify-deploy-failure.sh
+
+            # A failure with no resolved deploy SHA means the webhook never
+            # fired: there is no rollout (and no rollback) to diagnose, so
+            # skip the SHA comparison and say so plainly.
+            - name: Notify pre-deploy failure
+              if: failure() && steps.resolve_sha.outputs.sha == ''
+              run: echo "::error::Deploy failed before the rollout started (no deploy SHA resolved). This is a pre-deploy failure, not an auto-rollback."
