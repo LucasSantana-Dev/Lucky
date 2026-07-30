@@ -4,23 +4,27 @@ Copy-paste artifacts for filing Lucky on https://top.gg. Launch sequence in `~/.
 
 ## 1. Bot identification
 
-| Field | Value |
-|---|---|
-| Client ID | `962198089161134131` |
-| Invite URL | `https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=36970496` |
-| Website | `https://lucky.lucassantana.tech` |
-| GitHub | `https://github.com/LucasSantana-Dev/Lucky` |
-| Support server | *Create a Lucky Discord server first (Phase 0 task #7), then paste invite here.* |
+| Field          | Value                                                                            |
+| -------------- | -------------------------------------------------------------------------------- |
+| Client ID      | `962198089161134131`                                                             |
+| Invite URL     | `https://lucky.lucassantana.tech/invite`                                         |
+| Website        | `https://lucky.lucassantana.tech`                                                |
+| GitHub         | `https://github.com/LucasSantana-Dev/Lucky`                                      |
+| Support server | _Create a Lucky Discord server first (Phase 0 task #7), then paste invite here._ |
 
-**Note on permissions integer `36970496`** — this is Read Messages (1024) + Send Messages (2048) + Manage Messages (8192) + Embed Links (16384) + Attach Files (32768) + Add Reactions (64) + Use External Emojis (262144) + Connect (1048576) + Speak (2097152) + Use Voice Activity (33554432). Scoped — not Admin. Use this for top.gg. The README invite still uses `permissions=8` (Admin) to match the existing Landing page; don't mix the two.
+**Note on the invite URL** — do not hardcode a `permissions=` integer here. `https://lucky.lucassantana.tech/invite` redirects to Discord via the backend, which builds the URL from `BOT_INVITE_PERMISSIONS` in `packages/shared/src/constants/invite.ts`, and logs the `utm_*` parameters on the way through so directory clicks are attributable.
+
+The curated set is `3173504` — View Audit Log, View Channels, Send Messages, Manage Messages, Embed Links, Connect, Speak — per `decisions/2026-06-18-invite-permission-scope.md`. **Never Administrator.** High-alarm permissions (Ban/Kick/ManageRoles/ManageChannels/ManageGuild/ModerateMembers) are escalated on demand rather than requested up front.
+
+_Historical note:_ this file previously specified `36970496` and described it as ten permissions summing to 37022784, which is neither that integer nor a set the bot could work with. The real `36970496` is Manage Messages, Use External Emojis, Connect, Speak, Use Voice Activity — with **no** View Channels and **no** Send Messages, so a bot invited with it could not read or post in a channel. It also claimed the README used `permissions=8` (Administrator); that was removed in #1889.
 
 ## 2. Short description (120 char cap)
 
 ```text
-Self-hosted Discord music bot with autoplay, dashboard, and moderation. TypeScript, open source, 2500+ tests.
+Self-hosted Discord music bot with autoplay, dashboard, and moderation. TypeScript, open source, no paywall.
 ```
 
-Character count: 111.
+Character count: 108.
 
 ## 3. Long description (Markdown supported)
 
@@ -30,6 +34,7 @@ Character count: 111.
 **Self-hosted Discord music bot + React dashboard.** Production-grade TypeScript monorepo — music, moderation, engagement — fully open source under ISC.
 
 ## Highlights
+
 - 🎵 **Music**: YouTube + Spotify + SoundCloud · autoplay with diversity-aware recommendations · `/queue smartshuffle` · `/session save|restore`
 - 🛡️ **Moderation**: warn · mute · kick · ban · case tracking · `/digest` weekly reports · automod presets
 - 📊 **Dashboard**: Discord OAuth · RBAC · guild management · feature toggles at [lucky.lucassantana.tech](https://lucky.lucassantana.tech)
@@ -37,13 +42,15 @@ Character count: 111.
 - ⚡ **Reliability**: music watchdog auto-recovery · provider health cooldown · queue snapshot restore · cold-Redis survival
 
 ## Why pick Lucky
+
 - Real autoplay — uses Spotify Discover + genre graphs, not a static playlist loop
 - Self-hostable in Docker — no vendor lock-in, no hidden costs
 - Active development — [releases every few days](https://github.com/LucasSantana-Dev/Lucky/releases)
-- 2500+ tests, SonarCloud A rating, zero production incidents in 2026
+- Every PR runs lint, build, the full test suite and SonarCloud gates; a deploy that fails its health checks rolls back to the last good build
 
 ## Get started
-- [Invite Lucky](https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=36970496) to your server
+
+- [Invite Lucky](https://lucky.lucassantana.tech/invite) to your server
 - [Star on GitHub](https://github.com/LucasSantana-Dev/Lucky) if you find it useful
 - Report issues on [GitHub Issues](https://github.com/LucasSantana-Dev/Lucky/issues)
 
@@ -84,7 +91,10 @@ router.post('/webhooks/topgg-votes', async (req, res) => {
         return res.status(401).send('unauthorized')
     }
 
-    const { user: userId, type } = req.body as { user: string; type: 'upvote' | 'test' }
+    const { user: userId, type } = req.body as {
+        user: string
+        type: 'upvote' | 'test'
+    }
 
     if (type === 'test') return res.status(200).send('ok')
 

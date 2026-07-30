@@ -6,6 +6,7 @@ import {
     afterEach,
     jest,
 } from '@jest/globals'
+import { BOT_INVITE_PERMISSIONS } from '@lucky/shared/constants'
 import { guildService, setBotClient } from '../../../src/services/GuildService'
 import { metricsService } from '../../../src/services/MetricsCache'
 import { discordOAuthService } from '../../../src/services/DiscordOAuthService'
@@ -163,7 +164,11 @@ describe('GuildService', () => {
             expect(result).toContain('discord.com/api/oauth2/authorize')
             expect(result).toContain(`guild_id=${guildId}`)
             expect(result).toContain('client_id=test-client-id')
-            expect(result).toContain('permissions=8')
+            // Was `permissions=8` (Administrator). The dashboard's "add Lucky
+            // to this server" flow must use the curated set, same as every
+            // other invite entry point (#1923).
+            expect(result).toContain(`permissions=${BOT_INVITE_PERMISSIONS}`)
+            expect(result).not.toContain('permissions=8&')
             expect(result).toContain('scope=bot')
         })
 

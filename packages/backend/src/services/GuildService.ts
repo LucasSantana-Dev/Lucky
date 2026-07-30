@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { Client } from 'discord.js'
+import { BOT_INVITE_PERMISSIONS } from '@lucky/shared/constants'
 import { discordOAuthService, type DiscordGuild } from './DiscordOAuthService'
 import {
     setClient as setDiscordClient,
@@ -505,7 +506,11 @@ class GuildService {
         }
 
         const scopes = ['bot', 'applications.commands']
-        const permissions = '8'
+        // Was a hardcoded '8' — Administrator. The dashboard's "add Lucky to
+        // this server" flow asked every owner for full admin, contradicting
+        // both the ADR and the public listings (#1923). Shares the curated set
+        // with the landing page and the /invite redirect.
+        const permissions = BOT_INVITE_PERMISSIONS
         const redirectUri = process.env.WEBAPP_REDIRECT_URI
 
         let inviteUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=${permissions}&scope=${scopes.join('%20')}`
