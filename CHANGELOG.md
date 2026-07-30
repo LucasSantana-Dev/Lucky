@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.38.1...v2.39.0) (2026-07-30)
+
+
+### Features
+
+* **bot:** surface stream bridge fallback stage in now playing footer ([#1920](https://github.com/LucasSantana-Dev/Lucky/issues/1920)) ([0934413](https://github.com/LucasSantana-Dev/Lucky/commit/093441360e1c097e18c9c1090a86395b7f2d1718))
+
+
+### Bug Fixes
+
+* **deploy:** make rolled-back deploys visible in failure output ([#1922](https://github.com/LucasSantana-Dev/Lucky/issues/1922)) ([e0d7f2f](https://github.com/LucasSantana-Dev/Lucky/commit/e0d7f2fa13d60c1dfe70feb25d5ae53c3768e4d2))
+* **invite:** adopt the adr curated permission set ([#1927](https://github.com/LucasSantana-Dev/Lucky/issues/1927)) ([d5d0c53](https://github.com/LucasSantana-Dev/Lucky/commit/d5d0c538a3345420c1117e6ae61d0cec9f03225d))
+* **monitoring:** repair broken-by-design memory alerts and cut alert noise ([#1917](https://github.com/LucasSantana-Dev/Lucky/issues/1917)) ([6c26ce1](https://github.com/LucasSantana-Dev/Lucky/commit/6c26ce1a4a2d878e2f05e198596b047766dc8202))
+
 ## [2.38.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.38.0...v2.38.1) (2026-07-28)
 
 
