@@ -6,6 +6,25 @@ import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import type { StarboardConfig, StarboardEntry } from '@/services/starboardApi'
 
+/**
+ * The threshold input only exists after getConfig resolves and the component
+ * re-renders. Waiting on the mock having been *called* is not enough — on a
+ * slower runner the query ran first and `as HTMLInputElement` silently handed
+ * back null, surfacing as "Unable to fire a change event" rather than as a
+ * missing element. Wait for the element itself.
+ */
+async function findThresholdInput(
+    container: HTMLElement,
+): Promise<HTMLInputElement> {
+    return await waitFor(() => {
+        const input = container.querySelector<HTMLInputElement>(
+            'input[type="number"][max="100"]',
+        )
+        if (!input) throw new Error('threshold input not rendered yet')
+        return input
+    })
+}
+
 vi.mock('@/stores/guildStore')
 vi.mock('@/services/api')
 vi.mock('sonner', () => ({
@@ -179,9 +198,7 @@ describe('Starboard', () => {
         const emojiInput = screen.getByPlaceholderText('⭐') as HTMLInputElement
         expect(emojiInput.value).toBe('⭐')
 
-        const thresholdInput = container.querySelector(
-            'input[type="number"][max="100"]',
-        ) as HTMLInputElement
+        const thresholdInput = await findThresholdInput(container)
         expect(Number(thresholdInput.value)).toBe(3)
 
         const selfStarSwitch = screen.getByRole('switch', {
@@ -319,9 +336,7 @@ describe('Starboard', () => {
             expect(api.starboard.getConfig).toHaveBeenCalled()
         })
 
-        const thresholdInput = container.querySelector(
-            'input[type="number"][max="100"]',
-        ) as HTMLInputElement
+        const thresholdInput = await findThresholdInput(container)
         fireEvent.change(thresholdInput, { target: { value: '5' } })
 
         expect(thresholdInput.value).toBe('5')
@@ -519,9 +534,7 @@ describe('Starboard', () => {
             expect(api.starboard.getConfig).toHaveBeenCalled()
         })
 
-        const thresholdInput = container.querySelector(
-            'input[type="number"][max="100"]',
-        ) as HTMLInputElement
+        const thresholdInput = await findThresholdInput(container)
         fireEvent.change(thresholdInput, { target: { value: '' } })
 
         const saveButton = screen.getByRole('button', { name: /save/i })
@@ -568,9 +581,7 @@ describe('Starboard', () => {
         const emojiInput = screen.getByPlaceholderText('⭐') as HTMLInputElement
         expect(emojiInput.value).toBe('⭐')
 
-        const thresholdInput = container.querySelector(
-            'input[type="number"][max="100"]',
-        ) as HTMLInputElement
+        const thresholdInput = await findThresholdInput(container)
         expect(Number(thresholdInput.value)).toBe(3)
 
         const selfStarSwitch = screen.getByRole('switch', {
