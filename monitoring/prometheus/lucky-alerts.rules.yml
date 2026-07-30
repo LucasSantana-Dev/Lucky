@@ -84,7 +84,7 @@ groups:
       - alert: LuckyBotHeapHigh
         expr: |
           container_memory_working_set_bytes{name="lucky-bot"}
-            / clamp_min(container_spec_memory_limit_bytes{name="lucky-bot"}, 1)
+            / (container_spec_memory_limit_bytes{name="lucky-bot"} > 0)
             > 0.9
         for: 15m
         labels:
@@ -100,8 +100,8 @@ groups:
 
       - alert: HighMemoryUsage
         expr: |
-          sum by (name) (container_memory_working_set_bytes)
-            / sum by (name) (clamp_min(container_spec_memory_limit_bytes, 1))
+          sum by (name) (container_memory_working_set_bytes{name!="lucky-bot"})
+            / sum by (name) (container_spec_memory_limit_bytes{name!="lucky-bot"} > 0)
             > 0.85
         for: 15m
         labels:
@@ -118,7 +118,7 @@ groups:
       - alert: CriticalMemoryUsage
         expr: |
           sum by (name) (container_memory_working_set_bytes)
-            / sum by (name) (clamp_min(container_spec_memory_limit_bytes, 1))
+            / sum by (name) (container_spec_memory_limit_bytes > 0)
             > 0.95
         for: 10m
         labels:
