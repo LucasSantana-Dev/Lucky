@@ -112,7 +112,7 @@ Validation rule that follows: `nginx -t` against the real base image with the re
 docker build -f Dockerfile.nginx -t lucky-nginx:pr . && docker run --rm lucky-nginx:pr nginx -t
 ```
 
-Wiring this into CI as a required check is still open; until then it is a manual pre-merge step for any PR touching `nginx/` or `Dockerfile.nginx`.
+Wired into CI: the `docker-build` nginx leg in `.github/workflows/ci.yml` loads the image and runs `docker run --rm lucky-nginx:ci nginx -t`, and `Build — Docker images` (a required check) fails if it does not pass.
 
 ## Revisit when
 

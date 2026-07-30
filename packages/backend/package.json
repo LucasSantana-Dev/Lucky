@@ -13,9 +13,9 @@
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "test:mutation": "stryker run",
-        "lint": "eslint . -c ../../eslint.config.js",
+        "lint": "eslint .",
         "lint:fix": "npm run lint -- --fix",
-        "lint:full": "eslint . -c ../../eslint.config.js"
+        "lint:full": "eslint ."
     },
     "dependencies": {
         "@lucky/shared": "file:../shared",
