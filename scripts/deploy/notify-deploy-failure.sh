@@ -26,7 +26,7 @@ tag_label="${RELEASE_TAG:-no release tag}"
 
 base_url=$(bash "$(dirname "$0")/derive-webhook-origin.sh" "$webhook_url")
 
-health=$(curl -s --max-time 15 "${base_url}/api/health/version" 2>/dev/null || true)
+health=$(curl -sf --max-time 15 "${base_url}/api/health/version" 2>/dev/null || true)
 
 actual=$(printf '%s' "$health" | node -e '
         let d=""; process.stdin.on("data",c=>d+=c);
