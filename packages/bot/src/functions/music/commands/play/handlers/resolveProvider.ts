@@ -9,6 +9,21 @@ import { warnLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
 
 const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
+const ATTACHMENT_EXTRACTOR_ID = 'com.discord-player.attachmentextractor'
+
+// Extractors whose validate() ignores queryType and will therefore claim a
+// plain text search they cannot serve. Blocked on the text-search fallback
+// arms so the query reaches the provider the arm is actually named after.
+//
+// SpotifyExtractor was the first offender. AttachmentExtractor is the second:
+// with the YouTube extractor degraded it captured both the YOUTUBE_SEARCH and
+// SOUNDCLOUD_SEARCH arms, so every arm failed as
+// "NoResultError (Extractor: com.discord-player.attachmentextractor)" and the
+// SoundCloud fallback never actually ran (#1930).
+const TEXT_SEARCH_BLOCKED_EXTRACTORS = [
+    SPOTIFY_EXTRACTOR_ID,
+    ATTACHMENT_EXTRACTOR_ID,
+]
 
 export type PlayResolutionArm =
     | 'primary'
@@ -64,13 +79,12 @@ export async function resolveQueryWithFallbacks(
             })
 
             try {
-                // Attempt YouTube fallback — block SpotifyExtractor so it
-                // cannot intercept text queries (its validate() ignores queryType
-                // and would capture YOUTUBE_SEARCH/SOUNDCLOUD_SEARCH too).
+                // Attempt YouTube fallback. See TEXT_SEARCH_BLOCKED_EXTRACTORS
+                // for why these are excluded.
                 const result = await player.play(voiceChannel, query, {
                     ...playOptions,
                     searchEngine: QueryType.YOUTUBE_SEARCH,
-                    blockExtractors: [SPOTIFY_EXTRACTOR_ID],
+                    blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
                 })
                 telemetry.latencyMs = Date.now() - startTime
                 telemetry.resolvedVia = 'youtube-fallback'
@@ -87,7 +101,7 @@ export async function resolveQueryWithFallbacks(
                     const result = await player.play(voiceChannel, query, {
                         ...playOptions,
                         searchEngine: QueryType.SOUNDCLOUD_SEARCH,
-                        blockExtractors: [SPOTIFY_EXTRACTOR_ID],
+                        blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
                     })
                     telemetry.latencyMs = Date.now() - startTime
                     telemetry.resolvedVia = 'soundcloud-fallback'

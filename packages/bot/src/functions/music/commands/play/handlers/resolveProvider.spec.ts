@@ -111,8 +111,13 @@ describe('resolveQueryWithFallbacks', () => {
             const youtubeFallbackCall = mockPlayer.play.mock.calls[1]
             expect(youtubeFallbackCall[2]).toMatchObject({
                 searchEngine: QueryType.YOUTUBE_SEARCH,
+                // Both of these claim plain text queries via a permissive
+                // validate(). AttachmentExtractor swallowing this arm is what
+                // made every fallback report itself as the attachment
+                // extractor in production (#1930).
                 blockExtractors: expect.arrayContaining([
                     'com.discord-player.itsmaat.spotifyextractor',
+                    'com.discord-player.attachmentextractor',
                 ]),
             })
         })
@@ -167,8 +172,35 @@ describe('resolveQueryWithFallbacks', () => {
                 searchEngine: QueryType.SOUNDCLOUD_SEARCH,
                 blockExtractors: expect.arrayContaining([
                     'com.discord-player.itsmaat.spotifyextractor',
+                    'com.discord-player.attachmentextractor',
                 ]),
             })
+        })
+
+        it('never lets a text-search arm reach an extractor that cannot search', async () => {
+            const mockTrack = { title: 'Test Song' }
+            mockPlayer.play
+                .mockRejectedValueOnce(new Error('Primary failed'))
+                .mockRejectedValueOnce(new Error('YouTube failed'))
+                .mockResolvedValueOnce({ track: mockTrack })
+
+            await resolveQueryWithFallbacks(
+                mockPlayer as never,
+                mockVoiceChannel as never,
+                'chico preto jurandyr',
+                'spotify',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            // Arms 2 and 3 are the text-search fallbacks. Neither may leave
+            // AttachmentExtractor unblocked: it accepts the query, cannot
+            // serve it, and then masks which provider actually failed.
+            for (const call of mockPlayer.play.mock.calls.slice(1)) {
+                expect(call[2].blockExtractors).toContain(
+                    'com.discord-player.attachmentextractor',
+                )
+            }
         })
     })
 
