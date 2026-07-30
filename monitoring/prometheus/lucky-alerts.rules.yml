@@ -12,6 +12,12 @@
 # NOTE: adjust the `job` label values to match your Prometheus scrape_configs.
 # These are STARTER symptom alerts. Per ADR 2026-05-30, the availability SLO and a
 # proper multi-window burn-rate are defined AFTER ~14 days of observed data.
+#
+# The lucky-resource-pressure group below (2026-07, #1657) supersedes the noisy
+# homelab rules measured 23:1 noise:signal over 15 days: LuckyBotHeapHigh no
+# longer divides by the lazily-grown V8 heap_total, and the memory alerts no
+# longer count page cache as used memory. See
+# decisions/2026-07-02-resource-hygiene-alert-calibration-first.md.
 
 groups:
   - name: lucky-backend-errors
@@ -72,3 +78,71 @@ groups:
           description: >-
             The bot metrics endpoint (:9091) has been unreachable for 5 minutes.
             Cross-check the bot's Docker HEALTHCHECK (/healthz) and the heartbeat.
+
+  - name: lucky-resource-pressure
+    rules:
+      - alert: LuckyBotHeapHigh
+        expr: |
+          container_memory_working_set_bytes{name="lucky-bot"}
+            / (container_spec_memory_limit_bytes{name="lucky-bot"} > 0)
+            > 0.9
+        for: 15m
+        labels:
+          severity: warning
+          service: lucky-bot
+        annotations:
+          summary: "Lucky bot container working set > 90% of its memory limit"
+          description: >-
+            The bot container's working set (what the OOM killer acts on) has
+            been above 90% of its mem_limit for 15 minutes. Replaces the old
+            nodejs_heap_size_used/nodejs_heap_size_total ratio, which idled at
+            92-96% on healthy processes because V8 grows heap_total lazily.
+
+      - alert: HighMemoryUsage
+        expr: |
+          sum by (name) (container_memory_working_set_bytes{name!="lucky-bot"})
+            / sum by (name) (container_spec_memory_limit_bytes{name!="lucky-bot"} > 0)
+            > 0.85
+        for: 15m
+        labels:
+          severity: warning
+          service: homelab-containers
+        annotations:
+          summary: "Container {{ $labels.name }} working set > 85% of its memory limit"
+          description: >-
+            A container's working set has been above 85% of its mem_limit for 15
+            minutes. Uses container_memory_working_set_bytes (excludes
+            reclaimable page cache) instead of container_memory_usage_bytes,
+            which fired on IO-heavy containers on cache, not real pressure.
+
+      - alert: CriticalMemoryUsage
+        expr: |
+          sum by (name) (container_memory_working_set_bytes)
+            / sum by (name) (container_spec_memory_limit_bytes > 0)
+            > 0.95
+        for: 10m
+        labels:
+          severity: critical
+          service: homelab-containers
+        annotations:
+          summary: "Container {{ $labels.name }} working set > 95% of its memory limit"
+          description: >-
+            A container's working set has been above 95% of its mem_limit for 10
+            minutes and is close to being OOM-killed. Uses working set (excludes
+            page cache), not raw usage.
+
+      - alert: HostMemoryHigh
+        expr: |
+          1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+            > 0.9
+        for: 15m
+        labels:
+          severity: warning
+          service: homelab-host
+        annotations:
+          summary: "Host memory headroom below 10%"
+          description: >-
+            Less than 10% of host memory is available (MemAvailable subtracts
+            reclaimable page cache and buffers). A total-minus-free calculation
+            overstates pressure because free excludes cache the kernel can
+            reclaim on demand.
