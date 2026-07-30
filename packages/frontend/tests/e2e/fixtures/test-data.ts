@@ -1,3 +1,10 @@
+import { BOT_INVITE_PERMISSIONS } from '@lucky/shared/constants'
+
+// Invite fixtures build their URL from the shared constant on purpose. When
+// they hardcoded `permissions=8` (Administrator) the e2e flows kept passing
+// against a mocked Administrator response, so they could not have caught a
+// regression away from the curated scope (#1923).
+
 export const MOCK_DISCORD_USER = {
     id: '123456789012345678',
     username: 'testuser',
@@ -62,8 +69,7 @@ export const MOCK_GUILDS = [
         botAdded: false,
         effectiveAccess: MANAGE_EFFECTIVE_ACCESS,
         canManageRbac: true,
-        botInviteUrl:
-            'https://discord.com/api/oauth2/authorize?client_id=test-client-id&permissions=8&scope=bot%20applications.commands&guild_id=222222222222222222',
+        botInviteUrl: `https://discord.com/api/oauth2/authorize?client_id=test-client-id&permissions=${BOT_INVITE_PERMISSIONS}&scope=bot%20applications.commands&guild_id=222222222222222222`,
     },
     {
         id: '333333333333333333',
@@ -195,7 +201,6 @@ export const MOCK_API_RESPONSES = {
     },
     authUser: MOCK_DISCORD_USER,
     inviteUrl: {
-        inviteUrl:
-            'https://discord.com/api/oauth2/authorize?client_id=test-client-id&permissions=8&scope=bot%20applications.commands',
+        inviteUrl: `https://discord.com/api/oauth2/authorize?client_id=test-client-id&permissions=${BOT_INVITE_PERMISSIONS}&scope=bot%20applications.commands`,
     },
 }
