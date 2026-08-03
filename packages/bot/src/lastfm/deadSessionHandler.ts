@@ -93,17 +93,19 @@ export async function handleDeadLastFmSession(
         data: { discordId, via },
     })
 
+    // Reserve synchronously so concurrent handlers for the same key cannot
+    // double-send; release the reservation if delivery fails so a transient
+    // error does not permanently suppress the notification.
     if (notifiedSessionKeys.has(failedSessionKey)) return
+    notifiedSessionKeys.set(failedSessionKey, true)
     try {
         const user = await client?.users.fetch(discordId)
         await user?.send(
             'Your Last.fm session on Lucky expired, so scrobbling has stopped. Relink any time with `/lastfm link`.',
         )
-        // Record only after a successful send: a transient DM failure must
-        // not permanently consume the notification for this session key.
-        notifiedSessionKeys.set(failedSessionKey, true)
     } catch {
         // closed DMs or fetch failure — the unlink already happened
+        notifiedSessionKeys.delete(failedSessionKey)
     }
 }
 

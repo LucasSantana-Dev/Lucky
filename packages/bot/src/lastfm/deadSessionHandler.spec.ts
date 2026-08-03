@@ -68,12 +68,15 @@ describe('handleDeadLastFmSession', () => {
             discordId: 'user-1',
             sessionKey: 'key-1',
         })
+        // Model the production contract: the racing second delete is stale
+        unlinkMock.mockResolvedValueOnce('removed').mockResolvedValue('stale')
         const { client, sendMock } = makeClient()
 
         await handleDeadLastFmSession('user-1', 'key-1', client, OPTS)
         await handleDeadLastFmSession('user-1', 'key-1', client, OPTS)
 
         expect(unlinkMock).toHaveBeenCalledTimes(2)
+        expect(infoLogMock).toHaveBeenCalledTimes(1)
         expect(infoLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Removed invalid Last.fm session',
