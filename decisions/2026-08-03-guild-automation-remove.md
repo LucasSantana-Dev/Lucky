@@ -18,21 +18,23 @@ This satisfies the 2026-06-06 ADR's own criterion for D ("telemetry shows ~zero 
 
 **Remove the Guild Automation subsystem entirely (D), in three phases:**
 
-1. **Phase 1 — web + backend:** delete the frontend automation page + API client, the backend routes (`guildAutomation.ts`), orchestrator/repository usage, and the usage counter. Sidebar entry goes with it.
-2. **Phase 2 — bot + shared core:** delete `/guildconfig apply`, then the shared machinery (manifest/diff/3 executors/orchestrator/repository, ~2,100 LOC).
-3. **Phase 3 — schema:** drop `guild_automation_manifests`, `guild_automation_runs`, `guild_automation_drifts` in a standalone migration PR, after 1–2 have deployed clean.
+1. **Phase 1 — web + backend:** delete the frontend automation page + API client (`GuildAutomation.tsx` 569 LOC, `automationApi.ts` 159), the backend route (`guildAutomation.ts` 220), and the usage counter. Sidebar entry goes with it.
+2. **Phase 2 — bot + shared core:** delete `/guildconfig apply` (bot `utils/guildAutomation/` 548 non-spec LOC + the subcommand in `guildconfig.ts`), then the shared machinery (`services/guildAutomation/`: manifest/diff/3 executors/orchestrator/repository, 2,199 non-spec LOC).
+3. **Phase 3 — schema:** in ONE PR, remove the 3 Prisma models AND the `guild_automation_*` entries in `packages/shared/src/utils/requiredDatabaseRelations.ts` (plus their tests), THEN drop the tables (`guild_automation_manifests`, `guild_automation_runs`, `guild_automation_drifts`) via migration — the bootstrap relation check queries those tables and would crash on boot if the drop landed first. Deploy after 1–2 are clean.
+
+Measured footprint (2026-08-03, non-spec): ~3,700 production LOC + ~5,600 test LOC. The "~4,900 LOC" figure inherited from the 2026-06-06 ADR predates the decommission PRs.
 
 Not in this decision: the `CandidateAggregator` seam that was deferred until GA decommission (`decisions/2026-05-24-candidate-aggregator-deferred.md`) — that revisit is now unblocked and tracked in the roadmap.
 
 ## Alternatives considered
 
-- **C — descope (keep bot path, rip out web/backend).** Rejected: the bot path is *also* zero-usage; keeping 548 LOC of bot command plus ~2,100 LOC of shared core for zero users keeps the maintenance sink alive in smaller form.
+- **C — descope (keep bot path, rip out web/backend).** Rejected: the bot path is *also* zero-usage; keeping 548 LOC of bot command plus ~2,200 LOC of shared core for zero users keeps the maintenance sink alive in smaller form.
 - **A — complete the migration.** Rejected: the usage gate that would have triggered it reads zero; ≥4 PRs + a never-reviewed adapter for a feature nobody runs.
 - **Keep frozen longer.** Rejected: freeze was explicitly time-boxed to prevent decay into permanent; the data is unambiguous.
 
 ## Consequences
 
-**Positive:** ~4,900 hand-written LOC (~5.5% of the repo) of frozen machinery leaves the tree; no more parity/cutover entanglement; PRD #1059 closes as "removed for zero usage" rather than "deferred" forever; decommissioning unblocks the `CandidateAggregator` revisit.
+**Positive:** ~3,700 production LOC (+ ~5,600 test LOC) of frozen machinery leaves the tree; no more parity/cutover entanglement; PRD #1059 closes as "removed for zero usage" rather than "deferred" forever; decommissioning unblocks the `CandidateAggregator` revisit.
 **Negative:** if a guild ever asks for template-apply, the answer is manual setup or a fresh, much smaller design — the code stays in git history.
 **Neutral:** the 2 historical runs and 2 manifests are disposable data. Note the removal IS user-visible — the web automation page, its sidebar entry, and the bot `/guildconfig apply` command disappear — but telemetry shows zero active usage on every surface being removed, so the observed user impact is nil.
 

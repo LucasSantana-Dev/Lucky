@@ -201,7 +201,7 @@ Verified unshipped against the codebase on 2026-08-03.
 
 ### Platform / data
 
-- **Guild Automation removal (decided 2026-08-03, execution pending)** — zero usage on both paths (2 runs ever, latest 2026-05-01). Remove in 3 phases: web+backend → bot+shared core → schema drop. ~4,900 LOC leaves the tree. Source: `decisions/2026-08-03-guild-automation-remove.md`.
+- **Guild Automation removal (decided 2026-08-03, execution pending)** — zero usage on both paths (2 runs ever, latest 2026-05-01). Remove in 3 phases: web+backend → bot+shared core → schema drop. ~3,700 production LOC (+ ~5,600 test LOC) leaves the tree. Source: `decisions/2026-08-03-guild-automation-remove.md`.
 - **Staging lifecycle** — auto-stop after N idle days, fold staging bot in, Docker image prune policy, logrotate. Source: `decisions/2026-07-02-resource-hygiene-alert-calibration-first.md`, `decisions/2026-07-03-staging-test-bot.md`.
 - **Full Redis removal** — pub/sub → Postgres LISTEN/NOTIFY; separate gated decision. Source: `decisions/2026-05-31-redis-scope-reduction.md`.
 - **`channelId` + time-bucket on `recommendations`** — schema work in the Phase-D prerequisite path.
