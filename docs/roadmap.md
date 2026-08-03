@@ -11,7 +11,6 @@ mindmap
     Overdue gates
       CSP enforce flip — due 2026-06-25
       Guild Automation complete-vs-descope — due 2026-07-06
-      Autoplay re-measure routing — due 2026-07-22
       Lavalink re-evaluation — due 2026-08-01
     Open issues — 25
       Features
@@ -76,14 +75,14 @@ mindmap
 
 ## Decision gates by due date
 
-First four entries are overdue as of 2026-08-03.
+First three entries are overdue as of 2026-08-03. The autoplay gate (2026-07-22) was decided 2026-08-03: coverage gate passed — see `decisions/2026-08-03-autoplay-remeasure-gate-passed.md`.
 
 ```mermaid
 timeline
     title Decision gates by due date
     2026-06-25 : CSP Report-Only to enforce flip overdue : style-src unsafe-inline re-check overdue
     2026-07-06 : Guild Automation complete-vs-descope decision overdue : 3 of 7 executors migrated, frozen
-    2026-07-22 : Autoplay 21-day measurement window ended : Phase D routing re-measure overdue
+    2026-07-22 : Autoplay re-measure DECIDED 2026-08-03 : coverage 75.6 percent, gate passed
     2026-08-01 : Lavalink and youtube-source re-evaluation overdue : hard deadline from reliability ADR
     2026-09-11 : RAG re-read routing revisit
     2026-10 : Node 26 LTS expected : TS 7 toolchain gate follows
@@ -150,7 +149,8 @@ Verified unshipped against the codebase on 2026-08-03.
 - **Role Groups v2** — exclusivity/pick-one groups, multi-message groups, bot slash command, select-menu UI, full IdempotencyKey state machine. Source: `.claude/plans/2026-06-23-role-groups-design.md`.
 - **Music UX polish** — U1–U6 (queue position in /nowplaying, vote-skip progress, /queue header, /history autoplay-reason, /songinfo audio features, seed feedback) + elapsed-time progress, `recommendationReason` threading, PlaybackControls loading states, SSE staleness indicator. (streamBridge fallback surfacing shipped in v2.39.0, #1920.) Source: `.claude/plans/music-feature-backlog.md`, `.claude/plans/2026-07-10-feature-mapping-research.md`.
 - **`/recommend` re-evaluation** — `MUSIC_RECOMMENDATIONS` toggle still OFF; its gate (Phase B outcome writes) has since shipped, so the enable decision is due. Source: `decisions/2026-05-21-autoplay-recommendation-roadmap.md`.
-- **Autoplay Phase D (ML personalization)** — deferred by gate; prerequisites: outcome coverage >70%, `channelId` + time-bucket columns on `recommendations`. 21-day measurement window ended ~2026-07-22 — re-measure routing decision due. Source: `decisions/2026-06-24-autoplay-phase-c-baseline-defer-coherence-layer.md`, `decisions/2026-07-01-autoplay-deploy-first-21d-measurement-window.md`.
+- **Autoplay Phase D (ML personalization)** — coverage gate (>70%) now MET (75.6% window, 83.4% post-window; decided 2026-08-03). Eligible, not scheduled; remaining prerequisite: `channelId` + time-bucket columns on `recommendations` (schema ADR first). Source: `decisions/2026-08-03-autoplay-remeasure-gate-passed.md`.
+- **Skip-reason feedback UX redesign** — pipeline works but adoption is ~zero (2 rows lifetime). Needs redesign, not a fix; new separate decision. Source: `decisions/2026-08-03-autoplay-remeasure-gate-passed.md`.
 - **Mood clustering #1095** — on hold pending read-only spike (needs prod access). Source: `decisions/2026-06-14-autoplay-mood-clustering-1095-hold.md`.
 - **VC multi-user taste blend** — likely the surviving chunk of the stale taste-blend plan; needs re-triage. Source: `.claude/plans/autoplay-taste-blend.md` (2026-04-11, stale).
 - **Reaction-roles dashboard follow-ups** — delete Discord message on dashboard delete; edit existing reaction-role message. Source: `decisions/2026-06-22-reaction-roles-dashboard-create.md`.
