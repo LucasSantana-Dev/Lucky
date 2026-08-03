@@ -75,7 +75,7 @@ mindmap
 
 ## Decision gates by due date
 
-First three entries are overdue as of 2026-08-03. The autoplay gate (2026-07-22) was decided 2026-08-03: coverage gate passed — see `decisions/2026-08-03-autoplay-remeasure-gate-passed.md`.
+Overdue as of 2026-08-03: CSP enforce (06-25), Guild Automation (07-06), Lavalink (08-01). The autoplay gate (07-22) was decided 2026-08-03: coverage gate passed — see `decisions/2026-08-03-autoplay-remeasure-gate-passed.md`.
 
 ```mermaid
 timeline
@@ -149,7 +149,7 @@ Verified unshipped against the codebase on 2026-08-03.
 - **Role Groups v2** — exclusivity/pick-one groups, multi-message groups, bot slash command, select-menu UI, full IdempotencyKey state machine. Source: `.claude/plans/2026-06-23-role-groups-design.md`.
 - **Music UX polish** — U1–U6 (queue position in /nowplaying, vote-skip progress, /queue header, /history autoplay-reason, /songinfo audio features, seed feedback) + elapsed-time progress, `recommendationReason` threading, PlaybackControls loading states, SSE staleness indicator. (streamBridge fallback surfacing shipped in v2.39.0, #1920.) Source: `.claude/plans/music-feature-backlog.md`, `.claude/plans/2026-07-10-feature-mapping-research.md`.
 - **`/recommend` re-evaluation** — `MUSIC_RECOMMENDATIONS` toggle still OFF; its gate (Phase B outcome writes) has since shipped, so the enable decision is due. Source: `decisions/2026-05-21-autoplay-recommendation-roadmap.md`.
-- **Autoplay Phase D (ML personalization)** — coverage gate (>70%) now MET (75.6% window, 83.4% post-window; decided 2026-08-03). Eligible, not scheduled; remaining prerequisite: `channelId` + time-bucket columns on `recommendations` (schema ADR first). Source: `decisions/2026-08-03-autoplay-remeasure-gate-passed.md`.
+- **Autoplay Phase D (ML personalization)** — still DEFERRED. Coverage prerequisite met (75.6% window), but the 2026-06-24 gate's acceptance trigger (per-source <85%) did NOT fire: 0.926–0.970. The system does not need it. Source: `decisions/2026-08-03-autoplay-remeasure-gate-passed.md`.
 - **Skip-reason feedback UX redesign** — pipeline works but adoption is ~zero (2 rows lifetime). Needs redesign, not a fix; new separate decision. Source: `decisions/2026-08-03-autoplay-remeasure-gate-passed.md`.
 - **Mood clustering #1095** — on hold pending read-only spike (needs prod access). Source: `decisions/2026-06-14-autoplay-mood-clustering-1095-hold.md`.
 - **VC multi-user taste blend** — likely the surviving chunk of the stale taste-blend plan; needs re-triage. Source: `.claude/plans/autoplay-taste-blend.md` (2026-04-11, stale).
