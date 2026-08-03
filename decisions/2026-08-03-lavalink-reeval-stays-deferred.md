@@ -6,7 +6,7 @@
 
 ## Measurement (prod, run 2026-08-03; Loki `container_name="lucky-bot"` logs)
 
-Filter is the exact bridge failure message `"all stages exhausted"` — a bare `"exhausted"` match overcounts by 4 lines/60d (Spotify retry-exhaustion warnings). Retention note: prod Loki runs `enforce_retention_period: false`, so 60-day reads are valid today (the 30-day figure in the repo's Loki ADR is stale); re-verify retention before relying on >30-day windows in future.
+Filter is the exact bridge failure message `"all stages exhausted"` — within the same `container_name="lucky-bot"` stream, a bare `"exhausted"` match returns 43 lines/60d vs 39 with the precise filter (4 false positives: Spotify retry-exhaustion warnings). (The earlier draft of this ADR used the `service_name` label, which reads slightly lower — 35/1,021 — because `container_name` also catches pre-restart container logs; the decision is identical under either label.) Retention note: prod Loki runs `enforce_retention_period: false`, so 60-day reads are valid today (the 30-day figure in the repo's Loki ADR is stale); re-verify retention before relying on >30-day windows in future.
 
 | Gate condition (2026-06-18) | Threshold | Measured | Fired? |
 |---|---|---|---|
@@ -61,7 +61,7 @@ Age-gated videos:
 
 ## Revisit when
 
-- Exhaustion rate >5% over a rolling 30 days — exhaustions `[30d]` ÷ plays `[30d]` via the Reproduction queries.
+- Exhaustion rate >5% **sustained across two consecutive 30-day windows** — exhaustions `[30d]` ÷ plays `[30d]` via the Reproduction queries (a single marginal window like the 5.2% seen here, followed by 1.2%, does not fire this trigger).
 - A "not a bot" cluster appears (>10/week) → cookies-from-browser first, then bgutil po_token.
 - Play volume grows to where >3 concurrent VCs is plausible (roughly: sustained >50 plays/day) → re-check velocity headroom, and ship the concurrency counter first.
 - yt-dlp breaks faster than the weekly rebuild cadence → daily rebuild or Lavalink.
