@@ -74,15 +74,17 @@ mindmap
       Guild Automation executors + web Apply
 ```
 
-## Overdue time gates
+## Decision gates by due date
+
+First four entries are overdue as of 2026-08-03.
 
 ```mermaid
 timeline
     title Decision gates by due date
     2026-06-25 : CSP Report-Only to enforce flip overdue : style-src unsafe-inline re-check overdue
-    2026-07-06 : Guild Automation complete-vs-descope gate passed : 3 of 7 executors migrated, frozen
-    2026-07-22 : Autoplay 21-day measurement window ended : Phase D routing re-measure due
-    2026-08-01 : Lavalink and youtube-source re-evaluation due : hard deadline from reliability ADR
+    2026-07-06 : Guild Automation complete-vs-descope decision overdue : 3 of 7 executors migrated, frozen
+    2026-07-22 : Autoplay 21-day measurement window ended : Phase D routing re-measure overdue
+    2026-08-01 : Lavalink and youtube-source re-evaluation overdue : hard deadline from reliability ADR
     2026-09-11 : RAG re-read routing revisit
     2026-10 : Node 26 LTS expected : TS 7 toolchain gate follows
 ```
@@ -146,7 +148,7 @@ Verified unshipped against the codebase on 2026-08-03.
 - **Dyno-parity wave 2** — keyword highlights (DM watch), Forms (modal → submission channel), fun pack (8ball/coin/dice), member tags. Source: `.claude/plans/2026-07-03-dyno-loss-features.md`.
 - **Bulk ops phases 3–4** — bulk-ban/warn/assign-role/remove-role/lockdown/slowmode, then bulk-mute/purge-advanced/seed-reaction-roles/unban. Executor infra ~90% present. Source: `.claude/plans/2026-06-23-batch-commands-design.md`, `decisions/2026-06-23-batch-operations-bullmq.md`. Tracked partly by #1765.
 - **Role Groups v2** — exclusivity/pick-one groups, multi-message groups, bot slash command, select-menu UI, full IdempotencyKey state machine. Source: `.claude/plans/2026-06-23-role-groups-design.md`.
-- **Music UX polish** — U1–U6 (queue position in /nowplaying, vote-skip progress, /queue header, /history autoplay-reason, /songinfo audio features, seed feedback) + elapsed-time progress, streamBridge fallback surfacing, `recommendationReason` threading, PlaybackControls loading states, SSE staleness indicator. Source: `.claude/plans/music-feature-backlog.md`, `.claude/plans/2026-07-10-feature-mapping-research.md`.
+- **Music UX polish** — U1–U6 (queue position in /nowplaying, vote-skip progress, /queue header, /history autoplay-reason, /songinfo audio features, seed feedback) + elapsed-time progress, `recommendationReason` threading, PlaybackControls loading states, SSE staleness indicator. (streamBridge fallback surfacing shipped in v2.39.0, #1920.) Source: `.claude/plans/music-feature-backlog.md`, `.claude/plans/2026-07-10-feature-mapping-research.md`.
 - **`/recommend` re-evaluation** — `MUSIC_RECOMMENDATIONS` toggle still OFF; its gate (Phase B outcome writes) has since shipped, so the enable decision is due. Source: `decisions/2026-05-21-autoplay-recommendation-roadmap.md`.
 - **Autoplay Phase D (ML personalization)** — deferred by gate; prerequisites: outcome coverage >70%, `channelId` + time-bucket columns on `recommendations`. 21-day measurement window ended ~2026-07-22 — re-measure routing decision due. Source: `decisions/2026-06-24-autoplay-phase-c-baseline-defer-coherence-layer.md`, `decisions/2026-07-01-autoplay-deploy-first-21d-measurement-window.md`.
 - **Mood clustering #1095** — on hold pending read-only spike (needs prod access). Source: `decisions/2026-06-14-autoplay-mood-clustering-1095-hold.md`.
@@ -160,7 +162,7 @@ Verified unshipped against the codebase on 2026-08-03.
 
 - **Twitch EventSub Tier 2** — subscribe/gift/message, follow v2, cheer. **Blocked: needs broadcaster-scoped OAuth flow (new ADR + PR).** Source: `decisions/2026-06-22-twitch-eventsub-tier1-expansion.md`.
 - **Stripe premium tiers** — toggle placeholder + staged schema exist; deferred pending Phase 2 revenue validation. Note tension: README markets "no paywall, no premium tier." Source: `.claude/plans/backlog-2026-05-04.md` §J.
-- **Lavalink + youtube-source migration** — escalation gate (sustained >5% exhaustion, >3 concurrent VCs). **Hard re-evaluation deadline 2026-08-01 — due now.** Source: `decisions/2026-06-18-youtube-extraction-reliability.md`.
+- **Lavalink + youtube-source migration** — escalation gate (sustained >5% exhaustion, >3 concurrent VCs). **Hard re-evaluation deadline 2026-08-01 — overdue as of 2026-08-03.** Source: `decisions/2026-06-18-youtube-extraction-reliability.md`.
 - **YouTube po_token / cookies-from-browser** — data-gated escalation if a 403/velocity cluster appears. Source: same ADR.
 - **Top.gg completion** — submission checklist (support server, banner, webhook token) + ad campaign #1784. Source: `docs/TOP_GG_SUBMISSION.md`.
 - **BotBlock multi-directory sync** — growth Phase 2; dry-run on 2–3 directories first. Source: `decisions/2026-06-17-growth-channel-sequencing.md`.
