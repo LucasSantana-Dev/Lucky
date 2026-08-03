@@ -24,11 +24,14 @@ The critic found three holes in the naive "mirror externalScrobbler" plan:
 
 **A shared dead-session handler (`packages/bot/src/lastfm/deadSessionHandler.ts`) used by both scrobble paths:**
 
-1. On `isLastFmInvalidSessionError(err)` (proper error-9 detection, not substring `403`): check `lastFmLinkService.getByDiscordId(discordId)` FIRST.
-2. **No row → the failed key is the env key:** log a distinct config warning once per process (`env LASTFM_SESSION_KEY is invalid — check deployment config`); never unlink, never DM.
-3. **Row exists → unlink, one info log, and one DM** ("relink with `/lastfm link`") guarded by an in-memory `Set<discordId>`; DM failures (closed DMs) are swallowed — the unlink already happened.
-4. **`allowEnvFallback: false` in the player path** (`trackNowPlaying.ts` both call sites), matching `externalScrobbler.ts` — unlinked requesters no longer scrobble to the env account. This is an intentional behavior change: previously unlinked users' plays landed on the env key owner's Last.fm account.
-5. `externalScrobbler.handleInvalidLastFmSession` routes through the same handler (consistent UX; external path now also notifies).
+1. On `isLastFmInvalidSessionError(err)` (proper error-9 detection, not substring `403`): check `lastFmLinkService.getByDiscordId(discordId)` FIRST, passing the **failed session key** through from the caller.
+2. **Lookup throws → warn and bail** — a database error must not read as "no link" (which would false-report the env-key config problem).
+3. **No row → the failed key is the env key** (only when the caller actually used the env fallback): log a distinct config warning once per process; never unlink, never DM. On paths that never use the fallback, a missing row means a concurrent path already cleaned up.
+4. **Row key ≠ failed key → stale error 9** (user relinked between the failed call and cleanup): never unlink — the fresh key must survive.
+5. **Row key matches → unlink; only on `removed === true`** log the removal and DM. An unlink failure logs an error and does NOT consume the notification guard.
+6. **DM guarded per session key** (in-memory `Set<string>`), not per user and not by the unlink result: updateNowPlaying/scrobble races can't double-DM, and a relinked-then-expired session (new key) still notifies.
+7. **Env fallback in the player path is requester-scoped**: `allowEnvFallback: requesterId === undefined`. Requester-less autoplay/radio tracks keep scrobbling to the env account (original intent of the fallback); identified-but-unlinked requesters no longer do (that misattribution was latent and would have been activated by unlinking). `externalScrobbler` keeps `allowEnvFallback: false` throughout.
+8. `externalScrobbler.handleInvalidLastFmSession` routes through the same handler (consistent UX; external path now also notifies).
 
 ## Alternatives considered
 
@@ -40,7 +43,7 @@ The critic found three holes in the naive "mirror externalScrobbler" plan:
 ## Consequences
 
 **Positive:** spam stops at the first failure (~42 lines/day → 1 info line per dead link); users learn their scrobbling stopped and how to fix it; the env-key case gets a distinct config warning instead of DM-spamming an innocent user; scrobbles can no longer be silently attributed to the env account.
-**Negative:** unlinked requesters lose env-fallback scrobbling (intentional — see Decision §4); in-memory DM guard resets on restart (harmless: after unlink there are no more 403s).
+**Negative:** identified-but-unlinked requesters lose env-fallback scrobbling (intentional — see Decision §7); in-memory DM guard resets on restart (harmless: after unlink there are no more 403s).
 **Neutral:** `lastFmLinkService.unlink` semantics (P2025 = success) unchanged; the DM guard does not rely on them.
 
 ## Revisit when

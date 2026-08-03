@@ -77,11 +77,15 @@ let globalClient: Client | null = null
 
 async function handleInvalidLastFmSession(
     discordId: string,
+    sessionKey: string,
     error: unknown,
 ): Promise<boolean> {
     if (!isLastFmInvalidSessionError(error)) return false
 
-    await handleDeadLastFmSession(discordId, globalClient, 'externalScrobbler')
+    await handleDeadLastFmSession(discordId, sessionKey, globalClient, {
+        envFallbackUsed: false,
+        via: 'externalScrobbler',
+    })
     return true
 }
 
@@ -124,6 +128,7 @@ async function scrobblePreviousTrack(guildId: string): Promise<void> {
             } catch (err) {
                 const handledInvalidSession = await handleInvalidLastFmSession(
                     memberId,
+                    sessionKey,
                     err,
                 )
                 if (handledInvalidSession) continue
@@ -186,6 +191,7 @@ async function handleExternalNowPlaying(message: Message): Promise<void> {
         } catch (err) {
             const handledInvalidSession = await handleInvalidLastFmSession(
                 memberId,
+                sessionKey,
                 err,
             )
             if (handledInvalidSession) continue

@@ -1,50 +1,91 @@
 import type { Client } from 'discord.js'
-import { infoLog, warnLog } from '@lucky/shared/utils'
+import { infoLog, warnLog, errorLog } from '@lucky/shared/utils'
 import { lastFmLinkService } from '@lucky/shared/services'
 
-const notifiedUsers = new Set<string>()
+/** Guard keyed by session key: a relink produces a new key, which gets a new DM. */
+const notifiedSessionKeys = new Set<string>()
 let envKeyWarned = false
+
+interface DeadSessionOptions {
+    /** True when the failed key came from the env LASTFM_SESSION_KEY fallback. */
+    envFallbackUsed: boolean
+    /** Scrobble path label for logs (e.g. 'scrobble', 'externalScrobbler'). */
+    via: string
+}
+
+function warnEnvKeyOnce(via: string): void {
+    if (envKeyWarned) return
+    envKeyWarned = true
+    warnLog({
+        message:
+            'Last.fm env LASTFM_SESSION_KEY is invalid — check deployment config',
+        data: { via },
+    })
+}
 
 /**
  * Handles a Last.fm error-9 (invalid session key) from a scrobble path.
  *
- * Only unlinks + notifies when the dead key came from a `lastfm_links` row.
- * When no row exists the failed key is the env LASTFM_SESSION_KEY fallback:
- * there is nothing to unlink and nobody to DM, so it logs a distinct config
- * warning (once per process) and returns.
+ * Guards, in order:
+ *  1. lookup failure → warn and bail (a DB error must not read as "env key")
+ *  2. no row → env key if envFallbackUsed, else a concurrent path already
+ *     unlinked; nothing to do
+ *  3. row.sessionKey !== failedSessionKey → the failure is stale (user
+ *     relinked since); never unlink the fresh key
+ *  4. unlink failure → error log; the DM guard is NOT consumed so a later
+ *     failure can still notify
  *
- * The DM is guarded by an in-memory set rather than the unlink result —
- * unlink() returns true even when the row was already gone (P2025), which
- * would double-DM when updateNowPlaying and scrobble race for one track.
+ * The DM is guarded per session key, not per user and not by the unlink
+ * result (P2025 = true), so updateNowPlaying/scrobble races cannot double-DM
+ * and a relinked-then-expired session still notifies.
  */
 export async function handleDeadLastFmSession(
     discordId: string | undefined,
+    failedSessionKey: string,
     client: Client | null,
-    via: string,
+    options: DeadSessionOptions,
 ): Promise<void> {
-    if (!discordId) return
+    const { envFallbackUsed, via } = options
 
-    const row = await lastFmLinkService.getByDiscordId(discordId)
-    if (!row) {
-        if (!envKeyWarned) {
-            envKeyWarned = true
-            warnLog({
-                message:
-                    'Last.fm env LASTFM_SESSION_KEY is invalid — check deployment config',
-                data: { via },
-            })
-        }
+    if (!discordId) {
+        if (envFallbackUsed) warnEnvKeyOnce(via)
         return
     }
 
-    await lastFmLinkService.unlink(discordId)
+    let row: Awaited<ReturnType<typeof lastFmLinkService.getByDiscordId>>
+    try {
+        row = await lastFmLinkService.getByDiscordId(discordId)
+    } catch (error) {
+        warnLog({
+            message: 'Last.fm dead-session lookup failed — skipping cleanup',
+            data: { discordId, via, error: String(error) },
+        })
+        return
+    }
+
+    if (!row) {
+        if (envFallbackUsed) warnEnvKeyOnce(via)
+        return
+    }
+
+    if (row.sessionKey !== failedSessionKey) return
+
+    const removed = await lastFmLinkService.unlink(discordId)
+    if (!removed) {
+        errorLog({
+            message: 'Failed to remove invalid Last.fm session',
+            data: { discordId, via },
+        })
+        return
+    }
+
     infoLog({
         message: 'Removed invalid Last.fm session',
         data: { discordId, via },
     })
 
-    if (notifiedUsers.has(discordId)) return
-    notifiedUsers.add(discordId)
+    if (notifiedSessionKeys.has(failedSessionKey)) return
+    notifiedSessionKeys.add(failedSessionKey)
     try {
         const user = await client?.users.fetch(discordId)
         await user?.send(
@@ -57,6 +98,6 @@ export async function handleDeadLastFmSession(
 
 /** Test-only: reset the per-process DM/env-warn guards. */
 export function resetDeadSessionGuards(): void {
-    notifiedUsers.clear()
+    notifiedSessionKeys.clear()
     envKeyWarned = false
 }

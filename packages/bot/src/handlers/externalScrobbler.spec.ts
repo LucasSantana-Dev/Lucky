@@ -221,8 +221,9 @@ describe('externalScrobbler', () => {
 
         expect(handleDeadLastFmSessionMock).toHaveBeenCalledWith(
             'user-1',
+            'session-1',
             expect.anything(),
-            'externalScrobbler',
+            { envFallbackUsed: false, via: 'externalScrobbler' },
         )
         expect(errorLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({
@@ -255,8 +256,9 @@ describe('externalScrobbler', () => {
 
         expect(handleDeadLastFmSessionMock).toHaveBeenCalledWith(
             'user-1',
+            'session-1',
             expect.anything(),
-            'externalScrobbler',
+            { envFallbackUsed: false, via: 'externalScrobbler' },
         )
         expect(errorLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({ message: 'External scrobble failed' }),

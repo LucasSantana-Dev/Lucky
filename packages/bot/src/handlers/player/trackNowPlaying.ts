@@ -397,11 +397,11 @@ export async function updateLastFmNowPlaying(
 ): Promise<void> {
     if (!isLastFmConfigured()) return
     const requesterId = getLastFmRequesterId(queue, track)
-    // No env fallback: unlinked requesters must not scrobble to the env
-    // account (matches externalScrobbler). See
-    // decisions/2026-08-03-lastfm-dead-session-handling.md
+    // Env fallback only for requester-less (autoplay/radio) tracks — an
+    // identified-but-unlinked requester must not scrobble to the env
+    // account. See decisions/2026-08-03-lastfm-dead-session-handling.md
     const sessionKey = await getSessionKeyForUser(requesterId, {
-        allowEnvFallback: false,
+        allowEnvFallback: requesterId === undefined,
     })
     if (!sessionKey) return
     const durationSec =
@@ -430,8 +430,12 @@ export async function updateLastFmNowPlaying(
         if (isLastFmInvalidSessionError(err)) {
             await handleDeadLastFmSession(
                 requesterId,
+                sessionKey,
                 queue.player.client,
-                'updateNowPlaying',
+                {
+                    envFallbackUsed: requesterId === undefined,
+                    via: 'updateNowPlaying',
+                },
             )
         } else {
             errorLog({ message: 'Last.fm updateNowPlaying failed', error: err })
@@ -447,7 +451,7 @@ export async function scrobbleCurrentTrackIfLastFm(
     if (!trackToScrobble || !isLastFmConfigured()) return
     const requesterId = getLastFmRequesterId(queue, trackToScrobble)
     const sessionKey = await getSessionKeyForUser(requesterId, {
-        allowEnvFallback: false,
+        allowEnvFallback: requesterId === undefined,
     })
     if (!sessionKey) return
     const startedAt = trackNowPlayingState.getLastFmTrackStartTime(
@@ -485,8 +489,12 @@ export async function scrobbleCurrentTrackIfLastFm(
         if (isLastFmInvalidSessionError(err)) {
             await handleDeadLastFmSession(
                 requesterId,
+                sessionKey,
                 queue.player.client,
-                'scrobble',
+                {
+                    envFallbackUsed: requesterId === undefined,
+                    via: 'scrobble',
+                },
             )
         } else {
             errorLog({ message: 'Last.fm scrobble failed', error: err })
