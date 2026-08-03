@@ -8,10 +8,11 @@ _Sources: 25 open GitHub issues + full sweep of `decisions/` and `.claude/plans/
 ```mermaid
 mindmap
   root((Lucky Roadmap))
-    Overdue gates
-      CSP enforce flip — due 2026-06-25
-      Guild Automation complete-vs-descope — due 2026-07-06
-      Lavalink re-evaluation — due 2026-08-01
+    Gates — all decided 2026-08-03
+      CSP enforce — already shipped #1482
+      Guild Automation — remove, 3 phases
+      Autoplay re-measure — passed
+      Lavalink — stays deferred
     Open issues — 25
       Features
         1777 mod-log Dyno parity
@@ -57,7 +58,7 @@ mindmap
     Future integrations
       Twitch EventSub tier 2 — blocked on OAuth flow
       Stripe premium — deferred on revenue validation
-      Lavalink migration — gate fired, re-evaluate
+      Lavalink — evaluated 2026-08-03, stays deferred
       BotBlock directories — growth phase 2
       Discord App Directory — threshold gated
       Top.gg submission checklist + ads
@@ -70,20 +71,20 @@ mindmap
       Mutation gate tiers 1-4
       Node 26 and TS 7 — gated
       Redis removal — gated
-      Guild Automation executors + web Apply
+      Guild Automation removal — 3 phases
 ```
 
 ## Decision gates by due date
 
-Overdue as of 2026-08-03: CSP enforce (06-25), Guild Automation (07-06), Lavalink (08-01). The autoplay gate (07-22) was decided 2026-08-03: coverage gate passed — see `decisions/2026-08-03-autoplay-remeasure-gate-passed.md`.
+All four overdue gates were resolved on 2026-08-03 — CSP: already shipped (#1482); Guild Automation: removal (`decisions/2026-08-03-guild-automation-remove.md`); autoplay: passed (`decisions/2026-08-03-autoplay-remeasure-gate-passed.md`); Lavalink: stays deferred (`decisions/2026-08-03-lavalink-reeval-stays-deferred.md`).
 
 ```mermaid
 timeline
     title Decision gates by due date
-    2026-06-25 : CSP Report-Only to enforce flip overdue : style-src unsafe-inline re-check overdue
-    2026-07-06 : Guild Automation complete-vs-descope decision overdue : 3 of 7 executors migrated, frozen
-    2026-07-22 : Autoplay re-measure DECIDED 2026-08-03 : coverage 75.6 percent, gate passed
-    2026-08-01 : Lavalink and youtube-source re-evaluation overdue : hard deadline from reliability ADR
+    2026-06-25 : CSP enforce — DECIDED 2026-08-03 : already shipped in #1482, residual is #1914 drift
+    2026-07-06 : Guild Automation — DECIDED 2026-08-03 : zero usage both paths, remove in 3 phases
+    2026-07-22 : Autoplay re-measure — DECIDED 2026-08-03 : coverage 75.6 percent, gate passed
+    2026-08-01 : Lavalink re-evaluation — DECIDED 2026-08-03 : exhaustion 3.4 percent falling, stays deferred
     2026-09-11 : RAG re-read routing revisit
     2026-10 : Node 26 LTS expected : TS 7 toolchain gate follows
 ```
@@ -162,7 +163,7 @@ Verified unshipped against the codebase on 2026-08-03.
 
 - **Twitch EventSub Tier 2** — subscribe/gift/message, follow v2, cheer. **Blocked: needs broadcaster-scoped OAuth flow (new ADR + PR).** Source: `decisions/2026-06-22-twitch-eventsub-tier1-expansion.md`.
 - **Stripe premium tiers** — toggle placeholder + staged schema exist; deferred pending Phase 2 revenue validation. Note tension: README markets "no paywall, no premium tier." Source: `.claude/plans/backlog-2026-05-04.md` §J.
-- **Lavalink + youtube-source migration** — escalation gate (sustained >5% exhaustion, >3 concurrent VCs). **Hard re-evaluation deadline 2026-08-01 — overdue as of 2026-08-03.** Source: `decisions/2026-06-18-youtube-extraction-reliability.md`.
+- **Lavalink + youtube-source migration** — re-evaluated 2026-08-03: gate NOT fired (3.4% exhaustion, falling trend, no velocity cluster). Stays deferred with trigger-based revisit. Source: `decisions/2026-08-03-lavalink-reeval-stays-deferred.md`.
 - **YouTube po_token / cookies-from-browser** — data-gated escalation if a 403/velocity cluster appears. Source: same ADR.
 - **Top.gg completion** — submission checklist (support server, banner, webhook token) + ad campaign #1784. Source: `docs/TOP_GG_SUBMISSION.md`.
 - **BotBlock multi-directory sync** — growth Phase 2; dry-run on 2–3 directories first. Source: `decisions/2026-06-17-growth-channel-sequencing.md`.
@@ -193,14 +194,14 @@ Verified unshipped against the codebase on 2026-08-03.
 
 ### Security / testing
 
-- **CSP Report-Only → enforce** — flip due ~2026-06-25, overdue. Also #1914 (CSP defined in 3 places). Source: `.claude/plans/2026-06-11-security-headers-1283.md`.
+- **CSP consolidation (#1914)** — the enforce flip already shipped (#1482); residual work is the drift: policy defined in 3 places (backend helmet, nginx, vercel.json), plus the `style-src 'unsafe-inline'` drop re-check. Source: `.claude/plans/2026-06-11-security-headers-1283.md`.
 - **Vitest migration** — accepted, not executed (bot/shared/backend still Jest); Stryker runner swap included. Tracked by #1634. Source: `decisions/2026-06-27-standardize-test-runner-vitest.md`.
 - **Backend mutation-gate tiers 1–4** — pilot on `requestId.ts`, break 90→82, then expand; promotion to required check is a separate decision. Source: `decisions/2026-06-16-backend-mutation-gate-rollout.md`.
 - **#1378 ESLint typing tail** — 136 violations (86 non-null-assertion, 50 no-unsafe-*); 6-phase plan to warn→error. Source: `.claude/plans/2026-06-13-1378-typing-tail.md`.
 
 ### Platform / data
 
-- **Guild Automation: complete-vs-descope decision — OVERDUE (gate was 2026-07-06)** — frozen at 3/7 executors, ~3,500 LOC of frozen machinery carried. If completed: `DiscordWriteAdapter` build, 4 remaining executors, real web Apply (PRD #1059). Source: `decisions/2026-06-06-guild-automation-migration-freeze-and-instrument.md`, `decisions/2026-05-21-discord-write-adapter-port.md`.
+- **Guild Automation removal (decided 2026-08-03, execution pending)** — zero usage on both paths (2 runs ever, latest 2026-05-01). Remove in 3 phases: web+backend → bot+shared core → schema drop. ~4,900 LOC leaves the tree. Source: `decisions/2026-08-03-guild-automation-remove.md`.
 - **Staging lifecycle** — auto-stop after N idle days, fold staging bot in, Docker image prune policy, logrotate. Source: `decisions/2026-07-02-resource-hygiene-alert-calibration-first.md`, `decisions/2026-07-03-staging-test-bot.md`.
 - **Full Redis removal** — pub/sub → Postgres LISTEN/NOTIFY; separate gated decision. Source: `decisions/2026-05-31-redis-scope-reduction.md`.
 - **`channelId` + time-bucket on `recommendations`** — schema work in the Phase-D prerequisite path.
