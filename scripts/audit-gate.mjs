@@ -42,46 +42,6 @@ const TRANSITIVE = Symbol('transitive');
  * inherited by the acceptance.
  */
 const ACCEPTED = {
-    '@discordjs/node-pre-gyp': {
-        reason:
-            'No fixed version exists. Reached via @discordjs/opus, which is already at its ' +
-            'latest (0.10.0), and every published version (0.5.3 through 0.10.0) depends on ' +
-            "this package. npm's suggested remediation is @discordjs/opus@0.2.1, a downgrade " +
-            'to a 2021 release that swaps in unmaintained node-pre-gyp plus patch-package and ' +
-            "would break voice, the bot's core function.",
-        until: 'A @discordjs/opus release drops or replaces @discordjs/node-pre-gyp.',
-        advisories: TRANSITIVE,
-    },
-    // The four below are the same advisory as above, cascading down one chain:
-    // @discordjs/opus -> @discordjs/node-pre-gyp -> rimraf -> glob -> minimatch
-    // -> brace-expansion. They resolve together or not at all. Overrides do not
-    // help: forcing brace-expansion tree-wide was attempted three ways (range
-    // override, exact-version override, full lock regeneration) and npm keeps
-    // the old copies, because the intermediate minimatch versions request
-    // ^1.1.7 and ^2.0.2.
-    rimraf: {
-        reason: 'Transitive via @discordjs/node-pre-gyp.',
-        until: 'Same as @discordjs/node-pre-gyp.',
-        advisories: TRANSITIVE,
-    },
-    glob: {
-        reason: 'Transitive via rimraf.',
-        until: 'Same as @discordjs/node-pre-gyp.',
-        advisories: TRANSITIVE,
-    },
-    minimatch: {
-        reason: 'Transitive via glob.',
-        until: 'Same as @discordjs/node-pre-gyp.',
-        advisories: TRANSITIVE,
-    },
-    'brace-expansion': {
-        reason: 'Transitive via minimatch.',
-        until: 'Same as @discordjs/node-pre-gyp.',
-        advisories: {
-            1124334: 'GHSA-mh99-v99m-4gvg, DoS via unbounded expansion length',
-        },
-    },
-
     // TEMPORARY. Remove with the react-router v8 migration (#1878).
     'react-router': {
         reason:
