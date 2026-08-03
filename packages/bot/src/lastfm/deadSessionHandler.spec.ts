@@ -2,10 +2,9 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 const getByDiscordIdMock = jest.fn<(discordId: string) => Promise<unknown>>()
 const unlinkMock =
-    jest.fn<(discordId: string, sessionKey: string) => Promise<boolean>>()
+    jest.fn<(discordId: string, sessionKey: string) => Promise<string>>()
 const infoLogMock = jest.fn<(payload: unknown) => void>()
 const warnLogMock = jest.fn<(payload: unknown) => void>()
-const errorLogMock = jest.fn<(payload: unknown) => void>()
 
 jest.mock('@lucky/shared/services', () => ({
     lastFmLinkService: {
@@ -18,7 +17,6 @@ jest.mock('@lucky/shared/services', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: (payload: unknown) => infoLogMock(payload),
     warnLog: (payload: unknown) => warnLogMock(payload),
-    errorLog: (payload: unknown) => errorLogMock(payload),
 }))
 
 import {
@@ -42,10 +40,9 @@ const makeClient = (sendImpl?: () => Promise<unknown>) => {
 describe('handleDeadLastFmSession', () => {
     beforeEach(() => {
         getByDiscordIdMock.mockReset()
-        unlinkMock.mockReset().mockResolvedValue(true)
+        unlinkMock.mockReset().mockResolvedValue('removed')
         infoLogMock.mockReset()
         warnLogMock.mockReset()
-        errorLogMock.mockReset()
         resetDeadSessionGuards()
     })
 
@@ -153,21 +150,30 @@ describe('handleDeadLastFmSession', () => {
         expect(unlinkMock).not.toHaveBeenCalled()
     })
 
-    it('logs an error and does not DM when unlink fails', async () => {
+    it('stays silent and does not DM when the delete comes back stale (racing cleanup)', async () => {
         getByDiscordIdMock.mockResolvedValue({
             discordId: 'user-1',
             sessionKey: 'key-1',
         })
-        unlinkMock.mockResolvedValue(false)
+        unlinkMock.mockResolvedValue('stale')
         const { client, sendMock } = makeClient()
 
         await handleDeadLastFmSession('user-1', 'key-1', client, OPTS)
 
-        expect(errorLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'Failed to remove invalid Last.fm session',
-            }),
-        )
+        expect(infoLogMock).not.toHaveBeenCalled()
+        expect(sendMock).not.toHaveBeenCalled()
+    })
+
+    it('stays silent and does not DM when the delete errors (service logs it)', async () => {
+        getByDiscordIdMock.mockResolvedValue({
+            discordId: 'user-1',
+            sessionKey: 'key-1',
+        })
+        unlinkMock.mockResolvedValue('error')
+        const { client, sendMock } = makeClient()
+
+        await handleDeadLastFmSession('user-1', 'key-1', client, OPTS)
+
         expect(infoLogMock).not.toHaveBeenCalled()
         expect(sendMock).not.toHaveBeenCalled()
     })
@@ -177,7 +183,6 @@ describe('handleDeadLastFmSession', () => {
             discordId: 'user-1',
             sessionKey: 'key-1',
         })
-        unlinkMock.mockResolvedValue(true)
         const { client } = makeClient(() =>
             Promise.reject(new Error('Cannot send messages to this user')),
         )
@@ -193,8 +198,6 @@ describe('handleDeadLastFmSession', () => {
             discordId: 'user-1',
             sessionKey: 'key-1',
         })
-        unlinkMock.mockResolvedValue(true)
-
         await expect(
             handleDeadLastFmSession('user-1', 'key-1', null, OPTS),
         ).resolves.toBeUndefined()

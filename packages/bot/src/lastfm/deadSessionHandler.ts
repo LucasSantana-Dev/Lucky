@@ -1,6 +1,6 @@
 import type { Client } from 'discord.js'
 import { LRUCache } from 'lru-cache'
-import { infoLog, warnLog, errorLog } from '@lucky/shared/utils'
+import { infoLog, warnLog } from '@lucky/shared/utils'
 import { lastFmLinkService, type LastFmLinkRow } from '@lucky/shared/services'
 
 /**
@@ -78,15 +78,13 @@ export async function handleDeadLastFmSession(
     // Atomic conditional delete: closes the window between the read above
     // and the delete — a relink landing in between changes the key, so this
     // no-ops and the fresh link survives.
-    const removed = await lastFmLinkService.unlinkIfKeyMatches(
+    const result = await lastFmLinkService.unlinkIfKeyMatches(
         discordId,
         failedSessionKey,
     )
-    if (!removed) {
-        errorLog({
-            message: 'Failed to remove invalid Last.fm session',
-            data: { discordId, via },
-        })
+    if (result !== 'removed') {
+        // 'stale' = a racing path already cleaned up (expected no-op);
+        // 'error' = the service already logged the database failure.
         return
     }
 
@@ -96,12 +94,14 @@ export async function handleDeadLastFmSession(
     })
 
     if (notifiedSessionKeys.has(failedSessionKey)) return
-    notifiedSessionKeys.set(failedSessionKey, true)
     try {
         const user = await client?.users.fetch(discordId)
         await user?.send(
             'Your Last.fm session on Lucky expired, so scrobbling has stopped. Relink any time with `/lastfm link`.',
         )
+        // Record only after a successful send: a transient DM failure must
+        // not permanently consume the notification for this session key.
+        notifiedSessionKeys.set(failedSessionKey, true)
     } catch {
         // closed DMs or fetch failure — the unlink already happened
     }
