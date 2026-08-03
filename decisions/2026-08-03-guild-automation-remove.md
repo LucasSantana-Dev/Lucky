@@ -34,7 +34,7 @@ Not in this decision: the `CandidateAggregator` seam that was deferred until GA 
 
 **Positive:** ~4,900 hand-written LOC (~5.5% of the repo) of frozen machinery leaves the tree; no more parity/cutover entanglement; PRD #1059 closes as "removed for zero usage" rather than "deferred" forever; decommissioning unblocks the `CandidateAggregator` revisit.
 **Negative:** if a guild ever asks for template-apply, the answer is manual setup or a fresh, much smaller design — the code stays in git history.
-**Neutral:** the 2 historical runs and 2 manifests are disposable data; no user-visible behavior changes (web apply was already plan-only).
+**Neutral:** the 2 historical runs and 2 manifests are disposable data. Note the removal IS user-visible — the web automation page, its sidebar entry, and the bot `/guildconfig apply` command disappear — but telemetry shows zero active usage on every surface being removed, so the observed user impact is nil.
 
 ## Revisit when
 
