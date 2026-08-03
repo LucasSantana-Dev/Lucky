@@ -115,6 +115,38 @@ export class LastFmLinkService {
             return false
         }
     }
+
+    /**
+     * Removes a Last.fm link only if the stored session key still matches.
+     * Atomic conditional delete: a relink that lands between a caller's
+     * read and this delete changes the key, so the delete no-ops and the
+     * fresh link survives. Returns true only when a row was removed.
+     */
+    async unlinkIfKeyMatches(
+        discordId: string,
+        sessionKey: string,
+    ): Promise<boolean> {
+        try {
+            const prisma = getPrismaClient()
+            const { count } = await prisma.lastFmLink.deleteMany({
+                where: { discordId, sessionKey },
+            })
+            if (count > 0) {
+                debugLog({
+                    message: 'Last.fm link removed',
+                    data: { discordId },
+                })
+            }
+            return count > 0
+        } catch (error) {
+            errorLog({
+                message: 'Failed to unlink Last.fm',
+                error,
+                data: { discordId },
+            })
+            return false
+        }
+    }
 }
 
 /** Singleton instance of LastFmLinkService. */

@@ -1,9 +1,14 @@
 import type { Client } from 'discord.js'
+import { LRUCache } from 'lru-cache'
 import { infoLog, warnLog, errorLog } from '@lucky/shared/utils'
-import { lastFmLinkService } from '@lucky/shared/services'
+import { lastFmLinkService, type LastFmLinkRow } from '@lucky/shared/services'
 
-/** Guard keyed by session key: a relink produces a new key, which gets a new DM. */
-const notifiedSessionKeys = new Set<string>()
+/**
+ * DM-dedup guard keyed by session key: a relink produces a new key, which
+ * gets a new DM. Bounded so long-lived processes don't retain every expired
+ * key (credential-like values) forever.
+ */
+const notifiedSessionKeys = new LRUCache<string, true>({ max: 500 })
 let envKeyWarned = false
 
 interface DeadSessionOptions {
@@ -52,7 +57,7 @@ export async function handleDeadLastFmSession(
         return
     }
 
-    let row: Awaited<ReturnType<typeof lastFmLinkService.getByDiscordId>>
+    let row: LastFmLinkRow | null
     try {
         row = await lastFmLinkService.getByDiscordId(discordId)
     } catch (error) {
@@ -70,7 +75,13 @@ export async function handleDeadLastFmSession(
 
     if (row.sessionKey !== failedSessionKey) return
 
-    const removed = await lastFmLinkService.unlink(discordId)
+    // Atomic conditional delete: closes the window between the read above
+    // and the delete — a relink landing in between changes the key, so this
+    // no-ops and the fresh link survives.
+    const removed = await lastFmLinkService.unlinkIfKeyMatches(
+        discordId,
+        failedSessionKey,
+    )
     if (!removed) {
         errorLog({
             message: 'Failed to remove invalid Last.fm session',
@@ -85,7 +96,7 @@ export async function handleDeadLastFmSession(
     })
 
     if (notifiedSessionKeys.has(failedSessionKey)) return
-    notifiedSessionKeys.add(failedSessionKey)
+    notifiedSessionKeys.set(failedSessionKey, true)
     try {
         const user = await client?.users.fetch(discordId)
         await user?.send(

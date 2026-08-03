@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 const getByDiscordIdMock = jest.fn<(discordId: string) => Promise<unknown>>()
-const unlinkMock = jest.fn<(discordId: string) => Promise<boolean>>()
+const unlinkMock =
+    jest.fn<(discordId: string, sessionKey: string) => Promise<boolean>>()
 const infoLogMock = jest.fn<(payload: unknown) => void>()
 const warnLogMock = jest.fn<(payload: unknown) => void>()
 const errorLogMock = jest.fn<(payload: unknown) => void>()
@@ -9,7 +10,8 @@ const errorLogMock = jest.fn<(payload: unknown) => void>()
 jest.mock('@lucky/shared/services', () => ({
     lastFmLinkService: {
         getByDiscordId: (discordId: string) => getByDiscordIdMock(discordId),
-        unlink: (discordId: string) => unlinkMock(discordId),
+        unlinkIfKeyMatches: (discordId: string, sessionKey: string) =>
+            unlinkMock(discordId, sessionKey),
     },
 }))
 
@@ -142,6 +144,7 @@ describe('handleDeadLastFmSession', () => {
 
         await handleDeadLastFmSession('user-1', 'key-1', null, ENV_OPTS)
 
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
         expect(warnLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: expect.stringContaining('lookup failed'),
@@ -182,7 +185,7 @@ describe('handleDeadLastFmSession', () => {
         await expect(
             handleDeadLastFmSession('user-1', 'key-1', client, OPTS),
         ).resolves.toBeUndefined()
-        expect(unlinkMock).toHaveBeenCalledWith('user-1')
+        expect(unlinkMock).toHaveBeenCalledWith('user-1', 'key-1')
     })
 
     it('handles a null client without throwing', async () => {
@@ -195,6 +198,6 @@ describe('handleDeadLastFmSession', () => {
         await expect(
             handleDeadLastFmSession('user-1', 'key-1', null, OPTS),
         ).resolves.toBeUndefined()
-        expect(unlinkMock).toHaveBeenCalledWith('user-1')
+        expect(unlinkMock).toHaveBeenCalledWith('user-1', 'key-1')
     })
 })
