@@ -24,3 +24,4 @@ export {
     consumeLastFmSeedSlice,
     consumeBlendedSeedSlice,
 } from '../utils/music/autoplay/lastFmExports'
+export { handleDeadLastFmSession } from './deadSessionHandler'

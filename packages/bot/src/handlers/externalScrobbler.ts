@@ -6,12 +6,12 @@ import {
 } from 'discord.js'
 import { LRUCache } from 'lru-cache'
 import { infoLog, errorLog, debugLog } from '@lucky/shared/utils'
-import { lastFmLinkService } from '@lucky/shared/services'
 import {
     isLastFmConfigured,
     getSessionKeyForUser,
     getTrackMetadata,
     isLastFmInvalidSessionError,
+    handleDeadLastFmSession,
     updateNowPlaying,
     scrobble,
 } from '../lastfm'
@@ -77,26 +77,12 @@ let globalClient: Client | null = null
 
 async function handleInvalidLastFmSession(
     discordId: string,
-    username: string,
     error: unknown,
 ): Promise<boolean> {
     if (!isLastFmInvalidSessionError(error)) return false
 
-    const removed = await lastFmLinkService.unlink(discordId)
-    if (removed) {
-        infoLog({
-            message: `Removed invalid Last.fm session for ${username}`,
-            data: { discordId },
-        })
-        return true
-    }
-
-    errorLog({
-        message: 'Failed to remove invalid Last.fm session',
-        error,
-        data: { discordId },
-    })
-    return false
+    await handleDeadLastFmSession(discordId, globalClient, 'externalScrobbler')
+    return true
 }
 
 async function scrobblePreviousTrack(guildId: string): Promise<void> {
@@ -138,7 +124,6 @@ async function scrobblePreviousTrack(guildId: string): Promise<void> {
             } catch (err) {
                 const handledInvalidSession = await handleInvalidLastFmSession(
                     memberId,
-                    member.user.username,
                     err,
                 )
                 if (handledInvalidSession) continue
@@ -201,7 +186,6 @@ async function handleExternalNowPlaying(message: Message): Promise<void> {
         } catch (err) {
             const handledInvalidSession = await handleInvalidLastFmSession(
                 memberId,
-                member.user.username,
                 err,
             )
             if (handledInvalidSession) continue
