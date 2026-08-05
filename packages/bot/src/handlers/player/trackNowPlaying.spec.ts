@@ -38,6 +38,8 @@ jest.mock('../../lastfm', () => ({
     isLastFmConfigured: jest.fn(),
     getSessionKeyForUser: jest.fn(),
     getTrackMetadata: jest.fn(),
+    isLastFmInvalidSessionError: jest.fn(),
+    handleDeadLastFmSession: jest.fn(),
     updateNowPlaying: jest.fn(),
     scrobble: jest.fn(),
 }))

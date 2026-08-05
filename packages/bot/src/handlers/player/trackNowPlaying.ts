@@ -15,6 +15,8 @@ import {
     isLastFmConfigured,
     getSessionKeyForUser,
     getTrackMetadata,
+    isLastFmInvalidSessionError,
+    handleDeadLastFmSession,
     updateNowPlaying as lastFmUpdateNowPlaying,
     scrobble as lastFmScrobble,
 } from '../../lastfm'
@@ -395,7 +397,12 @@ export async function updateLastFmNowPlaying(
 ): Promise<void> {
     if (!isLastFmConfigured()) return
     const requesterId = getLastFmRequesterId(queue, track)
-    const sessionKey = await getSessionKeyForUser(requesterId)
+    // Env fallback only for requester-less (autoplay/radio) tracks — an
+    // identified-but-unlinked requester must not scrobble to the env
+    // account. See decisions/2026-08-03-lastfm-dead-session-handling.md
+    const sessionKey = await getSessionKeyForUser(requesterId, {
+        allowEnvFallback: requesterId === undefined,
+    })
     if (!sessionKey) return
     const durationSec =
         track.durationMS > 0 ? Math.round(track.durationMS / 1000) : undefined
@@ -420,13 +427,16 @@ export async function updateLastFmNowPlaying(
             Math.floor(Date.now() / 1000),
         )
     } catch (err) {
-        const is403 = err instanceof Error && err.message.includes('403')
-        if (is403) {
-            warnLog({
-                message:
-                    'Last.fm updateNowPlaying: session expired, re-auth needed',
-                error: err,
-            })
+        if (isLastFmInvalidSessionError(err)) {
+            await handleDeadLastFmSession(
+                requesterId,
+                sessionKey,
+                queue.player.client,
+                {
+                    envFallbackUsed: requesterId === undefined,
+                    via: 'updateNowPlaying',
+                },
+            )
         } else {
             errorLog({ message: 'Last.fm updateNowPlaying failed', error: err })
         }
@@ -440,7 +450,9 @@ export async function scrobbleCurrentTrackIfLastFm(
     const trackToScrobble = track ?? queue.currentTrack
     if (!trackToScrobble || !isLastFmConfigured()) return
     const requesterId = getLastFmRequesterId(queue, trackToScrobble)
-    const sessionKey = await getSessionKeyForUser(requesterId)
+    const sessionKey = await getSessionKeyForUser(requesterId, {
+        allowEnvFallback: requesterId === undefined,
+    })
     if (!sessionKey) return
     const startedAt = trackNowPlayingState.getLastFmTrackStartTime(
         queue.guild.id,
@@ -474,12 +486,16 @@ export async function scrobbleCurrentTrackIfLastFm(
             meta ?? undefined,
         )
     } catch (err) {
-        const is403 = err instanceof Error && err.message.includes('403')
-        if (is403) {
-            warnLog({
-                message: 'Last.fm scrobble: session expired, re-auth needed',
-                error: err,
-            })
+        if (isLastFmInvalidSessionError(err)) {
+            await handleDeadLastFmSession(
+                requesterId,
+                sessionKey,
+                queue.player.client,
+                {
+                    envFallbackUsed: requesterId === undefined,
+                    via: 'scrobble',
+                },
+            )
         } else {
             errorLog({ message: 'Last.fm scrobble failed', error: err })
         }
