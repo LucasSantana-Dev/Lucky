@@ -288,6 +288,49 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         expect(nodes.create).not.toHaveBeenCalled()
     })
 
+    // Mutation testing (PR #1950 follow-up): same gap as checkAndRecover's
+    // lock release, for the orphan-monitor side of the lock.
+    it('releases the orphan-recovery lock after completion so a later scan can run', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-recover-twice'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-active',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+        restoreSnapshotMock.mockResolvedValue({
+            restoredCount: 1,
+            sessionSnapshotId: 'snapshot-recover',
+        })
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const queue = {
+            setRepeatMode: jest.fn(),
+            connect: jest.fn().mockResolvedValue(undefined),
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(null),
+            create: jest.fn().mockReturnValue(queue),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        await service.scanOrphanSessions(player)
+        await service.scanOrphanSessions(player)
+
+        expect(restoreSnapshotMock).toHaveBeenCalledTimes(2)
+    })
+
     it('reuses existing queue during orphan recovery and avoids creating a new queue', async () => {
         listGuildIdsMock.mockResolvedValue(['guild-existing'])
         getSnapshotMock.mockResolvedValue({
@@ -563,6 +606,27 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
             'requeue_current',
         ])
         expect(play).toHaveBeenCalledTimes(1)
+    })
+
+    // Mutation testing (PR #1950 follow-up): the finally-block lock release
+    // had no coverage proving it actually runs — a stuck lock would
+    // permanently block recovery for that guild.
+    it('releases the recovery lock after completion so a later call can run', async () => {
+        const play = jest.fn().mockResolvedValue(undefined)
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const queue = {
+            guild: { id: 'guild-lock-release' },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, play },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        await service.checkAndRecover(queue)
+        const secondAction = await service.checkAndRecover(queue)
+
+        expect(secondAction).toBe('requeue_current')
+        expect(play).toHaveBeenCalledTimes(2)
     })
 })
 
