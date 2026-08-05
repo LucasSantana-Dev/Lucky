@@ -42,7 +42,9 @@ function warnEnvKeyOnce(via: string): void {
  *
  * The DM is guarded per session key, not per user and not by the unlink
  * result (P2025 = true), so updateNowPlaying/scrobble races cannot double-DM
- * and a relinked-then-expired session still notifies.
+ * and a relinked-then-expired session still notifies. Delivery itself is
+ * best-effort, at-most-once per session key: once unlinked, no later call
+ * can re-enter this function for that key to retry a failed send.
  */
 export async function handleDeadLastFmSession(
     discordId: string | undefined,
@@ -94,8 +96,10 @@ export async function handleDeadLastFmSession(
     })
 
     // Reserve synchronously so concurrent handlers for the same key cannot
-    // double-send; release the reservation if delivery fails so a transient
-    // error does not permanently suppress the notification.
+    // double-send. Releasing on delivery failure is a defensive no-op, not
+    // an active retry: the row is already gone by this point, so no later
+    // call for this session key can re-enter this function. Delivery here
+    // is best-effort, at-most-once, not guaranteed-once.
     if (notifiedSessionKeys.has(failedSessionKey)) return
     notifiedSessionKeys.set(failedSessionKey, true)
     try {
