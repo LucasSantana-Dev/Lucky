@@ -86,6 +86,36 @@ describe('setupLifecycleHandlers', () => {
         expect(watchdogArmMock).toHaveBeenCalledWith(queue)
     })
 
+    it('does NOT restore snapshot on connection when the guild is an intentional stop (post-kick /play)', async () => {
+        watchdogIsIntentionalStopMock.mockReturnValue(true)
+
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+
+        setupLifecycleHandlers(player)
+
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            metadata: { requestedBy: { id: 'user-1' } },
+            connection: {
+                state: { status: 'ready' },
+                joinConfig: {},
+            },
+        } as unknown as GuildQueue
+
+        await handlers.connection(queue)
+
+        // #1948: a stale pre-kick snapshot must not override the fresh /play.
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+        expect(watchdogArmMock).toHaveBeenCalledWith(queue)
+    })
+
     it('aborts the restore and continues with an empty queue when it exceeds the deadline', async () => {
         jest.useFakeTimers()
         let capturedSignal: AbortSignal | undefined

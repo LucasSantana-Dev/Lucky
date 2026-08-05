@@ -240,6 +240,54 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         )
     })
 
+    it('skips orphan recovery for a guild already being recovered by checkAndRecover (#1949)', async () => {
+        const guildId = 'guild-lock-cross'
+        const connection = { state: { status: 'ready' } }
+        // Never resolves, so checkAndRecover's recovery lock stays held for
+        // the duration of this test.
+        const play = jest.fn(() => new Promise(() => {}))
+        const queue = {
+            guild: { id: guildId },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection,
+            node: { isPlaying: () => false, play },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        const service = new MusicWatchdogService()
+        void service.checkAndRecover(queue) // fire-and-forget: holds the lock
+        await Promise.resolve()
+
+        listGuildIdsMock.mockResolvedValue([guildId])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now(),
+            voiceChannelId: 'vc-active',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(queue),
+            create: jest.fn(),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        await service.scanOrphanSessions(player)
+
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+        expect(nodes.create).not.toHaveBeenCalled()
+    })
+
     it('reuses existing queue during orphan recovery and avoids creating a new queue', async () => {
         listGuildIdsMock.mockResolvedValue(['guild-existing'])
         getSnapshotMock.mockResolvedValue({
@@ -490,6 +538,31 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
 
         expect(action).toBe('none')
         expect(play).not.toHaveBeenCalled()
+    })
+
+    // #1949: overlapping checkAndRecover calls for the same guild must not
+    // both drive playback recovery — that's what stacked the join/leave cycles.
+    it('does not run two checkAndRecover recoveries concurrently for the same guild', async () => {
+        const play = jest.fn().mockResolvedValue(undefined)
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const queue = {
+            guild: { id: 'guild-concurrent' },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, play },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        const [firstAction, secondAction] = await Promise.all([
+            service.checkAndRecover(queue),
+            service.checkAndRecover(queue),
+        ])
+
+        expect([firstAction, secondAction].sort()).toEqual([
+            'none',
+            'requeue_current',
+        ])
+        expect(play).toHaveBeenCalledTimes(1)
     })
 })
 
