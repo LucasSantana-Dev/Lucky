@@ -47,7 +47,10 @@ export const setupLifecycleHandlers = (player: {
             })
         }
 
-        if (ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED) {
+        if (
+            ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED &&
+            !musicWatchdogService.isIntentionalStop(queue.guild.id)
+        ) {
             const metadata = queue.metadata as QueueMetadata | undefined
             // Abort the restore if the deadline wins the race, so a slow restore
             // can't keep enqueueing tracks after we've moved on with an empty queue.
