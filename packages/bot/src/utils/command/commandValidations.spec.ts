@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals'
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import {
     GuildMemberRoleManager,
     PermissionFlagsBits,
@@ -44,6 +44,10 @@ function makeRoleManager(roleIds: string[]): GuildMemberRoleManager {
 }
 
 describe('requireDJRoleInGuild', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+    })
+
     it('rejects when the interaction has no guildId', async () => {
         const interaction = makeInteraction({ guildId: null })
 
