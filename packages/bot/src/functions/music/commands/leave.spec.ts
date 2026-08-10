@@ -30,7 +30,7 @@ jest.mock('../../../utils/music/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
-jest.mock('../../../utils/music/watchdog', () => ({
+jest.mock('../../../services/musicManagement/watchdog', () => ({
     musicWatchdogService: {
         markIntentionalStop: (...args: unknown[]) =>
             markIntentionalStopMock(...args),

@@ -17,7 +17,7 @@ const getSnapshotMock = jest.fn()
 const restoreSnapshotMock = jest.fn()
 const deleteSnapshotMock = jest.fn()
 
-jest.mock('./sessionSnapshots', () => ({
+jest.mock('../../utils/music/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
         listGuildIds: (...args: unknown[]) => listGuildIdsMock(...args),
         getSnapshot: (...args: unknown[]) => getSnapshotMock(...args),

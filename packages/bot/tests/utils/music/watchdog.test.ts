@@ -21,7 +21,7 @@ jest.mock('../../../src/utils/music/sessionSnapshots', () => ({
     },
 }))
 
-import { MusicWatchdogService } from '../../../src/utils/music/watchdog'
+import { MusicWatchdogService } from '../../../src/services/musicManagement/watchdog'
 
 function makeQueue(
     overrides: Partial<{

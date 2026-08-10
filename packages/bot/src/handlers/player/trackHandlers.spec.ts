@@ -65,7 +65,7 @@ jest.mock('../../utils/music/autoplayManager', () => ({
     resetAutoplayCount: (...args: unknown[]) => resetAutoplayCountMock(...args),
 }))
 
-jest.mock('../../utils/music/watchdog', () => ({
+jest.mock('../../services/musicManagement/watchdog', () => ({
     musicWatchdogService: {
         arm: (...args: unknown[]) => watchdogArmMock(...args),
         clear: (...args: unknown[]) => watchdogClearMock(...args),
@@ -591,8 +591,7 @@ describe('trackHandlers autoplay replenishment', () => {
 
     describe('autoplay outcome diagnostic log (#1275)', () => {
         const findEvalLog = ():
-            | { data?: Record<string, unknown> }
-            | undefined =>
+            { data?: Record<string, unknown> } | undefined =>
             infoLogMock.mock.calls.find(
                 (call) =>
                     (call[0] as { message?: string } | undefined)?.message ===

@@ -24,7 +24,7 @@ jest.mock('../../utils/music/sessionSnapshots', () => ({
     },
 }))
 
-jest.mock('../../utils/music/watchdog', () => ({
+jest.mock('../../services/musicManagement/watchdog', () => ({
     musicWatchdogService: {
         arm: (...args: unknown[]) => watchdogArmMock(...args),
         checkAndRecover: (...args: unknown[]) =>
