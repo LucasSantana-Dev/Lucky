@@ -565,6 +565,36 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
         expect(firstResult).toBe('requeue_current')
         expect(play).toHaveBeenCalledTimes(1)
     })
+
+    it('a stale recovery lock (hung play()) expires and does not block a later attempt (#1998)', async () => {
+        const guildId = 'guild-stale-lock'
+        const hungPlay = jest.fn(() => new Promise<void>(() => {}))
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const hungQueue = {
+            guild: { id: guildId },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, play: hungPlay },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        // Fire-and-forget: this attempt's play() never settles, simulating
+        // a hung recovery that would otherwise wedge the lock forever.
+        void service.checkAndRecover(hungQueue)
+
+        await jest.advanceTimersByTimeAsync(30_001)
+
+        const workingPlay = jest.fn().mockResolvedValue(undefined)
+        const recoveredQueue = {
+            ...hungQueue,
+            node: { isPlaying: () => false, play: workingPlay },
+        } as unknown as GuildQueue
+
+        const second = await service.checkAndRecover(recoveredQueue)
+
+        expect(second).toBe('requeue_current')
+        expect(workingPlay).toHaveBeenCalledTimes(1)
+    })
 })
 
 describe('MusicWatchdogService — startPeriodicScan', () => {

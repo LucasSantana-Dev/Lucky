@@ -36,7 +36,12 @@ export class MusicWatchdogService {
     private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
     private readonly states = new Map<string, WatchdogGuildState>()
     private readonly intentionalStops = new Set<string>()
-    private readonly recoveryInProgress = new Set<string>()
+    // Value is the acquisition timestamp, not just membership — an entry
+    // older than recoveryLockMaxMs is treated as stale (e.g. a hung
+    // queue.node.play()/restoreSnapshot() that never settles) so a single
+    // wedged recovery can't permanently block future recovery for a guild.
+    private readonly recoveryInProgress = new Map<string, number>()
+    private readonly recoveryLockMaxMs = 30_000
     private orphanMonitorInterval: ReturnType<typeof setInterval> | null = null
 
     constructor(options: MusicWatchdogOptions = {}) {
@@ -66,6 +71,16 @@ export class MusicWatchdogService {
         }
         this.states.set(guildId, created)
         return created
+    }
+
+    private isRecoveryInProgress(guildId: string): boolean {
+        const startedAt = this.recoveryInProgress.get(guildId)
+        if (startedAt === undefined) return false
+        if (Date.now() - startedAt > this.recoveryLockMaxMs) {
+            this.recoveryInProgress.delete(guildId)
+            return false
+        }
+        return true
     }
 
     private async waitForConnectionReady(
@@ -147,12 +162,12 @@ export class MusicWatchdogService {
             return 'none'
         }
 
-        if (this.recoveryInProgress.has(guildId)) {
+        if (this.isRecoveryInProgress(guildId)) {
             state.lastRecoveryAction = 'none'
             state.lastRecoveryDetail = 'recovery_already_in_progress'
             return 'none'
         }
-        this.recoveryInProgress.add(guildId)
+        this.recoveryInProgress.set(guildId, Date.now())
 
         let action: RecoveryAction = 'none'
         let detail = 'nothing_to_recover'
@@ -268,9 +283,9 @@ export class MusicWatchdogService {
         if (existingQueue?.node.isPlaying()) return
         if (this.intentionalStops.has(guildId)) return
         if (isReplenishSuppressed(guildId)) return
-        if (this.recoveryInProgress.has(guildId)) return
+        if (this.isRecoveryInProgress(guildId)) return
 
-        this.recoveryInProgress.add(guildId)
+        this.recoveryInProgress.set(guildId, Date.now())
         try {
             const snapshot =
                 await musicSessionSnapshotService.getSnapshot(guildId)
