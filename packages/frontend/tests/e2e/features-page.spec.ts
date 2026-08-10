@@ -175,8 +175,6 @@ test.describe('Features Page', () => {
                     body: JSON.stringify({
                         guildId: '111111111111111111',
                         toggles: {
-                            DOWNLOAD_VIDEO: true,
-                            DOWNLOAD_AUDIO: true,
                             MUSIC_RECOMMENDATIONS: true,
                             AUTOPLAY: true,
                             LYRICS: true,

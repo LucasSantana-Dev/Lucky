@@ -1,7 +1,7 @@
 /**
  * Command category type
  */
-export type CommandCategory = 'music' | 'download' | 'general'
+export type CommandCategory = 'music' | 'general'
 
 /**
  * Command categories configuration
@@ -37,12 +37,6 @@ export const COMMAND_CATEGORIES = {
             'session',
             'playlist',
         ],
-    },
-    download: {
-        key: 'download' as CommandCategory,
-        label: '⬇️ Download',
-        emoji: '⬇️',
-        prefixes: ['download'],
     },
     general: {
         key: 'general' as CommandCategory,

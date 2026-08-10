@@ -4,16 +4,6 @@ import type {
 } from '../types/featureToggle'
 
 const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
-    DOWNLOAD_VIDEO: {
-        name: 'DOWNLOAD_VIDEO',
-        enabled: true,
-        description: 'Enable video download functionality',
-    },
-    DOWNLOAD_AUDIO: {
-        name: 'DOWNLOAD_AUDIO',
-        enabled: true,
-        description: 'Enable audio download functionality',
-    },
     MUSIC_RECOMMENDATIONS: {
         name: 'MUSIC_RECOMMENDATIONS',
         enabled: true,
@@ -90,7 +80,8 @@ const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
     SPOTIFY_INTEGRATION: {
         name: 'SPOTIFY_INTEGRATION',
         enabled: false,
-        description: 'Enable Spotify account linking and personalized autoplay seeds',
+        description:
+            'Enable Spotify account linking and personalized autoplay seeds',
     },
     WELCOME_MESSAGES: {
         name: 'WELCOME_MESSAGES',
@@ -100,7 +91,8 @@ const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
     ARTIST_COMMAND: {
         name: 'ARTIST_COMMAND',
         enabled: true,
-        description: 'Enable /artist command to queue top tracks from an artist',
+        description:
+            'Enable /artist command to queue top tracks from an artist',
     },
     ALBUM_COMMAND: {
         name: 'ALBUM_COMMAND',
@@ -110,12 +102,14 @@ const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
     EMBED_BUILDER: {
         name: 'EMBED_BUILDER',
         enabled: true,
-        description: 'Enable /embed command for interactive embed template builder',
+        description:
+            'Enable /embed command for interactive embed template builder',
     },
     COLLABORATIVE_PLAYLIST: {
         name: 'COLLABORATIVE_PLAYLIST',
         enabled: true,
-        description: 'Enable collaborative queue mode (/playlist collaborative)',
+        description:
+            'Enable collaborative queue mode (/playlist collaborative)',
     },
     RSS_BRIDGE: {
         name: 'RSS_BRIDGE',

@@ -53,7 +53,7 @@ describe('useFeatures', () => {
             isLoading: false,
         }
         featuresState = {
-            globalToggles: { DOWNLOAD_VIDEO: true },
+            globalToggles: { AUTOPLAY: true },
             globalToggleProvider: 'database',
             globalTogglesWritable: false,
             isLoading: false,

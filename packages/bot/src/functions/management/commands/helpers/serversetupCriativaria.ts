@@ -552,11 +552,9 @@ async function applyGuildSettings(
         defaultVolume: 50,
         maxQueueSize: 150,
         autoPlayEnabled: true,
-        allowDownloads: true,
         allowPlaylists: true,
         allowSpotify: true,
         commandCooldown: 3,
-        downloadCooldown: 10,
     })
 
     result.applied.push('Configurações base da guilda aplicadas.')
