@@ -7,7 +7,7 @@ import {
     requireVoiceChannel,
     requireDJRole,
 } from '../../../utils/command/commandValidations'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { moveUserTrackToPriority } from '../../../services/musicManagement/queueManipulation'
 import {
     createErrorEmbed,

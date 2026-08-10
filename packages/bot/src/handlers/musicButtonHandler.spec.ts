@@ -29,7 +29,7 @@ jest.mock('../services/musicManagement/queueManipulation', () => ({
     shuffleQueue: jest.fn(),
 }))
 
-jest.mock('../utils/music/queueResolver', () => ({
+jest.mock('../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 

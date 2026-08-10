@@ -7,7 +7,7 @@ import {
     requireCurrentTrack,
     requireIsPlaying,
 } from '../../../utils/command/commandValidations'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import {
     createErrorEmbed,

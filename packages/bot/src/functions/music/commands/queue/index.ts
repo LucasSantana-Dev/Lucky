@@ -17,7 +17,7 @@ import {
     smartShuffleQueue,
     rescueQueue,
 } from '../../../../services/musicManagement/queueManipulation'
-import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../../services/musicManagement/queueResolver'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 
 type QueueAction = 'show' | 'smartshuffle' | 'rescue'

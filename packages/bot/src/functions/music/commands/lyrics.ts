@@ -1,12 +1,16 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { createErrorEmbed, musicEmbed, createWarningEmbed } from '../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    musicEmbed,
+    createWarningEmbed,
+} from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireCurrentTrack } from '../../../utils/command/commandValidations'
 import { featureToggleService, lyricsService } from '@lucky/shared/services'
 import { errorLog } from '@lucky/shared/utils'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -87,7 +91,14 @@ export default new Command({
             if ('error' in result) {
                 await interactionReply({
                     interaction,
-                    content: { embeds: [createErrorEmbed('Lyrics not found', result.message)] },
+                    content: {
+                        embeds: [
+                            createErrorEmbed(
+                                'Lyrics not found',
+                                result.message,
+                            ),
+                        ],
+                    },
                 })
                 return
             }
@@ -100,7 +111,10 @@ export default new Command({
                 text: `Source: ${result.source} • Page 1/${pages.length}`,
             })
 
-            await interactionReply({ interaction, content: { embeds: [firstEmbed] } })
+            await interactionReply({
+                interaction,
+                content: { embeds: [firstEmbed] },
+            })
 
             for (let i = 1; i < pages.length; i++) {
                 const pageEmbed = musicEmbed(

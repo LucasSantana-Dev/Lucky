@@ -11,7 +11,7 @@ import { collaborativePlaylistService } from '../../../../../services/musicRecom
 import { moveUserTrackToPriority } from '../../../../../services/musicManagement/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../../utils/music/nowPlayingEmbed'
 import { registerNowPlayingMessage } from '../../../../../handlers/player/trackNowPlaying'
-import { resolveGuildQueue } from '../../../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../../../services/musicManagement/queueResolver'
 import {
     isUnknownInteractionError,
     resolveSearchEngine,

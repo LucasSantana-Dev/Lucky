@@ -15,7 +15,7 @@ function createClient(): QueueStateClient {
     } as unknown as QueueStateClient
 }
 
-jest.mock('../../utils/music/queueResolver', () => ({
+jest.mock('../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
