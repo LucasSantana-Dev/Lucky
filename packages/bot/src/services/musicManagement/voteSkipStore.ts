@@ -6,7 +6,10 @@ export function addVote(guildId: string, userId: string): Set<string> {
     if (!activeVotes.has(guildId)) {
         activeVotes.set(guildId, new Set())
     }
-    const votes = assertDefined(activeVotes.get(guildId), 'Set present after .has() and .set() guards')
+    const votes = assertDefined(
+        activeVotes.get(guildId),
+        'Set present after .has() and .set() guards',
+    )
     votes.add(userId)
     return votes
 }

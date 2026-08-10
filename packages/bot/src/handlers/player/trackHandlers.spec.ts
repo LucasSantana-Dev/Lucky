@@ -80,7 +80,7 @@ jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
     },
 }))
 
-jest.mock('../../utils/music/replenishSuppressionStore', () => ({
+jest.mock('../../services/musicManagement/replenishSuppressionStore', () => ({
     isReplenishSuppressed: jest.fn(() => false),
     setReplenishSuppressed: jest.fn(),
 }))

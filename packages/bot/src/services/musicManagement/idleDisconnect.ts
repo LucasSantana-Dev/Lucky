@@ -1,8 +1,8 @@
 import type { GuildQueue } from 'discord-player'
 import { guildSettingsService } from '@lucky/shared/services'
 import { debugLog, errorLog } from '@lucky/shared/utils'
-import { musicWatchdogService } from '../../services/musicManagement/watchdog'
-import { collaborativePlaylistService } from '../../services/musicRecommendation/collaborativePlaylist'
+import { musicWatchdogService } from './watchdog'
+import { collaborativePlaylistService } from '../musicRecommendation/collaborativePlaylist'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
 const idleTimers = new Map<string, ReturnType<typeof setTimeout>>()

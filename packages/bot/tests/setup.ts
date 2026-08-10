@@ -101,7 +101,7 @@ async function clearAllCaches() {
 
     try {
         const { clearReplenishSuppressionCache } =
-            await import('../src/utils/music/replenishSuppressionStore')
+            await import('../src/services/musicManagement/replenishSuppressionStore')
         clearReplenishSuppressionCache()
     } catch {
         // May not be loaded
