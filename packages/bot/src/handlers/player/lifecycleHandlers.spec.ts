@@ -11,6 +11,7 @@ const watchdogClearMock = jest.fn()
 const watchdogMarkIntentionalStopMock = jest.fn()
 const watchdogIsIntentionalStopMock = jest.fn(() => false)
 const replenishQueueMock = jest.fn()
+const isReplenishSuppressedMock = jest.fn(() => false)
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
@@ -39,6 +40,11 @@ jest.mock('../../utils/music/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
 }))
 
+jest.mock('../../utils/music/replenishSuppressionStore', () => ({
+    isReplenishSuppressed: (...args: unknown[]) =>
+        isReplenishSuppressedMock(...args),
+}))
+
 import {
     setupLifecycleHandlers,
     setupVoiceKickDetection,
@@ -53,6 +59,7 @@ describe('setupLifecycleHandlers', () => {
         saveSnapshotMock.mockResolvedValue(null)
         watchdogCheckRecoverMock.mockResolvedValue('none')
         watchdogIsIntentionalStopMock.mockReturnValue(false)
+        isReplenishSuppressedMock.mockReturnValue(false)
     })
 
     it('restores snapshot and arms watchdog on connection', async () => {
@@ -83,6 +90,36 @@ describe('setupLifecycleHandlers', () => {
             expect.objectContaining({ id: 'user-1' }),
             expect.objectContaining({ signal: expect.anything() }),
         )
+        expect(watchdogArmMock).toHaveBeenCalledWith(queue)
+    })
+
+    it('skips snapshot restore on connection when disconnect was intentional (#1948)', async () => {
+        watchdogIsIntentionalStopMock.mockReturnValue(true)
+
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+
+        setupLifecycleHandlers(player)
+
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            metadata: { requestedBy: { id: 'user-1' } },
+            connection: {
+                state: { status: 'ready' },
+                joinConfig: {},
+            },
+        } as unknown as GuildQueue
+
+        await handlers.connection(queue)
+
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+        // A kick/leave reconnect should still arm the watchdog for the fresh session.
         expect(watchdogArmMock).toHaveBeenCalledWith(queue)
     })
 
@@ -220,6 +257,61 @@ describe('setupLifecycleHandlers', () => {
 
         expect(replenishQueueMock).toHaveBeenCalledWith(queue)
         expect(watchdogMarkIntentionalStopMock).not.toHaveBeenCalled()
+    })
+
+    it('does NOT replenish on emptyQueue when disconnect was intentional (e.g. mid-restore kick)', async () => {
+        watchdogIsIntentionalStopMock.mockReturnValue(true)
+
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+
+        setupLifecycleHandlers(player)
+
+        const track = { id: 'track-1', title: 'Test' }
+        const queue = {
+            guild: { id: 'guild-5', name: 'Guild 5' },
+            repeatMode: 3,
+            currentTrack: track,
+        } as unknown as GuildQueue
+
+        await handlers.emptyQueue(queue)
+
+        expect(replenishQueueMock).not.toHaveBeenCalled()
+        // Autoplay wanted to replenish, it was just suppressed — don't re-mark
+        // intentional stop on top of the existing suppression.
+        expect(watchdogMarkIntentionalStopMock).not.toHaveBeenCalled()
+    })
+
+    it('does NOT replenish on emptyQueue when /clear suppressed autoplay', async () => {
+        isReplenishSuppressedMock.mockReturnValue(true)
+
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+
+        setupLifecycleHandlers(player)
+
+        const track = { id: 'track-1', title: 'Test' }
+        const queue = {
+            guild: { id: 'guild-5', name: 'Guild 5' },
+            repeatMode: 3,
+            currentTrack: track,
+        } as unknown as GuildQueue
+
+        await handlers.emptyQueue(queue)
+
+        expect(replenishQueueMock).not.toHaveBeenCalled()
     })
 
     it('marks intentional stop on emptyQueue when autoplay is disabled', async () => {

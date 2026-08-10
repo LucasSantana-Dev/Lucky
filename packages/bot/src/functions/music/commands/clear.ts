@@ -1,5 +1,8 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
@@ -11,6 +14,12 @@ import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { setReplenishSuppressed } from '../../../utils/music/replenishSuppressionStore'
+
+// Same window queueExhaustion.ts uses when the queue runs dry with nothing
+// left to recover — keeps /clear from being silently undone by autoplay
+// refilling the queue the moment the current track ends.
+const CLEAR_REPLENISH_SUPPRESSION_MS = 35_000
 
 async function handleEmptyQueue(
     interaction: ChatInputCommandInteraction,
@@ -19,7 +28,10 @@ async function handleEmptyQueue(
         interaction,
         content: {
             embeds: [
-                createErrorEmbed('Empty queue', '🗑️ The queue is already empty!'),
+                createErrorEmbed(
+                    'Empty queue',
+                    '🗑️ The queue is already empty!',
+                ),
             ],
             ephemeral: true,
         },
@@ -33,6 +45,7 @@ async function clearQueueAndRespond(
     guildId: string,
 ): Promise<void> {
     queue.clear()
+    setReplenishSuppressed(guildId, CLEAR_REPLENISH_SUPPRESSION_MS)
 
     debugLog({
         message: `Cleared ${trackCount} tracks from queue in guild ${guildId}`,

@@ -15,6 +15,7 @@ const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
 const resolveGuildQueueMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
+const setReplenishSuppressedMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
@@ -32,6 +33,11 @@ jest.mock('../../../utils/general/embeds', () => ({
 
 jest.mock('../../../utils/music/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
+}))
+
+jest.mock('../../../utils/music/replenishSuppressionStore', () => ({
+    setReplenishSuppressed: (...args: unknown[]) =>
+        setReplenishSuppressedMock(...args),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -115,6 +121,33 @@ describe('clear command', () => {
         } as any)
 
         expect(queue.clear).toHaveBeenCalled()
+    })
+
+    it('suppresses autoplay replenish after clearing so it cannot silently refill the queue', async () => {
+        const queue = createQueue(5)
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await clearCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(),
+        } as any)
+
+        expect(setReplenishSuppressedMock).toHaveBeenCalledWith(
+            'guild-1',
+            expect.any(Number),
+        )
+    })
+
+    it('does not suppress replenish when queue was already empty', async () => {
+        const queue = createQueue(0)
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await clearCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(),
+        } as any)
+
+        expect(setReplenishSuppressedMock).not.toHaveBeenCalled()
     })
 
     it('responds with success message and count', async () => {

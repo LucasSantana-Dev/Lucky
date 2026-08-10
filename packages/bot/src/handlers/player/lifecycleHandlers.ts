@@ -6,6 +6,7 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../utils/music/watchdog'
 import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
 import { replenishQueue } from '../../utils/music/queueOperations'
+import { isReplenishSuppressed } from '../../utils/music/replenishSuppressionStore'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
 export const setupVoiceKickDetection = (client: Client): void => {
@@ -47,7 +48,10 @@ export const setupLifecycleHandlers = (player: {
             })
         }
 
-        if (ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED) {
+        if (
+            ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED &&
+            !musicWatchdogService.isIntentionalStop(queue.guild.id)
+        ) {
             const metadata = queue.metadata as QueueMetadata | undefined
             // Abort the restore if the deadline wins the race, so a slow restore
             // can't keep enqueueing tracks after we've moved on with an empty queue.
@@ -110,10 +114,15 @@ export const setupLifecycleHandlers = (player: {
 
     player.events.on('emptyQueue', async (queue: GuildQueue) => {
         const isAutoplayEnabled = queue.repeatMode === 3
-        if (isAutoplayEnabled && queue.currentTrack) {
+        const guildId = queue.guild.id
+        const wantsReplenish = isAutoplayEnabled && Boolean(queue.currentTrack)
+        const suppressed =
+            musicWatchdogService.isIntentionalStop(guildId) ||
+            isReplenishSuppressed(guildId)
+        if (wantsReplenish && !suppressed) {
             await replenishQueue(queue)
-        } else {
-            musicWatchdogService.markIntentionalStop(queue.guild.id)
+        } else if (!wantsReplenish) {
+            musicWatchdogService.markIntentionalStop(guildId)
         }
     })
 

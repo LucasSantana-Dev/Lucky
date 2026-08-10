@@ -40,11 +40,14 @@ export class MusicWatchdogService {
     private readonly states = new Map<string, WatchdogGuildState>()
     private readonly intentionalStops = new Set<string>()
     private orphanMonitorInterval: ReturnType<typeof setInterval> | null = null
+    // Prevents checkAndRecover (watchdog timer / disconnect event) and
+    // recoverOrphanSession (60s orphan monitor) from both driving reconnects
+    // for the same guild at once, which stacks join/leave cycles (#1949).
+    private readonly recoveryInFlight = new Set<string>()
 
     constructor(options: MusicWatchdogOptions = {}) {
         this.timeoutMs =
-            options.timeoutMs ??
-            parseIntEnv('MUSIC_WATCHDOG_TIMEOUT_MS', 25000)
+            options.timeoutMs ?? parseIntEnv('MUSIC_WATCHDOG_TIMEOUT_MS', 25000)
         this.recoveryWaitTimeoutMs =
             options.recoveryWaitTimeoutMs ??
             parseIntEnv('MUSIC_WATCHDOG_RECOVERY_WAIT_MS', 5000)
@@ -150,6 +153,13 @@ export class MusicWatchdogService {
             return 'none'
         }
 
+        if (this.recoveryInFlight.has(guildId)) {
+            state.lastRecoveryAction = 'none'
+            state.lastRecoveryDetail = 'recovery_already_in_flight'
+            return 'none'
+        }
+        this.recoveryInFlight.add(guildId)
+
         let action: RecoveryAction = 'none'
         let detail = 'nothing_to_recover'
         let didRejoin = false
@@ -207,6 +217,8 @@ export class MusicWatchdogService {
                 error,
                 data: { guildId },
             })
+        } finally {
+            this.recoveryInFlight.delete(guildId)
         }
 
         state.lastRecoveryAction = action
@@ -280,46 +292,54 @@ export class MusicWatchdogService {
         const membersInChannel = voiceChannel.members.filter((m) => !m.user.bot)
         if (membersInChannel.size === 0) return
 
-        infoLog({
-            message: 'Watchdog detected orphan session, attempting rejoin',
-            data: { guildId, voiceChannelId, snapshotAgeMs: ageMs },
-        })
+        if (this.recoveryInFlight.has(guildId)) return
+        this.recoveryInFlight.add(guildId)
 
-        const queue = existingQueue ?? player.nodes.create(guild)
-        if (!existingQueue) {
-            queue.setRepeatMode(3)
-            await queue.connect(voiceChannel)
-        }
+        try {
+            infoLog({
+                message: 'Watchdog detected orphan session, attempting rejoin',
+                data: { guildId, voiceChannelId, snapshotAgeMs: ageMs },
+            })
 
-        const restoreResult = await musicSessionSnapshotService.restoreSnapshot(
-            queue,
-            undefined,
-            { skipCurrentTrack: true },
-        )
-        if (!restoreResult || restoreResult.restoredCount <= 0) {
-            await musicSessionSnapshotService.deleteSnapshot(guildId)
+            const queue = existingQueue ?? player.nodes.create(guild)
+            if (!existingQueue) {
+                queue.setRepeatMode(3)
+                await queue.connect(voiceChannel)
+            }
+
+            const restoreResult =
+                await musicSessionSnapshotService.restoreSnapshot(
+                    queue,
+                    undefined,
+                    { skipCurrentTrack: true },
+                )
+            if (!restoreResult || restoreResult.restoredCount <= 0) {
+                await musicSessionSnapshotService.deleteSnapshot(guildId)
+
+                const state = this.ensureState(guildId)
+                state.lastRecoveryAction = 'failed'
+                state.lastRecoveryAt = Date.now()
+                state.lastRecoveryDetail = 'snapshot_restore_empty'
+
+                infoLog({
+                    message:
+                        'Watchdog orphan session restore produced no tracks; snapshot cleared',
+                    data: { guildId, voiceChannelId },
+                })
+                return
+            }
 
             const state = this.ensureState(guildId)
-            state.lastRecoveryAction = 'failed'
+            state.lastRecoveryAction = 'rejoin'
             state.lastRecoveryAt = Date.now()
-            state.lastRecoveryDetail = 'snapshot_restore_empty'
 
             infoLog({
-                message:
-                    'Watchdog orphan session restore produced no tracks; snapshot cleared',
-                data: { guildId, voiceChannelId },
+                message: 'Watchdog orphan session recovered',
+                data: { guildId },
             })
-            return
+        } finally {
+            this.recoveryInFlight.delete(guildId)
         }
-
-        const state = this.ensureState(guildId)
-        state.lastRecoveryAction = 'rejoin'
-        state.lastRecoveryAt = Date.now()
-
-        infoLog({
-            message: 'Watchdog orphan session recovered',
-            data: { guildId },
-        })
     }
 
     getGuildState(guildId: string): WatchdogGuildState {
