@@ -35,7 +35,6 @@ jest.mock('../../services/musicManagement/queueStateManager', () => ({
 
 // Import mocked modules
 import * as queueOps from '../../services/musicManagement/queueOperations'
-import * as queueStateMgr from '../../services/musicManagement/queueStateManager'
 import { trackHistoryService } from '@lucky/shared/services'
 
 const queueOpsMock = queueOps as unknown as Record<string, jest.Mock>
