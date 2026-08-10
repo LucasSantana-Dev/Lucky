@@ -595,6 +595,59 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
         expect(second).toBe('requeue_current')
         expect(workingPlay).toHaveBeenCalledTimes(1)
     })
+
+    it('a slow-but-legit recovery cannot clear a newer recovery lock (#1998)', async () => {
+        const guildId = 'guild-aba'
+        let resolveFirstPlay: () => void = () => {}
+        const firstPlay = jest.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveFirstPlay = resolve
+                }),
+        )
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const firstQueue = {
+            guild: { id: guildId },
+            currentTrack: { title: 'Song A', url: 'https://example.com/a' },
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, play: firstPlay },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        // Recovery A starts and stalls mid-flight — legitimately slow, not
+        // hung; it WILL settle eventually.
+        const firstRecovery = service.checkAndRecover(firstQueue)
+
+        // A's lock goes stale from the staleness check's perspective; a
+        // second recovery acquires a fresh lock for the same guild.
+        await jest.advanceTimersByTimeAsync(30_001)
+
+        let resolveSecondPlay: () => void = () => {}
+        const secondPlay = jest.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveSecondPlay = resolve
+                }),
+        )
+        const secondQueue = {
+            ...firstQueue,
+            node: { isPlaying: () => false, play: secondPlay },
+        } as unknown as GuildQueue
+        const secondRecovery = service.checkAndRecover(secondQueue)
+
+        // A finally settles late. Its release must not clear B's lock.
+        resolveFirstPlay()
+        await firstRecovery
+
+        const third = await service.checkAndRecover(firstQueue)
+        expect(third).toBe('none')
+        expect(service.getGuildState(guildId)).toMatchObject({
+            lastRecoveryDetail: 'recovery_already_in_progress',
+        })
+
+        resolveSecondPlay()
+        await secondRecovery
+    })
 })
 
 describe('MusicWatchdogService — startPeriodicScan', () => {

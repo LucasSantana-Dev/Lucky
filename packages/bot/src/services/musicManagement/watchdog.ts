@@ -167,7 +167,8 @@ export class MusicWatchdogService {
             state.lastRecoveryDetail = 'recovery_already_in_progress'
             return 'none'
         }
-        this.recoveryInProgress.set(guildId, Date.now())
+        const lockToken = Date.now()
+        this.recoveryInProgress.set(guildId, lockToken)
 
         let action: RecoveryAction = 'none'
         let detail = 'nothing_to_recover'
@@ -227,7 +228,11 @@ export class MusicWatchdogService {
                 data: { guildId },
             })
         } finally {
-            this.recoveryInProgress.delete(guildId)
+            // Only release if this call still owns the lock — a stale-lock
+            // expiry may have already let a newer recovery acquire it.
+            if (this.recoveryInProgress.get(guildId) === lockToken) {
+                this.recoveryInProgress.delete(guildId)
+            }
         }
 
         state.lastRecoveryAction = action
@@ -285,7 +290,8 @@ export class MusicWatchdogService {
         if (isReplenishSuppressed(guildId)) return
         if (this.isRecoveryInProgress(guildId)) return
 
-        this.recoveryInProgress.set(guildId, Date.now())
+        const lockToken = Date.now()
+        this.recoveryInProgress.set(guildId, lockToken)
         try {
             const snapshot =
                 await musicSessionSnapshotService.getSnapshot(guildId)
@@ -351,7 +357,9 @@ export class MusicWatchdogService {
                 data: { guildId },
             })
         } finally {
-            this.recoveryInProgress.delete(guildId)
+            if (this.recoveryInProgress.get(guildId) === lockToken) {
+                this.recoveryInProgress.delete(guildId)
+            }
         }
     }
 
