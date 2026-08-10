@@ -22,7 +22,7 @@ import { musicSessionSnapshotService } from '../../../services/musicRecommendati
 import {
     resolveGuildQueue,
     type QueueResolutionResult,
-} from '../../../utils/music/queueResolver'
+} from '../../../services/musicManagement/queueResolver'
 import { recommendationFeedbackService } from '../../../services/musicRecommendation/feedbackService'
 import type { GuildQueue } from 'discord-player'
 

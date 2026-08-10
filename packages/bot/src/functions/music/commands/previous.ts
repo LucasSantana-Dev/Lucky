@@ -19,7 +19,7 @@ import { clearSessionMoodCache } from '../../../services/musicRecommendation/aut
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
 async function handleNotPlaying(
     interaction: ChatInputCommandInteraction,

@@ -11,7 +11,7 @@ import {
     requireQueue,
 } from '../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../types/CommandData'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { musicWatchdogService } from '../../../services/musicManagement/watchdog'
 import { collaborativePlaylistService } from '../../../services/musicRecommendation/collaborativePlaylist'
 

@@ -1,8 +1,11 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
-import { interactionReply } from "../../../utils/general/interactionReply"
-import { createErrorEmbed, createSuccessEmbed } from "../../../utils/general/embeds"
-import type { CommandExecuteParams } from "../../../types/CommandData"
+import { interactionReply } from '../../../utils/general/interactionReply'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
+import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 import {
@@ -10,9 +13,9 @@ import {
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
-requireDJRole
-} from "../../../utils/command/commandValidations"
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+    requireDJRole,
+} from '../../../utils/command/commandValidations'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { assertDefined } from '@lucky/shared/utils/guards'
 
 /**
@@ -63,7 +66,10 @@ async function setVolume(
         interaction,
         content: {
             embeds: [
-                createSuccessEmbed('Volume changed', `🔊 Volume set to ${value}%`),
+                createSuccessEmbed(
+                    'Volume changed',
+                    `🔊 Volume set to ${value}%`,
+                ),
             ],
         },
     })
@@ -79,7 +85,16 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        if (!(await requireDJRole(interaction, assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')))) return
+        if (
+            !(await requireDJRole(
+                interaction,
+                assertDefined(
+                    interaction.guildId,
+                    'Guild ID required after requireGuild check',
+                ),
+            ))
+        )
+            return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return
@@ -101,7 +116,10 @@ export default new Command({
         }
 
         if (value === null) {
-            await showCurrentVolume(queue as { node: { volume: number } }, interaction)
+            await showCurrentVolume(
+                queue as { node: { volume: number } },
+                interaction,
+            )
         } else {
             if (queue) {
                 await setVolume(queue, value, interaction)

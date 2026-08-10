@@ -1,5 +1,8 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
@@ -10,7 +13,7 @@ import {
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
 async function handleEmptyQueue(
     interaction: ChatInputCommandInteraction,
@@ -19,7 +22,10 @@ async function handleEmptyQueue(
         interaction,
         content: {
             embeds: [
-                createErrorEmbed('Empty queue', '🗑️ The queue is already empty!'),
+                createErrorEmbed(
+                    'Empty queue',
+                    '🗑️ The queue is already empty!',
+                ),
             ],
             ephemeral: true,
         },

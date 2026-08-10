@@ -4,7 +4,7 @@ import { interactionReply } from '../../../utils/general/interactionReply'
 import { createErrorEmbed } from '../../../utils/general/embeds'
 import { errorLog } from '@lucky/shared/utils'
 import type { CommandExecuteParams } from '../../../types/CommandData'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import {
     handleSkipAutoplayTrack,
     handleClearAutoplayTracks,

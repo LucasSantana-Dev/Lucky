@@ -8,7 +8,7 @@ import {
     requireQueue,
     requireDJRole,
 } from '../../../utils/command/commandValidations'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { createSuccessEmbed } from '../../../utils/general/embeds'
 import { musicWatchdogService } from '../../../services/musicManagement/watchdog'
 import { musicSessionSnapshotService } from '../../../services/musicRecommendation/sessionSnapshots'

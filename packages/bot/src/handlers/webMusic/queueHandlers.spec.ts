@@ -22,7 +22,7 @@ jest.mock('./mappers', () => ({
     buildQueueState: (...args: unknown[]) => buildQueueStateMock(...args),
 }))
 
-jest.mock('../../utils/music/queueResolver', () => ({
+jest.mock('../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
@@ -103,9 +103,15 @@ describe('web music queueHandlers queue resolution', () => {
     for (const testCase of missCases) {
         it(`returns queue miss error in ${testCase.name}`, async () => {
             const client = createClient()
-            const result = await testCase.run(client, createCommand(testCase.data))
+            const result = await testCase.run(
+                client,
+                createCommand(testCase.data),
+            )
 
-            expect(resolveGuildQueueMock).toHaveBeenCalledWith(client, 'guild-1')
+            expect(resolveGuildQueueMock).toHaveBeenCalledWith(
+                client,
+                'guild-1',
+            )
             expect(result.success).toBe(false)
             expect(result.error).toBe(testCase.expectedError)
             expect(publishStateMock).not.toHaveBeenCalled()
@@ -129,10 +135,7 @@ describe('web music queueHandlers queue resolution', () => {
             },
         })
 
-        const result = await handleQueueClear(
-            createClient(),
-            createCommand({}),
-        )
+        const result = await handleQueueClear(createClient(), createCommand({}))
 
         expect(clear).toHaveBeenCalled()
         expect(buildQueueStateMock).toHaveBeenCalled()

@@ -25,7 +25,7 @@ jest.mock('../../../utils/general/embeds', () => ({
     createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
 }))
 
-jest.mock('../../../utils/music/queueResolver', () => ({
+jest.mock('../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 

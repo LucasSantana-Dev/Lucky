@@ -87,7 +87,7 @@ jest.mock('../../../../services/musicManagement/queueManipulation', () => ({
         blendAutoplayTracksMock(queue, track),
 }))
 
-jest.mock('../../../../utils/music/queueResolver', () => ({
+jest.mock('../../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (client: unknown, guildId: string) =>
         resolveGuildQueueMock(client, guildId),
 }))

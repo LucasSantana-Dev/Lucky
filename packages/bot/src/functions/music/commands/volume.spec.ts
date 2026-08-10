@@ -8,15 +8,22 @@ const requireCurrentTrackMock = jest.fn()
 const requireIsPlayingMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
-const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
-const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
+const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
+    title,
+    description: desc,
+}))
+const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
+    title,
+    description: desc,
+}))
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
-    requireCurrentTrack: (...args: unknown[]) => requireCurrentTrackMock(...args),
+    requireCurrentTrack: (...args: unknown[]) =>
+        requireCurrentTrackMock(...args),
     requireIsPlaying: (...args: unknown[]) => requireIsPlayingMock(...args),
-    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args)
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -28,7 +35,7 @@ jest.mock('../../../utils/general/embeds', () => ({
     createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
 }))
 
-jest.mock('../../../utils/music/queueResolver', () => ({
+jest.mock('../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
@@ -68,7 +75,10 @@ describe('volume command', () => {
         requireGuildMock.mockResolvedValue(false)
         resolveGuildQueueMock.mockReturnValue({ queue: createQueue() })
 
-        await volumeCommand.execute({ client: {} as any, interaction: makeInteraction() } as any)
+        await volumeCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(),
+        } as any)
 
         expect(interactionReplyMock).not.toHaveBeenCalled()
     })
@@ -77,7 +87,10 @@ describe('volume command', () => {
         requireQueueMock.mockResolvedValue(false)
         resolveGuildQueueMock.mockReturnValue({ queue: createQueue() })
 
-        await volumeCommand.execute({ client: {} as any, interaction: makeInteraction() } as any)
+        await volumeCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(),
+        } as any)
 
         expect(interactionReplyMock).not.toHaveBeenCalled()
     })
@@ -86,7 +99,10 @@ describe('volume command', () => {
         requireCurrentTrackMock.mockResolvedValue(false)
         resolveGuildQueueMock.mockReturnValue({ queue: createQueue() })
 
-        await volumeCommand.execute({ client: {} as any, interaction: makeInteraction() } as any)
+        await volumeCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(),
+        } as any)
 
         expect(interactionReplyMock).not.toHaveBeenCalled()
     })
@@ -95,9 +111,15 @@ describe('volume command', () => {
         const queue = createQueue(75)
         resolveGuildQueueMock.mockReturnValue({ queue })
 
-        await volumeCommand.execute({ client: {} as any, interaction: makeInteraction(null) } as any)
+        await volumeCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(null),
+        } as any)
 
-        expect(createSuccessEmbedMock).toHaveBeenCalledWith('Current volume', expect.stringContaining('75%'))
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+            'Current volume',
+            expect.stringContaining('75%'),
+        )
         expect(queue.node.setVolume).not.toHaveBeenCalled()
     })
 
@@ -105,17 +127,26 @@ describe('volume command', () => {
         const queue = createQueue(50)
         resolveGuildQueueMock.mockReturnValue({ queue })
 
-        await volumeCommand.execute({ client: {} as any, interaction: makeInteraction(80) } as any)
+        await volumeCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(80),
+        } as any)
 
         expect(queue.node.setVolume).toHaveBeenCalledWith(80)
-        expect(createSuccessEmbedMock).toHaveBeenCalledWith('Volume changed', expect.stringContaining('80%'))
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+            'Volume changed',
+            expect.stringContaining('80%'),
+        )
     })
 
     it('sets volume to maximum (200)', async () => {
         const queue = createQueue(50)
         resolveGuildQueueMock.mockReturnValue({ queue })
 
-        await volumeCommand.execute({ client: {} as any, interaction: makeInteraction(200) } as any)
+        await volumeCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(200),
+        } as any)
 
         expect(queue.node.setVolume).toHaveBeenCalledWith(200)
     })
@@ -124,9 +155,15 @@ describe('volume command', () => {
         const queue = createQueue(50)
         resolveGuildQueueMock.mockReturnValue({ queue })
 
-        await volumeCommand.execute({ client: {} as any, interaction: makeInteraction(201) } as any)
+        await volumeCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(201),
+        } as any)
 
-        expect(createErrorEmbedMock).toHaveBeenCalledWith('Error', expect.stringContaining('between 1 and 200'))
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
+            'Error',
+            expect.stringContaining('between 1 and 200'),
+        )
         expect(queue.node.setVolume).not.toHaveBeenCalled()
     })
 
@@ -134,8 +171,14 @@ describe('volume command', () => {
         const queue = createQueue(50)
         resolveGuildQueueMock.mockReturnValue({ queue })
 
-        await volumeCommand.execute({ client: {} as any, interaction: makeInteraction(0) } as any)
+        await volumeCommand.execute({
+            client: {} as any,
+            interaction: makeInteraction(0),
+        } as any)
 
-        expect(createErrorEmbedMock).toHaveBeenCalledWith('Error', expect.stringContaining('between 1 and 200'))
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
+            'Error',
+            expect.stringContaining('between 1 and 200'),
+        )
     })
 })

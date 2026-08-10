@@ -22,7 +22,7 @@ jest.mock('./mappers', () => ({
     repeatModeToEnum: jest.fn(() => 0),
 }))
 
-jest.mock('../../utils/music/queueResolver', () => ({
+jest.mock('../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
