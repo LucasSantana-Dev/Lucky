@@ -40,12 +40,13 @@ async function clearQueueAndRespond(
     guildId: string,
 ): Promise<void> {
     queue.clear()
-    // Suppress autoplay refill until well past when the still-playing
-    // current track can naturally end, so that end doesn't silently undo
-    // this /clear (#1957). A short window isn't enough — emptyQueue only
-    // fires once the current track finishes, which is typically minutes
-    // away, not seconds.
-    setReplenishSuppressed(guildId, 30 * 60 * 1_000)
+    // Suppress autoplay refill so the still-playing current track's natural
+    // end doesn't silently undo this /clear (#1957). The real lift happens
+    // when the next explicit (non-autoplay) track starts playing (see
+    // trackHandlers.ts's playerStart handler, #1998) — this duration is
+    // just a safety ceiling for the case nothing else ever plays, capped at
+    // the suppression store's own documented 1h TTL upper bound.
+    setReplenishSuppressed(guildId, 60 * 60 * 1_000)
 
     debugLog({
         message: `Cleared ${trackCount} tracks from queue in guild ${guildId}`,

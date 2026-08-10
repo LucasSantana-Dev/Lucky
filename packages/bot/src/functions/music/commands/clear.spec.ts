@@ -137,7 +137,7 @@ describe('clear command', () => {
 
         expect(setReplenishSuppressedMock).toHaveBeenCalledWith(
             'guild-1',
-            30 * 60 * 1_000,
+            60 * 60 * 1_000,
         )
     })
 

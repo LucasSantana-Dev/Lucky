@@ -22,7 +22,10 @@ import {
 import { clearVotes } from '../../services/musicManagement/voteSkipStore'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 import { normalizeTrackKey } from '../../services/musicRecommendation/autoplay/scoringUtils'
-import { isReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
+import {
+    isReplenishSuppressed,
+    setReplenishSuppressed,
+} from '../../services/musicManagement/replenishSuppressionStore'
 import { handleQueueExhaustion } from './queueExhaustion'
 import { recordRecommendationOutcome } from '../../services/musicRecommendation/recommendationTelemetry'
 
@@ -236,6 +239,13 @@ const handlePlayerStart = async (
             queue.node.setVolume(constants.VOLUME)
 
         const isAutoplay = isAutoplayTrack(track, client.user?.id)
+        if (!isAutoplay) {
+            // Explicit new content (e.g. /play) supersedes an earlier
+            // /clear's suppression window (#1998) — a suppressed guild only
+            // ever starts a non-autoplay track, so this can't clear the
+            // flag out from under a real autoplay pick.
+            setReplenishSuppressed(queue.guild.id, 0)
+        }
         const isAutoplayEnabled = queue.repeatMode === QueueRepeatMode.AUTOPLAY
         handleAutoplayCounter(queue, isAutoplay, isAutoplayEnabled)
         await handleQueueReplenishment(queue, track)
