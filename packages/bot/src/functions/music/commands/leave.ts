@@ -13,7 +13,7 @@ import {
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { musicWatchdogService } from '../../../services/musicManagement/watchdog'
-import { collaborativePlaylistService } from '../../../utils/music/collaborativePlaylist'
+import { collaborativePlaylistService } from '../../../services/musicRecommendation/collaborativePlaylist'
 
 export default new Command({
     data: new SlashCommandBuilder()

@@ -125,13 +125,19 @@ jest.mock('../../../../utils/general/embeds', () => ({
         createSuccessEmbedMock(title, message),
 }))
 
-jest.mock('../../../../utils/music/collaborativePlaylist', () => ({
-    collaborativePlaylistService: {
-        canAddTracks: () => canAddTracksMock(),
-        recordContribution: (guildId: string, userId: string, amount: number) =>
-            recordContributionMock(guildId, userId, amount),
-    },
-}))
+jest.mock(
+    '../../../../services/musicRecommendation/collaborativePlaylist',
+    () => ({
+        collaborativePlaylistService: {
+            canAddTracks: () => canAddTracksMock(),
+            recordContribution: (
+                guildId: string,
+                userId: string,
+                amount: number,
+            ) => recordContributionMock(guildId, userId, amount),
+        },
+    }),
+)
 
 jest.mock('../../../../utils/general/interactionReply', () => ({
     interactionReply: (payload: unknown) => interactionReplyMock(payload),
