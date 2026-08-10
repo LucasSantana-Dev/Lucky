@@ -44,7 +44,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-jest.mock('../../utils/music/queueOperations', () => ({
+jest.mock('../../services/musicManagement/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
 }))
 

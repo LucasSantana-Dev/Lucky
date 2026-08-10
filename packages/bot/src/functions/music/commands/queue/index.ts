@@ -16,7 +16,7 @@ import { interactionReply } from '../../../../utils/general/interactionReply'
 import {
     smartShuffleQueue,
     rescueQueue,
-} from '../../../../utils/music/queueManipulation'
+} from '../../../../services/musicManagement/queueManipulation'
 import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 
@@ -63,7 +63,9 @@ export default new Command({
             if (!queue) {
                 await interactionReply({
                     interaction,
-                    content: { embeds: [createErrorEmbed('Error', 'No queue found')] },
+                    content: {
+                        embeds: [createErrorEmbed('Error', 'No queue found')],
+                    },
                 })
                 return
             }

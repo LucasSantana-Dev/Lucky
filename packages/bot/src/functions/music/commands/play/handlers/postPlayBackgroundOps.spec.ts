@@ -21,7 +21,7 @@ jest.mock('./autoplayPreference', () => ({
     applyStoredAutoplayPreference: (q: unknown, id: string) =>
         applyStoredAutoplayPreference(q, id),
 }))
-jest.mock('../../../../../utils/music/queueManipulation', () => ({
+jest.mock('../../../../../services/musicManagement/queueManipulation', () => ({
     blendAutoplayTracks: (q: unknown, t: unknown) => blendAutoplayTracks(q, t),
 }))
 jest.mock(
