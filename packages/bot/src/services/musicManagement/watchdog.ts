@@ -4,6 +4,7 @@ import { ChannelType } from 'discord.js'
 import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
 import { parseIntEnv } from '@lucky/shared/utils/env'
 import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
+import { isReplenishSuppressed } from './replenishSuppressionStore'
 
 export type RecoveryAction =
     'none' | 'rejoin' | 'requeue_current' | 'play_next' | 'failed'
@@ -35,6 +36,12 @@ export class MusicWatchdogService {
     private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
     private readonly states = new Map<string, WatchdogGuildState>()
     private readonly intentionalStops = new Set<string>()
+    // Value is the acquisition timestamp, not just membership — an entry
+    // older than recoveryLockMaxMs is treated as stale (e.g. a hung
+    // queue.node.play()/restoreSnapshot() that never settles) so a single
+    // wedged recovery can't permanently block future recovery for a guild.
+    private readonly recoveryInProgress = new Map<string, number>()
+    private readonly recoveryLockMaxMs = 30_000
     private orphanMonitorInterval: ReturnType<typeof setInterval> | null = null
 
     constructor(options: MusicWatchdogOptions = {}) {
@@ -64,6 +71,16 @@ export class MusicWatchdogService {
         }
         this.states.set(guildId, created)
         return created
+    }
+
+    private isRecoveryInProgress(guildId: string): boolean {
+        const startedAt = this.recoveryInProgress.get(guildId)
+        if (startedAt === undefined) return false
+        if (Date.now() - startedAt > this.recoveryLockMaxMs) {
+            this.recoveryInProgress.delete(guildId)
+            return false
+        }
+        return true
     }
 
     private async waitForConnectionReady(
@@ -145,6 +162,14 @@ export class MusicWatchdogService {
             return 'none'
         }
 
+        if (this.isRecoveryInProgress(guildId)) {
+            state.lastRecoveryAction = 'none'
+            state.lastRecoveryDetail = 'recovery_already_in_progress'
+            return 'none'
+        }
+        const lockToken = Date.now()
+        this.recoveryInProgress.set(guildId, lockToken)
+
         let action: RecoveryAction = 'none'
         let detail = 'nothing_to_recover'
         let didRejoin = false
@@ -202,6 +227,12 @@ export class MusicWatchdogService {
                 error,
                 data: { guildId },
             })
+        } finally {
+            // Only release if this call still owns the lock — a stale-lock
+            // expiry may have already let a newer recovery acquire it.
+            if (this.recoveryInProgress.get(guildId) === lockToken) {
+                this.recoveryInProgress.delete(guildId)
+            }
         }
 
         state.lastRecoveryAction = action
@@ -255,66 +286,81 @@ export class MusicWatchdogService {
     ): Promise<void> {
         const existingQueue = player.nodes.get(guildId)
         if (existingQueue?.node.isPlaying()) return
+        if (this.intentionalStops.has(guildId)) return
+        if (isReplenishSuppressed(guildId)) return
+        if (this.isRecoveryInProgress(guildId)) return
 
-        const snapshot = await musicSessionSnapshotService.getSnapshot(guildId)
-        if (!snapshot) return
+        const lockToken = Date.now()
+        this.recoveryInProgress.set(guildId, lockToken)
+        try {
+            const snapshot =
+                await musicSessionSnapshotService.getSnapshot(guildId)
+            if (!snapshot) return
 
-        const ageMs = Date.now() - snapshot.savedAt
-        if (ageMs > SNAPSHOT_MAX_AGE_MS) return
+            const ageMs = Date.now() - snapshot.savedAt
+            if (ageMs > SNAPSHOT_MAX_AGE_MS) return
 
-        const guild = player.client.guilds.cache.get(guildId)
-        if (!guild) return
+            const guild = player.client.guilds.cache.get(guildId)
+            if (!guild) return
 
-        const voiceChannelId = snapshot.voiceChannelId
-        if (!voiceChannelId) return
+            const voiceChannelId = snapshot.voiceChannelId
+            if (!voiceChannelId) return
 
-        const channel = guild.channels.cache.get(voiceChannelId)
-        if (!channel || channel.type !== ChannelType.GuildVoice) return
+            const channel = guild.channels.cache.get(voiceChannelId)
+            if (!channel || channel.type !== ChannelType.GuildVoice) return
 
-        const voiceChannel = channel as VoiceChannel
-        const membersInChannel = voiceChannel.members.filter((m) => !m.user.bot)
-        if (membersInChannel.size === 0) return
-
-        infoLog({
-            message: 'Watchdog detected orphan session, attempting rejoin',
-            data: { guildId, voiceChannelId, snapshotAgeMs: ageMs },
-        })
-
-        const queue = existingQueue ?? player.nodes.create(guild)
-        if (!existingQueue) {
-            queue.setRepeatMode(3)
-            await queue.connect(voiceChannel)
-        }
-
-        const restoreResult = await musicSessionSnapshotService.restoreSnapshot(
-            queue,
-            undefined,
-            { skipCurrentTrack: true },
-        )
-        if (!restoreResult || restoreResult.restoredCount <= 0) {
-            await musicSessionSnapshotService.deleteSnapshot(guildId)
-
-            const state = this.ensureState(guildId)
-            state.lastRecoveryAction = 'failed'
-            state.lastRecoveryAt = Date.now()
-            state.lastRecoveryDetail = 'snapshot_restore_empty'
+            const voiceChannel = channel as VoiceChannel
+            const membersInChannel = voiceChannel.members.filter(
+                (m) => !m.user.bot,
+            )
+            if (membersInChannel.size === 0) return
 
             infoLog({
-                message:
-                    'Watchdog orphan session restore produced no tracks; snapshot cleared',
-                data: { guildId, voiceChannelId },
+                message: 'Watchdog detected orphan session, attempting rejoin',
+                data: { guildId, voiceChannelId, snapshotAgeMs: ageMs },
             })
-            return
+
+            const queue = existingQueue ?? player.nodes.create(guild)
+            if (!existingQueue) {
+                queue.setRepeatMode(3)
+                await queue.connect(voiceChannel)
+            }
+
+            const restoreResult =
+                await musicSessionSnapshotService.restoreSnapshot(
+                    queue,
+                    undefined,
+                    { skipCurrentTrack: true },
+                )
+            if (!restoreResult || restoreResult.restoredCount <= 0) {
+                await musicSessionSnapshotService.deleteSnapshot(guildId)
+
+                const state = this.ensureState(guildId)
+                state.lastRecoveryAction = 'failed'
+                state.lastRecoveryAt = Date.now()
+                state.lastRecoveryDetail = 'snapshot_restore_empty'
+
+                infoLog({
+                    message:
+                        'Watchdog orphan session restore produced no tracks; snapshot cleared',
+                    data: { guildId, voiceChannelId },
+                })
+                return
+            }
+
+            const state = this.ensureState(guildId)
+            state.lastRecoveryAction = 'rejoin'
+            state.lastRecoveryAt = Date.now()
+
+            infoLog({
+                message: 'Watchdog orphan session recovered',
+                data: { guildId },
+            })
+        } finally {
+            if (this.recoveryInProgress.get(guildId) === lockToken) {
+                this.recoveryInProgress.delete(guildId)
+            }
         }
-
-        const state = this.ensureState(guildId)
-        state.lastRecoveryAction = 'rejoin'
-        state.lastRecoveryAt = Date.now()
-
-        infoLog({
-            message: 'Watchdog orphan session recovered',
-            data: { guildId },
-        })
     }
 
     getGuildState(guildId: string): WatchdogGuildState {

@@ -28,6 +28,7 @@ const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const warnLogMock = jest.fn()
+const setReplenishSuppressedMock = jest.fn()
 const recordImplicitFeedbackMock = jest.fn()
 
 jest.mock('discord-player', () => ({
@@ -82,7 +83,8 @@ jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
 
 jest.mock('../../services/musicManagement/replenishSuppressionStore', () => ({
     isReplenishSuppressed: jest.fn(() => false),
-    setReplenishSuppressed: jest.fn(),
+    setReplenishSuppressed: (...args: unknown[]) =>
+        setReplenishSuppressedMock(...args),
 }))
 
 jest.mock('../../services/VoiceChannelStatusService', () => ({
@@ -286,6 +288,26 @@ describe('trackHandlers autoplay replenishment', () => {
             'testsong::testartist',
             'implicit_dislike',
         )
+    })
+
+    it('clears replenish suppression when an explicit track starts (#1998)', async () => {
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.OFF)
+        const track = createTrack('listener-1')
+
+        await handlers.playerStart(queue, track)
+
+        expect(setReplenishSuppressedMock).toHaveBeenCalledWith('guild-1', 0)
+    })
+
+    it('does NOT clear replenish suppression when an autoplay track starts (#1998)', async () => {
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const autoplayTrack = createAutoplayTrack('listener-1')
+
+        await handlers.playerStart(queue, autoplayTrack)
+
+        expect(setReplenishSuppressedMock).not.toHaveBeenCalled()
     })
 
     it('increments getRecentSkipCount on early skip and resets on track completion', async () => {

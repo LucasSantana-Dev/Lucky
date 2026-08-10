@@ -39,6 +39,7 @@ jest.mock('../../services/musicManagement/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
 }))
 
+import { setReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 import {
     setupLifecycleHandlers,
     setupVoiceKickDetection,
@@ -127,6 +128,33 @@ describe('setupLifecycleHandlers', () => {
         // Service stays armed despite the failed restore.
         expect(watchdogArmMock).toHaveBeenCalledWith(queue)
         jest.useRealTimers()
+    })
+
+    it('does NOT restore snapshot on connection when intentional stop is set (#1948)', async () => {
+        watchdogIsIntentionalStopMock.mockReturnValue(true)
+
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+
+        setupLifecycleHandlers(player)
+
+        const queue = {
+            guild: { id: 'guild-kicked', name: 'Guild Kicked' },
+            metadata: { requestedBy: { id: 'user-1' } },
+            connection: { state: { status: 'ready' }, joinConfig: {} },
+        } as unknown as GuildQueue
+
+        await handlers.connection(queue)
+
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+        // Watchdog still arms — this guard only skips the stale-session restore.
+        expect(watchdogArmMock).toHaveBeenCalledWith(queue)
     })
 
     it('saves snapshot and triggers recovery on disconnect', async () => {
@@ -244,6 +272,64 @@ describe('setupLifecycleHandlers', () => {
 
         expect(watchdogMarkIntentionalStopMock).toHaveBeenCalledWith('guild-5')
         expect(replenishQueueMock).not.toHaveBeenCalled()
+    })
+
+    it('does NOT replenish on emptyQueue when replenish is suppressed (#1957)', async () => {
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+
+        setupLifecycleHandlers(player)
+
+        const track = { id: 'track-1', title: 'Test' }
+        const queue = {
+            guild: { id: 'guild-cleared', name: 'Guild Cleared' },
+            repeatMode: 3,
+            currentTrack: track,
+        } as unknown as GuildQueue
+
+        setReplenishSuppressed('guild-cleared', 30_000)
+        try {
+            await handlers.emptyQueue(queue)
+        } finally {
+            setReplenishSuppressed('guild-cleared', 0)
+        }
+
+        expect(replenishQueueMock).not.toHaveBeenCalled()
+        // Suppressed (not "nothing to play") — must not force a full stop.
+        expect(watchdogMarkIntentionalStopMock).not.toHaveBeenCalled()
+    })
+
+    it('does NOT replenish on emptyQueue when intentional stop is set (#1957)', async () => {
+        watchdogIsIntentionalStopMock.mockReturnValue(true)
+
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+
+        setupLifecycleHandlers(player)
+
+        const track = { id: 'track-1', title: 'Test' }
+        const queue = {
+            guild: { id: 'guild-stopped-2', name: 'Guild Stopped' },
+            repeatMode: 3,
+            currentTrack: track,
+        } as unknown as GuildQueue
+
+        await handlers.emptyQueue(queue)
+
+        expect(replenishQueueMock).not.toHaveBeenCalled()
+        expect(watchdogMarkIntentionalStopMock).not.toHaveBeenCalled()
     })
 })
 
