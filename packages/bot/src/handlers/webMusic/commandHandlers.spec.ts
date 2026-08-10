@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { handlePause, handleStop, handleSkip, handlePrevious } from './commandHandlers'
+import {
+    handlePause,
+    handleStop,
+    handleSkip,
+    handlePrevious,
+} from './commandHandlers'
 
 const publishStateMock = jest.fn()
 const buildQueueStateMock = jest.fn()
@@ -21,7 +26,7 @@ jest.mock('../../utils/music/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
-jest.mock('../../utils/music/replenishSuppressionStore', () => ({
+jest.mock('../../services/musicManagement/replenishSuppressionStore', () => ({
     setReplenishSuppressed: (...args: unknown[]) =>
         setReplenishSuppressedMock(...args),
 }))
@@ -64,7 +69,10 @@ describe('handleStop', () => {
             { id: 'cmd-1', guildId: 'guild-1', data: {} } as any,
         )
 
-        expect(setReplenishSuppressedMock).toHaveBeenCalledWith('guild-1', 30_000)
+        expect(setReplenishSuppressedMock).toHaveBeenCalledWith(
+            'guild-1',
+            30_000,
+        )
     })
 
     it('returns failure when no queue', async () => {
@@ -185,7 +193,10 @@ describe('handlePrevious', () => {
         resolveGuildQueueMock.mockReturnValue({
             queue: {
                 currentTrack: { title: 'Track' },
-                history: { isEmpty: jest.fn().mockReturnValue(false), previous: previousAsync },
+                history: {
+                    isEmpty: jest.fn().mockReturnValue(false),
+                    previous: previousAsync,
+                },
             },
         })
 
@@ -207,7 +218,10 @@ describe('handlePrevious', () => {
         resolveGuildQueueMock.mockReturnValue({
             queue: {
                 currentTrack: { title: 'Track' },
-                history: { isEmpty: jest.fn().mockReturnValue(true), previous: jest.fn() },
+                history: {
+                    isEmpty: jest.fn().mockReturnValue(true),
+                    previous: jest.fn(),
+                },
                 node: { seek: seekAsync },
             },
         })
@@ -230,7 +244,10 @@ describe('handlePrevious', () => {
         resolveGuildQueueMock.mockReturnValue({
             queue: {
                 currentTrack: null,
-                history: { isEmpty: jest.fn().mockReturnValue(true), previous: jest.fn() },
+                history: {
+                    isEmpty: jest.fn().mockReturnValue(true),
+                    previous: jest.fn(),
+                },
                 node: { seek: seekAsync },
             },
         })

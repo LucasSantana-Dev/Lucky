@@ -6,7 +6,7 @@ import {
 } from '@lucky/shared/services'
 import { buildQueueState, repeatModeToEnum } from './mappers'
 import { resolveGuildQueue } from '../../utils/music/queueResolver'
-import { setReplenishSuppressed } from '../../utils/music/replenishSuppressionStore'
+import { setReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 
 type Result = MusicCommandResult
 

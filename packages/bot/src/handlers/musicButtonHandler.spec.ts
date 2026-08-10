@@ -37,7 +37,7 @@ jest.mock('@lucky/shared/services', () => ({
     levelService: { getLeaderboard: jest.fn() },
 }))
 
-jest.mock('../utils/music/replenishSuppressionStore', () => ({
+jest.mock('../services/musicManagement/replenishSuppressionStore', () => ({
     setReplenishSuppressed: jest.fn(),
 }))
 

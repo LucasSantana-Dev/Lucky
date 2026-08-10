@@ -1,4 +1,7 @@
-import { setReplenishSuppressed, isReplenishSuppressed } from './replenishSuppressionStore'
+import {
+    setReplenishSuppressed,
+    isReplenishSuppressed,
+} from './replenishSuppressionStore'
 
 describe('replenishSuppressionStore', () => {
     const guildId = 'test-guild-123'

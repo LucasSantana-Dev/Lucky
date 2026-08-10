@@ -19,7 +19,7 @@ import { resolveGuildQueue } from '../utils/music/queueResolver'
 import type { CustomClient } from '../types'
 import { buildListPageEmbed } from '../utils/general/responseEmbeds'
 import { levelService } from '@lucky/shared/services'
-import { setReplenishSuppressed } from '../utils/music/replenishSuppressionStore'
+import { setReplenishSuppressed } from '../services/musicManagement/replenishSuppressionStore'
 
 type NonNullQueue = GuildQueue
 
