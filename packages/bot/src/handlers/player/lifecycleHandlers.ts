@@ -6,6 +6,7 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
 import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
 import { replenishQueue } from '../../services/musicManagement/queueOperations'
+import { isReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
 export const setupVoiceKickDetection = (client: Client): void => {
@@ -47,7 +48,10 @@ export const setupLifecycleHandlers = (player: {
             })
         }
 
-        if (ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED) {
+        if (
+            ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED &&
+            !musicWatchdogService.isIntentionalStop(queue.guild.id)
+        ) {
             const metadata = queue.metadata as QueueMetadata | undefined
             // Abort the restore if the deadline wins the race, so a slow restore
             // can't keep enqueueing tracks after we've moved on with an empty queue.
@@ -110,11 +114,21 @@ export const setupLifecycleHandlers = (player: {
 
     player.events.on('emptyQueue', async (queue: GuildQueue) => {
         const isAutoplayEnabled = queue.repeatMode === 3
-        if (isAutoplayEnabled && queue.currentTrack) {
+        const guildId = queue.guild.id
+        if (
+            isAutoplayEnabled &&
+            queue.currentTrack &&
+            !musicWatchdogService.isIntentionalStop(guildId) &&
+            !isReplenishSuppressed(guildId)
+        ) {
             await replenishQueue(queue)
-        } else {
-            musicWatchdogService.markIntentionalStop(queue.guild.id)
+        } else if (!isAutoplayEnabled || !queue.currentTrack) {
+            musicWatchdogService.markIntentionalStop(guildId)
         }
+        // else: autoplay would apply but is suppressed/intentional-stop —
+        // leave the queue empty without forcing markIntentionalStop; the
+        // guarded playerFinish/playerSkip path (queueExhaustion.ts) already
+        // owns "nothing left to play" cleanup for that case.
     })
 
     player.events.on('disconnect', async (queue: GuildQueue) => {

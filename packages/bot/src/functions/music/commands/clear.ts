@@ -14,6 +14,7 @@ import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
+import { setReplenishSuppressed } from '../../../services/musicManagement/replenishSuppressionStore'
 
 async function handleEmptyQueue(
     interaction: ChatInputCommandInteraction,
@@ -39,6 +40,9 @@ async function clearQueueAndRespond(
     guildId: string,
 ): Promise<void> {
     queue.clear()
+    // Suppress autoplay refill for a while so the natural end of the
+    // current track doesn't silently undo this /clear (#1957).
+    setReplenishSuppressed(guildId, 35_000)
 
     debugLog({
         message: `Cleared ${trackCount} tracks from queue in guild ${guildId}`,

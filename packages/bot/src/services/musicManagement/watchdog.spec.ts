@@ -346,6 +346,24 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         ).resolves.toBeUndefined()
     })
 
+    it('scanOrphanSessions skips guild when intentional stop is set (#1949)', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-stopped'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-1',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        const nodes = { get: jest.fn().mockReturnValue(null) }
+        const player = { nodes } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        service.markIntentionalStop('guild-stopped')
+        await service.scanOrphanSessions(player)
+
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+    })
+
     it('scanOrphanSessions skips guild when channel type is not GuildVoice', async () => {
         listGuildIdsMock.mockResolvedValue(['guild-stage'])
         getSnapshotMock.mockResolvedValue({
@@ -490,6 +508,39 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
 
         expect(action).toBe('none')
         expect(play).not.toHaveBeenCalled()
+    })
+
+    it('a concurrent checkAndRecover call for the same guild is a no-op (#1949 lock)', async () => {
+        let resolvePlay: () => void = () => {}
+        const play = jest.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolvePlay = resolve
+                }),
+        )
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const queue = {
+            guild: { id: 'guild-concurrent' },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, play },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        const first = service.checkAndRecover(queue)
+        // First call is mid-flight (play() hasn't resolved yet) — a second
+        // call for the same guild must not also attempt recovery.
+        const second = await service.checkAndRecover(queue)
+
+        expect(second).toBe('none')
+        expect(service.getGuildState('guild-concurrent')).toMatchObject({
+            lastRecoveryDetail: 'recovery_already_in_progress',
+        })
+
+        resolvePlay()
+        const firstResult = await first
+        expect(firstResult).toBe('requeue_current')
+        expect(play).toHaveBeenCalledTimes(1)
     })
 })
 
