@@ -16,16 +16,16 @@ Issue templates guide you through the required information:
 ```bash
 git clone https://github.com/LucasSantana-Dev/Lucky.git
 cd Lucky
-pnpm install
-pnpm --filter @lucky/bot exec jest --testPathPatterns='your-area'
+npm install
+npm run test:bot -- --testPathPatterns='your-area'
 ```
 
 Per-package quick refs:
 
-- **Bot tests** — `pnpm --filter @lucky/bot exec jest`
-- **Backend tests** — `pnpm --filter @lucky/backend test`
-- **Frontend dev** — `pnpm --filter @lucky/frontend dev` (Vite)
-- **Frontend e2e** — `pnpm --filter @lucky/frontend test:e2e` (Playwright)
+- **Bot tests** — `npm run test:bot`
+- **Backend tests** — `npm run test:backend`
+- **Frontend dev** — `npm run dev:frontend` (Vite)
+- **Frontend e2e** — `npm run test:e2e` (Playwright)
 
 The active backlog lives at `.claude/plans/backlog-YYYY-MM-DD.md`; the most recent file is canonical. Feature specs are local-only (untracked) under `.claude/specs/YYYY-MM-DD-*/`. Decisions of record (ADRs) are tracked at the repo root under `decisions/`.
 
@@ -105,7 +105,7 @@ cubic is low-false-positive by design and does **not** flip PRs to `CHANGES_REQU
 ## Hard rules
 
 - Never `--admin`, `--no-verify`, `--no-gpg-sign`, or force-push to `main`.
-- Never delete `pnpm-lock.yaml` or per-package lockfiles to "fix" install issues.
+- Never delete `package-lock.json` or per-package lockfiles to "fix" install issues.
 - Never commit `.env`, `*.key`, or anything matched by GitGuardian's secret patterns.
 - Worktrees go under `/Volumes/External HD/Desenvolvimento/.worktrees/` if you're developing on the maintainer's machine; otherwise `~/.worktrees/lucky-*` is fine.
 
