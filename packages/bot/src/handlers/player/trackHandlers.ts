@@ -12,7 +12,7 @@ import {
     updateLastFmNowPlaying,
     scrobbleCurrentTrackIfLastFm,
 } from './trackNowPlaying'
-import { musicWatchdogService } from '../../utils/music/watchdog'
+import { musicWatchdogService } from '../../services/musicManagement/watchdog'
 import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
 import * as voiceStatus from '../../services/VoiceChannelStatusService'
 import {
@@ -94,7 +94,6 @@ function isRecommendationAutoplay(track: Track): boolean {
     const metadata = track.metadata as { isAutoplay?: boolean } | undefined
     return metadata?.isAutoplay === true
 }
-
 
 async function recordImplicitTrackFeedback(
     track: Track,

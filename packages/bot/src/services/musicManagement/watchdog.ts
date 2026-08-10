@@ -3,14 +3,10 @@ import type { VoiceChannel } from 'discord.js'
 import { ChannelType } from 'discord.js'
 import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
 import { parseIntEnv } from '@lucky/shared/utils/env'
-import { musicSessionSnapshotService } from './sessionSnapshots'
+import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
 
 export type RecoveryAction =
-    | 'none'
-    | 'rejoin'
-    | 'requeue_current'
-    | 'play_next'
-    | 'failed'
+    'none' | 'rejoin' | 'requeue_current' | 'play_next' | 'failed'
 
 export type WatchdogGuildState = {
     guildId: string
@@ -43,8 +39,7 @@ export class MusicWatchdogService {
 
     constructor(options: MusicWatchdogOptions = {}) {
         this.timeoutMs =
-            options.timeoutMs ??
-            parseIntEnv('MUSIC_WATCHDOG_TIMEOUT_MS', 25000)
+            options.timeoutMs ?? parseIntEnv('MUSIC_WATCHDOG_TIMEOUT_MS', 25000)
         this.recoveryWaitTimeoutMs =
             options.recoveryWaitTimeoutMs ??
             parseIntEnv('MUSIC_WATCHDOG_RECOVERY_WAIT_MS', 5000)

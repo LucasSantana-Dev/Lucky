@@ -12,7 +12,7 @@ import {
 } from '../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
-import { musicWatchdogService } from '../../../utils/music/watchdog'
+import { musicWatchdogService } from '../../../services/musicManagement/watchdog'
 import { collaborativePlaylistService } from '../../../utils/music/collaborativePlaylist'
 
 export default new Command({
