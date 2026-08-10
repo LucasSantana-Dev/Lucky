@@ -23,7 +23,7 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireCurrentTrack: (...args: unknown[]) =>
         requireCurrentTrackMock(...args),
     requireIsPlaying: (...args: unknown[]) => requireIsPlayingMock(...args),
-    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
+    requireDJRoleInGuild: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({

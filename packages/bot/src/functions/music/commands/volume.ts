@@ -13,10 +13,9 @@ import {
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
-    requireDJRole,
+    requireDJRoleInGuild,
 } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
-import { assertDefined } from '@lucky/shared/utils/guards'
 
 /**
  * Validate volume value
@@ -85,16 +84,7 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        if (
-            !(await requireDJRole(
-                interaction,
-                assertDefined(
-                    interaction.guildId,
-                    'Guild ID required after requireGuild check',
-                ),
-            ))
-        )
-            return
+        if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return
