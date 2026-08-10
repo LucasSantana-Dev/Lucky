@@ -40,10 +40,11 @@ export class MusicWatchdogService {
     private readonly states = new Map<string, WatchdogGuildState>()
     private readonly intentionalStops = new Set<string>()
     private orphanMonitorInterval: ReturnType<typeof setInterval> | null = null
-    // Prevents checkAndRecover (watchdog timer / disconnect event) and
-    // recoverOrphanSession (60s orphan monitor) from both driving reconnects
-    // for the same guild at once, which stacks join/leave cycles (#1949).
-    private readonly recoveryInFlight = new Set<string>()
+    // Guards checkAndRecover and recoverOrphanSession from running concurrently
+    // for the same guild — without this, a flaky connection can trigger both
+    // the watchdog's rejoin cycle and the orphan monitor's fresh connect() at
+    // once, producing stacked join/leave cycles.
+    private readonly recoveringGuilds = new Set<string>()
 
     constructor(options: MusicWatchdogOptions = {}) {
         this.timeoutMs =
@@ -153,12 +154,11 @@ export class MusicWatchdogService {
             return 'none'
         }
 
-        if (this.recoveryInFlight.has(guildId)) {
-            state.lastRecoveryAction = 'none'
-            state.lastRecoveryDetail = 'recovery_already_in_flight'
+        if (this.recoveringGuilds.has(guildId)) {
+            state.lastRecoveryDetail = 'recovery_already_in_progress'
             return 'none'
         }
-        this.recoveryInFlight.add(guildId)
+        this.recoveringGuilds.add(guildId)
 
         let action: RecoveryAction = 'none'
         let detail = 'nothing_to_recover'
@@ -218,7 +218,7 @@ export class MusicWatchdogService {
                 data: { guildId },
             })
         } finally {
-            this.recoveryInFlight.delete(guildId)
+            this.recoveringGuilds.delete(guildId)
         }
 
         state.lastRecoveryAction = action
@@ -292,8 +292,8 @@ export class MusicWatchdogService {
         const membersInChannel = voiceChannel.members.filter((m) => !m.user.bot)
         if (membersInChannel.size === 0) return
 
-        if (this.recoveryInFlight.has(guildId)) return
-        this.recoveryInFlight.add(guildId)
+        if (this.recoveringGuilds.has(guildId)) return
+        this.recoveringGuilds.add(guildId)
 
         try {
             infoLog({
@@ -338,7 +338,7 @@ export class MusicWatchdogService {
                 data: { guildId },
             })
         } finally {
-            this.recoveryInFlight.delete(guildId)
+            this.recoveringGuilds.delete(guildId)
         }
     }
 
