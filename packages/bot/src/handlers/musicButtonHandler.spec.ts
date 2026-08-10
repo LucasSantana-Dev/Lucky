@@ -25,7 +25,7 @@ jest.mock('../functions/music/commands/queue/queueEmbed', () => ({
     createQueueEmbed: jest.fn(),
 }))
 
-jest.mock('../utils/music/queueManipulation', () => ({
+jest.mock('../services/musicManagement/queueManipulation', () => ({
     shuffleQueue: jest.fn(),
 }))
 

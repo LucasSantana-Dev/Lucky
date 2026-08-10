@@ -5,7 +5,7 @@ import * as voiceStatus from '../../services/VoiceChannelStatusService'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
 import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
-import { replenishQueue } from '../../utils/music/queueOperations'
+import { replenishQueue } from '../../services/musicManagement/queueOperations'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
 export const setupVoiceKickDetection = (client: Client): void => {

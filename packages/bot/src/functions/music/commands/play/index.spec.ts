@@ -80,7 +80,7 @@ jest.mock('discord-player', () => ({
     },
 }))
 
-jest.mock('../../../../utils/music/queueManipulation', () => ({
+jest.mock('../../../../services/musicManagement/queueManipulation', () => ({
     moveUserTrackToPriority: (queue: unknown, track: unknown) =>
         moveUserTrackToPriorityMock(queue, track),
     blendAutoplayTracks: (queue: unknown, track: unknown) =>

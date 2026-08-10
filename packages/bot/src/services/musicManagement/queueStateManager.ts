@@ -1,5 +1,5 @@
 import type { Track, GuildQueue } from 'discord-player'
-import type { QueueState } from './types'
+import type { QueueState } from '../../utils/music/types'
 import { debugLog } from '@lucky/shared/utils'
 
 /**

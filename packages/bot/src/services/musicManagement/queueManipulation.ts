@@ -20,7 +20,7 @@ export {
 export { calculateRecommendationScore }
 export { getTrackAudioFeatures }
 
-export * from './trackNormalization'
+export * from '../../utils/music/trackNormalization'
 export * from './queueEditOps'
 export * from '../../services/musicRecommendation/candidateFallback'
 export * from './queueRescue'

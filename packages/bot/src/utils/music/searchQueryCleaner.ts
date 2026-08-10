@@ -2,7 +2,7 @@
  * Shared noise-stripping + query-cleaning helpers for music search.
  *
  * Used by:
- * - autoplay / seed candidate search (queueManipulation.ts)
+ * - autoplay / seed candidate search (services/musicManagement/queueManipulation.ts)
  * - SoundCloud bridge in the YoutubeiExtractor (playerFactory.ts)
  * - last.fm scrobble normalization (lastfm/*)
  *
@@ -51,7 +51,8 @@ const DYNAMIC_NOISE_PATTERNS: RegExp[] = [
     ...noiseTerms.bareTitleNoise.map((t) => buildTermRe(t, 'word')),
 ]
 
-const DYNAMIC_VERSION_KEYWORD_RE = new RegExp( // NOSONAR
+const DYNAMIC_VERSION_KEYWORD_RE = new RegExp(
+    // NOSONAR
     `\\b(?:${noiseTerms.versionVariants.map(termInner).join('|')})\\b`,
     'i',
 )

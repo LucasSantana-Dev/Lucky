@@ -35,7 +35,7 @@ jest.mock('../../services/musicManagement/watchdog', () => ({
     },
 }))
 
-jest.mock('../../utils/music/queueOperations', () => ({
+jest.mock('../../services/musicManagement/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
 }))
 

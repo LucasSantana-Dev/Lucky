@@ -3,8 +3,8 @@ import type {
     QueueOperationResult,
     TrackManagementOptions,
     QueueManagementOptions,
-} from './types'
-import { validateTracks } from './trackValidator'
+} from '../../utils/music/types'
+import { validateTracks } from '../../utils/music/trackValidator'
 import { AsyncQueueManager } from './queue/asyncQueueManager'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 export {

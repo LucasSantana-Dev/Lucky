@@ -13,7 +13,7 @@ import {
     createLeaderboardPaginationButtons,
 } from '../utils/music/buttonComponents'
 import { createQueueEmbed } from '../functions/music/commands/queue/queueEmbed'
-import { shuffleQueue } from '../utils/music/queueManipulation'
+import { shuffleQueue } from '../services/musicManagement/queueManipulation'
 import type { GuildQueue } from 'discord-player'
 import { resolveGuildQueue } from '../utils/music/queueResolver'
 import type { CustomClient } from '../types'

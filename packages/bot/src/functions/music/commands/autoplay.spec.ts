@@ -34,7 +34,7 @@ jest.mock('../../../utils/general/embeds', () => ({
     },
 }))
 
-jest.mock('../../../utils/music/queueOperations', () => ({
+jest.mock('../../../services/musicManagement/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
 }))
 
@@ -154,8 +154,6 @@ describe('autoplay command', () => {
         })
     })
 
-
-
     describe('status subcommand', () => {
         it('should show autoplay status', async () => {
             const interaction = createInteraction('status')
@@ -171,7 +169,6 @@ describe('autoplay command', () => {
             expect(embed.title).toContain('Status')
             expect(interactionReplyMock).toHaveBeenCalled()
         })
-
 
         it('should not show blend when only one member has last.fm', async () => {
             getLastFmLinkMock
@@ -194,7 +191,6 @@ describe('autoplay command', () => {
             expect(blendField).toBeUndefined()
         })
     })
-
 
     describe('analytics subcommand', () => {
         it('should show autoplay analytics with data', async () => {
@@ -242,11 +238,5 @@ describe('autoplay command', () => {
             expect(embed.description).toContain('No play history yet')
             expect(interactionReplyMock).toHaveBeenCalled()
         })
-
     })
-
-
-
-
-
 })
