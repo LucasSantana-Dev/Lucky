@@ -51,11 +51,8 @@ const DYNAMIC_NOISE_PATTERNS: RegExp[] = [
     ...noiseTerms.bareTitleNoise.map((t) => buildTermRe(t, 'word')),
 ]
 
-const DYNAMIC_VERSION_KEYWORD_RE = new RegExp(
-    // NOSONAR
-    `\\b(?:${noiseTerms.versionVariants.map(termInner).join('|')})\\b`,
-    'i',
-)
+// prettier-ignore
+const DYNAMIC_VERSION_KEYWORD_RE = new RegExp(`\\b(?:${noiseTerms.versionVariants.map(termInner).join('|')})\\b`, 'i') // NOSONAR
 
 const DYNAMIC_HYPHENATED_SUFFIXES: RegExp[] = noiseTerms.versionVariants.map(
     (t) => buildTermRe(t, 'suffix'),
