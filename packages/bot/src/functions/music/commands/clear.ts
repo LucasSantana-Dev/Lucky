@@ -40,9 +40,12 @@ async function clearQueueAndRespond(
     guildId: string,
 ): Promise<void> {
     queue.clear()
-    // Suppress autoplay refill for a while so the natural end of the
-    // current track doesn't silently undo this /clear (#1957).
-    setReplenishSuppressed(guildId, 35_000)
+    // Suppress autoplay refill until well past when the still-playing
+    // current track can naturally end, so that end doesn't silently undo
+    // this /clear (#1957). A short window isn't enough — emptyQueue only
+    // fires once the current track finishes, which is typically minutes
+    // away, not seconds.
+    setReplenishSuppressed(guildId, 30 * 60 * 1_000)
 
     debugLog({
         message: `Cleared ${trackCount} tracks from queue in guild ${guildId}`,

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { GuildQueue, Player } from 'discord-player'
 import { ChannelType } from 'discord.js'
+import { setReplenishSuppressed } from './replenishSuppressionStore'
 import { MusicWatchdogService } from './watchdog'
 
 // --- mocks ---
@@ -362,6 +363,28 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         await service.scanOrphanSessions(player)
 
         expect(restoreSnapshotMock).not.toHaveBeenCalled()
+    })
+
+    it('scanOrphanSessions skips guild when replenish is suppressed (#1957/#1998)', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-suppressed'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-1',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        const nodes = { get: jest.fn().mockReturnValue(null) }
+        const player = { nodes } as unknown as Player
+
+        setReplenishSuppressed('guild-suppressed', 30_000)
+        try {
+            const service = new MusicWatchdogService()
+            await service.scanOrphanSessions(player)
+
+            expect(restoreSnapshotMock).not.toHaveBeenCalled()
+        } finally {
+            setReplenishSuppressed('guild-suppressed', 0)
+        }
     })
 
     it('scanOrphanSessions skips guild when channel type is not GuildVoice', async () => {

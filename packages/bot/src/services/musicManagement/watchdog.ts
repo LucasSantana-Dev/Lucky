@@ -4,6 +4,7 @@ import { ChannelType } from 'discord.js'
 import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
 import { parseIntEnv } from '@lucky/shared/utils/env'
 import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
+import { isReplenishSuppressed } from './replenishSuppressionStore'
 
 export type RecoveryAction =
     'none' | 'rejoin' | 'requeue_current' | 'play_next' | 'failed'
@@ -266,6 +267,7 @@ export class MusicWatchdogService {
         const existingQueue = player.nodes.get(guildId)
         if (existingQueue?.node.isPlaying()) return
         if (this.intentionalStops.has(guildId)) return
+        if (isReplenishSuppressed(guildId)) return
         if (this.recoveryInProgress.has(guildId)) return
 
         this.recoveryInProgress.add(guildId)
