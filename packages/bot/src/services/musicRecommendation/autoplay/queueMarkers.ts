@@ -1,7 +1,7 @@
 import type { Track } from 'discord-player'
 import type { RecommendationBasis } from './recommendationBasis'
 import { serializeBasis } from './recommendationBasis'
-import { recordRecommendationPick } from '../../../services/musicRecommendation/recommendationTelemetry'
+import { recordRecommendationPick } from '../recommendationTelemetry'
 
 /**
  * Mark a track as autoplay-generated with optional metadata.

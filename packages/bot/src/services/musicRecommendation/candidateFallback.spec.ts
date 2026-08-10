@@ -60,12 +60,12 @@ jest.mock('./autoplay/candidateScorer', () => ({
         calculateRecommendationScoreMock(...args),
 }))
 
-jest.mock('./searchQueryCleaner', () => ({
+jest.mock('../../utils/music/searchQueryCleaner', () => ({
     cleanSearchQuery: (...args: unknown[]) => cleanSearchQueryMock(...args),
     cleanAuthor: (...args: unknown[]) => cleanAuthorMock(...args),
 }))
 
-jest.mock('./trackNormalization', () => ({
+jest.mock('../../utils/music/trackNormalization', () => ({
     normalizeTrackKey: (...args: unknown[]) => normalizeTrackKeyMock(...args),
     calculateGenreFamilyPenalty: (...args: unknown[]) =>
         calculateGenreFamilyPenaltyMock(...args),

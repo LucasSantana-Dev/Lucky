@@ -10,7 +10,7 @@ jest.mock(
     }),
 )
 
-import { recordRecommendationPick } from '../../../services/musicRecommendation/recommendationTelemetry'
+import { recordRecommendationPick } from '../recommendationTelemetry'
 
 function createTrack(overrides: Partial<Track> = {}): Track {
     return {

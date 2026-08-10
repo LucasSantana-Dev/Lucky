@@ -4,8 +4,8 @@ import { errorLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
 import { blendAutoplayTracks } from '../../../../../utils/music/queueManipulation'
 import { applyStoredAutoplayPreference } from './autoplayPreference'
-import { clearAutoplayPause } from '../../../../../utils/music/autoplay/skipCircuitBreaker'
-import { clearSessionMoodCache } from '../../../../../utils/music/autoplay/replenisher'
+import { clearAutoplayPause } from '../../../../../services/musicRecommendation/autoplay/skipCircuitBreaker'
+import { clearSessionMoodCache } from '../../../../../services/musicRecommendation/autoplay/replenisher'
 
 export interface PostPlayBackgroundOpsInput {
     queue: GuildQueue | null | undefined

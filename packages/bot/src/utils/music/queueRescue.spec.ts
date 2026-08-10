@@ -8,13 +8,24 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
 }))
 
-jest.mock('./autoplay/replenisher', () => ({
+jest.mock('../../services/musicRecommendation/autoplay/replenisher', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
 }))
 
-import { rescueQueue, getHistoryTracks, buildVcContributionWeights } from './queueRescue'
+import {
+    rescueQueue,
+    getHistoryTracks,
+    buildVcContributionWeights,
+} from './queueRescue'
 
-function createTrack(overrides: Partial<{ url: string; title: string; author: string; requestedBy: { id: string } | null }>): Track {
+function createTrack(
+    overrides: Partial<{
+        url: string
+        title: string
+        author: string
+        requestedBy: { id: string } | null
+    }>,
+): Track {
     return {
         url: 'https://example.com/track',
         title: 'Track Title',
@@ -24,16 +35,23 @@ function createTrack(overrides: Partial<{ url: string; title: string; author: st
     } as unknown as Track
 }
 
-function createQueue(tracks: Track[], opts: { currentTrack?: Track | null; historyTracks?: Track[] } = {}): GuildQueue {
+function createQueue(
+    tracks: Track[],
+    opts: { currentTrack?: Track | null; historyTracks?: Track[] } = {},
+): GuildQueue {
     let queueTracks = [...tracks]
     const historyData = opts.historyTracks ?? []
     const toArrayMock = jest.fn(() => [...queueTracks])
     return {
         tracks: {
             toArray: toArrayMock,
-            get size() { return queueTracks.length },
+            get size() {
+                return queueTracks.length
+            },
         },
-        clear: jest.fn(() => { queueTracks = [] }),
+        clear: jest.fn(() => {
+            queueTracks = []
+        }),
         addTrack: jest.fn((t: Track) => queueTracks.push(t)),
         node: {
             remove: jest.fn(),
@@ -59,7 +77,11 @@ describe('rescueQueue', () => {
 
     it('removes tracks with missing url', async () => {
         const bad = createTrack({ url: '' })
-        const good = createTrack({ url: 'https://example.com/t', title: 'T', author: 'A' })
+        const good = createTrack({
+            url: 'https://example.com/t',
+            title: 'T',
+            author: 'A',
+        })
         const queue = createQueue([bad, good], { currentTrack: good })
         const result = await rescueQueue(queue)
         expect(result.removedTracks).toBe(1)
@@ -97,7 +119,12 @@ describe('rescueQueue', () => {
     })
 
     it('does not call replenishQueue when no currentTrack', async () => {
-        const tracks = [createTrack({}), createTrack({}), createTrack({}), createTrack({})]
+        const tracks = [
+            createTrack({}),
+            createTrack({}),
+            createTrack({}),
+            createTrack({}),
+        ]
         const queue = createQueue(tracks, { currentTrack: null })
         await rescueQueue(queue, { refillThreshold: 10 })
         expect(replenishQueueMock).not.toHaveBeenCalled()
@@ -105,7 +132,9 @@ describe('rescueQueue', () => {
 
     it('returns error fallback when exception thrown', async () => {
         const queue = createQueue([createTrack({})])
-        ;(queue.tracks.toArray as jest.Mock).mockImplementation(() => { throw new Error('fail') })
+        ;(queue.tracks.toArray as jest.Mock).mockImplementation(() => {
+            throw new Error('fail')
+        })
         errorLogMock.mockReturnValue(undefined)
         const result = await rescueQueue(queue)
         expect(result.removedTracks).toBe(0)
@@ -115,8 +144,13 @@ describe('rescueQueue', () => {
     it('probes track resolvability and keeps track when search succeeds', async () => {
         const track = createTrack({ title: 'Song', author: 'Artist' })
         const queue = createQueue([track], { currentTrack: track })
-        ;(queue.player.search as jest.Mock).mockResolvedValue({ tracks: [track] })
-        const result = await rescueQueue(queue, { probeResolvable: true, probeTimeoutMs: 100 })
+        ;(queue.player.search as jest.Mock).mockResolvedValue({
+            tracks: [track],
+        })
+        const result = await rescueQueue(queue, {
+            probeResolvable: true,
+            probeTimeoutMs: 100,
+        })
         expect(result.keptTracks).toBe(1)
         expect(result.removedTracks).toBe(0)
     })
@@ -125,7 +159,10 @@ describe('rescueQueue', () => {
         const track = createTrack({ title: 'Song', author: 'Artist' })
         const queue = createQueue([track], { currentTrack: track })
         ;(queue.player.search as jest.Mock).mockResolvedValue({ tracks: [] })
-        const result = await rescueQueue(queue, { probeResolvable: true, probeTimeoutMs: 100 })
+        const result = await rescueQueue(queue, {
+            probeResolvable: true,
+            probeTimeoutMs: 100,
+        })
         expect(result.removedTracks).toBe(1)
         expect(result.keptTracks).toBe(0)
     })
@@ -133,9 +170,14 @@ describe('rescueQueue', () => {
     it('probes track resolvability and removes track when search rejects', async () => {
         const track = createTrack({ title: 'Song', author: 'Artist' })
         const queue = createQueue([track], { currentTrack: track })
-        ;(queue.player.search as jest.Mock).mockRejectedValue(new Error('search failed'))
+        ;(queue.player.search as jest.Mock).mockRejectedValue(
+            new Error('search failed'),
+        )
         errorLogMock.mockReturnValue(undefined)
-        const result = await rescueQueue(queue, { probeResolvable: true, probeTimeoutMs: 100 })
+        const result = await rescueQueue(queue, {
+            probeResolvable: true,
+            probeTimeoutMs: 100,
+        })
         expect(result.removedTracks).toBe(1)
         expect(result.keptTracks).toBe(0)
     })

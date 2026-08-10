@@ -1,11 +1,15 @@
 import type { Track, GuildQueue } from 'discord-player'
 import { debugLog } from '@lucky/shared/utils'
 import { trackHistoryService } from '@lucky/shared/services'
-import { extractSongCore, cleanTitle, cleanAuthor } from '../searchQueryCleaner'
-import { calculateStringSimilarity } from '../duplicateDetection/similarityChecker'
+import {
+    extractSongCore,
+    cleanTitle,
+    cleanAuthor,
+} from '../../../utils/music/searchQueryCleaner'
+import { calculateStringSimilarity } from '../../../utils/music/duplicateDetection/similarityChecker'
 import { markAndRecordAutoplayTrack } from './queueMarkers'
 import { extractYouTubeVideoId } from './scoringUtils'
-import { trackSource, trackAlbumName } from '../trackFields'
+import { trackSource, trackAlbumName } from '../../../utils/music/trackFields'
 import type { RecommendationBasis } from './recommendationBasis.js'
 
 interface ScoredTrack {
@@ -144,8 +148,7 @@ function stripVariantSuffix(title: string): string {
 
 function getAllHistoryTracks(queue: GuildQueue): Track[] {
     const history = queue.history as
-        | { tracks?: { toArray?: () => Track[]; data?: Track[] } }
-        | undefined
+        { tracks?: { toArray?: () => Track[]; data?: Track[] } } | undefined
 
     if (!history?.tracks) return []
     if (typeof history.tracks.toArray === 'function')

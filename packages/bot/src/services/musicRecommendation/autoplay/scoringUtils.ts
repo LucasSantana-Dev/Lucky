@@ -1,5 +1,8 @@
 import type { Track } from 'discord-player'
-import { cleanTitle, cleanAuthor } from '../searchQueryCleaner'
+import {
+    cleanTitle,
+    cleanAuthor,
+} from '../../../utils/music/searchQueryCleaner'
 
 /**
  * Normalize text by removing accents, lowercasing, and stripping non-alphanumeric.

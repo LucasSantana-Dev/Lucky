@@ -2,7 +2,7 @@ import type { Track, GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import type { AutoplayContext } from './autoplayContext'
-import { recommendationFeedbackService } from '../../../services/musicRecommendation/feedbackService'
+import { recommendationFeedbackService } from '../feedbackService'
 import { recordRecommendationOutcome } from '../../../services/musicRecommendation/recommendationTelemetry'
 import {
     trackHistoryService,
@@ -36,7 +36,7 @@ import {
 import { collectLastFmCandidates } from './lastFmSeeder'
 import { collectSeedSimilarCandidates } from './seedSimilarityCollector'
 import { serializeBasis } from './recommendationBasis'
-import { cleanAuthor } from '../searchQueryCleaner'
+import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import {
     collectBroadFallbackCandidates,
@@ -115,8 +115,9 @@ async function cancelPendingRecommendations(
     if (!tracksToCancel?.length) return
 
     const cancellationWrites = tracksToCancel.map((track) => {
-        const isAutoplay = (track.metadata as { isAutoplay?: boolean } | undefined)
-            ?.isAutoplay === true
+        const isAutoplay =
+            (track.metadata as { isAutoplay?: boolean } | undefined)
+                ?.isAutoplay === true
         if (isAutoplay) {
             // Record as 'rejected' since these tracks never got a chance to play
             return recordRecommendationOutcome({
@@ -768,8 +769,7 @@ function buildArtistFrequency(
 
 function getAllHistoryTracks(queue: GuildQueue): Track[] {
     const history = queue.history as
-        | { tracks?: { toArray?: () => Track[]; data?: Track[] } }
-        | undefined
+        { tracks?: { toArray?: () => Track[]; data?: Track[] } } | undefined
 
     if (!history?.tracks) return []
     if (typeof history.tracks.toArray === 'function')

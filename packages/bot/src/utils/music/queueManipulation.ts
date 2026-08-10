@@ -3,11 +3,11 @@ import {
     shouldIncludeCandidate,
     upsertScoredCandidate,
     type ScoredTrack,
-} from './autoplay/candidateCollector'
-import { collectLastFmCandidates } from './autoplay/lastFmSeeder'
-import { replenishQueue } from './autoplay/replenisher'
-import { calculateRecommendationScore } from './autoplay/candidateScorer'
-import { getTrackAudioFeatures } from './autoplay/audioFeatures'
+} from '../../services/musicRecommendation/autoplay/candidateCollector'
+import { collectLastFmCandidates } from '../../services/musicRecommendation/autoplay/lastFmSeeder'
+import { replenishQueue } from '../../services/musicRecommendation/autoplay/replenisher'
+import { calculateRecommendationScore } from '../../services/musicRecommendation/autoplay/candidateScorer'
+import { getTrackAudioFeatures } from '../../services/musicRecommendation/autoplay/audioFeatures'
 
 export { collectLastFmCandidates }
 export { replenishQueue }
@@ -22,5 +22,5 @@ export { getTrackAudioFeatures }
 
 export * from './trackNormalization'
 export * from './queueEditOps'
-export * from './candidateFallback'
+export * from '../../services/musicRecommendation/candidateFallback'
 export * from './queueRescue'

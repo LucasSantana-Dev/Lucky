@@ -1,4 +1,4 @@
-import { detectSessionLanguageMarkers } from '../languageHeuristics'
+import { detectSessionLanguageMarkers } from '../../../utils/music/languageHeuristics'
 
 export interface SessionMood {
     deepDiveArtist: string | null
@@ -86,7 +86,8 @@ export function detectSessionMood(
             .filter((d) => d > 0)
 
         if (durations.length >= 1) {
-            const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length
+            const avgDuration =
+                durations.reduce((a, b) => a + b, 0) / durations.length
             if (avgDuration > 5 * 60 * 1000) {
                 preferLong = true
             } else if (avgDuration < 2.5 * 60 * 1000) {

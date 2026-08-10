@@ -21,7 +21,7 @@ import {
 } from '../../services/musicManagement/idleDisconnect'
 import { clearVotes } from '../../services/musicManagement/voteSkipStore'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
-import { normalizeTrackKey } from '../../utils/music/autoplay/scoringUtils'
+import { normalizeTrackKey } from '../../services/musicRecommendation/autoplay/scoringUtils'
 import { isReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 import { handleQueueExhaustion } from './queueExhaustion'
 import { recordRecommendationOutcome } from '../../services/musicRecommendation/recommendationTelemetry'

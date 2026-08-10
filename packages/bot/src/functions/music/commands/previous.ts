@@ -15,7 +15,7 @@ import {
     requireCurrentTrack,
     requireIsPlaying,
 } from '../../../utils/command/commandValidations'
-import { clearSessionMoodCache } from '../../../utils/music/autoplay/replenisher'
+import { clearSessionMoodCache } from '../../../services/musicRecommendation/autoplay/replenisher'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
@@ -135,11 +135,22 @@ async function handlePreviousError(
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('previous')
-        .setDescription('⏮️ Play the previous track or restart the current one.'),
+        .setDescription(
+            '⏮️ Play the previous track or restart the current one.',
+        ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        if (!(await requireDJRole(interaction, assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')))) return
+        if (
+            !(await requireDJRole(
+                interaction,
+                assertDefined(
+                    interaction.guildId,
+                    'Guild ID required after requireGuild check',
+                ),
+            ))
+        )
+            return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 
@@ -153,7 +164,10 @@ export default new Command({
         }
 
         try {
-            const historyWasEmpty = await playPreviousTrack(queue, interaction.guildId ?? '')
+            const historyWasEmpty = await playPreviousTrack(
+                queue,
+                interaction.guildId ?? '',
+            )
             await sendPreviousSuccess(interaction, queue, historyWasEmpty)
         } catch (error) {
             await handlePreviousError(error, interaction)

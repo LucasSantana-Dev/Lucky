@@ -15,7 +15,7 @@ import {
     requireCurrentTrack,
     requireIsPlaying,
 } from '../../../utils/command/commandValidations'
-import { clearSessionMoodCache } from '../../../utils/music/autoplay/replenisher'
+import { clearSessionMoodCache } from '../../../services/musicRecommendation/autoplay/replenisher'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
@@ -117,7 +117,16 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        if (!(await requireDJRole(interaction, assertDefined(interaction.guildId, 'guildId guaranteed by requireGuild guard')))) return
+        if (
+            !(await requireDJRole(
+                interaction,
+                assertDefined(
+                    interaction.guildId,
+                    'guildId guaranteed by requireGuild guard',
+                ),
+            ))
+        )
+            return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 

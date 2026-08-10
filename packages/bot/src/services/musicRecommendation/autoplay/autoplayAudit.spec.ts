@@ -58,8 +58,16 @@ describe('AutoplayAuditCollector', () => {
         })
 
         it('stores rejected status correctly', () => {
-            const track = createTrack({ title: 'Blocked Song', author: 'Blocked Artist' })
-            collector.recordEvaluated(track, -Infinity, 'cross-locale reject', 'rejected')
+            const track = createTrack({
+                title: 'Blocked Song',
+                author: 'Blocked Artist',
+            })
+            collector.recordEvaluated(
+                track,
+                -Infinity,
+                'cross-locale reject',
+                'rejected',
+            )
 
             const record = captureEmit(collector)
             expect(record.evaluated[0]).toMatchObject({
@@ -92,7 +100,10 @@ describe('AutoplayAuditCollector', () => {
                 createScoredTrack({
                     track: createTrack({ title: 'Pick A', author: 'Artist X' }),
                     score: 0.95,
-                    basis: { source: 'spotify-rec', signals: ['preferred artist'] },
+                    basis: {
+                        source: 'spotify-rec',
+                        signals: ['preferred artist'],
+                    },
                 }),
                 createScoredTrack({
                     track: createTrack({ title: 'Pick B', author: 'Artist Y' }),
@@ -133,7 +144,10 @@ describe('AutoplayAuditCollector', () => {
             const afterEmit = Date.now()
 
             expect(infoLogMock).toHaveBeenCalledTimes(1)
-            const { data } = infoLogMock.mock.calls[0]![0] as { message: string; data: Record<string, unknown> }
+            const { data } = infoLogMock.mock.calls[0]![0] as {
+                message: string
+                data: Record<string, unknown>
+            }
 
             expect(data.guildId).toBe('guild-123')
             expect(data.seed).toBe('seed-track')
@@ -146,7 +160,10 @@ describe('AutoplayAuditCollector', () => {
         it('sets cycleId as guildId-timestamp pattern', () => {
             collector.emit('g-456', 'seed', null, {}, 100)
 
-            const { data } = infoLogMock.mock.calls[0]![0] as { message: string; data: Record<string, unknown> }
+            const { data } = infoLogMock.mock.calls[0]![0] as {
+                message: string
+                data: Record<string, unknown>
+            }
             expect(typeof data.cycleId).toBe('string')
             expect((data.cycleId as string).startsWith('g-456-')).toBe(true)
         })
@@ -154,7 +171,10 @@ describe('AutoplayAuditCollector', () => {
         it('sets sessionMoodSummary to null when sessionMood is null', () => {
             collector.emit('guild-1', 'seed', null, {}, 0)
 
-            const { data } = infoLogMock.mock.calls[0]![0] as { message: string; data: Record<string, unknown> }
+            const { data } = infoLogMock.mock.calls[0]![0] as {
+                message: string
+                data: Record<string, unknown>
+            }
             expect(data.sessionMoodSummary).toBeNull()
         })
 
@@ -168,18 +188,26 @@ describe('AutoplayAuditCollector', () => {
 
             collector.emit('guild-1', 'seed', mood, {}, 0)
 
-            const { data } = infoLogMock.mock.calls[0]![0] as { message: string; data: Record<string, unknown> }
+            const { data } = infoLogMock.mock.calls[0]![0] as {
+                message: string
+                data: Record<string, unknown>
+            }
             expect(data.sessionMoodSummary).toBe('pt-BR')
         })
 
         it('includes evaluated and selected entries in the record', () => {
             const track = createTrack({ title: 'T1', author: 'A1' })
             collector.recordEvaluated(track, 0.7, 'reason', 'accepted')
-            collector.setFinalSelected([createScoredTrack({ track, score: 0.7 })])
+            collector.setFinalSelected([
+                createScoredTrack({ track, score: 0.7 }),
+            ])
 
             collector.emit('guild-1', 'seed', null, {}, 200)
 
-            const { data } = infoLogMock.mock.calls[0]![0] as { message: string; data: Record<string, unknown> }
+            const { data } = infoLogMock.mock.calls[0]![0] as {
+                message: string
+                data: Record<string, unknown>
+            }
             expect((data.evaluated as unknown[]).length).toBe(1)
             expect((data.selected as unknown[]).length).toBe(1)
         })
@@ -187,7 +215,9 @@ describe('AutoplayAuditCollector', () => {
         it('logs with message "Autoplay audit"', () => {
             collector.emit('guild-1', 'seed', null, {}, 0)
 
-            const { message } = infoLogMock.mock.calls[0]![0] as { message: string }
+            const { message } = infoLogMock.mock.calls[0]![0] as {
+                message: string
+            }
             expect(message).toBe('Autoplay audit')
         })
     })
@@ -195,7 +225,9 @@ describe('AutoplayAuditCollector', () => {
 
 function captureEmit(collector: AutoplayAuditCollector) {
     collector.emit('test-guild', 'test-seed', null, {}, 0)
-    const call = infoLogMock.mock.calls[infoLogMock.mock.calls.length - 1]![0] as {
+    const call = infoLogMock.mock.calls[
+        infoLogMock.mock.calls.length - 1
+    ]![0] as {
         message: string
         data: {
             cycleId: string
@@ -203,8 +235,19 @@ function captureEmit(collector: AutoplayAuditCollector) {
             timestamp: number
             seed: string
             sessionMoodSummary: string | null
-            evaluated: Array<{ title: string; artist: string; score: number; reason: string; status: 'accepted' | 'rejected' }>
-            selected: Array<{ title: string; artist: string; score: number; reason: string }>
+            evaluated: Array<{
+                title: string
+                artist: string
+                score: number
+                reason: string
+                status: 'accepted' | 'rejected'
+            }>
+            selected: Array<{
+                title: string
+                artist: string
+                score: number
+                reason: string
+            }>
             sourceCounts: Record<string, number>
             durationMs: number
         }

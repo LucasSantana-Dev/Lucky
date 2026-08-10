@@ -170,7 +170,9 @@ describe('hasGenreTag', () => {
     })
 
     it('returns false when no tags match', () => {
-        expect(hasGenreTag(['rock', 'indie'], ['sertanejo', 'forró'])).toBe(false)
+        expect(hasGenreTag(['rock', 'indie'], ['sertanejo', 'forró'])).toBe(
+            false,
+        )
     })
 
     it('is case-insensitive', () => {

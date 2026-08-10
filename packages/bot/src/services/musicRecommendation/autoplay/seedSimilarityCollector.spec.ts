@@ -25,7 +25,7 @@ jest.mock('./artistTagCache', () => ({
         createArtistTagFetcherMock(...args),
 }))
 
-jest.mock('../searchQueryCleaner', () => ({
+jest.mock('../../../utils/music/searchQueryCleaner', () => ({
     cleanSearchQuery: (...args: unknown[]) => cleanSearchQueryMock(...args),
     cleanTitle: (...args: unknown[]) => cleanTitleMock(...args),
 }))

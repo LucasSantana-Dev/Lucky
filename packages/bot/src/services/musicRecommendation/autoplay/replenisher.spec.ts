@@ -78,7 +78,7 @@ jest.mock('./diversitySelector', () => ({
     purgeDuplicatesOfCurrentTrack: jest.fn(),
 }))
 
-jest.mock('../queueManipulation', () => ({
+jest.mock('../../../utils/music/queueManipulation', () => ({
     collectBroadFallbackCandidates: jest.fn(),
     collectLastFmCandidates: jest.fn(),
     collectGenreCandidates: jest.fn(),
@@ -196,7 +196,7 @@ describe('replenishQueue', () => {
             getTrackAudioFeatures,
             interleaveByArtist,
             buildVcContributionWeights,
-        } = require('../queueManipulation')
+        } = require('../../../utils/music/queueManipulation')
         collectBroadFallbackCandidates.mockResolvedValue(undefined)
         collectLastFmCandidates.mockResolvedValue(undefined)
         collectGenreCandidates.mockResolvedValue(undefined)
@@ -360,7 +360,7 @@ describe('replenishQueue', () => {
         const {
             interleaveByArtist,
             enrichWithAudioFeatures,
-        } = require('../queueManipulation')
+        } = require('../../../utils/music/queueManipulation')
 
         const mockScoredTracks = [
             {

@@ -6,7 +6,7 @@ import {
     getLovedTracks,
 } from '../../../lastfm/lastFmApi'
 import { debugLog, errorLog } from '@lucky/shared/utils'
-import { cleanTitle } from '../searchQueryCleaner'
+import { cleanTitle } from '../../../utils/music/searchQueryCleaner'
 
 const CACHE_TTL_MS = 15 * 60 * 1000
 const TOP_TRACKS_LIMIT = 50

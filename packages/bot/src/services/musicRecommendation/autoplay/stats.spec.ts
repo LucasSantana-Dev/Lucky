@@ -1,10 +1,4 @@
-import {
-    describe,
-    test,
-    expect,
-    beforeEach,
-    jest,
-} from '@jest/globals'
+import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import { getAutoplayStats, shouldEnableAutoplay } from './stats'
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -28,8 +22,12 @@ describe('autoplay/stats', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
-        const { guildSettingsService, trackHistoryService } = require('@lucky/shared/services')
-        mockGetAutoplayCounter = guildSettingsService.getAutoplayCounter as jest.Mock
+        const {
+            guildSettingsService,
+            trackHistoryService,
+        } = require('@lucky/shared/services')
+        mockGetAutoplayCounter =
+            guildSettingsService.getAutoplayCounter as jest.Mock
         mockGetTrackHistory = trackHistoryService.getTrackHistory as jest.Mock
     })
 
@@ -40,7 +38,12 @@ describe('autoplay/stats', () => {
 
             const result = await getAutoplayStats('guild-1')
 
-            expect(result).toEqual({ total: 0, thisWeek: 0, thisMonth: 0, averagePerDay: 0 })
+            expect(result).toEqual({
+                total: 0,
+                thisWeek: 0,
+                thisMonth: 0,
+                averagePerDay: 0,
+            })
         })
 
         test('calculates this week count correctly', async () => {
@@ -91,7 +94,10 @@ describe('autoplay/stats', () => {
             mockGetAutoplayCounter.mockRejectedValue(new Error('Service error'))
 
             expect(await getAutoplayStats('guild-1')).toEqual({
-                total: 0, thisWeek: 0, thisMonth: 0, averagePerDay: 0,
+                total: 0,
+                thisWeek: 0,
+                thisMonth: 0,
+                averagePerDay: 0,
             })
         })
 
@@ -131,7 +137,10 @@ describe('autoplay/stats', () => {
         test('returns false when no activity this week and total is 3', async () => {
             mockGetAutoplayCounter.mockResolvedValue({ count: 3 })
             mockGetTrackHistory.mockResolvedValue([
-                { timestamp: Date.now() - 14 * 24 * 60 * 60 * 1000, trackId: '1' },
+                {
+                    timestamp: Date.now() - 14 * 24 * 60 * 60 * 1000,
+                    trackId: '1',
+                },
             ])
             expect(await shouldEnableAutoplay('guild-1')).toBe(false)
         })
