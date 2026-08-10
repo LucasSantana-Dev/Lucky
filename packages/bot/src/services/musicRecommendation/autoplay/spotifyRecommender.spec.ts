@@ -34,7 +34,7 @@ jest.mock('../../../spotify/spotifyApi', () => ({
     getArtistGenres: (...args: unknown[]) => getArtistGenresMock(...args),
 }))
 
-jest.mock('../searchQueryCleaner', () => ({
+jest.mock('../../../utils/music/searchQueryCleaner', () => ({
     cleanTitle: (s: string) => s,
     cleanAuthor: (s: string) => s,
     extractSongCore: jest.fn(() => null),

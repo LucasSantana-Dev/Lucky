@@ -42,7 +42,7 @@ jest.mock('../../../services/musicRecommendation/sessionSnapshots', () => ({
     },
 }))
 
-jest.mock('../../../utils/music/autoplay/replenisher', () => ({
+jest.mock('../../../services/musicRecommendation/autoplay/replenisher', () => ({
     clearSessionMoodCache: (...args: unknown[]) =>
         clearSessionMoodCacheMock(...args),
 }))

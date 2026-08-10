@@ -11,7 +11,7 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
 }))
 
-jest.mock('./autoplay/replenisher', () => ({
+jest.mock('../../services/musicRecommendation/autoplay/replenisher', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
 }))
 
@@ -359,8 +359,9 @@ describe('blendAutoplayTracks', () => {
             const auto3 = createTrack('Auto3', 'Bot', 'u3')
             const auto4 = createTrack('Auto4', 'Bot', 'u4')
             for (const t of [auto1, auto2, auto3, auto4]) {
-                ;(t as unknown as { metadata: Record<string, unknown> }).metadata =
-                    { isAutoplay: true }
+                ;(
+                    t as unknown as { metadata: Record<string, unknown> }
+                ).metadata = { isAutoplay: true }
             }
             const queue = createQueue([auto1, auto2, auto3, auto4])
 
@@ -381,8 +382,9 @@ describe('blendAutoplayTracks', () => {
             const auto1 = createTrack('Auto1', 'Bot', 'u1')
             const auto2 = createTrack('Auto2', 'Bot', 'u2')
             for (const t of [auto1, auto2]) {
-                ;(t as unknown as { metadata: Record<string, unknown> }).metadata =
-                    { isAutoplay: true }
+                ;(
+                    t as unknown as { metadata: Record<string, unknown> }
+                ).metadata = { isAutoplay: true }
             }
             const queue = createQueue([auto1, auto2])
 
@@ -399,8 +401,9 @@ describe('blendAutoplayTracks', () => {
             const auto2 = createTrack('Auto2', 'Bot', 'u2')
             const auto3 = createTrack('Auto3', 'Bot', 'u3')
             for (const t of [auto1, auto2, auto3]) {
-                ;(t as unknown as { metadata: Record<string, unknown> }).metadata =
-                    { isAutoplay: true }
+                ;(
+                    t as unknown as { metadata: Record<string, unknown> }
+                ).metadata = { isAutoplay: true }
             }
             const queue = createQueue([auto1, auto2, auto3])
 
@@ -419,17 +422,14 @@ describe('blendAutoplayTracks', () => {
             const auto2 = createTrack('Auto2', 'Bot', 'a2')
             const userTrack2 = createTrack('User2', 'Human', 'u2')
 
-            ;(auto1 as unknown as { metadata: Record<string, unknown> }).metadata =
-                { isAutoplay: true }
-            ;(auto2 as unknown as { metadata: Record<string, unknown> }).metadata =
-                { isAutoplay: true }
+            ;(
+                auto1 as unknown as { metadata: Record<string, unknown> }
+            ).metadata = { isAutoplay: true }
+            ;(
+                auto2 as unknown as { metadata: Record<string, unknown> }
+            ).metadata = { isAutoplay: true }
 
-            const queue = createQueue([
-                userTrack1,
-                auto1,
-                auto2,
-                userTrack2,
-            ])
+            const queue = createQueue([userTrack1, auto1, auto2, userTrack2])
 
             await blendAutoplayTracks(queue, seedTrack, 0.5)
 
@@ -440,8 +440,9 @@ describe('blendAutoplayTracks', () => {
             expect(remaining).toContain(userTrack2)
             // One of the two autoplay tracks should remain
             const autoplayRemaining = remaining.filter((t) => {
-                const meta = (t as unknown as { metadata: Record<string, unknown> })
-                    .metadata
+                const meta = (
+                    t as unknown as { metadata: Record<string, unknown> }
+                ).metadata
                 return (meta as { isAutoplay?: boolean }).isAutoplay === true
             })
             expect(autoplayRemaining).toHaveLength(1)
@@ -452,8 +453,9 @@ describe('blendAutoplayTracks', () => {
             const auto1 = createTrack('Auto1', 'Bot', 'u1')
             const auto2 = createTrack('Auto2', 'Bot', 'u2')
             for (const t of [auto1, auto2]) {
-                ;(t as unknown as { metadata: Record<string, unknown> }).metadata =
-                    { isAutoplay: true }
+                ;(
+                    t as unknown as { metadata: Record<string, unknown> }
+                ).metadata = { isAutoplay: true }
             }
             const queue = createQueue([auto1, auto2])
 
@@ -470,8 +472,9 @@ describe('blendAutoplayTracks', () => {
             const auto2 = createTrack('Auto2', 'Bot', 'u2')
             const auto3 = createTrack('Auto3', 'Bot', 'u3')
             for (const t of [auto1, auto2, auto3]) {
-                ;(t as unknown as { metadata: Record<string, unknown> }).metadata =
-                    { isAutoplay: true }
+                ;(
+                    t as unknown as { metadata: Record<string, unknown> }
+                ).metadata = { isAutoplay: true }
             }
             const queue = createQueue([auto1, auto2, auto3])
 

@@ -40,10 +40,14 @@ describe('autoplay/counters', () => {
         jest.clearAllMocks()
         autoplayCounters.clear()
         const { guildSettingsService } = require('@lucky/shared/services')
-        mockGetAutoplayCounter = guildSettingsService.getAutoplayCounter as jest.Mock
-        mockIncrementAutoplayCounter = guildSettingsService.incrementAutoplayCounter as jest.Mock
-        mockResetAutoplayCounter = guildSettingsService.resetAutoplayCounter as jest.Mock
-        mockClearAllAutoplayCounters = guildSettingsService.clearAllAutoplayCounters as jest.Mock
+        mockGetAutoplayCounter =
+            guildSettingsService.getAutoplayCounter as jest.Mock
+        mockIncrementAutoplayCounter =
+            guildSettingsService.incrementAutoplayCounter as jest.Mock
+        mockResetAutoplayCounter =
+            guildSettingsService.resetAutoplayCounter as jest.Mock
+        mockClearAllAutoplayCounters =
+            guildSettingsService.clearAllAutoplayCounters as jest.Mock
     })
 
     afterEach(() => {
@@ -90,7 +94,9 @@ describe('autoplay/counters', () => {
 
         test('returns unchanged memory count when service fails', async () => {
             autoplayCounters.set('guild-1', 5)
-            mockIncrementAutoplayCounter.mockRejectedValue(new Error('Service error'))
+            mockIncrementAutoplayCounter.mockRejectedValue(
+                new Error('Service error'),
+            )
             expect(await incrementAutoplayCount('guild-1', 2)).toBe(5)
         })
     })
@@ -123,7 +129,9 @@ describe('autoplay/counters', () => {
         })
 
         test('clears memory map even if service fails', async () => {
-            mockClearAllAutoplayCounters.mockRejectedValue(new Error('Service error'))
+            mockClearAllAutoplayCounters.mockRejectedValue(
+                new Error('Service error'),
+            )
             autoplayCounters.set('guild-1', 10)
             await clearAllAutoplayCounters()
             expect(autoplayCounters.size).toBe(0)

@@ -2,7 +2,10 @@ import type { User } from 'discord.js'
 import { debugLog } from '@lucky/shared/utils'
 import { getSimilarTracks } from '../../../lastfm'
 import { createArtistTagFetcher } from './artistTagCache'
-import { cleanSearchQuery, cleanTitle } from '../searchQueryCleaner'
+import {
+    cleanSearchQuery,
+    cleanTitle,
+} from '../../../utils/music/searchQueryCleaner'
 import type { AutoplayContext } from './autoplayContext'
 import { calculateRecommendationScore } from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'

@@ -587,7 +587,9 @@ describe('candidateScorer', () => {
         it('bounds replay boost so it cannot flip genre-family veto (-Infinity)', () => {
             // Cross-genre jump with strong family mismatch = -Infinity veto
             const result = calculateRecommendationScore({
-                candidate: createTrack({ author: 'Frequently Replayed Artist' }),
+                candidate: createTrack({
+                    author: 'Frequently Replayed Artist',
+                }),
                 currentTrack: createTrack(),
                 recentArtists: new Set(),
                 replayFrequentArtists: new Set(['frequently replayed artist']),
@@ -631,7 +633,9 @@ describe('candidateScorer', () => {
                 currentTrack: createTrack(),
                 recentArtists: new Set(),
                 autoplayMode: 'similar',
-                dislikedWeights: new Map([['dislikedsong::dislikedartist', 0.8]]),
+                dislikedWeights: new Map([
+                    ['dislikedsong::dislikedartist', 0.8],
+                ]),
                 replayFrequentTrackIds: new Set(['frequently-played-track-id']),
             })
             expect(result.score).toBe(-Infinity)
@@ -657,7 +661,9 @@ describe('candidateScorer', () => {
                 preferredArtistKeys: new Set(['favoriteartist']),
                 replayFrequentArtists: new Set(['favorite artist']),
             })
-            expect(withReplayBoostResult.score).toBeGreaterThan(baselineResult.score)
+            expect(withReplayBoostResult.score).toBeGreaterThan(
+                baselineResult.score,
+            )
             expect(withReplayBoostResult.signals).toContain('preferred artist')
             expect(withReplayBoostResult.signals).toContain('replay frequent')
         })
@@ -782,7 +788,9 @@ describe('candidateScorer', () => {
 
         it('applies no penalty once the artist is at or beyond the decay window', () => {
             const baseline = score()
-            const atWindow = score(new Map([[candidateKey, RECENCY_WINDOW_TRACKS]]))
+            const atWindow = score(
+                new Map([[candidateKey, RECENCY_WINDOW_TRACKS]]),
+            )
             expect(atWindow.score).toBe(baseline.score)
             expect(atWindow.signals).not.toContain('recency decay')
         })

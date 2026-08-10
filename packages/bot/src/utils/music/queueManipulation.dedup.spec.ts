@@ -3,10 +3,7 @@ import { jest } from '@jest/globals'
 jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
     getAutoplaySkipRateForGuild: jest.fn(),
 }))
-import {
-    replenishQueue,
-    moveUserTrackToPriority,
-} from './queueManipulation'
+import { replenishQueue, moveUserTrackToPriority } from './queueManipulation'
 
 jest.mock('lru-cache', () => ({
     LRUCache: jest.fn(function () {
@@ -72,7 +69,7 @@ jest.mock('@lucky/shared/services', () => ({
 const consumeLastFmSeedSliceMock = jest.fn()
 const consumeBlendedSeedSliceMock = jest.fn()
 
-jest.mock('./autoplay/lastFmSeeds', () => ({
+jest.mock('../../services/musicRecommendation/autoplay/lastFmSeeds', () => ({
     LASTFM_SEED_COUNT: 15,
     consumeLastFmSeedSlice: (...args: unknown[]) =>
         consumeLastFmSeedSliceMock(...args),

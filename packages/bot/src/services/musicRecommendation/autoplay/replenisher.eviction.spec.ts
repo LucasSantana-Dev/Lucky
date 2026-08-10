@@ -19,9 +19,12 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 // Mock the telemetry service
-jest.mock('../../../services/musicRecommendation/recommendationTelemetry', () => ({
-    recordRecommendationOutcome: jest.fn().mockResolvedValue(undefined),
-}))
+jest.mock(
+    '../../../services/musicRecommendation/recommendationTelemetry',
+    () => ({
+        recordRecommendationOutcome: jest.fn().mockResolvedValue(undefined),
+    }),
+)
 
 // Mock shared services that may have prismaClient dependencies
 jest.mock('@lucky/shared/services', () => ({
@@ -29,7 +32,7 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 import { purgeDuplicatesOfCurrentTrack } from './diversitySelector'
-import { recordRecommendationOutcome } from '../../../services/musicRecommendation/recommendationTelemetry'
+import { recordRecommendationOutcome } from '../recommendationTelemetry'
 
 describe('Autoplay eviction telemetry (#1585)', () => {
     let mockQueue: Partial<GuildQueue>
@@ -136,8 +139,9 @@ describe('Autoplay eviction telemetry (#1585)', () => {
 
         // Simulate what cancelPendingRecommendations does
         removed.forEach((track) => {
-            const isAutoplay = (track.metadata as { isAutoplay?: boolean } | undefined)
-                ?.isAutoplay === true
+            const isAutoplay =
+                (track.metadata as { isAutoplay?: boolean } | undefined)
+                    ?.isAutoplay === true
             if (isAutoplay) {
                 recordRecommendationOutcome({
                     guildId: 'test-guild',

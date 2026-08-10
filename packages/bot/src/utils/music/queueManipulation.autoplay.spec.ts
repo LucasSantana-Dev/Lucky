@@ -3,10 +3,7 @@ import { jest } from '@jest/globals'
 jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
     getAutoplaySkipRateForGuild: jest.fn(),
 }))
-import {
-    replenishQueue,
-    buildVcContributionWeights,
-} from './queueManipulation'
+import { replenishQueue, buildVcContributionWeights } from './queueManipulation'
 
 jest.mock('lru-cache', () => ({
     LRUCache: jest.fn(function () {
@@ -72,7 +69,7 @@ jest.mock('@lucky/shared/services', () => ({
 const consumeLastFmSeedSliceMock = jest.fn()
 const consumeBlendedSeedSliceMock = jest.fn()
 
-jest.mock('./autoplay/lastFmSeeds', () => ({
+jest.mock('../../services/musicRecommendation/autoplay/lastFmSeeds', () => ({
     LASTFM_SEED_COUNT: 15,
     consumeLastFmSeedSlice: (...args: unknown[]) =>
         consumeLastFmSeedSliceMock(...args),
@@ -399,7 +396,9 @@ describe('queueManipulation — multi-user VC blend', () => {
         sharedServices.spotifyLinkService.getByDiscordId.mockResolvedValue(null)
         sharedServices.premiumService.isPremium.mockResolvedValue(false)
 
-        const lastFmSeeds = jest.requireMock('./autoplay/lastFmSeeds') as {
+        const lastFmSeeds = jest.requireMock(
+            '../../services/musicRecommendation/autoplay/lastFmSeeds',
+        ) as {
             isLovedSeed: jest.Mock
         }
         lastFmSeeds.isLovedSeed.mockReturnValue(false)

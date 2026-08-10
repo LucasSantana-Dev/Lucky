@@ -64,7 +64,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-jest.mock('./autoplay/lastFmSeeds', () => ({
+jest.mock('../../services/musicRecommendation/autoplay/lastFmSeeds', () => ({
     LASTFM_SEED_COUNT: 15,
     consumeLastFmSeedSlice: jest.fn(),
     consumeBlendedSeedSlice: jest.fn(),

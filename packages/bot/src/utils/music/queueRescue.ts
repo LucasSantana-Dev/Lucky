@@ -1,6 +1,6 @@
 import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import { errorLog } from '@lucky/shared/utils'
-import { replenishQueue } from './autoplay/replenisher'
+import { replenishQueue } from '../../services/musicRecommendation/autoplay/replenisher'
 
 const HISTORY_SEED_LIMIT = 3
 const QUEUE_RESCUE_PROBE_TIMEOUT_MS = Number.parseInt(
@@ -115,8 +115,7 @@ export async function rescueQueue(
 
 function getAllHistoryTracks(queue: GuildQueue): Track[] {
     const history = queue.history as
-        | { tracks?: { toArray?: () => Track[]; data?: Track[] } }
-        | undefined
+        { tracks?: { toArray?: () => Track[]; data?: Track[] } } | undefined
 
     if (!history?.tracks) return []
     if (typeof history.tracks.toArray === 'function')
@@ -129,4 +128,4 @@ export function getHistoryTracks(queue: GuildQueue): Track[] {
     return getAllHistoryTracks(queue).slice(0, HISTORY_SEED_LIMIT)
 }
 
-export { buildVcContributionWeights } from './autoplay/vcWeights'
+export { buildVcContributionWeights } from '../../services/musicRecommendation/autoplay/vcWeights'

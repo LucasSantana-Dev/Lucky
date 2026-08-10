@@ -20,11 +20,14 @@ import { calculateRecommendationScore } from './autoplay/candidateScorer'
 import type { SessionMood } from './autoplay/sessionMood'
 import { createArtistTagFetcher } from './autoplay/artistTagCache'
 import type { AutoplayAuditCollector } from './autoplay/autoplayAudit'
-import { cleanSearchQuery, cleanAuthor } from './searchQueryCleaner'
+import {
+    cleanSearchQuery,
+    cleanAuthor,
+} from '../../utils/music/searchQueryCleaner'
 import {
     normalizeTrackKey,
     calculateGenreFamilyPenalty,
-} from './trackNormalization'
+} from '../../utils/music/trackNormalization'
 
 const AUTOPLAY_BUFFER_SIZE = 8
 const SEARCH_RESULTS_LIMIT = 8
@@ -319,7 +322,12 @@ export function interleaveByArtist(tracks: ScoredTrack[]): ScoredTrack[] {
         added = false
         for (const group of groups.values()) {
             if (round < group.length) {
-                result.push(assertDefined(group[round], 'element present after length check'))
+                result.push(
+                    assertDefined(
+                        group[round],
+                        'element present after length check',
+                    ),
+                )
                 added = true
             }
         }

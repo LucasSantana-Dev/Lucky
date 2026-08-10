@@ -15,7 +15,7 @@ import {
     cleanAuthor,
     extractSongCore,
     cleanSearchQuery,
-} from '../searchQueryCleaner'
+} from '../../../utils/music/searchQueryCleaner'
 import type { AutoplayContext } from './autoplayContext'
 import {
     normalizeTrackKey,
