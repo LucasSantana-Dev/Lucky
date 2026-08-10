@@ -3,7 +3,7 @@ import type { VoiceChannel } from 'discord.js'
 import { ChannelType } from 'discord.js'
 import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
 import { parseIntEnv } from '@lucky/shared/utils/env'
-import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
+import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
 
 export type RecoveryAction =
     'none' | 'rejoin' | 'requeue_current' | 'play_next' | 'failed'

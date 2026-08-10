@@ -13,7 +13,7 @@ import {
     scrobbleCurrentTrackIfLastFm,
 } from './trackNowPlaying'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
-import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
+import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
 import * as voiceStatus from '../../services/VoiceChannelStatusService'
 import {
     scheduleIdleDisconnect,

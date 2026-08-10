@@ -17,7 +17,7 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => infoLogMock(...args),
 }))
 
-jest.mock('../../utils/music/sessionSnapshots', () => ({
+jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
         restoreSnapshot: (...args: unknown[]) => restoreSnapshotMock(...args),
         saveSnapshot: (...args: unknown[]) => saveSnapshotMock(...args),

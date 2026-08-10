@@ -11,7 +11,7 @@ import {
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { createSuccessEmbed } from '../../../utils/general/embeds'
 import { musicWatchdogService } from '../../../services/musicManagement/watchdog'
-import { musicSessionSnapshotService } from '../../../utils/music/sessionSnapshots'
+import { musicSessionSnapshotService } from '../../../services/musicRecommendation/sessionSnapshots'
 import { assertDefined } from '@lucky/shared/utils/guards'
 
 export default new Command({

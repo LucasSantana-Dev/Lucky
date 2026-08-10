@@ -180,7 +180,8 @@ describe('MusicSessionSnapshotService', () => {
                 name: 'PrismaClientKnownRequestError',
                 code: 'P2003',
                 meta: { field_name: 'guildId' },
-                message: 'Invalid `prisma.musicSessionSnapshot.create()` invocation:',
+                message:
+                    'Invalid `prisma.musicSessionSnapshot.create()` invocation:',
             })
             const service = new MusicSessionSnapshotService()
             const queue = {

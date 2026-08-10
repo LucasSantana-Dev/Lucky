@@ -3,7 +3,10 @@ import { QueryType } from 'discord-player'
 import type { User } from 'discord.js'
 import { getPrismaClient, debugLog, errorLog } from '@lucky/shared/utils'
 import type { Prisma } from '@lucky/shared/utils'
-import { toSnapshotTrack, type SnapshotTrack } from './sessionSnapshots'
+import {
+    toSnapshotTrack,
+    type SnapshotTrack,
+} from '../musicRecommendation/sessionSnapshots'
 
 export type NamedSession = {
     name: string

@@ -12,7 +12,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-jest.mock('../../../src/utils/music/sessionSnapshots', () => ({
+jest.mock('../../../src/services/musicRecommendation/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
         getSnapshot: jest.fn(),
         restoreSnapshot: jest.fn(),

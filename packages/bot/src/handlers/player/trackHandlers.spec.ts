@@ -73,7 +73,7 @@ jest.mock('../../services/musicManagement/watchdog', () => ({
     },
 }))
 
-jest.mock('../../utils/music/sessionSnapshots', () => ({
+jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
         saveSnapshot: (...args: unknown[]) => saveSnapshotMock(...args),
         clearSnapshotIfStale: jest.fn().mockResolvedValue(undefined),

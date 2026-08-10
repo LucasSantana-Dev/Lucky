@@ -18,7 +18,7 @@ import {
     musicWatchdogService,
     type WatchdogGuildState,
 } from '../../../services/musicManagement/watchdog'
-import { musicSessionSnapshotService } from '../../../utils/music/sessionSnapshots'
+import { musicSessionSnapshotService } from '../../../services/musicRecommendation/sessionSnapshots'
 import {
     resolveGuildQueue,
     type QueueResolutionResult,
