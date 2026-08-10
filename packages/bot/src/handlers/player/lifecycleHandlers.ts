@@ -4,7 +4,7 @@ import { infoLog, debugLog } from '@lucky/shared/utils'
 import * as voiceStatus from '../../services/VoiceChannelStatusService'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
-import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
+import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
 import { replenishQueue } from '../../utils/music/queueOperations'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 

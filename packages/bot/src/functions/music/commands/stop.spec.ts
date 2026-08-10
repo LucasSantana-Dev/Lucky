@@ -36,7 +36,7 @@ jest.mock('../../../services/musicManagement/watchdog', () => ({
     },
 }))
 
-jest.mock('../../../utils/music/sessionSnapshots', () => ({
+jest.mock('../../../services/musicRecommendation/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
         deleteSnapshot: (...args: unknown[]) => deleteSnapshotMock(...args),
     },

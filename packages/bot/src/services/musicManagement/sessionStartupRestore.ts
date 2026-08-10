@@ -1,7 +1,7 @@
 import type { CustomClient } from '../../types'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
-import { musicSessionSnapshotService } from './sessionSnapshots'
+import { musicSessionSnapshotService } from '../musicRecommendation/sessionSnapshots'
 
 const STARTUP_MAX_AGE_MS = 30 * 60 * 1_000 // 30 minutes
 

@@ -9,7 +9,7 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
-jest.mock('./sessionSnapshots', () => ({
+jest.mock('../musicRecommendation/sessionSnapshots', () => ({
     toSnapshotTrack: (track: unknown) => {
         const t = track as any
         return {
