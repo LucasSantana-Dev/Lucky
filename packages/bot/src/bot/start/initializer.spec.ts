@@ -79,7 +79,7 @@ jest.mock('../../utils/music/search/providerHealth', () => ({
     initProviderHealth: (...args: unknown[]) => initProviderHealthMock(...args),
 }))
 
-jest.mock('../../utils/music/watchdog', () => ({
+jest.mock('../../services/musicManagement/watchdog', () => ({
     musicWatchdogService: {
         startOrphanSessionMonitor: (...args: unknown[]) =>
             musicWatchdogStartMock(...args),

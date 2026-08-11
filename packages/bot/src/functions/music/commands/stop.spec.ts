@@ -25,24 +25,24 @@ jest.mock('../../../utils/general/embeds', () => ({
     createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
 }))
 
-jest.mock('../../../utils/music/queueResolver', () => ({
+jest.mock('../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
-jest.mock('../../../utils/music/watchdog', () => ({
+jest.mock('../../../services/musicManagement/watchdog', () => ({
     musicWatchdogService: {
         markIntentionalStop: (...args: unknown[]) =>
             markIntentionalStopMock(...args),
     },
 }))
 
-jest.mock('../../../utils/music/sessionSnapshots', () => ({
+jest.mock('../../../services/musicRecommendation/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
         deleteSnapshot: (...args: unknown[]) => deleteSnapshotMock(...args),
     },
 }))
 
-jest.mock('../../../utils/music/autoplay/replenisher', () => ({
+jest.mock('../../../services/musicRecommendation/autoplay/replenisher', () => ({
     clearSessionMoodCache: (...args: unknown[]) =>
         clearSessionMoodCacheMock(...args),
 }))

@@ -5,7 +5,6 @@ const ROOT = process.cwd()
 const TARGET_DIRECTORIES = [
     'packages/bot/src/functions/music/commands',
     'packages/bot/src/handlers/webMusic',
-    'packages/bot/src/utils/music/autoplay',
     'packages/bot/src/services/musicRecommendation',
 ]
 const FORBIDDEN_PATTERNS = [/\.player\.nodes\.get\(/, /\.player\.queues\.get\(/]
