@@ -17,7 +17,7 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
 }))
 
-jest.mock('./queueOperations', () => ({
+jest.mock('../../services/musicManagement/queueOperations', () => ({
     addTrackToQueue: jest.fn(),
     addTracksToQueue: jest.fn(),
     clearQueue: jest.fn(),
@@ -26,7 +26,7 @@ jest.mock('./queueOperations', () => ({
     moveTrackInQueue: jest.fn(),
 }))
 
-jest.mock('./queueStateManager', () => ({
+jest.mock('../../services/musicManagement/queueStateManager', () => ({
     getQueueState: jest.fn(),
     getQueueStats: jest.fn(),
     isQueueEmpty: jest.fn(),
@@ -34,8 +34,7 @@ jest.mock('./queueStateManager', () => ({
 }))
 
 // Import mocked modules
-import * as queueOps from './queueOperations'
-import * as queueStateMgr from './queueStateManager'
+import * as queueOps from '../../services/musicManagement/queueOperations'
 import { trackHistoryService } from '@lucky/shared/services'
 
 const queueOpsMock = queueOps as unknown as Record<string, jest.Mock>

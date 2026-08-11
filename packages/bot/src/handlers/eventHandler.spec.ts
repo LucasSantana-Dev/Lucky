@@ -94,7 +94,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-jest.mock('../utils/music/namedSessions', () => ({
+jest.mock('../services/musicManagement/namedSessions', () => ({
     namedSessionService: {
         list: (...args: unknown[]) => namedSessionListMock(...args),
     },

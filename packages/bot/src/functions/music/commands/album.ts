@@ -7,8 +7,8 @@ import {
     requireVoiceChannel,
     requireDJRole,
 } from '../../../utils/command/commandValidations'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
-import { moveUserTrackToPriority } from '../../../utils/music/queueManipulation'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
+import { moveUserTrackToPriority } from '../../../services/musicManagement/queueManipulation'
 import {
     createErrorEmbed,
     createSuccessEmbed,
@@ -70,9 +70,12 @@ export default new Command({
             return
         }
 
-        const isEnabled = await featureToggleService.isEnabled('ALBUM_COMMAND', {
-            guildId: interaction.guildId,
-        })
+        const isEnabled = await featureToggleService.isEnabled(
+            'ALBUM_COMMAND',
+            {
+                guildId: interaction.guildId,
+            },
+        )
         if (!isEnabled) {
             await interactionReply({
                 interaction,
@@ -93,7 +96,10 @@ export default new Command({
         if (!(await requireVoiceChannel(interaction))) return
         if (!(await requireDJRole(interaction, interaction.guildId))) return
 
-        const voiceChannel = assertDefined(member.voice.channel, 'voice channel present after requireVoiceChannel guard')
+        const voiceChannel = assertDefined(
+            member.voice.channel,
+            'voice channel present after requireVoiceChannel guard',
+        )
         const query = interaction.options.getString('query', true)
         const artistFilter = interaction.options.getString('artist')
 

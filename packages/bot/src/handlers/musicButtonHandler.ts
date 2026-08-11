@@ -13,13 +13,13 @@ import {
     createLeaderboardPaginationButtons,
 } from '../utils/music/buttonComponents'
 import { createQueueEmbed } from '../functions/music/commands/queue/queueEmbed'
-import { shuffleQueue } from '../utils/music/queueManipulation'
+import { shuffleQueue } from '../services/musicManagement/queueManipulation'
 import type { GuildQueue } from 'discord-player'
-import { resolveGuildQueue } from '../utils/music/queueResolver'
+import { resolveGuildQueue } from '../services/musicManagement/queueResolver'
 import type { CustomClient } from '../types'
 import { buildListPageEmbed } from '../utils/general/responseEmbeds'
 import { levelService } from '@lucky/shared/services'
-import { setReplenishSuppressed } from '../utils/music/replenishSuppressionStore'
+import { setReplenishSuppressed } from '../services/musicManagement/replenishSuppressionStore'
 
 type NonNullQueue = GuildQueue
 

@@ -11,19 +11,25 @@ const clearSessionMoodCache = jest.fn<(guildId: string) => void>()
 const addBreadcrumb = jest.fn()
 const errorLog = jest.fn()
 
-jest.mock('../../../../../utils/music/autoplay/skipCircuitBreaker', () => ({
-    clearAutoplayPause: (id: string) => clearAutoplayPause(id),
-}))
+jest.mock(
+    '../../../../../services/musicRecommendation/autoplay/skipCircuitBreaker',
+    () => ({
+        clearAutoplayPause: (id: string) => clearAutoplayPause(id),
+    }),
+)
 jest.mock('./autoplayPreference', () => ({
     applyStoredAutoplayPreference: (q: unknown, id: string) =>
         applyStoredAutoplayPreference(q, id),
 }))
-jest.mock('../../../../../utils/music/queueManipulation', () => ({
+jest.mock('../../../../../services/musicManagement/queueManipulation', () => ({
     blendAutoplayTracks: (q: unknown, t: unknown) => blendAutoplayTracks(q, t),
 }))
-jest.mock('../../../../../utils/music/autoplay/replenisher', () => ({
-    clearSessionMoodCache: (id: string) => clearSessionMoodCache(id),
-}))
+jest.mock(
+    '../../../../../services/musicRecommendation/autoplay/replenisher',
+    () => ({
+        clearSessionMoodCache: (id: string) => clearSessionMoodCache(id),
+    }),
+)
 jest.mock('@lucky/shared/utils/monitoring', () => ({
     addBreadcrumb: (...args: unknown[]) => addBreadcrumb(...args),
 }))

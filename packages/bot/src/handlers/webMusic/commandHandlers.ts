@@ -5,8 +5,8 @@ import {
     type MusicCommandResult,
 } from '@lucky/shared/services'
 import { buildQueueState, repeatModeToEnum } from './mappers'
-import { resolveGuildQueue } from '../../utils/music/queueResolver'
-import { setReplenishSuppressed } from '../../utils/music/replenishSuppressionStore'
+import { resolveGuildQueue } from '../../services/musicManagement/queueResolver'
+import { setReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 
 type Result = MusicCommandResult
 
