@@ -1,5 +1,8 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
@@ -10,7 +13,8 @@ import {
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
+import { setReplenishSuppressed } from '../../../services/musicManagement/replenishSuppressionStore'
 
 async function handleEmptyQueue(
     interaction: ChatInputCommandInteraction,
@@ -19,7 +23,10 @@ async function handleEmptyQueue(
         interaction,
         content: {
             embeds: [
-                createErrorEmbed('Empty queue', '🗑️ The queue is already empty!'),
+                createErrorEmbed(
+                    'Empty queue',
+                    '🗑️ The queue is already empty!',
+                ),
             ],
             ephemeral: true,
         },
@@ -33,6 +40,13 @@ async function clearQueueAndRespond(
     guildId: string,
 ): Promise<void> {
     queue.clear()
+    // Suppress autoplay refill so the still-playing current track's natural
+    // end doesn't silently undo this /clear (#1957). The real lift happens
+    // when the next explicit (non-autoplay) track starts playing (see
+    // trackHandlers.ts's playerStart handler, #1998) — this duration is
+    // just a safety ceiling for the case nothing else ever plays, capped at
+    // the suppression store's own documented 1h TTL upper bound.
+    setReplenishSuppressed(guildId, 60 * 60 * 1_000)
 
     debugLog({
         message: `Cleared ${trackCount} tracks from queue in guild ${guildId}`,

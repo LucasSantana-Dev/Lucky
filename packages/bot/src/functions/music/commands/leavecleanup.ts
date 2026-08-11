@@ -1,15 +1,19 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 import {
-    requireGuild, requireDJRole,
+    requireGuild,
+    requireDJRole,
     requireQueue,
 } from '../../../utils/command/commandValidations'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { assertDefined } from '@lucky/shared/utils/guards'
 
 async function cleanupTracksFromLeftMembers(
@@ -22,10 +26,7 @@ async function cleanupTracksFromLeftMembers(
             interaction,
             content: {
                 embeds: [
-                    createErrorEmbed(
-                        'Error',
-                        'Bot is not in a voice channel.',
-                    ),
+                    createErrorEmbed('Error', 'Bot is not in a voice channel.'),
                 ],
             },
         })
@@ -58,9 +59,7 @@ async function cleanupTracksFromLeftMembers(
     await interactionReply({
         interaction,
         content: {
-            embeds: [
-                createSuccessEmbed('Queue cleaned up', message),
-            ],
+            embeds: [createSuccessEmbed('Queue cleaned up', message)],
         },
     })
 }
@@ -68,15 +67,29 @@ async function cleanupTracksFromLeftMembers(
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('leavecleanup')
-        .setDescription('🧹 Remove queued tracks from members who left the voice channel'),
+        .setDescription(
+            '🧹 Remove queued tracks from members who left the voice channel',
+        ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        if (!(await requireDJRole(interaction, assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')))) return
+        if (
+            !(await requireDJRole(
+                interaction,
+                assertDefined(
+                    interaction.guildId,
+                    'Guild ID required after requireGuild check',
+                ),
+            ))
+        )
+            return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return
 
-        await cleanupTracksFromLeftMembers(assertDefined(queue, 'queue present after requireQueue guard'), interaction)
+        await cleanupTracksFromLeftMembers(
+            assertDefined(queue, 'queue present after requireQueue guard'),
+            interaction,
+        )
     },
 })

@@ -9,7 +9,7 @@ import {
     requireVoiceChannel,
     requireDJRole,
 } from '../../../utils/command/commandValidations'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { createErrorEmbed } from '../../../utils/general/embeds'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'

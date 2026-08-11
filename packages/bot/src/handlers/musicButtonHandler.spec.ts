@@ -25,11 +25,11 @@ jest.mock('../functions/music/commands/queue/queueEmbed', () => ({
     createQueueEmbed: jest.fn(),
 }))
 
-jest.mock('../utils/music/queueManipulation', () => ({
+jest.mock('../services/musicManagement/queueManipulation', () => ({
     shuffleQueue: jest.fn(),
 }))
 
-jest.mock('../utils/music/queueResolver', () => ({
+jest.mock('../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
@@ -37,7 +37,7 @@ jest.mock('@lucky/shared/services', () => ({
     levelService: { getLeaderboard: jest.fn() },
 }))
 
-jest.mock('../utils/music/replenishSuppressionStore', () => ({
+jest.mock('../services/musicManagement/replenishSuppressionStore', () => ({
     setReplenishSuppressed: jest.fn(),
 }))
 

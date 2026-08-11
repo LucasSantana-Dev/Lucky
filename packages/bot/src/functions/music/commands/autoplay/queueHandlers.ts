@@ -1,5 +1,5 @@
 import { interactionReply } from '../../../../utils/general/interactionReply'
-import { replenishQueue } from '../../../../utils/music/queueOperations'
+import { replenishQueue } from '../../../../services/musicManagement/queueOperations'
 import {
     createEmbed,
     createErrorEmbed,

@@ -37,11 +37,11 @@ jest.mock('../../../utils/general/responseEmbeds', () => ({
         buildCommandTrackEmbedMock(...args),
 }))
 
-jest.mock('../../../utils/music/queueResolver', () => ({
+jest.mock('../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
-jest.mock('../../../utils/music/autoplay/replenisher', () => ({
+jest.mock('../../../services/musicRecommendation/autoplay/replenisher', () => ({
     clearSessionMoodCache: (...args: unknown[]) =>
         clearSessionMoodCacheMock(...args),
 }))

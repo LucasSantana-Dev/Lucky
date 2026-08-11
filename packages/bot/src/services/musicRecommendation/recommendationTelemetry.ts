@@ -1,10 +1,10 @@
 import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
 import { errorLog, warnLog } from '@lucky/shared/utils/general/log'
-import { recommendationSourceToPrisma } from '../../utils/music/autoplay/recommendationSourceMapping'
+import { recommendationSourceToPrisma } from './autoplay/recommendationSourceMapping'
 import {
     serializeBasis,
     type RecommendationBasis,
-} from '../../utils/music/autoplay/recommendationBasis'
+} from './autoplay/recommendationBasis'
 import type { SkipReason } from '../../utils/music/skipReasonMap'
 
 export interface RecordPickInput {

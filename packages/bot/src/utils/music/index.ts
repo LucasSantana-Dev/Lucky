@@ -6,7 +6,7 @@ export type {
     TrackValidationResult,
     QueueOperationResult,
     TrackPriority,
-    QueueManagementOptions
+    QueueManagementOptions,
 } from './types'
 
 export {
@@ -17,8 +17,8 @@ export {
     getNextTrack,
     getTrackAtPosition,
     isTrackInQueue,
-    getTrackPosition
-} from './queueStateManager'
+    getTrackPosition,
+} from '../../services/musicManagement/queueStateManager'
 
 export {
     addTracksToQueue,
@@ -27,13 +27,10 @@ export {
     shuffleQueue,
     removeTrackFromQueue,
     moveTrackInQueue,
-    replenishQueue
-} from './queueOperations'
+    replenishQueue,
+} from '../../services/musicManagement/queueOperations'
 
-export {
-    validateTrack,
-    validateTracks
-} from './trackValidator'
+export { validateTrack, validateTracks } from './trackValidator'
 
 // Create default instance
 import { TrackManagementService } from './service'
