@@ -101,7 +101,7 @@ async function clearAllCaches() {
 
     try {
         const { clearReplenishSuppressionCache } =
-            await import('../src/utils/music/replenishSuppressionStore')
+            await import('../src/services/musicManagement/replenishSuppressionStore')
         clearReplenishSuppressionCache()
     } catch {
         // May not be loaded
@@ -109,7 +109,7 @@ async function clearAllCaches() {
 
     try {
         const { clearAudioFeaturesCache } =
-            await import('../src/utils/music/autoplay/audioFeatures')
+            await import('../src/services/musicRecommendation/autoplay/audioFeatures')
         clearAudioFeaturesCache()
     } catch {
         // May not be loaded

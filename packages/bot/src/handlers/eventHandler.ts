@@ -34,7 +34,7 @@ import {
 import { reactionRolesService } from '@lucky/shared/services'
 import { syncAllGuildFollowerRoles } from '../twitch/followerRoleSync'
 import { aiDevToolkitService } from '../services/AiDevToolkitService'
-import { namedSessionService } from '../utils/music/namedSessions'
+import { namedSessionService } from '../services/musicManagement/namedSessions'
 import { cleanupGuildState } from './player/trackNowPlaying'
 import {
     recordGuildJoin,

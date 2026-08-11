@@ -8,7 +8,7 @@ import {
 } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireGuild } from '../../../utils/command/commandValidations'
-import { collaborativePlaylistService } from '../../../utils/music/collaborativePlaylist'
+import { collaborativePlaylistService } from '../../../services/musicRecommendation/collaborativePlaylist'
 
 export default new Command({
     data: new SlashCommandBuilder()

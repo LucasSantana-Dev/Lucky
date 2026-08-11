@@ -42,7 +42,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
 }))
 
-jest.mock('../../../utils/music/queueResolver', () => ({
+jest.mock('../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
@@ -52,7 +52,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-jest.mock('../../../utils/music/voteSkipStore', () => ({
+jest.mock('../../../services/musicManagement/voteSkipStore', () => ({
     addVote: (...args: unknown[]) => addVoteMock(...args),
     clearVotes: (...args: unknown[]) => clearVotesMock(...args),
     getVotes: (...args: unknown[]) => getVotesMock(...args),

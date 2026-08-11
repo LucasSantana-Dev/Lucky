@@ -1,5 +1,9 @@
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
-import { GuildMemberRoleManager, PermissionsBitField, PermissionFlagsBits } from 'discord.js'
+import {
+    GuildMemberRoleManager,
+    PermissionsBitField,
+    PermissionFlagsBits,
+} from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 import { errorEmbed, createErrorEmbed } from '../general/embeds'
 import { interactionReply } from '../general/interactionReply'
@@ -9,6 +13,7 @@ import {
     warnLog,
 } from '@lucky/shared/utils'
 import { guildSettingsService } from '@lucky/shared/services'
+import { assertDefined } from '@lucky/shared/utils/guards'
 
 export async function requireGuild(
     interaction: ChatInputCommandInteraction,
@@ -205,4 +210,17 @@ export async function requireDJRole(
         })
     }
     return hasDJRole
+}
+
+export async function requireDJRoleInGuild(
+    interaction: ChatInputCommandInteraction,
+    checkLabel: string,
+): Promise<boolean> {
+    return requireDJRole(
+        interaction,
+        assertDefined(
+            interaction.guildId,
+            `Guild ID required after ${checkLabel} check`,
+        ),
+    )
 }

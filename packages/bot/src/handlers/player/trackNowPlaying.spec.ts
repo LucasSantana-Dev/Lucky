@@ -30,9 +30,12 @@ jest.mock('../../utils/music/buttonComponents', () => ({
     createMusicActionButtons: jest.fn(),
 }))
 
-jest.mock('../../utils/music/autoplay/autoplayAcceptanceCache', () => ({
-    getPerSourceAcceptanceRateCached: jest.fn(),
-}))
+jest.mock(
+    '../../services/musicRecommendation/autoplay/autoplayAcceptanceCache',
+    () => ({
+        getPerSourceAcceptanceRateCached: jest.fn(),
+    }),
+)
 
 jest.mock('../../lastfm', () => ({
     isLastFmConfigured: jest.fn(),
