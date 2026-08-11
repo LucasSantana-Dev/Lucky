@@ -13,13 +13,13 @@ import {
     shuffleQueue,
     removeTrackFromQueue,
     moveTrackInQueue,
-} from './queueOperations'
+} from '../../services/musicManagement/queueOperations'
 import {
     getQueueState,
     getQueueStats,
     isQueueEmpty,
     isQueueFull,
-} from './queueStateManager'
+} from '../../services/musicManagement/queueStateManager'
 import { trackHistoryService } from '@lucky/shared/services'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 

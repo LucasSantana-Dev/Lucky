@@ -1,7 +1,10 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue, QueueFilters } from 'discord-player'
@@ -11,7 +14,7 @@ import {
     requireIsPlaying,
     requireDJRole,
 } from '../../../utils/command/commandValidations'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { assertDefined } from '@lucky/shared/utils/guards'
 
 const BASS_BOOST_LEVELS: Record<number, (keyof QueueFilters)[]> = {
@@ -23,8 +26,14 @@ const BASS_BOOST_LEVELS: Record<number, (keyof QueueFilters)[]> = {
     5: ['bassboost_high'],
 }
 
-async function replyError(interaction: ChatInputCommandInteraction, message: string): Promise<void> {
-    await interactionReply({ interaction, content: { embeds: [createErrorEmbed('Error', message)] } })
+async function replyError(
+    interaction: ChatInputCommandInteraction,
+    message: string,
+): Promise<void> {
+    await interactionReply({
+        interaction,
+        content: { embeds: [createErrorEmbed('Error', message)] },
+    })
 }
 
 async function handleBassBoost(
@@ -33,7 +42,10 @@ async function handleBassBoost(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     if (level < 0 || level > 5) {
-        await replyError(interaction, '🔊 Bass boost level must be between 0 and 5!')
+        await replyError(
+            interaction,
+            '🔊 Bass boost level must be between 0 and 5!',
+        )
         return
     }
 
@@ -46,10 +58,15 @@ async function handleBassBoost(
             await queue.filters.ffmpeg.toggle(['bassboost_high'])
         }
 
-        const message = level === 0 ? 'Bass boost disabled' : `Bass boost level set to ${level}`
+        const message =
+            level === 0
+                ? 'Bass boost disabled'
+                : `Bass boost level set to ${level}`
         await interactionReply({
             interaction,
-            content: { embeds: [createSuccessEmbed('Bass boost', `🔊 ${message}`)] },
+            content: {
+                embeds: [createSuccessEmbed('Bass boost', `🔊 ${message}`)],
+            },
         })
     } catch {
         await replyError(interaction, 'Failed to apply bass boost effect.')
@@ -61,11 +78,14 @@ async function handleNightcore(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     try {
-        const enabled = queue.filters.resampler?.toggleFilter('nightcore') ?? false
+        const enabled =
+            queue.filters.resampler?.toggleFilter('nightcore') ?? false
         const message = enabled ? 'Nightcore enabled' : 'Nightcore disabled'
         await interactionReply({
             interaction,
-            content: { embeds: [createSuccessEmbed('Nightcore', `🎵 ${message}`)] },
+            content: {
+                embeds: [createSuccessEmbed('Nightcore', `🎵 ${message}`)],
+            },
         })
     } catch {
         await replyError(interaction, 'Failed to toggle nightcore effect.')
@@ -81,7 +101,14 @@ async function handleReset(
         queue.filters.resampler?.toggleFilter('nightcore')
         await interactionReply({
             interaction,
-            content: { embeds: [createSuccessEmbed('Effects reset', '✨ All effects have been cleared.')] },
+            content: {
+                embeds: [
+                    createSuccessEmbed(
+                        'Effects reset',
+                        '✨ All effects have been cleared.',
+                    ),
+                ],
+            },
         })
     } catch {
         await replyError(interaction, 'Failed to reset effects.')
@@ -111,14 +138,21 @@ export default new Command({
                 .setDescription('Toggle nightcore audio effect'),
         )
         .addSubcommand((sub) =>
-            sub
-                .setName('reset')
-                .setDescription('Clear all audio effects'),
+            sub.setName('reset').setDescription('Clear all audio effects'),
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        if (!(await requireDJRole(interaction, assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')))) return
+        if (
+            !(await requireDJRole(
+                interaction,
+                assertDefined(
+                    interaction.guildId,
+                    'Guild ID required after requireGuild check',
+                ),
+            ))
+        )
+            return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return
@@ -128,11 +162,21 @@ export default new Command({
 
         if (subcommand === 'bassboost') {
             const level = interaction.options.getInteger('level', true)
-            await handleBassBoost(assertDefined(queue, 'queue present after requireQueue guard'), level, interaction)
+            await handleBassBoost(
+                assertDefined(queue, 'queue present after requireQueue guard'),
+                level,
+                interaction,
+            )
         } else if (subcommand === 'nightcore') {
-            await handleNightcore(assertDefined(queue, 'queue present after requireQueue guard'), interaction)
+            await handleNightcore(
+                assertDefined(queue, 'queue present after requireQueue guard'),
+                interaction,
+            )
         } else if (subcommand === 'reset') {
-            await handleReset(assertDefined(queue, 'queue present after requireQueue guard'), interaction)
+            await handleReset(
+                assertDefined(queue, 'queue present after requireQueue guard'),
+                interaction,
+            )
         }
     },
 })

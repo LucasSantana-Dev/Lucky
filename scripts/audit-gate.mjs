@@ -41,28 +41,7 @@ const TRANSITIVE = Symbol('transitive');
  * are accepted, so a new CVE in an already-listed package is not silently
  * inherited by the acceptance.
  */
-const ACCEPTED = {
-    // TEMPORARY. Remove with the react-router v8 migration (#1878).
-    'react-router': {
-        reason:
-            'Only the RSC-mode CSRF bypass is left; the other four advisories were cleared by ' +
-            'bumping react-router-dom to ^7.18.1. This one is fixed only in 8.3.0 and does not ' +
-            'apply here, since this app is a Vite SPA and does not use RSC. Clearing it cannot ' +
-            'be a version bump: react-router-dom has no 8.x line (v8 consolidated it into ' +
-            'react-router), so the fix means switching the import source across ~49 frontend ' +
-            'files and dropping react-router-dom. Landing that as its own reviewable change ' +
-            'rather than smuggling a router migration into a CI config PR.',
-        until: 'The react-router v8 migration lands (#1878). This entry must go with it.',
-        advisories: {
-            1124282: 'GHSA-qwww-vcr4-c8h2, RSC mode CSRF bypass (RSC only; this app is an SPA)',
-        },
-    },
-    'react-router-dom': {
-        reason: 'Transitive via react-router.',
-        until: 'Same as react-router (#1878).',
-        advisories: TRANSITIVE,
-    },
-};
+const ACCEPTED = {};
 
 // The policy above is only worth something if every entry actually carries its
 // justification. Enforce it rather than trusting the comment.

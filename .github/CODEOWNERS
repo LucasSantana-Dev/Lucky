@@ -1,0 +1,7 @@
+# Interim review gate for the two documented, not-yet lint-enforced boundary
+# rules (handlers/ vs functions/, utils/ vs services/) — three directories
+# below implement them. See docs/ARCHITECTURE.md § Internal layer
+# boundaries (bot package), and issues #1961 / #1968.
+/packages/bot/src/handlers/ @LucasSantana-Dev
+/packages/bot/src/functions/ @LucasSantana-Dev
+/packages/bot/src/utils/ @LucasSantana-Dev

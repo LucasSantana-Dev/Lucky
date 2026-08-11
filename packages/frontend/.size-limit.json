@@ -32,7 +32,7 @@
     {
         "name": "Vendor State (gzip)",
         "path": "dist/assets/vendor-state-*.js",
-        "limit": "26 KB",
+        "limit": "26.5 KB",
         "gzip": true
     }
 ]

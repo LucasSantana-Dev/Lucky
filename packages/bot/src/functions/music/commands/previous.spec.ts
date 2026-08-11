@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, jest, afterEach } from '@jest/globals'
+import {
+    beforeEach,
+    describe,
+    expect,
+    it,
+    jest,
+    afterEach,
+} from '@jest/globals'
 
 const requireGuildMock = jest.fn()
 const requireDJRoleMock = jest.fn()
@@ -18,7 +25,8 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
-    requireCurrentTrack: (...args: unknown[]) => requireCurrentTrackMock(...args),
+    requireCurrentTrack: (...args: unknown[]) =>
+        requireCurrentTrackMock(...args),
     requireIsPlaying: (...args: unknown[]) => requireIsPlayingMock(...args),
 }))
 
@@ -32,15 +40,17 @@ jest.mock('../../../utils/general/embeds', () => ({
 }))
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
-    buildCommandTrackEmbed: (...args: unknown[]) => buildCommandTrackEmbedMock(...args),
+    buildCommandTrackEmbed: (...args: unknown[]) =>
+        buildCommandTrackEmbedMock(...args),
 }))
 
-jest.mock('../../../utils/music/queueResolver', () => ({
+jest.mock('../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
-jest.mock('../../../utils/music/autoplay/replenisher', () => ({
-    clearSessionMoodCache: (...args: unknown[]) => clearSessionMoodCacheMock(...args),
+jest.mock('../../../services/musicRecommendation/autoplay/replenisher', () => ({
+    clearSessionMoodCache: (...args: unknown[]) =>
+        clearSessionMoodCacheMock(...args),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -239,5 +249,4 @@ describe('previous command', () => {
             }),
         )
     })
-
 })
