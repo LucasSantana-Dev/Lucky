@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.1...v2.39.2) (2026-08-10)
+
+
+### Bug Fixes
+
+* **bot:** guard voice/session mutations with stop/suppress flags ([#1998](https://github.com/LucasSantana-Dev/Lucky/issues/1998)) ([23eaba2](https://github.com/LucasSantana-Dev/Lucky/commit/23eaba2e3d5e8d5a435d635fd15fbb9e6d3be003))
+* **ci:** clear stale audit-gate entries and bump fixed advisories ([#1942](https://github.com/LucasSantana-Dev/Lucky/issues/1942)) ([adf710b](https://github.com/LucasSantana-Dev/Lucky/commit/adf710bc5bece62d815912f3929ee55bcc9b872e))
+* **ci:** clear stale audit-gate entries and bump fixed advisories ([#1960](https://github.com/LucasSantana-Dev/Lucky/issues/1960)) ([2c17c99](https://github.com/LucasSantana-Dev/Lucky/commit/2c17c995be9fb248594dcd0b8a3cf9cb9fb07101))
+
 ## [2.39.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.0...v2.39.1) (2026-07-30)
 
 
