@@ -7,7 +7,7 @@ import {
 } from '../../../../../utils/general/embeds'
 import { recommendationFeedbackService } from '../../../../../services/musicRecommendation/feedbackService'
 import type { CustomClient } from '../../../../../types'
-import { resolveGuildQueue } from '../../../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../../../services/musicManagement/queueResolver'
 
 export async function handleFeedback(
     interaction: ChatInputCommandInteraction,
@@ -30,8 +30,7 @@ export async function handleFeedback(
     }
 
     const feedback = interaction.options.getString('feedback', true) as
-        | 'like'
-        | 'dislike'
+        'like' | 'dislike'
     const trackUrl = interaction.options.getString('track_url')
     const { queue } = resolveGuildQueue(client, guildId)
     const currentTrack = queue?.currentTrack

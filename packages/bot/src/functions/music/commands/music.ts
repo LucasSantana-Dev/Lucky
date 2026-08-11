@@ -17,12 +17,12 @@ import {
 import {
     musicWatchdogService,
     type WatchdogGuildState,
-} from '../../../utils/music/watchdog'
-import { musicSessionSnapshotService } from '../../../utils/music/sessionSnapshots'
+} from '../../../services/musicManagement/watchdog'
+import { musicSessionSnapshotService } from '../../../services/musicRecommendation/sessionSnapshots'
 import {
     resolveGuildQueue,
     type QueueResolutionResult,
-} from '../../../utils/music/queueResolver'
+} from '../../../services/musicManagement/queueResolver'
 import { recommendationFeedbackService } from '../../../services/musicRecommendation/feedbackService'
 import type { GuildQueue } from 'discord-player'
 
