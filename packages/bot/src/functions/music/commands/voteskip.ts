@@ -7,7 +7,7 @@ import {
     requireCurrentTrack,
     requireIsPlaying,
 } from '../../../utils/command/commandValidations'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import {
     createErrorEmbed,
@@ -17,7 +17,7 @@ import {
     addVote,
     clearVotes,
     hasVoted,
-} from '../../../utils/music/voteSkipStore'
+} from '../../../services/musicManagement/voteSkipStore'
 import { guildSettingsService } from '@lucky/shared/services'
 import { debugLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
@@ -36,7 +36,10 @@ export default new Command({
     }: CommandExecuteParams): Promise<void> => {
         if (!(await requireGuild(interaction))) return
 
-        const guildId = assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')
+        const guildId = assertDefined(
+            interaction.guildId,
+            'Guild ID required after requireGuild check',
+        )
         const { queue } = resolveGuildQueue(client, guildId)
 
         if (!(await requireQueue(queue, interaction))) return
@@ -112,7 +115,10 @@ export default new Command({
 
         if (voteCount >= required) {
             clearVotes(guildId)
-            assertDefined(queue, 'Queue required after requireQueue check').node.skip()
+            assertDefined(
+                queue,
+                'Queue required after requireQueue check',
+            ).node.skip()
             await interactionReply({
                 interaction,
                 content: {

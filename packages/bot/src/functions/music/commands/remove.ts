@@ -1,16 +1,19 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
-import { interactionReply } from "../../../utils/general/interactionReply"
-import { createErrorEmbed, createSuccessEmbed } from "../../../utils/general/embeds"
+import { interactionReply } from '../../../utils/general/interactionReply'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
 import {
     requireGuild,
     requireQueue,
     requireCurrentTrack,
     requireVoiceChannel,
-} from "../../../utils/command/commandValidations"
-import type { CommandExecuteParams } from "../../../types/CommandData"
+} from '../../../utils/command/commandValidations'
+import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { GuildQueue } from 'discord-player'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
 /**
  * Validate remove position

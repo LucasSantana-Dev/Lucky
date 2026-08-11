@@ -4,7 +4,7 @@ import type {
     QueueState,
 } from '@lucky/shared/services'
 import type { CustomClient } from '../../types'
-import { resolveGuildQueue } from '../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../services/musicManagement/queueResolver'
 
 interface RawTrack {
     id: string
@@ -26,8 +26,7 @@ const KNOWN_SOURCES = ['youtube', 'spotify', 'soundcloud']
 
 export function mapTrack(track: RawTrack): TrackInfo {
     const rawReason = track.metadata?.recommendationReason
-    const reason =
-        typeof rawReason === 'string' ? rawReason : undefined
+    const reason = typeof rawReason === 'string' ? rawReason : undefined
     return {
         id: track.id,
         title: track.title,

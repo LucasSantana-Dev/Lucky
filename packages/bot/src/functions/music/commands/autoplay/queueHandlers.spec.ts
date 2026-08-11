@@ -13,7 +13,7 @@ jest.mock('../../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => mockInteractionReply(...args),
 }))
 
-jest.mock('../../../../utils/music/queueOperations', () => ({
+jest.mock('../../../../services/musicManagement/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => mockReplenishQueue(...args),
 }))
 
@@ -104,8 +104,14 @@ describe('handleAutoplayStatus', () => {
             expect.objectContaining({
                 title: '📻 Autoplay Status',
                 fields: expect.arrayContaining([
-                    expect.objectContaining({ name: '📊 Queue', value: '2 / 3 tracks' }),
-                    expect.objectContaining({ name: '🎵 Status', value: expect.stringContaining('Enabled') }),
+                    expect.objectContaining({
+                        name: '📊 Queue',
+                        value: '2 / 3 tracks',
+                    }),
+                    expect.objectContaining({
+                        name: '🎵 Status',
+                        value: expect.stringContaining('Enabled'),
+                    }),
                 ]),
             }),
         )
@@ -119,7 +125,10 @@ describe('handleAutoplayStatus', () => {
         expect(mockCreateEmbed).toHaveBeenCalledWith(
             expect.objectContaining({
                 fields: expect.arrayContaining([
-                    expect.objectContaining({ name: '🎵 Status', value: 'Disabled' }),
+                    expect.objectContaining({
+                        name: '🎵 Status',
+                        value: 'Disabled',
+                    }),
                 ]),
             }),
         )
@@ -133,7 +142,10 @@ describe('handleAutoplayStatus', () => {
         expect(mockCreateEmbed).toHaveBeenCalledWith(
             expect.objectContaining({
                 fields: expect.arrayContaining([
-                    expect.objectContaining({ name: '📊 Queue', value: '0 / 0 tracks' }),
+                    expect.objectContaining({
+                        name: '📊 Queue',
+                        value: '0 / 0 tracks',
+                    }),
                 ]),
             }),
         )
@@ -148,7 +160,9 @@ describe('handleAutoplayStatus', () => {
 
         await handleAutoplayStatus(interaction, queue)
 
-        const call = mockCreateEmbed.mock.calls[0][0] as { fields: Array<{ name: string }> }
+        const call = mockCreateEmbed.mock.calls[0][0] as {
+            fields: Array<{ name: string }>
+        }
         const blendField = call.fields.find((f) => f.name === '🎭 Blend')
         expect(blendField).toBeUndefined()
     })
@@ -189,7 +203,9 @@ describe('handleAutoplayStatus', () => {
 
         await handleAutoplayStatus(interaction, queue)
 
-        const call = mockCreateEmbed.mock.calls[0][0] as { fields: Array<{ name: string }> }
+        const call = mockCreateEmbed.mock.calls[0][0] as {
+            fields: Array<{ name: string }>
+        }
         const blendField = call.fields.find((f) => f.name === '🎭 Blend')
         expect(blendField).toBeUndefined()
     })
@@ -197,7 +213,9 @@ describe('handleAutoplayStatus', () => {
     it('handles null metadata without throwing', async () => {
         const queue = makeQueue([makeTrack(true)], null, 2)
 
-        await expect(handleAutoplayStatus(interaction, queue)).resolves.not.toThrow()
+        await expect(
+            handleAutoplayStatus(interaction, queue),
+        ).resolves.not.toThrow()
     })
 })
 
@@ -210,7 +228,10 @@ describe('handleSkipAutoplayTrack', () => {
 
         await handleSkipAutoplayTrack(interaction, queue)
 
-        expect(mockCreateErrorEmbed).toHaveBeenCalledWith('Queue Empty', expect.any(String))
+        expect(mockCreateErrorEmbed).toHaveBeenCalledWith(
+            'Queue Empty',
+            expect.any(String),
+        )
         expect(mockReplenishQueue).not.toHaveBeenCalled()
     })
 
@@ -220,7 +241,10 @@ describe('handleSkipAutoplayTrack', () => {
 
         await handleSkipAutoplayTrack(interaction, queue)
 
-        expect(mockCreateErrorEmbed).toHaveBeenCalledWith('No Autoplay Tracks', expect.any(String))
+        expect(mockCreateErrorEmbed).toHaveBeenCalledWith(
+            'No Autoplay Tracks',
+            expect.any(String),
+        )
         expect(mockReplenishQueue).not.toHaveBeenCalled()
     })
 
@@ -245,7 +269,10 @@ describe('handleClearAutoplayTracks', () => {
 
         await handleClearAutoplayTracks(interaction, queue)
 
-        expect(mockCreateErrorEmbed).toHaveBeenCalledWith('No Autoplay Tracks', expect.any(String))
+        expect(mockCreateErrorEmbed).toHaveBeenCalledWith(
+            'No Autoplay Tracks',
+            expect.any(String),
+        )
         expect(mockReplenishQueue).not.toHaveBeenCalled()
     })
 
@@ -261,7 +288,9 @@ describe('handleClearAutoplayTracks', () => {
         expect((queue as any).removeTrack).toHaveBeenNthCalledWith(2, 0)
         expect(mockReplenishQueue).toHaveBeenCalledWith(queue)
         expect(mockCreateEmbed).toHaveBeenCalledWith(
-            expect.objectContaining({ description: expect.stringContaining('2 autoplay tracks') }),
+            expect.objectContaining({
+                description: expect.stringContaining('2 autoplay tracks'),
+            }),
         )
     })
 })

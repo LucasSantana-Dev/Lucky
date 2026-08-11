@@ -10,7 +10,7 @@ import {
     createMusicActionButtons,
 } from '../../utils/music/buttonComponents'
 import type { QueueMetadata } from '../../types/QueueMetadata'
-import { getPerSourceAcceptanceRateCached } from '../../utils/music/autoplay/autoplayAcceptanceCache'
+import { getPerSourceAcceptanceRateCached } from '../../services/musicRecommendation/autoplay/autoplayAcceptanceCache'
 import {
     isLastFmConfigured,
     getSessionKeyForUser,

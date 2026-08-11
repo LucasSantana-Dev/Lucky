@@ -80,14 +80,14 @@ jest.mock('discord-player', () => ({
     },
 }))
 
-jest.mock('../../../../utils/music/queueManipulation', () => ({
+jest.mock('../../../../services/musicManagement/queueManipulation', () => ({
     moveUserTrackToPriority: (queue: unknown, track: unknown) =>
         moveUserTrackToPriorityMock(queue, track),
     blendAutoplayTracks: (queue: unknown, track: unknown) =>
         blendAutoplayTracksMock(queue, track),
 }))
 
-jest.mock('../../../../utils/music/queueResolver', () => ({
+jest.mock('../../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (client: unknown, guildId: string) =>
         resolveGuildQueueMock(client, guildId),
 }))
@@ -125,13 +125,19 @@ jest.mock('../../../../utils/general/embeds', () => ({
         createSuccessEmbedMock(title, message),
 }))
 
-jest.mock('../../../../utils/music/collaborativePlaylist', () => ({
-    collaborativePlaylistService: {
-        canAddTracks: () => canAddTracksMock(),
-        recordContribution: (guildId: string, userId: string, amount: number) =>
-            recordContributionMock(guildId, userId, amount),
-    },
-}))
+jest.mock(
+    '../../../../services/musicRecommendation/collaborativePlaylist',
+    () => ({
+        collaborativePlaylistService: {
+            canAddTracks: () => canAddTracksMock(),
+            recordContribution: (
+                guildId: string,
+                userId: string,
+                amount: number,
+            ) => recordContributionMock(guildId, userId, amount),
+        },
+    }),
+)
 
 jest.mock('../../../../utils/general/interactionReply', () => ({
     interactionReply: (payload: unknown) => interactionReplyMock(payload),

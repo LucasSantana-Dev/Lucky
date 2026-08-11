@@ -1,17 +1,17 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { clearSessionMoodCache } from '../../../utils/music/autoplay/replenisher'
+import { clearSessionMoodCache } from '../../../services/musicRecommendation/autoplay/replenisher'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import {
     requireGuild,
     requireQueue,
     requireDJRole,
 } from '../../../utils/command/commandValidations'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { createSuccessEmbed } from '../../../utils/general/embeds'
-import { musicWatchdogService } from '../../../utils/music/watchdog'
-import { musicSessionSnapshotService } from '../../../utils/music/sessionSnapshots'
+import { musicWatchdogService } from '../../../services/musicManagement/watchdog'
+import { musicSessionSnapshotService } from '../../../services/musicRecommendation/sessionSnapshots'
 import { assertDefined } from '@lucky/shared/utils/guards'
 
 export default new Command({
@@ -25,7 +25,16 @@ export default new Command({
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 
         if (!(await requireQueue(queue, interaction))) return
-        if (!(await requireDJRole(interaction, assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')))) return
+        if (
+            !(await requireDJRole(
+                interaction,
+                assertDefined(
+                    interaction.guildId,
+                    'Guild ID required after requireGuild check',
+                ),
+            ))
+        )
+            return
 
         if (queue) {
             musicWatchdogService.markIntentionalStop(queue.guild.id)

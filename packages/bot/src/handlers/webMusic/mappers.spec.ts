@@ -9,7 +9,7 @@ jest.mock('discord-player', () => ({
     },
 }))
 
-jest.mock('../../utils/music/queueResolver', () => ({
+jest.mock('../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: jest.fn(),
 }))
 
@@ -20,7 +20,7 @@ import {
     buildQueueState,
 } from './mappers'
 import { QueueRepeatMode } from 'discord-player'
-import { resolveGuildQueue } from '../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../services/musicManagement/queueResolver'
 
 const resolveGuildQueueMock = resolveGuildQueue as jest.MockedFunction<
     typeof resolveGuildQueue
@@ -85,7 +85,10 @@ describe('mapTrack', () => {
     it('forwards recommendationReason from track metadata', () => {
         const track = mapTrack(
             makeRawTrack({
-                metadata: { isAutoplay: true, recommendationReason: 'similar vibes' },
+                metadata: {
+                    isAutoplay: true,
+                    recommendationReason: 'similar vibes',
+                },
             }),
         )
         expect(track.recommendationReason).toBe('similar vibes')

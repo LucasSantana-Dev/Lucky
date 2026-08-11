@@ -28,6 +28,7 @@ const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const warnLogMock = jest.fn()
+const setReplenishSuppressedMock = jest.fn()
 const recordImplicitFeedbackMock = jest.fn()
 
 jest.mock('discord-player', () => ({
@@ -44,7 +45,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-jest.mock('../../utils/music/queueOperations', () => ({
+jest.mock('../../services/musicManagement/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
 }))
 
@@ -65,7 +66,7 @@ jest.mock('../../utils/music/autoplayManager', () => ({
     resetAutoplayCount: (...args: unknown[]) => resetAutoplayCountMock(...args),
 }))
 
-jest.mock('../../utils/music/watchdog', () => ({
+jest.mock('../../services/musicManagement/watchdog', () => ({
     musicWatchdogService: {
         arm: (...args: unknown[]) => watchdogArmMock(...args),
         clear: (...args: unknown[]) => watchdogClearMock(...args),
@@ -73,16 +74,17 @@ jest.mock('../../utils/music/watchdog', () => ({
     },
 }))
 
-jest.mock('../../utils/music/sessionSnapshots', () => ({
+jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
         saveSnapshot: (...args: unknown[]) => saveSnapshotMock(...args),
         clearSnapshotIfStale: jest.fn().mockResolvedValue(undefined),
     },
 }))
 
-jest.mock('../../utils/music/replenishSuppressionStore', () => ({
+jest.mock('../../services/musicManagement/replenishSuppressionStore', () => ({
     isReplenishSuppressed: jest.fn(() => false),
-    setReplenishSuppressed: jest.fn(),
+    setReplenishSuppressed: (...args: unknown[]) =>
+        setReplenishSuppressedMock(...args),
 }))
 
 jest.mock('../../services/VoiceChannelStatusService', () => ({
@@ -286,6 +288,26 @@ describe('trackHandlers autoplay replenishment', () => {
             'testsong::testartist',
             'implicit_dislike',
         )
+    })
+
+    it('clears replenish suppression when an explicit track starts (#1998)', async () => {
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.OFF)
+        const track = createTrack('listener-1')
+
+        await handlers.playerStart(queue, track)
+
+        expect(setReplenishSuppressedMock).toHaveBeenCalledWith('guild-1', 0)
+    })
+
+    it('does NOT clear replenish suppression when an autoplay track starts (#1998)', async () => {
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const autoplayTrack = createAutoplayTrack('listener-1')
+
+        await handlers.playerStart(queue, autoplayTrack)
+
+        expect(setReplenishSuppressedMock).not.toHaveBeenCalled()
     })
 
     it('increments getRecentSkipCount on early skip and resets on track completion', async () => {
@@ -591,8 +613,7 @@ describe('trackHandlers autoplay replenishment', () => {
 
     describe('autoplay outcome diagnostic log (#1275)', () => {
         const findEvalLog = ():
-            | { data?: Record<string, unknown> }
-            | undefined =>
+            { data?: Record<string, unknown> } | undefined =>
             infoLogMock.mock.calls.find(
                 (call) =>
                     (call[0] as { message?: string } | undefined)?.message ===
