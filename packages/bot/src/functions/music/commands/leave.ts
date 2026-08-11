@@ -11,9 +11,9 @@ import {
     requireQueue,
 } from '../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../types/CommandData'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
-import { musicWatchdogService } from '../../../utils/music/watchdog'
-import { collaborativePlaylistService } from '../../../utils/music/collaborativePlaylist'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
+import { musicWatchdogService } from '../../../services/musicManagement/watchdog'
+import { collaborativePlaylistService } from '../../../services/musicRecommendation/collaborativePlaylist'
 
 export default new Command({
     data: new SlashCommandBuilder()

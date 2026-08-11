@@ -23,4 +23,4 @@ export type {
 export {
     consumeLastFmSeedSlice,
     consumeBlendedSeedSlice,
-} from '../utils/music/autoplay/lastFmExports'
+} from '../services/musicRecommendation/autoplay/lastFmExports'

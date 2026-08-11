@@ -1,0 +1,680 @@
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import type { GuildQueue, Player } from 'discord-player'
+import { ChannelType } from 'discord.js'
+import { setReplenishSuppressed } from './replenishSuppressionStore'
+import { MusicWatchdogService } from './watchdog'
+
+// --- mocks ---
+
+const listGuildIdsMock = jest.fn()
+
+jest.mock('@lucky/shared/utils', () => ({
+    debugLog: jest.fn(),
+    errorLog: jest.fn(),
+    infoLog: jest.fn(),
+}))
+
+const getSnapshotMock = jest.fn()
+const restoreSnapshotMock = jest.fn()
+const deleteSnapshotMock = jest.fn()
+
+jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
+    musicSessionSnapshotService: {
+        listGuildIds: (...args: unknown[]) => listGuildIdsMock(...args),
+        getSnapshot: (...args: unknown[]) => getSnapshotMock(...args),
+        restoreSnapshot: (...args: unknown[]) => restoreSnapshotMock(...args),
+        deleteSnapshot: (...args: unknown[]) => deleteSnapshotMock(...args),
+    },
+}))
+
+describe('MusicWatchdogService', () => {
+    beforeEach(() => {
+        jest.useFakeTimers()
+    })
+
+    it('attempts recovery when queue is stalled', async () => {
+        const connection = {
+            state: { status: 'disconnected' },
+            rejoin: jest.fn(() => {
+                connection.state.status = 'ready'
+            }),
+        }
+        const play = jest.fn().mockResolvedValue(undefined)
+        const service = new MusicWatchdogService({ timeoutMs: 1_000 })
+        const queue = {
+            guild: { id: 'guild-1' },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection,
+            node: {
+                isPlaying: () => false,
+                play,
+            },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        service.arm(queue)
+        await jest.advanceTimersByTimeAsync(1_100)
+
+        expect(connection.rejoin).toHaveBeenCalledTimes(1)
+        expect(play).toHaveBeenCalledTimes(1)
+        expect(service.getGuildState('guild-1')).toEqual(
+            expect.objectContaining({
+                lastRecoveryAction: 'requeue_current',
+            }),
+        )
+    })
+
+    it('does not recover when queue is healthy and playing', async () => {
+        const rejoin = jest.fn()
+        const play = jest.fn().mockResolvedValue(undefined)
+        const service = new MusicWatchdogService({ timeoutMs: 1_000 })
+        const queue = {
+            guild: { id: 'guild-2' },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection: { state: { status: 'ready' }, rejoin },
+            node: {
+                isPlaying: () => true,
+                play,
+            },
+            tracks: { size: 3 },
+        } as unknown as GuildQueue
+
+        service.arm(queue)
+        await jest.advanceTimersByTimeAsync(1_100)
+
+        expect(rejoin).not.toHaveBeenCalled()
+        expect(play).not.toHaveBeenCalled()
+    })
+})
+
+describe('MusicWatchdogService — orphan session monitor', () => {
+    beforeEach(() => {
+        jest.useFakeTimers()
+        listGuildIdsMock.mockResolvedValue([])
+        getSnapshotMock.mockResolvedValue(null)
+        restoreSnapshotMock.mockResolvedValue({
+            restoredCount: 1,
+            sessionSnapshotId: 'snapshot-1',
+        })
+        deleteSnapshotMock.mockResolvedValue(undefined)
+    })
+
+    it('startOrphanSessionMonitor starts interval and calls scanOrphanSessions', async () => {
+        const service = new MusicWatchdogService()
+        const scanSpy = jest
+            .spyOn(service, 'scanOrphanSessions')
+            .mockResolvedValue(undefined)
+
+        const player = {} as unknown as Player
+        service.startOrphanSessionMonitor(player, 60_000)
+
+        await jest.advanceTimersByTimeAsync(60_000)
+        expect(scanSpy).toHaveBeenCalledTimes(1)
+
+        await jest.advanceTimersByTimeAsync(60_000)
+        expect(scanSpy).toHaveBeenCalledTimes(2)
+
+        service.stopOrphanSessionMonitor()
+    })
+
+    it('scanOrphanSessions skips guild when snapshot is missing', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-99'])
+        getSnapshotMock.mockResolvedValue(null)
+
+        const nodes = { get: jest.fn().mockReturnValue(null) }
+        const player = { nodes } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        await service.scanOrphanSessions(player)
+
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+    })
+
+    it('scanOrphanSessions skips guild when snapshot is stale (>30 min)', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-stale'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 31 * 60 * 1_000,
+            voiceChannelId: 'vc-1',
+            tracks: [],
+        })
+
+        const nodes = { get: jest.fn().mockReturnValue(null) }
+        const player = { nodes } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        await service.scanOrphanSessions(player)
+
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+    })
+
+    it('scanOrphanSessions skips guild when queue is already playing', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-playing'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-1',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        const existingQueue = { node: { isPlaying: () => true } }
+        const nodes = { get: jest.fn().mockReturnValue(existingQueue) }
+        const player = { nodes } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        await service.scanOrphanSessions(player)
+
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+    })
+
+    it('scanOrphanSessions skips guild when voice channel has no non-bot members', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-empty'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-empty',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 0 }) },
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const nodes = { get: jest.fn().mockReturnValue(null) }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        await service.scanOrphanSessions(player)
+
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+    })
+
+    it('scanOrphanSessions recovers orphan session when all conditions met', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-recover'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-active',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+        restoreSnapshotMock.mockResolvedValue({
+            restoredCount: 1,
+            sessionSnapshotId: 'snapshot-recover',
+        })
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const queue = {
+            setRepeatMode: jest.fn(),
+            connect: jest.fn().mockResolvedValue(undefined),
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(null),
+            create: jest.fn().mockReturnValue(queue),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        await service.scanOrphanSessions(player)
+
+        expect(nodes.create).toHaveBeenCalledWith(guild)
+        expect(queue.connect).toHaveBeenCalledWith(voiceChannel)
+        expect(restoreSnapshotMock).toHaveBeenCalledWith(queue, undefined, {
+            skipCurrentTrack: true,
+        })
+        expect(service.getGuildState('guild-recover')).toEqual(
+            expect.objectContaining({ lastRecoveryAction: 'rejoin' }),
+        )
+    })
+
+    it('reuses existing queue during orphan recovery and avoids creating a new queue', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-existing'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-existing',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+        restoreSnapshotMock.mockResolvedValue({
+            restoredCount: 1,
+            sessionSnapshotId: 'snapshot-existing',
+        })
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const existingQueue = {
+            node: { isPlaying: () => false },
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(existingQueue),
+            create: jest.fn(),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        await service.scanOrphanSessions(player)
+
+        expect(nodes.create).not.toHaveBeenCalled()
+        expect(restoreSnapshotMock).toHaveBeenCalledWith(
+            existingQueue,
+            undefined,
+            { skipCurrentTrack: true },
+        )
+    })
+
+    it('clears snapshot and marks failed when restore yields no tracks', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-empty-restore'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-active',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+        restoreSnapshotMock.mockResolvedValue({
+            restoredCount: 0,
+            sessionSnapshotId: null,
+        })
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const queue = {
+            setRepeatMode: jest.fn(),
+            connect: jest.fn().mockResolvedValue(undefined),
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(null),
+            create: jest.fn().mockReturnValue(queue),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        await service.scanOrphanSessions(player)
+
+        expect(deleteSnapshotMock).toHaveBeenCalledWith('guild-empty-restore')
+        expect(service.getGuildState('guild-empty-restore')).toEqual(
+            expect.objectContaining({
+                lastRecoveryAction: 'failed',
+                lastRecoveryDetail: 'snapshot_restore_empty',
+            }),
+        )
+    })
+
+    it('scanOrphanSessions isolates errors per guild', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-err', 'guild-ok'])
+        getSnapshotMock
+            .mockRejectedValueOnce(new Error('Redis read error'))
+            .mockResolvedValueOnce(null)
+
+        const nodes = { get: jest.fn().mockReturnValue(null) }
+        const player = { nodes } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        // Should not throw even though first guild errors
+        await expect(
+            service.scanOrphanSessions(player),
+        ).resolves.toBeUndefined()
+    })
+
+    it('scanOrphanSessions skips guild when intentional stop is set (#1949)', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-stopped'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-1',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        const nodes = { get: jest.fn().mockReturnValue(null) }
+        const player = { nodes } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        service.markIntentionalStop('guild-stopped')
+        await service.scanOrphanSessions(player)
+
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+    })
+
+    it('scanOrphanSessions skips guild when replenish is suppressed (#1957/#1998)', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-suppressed'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-1',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        const nodes = { get: jest.fn().mockReturnValue(null) }
+        const player = { nodes } as unknown as Player
+
+        setReplenishSuppressed('guild-suppressed', 30_000)
+        try {
+            const service = new MusicWatchdogService()
+            await service.scanOrphanSessions(player)
+
+            expect(restoreSnapshotMock).not.toHaveBeenCalled()
+        } finally {
+            setReplenishSuppressed('guild-suppressed', 0)
+        }
+    })
+
+    it('scanOrphanSessions skips guild when channel type is not GuildVoice', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-stage'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'stage-vc',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        const stageChannel = {
+            type: ChannelType.GuildStageVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(stageChannel) },
+            },
+        }
+        const nodes = { get: jest.fn().mockReturnValue(null) }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        await service.scanOrphanSessions(player)
+
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+    })
+})
+
+describe('MusicWatchdogService — constructor env var parsing', () => {
+    const originalEnv = process.env
+
+    beforeEach(() => {
+        process.env = { ...originalEnv }
+    })
+
+    afterEach(() => {
+        process.env = originalEnv
+    })
+
+    it('uses default values when env vars are not set', () => {
+        delete process.env.MUSIC_WATCHDOG_TIMEOUT_MS
+        delete process.env.MUSIC_WATCHDOG_RECOVERY_WAIT_MS
+        delete process.env.MUSIC_WATCHDOG_RECOVERY_POLL_MS
+        delete process.env.MUSIC_WATCHDOG_SCAN_INTERVAL_MS
+
+        const service = new MusicWatchdogService()
+        const state = service.getGuildState('test')
+        expect(state.timeoutMs).toBe(25_000)
+    })
+
+    it('reads timeout from env var when set', () => {
+        process.env.MUSIC_WATCHDOG_TIMEOUT_MS = '10000'
+
+        const service = new MusicWatchdogService()
+        const state = service.getGuildState('test')
+        expect(state.timeoutMs).toBe(10_000)
+    })
+
+    it('option overrides env var', () => {
+        process.env.MUSIC_WATCHDOG_TIMEOUT_MS = '99999'
+
+        const service = new MusicWatchdogService({ timeoutMs: 5_000 })
+        const state = service.getGuildState('test')
+        expect(state.timeoutMs).toBe(5_000)
+    })
+})
+
+describe('MusicWatchdogService — checkAndRecover edge cases', () => {
+    beforeEach(() => {
+        jest.useFakeTimers()
+    })
+
+    it('returns failed when connection is not ready after second rejoin', async () => {
+        const connection = {
+            state: { status: 'disconnected' },
+            rejoin: jest.fn(),
+        }
+        const play = jest.fn().mockResolvedValue(undefined)
+        const service = new MusicWatchdogService({
+            timeoutMs: 100,
+            recoveryWaitTimeoutMs: 50,
+            recoveryPollIntervalMs: 10,
+        })
+        const queue = {
+            guild: { id: 'guild-fail-rejoin' },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection,
+            node: { isPlaying: () => false, play },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        const recoveryPromise = service.checkAndRecover(queue)
+        await jest.runAllTimersAsync()
+        const action = await recoveryPromise
+
+        expect(action).toBe('failed')
+        expect(connection.rejoin).toHaveBeenCalledTimes(2)
+        expect(play).not.toHaveBeenCalled()
+        expect(service.getGuildState('guild-fail-rejoin')).toMatchObject({
+            lastRecoveryAction: 'failed',
+            lastRecoveryDetail: 'connection_not_ready_after_rejoin_retry',
+        })
+    })
+
+    it('returns failed when play() throws during recovery', async () => {
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const queue = {
+            guild: { id: 'guild-play-throw' },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection: { state: { status: 'ready' } },
+            node: {
+                isPlaying: () => false,
+                play: jest.fn().mockRejectedValue(new Error('player dead')),
+            },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        const action = await service.checkAndRecover(queue)
+
+        expect(action).toBe('failed')
+        expect(service.getGuildState('guild-play-throw')).toMatchObject({
+            lastRecoveryAction: 'failed',
+            lastRecoveryDetail: expect.stringContaining('player dead'),
+        })
+    })
+
+    it('returns none without playing when intentional stop is set', async () => {
+        const play = jest.fn().mockResolvedValue(undefined)
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const queue = {
+            guild: { id: 'guild-intentional' },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, play },
+            tracks: { size: 3 },
+        } as unknown as GuildQueue
+
+        service.markIntentionalStop('guild-intentional')
+        const action = await service.checkAndRecover(queue)
+
+        expect(action).toBe('none')
+        expect(play).not.toHaveBeenCalled()
+    })
+
+    it('a concurrent checkAndRecover call for the same guild is a no-op (#1949 lock)', async () => {
+        let resolvePlay: () => void = () => {}
+        const play = jest.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolvePlay = resolve
+                }),
+        )
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const queue = {
+            guild: { id: 'guild-concurrent' },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, play },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        const first = service.checkAndRecover(queue)
+        // First call is mid-flight (play() hasn't resolved yet) — a second
+        // call for the same guild must not also attempt recovery.
+        const second = await service.checkAndRecover(queue)
+
+        expect(second).toBe('none')
+        expect(service.getGuildState('guild-concurrent')).toMatchObject({
+            lastRecoveryDetail: 'recovery_already_in_progress',
+        })
+
+        resolvePlay()
+        const firstResult = await first
+        expect(firstResult).toBe('requeue_current')
+        expect(play).toHaveBeenCalledTimes(1)
+    })
+
+    it('a stale recovery lock (hung play()) expires and does not block a later attempt (#1998)', async () => {
+        const guildId = 'guild-stale-lock'
+        const hungPlay = jest.fn(() => new Promise<void>(() => {}))
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const hungQueue = {
+            guild: { id: guildId },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, play: hungPlay },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        // Fire-and-forget: this attempt's play() never settles, simulating
+        // a hung recovery that would otherwise wedge the lock forever.
+        void service.checkAndRecover(hungQueue)
+
+        await jest.advanceTimersByTimeAsync(30_001)
+
+        const workingPlay = jest.fn().mockResolvedValue(undefined)
+        const recoveredQueue = {
+            ...hungQueue,
+            node: { isPlaying: () => false, play: workingPlay },
+        } as unknown as GuildQueue
+
+        const second = await service.checkAndRecover(recoveredQueue)
+
+        expect(second).toBe('requeue_current')
+        expect(workingPlay).toHaveBeenCalledTimes(1)
+    })
+
+    it('a slow-but-legit recovery cannot clear a newer recovery lock (#1998)', async () => {
+        const guildId = 'guild-aba'
+        let resolveFirstPlay: () => void = () => {}
+        const firstPlay = jest.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveFirstPlay = resolve
+                }),
+        )
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const firstQueue = {
+            guild: { id: guildId },
+            currentTrack: { title: 'Song A', url: 'https://example.com/a' },
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, play: firstPlay },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        // Recovery A starts and stalls mid-flight — legitimately slow, not
+        // hung; it WILL settle eventually.
+        const firstRecovery = service.checkAndRecover(firstQueue)
+
+        // A's lock goes stale from the staleness check's perspective; a
+        // second recovery acquires a fresh lock for the same guild.
+        await jest.advanceTimersByTimeAsync(30_001)
+
+        let resolveSecondPlay: () => void = () => {}
+        const secondPlay = jest.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveSecondPlay = resolve
+                }),
+        )
+        const secondQueue = {
+            ...firstQueue,
+            node: { isPlaying: () => false, play: secondPlay },
+        } as unknown as GuildQueue
+        const secondRecovery = service.checkAndRecover(secondQueue)
+
+        // A finally settles late. Its release must not clear B's lock.
+        resolveFirstPlay()
+        await firstRecovery
+
+        const third = await service.checkAndRecover(firstQueue)
+        expect(third).toBe('none')
+        expect(service.getGuildState(guildId)).toMatchObject({
+            lastRecoveryDetail: 'recovery_already_in_progress',
+        })
+
+        resolveSecondPlay()
+        await secondRecovery
+    })
+})
+
+describe('MusicWatchdogService — startPeriodicScan', () => {
+    beforeEach(() => {
+        jest.useFakeTimers()
+        listGuildIdsMock.mockResolvedValue([])
+    })
+
+    it('scanOrphanedSessions arms orphaned queues that are not playing', async () => {
+        listGuildIdsMock.mockResolvedValue(['guild-orphan'])
+
+        const queue = {
+            guild: { id: 'guild-orphan' },
+            currentTrack: null,
+            connection: { state: { status: 'ready' } },
+            node: {
+                isPlaying: () => false,
+                play: jest.fn().mockResolvedValue(undefined),
+            },
+            tracks: { size: 1 },
+        } as unknown as GuildQueue
+
+        const service = new MusicWatchdogService({ scanIntervalMs: 60_000 })
+        const getQueue = jest.fn().mockReturnValue(queue)
+
+        const recovered = await service.scanOrphanedSessions(getQueue)
+
+        expect(recovered).toContain('guild-orphan')
+    })
+})
