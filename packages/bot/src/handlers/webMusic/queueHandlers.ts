@@ -5,7 +5,7 @@ import {
     type MusicCommandResult,
 } from '@lucky/shared/services'
 import { buildQueueState } from './mappers'
-import { resolveGuildQueue } from '../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../services/musicManagement/queueResolver'
 
 type Result = MusicCommandResult
 

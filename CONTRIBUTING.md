@@ -29,6 +29,8 @@ Per-package quick refs:
 
 The active backlog lives at `.claude/plans/backlog-YYYY-MM-DD.md`; the most recent file is canonical. Feature specs are local-only (untracked) under `.claude/specs/YYYY-MM-DD-*/`. Decisions of record (ADRs) are tracked at the repo root under `decisions/`.
 
+Touching `packages/bot/src/{handlers,functions,utils}/`? Read [docs/ARCHITECTURE.md § Internal layer boundaries](docs/ARCHITECTURE.md#internal-layer-boundaries-bot-package) first — there's a documented (not yet lint-enforced) rule for which way imports should go and what belongs in `utils/` vs `services/`.
+
 ## Pull request checks
 
 Branch protection on `main` requires:

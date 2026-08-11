@@ -12,9 +12,9 @@ import {
     requireGuild,
     requireVoiceChannel,
 } from '../../../utils/command/commandValidations'
-import { namedSessionService } from '../../../utils/music/namedSessions'
+import { namedSessionService } from '../../../services/musicManagement/namedSessions'
 import { createQueue, queueConnect } from '../../../handlers/queueHandler'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
 export default new Command({
     data: new SlashCommandBuilder()

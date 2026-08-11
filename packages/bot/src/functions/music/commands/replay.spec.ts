@@ -20,7 +20,7 @@ const resolveGuildQueueMock = jest.fn()
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireVoiceChannel: (...args: unknown[]) =>
         requireVoiceChannelMock(...args),
-    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
+    requireDJRoleInGuild: (...args: unknown[]) => requireDJRoleMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
     requireCurrentTrack: (...args: unknown[]) =>
         requireCurrentTrackMock(...args),
@@ -40,7 +40,7 @@ jest.mock('../../../utils/general/responseEmbeds', () => ({
         buildCommandTrackEmbedMock(...args),
 }))
 
-jest.mock('../../../utils/music/queueResolver', () => ({
+jest.mock('../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 

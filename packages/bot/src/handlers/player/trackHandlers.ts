@@ -3,7 +3,7 @@ import { QueueRepeatMode } from 'discord-player'
 import { LRUCache } from 'lru-cache'
 import { infoLog, debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { addTrackToHistory } from '../../utils/music/duplicateDetection'
-import { replenishQueue } from '../../utils/music/queueOperations'
+import { replenishQueue } from '../../services/musicManagement/queueOperations'
 import { resetAutoplayCount } from '../../utils/music/autoplayManager'
 import { featureToggleService } from '@lucky/shared/services'
 import { constants } from '@lucky/shared/config'
@@ -12,17 +12,20 @@ import {
     updateLastFmNowPlaying,
     scrobbleCurrentTrackIfLastFm,
 } from './trackNowPlaying'
-import { musicWatchdogService } from '../../utils/music/watchdog'
-import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
+import { musicWatchdogService } from '../../services/musicManagement/watchdog'
+import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
 import * as voiceStatus from '../../services/VoiceChannelStatusService'
 import {
     scheduleIdleDisconnect,
     clearIdleTimer,
-} from '../../utils/music/idleDisconnect'
-import { clearVotes } from '../../utils/music/voteSkipStore'
+} from '../../services/musicManagement/idleDisconnect'
+import { clearVotes } from '../../services/musicManagement/voteSkipStore'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
-import { normalizeTrackKey } from '../../utils/music/autoplay/scoringUtils'
-import { isReplenishSuppressed } from '../../utils/music/replenishSuppressionStore'
+import { normalizeTrackKey } from '../../services/musicRecommendation/autoplay/scoringUtils'
+import {
+    isReplenishSuppressed,
+    setReplenishSuppressed,
+} from '../../services/musicManagement/replenishSuppressionStore'
 import { handleQueueExhaustion } from './queueExhaustion'
 import { recordRecommendationOutcome } from '../../services/musicRecommendation/recommendationTelemetry'
 
@@ -94,7 +97,6 @@ function isRecommendationAutoplay(track: Track): boolean {
     const metadata = track.metadata as { isAutoplay?: boolean } | undefined
     return metadata?.isAutoplay === true
 }
-
 
 async function recordImplicitTrackFeedback(
     track: Track,
@@ -237,6 +239,13 @@ const handlePlayerStart = async (
             queue.node.setVolume(constants.VOLUME)
 
         const isAutoplay = isAutoplayTrack(track, client.user?.id)
+        if (!isAutoplay) {
+            // Explicit new content (e.g. /play) supersedes an earlier
+            // /clear's suppression window (#1998) — a suppressed guild only
+            // ever starts a non-autoplay track, so this can't clear the
+            // flag out from under a real autoplay pick.
+            setReplenishSuppressed(queue.guild.id, 0)
+        }
         const isAutoplayEnabled = queue.repeatMode === QueueRepeatMode.AUTOPLAY
         handleAutoplayCounter(queue, isAutoplay, isAutoplayEnabled)
         await handleQueueReplenishment(queue, track)

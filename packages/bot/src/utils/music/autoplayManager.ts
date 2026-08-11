@@ -6,4 +6,4 @@ export {
     clearAllAutoplayCounters,
     getAutoplayStats,
     shouldEnableAutoplay,
-} from './autoplay/index'
+} from '../../services/musicRecommendation/autoplay/index'

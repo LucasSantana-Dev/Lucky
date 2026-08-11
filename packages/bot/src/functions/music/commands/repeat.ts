@@ -1,11 +1,11 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { QueueRepeatMode } from 'discord-player'
 import Command from '../../../models/Command'
-import { interactionReply } from "../../../utils/general/interactionReply"
-import { createSuccessEmbed } from "../../../utils/general/embeds"
-import type { CommandExecuteParams } from "../../../types/CommandData"
-import { requireQueue } from "../../../utils/command/commandValidations"
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { interactionReply } from '../../../utils/general/interactionReply'
+import { createSuccessEmbed } from '../../../utils/general/embeds'
+import type { CommandExecuteParams } from '../../../types/CommandData'
+import { requireQueue } from '../../../utils/command/commandValidations'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
 /**
  * Handle track repeat mode

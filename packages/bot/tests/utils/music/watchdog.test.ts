@@ -12,7 +12,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-jest.mock('../../../src/utils/music/sessionSnapshots', () => ({
+jest.mock('../../../src/services/musicRecommendation/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
         getSnapshot: jest.fn(),
         restoreSnapshot: jest.fn(),
@@ -21,7 +21,7 @@ jest.mock('../../../src/utils/music/sessionSnapshots', () => ({
     },
 }))
 
-import { MusicWatchdogService } from '../../../src/utils/music/watchdog'
+import { MusicWatchdogService } from '../../../src/services/musicManagement/watchdog'
 
 function makeQueue(
     overrides: Partial<{
