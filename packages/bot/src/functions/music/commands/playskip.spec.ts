@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 // Mock discord-player
 jest.mock('discord-player', () => ({
-    QueryType: { AUTO: 'AUTO', SPOTIFY_SEARCH: 'SPOTIFY_SEARCH', YOUTUBE_SEARCH: 'YOUTUBE_SEARCH' },
+    QueryType: {
+        AUTO: 'AUTO',
+        SPOTIFY_SEARCH: 'SPOTIFY_SEARCH',
+        YOUTUBE_SEARCH: 'YOUTUBE_SEARCH',
+    },
 }))
 
 // Mock dependencies before importing the command
@@ -11,7 +15,10 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    createErrorEmbed: jest.fn((title: string, desc?: string) => ({ title, description: desc })),
+    createErrorEmbed: jest.fn((title: string, desc?: string) => ({
+        title,
+        description: desc,
+    })),
     errorEmbed: jest.fn(),
 }))
 
@@ -23,7 +30,7 @@ jest.mock('../../../utils/music/buttonComponents', () => ({
     createMusicControlButtons: jest.fn(() => ({ test: 'button' })),
 }))
 
-jest.mock('../../../utils/music/queueResolver', () => ({
+jest.mock('../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: jest.fn(),
 }))
 
@@ -55,7 +62,7 @@ import playSkipCommand from './playskip'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { buildPlayResponseEmbed } from '../../../utils/music/nowPlayingEmbed'
 import { createMusicControlButtons } from '../../../utils/music/buttonComponents'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { requireVoiceChannel } from '../../../utils/command/commandValidations'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 
@@ -110,7 +117,10 @@ describe('playskip command', () => {
     it('replies with error when guildId is missing', async () => {
         const interaction = createMockInteraction({ guildId: null })
 
-        await playSkipCommand.execute({ client: createMockClient(), interaction } as any)
+        await playSkipCommand.execute({
+            client: createMockClient(),
+            interaction,
+        } as any)
 
         expect(interactionReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -123,7 +133,7 @@ describe('playskip command', () => {
     })
 
     it('returns early when requireVoiceChannel fails', async () => {
-        (requireVoiceChannel as jest.Mock).mockResolvedValueOnce(false)
+        ;(requireVoiceChannel as jest.Mock).mockResolvedValueOnce(false)
         const client = createMockClient()
         const interaction = createMockInteraction()
 
@@ -133,10 +143,12 @@ describe('playskip command', () => {
     })
 
     it('calls player.play with correct query and search engine', async () => {
-        (requireVoiceChannel as jest.Mock).mockResolvedValueOnce(true)
+        ;(requireVoiceChannel as jest.Mock).mockResolvedValueOnce(true)
         const client = createMockClient()
         const queue = createMockQueue()
-        const interaction = createMockInteraction({ options: { getString: jest.fn().mockReturnValue('test query') } })
+        const interaction = createMockInteraction({
+            options: { getString: jest.fn().mockReturnValue('test query') },
+        })
         ;(resolveGuildQueue as jest.Mock).mockReturnValue({ queue })
 
         const mockTrack = { id: 'track-1', title: 'Test Track' }
@@ -155,7 +167,7 @@ describe('playskip command', () => {
     })
 
     it('inserts track at position 0 AND calls skip when queue has tracks', async () => {
-        (requireVoiceChannel as jest.Mock).mockResolvedValueOnce(true)
+        ;(requireVoiceChannel as jest.Mock).mockResolvedValueOnce(true)
         const client = createMockClient()
         const existingTrack = { id: 'track-existing', title: 'Existing' }
         const queue = createMockQueue({
@@ -178,7 +190,7 @@ describe('playskip command', () => {
     })
 
     it('does NOT skip when queue is empty', async () => {
-        (requireVoiceChannel as jest.Mock).mockResolvedValueOnce(true)
+        ;(requireVoiceChannel as jest.Mock).mockResolvedValueOnce(true)
         const client = createMockClient()
         const queue = createMockQueue({
             tracks: { toArray: jest.fn().mockReturnValue([]) },
@@ -200,7 +212,7 @@ describe('playskip command', () => {
     })
 
     it('shows nowPlaying embed on success', async () => {
-        (requireVoiceChannel as jest.Mock).mockResolvedValueOnce(true)
+        ;(requireVoiceChannel as jest.Mock).mockResolvedValueOnce(true)
         const client = createMockClient()
         const existingTrack = { id: 'track-existing', title: 'Existing' }
         const queue = createMockQueue({
@@ -228,7 +240,7 @@ describe('playskip command', () => {
     })
 
     it('shows error embed when player.play throws', async () => {
-        (requireVoiceChannel as jest.Mock).mockResolvedValueOnce(true)
+        ;(requireVoiceChannel as jest.Mock).mockResolvedValueOnce(true)
         const client = createMockClient()
         const interaction = createMockInteraction()
         ;(resolveGuildQueue as jest.Mock).mockReturnValue({ queue: null })

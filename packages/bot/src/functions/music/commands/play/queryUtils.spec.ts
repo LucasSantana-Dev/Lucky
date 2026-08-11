@@ -27,7 +27,7 @@ jest.mock('../../../../utils/command/commandValidations', () => ({
         requireVoiceChannelMock(...args),
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
-jest.mock('../../../../utils/music/queueResolver', () => ({
+jest.mock('../../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 jest.mock('../../../../utils/music/nowPlayingEmbed', () => ({

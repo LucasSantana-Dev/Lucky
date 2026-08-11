@@ -11,7 +11,7 @@ import {
     requireQueue,
     requireCurrentTrack,
 } from '../../../utils/command/commandValidations'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
 export default new Command({
     data: new SlashCommandBuilder()

@@ -1,7 +1,10 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
 import {
     requireGuild,
     requireQueue,
@@ -9,7 +12,7 @@ import {
     requireVoiceChannel,
 } from '../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../types/CommandData'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { smartShuffle } from '../../../utils/music/queue/smartShuffle'
 import { parseIntEnv } from '@lucky/shared/utils/env'
 import { assertDefined } from '@lucky/shared/utils/guards'
@@ -21,9 +24,7 @@ export default new Command({
         .setName('shuffle')
         .setDescription('Shuffle the music queue.')
         .addSubcommand((sub) =>
-            sub
-                .setName('random')
-                .setDescription('Randomly shuffle the queue.'),
+            sub.setName('random').setDescription('Randomly shuffle the queue.'),
         )
         .addSubcommand((sub) =>
             sub
@@ -59,11 +60,20 @@ export default new Command({
         const subcommand = interaction.options.getSubcommand(false) ?? 'random'
 
         if (subcommand === 'smart') {
-            const tracks = assertDefined(queue, 'queue present after requireQueue guard').tracks.toArray()
+            const tracks = assertDefined(
+                queue,
+                'queue present after requireQueue guard',
+            ).tracks.toArray()
             const shuffled = smartShuffle(tracks, { streakLimit: STREAK_LIMIT })
-            assertDefined(queue, 'queue present after requireQueue guard').tracks.clear()
+            assertDefined(
+                queue,
+                'queue present after requireQueue guard',
+            ).tracks.clear()
             for (const track of shuffled) {
-                assertDefined(queue, 'queue present after requireQueue guard').tracks.add(track)
+                assertDefined(
+                    queue,
+                    'queue present after requireQueue guard',
+                ).tracks.add(track)
             }
             await interactionReply({
                 interaction,
