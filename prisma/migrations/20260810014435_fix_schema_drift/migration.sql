@@ -9,11 +9,30 @@
 -- found and hand-deleted in prod on 2026-07-28). Clear any orphans first
 -- or ADD CONSTRAINT fails outright at deploy time.
 DELETE FROM "reminders" WHERE "guildId" NOT IN (SELECT "discordId" FROM "guilds");
-ALTER TABLE "reminders" ADD CONSTRAINT "reminders_guildId_fkey" FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Guarded so the migration gate can replay this file against a database
+-- where it already applied cleanly (ADD CONSTRAINT has no IF NOT EXISTS).
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'reminders_guildId_fkey'
+    ) THEN
+        ALTER TABLE "reminders" ADD CONSTRAINT "reminders_guildId_fkey" FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;
 
 -- afk_statuses.guildId index declared in schema.prisma (@@index([guildId]))
 -- but never created by the original migration (20260703051000_afk_status).
-CREATE INDEX "afk_statuses_guildId_idx" ON "afk_statuses"("guildId");
+CREATE INDEX IF NOT EXISTS "afk_statuses_guildId_idx" ON "afk_statuses"("guildId");
 
--- Cosmetic index rename to match current naming convention.
-ALTER INDEX "GuildForumThread_guildId_threadId_key" RENAME TO "guild_forum_threads_guildId_threadId_key";
+-- Cosmetic index rename to match current naming convention. Guarded so a
+-- replay after the rename already happened doesn't fail on the old name
+-- no longer existing.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'GuildForumThread_guildId_threadId_key')
+        AND NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'guild_forum_threads_guildId_threadId_key')
+    THEN
+        ALTER INDEX "GuildForumThread_guildId_threadId_key" RENAME TO "guild_forum_threads_guildId_threadId_key";
+    END IF;
+END $$;

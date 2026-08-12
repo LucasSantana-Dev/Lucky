@@ -7,11 +7,11 @@
 
 */
 -- DropForeignKey
-ALTER TABLE "downloads" DROP CONSTRAINT "downloads_guildId_fkey";
+ALTER TABLE IF EXISTS "downloads" DROP CONSTRAINT IF EXISTS "downloads_guildId_fkey";
 
 -- AlterTable
-ALTER TABLE "guild_settings" DROP COLUMN "allowDownloads",
-DROP COLUMN "downloadCooldown";
+ALTER TABLE "guild_settings" DROP COLUMN IF EXISTS "allowDownloads",
+DROP COLUMN IF EXISTS "downloadCooldown";
 
 -- DropTable
-DROP TABLE "downloads";
+DROP TABLE IF EXISTS "downloads";
