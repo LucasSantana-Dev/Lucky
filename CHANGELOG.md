@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.2...v2.39.3) (2026-08-12)
+
+
+### Bug Fixes
+
+* **bot:** expose degraded-extractor signal and honest play error ([#1999](https://github.com/LucasSantana-Dev/Lucky/issues/1999)) ([8348bd6](https://github.com/LucasSantana-Dev/Lucky/commit/8348bd6bef6895eadb0654ccbdd7e7e1fd7d2de6))
+* **bot:** unlink dead Last.fm sessions on error 9 and notify once ([#1946](https://github.com/LucasSantana-Dev/Lucky/issues/1946)) ([d22b8bd](https://github.com/LucasSantana-Dev/Lucky/commit/d22b8bd6998bc87394d23ff883ecb17a2afdbf42))
+* **ci:** add a second retry for docker-build ([#2007](https://github.com/LucasSantana-Dev/Lucky/issues/2007)) ([9347c55](https://github.com/LucasSantana-Dev/Lucky/commit/9347c556b04eebb17c676f85a34c64f302466606))
+* **ci:** extract node_modules before per-workspace build steps run ([#2006](https://github.com/LucasSantana-Dev/Lucky/issues/2006)) ([ae577d1](https://github.com/LucasSantana-Dev/Lucky/commit/ae577d13cde5c2aee8f5248ec66b5460e5fc5569))
+* **ci:** free disk space before Docker builds to prevent BuildKit GC race ([#2003](https://github.com/LucasSantana-Dev/Lucky/issues/2003)) ([5bcd388](https://github.com/LucasSantana-Dev/Lucky/commit/5bcd388adc94165593733874e6b42d02bbb5c2c2))
+* **ci:** isolate docker cache scope by branch ([#2012](https://github.com/LucasSantana-Dev/Lucky/issues/2012)) ([5d25ec8](https://github.com/LucasSantana-Dev/Lucky/commit/5d25ec88086a00671bee5fca0348040d09983026))
+* **ci:** pin node:24-alpine base image by digest ([#2004](https://github.com/LucasSantana-Dev/Lucky/issues/2004)) ([f154bfe](https://github.com/LucasSantana-Dev/Lucky/commit/f154bfeb46e50b5069848e9d6f6f460d5f24b147))
+* **ci:** skip gha cache-from on docker-build retries ([#2008](https://github.com/LucasSantana-Dev/Lucky/issues/2008)) ([89dbb90](https://github.com/LucasSantana-Dev/Lucky/commit/89dbb9037feec4905fdacd63865b900b076abdd0))
+* **ci:** split deps-production per production target ([#2005](https://github.com/LucasSantana-Dev/Lucky/issues/2005)) ([43aacce](https://github.com/LucasSantana-Dev/Lucky/commit/43aacce255be754e842fafcfbdfa7f078d0397fd))
+
 ## [2.39.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.1...v2.39.2) (2026-08-10)
 
 
