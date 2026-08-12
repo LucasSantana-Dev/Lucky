@@ -52,8 +52,21 @@ runs:
               sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/share/swift /opt/hostedtoolcache/CodeQL || true
               docker system prune -af --volumes || true
               df -h /
+        # Pin the BuildKit daemon itself, not just the buildx CLI.
+        # setup-buildx-action's docker-container driver otherwise pulls
+        # whatever BuildKit tag buildx currently bundles - moby/buildkit
+        # v0.32.0 released 2026-08-04, days before this "failed to
+        # calculate checksum of ref ...: not found" flake started hitting
+        # this repo's Docker builds at a high, sustained rate. Multiple
+        # independent upstream reports of this exact error (moby/buildkit#4128,
+        # docker/build-push-action#910/#934) trace to BuildKit-internal
+        # snapshot/cache-key resolution bugs, and #910 was fixed by pinning
+        # to an older BuildKit build. v0.31.0 (released 2026-06-17) is the
+        # last release with real production mileage before v0.32.0.
         - name: Set up Docker Buildx
           uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+          with:
+              driver-opts: image=moby/buildkit:v0.31.0
         - name: Build ${{ inputs.service }}
           uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
           with:
