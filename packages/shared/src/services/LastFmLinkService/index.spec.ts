@@ -4,6 +4,7 @@ import { LastFmLinkService } from './index'
 const findUniqueMock = jest.fn<(args: unknown) => Promise<unknown>>()
 const upsertMock = jest.fn<(args: unknown) => Promise<unknown>>()
 const deleteMock = jest.fn<(args: unknown) => Promise<unknown>>()
+const deleteManyMock = jest.fn<(args: unknown) => Promise<unknown>>()
 const debugLogMock = jest.fn<(payload: unknown) => void>()
 const errorLogMock = jest.fn<(payload: unknown) => void>()
 
@@ -13,6 +14,7 @@ jest.mock('../../utils/database/prismaClient', () => ({
             findUnique: (args: unknown) => findUniqueMock(args),
             upsert: (args: unknown) => upsertMock(args),
             delete: (args: unknown) => deleteMock(args),
+            deleteMany: (args: unknown) => deleteManyMock(args),
         },
     }),
 }))
@@ -29,6 +31,7 @@ describe('LastFmLinkService', () => {
         findUniqueMock.mockReset()
         upsertMock.mockReset()
         deleteMock.mockReset()
+        deleteManyMock.mockReset()
         debugLogMock.mockReset()
         errorLogMock.mockReset()
     })
@@ -195,6 +198,42 @@ describe('LastFmLinkService', () => {
             const result = await service.unlink('789')
 
             expect(result).toBe(false)
+            expect(errorLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Failed to unlink Last.fm',
+                }),
+            )
+        })
+    })
+
+    describe('unlinkIfKeyMatches', () => {
+        it("returns 'removed' when the conditional delete matches a row", async () => {
+            deleteManyMock.mockResolvedValue({ count: 1 })
+
+            const result = await service.unlinkIfKeyMatches('123', 'key-1')
+
+            expect(result).toBe('removed')
+            expect(deleteManyMock).toHaveBeenCalledWith({
+                where: { discordId: '123', sessionKey: 'key-1' },
+            })
+            expect(errorLogMock).not.toHaveBeenCalled()
+        })
+
+        it("returns 'stale' when the key no longer matches (relink or concurrent cleanup)", async () => {
+            deleteManyMock.mockResolvedValue({ count: 0 })
+
+            const result = await service.unlinkIfKeyMatches('123', 'key-old')
+
+            expect(result).toBe('stale')
+            expect(errorLogMock).not.toHaveBeenCalled()
+        })
+
+        it("returns 'error' and logs when the delete rejects", async () => {
+            deleteManyMock.mockRejectedValue(new Error('db down'))
+
+            const result = await service.unlinkIfKeyMatches('123', 'key-1')
+
+            expect(result).toBe('error')
             expect(errorLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: 'Failed to unlink Last.fm',
