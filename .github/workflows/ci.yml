@@ -355,17 +355,18 @@ jobs:
                   target: ${{ matrix.target }}
                   load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
             # Retry on transient failure (buildx setup and build re-run
-            # together, matching the previous separate retry steps). Two
-            # retries (three attempts total) because the failure mode here
-            # isn't a one-off blip: BuildKit intermittently fails to resolve
-            # a COPY --from=<stage> reference — "failed to calculate
-            # checksum of ref ...: not found" — and which specific path it
-            # hits varies run to run (node_modules, dist, prisma, generated
-            # — reproduced across all of them). Disk pressure, GHA cache,
-            # buildx version, and Dockerfile structure were all ruled out
-            # with direct evidence; this reads as upstream BuildKit/runner
-            # flakiness with a high enough per-attempt failure rate that a
-            # single retry isn't reliably enough headroom.
+            # together, matching the previous separate retry steps). Root
+            # cause: BuildKit fails to resolve a COPY --from=<stage>
+            # reference — "failed to calculate checksum of ref ...: not
+            # found" — because cache-from imports a stale/corrupted gha
+            # cache entry for that stage. cache-from is scoped identically
+            # across attempts within the same job, so a retry that reimports
+            # the same entry fails identically instead of getting a fresh
+            # build (confirmed: all retries in one job fail on the exact
+            # same ref hash). use-cache: 'false' skips cache-from on retries
+            # so they build fresh instead of re-hitting the poisoned cache.
+            # Two retries (three attempts total) for headroom against the
+            # ordinary transient case too.
             - name: Build ${{ matrix.service }} - retry 1 on transient failure
               id: build-retry-1
               if: steps.build.outcome == 'failure'
@@ -376,6 +377,7 @@ jobs:
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
                   load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
+                  use-cache: 'false'
             - name: Build ${{ matrix.service }} - retry 2 on transient failure
               if: steps.build.outcome == 'failure' && steps.build-retry-1.outcome == 'failure'
               uses: ./.github/actions/docker-build-service
@@ -384,6 +386,7 @@ jobs:
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
                   load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
+                  use-cache: 'false'
             # A built image is not a working image: the bot's native addons
             # (@discordjs/opus) and the baked Prisma engines only fail at
             # require()-time, which `docker build` never reaches. #1735 shipped a
