@@ -104,6 +104,21 @@ export const guildLeavesTotal = new Counter({
 })
 
 /**
+ * Gauge: whether a music extractor is currently known-degraded (1) or
+ * healthy (0), labelled by extractor name. Pushed directly by
+ * `extractorHealth.ts` on registration success/failure — not lazily
+ * collected, since registration is an event, not a queryable state.
+ * Distinct from `lucky_bot_gateway_connected`: the gateway can be fully
+ * connected while a specific extractor is unusable (#1929).
+ */
+export const musicExtractorDegradedGauge = new Gauge<'extractor'>({
+    name: 'lucky_music_extractor_degraded',
+    help: 'Whether a music extractor is currently known-degraded (1) or healthy (0), labelled by extractor name.',
+    labelNames: ['extractor'],
+    registers: [registry],
+})
+
+/**
  * Render the registry as Prometheus text exposition format.
  */
 export async function renderMetrics(): Promise<string> {
