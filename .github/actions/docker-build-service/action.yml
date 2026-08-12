@@ -25,10 +25,18 @@ runs:
         # checksum of ref ...: not found" on a stage that just built
         # successfully. Free the unused toolchains before building so
         # BuildKit's GC has no reason to run mid-build.
+        #
+        # `docker buildx prune` runs first because a retry's leftover
+        # builder from the first (failed) attempt is a docker-container
+        # instance with its own BuildKit cache/volumes — `docker system
+        # prune` operates on the classic docker engine and does not
+        # reclaim that isolated state (setup-buildx-action only removes
+        # the builder in its job-end post step, not between retries).
         - name: Free disk space
           shell: bash
           run: |
-              sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache/CodeQL || true
+              docker buildx prune -af || true
+              sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/share/swift /opt/hostedtoolcache/CodeQL || true
               docker system prune -af --volumes || true
               df -h /
         - name: Set up Docker Buildx
