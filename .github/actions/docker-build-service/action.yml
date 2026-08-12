@@ -39,8 +39,19 @@ runs:
               sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/share/swift /opt/hostedtoolcache/CodeQL || true
               docker system prune -af --volumes || true
               df -h /
+        # Pinned below latest (v0.36.1, released 2026-08-04 — 8 days old at
+        # the time of this pin) after v0.36.1 builds hit repeated
+        # "failed to calculate checksum of ref ...: not found" errors on a
+        # deps-production COPY step immediately after its source stage
+        # finished successfully — with disk headroom and GHA cache both
+        # confirmed clean. This action installs whatever buildx is current
+        # at job-run time with no pin, so a brand-new release regression
+        # silently affects every build. v0.35.0 (2026-06-17) is the last
+        # release with real production mileage.
         - name: Set up Docker Buildx
           uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+          with:
+              version: v0.35.0
         - name: Build ${{ inputs.service }}
           uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
           with:
