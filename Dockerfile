@@ -214,8 +214,8 @@ COPY --from=deps-production-bot /app/packages/bot/node_modules ./packages/bot/no
 # deps-production-bot, so it is already devDep-pruned.
 COPY --from=deps-production-bot /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=build-shared /app/packages/shared/dist ./packages/shared/dist
-COPY --from=build-shared /app/packages/shared/src/generated ./packages/shared/src/generated
-COPY --from=build-shared /app/packages/shared/src/generated ./packages/shared/dist/generated
+COPY --from=source-copied /app/packages/shared/src/generated ./packages/shared/src/generated
+COPY --from=source-copied /app/packages/shared/src/generated ./packages/shared/dist/generated
 COPY --from=build-bot /app/packages/bot/dist ./packages/bot/dist
 COPY --from=source-copied /app/prisma ./prisma
 # Bake the Prisma engines. `prisma`/`@prisma/engines` are devDeps, so the
@@ -266,8 +266,8 @@ COPY --from=deps-production-backend /app/packages/backend/node_modules ./package
 # deps-production-backend, so it is already devDep-pruned.
 COPY --from=deps-production-backend /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=build-shared /app/packages/shared/dist ./packages/shared/dist
-COPY --from=build-shared /app/packages/shared/src/generated ./packages/shared/src/generated
-COPY --from=build-shared /app/packages/shared/src/generated ./packages/shared/dist/generated
+COPY --from=source-copied /app/packages/shared/src/generated ./packages/shared/src/generated
+COPY --from=source-copied /app/packages/shared/src/generated ./packages/shared/dist/generated
 COPY --from=build-backend /app/packages/backend/dist ./packages/backend/dist
 COPY --from=source-copied /app/prisma ./prisma
 # prisma/@prisma/engines are devDeps, so deps-production-backend's `npm ci --omit=dev`
