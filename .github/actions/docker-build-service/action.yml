@@ -28,6 +28,21 @@ inputs:
             pressure entirely for a plain, uncached build.
         required: false
         default: 'true'
+    driver:
+        description: >-
+            Buildx driver. Retries pass 'docker' (the classic engine's
+            built-in BuildKit, no separate container) instead of the default
+            'docker-container'. The "failed to calculate checksum of ref
+            ...: not found" flake is BuildKit's own snapshot/cache-key
+            resolution failing inside that separate container's snapshotter
+            (confirmed present across GC-pressure, gha cache-from, gha
+            cache-to, and a pinned older BuildKit daemon build — see PR
+            history on this file). 'docker' uses a different snapshotter
+            entirely, sidestepping the buggy code path. Loses layer caching,
+            which retries already forgo via use-cache=false, so nothing
+            extra is given up.
+        required: false
+        default: 'docker-container'
 runs:
     using: composite
     steps:
@@ -52,21 +67,16 @@ runs:
               sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/share/swift /opt/hostedtoolcache/CodeQL || true
               docker system prune -af --volumes || true
               df -h /
-        # Pin the BuildKit daemon itself, not just the buildx CLI.
-        # setup-buildx-action's docker-container driver otherwise pulls
-        # whatever BuildKit tag buildx currently bundles - moby/buildkit
-        # v0.32.0 released 2026-08-04, days before this "failed to
-        # calculate checksum of ref ...: not found" flake started hitting
-        # this repo's Docker builds at a high, sustained rate. Multiple
-        # independent upstream reports of this exact error (moby/buildkit#4128,
-        # docker/build-push-action#910/#934) trace to BuildKit-internal
-        # snapshot/cache-key resolution bugs, and #910 was fixed by pinning
-        # to an older BuildKit build. v0.31.0 (released 2026-06-17) is the
-        # last release with real production mileage before v0.32.0.
+        # Tried pinning the BuildKit daemon itself (moby/buildkit:v0.31.0,
+        # the last release before v0.32.0's 2026-08-04 date correlated with
+        # this flake's onset) - ruled out. The pin was confirmed applied
+        # (builder log showed v0.31.0 pulled and in use) and the identical
+        # "failed to calculate checksum of ref ...: not found" error still
+        # hit on 3/3 attempts. See `driver` input above for the next lever.
         - name: Set up Docker Buildx
           uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
           with:
-              driver-opts: image=moby/buildkit:v0.31.0
+              driver: ${{ inputs.driver }}
         - name: Build ${{ inputs.service }}
           uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
           with:
