@@ -103,12 +103,15 @@ RUN npm run build:shared
 RUN npm run build --workspace=packages/bot
 RUN npm run build --workspace=packages/backend
 
-# Frontend build — inherits the build stage's deps + toolchain, so we get
+# Frontend build — inherits installed-deps' deps + toolchain, so we get
 # build-base + python3-dev + opus-dev "for free." Previously the standalone
 # Dockerfile.frontend re-ran `npm ci` for ~all workspace deps (including
 # @discordjs/opus) but lacked the C toolchain, which broke node:26-alpine
 # in PR #846. Sharing the build stage eliminates that class of failure.
-FROM build AS build-frontend
+# Must branch from installed-deps, not build: installed-deps is where
+# build:shared runs, and frontend imports @lucky/shared/constants, which
+# only resolves once shared's dist output exists.
+FROM installed-deps AS build-frontend
 COPY packages/frontend ./packages/frontend
 # Frontend's /changelog page imports the repo-root CHANGELOG.md via
 # `import md from '../../../../CHANGELOG.md?raw'` (vite raw loader). The
