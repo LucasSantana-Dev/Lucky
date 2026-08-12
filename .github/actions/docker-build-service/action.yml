@@ -15,6 +15,16 @@ inputs:
         description: Load the built image into the local Docker daemon.
         required: false
         default: 'false'
+    use-cache:
+        description: >-
+            Import the gha layer cache for this service. Set to 'false' on
+            retries: BuildKit's "failed to calculate checksum of ref ...:
+            not found" failure comes from a stale/corrupted gha cache entry,
+            and cache-from is scoped identically across retries within the
+            same job, so a retry that reimports it fails identically instead
+            of getting a fresh build.
+        required: false
+        default: 'true'
 runs:
     using: composite
     steps:
@@ -52,7 +62,7 @@ runs:
               tags: lucky-${{ inputs.service }}:ci
               provenance: false
               sbom: false
-              cache-from: type=gha,scope=${{ inputs.service }}
+              cache-from: ${{ inputs.use-cache == 'true' && format('type=gha,scope={0}', inputs.service) || '' }}
               cache-to: type=gha,mode=max,scope=${{ inputs.service }}
               build-args: |
                   COMMIT_SHA=${{ github.sha }}
