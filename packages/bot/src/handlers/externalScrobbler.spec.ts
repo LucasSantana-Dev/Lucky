@@ -16,7 +16,7 @@ const isLastFmInvalidSessionErrorMock = jest.fn<(error: unknown) => boolean>()
 const getTrackMetadataMock = jest.fn()
 const updateNowPlayingMock = jest.fn()
 const scrobbleMock = jest.fn()
-const lastFmUnlinkMock = jest.fn<(discordId: string) => Promise<boolean>>()
+const handleDeadLastFmSessionMock = jest.fn()
 const infoLogMock = jest.fn<(payload: unknown) => void>()
 const errorLogMock = jest.fn<(payload: unknown) => void>()
 const debugLogMock = jest.fn<(payload: unknown) => void>()
@@ -28,14 +28,10 @@ jest.mock('../lastfm', () => ({
     isLastFmInvalidSessionError: (error: unknown) =>
         isLastFmInvalidSessionErrorMock(error),
     getTrackMetadata: (...args: unknown[]) => getTrackMetadataMock(...args),
+    handleDeadLastFmSession: (...args: unknown[]) =>
+        handleDeadLastFmSessionMock(...args),
     updateNowPlaying: (...args: unknown[]) => updateNowPlayingMock(...args),
     scrobble: (...args: unknown[]) => scrobbleMock(...args),
-}))
-
-jest.mock('@lucky/shared/services', () => ({
-    lastFmLinkService: {
-        unlink: (discordId: string) => lastFmUnlinkMock(discordId),
-    },
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -121,7 +117,6 @@ describe('externalScrobbler', () => {
         isLastFmConfiguredMock.mockReturnValue(true)
         getSessionKeyForUserMock.mockResolvedValue('session-1')
         isLastFmInvalidSessionErrorMock.mockReturnValue(false)
-        lastFmUnlinkMock.mockResolvedValue(true)
         getTrackMetadataMock.mockResolvedValue(null)
         updateNowPlayingMock.mockResolvedValue(undefined)
         scrobbleMock.mockResolvedValue(undefined)
@@ -213,7 +208,7 @@ describe('externalScrobbler', () => {
         )
     })
 
-    it('unlinks user when updateNowPlaying fails with invalid Last.fm session', async () => {
+    it('routes invalid Last.fm session on updateNowPlaying to the dead-session handler', async () => {
         const { guild, handler } = createHarness('guild-3')
         const invalidSessionError = new Error(
             'Last.fm track.updateNowPlaying: 403 {"message":"Invalid session key - Please re-authenticate","error":9}',
@@ -224,20 +219,20 @@ describe('externalScrobbler', () => {
 
         await handler(createMessage('Now playing: Artist – Song', guild))
 
-        expect(lastFmUnlinkMock).toHaveBeenCalledWith('user-1')
+        expect(handleDeadLastFmSessionMock).toHaveBeenCalledWith(
+            'user-1',
+            'session-1',
+            expect.anything(),
+            { envFallbackUsed: false, via: 'externalScrobbler' },
+        )
         expect(errorLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'External updateNowPlaying failed',
             }),
         )
-        expect(infoLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'Removed invalid Last.fm session for User One',
-            }),
-        )
     })
 
-    it('unlinks user when scrobble fails with invalid Last.fm session', async () => {
+    it('routes invalid Last.fm session on scrobble to the dead-session handler', async () => {
         dateNowSpy = jest.spyOn(Date, 'now')
         dateNowSpy
             .mockReturnValueOnce(100000)
@@ -259,29 +254,30 @@ describe('externalScrobbler', () => {
             createMessage('Now playing: Second Artist - Second Song', guild),
         )
 
-        expect(lastFmUnlinkMock).toHaveBeenCalledWith('user-1')
+        expect(handleDeadLastFmSessionMock).toHaveBeenCalledWith(
+            'user-1',
+            'session-1',
+            expect.anything(),
+            { envFallbackUsed: false, via: 'externalScrobbler' },
+        )
         expect(errorLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({ message: 'External scrobble failed' }),
         )
     })
 
-    it('logs unlink failure when invalid Last.fm session cannot be removed', async () => {
+    it('logs the error when the failure is not an invalid session', async () => {
         const { guild, handler } = createHarness('guild-5')
-        const invalidSessionError = new Error(
-            'Last.fm track.updateNowPlaying: 403 {"message":"Invalid session key - Please re-authenticate","error": 9}',
-        )
+        const apiError = new Error('Last.fm track.updateNowPlaying: 500')
 
-        updateNowPlayingMock.mockRejectedValue(invalidSessionError)
-        isLastFmInvalidSessionErrorMock.mockReturnValue(true)
-        lastFmUnlinkMock.mockResolvedValue(false)
+        updateNowPlayingMock.mockRejectedValue(apiError)
+        isLastFmInvalidSessionErrorMock.mockReturnValue(false)
 
         await handler(createMessage('Now playing: Artist – Song', guild))
 
-        expect(lastFmUnlinkMock).toHaveBeenCalledWith('user-1')
+        expect(handleDeadLastFmSessionMock).not.toHaveBeenCalled()
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: 'Failed to remove invalid Last.fm session',
-                data: expect.objectContaining({ discordId: 'user-1' }),
+                message: 'External updateNowPlaying failed',
             }),
         )
     })

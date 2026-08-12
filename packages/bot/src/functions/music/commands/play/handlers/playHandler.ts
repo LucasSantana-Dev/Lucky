@@ -6,7 +6,6 @@ import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { createErrorEmbed } from '../../../../../utils/general/embeds'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
-import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { collaborativePlaylistService } from '../../../../../services/musicRecommendation/collaborativePlaylist'
 import { moveUserTrackToPriority } from '../../../../../services/musicManagement/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../../utils/music/nowPlayingEmbed'
@@ -23,6 +22,7 @@ import {
     emitPlayResolutionTelemetry,
 } from './resolveProvider'
 import { runPostPlayBackgroundOps } from './postPlayBackgroundOps'
+import { resolvePlayErrorMessage } from './playErrorMessage'
 
 export async function executePlayHandler({
     client,
@@ -250,7 +250,7 @@ export async function executePlayHandler({
                     embeds: [
                         createErrorEmbed(
                             'Play Error',
-                            createUserFriendlyError(error),
+                            resolvePlayErrorMessage(error),
                         ),
                     ],
                     ephemeral: true,

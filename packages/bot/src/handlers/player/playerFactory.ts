@@ -12,6 +12,7 @@ import type { CustomClient } from '../../types'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { createResilientStream } from './streamBridge'
 import { withTimeout } from './withTimeout'
+import { setExtractorDegraded } from './extractorHealth'
 
 type CreatePlayerParams = {
     client: CustomClient
@@ -154,6 +155,7 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
             const YoutubeExtractor =
                 mod.YoutubeExtractor ?? mod.YoutubeiExtractor
             if (!YoutubeExtractor) {
+                setExtractorDegraded('youtube', true)
                 warnLog({
                     message:
                         'discord-player-youtubei: no extractor export found — skipping YouTube extractor',
@@ -167,6 +169,7 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
             )
 
             if (registered) {
+                setExtractorDegraded('youtube', false)
                 infoLog({
                     message:
                         'Registered YoutubeExtractor (SoundCloud bridge + YouTube fallback)',
@@ -191,6 +194,7 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
 
     // Escalate to errorLog (not warn): the bot is now running degraded and
     // YouTube playback will fail until restart — this must be visible.
+    setExtractorDegraded('youtube', true)
     errorLog({
         message:
             'YouTube extractor unavailable after retries — #play of YouTube URLs will fail until restart. Falling back to SoundCloud/Spotify only.',
