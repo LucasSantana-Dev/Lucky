@@ -9,7 +9,13 @@
 # linux/arm64 (musl) regardless of Node version (already broken on Node 22) — see
 # issue #1406; Apple-Silicon local dev should run the bot natively rather than
 # via the Docker dev stage.
-ARG NODE_VERSION=24-alpine
+# Digest-pinned (tag kept for readability) — a floating `node:24-alpine` tag
+# can be repointed to a new image mid-CI, which produced intermittent
+# `failed to calculate checksum of ref ...: not found` errors on the
+# deps-production COPY steps (a stage built against one digest, referenced
+# against another). Bump the digest deliberately when moving to a new Node
+# patch, not implicitly via upstream republish.
+ARG NODE_VERSION=24-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43
 # Lockfile-hash cache key — auto-busts npm BuildKit caches when package-lock.json
 # changes. Passed as a build-arg from the workflow: hashFiles('package-lock.json').
 # Bump the default (v3 → v4) only if you need a forced one-off cache wipe.
