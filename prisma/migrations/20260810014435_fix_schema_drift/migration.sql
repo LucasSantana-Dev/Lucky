@@ -15,7 +15,7 @@ DELETE FROM "reminders" WHERE "guildId" NOT IN (SELECT "discordId" FROM "guilds"
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'reminders_guildId_fkey'
+        SELECT 1 FROM pg_constraint WHERE conname = 'reminders_guildId_fkey' AND conrelid = 'reminders'::regclass
     ) THEN
         ALTER TABLE "reminders" ADD CONSTRAINT "reminders_guildId_fkey" FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId") ON DELETE CASCADE ON UPDATE CASCADE;
     END IF;
@@ -30,8 +30,8 @@ CREATE INDEX IF NOT EXISTS "afk_statuses_guildId_idx" ON "afk_statuses"("guildId
 -- no longer existing.
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'GuildForumThread_guildId_threadId_key')
-        AND NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'guild_forum_threads_guildId_threadId_key')
+    IF to_regclass('"GuildForumThread_guildId_threadId_key"') IS NOT NULL
+        AND to_regclass('"guild_forum_threads_guildId_threadId_key"') IS NULL
     THEN
         ALTER INDEX "GuildForumThread_guildId_threadId_key" RENAME TO "guild_forum_threads_guildId_threadId_key";
     END IF;
