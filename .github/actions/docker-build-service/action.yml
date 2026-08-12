@@ -63,8 +63,6 @@ runs:
               tags: lucky-${{ inputs.service }}:ci
               provenance: false
               sbom: false
-              cache-from: type=gha,scope=${{ inputs.service }}
-              cache-to: type=gha,mode=max,scope=${{ inputs.service }}
               build-args: |
                   COMMIT_SHA=${{ github.sha }}
                   NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
