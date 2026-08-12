@@ -17,32 +17,14 @@ inputs:
         default: 'false'
     use-cache:
         description: >-
-            Import AND export the gha layer cache for this service. Set to
-            'false' on retries: BuildKit's "failed to calculate checksum of
-            ref ...: not found" failure persists even with cache-from alone
-            disabled (confirmed via repeated fresh-hash reruns), which points
-            at cache-to instead — `mode=max` exports every intermediate
-            layer as the build progresses, and a later stage's COPY --from
-            can race against that same layer still being finalized for
-            export. Disabling cache-to too on retries removes that export
-            pressure entirely for a plain, uncached build.
+            Import the gha layer cache for this service. Set to 'false' on
+            retries: BuildKit's "failed to calculate checksum of ref ...:
+            not found" failure comes from a stale/corrupted gha cache entry,
+            and cache-from is scoped identically across retries within the
+            same job, so a retry that reimports it fails identically instead
+            of getting a fresh build.
         required: false
         default: 'true'
-    driver:
-        description: >-
-            Buildx driver. Retries pass 'docker' (the classic engine's
-            built-in BuildKit, no separate container) instead of the default
-            'docker-container'. The "failed to calculate checksum of ref
-            ...: not found" flake is BuildKit's own snapshot/cache-key
-            resolution failing inside that separate container's snapshotter
-            (confirmed present across GC-pressure, gha cache-from, gha
-            cache-to, and a pinned older BuildKit daemon build — see PR
-            history on this file). 'docker' uses a different snapshotter
-            entirely, sidestepping the buggy code path. Loses layer caching,
-            which retries already forgo via use-cache=false, so nothing
-            extra is given up.
-        required: false
-        default: 'docker-container'
 runs:
     using: composite
     steps:
@@ -67,16 +49,8 @@ runs:
               sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/share/swift /opt/hostedtoolcache/CodeQL || true
               docker system prune -af --volumes || true
               df -h /
-        # Tried pinning the BuildKit daemon itself (moby/buildkit:v0.31.0,
-        # the last release before v0.32.0's 2026-08-04 date correlated with
-        # this flake's onset) - ruled out. The pin was confirmed applied
-        # (builder log showed v0.31.0 pulled and in use) and the identical
-        # "failed to calculate checksum of ref ...: not found" error still
-        # hit on 3/3 attempts. See `driver` input above for the next lever.
         - name: Set up Docker Buildx
           uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
-          with:
-              driver: ${{ inputs.driver }}
         - name: Build ${{ inputs.service }}
           uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
           with:
@@ -89,7 +63,7 @@ runs:
               provenance: false
               sbom: false
               cache-from: ${{ inputs.use-cache == 'true' && format('type=gha,scope={0}', inputs.service) || '' }}
-              cache-to: ${{ inputs.use-cache == 'true' && format('type=gha,mode=max,scope={0}', inputs.service) || '' }}
+              cache-to: type=gha,mode=max,scope=${{ inputs.service }}
               build-args: |
                   COMMIT_SHA=${{ github.sha }}
                   NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
