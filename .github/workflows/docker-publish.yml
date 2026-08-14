@@ -61,8 +61,18 @@ jobs:
                   username: ${{ github.actor }}
                   password: ${{ secrets.GITHUB_TOKEN }}
 
+            # Serialized to match .github/actions/docker-build-service (issue
+            # #2015 follow-up) — this workflow builds the same Dockerfile
+            # stage graph and is equally exposed to the BuildKit
+            # solver-level checksum race the CI validation matrix hit.
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+              with:
+                  buildkitd-config-inline: |
+                      [worker.oci]
+                        max-parallelism = 1
+                      [worker.containerd]
+                        max-parallelism = 1
 
             - name: Extract metadata
               id: meta
