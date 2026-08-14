@@ -18,7 +18,8 @@ jest.mock('../../../src/services/SessionService', () => ({
 
 jest.mock('../../../src/middleware/requireAdmin', () => ({
     isDeveloperUser: (userId?: string) => userId === '123456789',
-    requireAdmin: jest.requireActual('../../../src/middleware/requireAdmin').requireAdmin,
+    requireAdmin: jest.requireActual('../../../src/middleware/requireAdmin')
+        .requireAdmin,
 }))
 
 const mockSetGuildFeatureToggle = jest.fn<any>().mockResolvedValue(undefined)
@@ -40,13 +41,13 @@ jest.mock('@lucky/shared/services', () => ({
 
 jest.mock('@lucky/shared/config', () => ({
     getFeatureToggleConfig: jest.fn(() => ({
-        DOWNLOAD_VIDEO: {
-            name: 'DOWNLOAD_VIDEO',
-            description: 'Download video feature',
+        AUTOPLAY: {
+            name: 'AUTOPLAY',
+            description: 'Autoplay feature',
         },
-        DOWNLOAD_AUDIO: {
-            name: 'DOWNLOAD_AUDIO',
-            description: 'Download audio feature',
+        LYRICS: {
+            name: 'LYRICS',
+            description: 'Lyrics feature',
         },
     })),
 }))
@@ -69,13 +70,13 @@ describe('Toggles Routes Integration', () => {
                 typeof getFeatureToggleConfig
             >
         mockGetFeatureToggleConfig.mockReturnValue({
-            DOWNLOAD_VIDEO: {
-                name: 'DOWNLOAD_VIDEO',
-                description: 'Download video feature',
+            AUTOPLAY: {
+                name: 'AUTOPLAY',
+                description: 'Autoplay feature',
             },
-            DOWNLOAD_AUDIO: {
-                name: 'DOWNLOAD_AUDIO',
-                description: 'Download audio feature',
+            LYRICS: {
+                name: 'LYRICS',
+                description: 'Lyrics feature',
             },
         } as ReturnType<typeof getFeatureToggleConfig>)
 
@@ -102,8 +103,8 @@ describe('Toggles Routes Integration', () => {
             mockSessionService.getSession.mockResolvedValue(developerSession)
 
             const mockToggles = new Map([
-                ['DOWNLOAD_VIDEO', { name: 'DOWNLOAD_VIDEO' }],
-                ['DOWNLOAD_AUDIO', { name: 'DOWNLOAD_AUDIO' }],
+                ['AUTOPLAY', { name: 'AUTOPLAY' }],
+                ['LYRICS', { name: 'LYRICS' }],
             ])
 
             const mockFeatureToggleService =
@@ -123,7 +124,7 @@ describe('Toggles Routes Integration', () => {
             expect(mockFeatureToggleService.getAllToggles).toHaveBeenCalled()
             expect(
                 mockFeatureToggleService.getGlobalToggleStatus,
-            ).toHaveBeenCalledWith('DOWNLOAD_VIDEO')
+            ).toHaveBeenCalledWith('AUTOPLAY')
         })
 
         test('should return 403 for non-developer', async () => {
@@ -175,9 +176,7 @@ describe('Toggles Routes Integration', () => {
             >
             mockSessionService.getSession.mockResolvedValue(developerSession)
 
-            const mockToggles = new Map([
-                ['DOWNLOAD_VIDEO', { name: 'DOWNLOAD_VIDEO' }],
-            ])
+            const mockToggles = new Map([['AUTOPLAY', { name: 'AUTOPLAY' }]])
 
             const mockFeatureToggleService =
                 featureToggleService as jest.Mocked<typeof featureToggleService>
@@ -185,12 +184,12 @@ describe('Toggles Routes Integration', () => {
             mockFeatureToggleService.isEnabledGlobal.mockResolvedValue(true)
 
             const response = await request(app)
-                .get('/api/toggles/global/DOWNLOAD_VIDEO')
+                .get('/api/toggles/global/AUTOPLAY')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
             expect(response.body).toEqual({
-                name: 'DOWNLOAD_VIDEO',
+                name: 'AUTOPLAY',
                 enabled: true,
                 provider: 'database',
                 writable: false,
@@ -261,27 +260,25 @@ describe('Toggles Routes Integration', () => {
             >
             mockSessionService.getSession.mockResolvedValue(developerSession)
 
-            const mockToggles = new Map([
-                ['DOWNLOAD_VIDEO', { name: 'DOWNLOAD_VIDEO' }],
-            ])
+            const mockToggles = new Map([['AUTOPLAY', { name: 'AUTOPLAY' }]])
 
             const mockFeatureToggleService =
                 featureToggleService as jest.Mocked<typeof featureToggleService>
             mockFeatureToggleService.getAllToggles.mockReturnValue(mockToggles)
 
             const response = await request(app)
-                .post('/api/toggles/global/DOWNLOAD_VIDEO')
+                .post('/api/toggles/global/AUTOPLAY')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .send({ enabled: true })
                 .expect(200)
 
             expect(response.body).toEqual({
                 success: true,
-                name: 'DOWNLOAD_VIDEO',
+                name: 'AUTOPLAY',
                 enabled: true,
             })
             expect(mockSetGlobalFeatureToggle).toHaveBeenCalledWith(
-                'DOWNLOAD_VIDEO',
+                'AUTOPLAY',
                 true,
             )
         })
@@ -298,7 +295,7 @@ describe('Toggles Routes Integration', () => {
             mockSessionService.getSession.mockResolvedValue(developerSession)
 
             const response = await request(app)
-                .post('/api/toggles/global/DOWNLOAD_VIDEO')
+                .post('/api/toggles/global/AUTOPLAY')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .send({})
                 .expect(400)

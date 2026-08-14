@@ -246,7 +246,6 @@ SENTRY_DSN=...
 | `/ping` | Check latency |
 | `/help` | Command list and syntax |
 | `/version` | Current bot version |
-| `/download` | Get Lucky for your own server |
 
 ---
 

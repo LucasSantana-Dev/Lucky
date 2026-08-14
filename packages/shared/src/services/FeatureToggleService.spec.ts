@@ -15,13 +15,13 @@ jest.mock('../utils/database/prismaClient', () => ({
 
 jest.mock('../config/featureToggles', () => ({
     getFeatureToggleConfig: () => ({
-        DOWNLOAD_VIDEO: {
-            name: 'DOWNLOAD_VIDEO',
+        AUTOPLAY: {
+            name: 'AUTOPLAY',
             description: 'test',
             enabled: true,
         },
-        DOWNLOAD_AUDIO: {
-            name: 'DOWNLOAD_AUDIO',
+        LYRICS: {
+            name: 'LYRICS',
             description: 'test',
             enabled: false,
         },
@@ -70,7 +70,7 @@ describe('FeatureToggleService', () => {
                 service as unknown as {
                     getDbGlobalOverride(name: string): Promise<boolean | null>
                 }
-            ).getDbGlobalOverride('DOWNLOAD_AUDIO')
+            ).getDbGlobalOverride('LYRICS')
             expect(result).toBe(true)
         })
 
@@ -80,7 +80,7 @@ describe('FeatureToggleService', () => {
                 service as unknown as {
                     getDbGlobalOverride(name: string): Promise<boolean | null>
                 }
-            ).getDbGlobalOverride('DOWNLOAD_AUDIO')
+            ).getDbGlobalOverride('LYRICS')
             expect(result).toBe(false)
         })
 
@@ -90,7 +90,7 @@ describe('FeatureToggleService', () => {
                 service as unknown as {
                     getDbGlobalOverride(name: string): Promise<boolean | null>
                 }
-            ).getDbGlobalOverride('DOWNLOAD_AUDIO')
+            ).getDbGlobalOverride('LYRICS')
             expect(result).toBeNull()
         })
 
@@ -100,14 +100,14 @@ describe('FeatureToggleService', () => {
                 service as unknown as {
                     getDbGlobalOverride(name: string): Promise<boolean | null>
                 }
-            ).getDbGlobalOverride('DOWNLOAD_AUDIO')
+            ).getDbGlobalOverride('LYRICS')
             expect(result).toBeNull()
             // #1286 B3: the DB failure must be surfaced, not swallowed silently.
             expect(mockWarnLog).toHaveBeenCalledTimes(1)
             expect(mockWarnLog).toHaveBeenCalledWith(
                 expect.objectContaining({
                     error: expect.any(Error),
-                    data: { name: 'DOWNLOAD_AUDIO' },
+                    data: { name: 'LYRICS' },
                 }),
             )
         })
@@ -116,17 +116,17 @@ describe('FeatureToggleService', () => {
     describe('setGlobalFeatureToggle', () => {
         it('upserts the toggle with correct args', async () => {
             mockUpsert.mockResolvedValue({})
-            await service.setGlobalFeatureToggle('DOWNLOAD_VIDEO', true)
+            await service.setGlobalFeatureToggle('AUTOPLAY', true)
             expect(mockUpsert).toHaveBeenCalledWith({
-                where: { name: 'DOWNLOAD_VIDEO' },
+                where: { name: 'AUTOPLAY' },
                 update: { enabled: true },
-                create: { name: 'DOWNLOAD_VIDEO', enabled: true },
+                create: { name: 'AUTOPLAY', enabled: true },
             })
         })
 
         it('upserts with enabled=false', async () => {
             mockUpsert.mockResolvedValue({})
-            await service.setGlobalFeatureToggle('DOWNLOAD_AUDIO', false)
+            await service.setGlobalFeatureToggle('LYRICS', false)
             expect(mockUpsert).toHaveBeenCalledWith(
                 expect.objectContaining({
                     update: { enabled: false },
@@ -138,7 +138,7 @@ describe('FeatureToggleService', () => {
         it('propagates db errors', async () => {
             mockUpsert.mockRejectedValue(new Error('DB write failed'))
             await expect(
-                service.setGlobalFeatureToggle('DOWNLOAD_VIDEO', true),
+                service.setGlobalFeatureToggle('AUTOPLAY', true),
             ).rejects.toThrow('DB write failed')
         })
     })
@@ -146,7 +146,7 @@ describe('FeatureToggleService', () => {
     describe('isEnabled', () => {
         it('delegates to isEnabledGlobal', async () => {
             mockFindUnique.mockResolvedValue(null)
-            const result = await service.isEnabled('DOWNLOAD_VIDEO')
+            const result = await service.isEnabled('AUTOPLAY')
             expect(result).toBe(true)
         })
     })
@@ -155,40 +155,40 @@ describe('FeatureToggleService', () => {
         it('returns a Map of all fallback toggles', () => {
             const toggles = service.getAllToggles()
             expect(toggles).toBeInstanceOf(Map)
-            expect(toggles.get('DOWNLOAD_VIDEO')).toBe(true)
-            expect(toggles.get('DOWNLOAD_AUDIO')).toBe(false)
+            expect(toggles.get('AUTOPLAY')).toBe(true)
+            expect(toggles.get('LYRICS')).toBe(false)
         })
     })
 
     describe('getToggle', () => {
         it('returns the fallback value for a toggle', () => {
-            expect(service.getToggle('DOWNLOAD_VIDEO')).toBe(true)
-            expect(service.getToggle('DOWNLOAD_AUDIO')).toBe(false)
+            expect(service.getToggle('AUTOPLAY')).toBe(true)
+            expect(service.getToggle('LYRICS')).toBe(false)
         })
     })
 
     describe('isEnabledGlobal with DB override', () => {
         it('returns db override (true) without checking Vercel', async () => {
             mockFindUnique.mockResolvedValue({ enabled: true })
-            const result = await service.isEnabledGlobal('DOWNLOAD_AUDIO')
+            const result = await service.isEnabledGlobal('LYRICS')
             expect(result).toBe(true)
         })
 
         it('returns db override (false)', async () => {
             mockFindUnique.mockResolvedValue({ enabled: false })
-            const result = await service.isEnabledGlobal('DOWNLOAD_VIDEO')
+            const result = await service.isEnabledGlobal('AUTOPLAY')
             expect(result).toBe(false)
         })
 
         it('falls back to fallback toggle when no db override', async () => {
             mockFindUnique.mockResolvedValue(null)
-            const result = await service.isEnabledGlobal('DOWNLOAD_VIDEO')
+            const result = await service.isEnabledGlobal('AUTOPLAY')
             expect(result).toBe(true)
         })
 
         it('falls back to fallback toggle when db throws', async () => {
             mockFindUnique.mockRejectedValue(new Error('DB error'))
-            const result = await service.isEnabledGlobal('DOWNLOAD_VIDEO')
+            const result = await service.isEnabledGlobal('AUTOPLAY')
             expect(result).toBe(true)
         })
     })
@@ -196,7 +196,7 @@ describe('FeatureToggleService', () => {
     describe('getGlobalToggleStatus', () => {
         it('returns provider as database when db override exists', async () => {
             mockFindUnique.mockResolvedValue({ enabled: true })
-            const status = await service.getGlobalToggleStatus('DOWNLOAD_VIDEO')
+            const status = await service.getGlobalToggleStatus('AUTOPLAY')
             expect(status).toEqual({
                 enabled: true,
                 provider: 'database',
@@ -206,7 +206,7 @@ describe('FeatureToggleService', () => {
 
         it('returns provider as environment when no db override', async () => {
             mockFindUnique.mockResolvedValue(null)
-            const status = await service.getGlobalToggleStatus('DOWNLOAD_VIDEO')
+            const status = await service.getGlobalToggleStatus('AUTOPLAY')
             expect(status).toEqual({
                 enabled: true,
                 provider: 'environment',

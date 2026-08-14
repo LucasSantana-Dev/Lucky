@@ -79,7 +79,6 @@ model Guild {
   automationManifest           GuildAutomationManifest?
   automationRuns               GuildAutomationRun[]
   automationDrifts             GuildAutomationDrift[]
-  downloads                    Download[]
   roleExclusions               RoleExclusion[]
   moderationCases              ModerationCase[]
   moderationSettings           ModerationSettings?
@@ -219,13 +218,11 @@ model GuildSettings {
   language   String  @default("en")
 
   // Permissions
-  allowDownloads Boolean @default(true)
   allowPlaylists Boolean @default(true)
   allowSpotify   Boolean @default(true)
 
   // Rate limiting
-  commandCooldown  Int @default(3) // seconds
-  downloadCooldown Int @default(10) // seconds
+  commandCooldown Int @default(3) // seconds
 
   // DJ / moderation
   djRoleId           String?
@@ -475,38 +472,6 @@ model RateLimit {
   @@unique([key])
   @@index([resetAt])
   @@map("rate_limits")
-}
-
-// Download Management
-model Download {
-  id      String @id @default(cuid())
-  userId  String
-  guildId String
-  guild   Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
-
-  // Download data
-  url     String
-  title   String
-  format  String // video, audio
-  quality String
-  status  String // pending, processing, completed, failed
-
-  // File data
-  filename String?
-  fileSize BigInt?
-  filePath String?
-
-  // Metadata
-  progress Int     @default(0) // 0-100
-  error    String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, createdAt])
-  @@index([status])
-  @@index([guildId])
-  @@map("downloads")
 }
 
 // Artist Preferences (per Discord user per guild)

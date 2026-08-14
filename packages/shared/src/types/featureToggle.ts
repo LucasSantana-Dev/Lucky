@@ -1,6 +1,4 @@
 export type FeatureToggleName =
-    | 'DOWNLOAD_VIDEO'
-    | 'DOWNLOAD_AUDIO'
     | 'MUSIC_RECOMMENDATIONS'
     | 'AUTOPLAY'
     | 'LYRICS'
