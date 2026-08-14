@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.4](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.3...v2.39.4) (2026-08-14)
+
+
+### Bug Fixes
+
+* **ci:** bump docker-build retries from 2 to 4 (5 attempts total) ([#2016](https://github.com/LucasSantana-Dev/Lucky/issues/2016)) ([25af082](https://github.com/LucasSantana-Dev/Lucky/commit/25af0824ff20b6b0a0653d04a4ea5d48b54d9031))
+* **ci:** disable cache-to (not just cache-from) on docker-build retries ([#2013](https://github.com/LucasSantana-Dev/Lucky/issues/2013)) ([608f1d5](https://github.com/LucasSantana-Dev/Lucky/commit/608f1d57216bfe95bae11ddc1ef4af114b04f166))
+* **ci:** serialize buildkit stage execution to kill the checksum race ([#2018](https://github.com/LucasSantana-Dev/Lucky/issues/2018)) ([ec4b5fd](https://github.com/LucasSantana-Dev/Lucky/commit/ec4b5fd65bdefcb8404030aef535fef66e47fe5f))
+* **docker:** decouple deps-production-base from installed-deps ([#2017](https://github.com/LucasSantana-Dev/Lucky/issues/2017)) ([cfd3a5e](https://github.com/LucasSantana-Dev/Lucky/commit/cfd3a5ec9e0ff0c2b139ff7e7bb7ad0bad8c5ccf))
+
 ## [2.39.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.2...v2.39.3) (2026-08-12)
 
 
