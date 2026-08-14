@@ -29,11 +29,9 @@ export interface GuildSettings {
     prefix: string
     embedColor: string
     language: string
-    allowDownloads: boolean
     allowPlaylists: boolean
     allowSpotify: boolean
     commandCooldown: number
-    downloadCooldown: number
     djRoleId?: string
     idleTimeoutMinutes?: number
     voteSkipThreshold?: number
@@ -89,11 +87,9 @@ export class GuildSettingsService {
             prefix: '/',
             embedColor: '0x5865F2',
             language: 'en',
-            allowDownloads: true,
             allowPlaylists: true,
             allowSpotify: true,
             commandCooldown: 3,
-            downloadCooldown: 10,
             djRoleId: undefined,
             idleTimeoutMinutes: 0,
             voteSkipThreshold: 50,
@@ -116,11 +112,9 @@ export class GuildSettingsService {
         prefix: string | null
         embedColor: string | null
         language: string
-        allowDownloads: boolean
         allowPlaylists: boolean
         allowSpotify: boolean
         commandCooldown: number
-        downloadCooldown: number
         djRoleId: string | null
         idleTimeoutMinutes: number | null
         voteSkipThreshold: number | null
@@ -143,11 +137,9 @@ export class GuildSettingsService {
             prefix: row.prefix ?? defaults.prefix,
             embedColor: row.embedColor ?? defaults.embedColor,
             language: row.language,
-            allowDownloads: row.allowDownloads,
             allowPlaylists: row.allowPlaylists,
             allowSpotify: row.allowSpotify,
             commandCooldown: row.commandCooldown,
-            downloadCooldown: row.downloadCooldown,
             djRoleId: row.djRoleId ?? undefined,
             idleTimeoutMinutes: row.idleTimeoutMinutes ?? 0,
             voteSkipThreshold: row.voteSkipThreshold ?? 50,
@@ -182,11 +174,9 @@ export class GuildSettingsService {
         copy('prefix')
         copy('embedColor')
         copy('language')
-        copy('allowDownloads')
         copy('allowPlaylists')
         copy('allowSpotify')
         copy('commandCooldown')
-        copy('downloadCooldown')
         copy('djRoleId')
         copy('supportCategoryId')
         copy('supportAgentRoleId')

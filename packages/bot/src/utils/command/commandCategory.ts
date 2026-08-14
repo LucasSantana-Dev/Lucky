@@ -29,7 +29,7 @@ export function getCategoryFromFilePath(filePath: string): CommandCategory {
 
     if (functionsIndex >= 0 && functionsIndex + 1 < parts.length) {
         const category = parts[functionsIndex + 1]
-        if (['music', 'download', 'general'].includes(category)) {
+        if (['music', 'general'].includes(category)) {
             return category as CommandCategory
         }
     }

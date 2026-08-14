@@ -1,6 +1,15 @@
 # syntax=docker/dockerfile:1
 # Multi-stage Dockerfile for Lucky services
 # Usage: docker compose --env-file .env.production up -d --build
+#
+# CI (.github/actions/docker-build-service, .github/workflows/docker-publish.yml)
+# runs this with BuildKit's max-parallelism=1 — the "failed to calculate
+# checksum of ref ...: not found" errors documented throughout this file
+# turned out to be a BuildKit solver-level race under its default
+# concurrent stage scheduling, not caching or job-level concurrency
+# (issue #2015). A plain `docker buildx build` (default concurrent
+# scheduler) is how to reproduce it locally; max-parallelism=1 is what
+# suppresses it, not what causes it.
 
 # Node 24 = Active LTS (since Oct 2025). @discordjs/opus ships no prebuilt for
 # this ABI, so it source-compiles via the toolchain the build/deps stages carry
@@ -58,7 +67,10 @@ ENV NODE_ENV=development \
 # nosemgrep: dockerfile.security.missing-user.missing-user
 CMD ["sh", "-c", "npm ci --legacy-peer-deps --no-audit --no-fund && npx prisma generate && npm run dev --workspace=packages/bot"]
 
-# Build stage — installs all deps, generates prisma, builds shared + target
+# Build stage — installs all deps. Prisma generation and the per-workspace
+# builds happen in the stages below (source-copied, build-shared, build-bot,
+# build-backend, build-frontend), split apart to avoid coupling unrelated
+# COPY --from steps to each other's build RUNs — see the comments there.
 FROM node:${NODE_VERSION} AS build
 ARG NPM_CACHE_KEY
 
@@ -77,24 +89,62 @@ RUN --mount=type=cache,id=npm-build-stage-v4-${NPM_CACHE_KEY},target=/root/.npm,
     npm ci --legacy-peer-deps --no-audit --no-fund && \
     (npm cache verify 2>/dev/null || true)
 
+# Checkpoint right after npm ci, before any source COPY or per-workspace
+# build runs: every workspace's node_modules is fully installed and final
+# here. deps-production-* copies node_modules from this stage instead of a
+# later one — `COPY --from=<stage>` always waits for that stage's LAST
+# instruction, and a RUN further down that stage's chain intermittently
+# corrupted BuildKit's cache-key resolution for an earlier-ready path COPY'd
+# from the same stage ("failed to calculate checksum of ref ...: not found"
+# immediately after that RUN completed — reproduced consistently across
+# buildx versions, with/without the GHA cache, concurrent and alone; never
+# root-caused beyond decoupling the two). None of the per-workspace build
+# scripts write into node_modules, so this is a behavior-neutral extraction
+# point, not a functional change.
+#
+# This has to be its own empty stage, not just a label slapped on `build`:
+# every instruction between a `FROM ... AS x` and the next `FROM` belongs to
+# x's own chain, so if source gets COPY'd and workspaces get built before the
+# next FROM, "installed-deps" would still end at the last of those
+# instructions — no earlier checkpoint at all, just a rename.
+FROM build AS installed-deps
+
+# Same bug, same fix, one level further in: shared/dist, shared/src/generated,
+# and the prisma directory are all COPY'd into the production images from
+# whichever stage last touched them. Building bot/backend/frontend
+# sequentially in one stage means each of their `RUN npm run build` steps
+# becomes the "last instruction" that a COPY --from of the earlier-ready
+# shared/prisma output has to wait on too, even though that output has
+# nothing to do with the later builds. Splitting bot/backend/frontend into
+# their own stages branching off build-shared removes that coupling (and
+# lets them build in parallel, since none of the three depends on the
+# others' output).
+FROM installed-deps AS source-copied
 COPY packages/shared ./packages/shared
 COPY packages/bot ./packages/bot
 COPY packages/backend ./packages/backend
 COPY prisma ./prisma
-
 RUN npx prisma generate
 
+FROM source-copied AS build-shared
 WORKDIR /app
 RUN npm run build:shared
+
+FROM build-shared AS build-bot
 RUN npm run build --workspace=packages/bot
+
+FROM build-shared AS build-backend
 RUN npm run build --workspace=packages/backend
 
-# Frontend build — inherits the build stage's deps + toolchain, so we get
+# Frontend build — inherits build-shared's deps + toolchain, so we get
 # build-base + python3-dev + opus-dev "for free." Previously the standalone
 # Dockerfile.frontend re-ran `npm ci` for ~all workspace deps (including
 # @discordjs/opus) but lacked the C toolchain, which broke node:26-alpine
 # in PR #846. Sharing the build stage eliminates that class of failure.
-FROM build AS build-frontend
+# Must branch from build-shared, not installed-deps: frontend imports
+# @lucky/shared/constants, which only resolves once shared's dist output
+# exists.
+FROM build-shared AS build-frontend
 COPY packages/frontend ./packages/frontend
 # Frontend's /changelog page imports the repo-root CHANGELOG.md via
 # `import md from '../../../../CHANGELOG.md?raw'` (vite raw loader). The
@@ -136,17 +186,26 @@ COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
 COPY packages/frontend/package*.json ./packages/frontend/
 
-# Reuse already-compiled node_modules from build stage (avoids double @discordjs/opus
-# compilation).
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages/shared/node_modules ./packages/shared/node_modules
+# Independent npm ci instead of COPY --from=installed-deps (issue #2015).
+# installed-deps is concurrently extended by a second live branch
+# (source-copied, via FROM inheritance) for the whole rest of this build —
+# COPY --from of it while that's happening hit a BuildKit race ("failed to
+# calculate checksum of ref ...: not found"), non-deterministically but at
+# a very high rate on GH Actions runners, and never resolved by cache
+# tuning or retries alone (#2002, #2013, #2016). Running npm ci here
+# duplicates the @discordjs/opus native compile once — this stage is
+# shared by both deps-production-bot and deps-production-backend below, so
+# it's a one-time cost per build, not per target — but fully decouples this
+# lineage from installed-deps: no more cross-stage read of a stage still
+# being written to elsewhere.
+RUN --mount=type=cache,id=npm-build-stage-v4-${NPM_CACHE_KEY},target=/root/.npm,sharing=locked \
+    YOUTUBE_DL_SKIP_DOWNLOAD=1 \
+    npm ci --legacy-peer-deps --no-audit --no-fund
 
 FROM deps-production-base AS deps-production-bot
-COPY --from=build /app/packages/bot/node_modules ./packages/bot/node_modules
 RUN npm prune --omit=dev --legacy-peer-deps
 
 FROM deps-production-base AS deps-production-backend
-COPY --from=build /app/packages/backend/node_modules ./packages/backend/node_modules
 RUN npm prune --omit=dev --legacy-peer-deps
 
 # Production stage — bot (full runtime with ffmpeg/opus/yt-dlp)
@@ -172,18 +231,18 @@ COPY --from=deps-production-bot /app/packages/bot/node_modules ./packages/bot/no
 # why this copies the whole directory rather than naming one dep. It comes from
 # deps-production-bot, so it is already devDep-pruned.
 COPY --from=deps-production-bot /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=build /app/packages/shared/dist ./packages/shared/dist
-COPY --from=build /app/packages/shared/src/generated ./packages/shared/src/generated
-COPY --from=build /app/packages/shared/src/generated ./packages/shared/dist/generated
-COPY --from=build /app/packages/bot/dist ./packages/bot/dist
-COPY --from=build /app/prisma ./prisma
+COPY --from=build-shared /app/packages/shared/dist ./packages/shared/dist
+COPY --from=source-copied /app/packages/shared/src/generated ./packages/shared/src/generated
+COPY --from=source-copied /app/packages/shared/src/generated ./packages/shared/dist/generated
+COPY --from=build-bot /app/packages/bot/dist ./packages/bot/dist
+COPY --from=source-copied /app/prisma ./prisma
 # Bake the Prisma engines. `prisma`/`@prisma/engines` are devDeps, so the
 # deps-production-bot `npm ci --omit=dev` above ships node_modules WITHOUT the
 # migrate schema-engine — `prisma migrate deploy` then tries to download it at
 # boot (fails for uid 1001 on a root-owned dir; needs the CDN reachable). The
 # build stage's full `npm ci` already has the engines, so copy them in: no
 # runtime download, no boot-time Prisma-CDN dependency. (#1734)
-COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=source-copied /app/node_modules/@prisma ./node_modules/@prisma
 
 RUN mkdir -p downloads logs && \
     addgroup -g 1001 -S nodejs && \
@@ -224,18 +283,18 @@ COPY --from=deps-production-backend /app/packages/backend/node_modules ./package
 # why this copies the whole directory rather than naming one dep. It comes from
 # deps-production-backend, so it is already devDep-pruned.
 COPY --from=deps-production-backend /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=build /app/packages/shared/dist ./packages/shared/dist
-COPY --from=build /app/packages/shared/src/generated ./packages/shared/src/generated
-COPY --from=build /app/packages/shared/src/generated ./packages/shared/dist/generated
-COPY --from=build /app/packages/backend/dist ./packages/backend/dist
-COPY --from=build /app/prisma ./prisma
+COPY --from=build-shared /app/packages/shared/dist ./packages/shared/dist
+COPY --from=source-copied /app/packages/shared/src/generated ./packages/shared/src/generated
+COPY --from=source-copied /app/packages/shared/src/generated ./packages/shared/dist/generated
+COPY --from=build-backend /app/packages/backend/dist ./packages/backend/dist
+COPY --from=source-copied /app/prisma ./prisma
 # prisma/@prisma/engines are devDeps, so deps-production-backend's `npm ci --omit=dev`
 # ships node_modules WITHOUT the migrate schema-engine — `prisma migrate deploy`
 # (run via this backend image, see scripts/deploy.sh) then fails to write the
 # engine binary as the non-root `backend` user. The bot stage above already
 # works around this by copying the build stage's full @prisma from ./node_modules
 # (#1734/#1735); backend needs the same copy + chown, it just never got it.
-COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=source-copied /app/node_modules/@prisma ./node_modules/@prisma
 
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S backend -u 1001 -G nodejs && \

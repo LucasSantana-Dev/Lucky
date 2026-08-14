@@ -317,9 +317,10 @@ jobs:
                   echo "Changed files:"
                   echo "$CHANGED"
                   # Mirrors docker-publish.yml's paths: filter, plus this
-                  # workflow file itself (so edits to the docker-build job
-                  # definition are still validated).
-                  if echo "$CHANGED" | grep -qE '^(packages/|prisma/|Dockerfile$|Dockerfile\.|nginx/|package.*\.json$|\.github/workflows/ci\.yml$)'; then
+                  # workflow file and the composite action it calls (so edits
+                  # to the docker-build job/action definitions are still
+                  # validated instead of silently reporting a false green).
+                  if echo "$CHANGED" | grep -qE '^(packages/|prisma/|Dockerfile$|Dockerfile\.|nginx/|package.*\.json$|\.github/workflows/ci\.yml$|\.github/actions/docker-build-service/)'; then
                       echo "relevant=true" >> "$GITHUB_OUTPUT"
                   else
                       echo "relevant=false" >> "$GITHUB_OUTPUT"
@@ -354,16 +355,62 @@ jobs:
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
                   load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
-            # Retry once on transient failure (buildx setup and build re-run
-            # together, matching the previous separate retry steps).
-            - name: Build ${{ matrix.service }} - retry once on transient failure
+            # Retry on transient failure (buildx setup and build re-run
+            # together, matching the previous separate retry steps). Root
+            # cause (see issue #2015): a local BuildKit race resolving a
+            # COPY --from=<stage> reference — "failed to calculate checksum
+            # of ref ...: not found" — while that shared stage
+            # (installed-deps) is concurrently extended by a second live
+            # branch in the same build DAG. Confirmed NOT a gha-cache issue:
+            # reproduces 6/6 with cache-from AND cache-to fully disabled
+            # (#2013, #2002). use-cache: 'false' is kept on retries anyway
+            # (harmless, avoids any residual cache-side variable) but the
+            # real mitigation here is attempt count — it's a race, not
+            # deterministic, so more attempts raise the odds one lands
+            # clean. Four retries (five attempts total) until #2015's
+            # Dockerfile restructure removes the race itself.
+            - name: Build ${{ matrix.service }} - retry 1 on transient failure
+              id: build-retry-1
               if: steps.build.outcome == 'failure'
+              continue-on-error: true
               uses: ./.github/actions/docker-build-service
               with:
                   service: ${{ matrix.service }}
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
                   load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
+                  use-cache: 'false'
+            - name: Build ${{ matrix.service }} - retry 2 on transient failure
+              id: build-retry-2
+              if: steps.build.outcome == 'failure' && steps.build-retry-1.outcome == 'failure'
+              continue-on-error: true
+              uses: ./.github/actions/docker-build-service
+              with:
+                  service: ${{ matrix.service }}
+                  file: ${{ matrix.file }}
+                  target: ${{ matrix.target }}
+                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
+                  use-cache: 'false'
+            - name: Build ${{ matrix.service }} - retry 3 on transient failure
+              id: build-retry-3
+              if: steps.build.outcome == 'failure' && steps.build-retry-1.outcome == 'failure' && steps.build-retry-2.outcome == 'failure'
+              continue-on-error: true
+              uses: ./.github/actions/docker-build-service
+              with:
+                  service: ${{ matrix.service }}
+                  file: ${{ matrix.file }}
+                  target: ${{ matrix.target }}
+                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
+                  use-cache: 'false'
+            - name: Build ${{ matrix.service }} - retry 4 on transient failure
+              if: steps.build.outcome == 'failure' && steps.build-retry-1.outcome == 'failure' && steps.build-retry-2.outcome == 'failure' && steps.build-retry-3.outcome == 'failure'
+              uses: ./.github/actions/docker-build-service
+              with:
+                  service: ${{ matrix.service }}
+                  file: ${{ matrix.file }}
+                  target: ${{ matrix.target }}
+                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
+                  use-cache: 'false'
             # A built image is not a working image: the bot's native addons
             # (@discordjs/opus) and the baked Prisma engines only fail at
             # require()-time, which `docker build` never reaches. #1735 shipped a

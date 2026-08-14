@@ -15,6 +15,24 @@ inputs:
         description: Load the built image into the local Docker daemon.
         required: false
         default: 'false'
+    use-cache:
+        description: >-
+            Import AND export the gha layer cache for this service. Set to
+            'false' on retries: BuildKit's "failed to calculate checksum of
+            ref ...: not found" failure comes from a stale/corrupted gha
+            cache entry, and cache-from is scoped identically across retries
+            within the same job, so a retry that reimports it fails
+            identically instead of getting a fresh build. Evidence from
+            2026-08-14 (PR #1956, #1952) shows the same error on retries with
+            cache-from already disabled — cache-to's mode=max export also
+            has to "solve" a cache key for every intermediate stage,
+            including the branching installed-deps checkpoint (see Dockerfile
+            comment above that stage), so it can hit the identical
+            checksum-resolution failure on export alone. Disabling cache-to
+            too on retries gives a fully cache-free build for the class of
+            failure caching alone doesn't explain.
+        required: false
+        default: 'true'
 runs:
     using: composite
     steps:
@@ -39,8 +57,23 @@ runs:
               sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/share/swift /opt/hostedtoolcache/CodeQL || true
               docker system prune -af --volumes || true
               df -h /
+        # Serialize BuildKit's own stage scheduling (issue #2015 follow-up).
+        # Even with the gha cache fully disabled and every PR building alone
+        # on its own runner VM, "failed to calculate checksum of ref ...:
+        # not found" kept reproducing on COPY --from steps — proven to be a
+        # BuildKit solver-level race under its default concurrent stage
+        # execution, not a caching or cross-job concurrency issue (see
+        # commit history on this file and Dockerfile). max-parallelism=1
+        # forces one stage op at a time, trading some build speed to
+        # eliminate the race outright rather than out-retry it.
         - name: Set up Docker Buildx
           uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+          with:
+              buildkitd-config-inline: |
+                  [worker.oci]
+                    max-parallelism = 1
+                  [worker.containerd]
+                    max-parallelism = 1
         - name: Build ${{ inputs.service }}
           uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
           with:
@@ -52,8 +85,8 @@ runs:
               tags: lucky-${{ inputs.service }}:ci
               provenance: false
               sbom: false
-              cache-from: type=gha,scope=${{ inputs.service }}
-              cache-to: type=gha,mode=max,scope=${{ inputs.service }}
+              cache-from: ${{ inputs.use-cache == 'true' && format('type=gha,scope={0}-{1}', github.ref_name, inputs.service) || '' }}
+              cache-to: ${{ inputs.use-cache == 'true' && format('type=gha,mode=max,scope={0}-{1}', github.ref_name, inputs.service) || '' }}
               build-args: |
                   COMMIT_SHA=${{ github.sha }}
                   NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}

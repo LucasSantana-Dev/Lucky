@@ -87,12 +87,12 @@ Each package can be developed independently:
 
 ### Package layouts
 
-| Package      | Layout                                                                                                            | Where to add                                                                                                                                                   |
-| ------------ | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **shared**   | `src/config/`, `src/services/`, `src/types/`, `src/utils/`                                                        | New config in config/; new services in services/; shared types in types/; composables and helpers in utils/.                                                   |
-| **bot**      | `src/functions/{general,music,download}/commands/`, `src/handlers/`, `src/utils/`, `src/services/`, `src/events/` | New slash command: add file under `functions/<category>/commands/` or folder + re-export (see command loading below). Handlers, utils, and services by domain. |
-| **backend**  | `src/routes/`, `src/services/`, `src/middleware/`                                                                 | New API: route in routes/, logic in services/.                                                                                                                 |
-| **frontend** | `src/components/`, `src/pages/`, `src/hooks/`, `src/stores/`, `src/services/`                                     | New page in pages/; shared UI in components/; API client in services/.                                                                                         |
+| Package      | Layout                                                                                                   | Where to add                                                                                                                                                   |
+| ------------ | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **shared**   | `src/config/`, `src/services/`, `src/types/`, `src/utils/`                                               | New config in config/; new services in services/; shared types in types/; composables and helpers in utils/.                                                   |
+| **bot**      | `src/functions/{automod,general,management,moderation,music}/commands/`, `src/handlers/`, `src/utils/`, `src/services/`, `src/events/` | New slash command: add file under `functions/<category>/commands/` or folder + re-export (see command loading below). Handlers, utils, and services by domain. |
+| **backend**  | `src/routes/`, `src/services/`, `src/middleware/`                                                        | New API: route in routes/, logic in services/.                                                                                                                 |
+| **frontend** | `src/components/`, `src/pages/`, `src/hooks/`, `src/stores/`, `src/services/`                            | New page in pages/; shared UI in components/; API client in services/.                                                                                         |
 
 ### Command loading (bot)
 
@@ -106,7 +106,7 @@ Keep one re-export per folder command; name the re-export file to match the comm
 ### Principles for maintainability
 
 1. **Consistency over perfection** – Follow the same pattern in each area (e.g. all music commands either single-file or folder + re-export). Document the rule; don’t mix styles without reason.
-2. **Shallow where possible** – Prefer flat or one level of nesting for new code. Deeper trees (e.g. `play/`, `queue/`, download utils) exist where the feature needs many files; don’t add layers (e.g. extra “domain” folders) unless there’s a clear benefit.
+2. **Shallow where possible** – Prefer flat or one level of nesting for new code. Deeper trees (e.g. `play/`, `queue/`) exist where the feature needs many files; don’t add layers (e.g. extra “domain” folders) unless there’s a clear benefit.
 3. **One place for cross-cutting concerns** – DB, Redis, config, and shared types live in `@lucky/shared`. Bot-only helpers stay in `packages/bot/src/utils/` or under the feature.
 4. **Avoid big restructures** – Prefer small, incremental improvements when touching code. Don’t rename large trees or split packages for structure alone.
 5. **Path aliases** – `packages/bot/tsconfig.json` already has `@/*` → `./src/*`, so you can use `@/utils/...`, `@/handlers/...` etc. Use them in new code if you prefer; migrate old relative imports gradually.
