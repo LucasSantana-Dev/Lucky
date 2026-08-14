@@ -1,6 +1,15 @@
 # syntax=docker/dockerfile:1
 # Multi-stage Dockerfile for Lucky services
 # Usage: docker compose --env-file .env.production up -d --build
+#
+# CI (.github/actions/docker-build-service, .github/workflows/docker-publish.yml)
+# runs this with BuildKit's max-parallelism=1 — the "failed to calculate
+# checksum of ref ...: not found" errors documented throughout this file
+# turned out to be a BuildKit solver-level race under its default
+# concurrent stage scheduling, not caching or job-level concurrency
+# (issue #2015). A plain `docker buildx build` (default concurrent
+# scheduler) is how to reproduce it locally; max-parallelism=1 is what
+# suppresses it, not what causes it.
 
 # Node 24 = Active LTS (since Oct 2025). @discordjs/opus ships no prebuilt for
 # this ABI, so it source-compiles via the toolchain the build/deps stages carry
