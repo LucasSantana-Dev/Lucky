@@ -177,17 +177,26 @@ COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
 COPY packages/frontend/package*.json ./packages/frontend/
 
-# Reuse already-compiled node_modules from the pre-build checkpoint (avoids
-# double @discordjs/opus compilation).
-COPY --from=installed-deps /app/node_modules ./node_modules
-COPY --from=installed-deps /app/packages/shared/node_modules ./packages/shared/node_modules
+# Independent npm ci instead of COPY --from=installed-deps (issue #2015).
+# installed-deps is concurrently extended by a second live branch
+# (source-copied, via FROM inheritance) for the whole rest of this build —
+# COPY --from of it while that's happening hit a BuildKit race ("failed to
+# calculate checksum of ref ...: not found"), non-deterministically but at
+# a very high rate on GH Actions runners, and never resolved by cache
+# tuning or retries alone (#2002, #2013, #2016). Running npm ci here
+# duplicates the @discordjs/opus native compile once — this stage is
+# shared by both deps-production-bot and deps-production-backend below, so
+# it's a one-time cost per build, not per target — but fully decouples this
+# lineage from installed-deps: no more cross-stage read of a stage still
+# being written to elsewhere.
+RUN --mount=type=cache,id=npm-build-stage-v4-${NPM_CACHE_KEY},target=/root/.npm,sharing=locked \
+    YOUTUBE_DL_SKIP_DOWNLOAD=1 \
+    npm ci --legacy-peer-deps --no-audit --no-fund
 
 FROM deps-production-base AS deps-production-bot
-COPY --from=installed-deps /app/packages/bot/node_modules ./packages/bot/node_modules
 RUN npm prune --omit=dev --legacy-peer-deps
 
 FROM deps-production-base AS deps-production-backend
-COPY --from=installed-deps /app/packages/backend/node_modules ./packages/backend/node_modules
 RUN npm prune --omit=dev --legacy-peer-deps
 
 # Production stage — bot (full runtime with ffmpeg/opus/yt-dlp)
