@@ -105,16 +105,6 @@ export const MOCK_GUILD_MEMBER_CONTEXT = {
 
 export const MOCK_FEATURES = [
     {
-        name: 'DOWNLOAD_VIDEO',
-        description: 'Enable video download functionality',
-        isGlobal: false,
-    },
-    {
-        name: 'DOWNLOAD_AUDIO',
-        description: 'Enable audio download functionality',
-        isGlobal: false,
-    },
-    {
         name: 'MUSIC_RECOMMENDATIONS',
         description: 'Enable music recommendations',
         isGlobal: false,
@@ -147,8 +137,6 @@ export const MOCK_FEATURES = [
 ]
 
 export const MOCK_GLOBAL_TOGGLES = {
-    DOWNLOAD_VIDEO: true,
-    DOWNLOAD_AUDIO: true,
     MUSIC_RECOMMENDATIONS: false,
     AUTOPLAY: true,
     LYRICS: true,
@@ -158,8 +146,6 @@ export const MOCK_GLOBAL_TOGGLES = {
 }
 
 export const MOCK_SERVER_TOGGLES = {
-    DOWNLOAD_VIDEO: true,
-    DOWNLOAD_AUDIO: true,
     MUSIC_RECOMMENDATIONS: true,
     AUTOPLAY: false,
     LYRICS: true,

@@ -76,11 +76,9 @@ describe('GuildSettingsService settings (Postgres source of truth)', () => {
             prefix: null, // -> default '/'
             embedColor: null, // -> default
             language: 'en',
-            allowDownloads: true,
             allowPlaylists: true,
             allowSpotify: true,
             commandCooldown: 3,
-            downloadCooldown: 10,
             djRoleId: null, // -> undefined
             idleTimeoutMinutes: null, // -> 0
             voteSkipThreshold: null, // -> 50

@@ -1,6 +1,5 @@
 export type CommandCategory =
     | 'music'
-    | 'download'
     | 'general'
     | 'moderation'
     | 'management'
@@ -29,12 +28,6 @@ export const COMMAND_CATEGORIES = {
             'stop',
             'leave',
         ],
-    },
-    download: {
-        key: 'download' as CommandCategory,
-        label: '⬇️ Download',
-        emoji: '⬇️',
-        prefixes: ['download'],
     },
     general: {
         key: 'general' as CommandCategory,

@@ -87,8 +87,6 @@ interface FeaturesState {
 
 const createDefaultToggles = (): FeatureToggleState => {
     const toggleNames: FeatureToggleName[] = [
-        'DOWNLOAD_VIDEO',
-        'DOWNLOAD_AUDIO',
         'MUSIC_RECOMMENDATIONS',
         'AUTOPLAY',
         'LYRICS',
