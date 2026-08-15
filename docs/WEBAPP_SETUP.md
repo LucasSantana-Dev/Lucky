@@ -176,21 +176,11 @@ The backend API will be available at `http://localhost:3000`.
 
 ## Feature Toggle System
 
-The web interface supports two types of feature toggles:
-
-### Global Developer Toggles
-
-- System-wide toggles that affect all servers
+- Global, system-wide toggles that affect all servers
 - Only visible to developers (users in `DEVELOPER_USER_IDS`)
 - Managed in Vercel Flags when `FLAGS` is configured
 - Read-only in Lucky; update global values in Vercel
-- API endpoints: `/api/toggles/global`
-
-### Per-Server Toggles
-
-- Server-specific feature toggles
-- Visible/editable by server administrators
-- API endpoints: `/api/guilds/:id/features`
+- API endpoints: `/api/toggles/global`, `/api/features` (authenticated read-only listing)
 
 ## API Endpoints
 
@@ -211,17 +201,10 @@ The web interface supports two types of feature toggles:
 
 ### Feature Toggles
 
-**Global (Developer Only):**
-
 - `GET /api/toggles/global` - List all global toggles
 - `GET /api/toggles/global/:name` - Get specific global toggle
 - `POST /api/toggles/global/:name` - Rejected; global toggles are Vercel-managed
-
-**Per-Server:**
-
-- `GET /api/features` - List all available features
-- `GET /api/guilds/:id/features` - Get guild-specific toggles
-- `POST /api/guilds/:id/features/:name` - Update per-server toggle
+- `GET /api/features` - List all available features (authenticated, global, not per-server — there is no per-guild feature-toggle API)
 
 ## Building for Production
 
