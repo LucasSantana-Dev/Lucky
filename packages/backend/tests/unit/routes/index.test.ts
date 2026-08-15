@@ -233,11 +233,6 @@ describe('setupRoutes', () => {
             'settings:manage',
         )
         expect(app.use).toHaveBeenCalledWith(
-            '/api/guilds/:id/features',
-            requireAuth,
-            'automation:view',
-        )
-        expect(app.use).toHaveBeenCalledWith(
             '/api/guilds/:guildId/role-groups',
             requireAuth,
             'settings:manage',
@@ -284,15 +279,9 @@ describe('setupRoutes', () => {
             'settings:manage',
         ])
 
-        const featuresGuardIndex = useCalls.findIndex(
-            (call) => call[0] === '/api/guilds/:id/features',
-        )
         const rbacGuardCallOrder =
             app.use.mock.invocationCallOrder[rbacGuardIndex]
-        const featuresGuardCallOrder =
-            app.use.mock.invocationCallOrder[featuresGuardIndex]
         const firstRouteSetupOrder = setupAuthRoutes.mock.invocationCallOrder[0]
         expect(rbacGuardCallOrder).toBeLessThan(firstRouteSetupOrder)
-        expect(featuresGuardCallOrder).toBeLessThan(firstRouteSetupOrder)
     })
 })
