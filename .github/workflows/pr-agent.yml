@@ -33,7 +33,7 @@ jobs:
             contents: read
         steps:
             - name: PR Agent action
-              uses: Codium-ai/pr-agent@743f52d80f3513193dfc7626f778c73478df6d0a  # main
+              uses: Codium-ai/pr-agent@f6af7d77554ff8d26adffded077e6461329e92fa  # main
               env:
                   OPENAI.KEY: ${{ secrets.ANTHROPIC_API_KEY }}
                   OPENAI.API_TYPE: anthropic
