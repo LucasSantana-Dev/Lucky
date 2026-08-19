@@ -139,7 +139,11 @@ services:
             # host path that doesn't exist yet gets autocreated as a directory
             # by Docker, breaking the container. See the `webhook` service's
             # hooks.json comment for the same footgun.
-            - ./secrets:/app/secrets:ro
+            # Read-write (not :ro): yt-dlp's --cookies both reads AND dumps
+            # the refreshed cookie jar back to this file every run; read-only
+            # silently breaks that refresh (confirmed via local repro) and
+            # shortens the cookies' effective lifetime for no benefit.
+            - ./secrets:/app/secrets
         networks:
             - lucky-network
             # Shared monitoring network so the homelab Prometheus
