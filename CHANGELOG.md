@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.5](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.4...v2.39.5) (2026-08-19)
+
+
+### Bug Fixes
+
+* **bot:** support yt-dlp cookies file to dodge YouTube 403 ([#2036](https://github.com/LucasSantana-Dev/Lucky/issues/2036)) ([2ec1868](https://github.com/LucasSantana-Dev/Lucky/commit/2ec18682ecf3fd3dafa7f1db5540c6c415d4274b))
+* **deps:** override deepmerge-ts to 8.0.1 to close security gate ([#2038](https://github.com/LucasSantana-Dev/Lucky/issues/2038)) ([04a7f85](https://github.com/LucasSantana-Dev/Lucky/commit/04a7f850afcda268d2ee6a592ea459de421e2c5a))
+* drop dead guild-guard entry for nonexistent features route ([#2030](https://github.com/LucasSantana-Dev/Lucky/issues/2030)) ([522139c](https://github.com/LucasSantana-Dev/Lucky/commit/522139c6297eacfed685fba63faa3bc6c80fea74))
+* unblock ioredis/bullmq bumps by deduping stale lockfile ([#2033](https://github.com/LucasSantana-Dev/Lucky/issues/2033)) ([0c6cb0d](https://github.com/LucasSantana-Dev/Lucky/commit/0c6cb0dab98385c589fa644ca6f894e566bf492f))
+
 ## [2.39.4](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.3...v2.39.4) (2026-08-14)
 
 
