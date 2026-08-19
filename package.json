@@ -143,7 +143,8 @@
         "esbuild": "0.28.1",
         "qs": "^6.15.2",
         "@opentelemetry/core": "^2.8.0",
-        "find-my-way": ">=9.7.0"
+        "find-my-way": ">=9.7.0",
+        "deepmerge-ts": "^8.0.1"
     },
     "allowScripts": {
         "@discordjs/opus@0.10.0": true
