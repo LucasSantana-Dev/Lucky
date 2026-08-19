@@ -1,4 +1,5 @@
 import { spawn } from 'child_process'
+import { accessSync, constants, statSync } from 'fs'
 import { PassThrough } from 'stream'
 import type { Readable } from 'stream'
 import type { Track } from 'discord-player'
@@ -43,6 +44,57 @@ function validateYtDlpUrl(url: string): void {
     }
 }
 
+// ADR 2026-06-18 (youtube-extraction-reliability): YouTube's velocity-based
+// bot detection returns 403 on cookie-less requests. Point YTDLP_COOKIES_FILE
+// at a Netscape-format cookies.txt (exported from a logged-in browser
+// session) to authenticate yt-dlp's requests. Optional — falls back to the
+// prior cookie-less behavior when unset or the file isn't there.
+let loggedCookiesMissing = false
+let loggedCookiesApplied = false
+
+// Test-only: the log-once dedup above is module-level state, so tests that
+// assert on it must reset between cases instead of relying on run order.
+export function __resetYtdlpCookiesLogStateForTests(): void {
+    loggedCookiesMissing = false
+    loggedCookiesApplied = false
+}
+
+function isReadableFile(cookiesFile: string): boolean {
+    try {
+        if (!statSync(cookiesFile).isFile()) return false
+        accessSync(cookiesFile, constants.R_OK)
+        return true
+    } catch {
+        return false
+    }
+}
+
+function ytdlpCookiesArgs(): string[] {
+    const cookiesFile = process.env.YTDLP_COOKIES_FILE
+    if (!cookiesFile) return []
+
+    if (!isReadableFile(cookiesFile)) {
+        if (!loggedCookiesMissing) {
+            loggedCookiesMissing = true
+            warnLog({
+                message:
+                    'Bridge: YTDLP_COOKIES_FILE is set but not a readable file — running cookie-less',
+                data: { cookiesFile },
+            })
+        }
+        return []
+    }
+
+    if (!loggedCookiesApplied) {
+        loggedCookiesApplied = true
+        infoLog({
+            message: 'Bridge: yt-dlp cookies file applied',
+            data: { cookiesFile },
+        })
+    }
+    return ['--cookies', cookiesFile]
+}
+
 export function streamViaYtDlp(url: string): Promise<Readable> {
     try {
         validateYtDlpUrl(url)
@@ -64,6 +116,7 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
                 '--no-progress',
                 '--js-runtimes',
                 `node:${process.execPath}`,
+                ...ytdlpCookiesArgs(),
                 url,
             ],
             { stdio: ['ignore', 'pipe', 'pipe'] },
@@ -132,9 +185,7 @@ export function streamViaYtDlpSearch(query: string): Promise<Readable> {
  * happened. Primary yt-dlp resolutions leave the metadata untouched.
  */
 export type StreamBridgeFallbackStage =
-    | 'soundcloud-full'
-    | 'soundcloud-title'
-    | 'soundcloud-core'
+    'soundcloud-full' | 'soundcloud-title' | 'soundcloud-core'
 
 export const STREAM_BRIDGE_FALLBACK_METADATA_KEY = 'streamBridgeFallbackStage'
 

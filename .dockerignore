@@ -19,6 +19,9 @@ worktrees/
 archive/
 downloads/
 
+# yt-dlp cookies credential (bind-mounted at runtime, never baked into the image)
+secrets/
+
 # Documentation
 docs/
 *.md

@@ -19,6 +19,13 @@ const mockCaptureMessage = jest.fn()
 jest.mock('child_process', () => ({
     spawn: (...args: unknown[]) => mockSpawn(...args),
 }))
+const mockStatSync = jest.fn()
+const mockAccessSync = jest.fn()
+jest.mock('fs', () => ({
+    statSync: (...args: unknown[]) => mockStatSync(...args),
+    accessSync: (...args: unknown[]) => mockAccessSync(...args),
+    constants: { R_OK: 4 },
+}))
 jest.mock('./soundcloudMatcher', () => ({
     streamViaSoundCloud: (...args: unknown[]) =>
         mockStreamViaSoundCloud(...args),
@@ -66,6 +73,7 @@ import {
     createResilientStream,
     getStreamBridgeFallbackLabel,
     STREAM_BRIDGE_FALLBACK_METADATA_KEY,
+    __resetYtdlpCookiesLogStateForTests,
 } from './streamBridge.js'
 
 // ---------------------------------------------------------------------------
@@ -129,6 +137,97 @@ describe('streamViaYtDlp – URL validation', () => {
         mockSpawn.mockReturnValue(proc)
         setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
         await expect(streamViaYtDlp(url)).resolves.toBeDefined()
+    })
+})
+
+// ---------------------------------------------------------------------------
+// streamViaYtDlp — cookies (#2034 / ADR 2026-06-18)
+// ---------------------------------------------------------------------------
+
+describe('streamViaYtDlp – cookies file', () => {
+    const validUrl = 'https://www.youtube.com/watch?v=abc123'
+    const cookiesPath = '/app/secrets/youtube-cookies.txt'
+    const originalEnv = process.env.YTDLP_COOKIES_FILE
+
+    async function runOnce() {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
+        await streamViaYtDlp(validUrl)
+        return mockSpawn.mock.calls.at(-1)?.[1] as string[]
+    }
+
+    beforeEach(() => {
+        __resetYtdlpCookiesLogStateForTests()
+        mockAccessSync.mockReset()
+    })
+
+    afterEach(() => {
+        if (originalEnv === undefined) delete process.env.YTDLP_COOKIES_FILE
+        else process.env.YTDLP_COOKIES_FILE = originalEnv
+    })
+
+    it('logs the missing/applied transition once each, not per call', async () => {
+        process.env.YTDLP_COOKIES_FILE = cookiesPath
+        mockStatSync.mockImplementation(() => {
+            throw new Error('ENOENT')
+        })
+        await runOnce()
+        await runOnce()
+        expect(mockWarnLog).toHaveBeenCalledTimes(1)
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('not a readable file'),
+            }),
+        )
+
+        mockStatSync.mockReturnValue({ isFile: () => true })
+        await runOnce()
+        await runOnce()
+        expect(mockInfoLog).toHaveBeenCalledTimes(1)
+        expect(mockInfoLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Bridge: yt-dlp cookies file applied',
+            }),
+        )
+    })
+
+    it('does not pass --cookies when YTDLP_COOKIES_FILE is unset', async () => {
+        delete process.env.YTDLP_COOKIES_FILE
+        expect(await runOnce()).not.toContain('--cookies')
+    })
+
+    it('does not pass --cookies when the configured file does not exist', async () => {
+        process.env.YTDLP_COOKIES_FILE = cookiesPath
+        mockStatSync.mockImplementation(() => {
+            throw new Error('ENOENT')
+        })
+        expect(await runOnce()).not.toContain('--cookies')
+    })
+
+    it('does not pass --cookies when the path is a directory', async () => {
+        process.env.YTDLP_COOKIES_FILE = cookiesPath
+        mockStatSync.mockReturnValue({ isFile: () => false })
+        expect(await runOnce()).not.toContain('--cookies')
+    })
+
+    it('does not pass --cookies when the file exists but is not readable', async () => {
+        process.env.YTDLP_COOKIES_FILE = cookiesPath
+        mockStatSync.mockReturnValue({ isFile: () => true })
+        mockAccessSync.mockImplementation(() => {
+            throw new Error('EACCES: permission denied')
+        })
+        expect(await runOnce()).not.toContain('--cookies')
+    })
+
+    it('passes --cookies <file> when YTDLP_COOKIES_FILE is a readable regular file', async () => {
+        process.env.YTDLP_COOKIES_FILE = cookiesPath
+        mockStatSync.mockReturnValue({ isFile: () => true })
+        mockAccessSync.mockReturnValue(undefined)
+        const args = await runOnce()
+        const idx = args.indexOf('--cookies')
+        expect(idx).toBeGreaterThan(-1)
+        expect(args[idx + 1]).toBe(cookiesPath)
     })
 })
 
