@@ -19,9 +19,9 @@ const mockCaptureMessage = jest.fn()
 jest.mock('child_process', () => ({
     spawn: (...args: unknown[]) => mockSpawn(...args),
 }))
-const mockExistsSync = jest.fn()
+const mockStatSync = jest.fn()
 jest.mock('fs', () => ({
-    existsSync: (...args: unknown[]) => mockExistsSync(...args),
+    statSync: (...args: unknown[]) => mockStatSync(...args),
 }))
 jest.mock('./soundcloudMatcher', () => ({
     streamViaSoundCloud: (...args: unknown[]) =>
@@ -142,45 +142,77 @@ describe('streamViaYtDlp – URL validation', () => {
 
 describe('streamViaYtDlp – cookies file', () => {
     const validUrl = 'https://www.youtube.com/watch?v=abc123'
+    const cookiesPath = '/app/secrets/youtube-cookies.txt'
     const originalEnv = process.env.YTDLP_COOKIES_FILE
+
+    async function runOnce() {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
+        await streamViaYtDlp(validUrl)
+        return mockSpawn.mock.calls.at(-1)?.[1] as string[]
+    }
 
     afterEach(() => {
         if (originalEnv === undefined) delete process.env.YTDLP_COOKIES_FILE
         else process.env.YTDLP_COOKIES_FILE = originalEnv
     })
 
+    // Must run before the other cookies tests below: the missing-file and
+    // applied warn/info logs dedup via module-level flags that persist for
+    // the life of the module (not reset by jest's clearMocks), so this is
+    // the only test that can observe the "first time" transition of each.
+    it('logs the missing/applied transition once each, not per call', async () => {
+        process.env.YTDLP_COOKIES_FILE = cookiesPath
+        mockStatSync.mockImplementation(() => {
+            throw new Error('ENOENT')
+        })
+        await runOnce()
+        await runOnce()
+        expect(mockWarnLog).toHaveBeenCalledTimes(1)
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('not a readable file'),
+            }),
+        )
+
+        mockStatSync.mockReturnValue({ isFile: () => true })
+        await runOnce()
+        await runOnce()
+        expect(mockInfoLog).toHaveBeenCalledTimes(1)
+        expect(mockInfoLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Bridge: yt-dlp cookies file applied',
+            }),
+        )
+    })
+
     it('does not pass --cookies when YTDLP_COOKIES_FILE is unset', async () => {
         delete process.env.YTDLP_COOKIES_FILE
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
-        await streamViaYtDlp(validUrl)
-        const args = mockSpawn.mock.calls[0][1] as string[]
-        expect(args).not.toContain('--cookies')
+        expect(await runOnce()).not.toContain('--cookies')
     })
 
     it('does not pass --cookies when the configured file does not exist', async () => {
-        process.env.YTDLP_COOKIES_FILE = '/app/secrets/youtube-cookies.txt'
-        mockExistsSync.mockReturnValue(false)
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
-        await streamViaYtDlp(validUrl)
-        const args = mockSpawn.mock.calls[0][1] as string[]
-        expect(args).not.toContain('--cookies')
+        process.env.YTDLP_COOKIES_FILE = cookiesPath
+        mockStatSync.mockImplementation(() => {
+            throw new Error('ENOENT')
+        })
+        expect(await runOnce()).not.toContain('--cookies')
     })
 
-    it('passes --cookies <file> when YTDLP_COOKIES_FILE is set and exists', async () => {
-        process.env.YTDLP_COOKIES_FILE = '/app/secrets/youtube-cookies.txt'
-        mockExistsSync.mockReturnValue(true)
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
-        await streamViaYtDlp(validUrl)
-        const args = mockSpawn.mock.calls[0][1] as string[]
+    it('does not pass --cookies when the path is a directory', async () => {
+        process.env.YTDLP_COOKIES_FILE = cookiesPath
+        mockStatSync.mockReturnValue({ isFile: () => false })
+        expect(await runOnce()).not.toContain('--cookies')
+    })
+
+    it('passes --cookies <file> when YTDLP_COOKIES_FILE is a regular file', async () => {
+        process.env.YTDLP_COOKIES_FILE = cookiesPath
+        mockStatSync.mockReturnValue({ isFile: () => true })
+        const args = await runOnce()
         const idx = args.indexOf('--cookies')
         expect(idx).toBeGreaterThan(-1)
-        expect(args[idx + 1]).toBe('/app/secrets/youtube-cookies.txt')
+        expect(args[idx + 1]).toBe(cookiesPath)
     })
 })
 

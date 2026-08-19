@@ -143,6 +143,13 @@ services:
             # the refreshed cookie jar back to this file every run; read-only
             # silently breaks that refresh (confirmed via local repro) and
             # shortens the cookies' effective lifetime for no benefit.
+            # Whole directory, not just the cookies file: a single-file
+            # rw bind to a host path that doesn't exist yet hits the same
+            # autocreate-as-directory footgun noted above, which would break
+            # on first boot before the operator has created the file. This
+            # directory is single-purpose (just the cookies file + a README
+            # excluded from the write concern by not being read by yt-dlp),
+            # so the broader write scope has no real blast radius today.
             - ./secrets:/app/secrets
         networks:
             - lucky-network

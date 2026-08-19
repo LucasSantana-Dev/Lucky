@@ -1,5 +1,5 @@
 import { spawn } from 'child_process'
-import { existsSync } from 'fs'
+import { statSync } from 'fs'
 import { PassThrough } from 'stream'
 import type { Readable } from 'stream'
 import type { Track } from 'discord-player'
@@ -49,11 +49,40 @@ function validateYtDlpUrl(url: string): void {
 // at a Netscape-format cookies.txt (exported from a logged-in browser
 // session) to authenticate yt-dlp's requests. Optional — falls back to the
 // prior cookie-less behavior when unset or the file isn't there.
+let loggedCookiesMissing = false
+let loggedCookiesApplied = false
+
 function ytdlpCookiesArgs(): string[] {
     const cookiesFile = process.env.YTDLP_COOKIES_FILE
-    return cookiesFile && existsSync(cookiesFile)
-        ? ['--cookies', cookiesFile]
-        : []
+    if (!cookiesFile) return []
+
+    let isFile: boolean
+    try {
+        isFile = statSync(cookiesFile).isFile()
+    } catch {
+        isFile = false
+    }
+
+    if (!isFile) {
+        if (!loggedCookiesMissing) {
+            loggedCookiesMissing = true
+            warnLog({
+                message:
+                    'Bridge: YTDLP_COOKIES_FILE is set but not a readable file — running cookie-less',
+                data: { cookiesFile },
+            })
+        }
+        return []
+    }
+
+    if (!loggedCookiesApplied) {
+        loggedCookiesApplied = true
+        infoLog({
+            message: 'Bridge: yt-dlp cookies file applied',
+            data: { cookiesFile },
+        })
+    }
+    return ['--cookies', cookiesFile]
 }
 
 export function streamViaYtDlp(url: string): Promise<Readable> {
