@@ -159,7 +159,10 @@ docker compose logs -f bot
 
 ```bash
 # Install dependencies
-npm install
+# YOUTUBE_DL_SKIP_DOWNLOAD=1 skips youtube-dl-exec's postinstall binary
+# download (yt-dlp is already provided by system/Docker tooling) — without
+# it, plain `npm install` hits the GitHub-API rate limit issue from #874/#1827.
+YOUTUBE_DL_SKIP_DOWNLOAD=1 npm install
 
 # Set up database
 npm run db:migrate
