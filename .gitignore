@@ -91,6 +91,10 @@ secrets.json
 config.json
 *.secret
 
+# yt-dlp cookies (bot service, ADR 2026-06-18) — bind-mounted at ./secrets
+/secrets/*
+!/secrets/README.md
+
 # Cloudflare Tunnel (credentials; config.example.yml is committed)
 cloudflared/*.json
 cloudflared/config.yml

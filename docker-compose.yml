@@ -128,9 +128,18 @@ services:
             AI_DEV_TOOLKIT_BOARD_ENABLED: ${AI_DEV_TOOLKIT_BOARD_ENABLED:-false}
             AI_DEV_TOOLKIT_CHANNEL_ID: ${AI_DEV_TOOLKIT_CHANNEL_ID:-}
             GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+            # ADR 2026-06-18: yt-dlp cookies to dodge YouTube's 403 bot
+            # detection. Drop a Netscape-format cookies.txt at
+            # ./secrets/youtube-cookies.txt on the host; no-ops if absent.
+            YTDLP_COOKIES_FILE: ${YTDLP_COOKIES_FILE:-/app/secrets/youtube-cookies.txt}
         volumes:
             - ./downloads:/app/downloads
             - ./logs:/app/logs
+            # Directory mount (not single-file): a single-file bind-mount to a
+            # host path that doesn't exist yet gets autocreated as a directory
+            # by Docker, breaking the container. See the `webhook` service's
+            # hooks.json comment for the same footgun.
+            - ./secrets:/app/secrets:ro
         networks:
             - lucky-network
             # Shared monitoring network so the homelab Prometheus

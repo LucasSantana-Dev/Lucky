@@ -19,6 +19,10 @@ const mockCaptureMessage = jest.fn()
 jest.mock('child_process', () => ({
     spawn: (...args: unknown[]) => mockSpawn(...args),
 }))
+const mockExistsSync = jest.fn()
+jest.mock('fs', () => ({
+    existsSync: (...args: unknown[]) => mockExistsSync(...args),
+}))
 jest.mock('./soundcloudMatcher', () => ({
     streamViaSoundCloud: (...args: unknown[]) =>
         mockStreamViaSoundCloud(...args),
@@ -129,6 +133,54 @@ describe('streamViaYtDlp – URL validation', () => {
         mockSpawn.mockReturnValue(proc)
         setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
         await expect(streamViaYtDlp(url)).resolves.toBeDefined()
+    })
+})
+
+// ---------------------------------------------------------------------------
+// streamViaYtDlp — cookies (#2034 / ADR 2026-06-18)
+// ---------------------------------------------------------------------------
+
+describe('streamViaYtDlp – cookies file', () => {
+    const validUrl = 'https://www.youtube.com/watch?v=abc123'
+    const originalEnv = process.env.YTDLP_COOKIES_FILE
+
+    afterEach(() => {
+        if (originalEnv === undefined) delete process.env.YTDLP_COOKIES_FILE
+        else process.env.YTDLP_COOKIES_FILE = originalEnv
+    })
+
+    it('does not pass --cookies when YTDLP_COOKIES_FILE is unset', async () => {
+        delete process.env.YTDLP_COOKIES_FILE
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
+        await streamViaYtDlp(validUrl)
+        const args = mockSpawn.mock.calls[0][1] as string[]
+        expect(args).not.toContain('--cookies')
+    })
+
+    it('does not pass --cookies when the configured file does not exist', async () => {
+        process.env.YTDLP_COOKIES_FILE = '/app/secrets/youtube-cookies.txt'
+        mockExistsSync.mockReturnValue(false)
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
+        await streamViaYtDlp(validUrl)
+        const args = mockSpawn.mock.calls[0][1] as string[]
+        expect(args).not.toContain('--cookies')
+    })
+
+    it('passes --cookies <file> when YTDLP_COOKIES_FILE is set and exists', async () => {
+        process.env.YTDLP_COOKIES_FILE = '/app/secrets/youtube-cookies.txt'
+        mockExistsSync.mockReturnValue(true)
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
+        await streamViaYtDlp(validUrl)
+        const args = mockSpawn.mock.calls[0][1] as string[]
+        const idx = args.indexOf('--cookies')
+        expect(idx).toBeGreaterThan(-1)
+        expect(args[idx + 1]).toBe('/app/secrets/youtube-cookies.txt')
     })
 })
 

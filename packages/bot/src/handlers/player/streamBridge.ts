@@ -1,4 +1,5 @@
 import { spawn } from 'child_process'
+import { existsSync } from 'fs'
 import { PassThrough } from 'stream'
 import type { Readable } from 'stream'
 import type { Track } from 'discord-player'
@@ -43,6 +44,18 @@ function validateYtDlpUrl(url: string): void {
     }
 }
 
+// ADR 2026-06-18 (youtube-extraction-reliability): YouTube's velocity-based
+// bot detection returns 403 on cookie-less requests. Point YTDLP_COOKIES_FILE
+// at a Netscape-format cookies.txt (exported from a logged-in browser
+// session) to authenticate yt-dlp's requests. Optional — falls back to the
+// prior cookie-less behavior when unset or the file isn't there.
+function ytdlpCookiesArgs(): string[] {
+    const cookiesFile = process.env.YTDLP_COOKIES_FILE
+    return cookiesFile && existsSync(cookiesFile)
+        ? ['--cookies', cookiesFile]
+        : []
+}
+
 export function streamViaYtDlp(url: string): Promise<Readable> {
     try {
         validateYtDlpUrl(url)
@@ -64,6 +77,7 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
                 '--no-progress',
                 '--js-runtimes',
                 `node:${process.execPath}`,
+                ...ytdlpCookiesArgs(),
                 url,
             ],
             { stdio: ['ignore', 'pipe', 'pipe'] },
@@ -132,9 +146,7 @@ export function streamViaYtDlpSearch(query: string): Promise<Readable> {
  * happened. Primary yt-dlp resolutions leave the metadata untouched.
  */
 export type StreamBridgeFallbackStage =
-    | 'soundcloud-full'
-    | 'soundcloud-title'
-    | 'soundcloud-core'
+    'soundcloud-full' | 'soundcloud-title' | 'soundcloud-core'
 
 export const STREAM_BRIDGE_FALLBACK_METADATA_KEY = 'streamBridgeFallbackStage'
 
