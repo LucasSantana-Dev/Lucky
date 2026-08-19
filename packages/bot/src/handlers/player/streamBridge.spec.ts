@@ -20,8 +20,11 @@ jest.mock('child_process', () => ({
     spawn: (...args: unknown[]) => mockSpawn(...args),
 }))
 const mockStatSync = jest.fn()
+const mockAccessSync = jest.fn()
 jest.mock('fs', () => ({
     statSync: (...args: unknown[]) => mockStatSync(...args),
+    accessSync: (...args: unknown[]) => mockAccessSync(...args),
+    constants: { R_OK: 4 },
 }))
 jest.mock('./soundcloudMatcher', () => ({
     streamViaSoundCloud: (...args: unknown[]) =>
@@ -70,6 +73,7 @@ import {
     createResilientStream,
     getStreamBridgeFallbackLabel,
     STREAM_BRIDGE_FALLBACK_METADATA_KEY,
+    __resetYtdlpCookiesLogStateForTests,
 } from './streamBridge.js'
 
 // ---------------------------------------------------------------------------
@@ -153,15 +157,16 @@ describe('streamViaYtDlp – cookies file', () => {
         return mockSpawn.mock.calls.at(-1)?.[1] as string[]
     }
 
+    beforeEach(() => {
+        __resetYtdlpCookiesLogStateForTests()
+        mockAccessSync.mockReset()
+    })
+
     afterEach(() => {
         if (originalEnv === undefined) delete process.env.YTDLP_COOKIES_FILE
         else process.env.YTDLP_COOKIES_FILE = originalEnv
     })
 
-    // Must run before the other cookies tests below: the missing-file and
-    // applied warn/info logs dedup via module-level flags that persist for
-    // the life of the module (not reset by jest's clearMocks), so this is
-    // the only test that can observe the "first time" transition of each.
     it('logs the missing/applied transition once each, not per call', async () => {
         process.env.YTDLP_COOKIES_FILE = cookiesPath
         mockStatSync.mockImplementation(() => {
@@ -206,9 +211,19 @@ describe('streamViaYtDlp – cookies file', () => {
         expect(await runOnce()).not.toContain('--cookies')
     })
 
-    it('passes --cookies <file> when YTDLP_COOKIES_FILE is a regular file', async () => {
+    it('does not pass --cookies when the file exists but is not readable', async () => {
         process.env.YTDLP_COOKIES_FILE = cookiesPath
         mockStatSync.mockReturnValue({ isFile: () => true })
+        mockAccessSync.mockImplementation(() => {
+            throw new Error('EACCES: permission denied')
+        })
+        expect(await runOnce()).not.toContain('--cookies')
+    })
+
+    it('passes --cookies <file> when YTDLP_COOKIES_FILE is a readable regular file', async () => {
+        process.env.YTDLP_COOKIES_FILE = cookiesPath
+        mockStatSync.mockReturnValue({ isFile: () => true })
+        mockAccessSync.mockReturnValue(undefined)
         const args = await runOnce()
         const idx = args.indexOf('--cookies')
         expect(idx).toBeGreaterThan(-1)

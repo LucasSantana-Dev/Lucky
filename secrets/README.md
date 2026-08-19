@@ -37,7 +37,9 @@ To generate it:
    needed.
 
 Cookies expire; if 403s return, re-export and re-copy. `streamBridge.ts`
-logs once at startup whether a usable cookies file was found (`Bridge:
-yt-dlp cookies file applied`) or not (`Bridge: YTDLP_COOKIES_FILE is set
-but not a readable file`) — check the bot's logs to confirm the file was
-picked up before assuming 403s mean expired cookies.
+logs once — on the first `/play` after restart, not at boot itself, since
+the check runs lazily on first use — whether a usable cookies file was
+found (`Bridge: yt-dlp cookies file applied`) or not (`Bridge:
+YTDLP_COOKIES_FILE is set but not a readable file`). Play something once
+after restarting and check the bot's logs to confirm the file was picked
+up, rather than assuming 403s mean expired cookies.

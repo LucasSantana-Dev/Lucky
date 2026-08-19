@@ -1,5 +1,5 @@
 import { spawn } from 'child_process'
-import { statSync } from 'fs'
+import { accessSync, constants, statSync } from 'fs'
 import { PassThrough } from 'stream'
 import type { Readable } from 'stream'
 import type { Track } from 'discord-player'
@@ -52,18 +52,28 @@ function validateYtDlpUrl(url: string): void {
 let loggedCookiesMissing = false
 let loggedCookiesApplied = false
 
+// Test-only: the log-once dedup above is module-level state, so tests that
+// assert on it must reset between cases instead of relying on run order.
+export function __resetYtdlpCookiesLogStateForTests(): void {
+    loggedCookiesMissing = false
+    loggedCookiesApplied = false
+}
+
+function isReadableFile(cookiesFile: string): boolean {
+    try {
+        if (!statSync(cookiesFile).isFile()) return false
+        accessSync(cookiesFile, constants.R_OK)
+        return true
+    } catch {
+        return false
+    }
+}
+
 function ytdlpCookiesArgs(): string[] {
     const cookiesFile = process.env.YTDLP_COOKIES_FILE
     if (!cookiesFile) return []
 
-    let isFile: boolean
-    try {
-        isFile = statSync(cookiesFile).isFile()
-    } catch {
-        isFile = false
-    }
-
-    if (!isFile) {
+    if (!isReadableFile(cookiesFile)) {
         if (!loggedCookiesMissing) {
             loggedCookiesMissing = true
             warnLog({
