@@ -207,6 +207,12 @@ RUN npm prune --omit=dev --legacy-peer-deps
 
 FROM deps-production-base AS deps-production-backend
 RUN npm prune --omit=dev --legacy-peer-deps
+# Whether npm nests any deps under packages/backend/node_modules (vs fully
+# hoisting to root) depends on the lockfile resolution and can flip between
+# installs with no source change (e.g. deepmerge-ts override regen dropped
+# it to zero). COPY --from of a nonexistent dir hard-fails the build, so
+# guarantee the dir exists — empty is harmless, real nested deps still copy.
+RUN mkdir -p packages/backend/node_modules
 
 # Production stage — bot (full runtime with ffmpeg/opus/yt-dlp)
 FROM base-runtime AS production-bot
