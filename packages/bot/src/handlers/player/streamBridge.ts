@@ -211,22 +211,27 @@ export function getStreamBridgeFallbackLabel(track: {
 }
 
 function stampFallbackStage(
-    track: Pick<Track, 'title' | 'author' | 'duration' | 'url'>,
+    track: Pick<
+        Track,
+        'title' | 'author' | 'duration' | 'url' | 'metadata' | 'setMetadata'
+    >,
     stage: StreamBridgeFallbackStage,
 ): void {
-    const mutable = track as { metadata?: unknown }
     const existing =
-        typeof mutable.metadata === 'object' && mutable.metadata !== null
-            ? (mutable.metadata as Record<string, unknown>)
+        typeof track.metadata === 'object' && track.metadata !== null
+            ? (track.metadata as Record<string, unknown>)
             : {}
-    mutable.metadata = {
+    track.setMetadata({
         ...existing,
         [STREAM_BRIDGE_FALLBACK_METADATA_KEY]: stage,
-    }
+    })
 }
 
 export async function createResilientStream(
-    track: Pick<Track, 'title' | 'author' | 'duration' | 'url'>,
+    track: Pick<
+        Track,
+        'title' | 'author' | 'duration' | 'url' | 'metadata' | 'setMetadata'
+    >,
     _ext?: unknown,
 ): Promise<Readable> {
     const cleanedTitle = cleanTitle(track.title)
