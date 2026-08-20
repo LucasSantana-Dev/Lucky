@@ -12,10 +12,7 @@ import {
 } from '@lucky/shared/services'
 import { guildService } from '../services/GuildService'
 import multer from 'multer'
-
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
+import { paramToString as p } from '../utils/paramCoerce'
 
 // File upload middleware for reaction roles images
 const imageUpload = multer({

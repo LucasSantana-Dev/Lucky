@@ -47,8 +47,9 @@ export class TtlCache<V> {
         this.store.delete(key)
         this.store.set(key, { value, expiresAt: Date.now() + this.ttlMs })
 
+        const keysIter = this.store.keys()
         while (this.store.size > this.maxEntries) {
-            const oldest = this.store.keys().next().value
+            const oldest = keysIter.next().value
             if (oldest === undefined) {
                 break
             }

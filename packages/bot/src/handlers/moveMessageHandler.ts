@@ -195,12 +195,10 @@ export const handleMoveMessageSelect = async (
     await interaction.deferUpdate()
 
     try {
-        const sourceChannel = await guild.channels
-            .fetch(sourceChannelId)
-            .catch(() => null)
-        const destChannel = await guild.channels
-            .fetch(destinationId)
-            .catch(() => null)
+        const [sourceChannel, destChannel] = await Promise.all([
+            guild.channels.fetch(sourceChannelId).catch(() => null),
+            guild.channels.fetch(destinationId).catch(() => null),
+        ])
 
         if (
             !sourceChannel?.isTextBased() ||

@@ -6,10 +6,7 @@ import { AppError } from '../errors/AppError'
 import { managementSchemas as s } from '../schemas/management'
 import { writeLimiter } from '../middleware/rateLimit'
 import { roleGroupService } from '../services/RoleGroupService'
-
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
+import { paramToString as p } from '../utils/paramCoerce'
 
 export function setupRoleGroupsRoutes(app: Express): void {
     app.post(

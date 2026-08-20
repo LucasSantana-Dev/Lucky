@@ -12,10 +12,7 @@ import {
 } from '@lucky/shared/services'
 import { guildAutomationUsageTotal } from '../utils/prometheus'
 import { infoLog } from '@lucky/shared/utils'
-
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
+import { paramToString as p } from '../utils/paramCoerce'
 
 function requireUserId(req: AuthenticatedRequest): string {
     if (!req.userId) {

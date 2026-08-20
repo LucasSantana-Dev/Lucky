@@ -6,10 +6,7 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
 import { guildSettingsService } from '@lucky/shared/services'
 import { z } from 'zod'
-
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
+import { paramToString as p } from '../utils/paramCoerce'
 
 const settingsBody = z
     .object({
@@ -28,6 +25,15 @@ const moduleSlugParam = s.guildIdParam.extend({
 
 const moduleSettingsBody = z.record(z.string(), z.unknown())
 
+const DEFAULT_GUILD_SETTINGS = {
+    nickname: '',
+    commandPrefix: '/',
+    managerRoles: [],
+    updatesChannel: '',
+    timezone: 'UTC',
+    disableWarnings: false,
+}
+
 export function setupGuildSettingsRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/settings',
@@ -38,14 +44,7 @@ export function setupGuildSettingsRoutes(app: Express): void {
             const settings =
                 await guildSettingsService.getGuildSettings(guildId)
             res.json({
-                settings: settings || {
-                    nickname: '',
-                    commandPrefix: '/',
-                    managerRoles: [],
-                    updatesChannel: '',
-                    timezone: 'UTC',
-                    disableWarnings: false,
-                },
+                settings: settings || DEFAULT_GUILD_SETTINGS,
             })
         }),
     )

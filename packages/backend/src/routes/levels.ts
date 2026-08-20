@@ -14,10 +14,7 @@ import {
     guildIdParam,
     userIdParam as commonUserIdParam,
 } from '../schemas/common'
-
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
+import { paramToString as p } from '../utils/paramCoerce'
 
 const leaderboardQuery = z.object({
     limit: z.coerce.number().int().min(1).max(50).optional(),
