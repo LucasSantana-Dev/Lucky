@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { guildIdParam } from './common'
+import { guildIdParam, snowflakeId } from './common'
 
 const messageIdParam = guildIdParam.extend({
     id: z.string().min(1).max(100),
@@ -10,10 +10,7 @@ const createMessageBody = z.object({
         error: () => 'Type is required',
     }),
     message: z.string().min(1, 'Message is required').max(2000),
-    channelId: z
-        .string()
-        .regex(/^\d{17,20}$/)
-        .optional(),
+    channelId: snowflakeId.optional(),
     trigger: z.string().max(200).optional(),
     exactMatch: z.boolean().optional(),
     cronSchedule: z.string().max(100).optional(),

@@ -1,5 +1,5 @@
 import { reportError } from '@/lib/sentry'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Music2, Plus, X, AlertCircle } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -32,6 +32,10 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
     const [newGenre, setNewGenre] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const suggestedGenres = useMemo(
+        () => SUGGESTED_GENRES.filter((g) => !genres.includes(g)),
+        [genres],
+    )
 
     useEffect(() => {
         if (guildId) loadGenres()
@@ -186,9 +190,7 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
                         Suggested Genres
                     </Label>
                     <div className='flex flex-wrap gap-2 mt-3'>
-                        {SUGGESTED_GENRES.filter(
-                            (g) => !genres.includes(g),
-                        ).map((genre) => (
+                        {suggestedGenres.map((genre) => (
                             <button
                                 key={genre}
                                 onClick={() => {

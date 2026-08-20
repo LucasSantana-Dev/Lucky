@@ -11,9 +11,7 @@ import { SupportReportService } from '@lucky/shared/services'
 import { validateSupportImage } from '@lucky/shared/utils/support'
 import { getSupportUrl } from '@lucky/shared/config/config'
 import { errorLog, debugLog } from '@lucky/shared/utils'
-
-// Snowflake ID validation (Discord snowflake: 17-20 digits)
-const snowflakeId = z.string().regex(/^\d{17,20}$/)
+import { snowflakeId } from '../schemas/common'
 
 // Configure multer for single file uploads with 5MB size limit.
 // fieldNestingDepth defaults to Infinity, so the 2.2.0 bump alone does NOT

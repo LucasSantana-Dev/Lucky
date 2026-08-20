@@ -8,13 +8,14 @@ import { requireQueue } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
 /**
- * Handle track repeat mode
+ * Handle track/queue repeat mode
  */
-function handleTrackRepeat(
+function handleRepeat(
+    repeatMode: QueueRepeatMode,
+    label: 'current song' | 'queue',
     times: number | null,
     guildId: string,
 ): { mode: QueueRepeatMode; description: string } {
-    const repeatMode = QueueRepeatMode.TRACK
     if (times !== null && times !== undefined && times > 1) {
         guildRepeatCounts.set(guildId, {
             count: times,
@@ -22,37 +23,12 @@ function handleTrackRepeat(
         })
         return {
             mode: repeatMode,
-            description: `Repeating current song **${times} times**`,
+            description: `Repeating ${label} **${times} times**`,
         }
     } else {
         return {
             mode: repeatMode,
-            description: 'Repeating current song **infinitely**',
-        }
-    }
-}
-
-/**
- * Handle queue repeat mode
- */
-function handleQueueRepeat(
-    times: number | null,
-    guildId: string,
-): { mode: QueueRepeatMode; description: string } {
-    const repeatMode = QueueRepeatMode.QUEUE
-    if (times !== null && times !== undefined && times > 1) {
-        guildRepeatCounts.set(guildId, {
-            count: times,
-            originalMode: repeatMode,
-        })
-        return {
-            mode: repeatMode,
-            description: `Repeating queue **${times} times**`,
-        }
-    } else {
-        return {
-            mode: repeatMode,
-            description: 'Repeating queue **infinitely**',
+            description: `Repeating ${label} **infinitely**`,
         }
     }
 }
@@ -72,9 +48,14 @@ function getRepeatModeConfig(
                 description: 'Repeat **turned off**',
             }
         case 'track':
-            return handleTrackRepeat(times, guildId)
+            return handleRepeat(
+                QueueRepeatMode.TRACK,
+                'current song',
+                times,
+                guildId,
+            )
         case 'queue':
-            return handleQueueRepeat(times, guildId)
+            return handleRepeat(QueueRepeatMode.QUEUE, 'queue', times, guildId)
         case 'infinite':
             return {
                 mode: QueueRepeatMode.AUTOPLAY,

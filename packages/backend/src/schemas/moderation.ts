@@ -1,5 +1,9 @@
 import { z } from 'zod'
-import { guildIdParam, userIdParam as commonUserIdParam } from './common'
+import {
+    guildIdParam,
+    userIdParam as commonUserIdParam,
+    snowflakeId,
+} from './common'
 
 const caseNumberParam = guildIdParam.extend({
     caseNumber: z.coerce.number().int().min(1),
@@ -27,15 +31,9 @@ const updateReasonBody = z.object({
 
 const updateSettingsBody = z
     .object({
-        logChannelId: z
-            .string()
-            .regex(/^\d{17,20}$/)
-            .optional(),
-        muteRoleId: z
-            .string()
-            .regex(/^\d{17,20}$/)
-            .optional(),
-        modRoles: z.array(z.string().regex(/^\d{17,20}$/)).optional(),
+        logChannelId: snowflakeId.optional(),
+        muteRoleId: snowflakeId.optional(),
+        modRoles: z.array(snowflakeId).optional(),
         autoModEnabled: z.boolean().optional(),
         warnThreshold: z.number().int().min(1).max(50).optional(),
         warnAction: z.enum(['mute', 'kick', 'ban']).optional(),
