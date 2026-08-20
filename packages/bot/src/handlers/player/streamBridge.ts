@@ -122,10 +122,14 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
             { stdio: ['ignore', 'pipe', 'pipe'] },
         )
 
+        // Kept short: on every attempt this fires, the caller still has to
+        // wait out the full duration before falling back to SoundCloud, so
+        // a long timeout directly taxes perceived playback latency whenever
+        // yt-dlp is degraded (rate-limited/blocked) rather than erroring fast.
         const timeout = setTimeout(() => {
             proc.kill()
             reject(new Error('yt-dlp: timed out waiting for stream start'))
-        }, 15_000)
+        }, 6_000)
 
         const stderrChunks: Buffer[] = []
         assertDefined(proc.stderr, 'stderr guaranteed by stdio config').on(

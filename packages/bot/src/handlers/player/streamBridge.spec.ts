@@ -277,7 +277,7 @@ describe('streamViaYtDlp – process lifecycle', () => {
         mockSpawn.mockReturnValue(proc)
         // never emit stdout data — let the timeout fire
         const promise = streamViaYtDlp(validUrl)
-        jest.advanceTimersByTime(15_000)
+        jest.advanceTimersByTime(6_000)
         await expect(promise).rejects.toThrow('yt-dlp: timed out')
         expect(proc.kill).toHaveBeenCalled()
         jest.useRealTimers()
