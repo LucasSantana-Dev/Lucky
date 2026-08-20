@@ -300,7 +300,7 @@ describe('resolveQueryWithFallbacks', () => {
 })
 
 describe('preferExactMatch', () => {
-    it('promotes a track whose author exactly matches the query', () => {
+    it('promotes a track whose author exactly matches the query', async () => {
         const tracks = [
             { title: 'Adicto', author: 'Prince Royce' },
             { title: 'Purple Rain', author: 'Prince' },
@@ -311,7 +311,7 @@ describe('preferExactMatch', () => {
             setTracks: jest.fn(() => result),
         }
 
-        preferExactMatch('Prince')(result as any)
+        await preferExactMatch('Prince')(result as any)
 
         expect(result.setTracks).toHaveBeenCalledWith([
             { title: 'Purple Rain', author: 'Prince' },
@@ -319,7 +319,7 @@ describe('preferExactMatch', () => {
         ])
     })
 
-    it('promotes a track whose title exactly matches the query', () => {
+    it('promotes a track whose title exactly matches the query', async () => {
         const tracks = [
             { title: 'Some Other Song', author: 'Someone Else' },
             { title: 'prince', author: 'A Tribute Band' },
@@ -330,7 +330,7 @@ describe('preferExactMatch', () => {
             setTracks: jest.fn(() => result),
         }
 
-        preferExactMatch('Prince')(result as any)
+        await preferExactMatch('Prince')(result as any)
 
         expect(result.setTracks).toHaveBeenCalledWith([
             { title: 'prince', author: 'A Tribute Band' },
@@ -357,7 +357,7 @@ describe('preferExactMatch', () => {
         expect(returned).toBe(result)
     })
 
-    it('leaves the result untouched when the exact match is already first', () => {
+    it('leaves the result untouched when the exact match is already first', async () => {
         const tracks = [
             { title: 'Purple Rain', author: 'Prince' },
             { title: 'Adicto', author: 'Prince Royce' },
@@ -368,12 +368,12 @@ describe('preferExactMatch', () => {
             setTracks: jest.fn(() => result),
         }
 
-        preferExactMatch('Prince')(result as any)
+        await preferExactMatch('Prince')(result as any)
 
         expect(result.setTracks).not.toHaveBeenCalled()
     })
 
-    it('skips reordering for playlist results', () => {
+    it('skips reordering for playlist results', async () => {
         const tracks = [
             { title: 'Adicto', author: 'Prince Royce' },
             { title: 'Purple Rain', author: 'Prince' },
@@ -384,7 +384,7 @@ describe('preferExactMatch', () => {
             setTracks: jest.fn(() => result),
         }
 
-        preferExactMatch('Prince')(result as any)
+        await preferExactMatch('Prince')(result as any)
 
         expect(result.setTracks).not.toHaveBeenCalled()
     })
