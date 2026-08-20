@@ -102,11 +102,21 @@ function makeTrack(
         url?: string
     } = {},
 ) {
+    let metadata: unknown = null
     return {
         title: overrides.title ?? 'Test Track',
         author: overrides.author ?? 'Test Artist',
         duration: overrides.duration ?? '3:30',
         url: overrides.url ?? 'https://www.youtube.com/watch?v=abc123',
+        // Mirrors discord-player's Track: metadata is a getter-only property
+        // backed by private state, mutated only via setMetadata(). A direct
+        // `track.metadata = x` assignment throws in real usage.
+        get metadata() {
+            return metadata
+        },
+        setMetadata(m: unknown) {
+            metadata = m
+        },
     }
 }
 
@@ -604,10 +614,8 @@ describe('fallback stage stamping', () => {
         mockSpawn.mockReturnValue(proc)
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
         setImmediate(() => proc.emit('close', 1))
-        const track = {
-            ...makeTrack(),
-            metadata: { isAutoplay: true },
-        }
+        const track = makeTrack()
+        track.setMetadata({ isAutoplay: true })
         await createResilientStream(track)
         expect(track.metadata).toEqual({
             isAutoplay: true,
