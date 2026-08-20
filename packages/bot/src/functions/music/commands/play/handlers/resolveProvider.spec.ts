@@ -16,6 +16,7 @@ jest.mock('@lucky/shared/utils/monitoring', () => ({
 import {
     resolveQueryWithFallbacks,
     emitPlayResolutionTelemetry,
+    preferExactMatch,
 } from './resolveProvider'
 
 describe('resolveQueryWithFallbacks', () => {
@@ -272,6 +273,120 @@ describe('resolveQueryWithFallbacks', () => {
 
             expect(telemetry.latencyMs).toBeGreaterThanOrEqual(40)
         })
+    })
+
+    describe('search relevance', () => {
+        it('passes an afterSearch reranker through on every arm', async () => {
+            const mockTrack = { title: 'Test Song' }
+            mockPlayer.play
+                .mockRejectedValueOnce(new Error('Primary failed'))
+                .mockRejectedValueOnce(new Error('YouTube failed'))
+                .mockResolvedValueOnce(mockTrack)
+
+            await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'Prince',
+                'spotify',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            for (const call of mockPlayer.play.mock.calls) {
+                expect(call[2].afterSearch).toEqual(expect.any(Function))
+            }
+        })
+    })
+})
+
+describe('preferExactMatch', () => {
+    it('promotes a track whose author exactly matches the query', async () => {
+        const tracks = [
+            { title: 'Adicto', author: 'Prince Royce' },
+            { title: 'Purple Rain', author: 'Prince' },
+        ]
+        const result = {
+            hasPlaylist: () => false,
+            tracks,
+            setTracks: jest.fn(() => result),
+        }
+
+        await preferExactMatch('Prince')(result as any)
+
+        expect(result.setTracks).toHaveBeenCalledWith([
+            { title: 'Purple Rain', author: 'Prince' },
+            { title: 'Adicto', author: 'Prince Royce' },
+        ])
+    })
+
+    it('promotes a track whose title exactly matches the query', async () => {
+        const tracks = [
+            { title: 'Some Other Song', author: 'Someone Else' },
+            { title: 'prince', author: 'A Tribute Band' },
+        ]
+        const result = {
+            hasPlaylist: () => false,
+            tracks,
+            setTracks: jest.fn(() => result),
+        }
+
+        await preferExactMatch('Prince')(result as any)
+
+        expect(result.setTracks).toHaveBeenCalledWith([
+            { title: 'prince', author: 'A Tribute Band' },
+            { title: 'Some Other Song', author: 'Someone Else' },
+        ])
+    })
+
+    it('leaves the result untouched when no exact match exists', async () => {
+        const tracks = [
+            { title: 'Bohemian Rhapsody', author: 'Queen' },
+            { title: 'Somebody to Love', author: 'Queen' },
+        ]
+        const result = {
+            hasPlaylist: () => false,
+            tracks,
+            setTracks: jest.fn(() => result),
+        }
+
+        const returned = await preferExactMatch('bohemian rhapsody queen')(
+            result as any,
+        )
+
+        expect(result.setTracks).not.toHaveBeenCalled()
+        expect(returned).toBe(result)
+    })
+
+    it('leaves the result untouched when the exact match is already first', async () => {
+        const tracks = [
+            { title: 'Purple Rain', author: 'Prince' },
+            { title: 'Adicto', author: 'Prince Royce' },
+        ]
+        const result = {
+            hasPlaylist: () => false,
+            tracks,
+            setTracks: jest.fn(() => result),
+        }
+
+        await preferExactMatch('Prince')(result as any)
+
+        expect(result.setTracks).not.toHaveBeenCalled()
+    })
+
+    it('skips reordering for playlist results', async () => {
+        const tracks = [
+            { title: 'Adicto', author: 'Prince Royce' },
+            { title: 'Purple Rain', author: 'Prince' },
+        ]
+        const result = {
+            hasPlaylist: () => true,
+            tracks,
+            setTracks: jest.fn(() => result),
+        }
+
+        await preferExactMatch('Prince')(result as any)
+
+        expect(result.setTracks).not.toHaveBeenCalled()
     })
 })
 

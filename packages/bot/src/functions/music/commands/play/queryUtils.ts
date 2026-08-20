@@ -3,6 +3,7 @@ import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
 
 const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
 import type { CustomClient } from '../../../../types'
+import { preferExactMatch } from './handlers/resolveProvider'
 import {
     requireVoiceChannel,
     requireDJRole,
@@ -195,10 +196,12 @@ export async function executePlayAtTop({
 
     try {
         const searchEngine = resolveSearchEngine(query)
+        const afterSearch = preferExactMatch(query)
         let result
         try {
             result = await client.player.play(voiceChannel, query, {
                 searchEngine,
+                afterSearch,
             })
         } catch (primaryError) {
             if (searchEngine !== QueryType.AUTO) {
@@ -214,6 +217,7 @@ export async function executePlayAtTop({
                     result = await client.player.play(voiceChannel, query, {
                         searchEngine: QueryType.YOUTUBE_SEARCH,
                         blockExtractors: [SPOTIFY_EXTRACTOR_ID],
+                        afterSearch,
                     })
                 } catch (youtubeError) {
                     warnLog({
@@ -224,6 +228,7 @@ export async function executePlayAtTop({
                     result = await client.player.play(voiceChannel, query, {
                         searchEngine: QueryType.SOUNDCLOUD_SEARCH,
                         blockExtractors: [SPOTIFY_EXTRACTOR_ID],
+                        afterSearch,
                     })
                 }
             } else {
