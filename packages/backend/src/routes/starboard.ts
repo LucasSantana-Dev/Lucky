@@ -11,10 +11,7 @@ import { AppError } from '../errors/AppError'
 import { z } from 'zod'
 import { starboardService } from '@lucky/shared/services'
 import { guildIdParam } from '../schemas/common'
-
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
+import { paramToString as p } from '../utils/paramCoerce'
 
 const upsertConfigBody = z.object({
     channelId: z.string().min(1).optional(),

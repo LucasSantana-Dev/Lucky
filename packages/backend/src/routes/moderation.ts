@@ -11,10 +11,7 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { moderationSchemas as s } from '../schemas/moderation'
 import { moderationService, serverLogService } from '@lucky/shared/services'
-
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
+import { paramToString as p } from '../utils/paramCoerce'
 
 function requireUserId(req: AuthenticatedRequest): string {
     if (!req.userId) {

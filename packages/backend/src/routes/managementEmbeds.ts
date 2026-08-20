@@ -12,10 +12,7 @@ import {
     type EmbedData,
 } from '@lucky/shared/services'
 import { isUniqueViolation } from '../utils/prismaErrors'
-
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
+import { paramToString as p } from '../utils/paramCoerce'
 
 function requireUserId(req: AuthenticatedRequest): string {
     if (!req.userId) {

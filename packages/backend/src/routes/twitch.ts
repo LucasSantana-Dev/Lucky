@@ -12,16 +12,14 @@ import {
 import { warnLog } from '@lucky/shared/utils'
 import { AppError } from '../errors/AppError'
 import { z } from 'zod'
-
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
+import { paramToString as p } from '../utils/paramCoerce'
+import { snowflakeId } from '../schemas/common'
 
 const addTwitchBody = z
     .object({
         twitchUserId: z.string().min(1).max(50),
         twitchLogin: z.string().min(1).max(50),
-        discordChannelId: z.string().regex(/^\d{17,20}$/),
+        discordChannelId: snowflakeId,
     })
     .strict()
 
@@ -247,10 +245,10 @@ export function setupTwitchRoutes(app: Express): void {
 
             const body = z
                 .object({
-                    discordUserId: z.string().regex(/^\d{17,20}$/),
+                    discordUserId: snowflakeId,
                     twitchUserId: z.string().min(1).max(50),
                     twitchLogin: z.string().min(1).max(50),
-                    guildId: z.string().regex(/^\d{17,20}$/),
+                    guildId: snowflakeId,
                     isSubscriber: z.boolean().optional(),
                 })
                 .strict()

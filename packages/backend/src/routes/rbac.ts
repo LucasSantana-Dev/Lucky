@@ -15,10 +15,7 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { managementSchemas as s } from '../schemas/management'
 import { guildService } from '../services/GuildService'
-
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
+import { paramToString as p } from '../utils/paramCoerce'
 
 const roleGrantSchema = z
     .object({
@@ -60,7 +57,9 @@ export function setupRbacRoutes(app: Express): void {
             }
 
             let grants: RoleGrant[]
-            let roles: Awaited<ReturnType<typeof guildService.getGuildRoleOptions>>
+            let roles: Awaited<
+                ReturnType<typeof guildService.getGuildRoleOptions>
+            >
             try {
                 ;[grants, roles] = await Promise.all([
                     guildRoleAccessService.listRoleGrants(guildId),

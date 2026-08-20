@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import { useMemo, type ReactElement } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import {
@@ -206,67 +206,82 @@ export default function DashboardOverview() {
         icon: ReactElement
         href: string
         module: ModuleKey
-    }> = [
-        {
-            title: t('dashboardOverview.moderationCases'),
-            description: t('dashboardOverview.reviewWarningsMutesKicksBans'),
-            icon: <Shield className='h-4 w-4' />,
-            href: '/moderation',
-            module: 'moderation',
-        },
-        {
-            title: t('dashboardOverview.autoModeration'),
-            description: t('dashboardOverview.tuneFiltersAntiSpamAutomation'),
-            icon: <ShieldAlert className='h-4 w-4' />,
-            href: '/automod',
-            module: 'moderation',
-        },
-        {
-            title: t('dashboardOverview.serverLogs'),
-            description: t(
-                'dashboardOverview.auditEventsAndModerationActivity',
-            ),
-            icon: <ScrollText className='h-4 w-4' />,
-            href: '/logs',
-            module: 'moderation',
-        },
-        {
-            title: t('dashboardOverview.customCommands'),
-            description: t('dashboardOverview.manageScriptedServerShortcuts'),
-            icon: <MessageSquare className='h-4 w-4' />,
-            href: '/commands',
-            module: 'automation',
-        },
-        {
-            title: t('dashboardOverview.musicPlayer'),
-            description: t('dashboardOverview.viewQueuePlaybackTrackHistory'),
-            icon: <Music className='h-4 w-4' />,
-            href: '/music',
-            module: 'music',
-        },
-        {
-            title: t('dashboardOverview.levelsAndXP'),
-            description: t(
-                'dashboardOverview.configureXPLevelRewardsLeaderboards',
-            ),
-            icon: <TrendingUp className='h-4 w-4' />,
-            href: '/levels',
-            module: 'settings',
-        },
-        {
-            title: t('dashboardOverview.starboard'),
-            description: t('dashboardOverview.manageCommunityHighlights'),
-            icon: <Star className='h-4 w-4' />,
-            href: '/starboard',
-            module: 'settings',
-        },
-    ]
-    const visibleQuickActions = quickActions.filter((action) => {
-        if (!selectedGuild || !effectiveAccess) {
-            return true
-        }
-        return hasModuleAccess(effectiveAccess, action.module, 'view')
-    })
+    }> = useMemo(
+        () => [
+            {
+                title: t('dashboardOverview.moderationCases'),
+                description: t(
+                    'dashboardOverview.reviewWarningsMutesKicksBans',
+                ),
+                icon: <Shield className='h-4 w-4' />,
+                href: '/moderation',
+                module: 'moderation',
+            },
+            {
+                title: t('dashboardOverview.autoModeration'),
+                description: t(
+                    'dashboardOverview.tuneFiltersAntiSpamAutomation',
+                ),
+                icon: <ShieldAlert className='h-4 w-4' />,
+                href: '/automod',
+                module: 'moderation',
+            },
+            {
+                title: t('dashboardOverview.serverLogs'),
+                description: t(
+                    'dashboardOverview.auditEventsAndModerationActivity',
+                ),
+                icon: <ScrollText className='h-4 w-4' />,
+                href: '/logs',
+                module: 'moderation',
+            },
+            {
+                title: t('dashboardOverview.customCommands'),
+                description: t(
+                    'dashboardOverview.manageScriptedServerShortcuts',
+                ),
+                icon: <MessageSquare className='h-4 w-4' />,
+                href: '/commands',
+                module: 'automation',
+            },
+            {
+                title: t('dashboardOverview.musicPlayer'),
+                description: t(
+                    'dashboardOverview.viewQueuePlaybackTrackHistory',
+                ),
+                icon: <Music className='h-4 w-4' />,
+                href: '/music',
+                module: 'music',
+            },
+            {
+                title: t('dashboardOverview.levelsAndXP'),
+                description: t(
+                    'dashboardOverview.configureXPLevelRewardsLeaderboards',
+                ),
+                icon: <TrendingUp className='h-4 w-4' />,
+                href: '/levels',
+                module: 'settings',
+            },
+            {
+                title: t('dashboardOverview.starboard'),
+                description: t('dashboardOverview.manageCommunityHighlights'),
+                icon: <Star className='h-4 w-4' />,
+                href: '/starboard',
+                module: 'settings',
+            },
+        ],
+        [t],
+    )
+    const visibleQuickActions = useMemo(
+        () =>
+            quickActions.filter((action) => {
+                if (!selectedGuild || !effectiveAccess) {
+                    return true
+                }
+                return hasModuleAccess(effectiveAccess, action.module, 'view')
+            }),
+        [quickActions, selectedGuild, effectiveAccess],
+    )
 
     if (!selectedGuild) {
         return (
