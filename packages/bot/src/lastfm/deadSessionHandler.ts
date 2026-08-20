@@ -1,6 +1,6 @@
 import type { Client } from 'discord.js'
 import { LRUCache } from 'lru-cache'
-import { infoLog, warnLog } from '@lucky/shared/utils'
+import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { lastFmLinkService, type LastFmLinkRow } from '@lucky/shared/services'
 
 /**
@@ -21,7 +21,10 @@ interface DeadSessionOptions {
 function warnEnvKeyOnce(via: string): void {
     if (envKeyWarned) return
     envKeyWarned = true
-    warnLog({
+    // errorLog (not warnLog) so this reaches Sentry — a dead env key
+    // otherwise degrades autoplay/radio scrobbling silently forever, see
+    // decisions/2026-08-03-lastfm-dead-session-handling.md "Revisit when".
+    errorLog({
         message:
             'Last.fm env LASTFM_SESSION_KEY is invalid — check deployment config',
         data: { via },

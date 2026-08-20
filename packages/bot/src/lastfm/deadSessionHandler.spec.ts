@@ -5,6 +5,7 @@ const unlinkMock =
     jest.fn<(discordId: string, sessionKey: string) => Promise<string>>()
 const infoLogMock = jest.fn<(payload: unknown) => void>()
 const warnLogMock = jest.fn<(payload: unknown) => void>()
+const errorLogMock = jest.fn<(payload: unknown) => void>()
 
 jest.mock('@lucky/shared/services', () => ({
     lastFmLinkService: {
@@ -17,6 +18,7 @@ jest.mock('@lucky/shared/services', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: (payload: unknown) => infoLogMock(payload),
     warnLog: (payload: unknown) => warnLogMock(payload),
+    errorLog: (payload: unknown) => errorLogMock(payload),
 }))
 
 import {
@@ -43,20 +45,21 @@ describe('handleDeadLastFmSession', () => {
         unlinkMock.mockReset().mockResolvedValue('removed')
         infoLogMock.mockReset()
         warnLogMock.mockReset()
+        errorLogMock.mockReset()
         resetDeadSessionGuards()
     })
 
     it('does nothing without a discordId when env fallback was not used', async () => {
         await handleDeadLastFmSession(undefined, 'key-1', null, OPTS)
         expect(getByDiscordIdMock).not.toHaveBeenCalled()
-        expect(warnLogMock).not.toHaveBeenCalled()
+        expect(errorLogMock).not.toHaveBeenCalled()
     })
 
-    it('warns about the env key when a requester-less env-fallback call fails', async () => {
+    it('errors about the env key (so it reaches Sentry) when a requester-less env-fallback call fails', async () => {
         await handleDeadLastFmSession(undefined, 'key-1', null, ENV_OPTS)
         await handleDeadLastFmSession(undefined, 'key-1', null, ENV_OPTS)
-        expect(warnLogMock).toHaveBeenCalledTimes(1)
-        expect(warnLogMock).toHaveBeenCalledWith(
+        expect(errorLogMock).toHaveBeenCalledTimes(1)
+        expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: expect.stringContaining('LASTFM_SESSION_KEY'),
             }),
@@ -117,14 +120,14 @@ describe('handleDeadLastFmSession', () => {
         expect(infoLogMock).not.toHaveBeenCalled()
     })
 
-    it('warns once and never unlinks or DMs when the dead key is the env fallback', async () => {
+    it('errors once (for Sentry) and never unlinks or DMs when the dead key is the env fallback', async () => {
         getByDiscordIdMock.mockResolvedValue(null)
         const { client, sendMock, fetchMock } = makeClient()
 
         await handleDeadLastFmSession('user-1', 'key-1', client, ENV_OPTS)
         await handleDeadLastFmSession('user-2', 'key-1', client, ENV_OPTS)
 
-        expect(warnLogMock).toHaveBeenCalledTimes(1)
+        expect(errorLogMock).toHaveBeenCalledTimes(1)
         expect(unlinkMock).not.toHaveBeenCalled()
         expect(fetchMock).not.toHaveBeenCalled()
         expect(sendMock).not.toHaveBeenCalled()
@@ -135,7 +138,7 @@ describe('handleDeadLastFmSession', () => {
 
         await handleDeadLastFmSession('user-1', 'key-1', null, OPTS)
 
-        expect(warnLogMock).not.toHaveBeenCalled()
+        expect(errorLogMock).not.toHaveBeenCalled()
         expect(unlinkMock).not.toHaveBeenCalled()
     })
 
