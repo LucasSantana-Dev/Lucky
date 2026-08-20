@@ -58,7 +58,7 @@ export function findMatchingSoundCloudResult(
 
     const trackSec = parseDurationString(trackDuration)
 
-    return results.find((result) => {
+    const candidates = results.filter((result) => {
         const resultNorm = normalizeForMatch(result.name)
         if (!resultNorm) return false
 
@@ -71,6 +71,21 @@ export function findMatchingSoundCloudResult(
         if (trackSec === null || !result.durationInSec) return true
         return Math.abs(result.durationInSec - trackSec) <= 30
     })
+
+    if (candidates.length === 0 || trackSec === null) return candidates[0]
+
+    // The 75%-token threshold lets remixes/speedups/extended edits pass
+    // title matching too. SoundCloud's search order is not a quality
+    // ranking, so among qualifying candidates prefer the closest duration —
+    // the cheapest signal available that a candidate is the original
+    // recording rather than an altered one.
+    return candidates.reduce((best, candidate) => {
+        if (!candidate.durationInSec) return best
+        if (!best.durationInSec) return candidate
+        const bestDiff = Math.abs(best.durationInSec - trackSec)
+        const candidateDiff = Math.abs(candidate.durationInSec - trackSec)
+        return candidateDiff < bestDiff ? candidate : best
+    }, candidates[0])
 }
 
 function normalizeForMatch(value: string): string {
