@@ -58,19 +58,55 @@ export function findMatchingSoundCloudResult(
 
     const trackSec = parseDurationString(trackDuration)
 
-    return results.find((result) => {
-        const resultNorm = normalizeForMatch(result.name)
-        if (!resultNorm) return false
+    const candidates = results
+        .map((result) => {
+            const resultNorm = normalizeForMatch(result.name)
+            if (!resultNorm) return null
 
-        const matched = tokens.filter((token) =>
-            resultNorm.includes(token),
-        ).length
-        const titleMatch = matched / tokens.length >= TITLE_MATCH_THRESHOLD
-        if (!titleMatch) return false
+            const matched = tokens.filter((token) =>
+                resultNorm.includes(token),
+            ).length
+            const titleScore = matched / tokens.length
+            if (titleScore < TITLE_MATCH_THRESHOLD) return null
 
-        if (trackSec === null || !result.durationInSec) return true
-        return Math.abs(result.durationInSec - trackSec) <= 30
-    })
+            if (
+                trackSec !== null &&
+                result.durationInSec &&
+                Math.abs(result.durationInSec - trackSec) > 30
+            ) {
+                return null
+            }
+
+            return { result, titleScore }
+        })
+        .filter(
+            (c): c is { result: SoundCloudSearchResult; titleScore: number } =>
+                c !== null,
+        )
+
+    if (candidates.length === 0) return undefined
+    if (trackSec === null) return candidates[0].result
+
+    // The 75%-token threshold lets remixes/speedups/extended edits pass
+    // title matching too, and SoundCloud's search order is not a quality
+    // ranking. Prefer the closer title match first — an exact title match
+    // with no duration data is a more trustworthy signal than a near-miss
+    // duration match on a looser title. Only at equal title confidence does
+    // duration closeness break the tie, as the cheapest remaining signal
+    // that a candidate is the original recording rather than an altered one;
+    // missing duration data is treated as neutral there, not disqualifying.
+    return candidates.reduce((best, candidate) => {
+        if (candidate.titleScore !== best.titleScore) {
+            return candidate.titleScore > best.titleScore ? candidate : best
+        }
+        if (!candidate.result.durationInSec) return best
+        if (!best.result.durationInSec) return candidate
+        const bestDiff = Math.abs(best.result.durationInSec - trackSec)
+        const candidateDiff = Math.abs(
+            candidate.result.durationInSec - trackSec,
+        )
+        return candidateDiff < bestDiff ? candidate : best
+    }, candidates[0]).result
 }
 
 function normalizeForMatch(value: string): string {
