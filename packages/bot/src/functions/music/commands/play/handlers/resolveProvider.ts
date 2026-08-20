@@ -3,6 +3,7 @@ import type {
     Player,
     PlayerNodeInitializerOptions,
     PlayerNodeInitializationResult,
+    SearchResult,
 } from 'discord-player'
 import type { VoiceBasedChannel } from 'discord.js'
 import { warnLog } from '@lucky/shared/utils'
@@ -25,11 +26,38 @@ const TEXT_SEARCH_BLOCKED_EXTRACTORS = [
     ATTACHMENT_EXTRACTOR_ID,
 ]
 
+/**
+ * Some extractors (Spotify's raw search API in particular) return their own
+ * top hit as tracks[0] with no relevance re-ranking, so a short/ambiguous
+ * query like "Prince" can surface a same-genre act (e.g. Prince Royce)
+ * ahead of the artist the query actually names. This promotes a candidate
+ * whose title or author exactly matches the query, leaving descriptive
+ * queries (where no exact match exists) untouched.
+ */
+export function preferExactMatch(
+    query: string,
+): (result: SearchResult) => Promise<SearchResult> {
+    const normalizedQuery = query.trim().toLowerCase()
+
+    return async (result) => {
+        if (result.hasPlaylist() || result.tracks.length <= 1) return result
+
+        const bestIndex = result.tracks.findIndex((track) => {
+            const author = track.author?.trim().toLowerCase()
+            const title = track.title?.trim().toLowerCase()
+            return author === normalizedQuery || title === normalizedQuery
+        })
+        if (bestIndex <= 0) return result
+
+        const reordered = [...result.tracks]
+        const [bestTrack] = reordered.splice(bestIndex, 1)
+        reordered.unshift(bestTrack)
+        return result.setTracks(reordered)
+    }
+}
+
 export type PlayResolutionArm =
-    | 'primary'
-    | 'youtube-fallback'
-    | 'soundcloud-fallback'
-    | 'failed'
+    'primary' | 'youtube-fallback' | 'soundcloud-fallback' | 'failed'
 
 interface ResolutionTelemetry {
     resolvedVia: PlayResolutionArm
@@ -59,10 +87,18 @@ export async function resolveQueryWithFallbacks(
         latencyMs: 0,
         requestedProvider,
     }
+    const resolvedPlayOptions = {
+        ...playOptions,
+        afterSearch: preferExactMatch(query),
+    }
 
     try {
         // Attempt primary resolution
-        const result = await player.play(voiceChannel, query, playOptions)
+        const result = await player.play(
+            voiceChannel,
+            query,
+            resolvedPlayOptions,
+        )
         telemetry.latencyMs = Date.now() - startTime
         telemetry.resolvedVia = 'primary'
         return { result, telemetry }
@@ -82,7 +118,7 @@ export async function resolveQueryWithFallbacks(
                 // Attempt YouTube fallback. See TEXT_SEARCH_BLOCKED_EXTRACTORS
                 // for why these are excluded.
                 const result = await player.play(voiceChannel, query, {
-                    ...playOptions,
+                    ...resolvedPlayOptions,
                     searchEngine: QueryType.YOUTUBE_SEARCH,
                     blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
                 })
@@ -99,7 +135,7 @@ export async function resolveQueryWithFallbacks(
                 try {
                     // Attempt SoundCloud fallback — same block reason as above
                     const result = await player.play(voiceChannel, query, {
-                        ...playOptions,
+                        ...resolvedPlayOptions,
                         searchEngine: QueryType.SOUNDCLOUD_SEARCH,
                         blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
                     })
