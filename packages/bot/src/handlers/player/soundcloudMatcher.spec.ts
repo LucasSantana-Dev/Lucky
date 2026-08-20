@@ -198,6 +198,37 @@ describe('findMatchingSoundCloudResult – duration matching', () => {
         expect(match?.name).toBe('Song Name')
     })
 
+    it('picks the first of multiple duration-less candidates when none can be ranked by duration', () => {
+        const results = [makeResult('Song Name'), makeResult('Song Name Live')]
+        const match = findMatchingSoundCloudResult('song name', '3:30', results)
+        expect(match?.name).toBe('Song Name')
+    })
+
+    it('prefers an exact title match with no duration data over a looser title match with duration', () => {
+        // 4 query tokens: 'song name original mix'. The remix result is
+        // missing "original" (3/4 = 75%, just clears the threshold); the
+        // duration-less result matches all 4 tokens (100%).
+        const results = [
+            makeResult('Song Name Mix', 215), // 75% title score, 5s off
+            makeResult('Song Name Original Mix'), // 100% title score, no duration data
+        ]
+        const match = findMatchingSoundCloudResult(
+            'song name original mix',
+            '3:30',
+            results,
+        )
+        expect(match?.name).toBe('Song Name Original Mix')
+    })
+
+    it('at equal title score, prefers the duration-bearing candidate over the duration-less one', () => {
+        const results = [
+            makeResult('Song Name'), // exact title, no duration
+            makeResult('Song Name', 215), // exact title, has duration (5s off)
+        ]
+        const match = findMatchingSoundCloudResult('song name', '3:30', results)
+        expect(match?.durationInSec).toBe(215)
+    })
+
     it('falls back to a candidate with no duration data when it is the only match', () => {
         const results = [makeResult('Song Name')] // no durationInSec at all
         const match = findMatchingSoundCloudResult('song name', '3:30', results)
