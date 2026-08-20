@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const snowflakeId = z.string().regex(/^\d{17,20}$/)
+export const snowflakeId = z.string().regex(/^\d{17,20}$/)
 
 export const guildIdParam = z.object({
     guildId: snowflakeId,

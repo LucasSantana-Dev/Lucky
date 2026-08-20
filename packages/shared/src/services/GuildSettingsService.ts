@@ -390,9 +390,12 @@ export class GuildSettingsService {
     /** Clears all guild session state (settings, counters, repeat count). */
     async clearGuildSessions(guildId: string): Promise<boolean> {
         try {
-            const settingsDeleted = await this.deleteGuildSettings(guildId)
-            const counterReset = await this.resetAutoplayCounter(guildId)
-            const repeatReset = await this.resetRepeatCount(guildId)
+            const [settingsDeleted, counterReset, repeatReset] =
+                await Promise.all([
+                    this.deleteGuildSettings(guildId),
+                    this.resetAutoplayCounter(guildId),
+                    this.resetRepeatCount(guildId),
+                ])
 
             return settingsDeleted && counterReset && repeatReset
         } catch (error) {

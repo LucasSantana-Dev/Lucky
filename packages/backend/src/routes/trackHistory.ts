@@ -6,10 +6,7 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
 import { trackHistoryService } from '@lucky/shared/services'
 import { z } from 'zod'
-
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
+import { paramToString as p } from '../utils/paramCoerce'
 
 const historyQuery = z.object({
     limit: z.coerce.number().int().min(1).max(100).optional(),

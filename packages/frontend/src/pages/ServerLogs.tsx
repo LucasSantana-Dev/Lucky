@@ -1,5 +1,5 @@
 import { reportError } from '@/lib/sentry'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import {
@@ -165,6 +165,14 @@ export default function ServerLogsPage() {
     const [page, setPage] = useState(1)
     const limit = 25
 
+    const levelCounts = useMemo(() => {
+        const counts: Partial<Record<LogLevel, number>> = {}
+        for (const l of logs) {
+            counts[l.level] = (counts[l.level] ?? 0) + 1
+        }
+        return counts
+    }, [logs])
+
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300)
         return () => clearTimeout(timer)
@@ -322,7 +330,7 @@ export default function ServerLogsPage() {
                     ][]
                 ).map(([level, config], idx) => {
                     const Icon = config.icon
-                    const count = logs.filter((l) => l.level === level).length
+                    const count = levelCounts[level] ?? 0
                     const isLead = idx < 3
                     return (
                         <button

@@ -39,8 +39,10 @@ export async function handleStarboardReaction(
     user: User | PartialUser,
     client: Client,
 ): Promise<void> {
-    if (reaction.partial) await reaction.fetch()
-    if (user.partial) await user.fetch()
+    await Promise.all([
+        reaction.partial ? reaction.fetch() : Promise.resolve(),
+        user.partial ? user.fetch() : Promise.resolve(),
+    ])
     if (!reaction.message.guild) return
     if (user.bot) return
 

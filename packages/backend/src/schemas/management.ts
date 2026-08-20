@@ -1,5 +1,9 @@
 import { z } from 'zod'
-import { guildIdParam, userIdParam as commonUserIdParam } from './common'
+import {
+    guildIdParam,
+    userIdParam as commonUserIdParam,
+    snowflakeId,
+} from './common'
 
 const commandNameParam = guildIdParam.extend({
     name: z.string().min(1).max(32),
@@ -84,10 +88,7 @@ const logsQuery = z.object({
 const logsSearchQuery = z.object({
     q: z.string().min(1, 'Search query is required').max(200),
     type: z.string().max(50).optional(),
-    userId: z
-        .string()
-        .regex(/^\d{17,20}$/)
-        .optional(),
+    userId: snowflakeId.optional(),
 })
 
 const userIdParam = guildIdParam.extend({
@@ -95,7 +96,7 @@ const userIdParam = guildIdParam.extend({
 })
 
 const roleIdParam = guildIdParam.extend({
-    roleId: z.string().regex(/^\d{17,20}$/),
+    roleId: snowflakeId,
 })
 
 const roleUpsertBody = z
@@ -113,10 +114,7 @@ const roleUpsertBody = z
 
 const bulkDeleteBody = z
     .object({
-        roleIds: z
-            .array(z.string().regex(/^\d{17,20}$/))
-            .min(1)
-            .max(50),
+        roleIds: z.array(snowflakeId).min(1).max(50),
     })
     .strict()
 

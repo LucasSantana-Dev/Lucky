@@ -21,10 +21,7 @@ import {
 import { setupEmbedRoutes } from './managementEmbeds'
 import { setupAutoMessageRoutes } from './managementAutoMessages'
 import { isUniqueViolation } from '../utils/prismaErrors'
-
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
+import { paramToString as p } from '../utils/paramCoerce'
 
 function requireUserId(req: AuthenticatedRequest): string {
     if (!req.userId) {
@@ -255,21 +252,22 @@ export function setupManagementRoutes(app: Express): void {
             const type = query.type
 
             if (type) {
-                const logs = await serverLogService.getLogsByType(
-                    guildId,
-                    type as LogType,
-                    limit,
-                )
-                const total = await serverLogService.countLogsByType(
-                    guildId,
-                    type as LogType,
-                )
+                const [logs, total] = await Promise.all([
+                    serverLogService.getLogsByType(
+                        guildId,
+                        type as LogType,
+                        limit,
+                    ),
+                    serverLogService.countLogsByType(guildId, type as LogType),
+                ])
                 res.json({ logs: logs.map(serializeServerLog), total })
                 return
             }
 
-            const logs = await serverLogService.getRecentLogs(guildId, limit)
-            const total = await serverLogService.countRecentLogs(guildId)
+            const [logs, total] = await Promise.all([
+                serverLogService.getRecentLogs(guildId, limit),
+                serverLogService.countRecentLogs(guildId),
+            ])
             res.json({ logs: logs.map(serializeServerLog), total })
         }),
     )
