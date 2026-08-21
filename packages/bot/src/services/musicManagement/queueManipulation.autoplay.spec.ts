@@ -661,10 +661,11 @@ describe('queueManipulation — multi-user VC blend', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        // Observable: the Spotify path was exercised and results reached the
-        // queue. Asserts on the queue, not on a specific API call, so it stays
-        // valid as arms are added or retired.
-        expect(spotifyApiMock.searchSpotifyTrack).toHaveBeenCalled()
+        // Asserts on the OUTCOME only. An earlier version of this test asserted
+        // that searchSpotifyTrack had been called, which broke the moment the
+        // audio-features path that happened to reach it was removed. What the
+        // test is actually for is that a Spotify-linked user gets tracks in the
+        // queue, and that survives arms being added or retired.
         expect(addedTracks.length).toBeGreaterThan(0)
         expect((addedTracks[0] as any)?.title).toBeDefined()
     })
@@ -849,80 +850,6 @@ describe('queueManipulation — multi-user VC blend', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        expect(addTrackMock).toHaveBeenCalled()
-    })
-
-    it('applies energy/valence score boost when spotify candidate matches current track features', async () => {
-        const sharedMocks = jest.requireMock('@lucky/shared/services') as any
-        sharedMocks.spotifyLinkService.getValidAccessToken
-            .mockResolvedValueOnce('token-for-current')
-            .mockResolvedValueOnce(null) // spotifyToken for artist tag fetcher
-            .mockResolvedValueOnce('token-for-current') // second getTrackAudioFeatures (post-select)
-            .mockResolvedValueOnce('token-for-enrich') // enrichWithAudioFeatures
-
-        const currentFeatures = {
-            energy: 0.7,
-            valence: 0.65,
-            danceability: 0.6,
-            tempo: 125,
-            acousticness: 0.2,
-        }
-        const spotifyMocks = jest.requireMock('../../spotify/spotifyApi') as any
-        spotifyMocks.getAudioFeatures
-            .mockResolvedValueOnce(currentFeatures) // first getTrackAudioFeatures
-            .mockResolvedValueOnce(currentFeatures) // second getTrackAudioFeatures (post-select)
-        const candidateFeatureMap = new Map([
-            [
-                'candidateSpotifyId01',
-                {
-                    energy: 0.72,
-                    valence: 0.67,
-                    danceability: 0.58,
-                    tempo: 120,
-                    acousticness: 0.25,
-                },
-            ],
-        ])
-        spotifyMocks.getBatchAudioFeatures.mockResolvedValueOnce(
-            candidateFeatureMap,
-        )
-        spotifyMocks.getArtistGenres
-            .mockResolvedValueOnce(['hip-hop', 'rap'])
-            .mockResolvedValueOnce(['hip-hop', 'rap'])
-
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://open.spotify.com/track/currentSpotifyId01',
-                title: 'Current Spotify Track',
-                author: 'Spotify Artist',
-                id: 'currentSpotifyId01',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://open.spotify.com/track/candidateSpotifyId01',
-                            title: 'Candidate Spotify Track',
-                            author: 'Other Artist',
-                            id: 'candidateSpotifyId01',
-                            durationMS: 200000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(spotifyMocks.getBatchAudioFeatures).toHaveBeenCalledWith(
-            'token-for-enrich',
-            ['candidateSpotifyId01'],
-        )
         expect(addTrackMock).toHaveBeenCalled()
     })
 
