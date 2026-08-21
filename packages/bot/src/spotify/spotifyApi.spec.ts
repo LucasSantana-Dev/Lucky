@@ -11,7 +11,6 @@ import {
     searchSpotifyTrack,
     getBatchAudioFeatures,
     getArtistPopularity,
-    getSpotifyRecommendations,
     getArtistGenres,
     getUserTopArtistsAndTracks,
     getUserSavedTracks,
@@ -340,11 +339,16 @@ describe('spotifyApi', () => {
                         'track4',
                         'track5',
                     ]
-                    const result = await getBatchAudioFeatures('token', trackIds)
+                    const result = await getBatchAudioFeatures(
+                        'token',
+                        trackIds,
+                    )
                     expect(result.size).toBe(5)
                     expect(fetchMock).toHaveBeenCalledTimes(1)
                     const callUrl = String(fetchMock.mock.calls[0]![0])
-                    expect(callUrl).toContain('ids=track1,track2,track3,track4,track5')
+                    expect(callUrl).toContain(
+                        'ids=track1,track2,track3,track4,track5',
+                    )
                 },
             ],
         ])('%s', async (_label, test) => {
@@ -498,114 +502,6 @@ describe('spotifyApi', () => {
                 },
             ],
         ])('%s', async (_label, test) => {
-            await test()
-        })
-    })
-
-    describe('getSpotifyRecommendations', () => {
-        it('returns empty array when empty seeds; returns filtered tracks with constraints applied; slices seeds to max 5', async () => {
-            let result = await getSpotifyRecommendations('token', [])
-            expect(result).toEqual([])
-            expect(fetchMock).not.toHaveBeenCalled()
-
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
-                    tracks: [
-                        {
-                            id: 'good',
-                            name: 'Good Track',
-                            artists: [{ name: 'Artist A' }],
-                            duration_ms: 200000,
-                        },
-                        {
-                            id: null,
-                            name: 'No ID',
-                            artists: [],
-                            duration_ms: 100000,
-                        },
-                        {
-                            id: 'valid2',
-                            name: null,
-                            artists: [{ name: 'Artist B' }],
-                            duration_ms: 180000,
-                        },
-                    ],
-                }),
-            })
-
-            result = await getSpotifyRecommendations('token', ['seed1'], 10, {
-                energy: 0.8,
-                valence: 0.6,
-                danceability: 0.75,
-            })
-            expect(result).toHaveLength(1)
-            expect(result[0].id).toBe('good')
-            let url = String(fetchMock.mock.calls[0]![0])
-            expect(url).toContain('min_energy=0.55')
-            expect(url).toContain('max_danceability=1.00')
-
-            jest.clearAllMocks()
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ tracks: [] }),
-            })
-
-            await getSpotifyRecommendations('token', [
-                'a',
-                'b',
-                'c',
-                'd',
-                'e',
-                'f',
-                'g',
-            ])
-            url = String(fetchMock.mock.calls[0]![0])
-            let params = new URLSearchParams(url.split('?')[1])
-            expect(params.get('seed_tracks')?.split(',').length).toBe(5)
-        })
-
-        it('does not add constraint params when undefined; clamps constraint bounds to [0,1]', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ tracks: [] }),
-            })
-
-            await getSpotifyRecommendations('token', ['seed1'], 10, undefined)
-            let url = String(fetchMock.mock.calls[0]![0])
-            expect(url).not.toContain('min_energy')
-
-            jest.clearAllMocks()
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ tracks: [] }),
-            })
-
-            await getSpotifyRecommendations('token', ['seed1'], 10, {
-                energy: 0.1,
-                valence: 0.95,
-            })
-            url = String(fetchMock.mock.calls[0]![0])
-            expect(url).toContain('min_energy=0.00')
-            expect(url).toContain('max_energy=0.35')
-            expect(url).toContain('min_valence=0.70')
-        })
-
-        it.each([
-            [
-                'error cases',
-                async () => {
-                    fetchMock.mockResolvedValue({ ok: false })
-                    let result = await getSpotifyRecommendations('token', [
-                        'seed1',
-                    ])
-                    expect(result).toEqual([])
-                    fetchMock.mockRejectedValue(new Error('network error'))
-                    result = await getSpotifyRecommendations('token', ['seed1'])
-                    expect(result).toEqual([])
-                },
-            ],
-        ])('returns empty array on %s', async (_label, test) => {
             await test()
         })
     })

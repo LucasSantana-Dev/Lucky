@@ -93,7 +93,6 @@ jest.mock('../../spotify/spotifyApi', () => ({
     getBatchAudioFeatures: jest.fn().mockResolvedValue(new Map()),
     getArtistPopularity: jest.fn().mockResolvedValue(null),
     getArtistGenres: jest.fn().mockResolvedValue([]),
-    getSpotifyRecommendations: jest.fn().mockResolvedValue([]),
 }))
 
 const getUserSpotifySeedsMock = jest.fn()

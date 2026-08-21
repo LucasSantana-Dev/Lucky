@@ -3,10 +3,7 @@ import type { User } from 'discord.js'
 import { debugLog } from '@lucky/shared/utils'
 import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import type { AutoplayContext } from './autoplayContext'
-import {
-    collectSpotifyRecommendationCandidates,
-    searchSeedCandidates,
-} from './spotifyRecommender'
+import { searchSeedCandidates } from './spotifyRecommender'
 import { calculateRecommendationScore } from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'
 import {
@@ -74,15 +71,6 @@ export async function collectRecommendationCandidates(
     const currentTrackTags = ctx.genreContext.currentTrackTags ?? []
     const sessionGenreFamilies =
         ctx.genreContext.sessionGenreFamilies ?? new Set<string>()
-
-    // Collect from Spotify Recommendations API
-    await collectSpotifyRecommendationCandidates(
-        ctx,
-        seedTracks,
-        requestedBy,
-        candidates,
-        currentFeatures,
-    )
 
     // Collect from seed track searches (Spotify only — no YouTube fallback to
     // avoid language-drift where genre terms like "worship" cause YouTube's
