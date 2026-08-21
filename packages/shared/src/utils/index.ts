@@ -1,5 +1,7 @@
 export * from './general/log'
 export * from './spotify/artistApi'
+export * from './spotify/albumApi'
+export * from './spotify/clientToken'
 export * from './errorHandler'
 export * from './error/errorHandler'
 export * from './monitoring/sentry'
