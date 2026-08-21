@@ -6,6 +6,7 @@ import {
 } from '../../monitoring'
 import { recordWithCooldown, emitAlert } from '../../alerts'
 import { getLogContext } from './context'
+import { LEVEL_TOKEN } from './types'
 import type { LogLevelType, LogParams, LogConfig } from './types'
 
 function sanitizeForLogging(text: string): string {
@@ -58,7 +59,7 @@ export class LogService {
         return level <= this.config.level
     }
 
-    private formatMessage(params: LogParams): string {
+    private formatMessage(params: LogParams, level: LogLevelType): string {
         const { message, correlationId } = params
         let formattedMessage = message
 
@@ -70,6 +71,16 @@ export class LogService {
         if (this.config.enableCorrelationId && correlationId) {
             formattedMessage = `[${correlationId}] ${formattedMessage}`
         }
+
+        // Prepended last so the level is always at index 0, whatever the
+        // timestamp/correlationId flags are set to. A shipper can then anchor
+        // on `^\[LEVEL\]` instead of scanning the line for a keyword, which
+        // is what let message *content* forge a level (#2054).
+        // An out-of-range level is a programming error, not a severity: fall
+        // back to INFO rather than emitting `[undefined]`, so the token at
+        // index 0 is always one a shipper can parse.
+        const token = LEVEL_TOKEN[level] ?? 'INFO'
+        formattedMessage = `[${token}] ${formattedMessage}`
 
         return formattedMessage
     }
@@ -116,7 +127,7 @@ export class LogService {
               }
             : params
 
-        const formattedMessage = this.formatMessage(effectiveParams)
+        const formattedMessage = this.formatMessage(effectiveParams, level)
         const color = this.getColor(level)
         // Strip control characters (CR/LF/etc.) so user-provided values in the
         // message can't forge additional log lines (log injection).
