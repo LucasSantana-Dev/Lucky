@@ -1,5 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { debugLog, errorLog } from '@lucky/shared/utils'
+import { replyNotPlaying } from '../../../utils/music/replyNotPlaying'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import {
@@ -19,22 +20,6 @@ import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
-
-async function handleNotPlaying(
-    interaction: ChatInputCommandInteraction,
-): Promise<void> {
-    await interactionReply({
-        interaction,
-        content: {
-            embeds: [
-                createErrorEmbed(
-                    'Error',
-                    "🤔 There's no music playing at the moment.",
-                ),
-            ],
-        },
-    })
-}
 
 async function playPreviousTrack(
     queue: GuildQueue,
@@ -149,7 +134,7 @@ export default new Command({
         if (!(await requireIsPlaying(queue, interaction))) return
 
         if (!queue?.isPlaying()) {
-            await handleNotPlaying(interaction)
+            await replyNotPlaying(interaction)
             return
         }
 
