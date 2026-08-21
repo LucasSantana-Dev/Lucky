@@ -250,7 +250,7 @@ export async function executePlayHandler({
                     embeds: [
                         createErrorEmbed(
                             'Play Error',
-                            resolvePlayErrorMessage(error),
+                            resolvePlayErrorMessage(error, query),
                         ),
                     ],
                     ephemeral: true,
