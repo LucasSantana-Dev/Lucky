@@ -18,8 +18,16 @@ jest.mock('../../alerts', () => ({
     emitAlert: jest.fn(),
 }))
 
+import chalk from 'chalk'
 import { LogService } from './service'
 import { LogLevel } from './types'
+
+// cubic flagged that these assertions would break under colour. Rather than
+// disabling colour, force it ON: the whole point of the token is that it
+// survives chalk, so the tests must run in the hostile configuration.
+chalk.level = 3
+
+const stripAnsi = (s: string) => s.replace(/\u001b\[[0-9;]*m/g, '')
 
 // Mirrors the anchored expression promtail uses to extract the level
 // (homelab config/promtail/promtail-config.yaml). If this stops matching,
@@ -43,11 +51,11 @@ describe('log level token', () => {
     const firstLine = () => consoleSpy.mock.calls[0]?.[0] as string
 
     it.each([
-        ['error', LogLevel.ERROR, 'ERROR'],
-        ['warn', LogLevel.WARN, 'WARN'],
-        ['info', LogLevel.INFO, 'INFO'],
-        ['debug', LogLevel.DEBUG, 'DEBUG'],
-    ])('%s emits [%s] at index 0', (method, _level, token) => {
+        ['error', 'ERROR'],
+        ['warn', 'WARN'],
+        ['info', 'INFO'],
+        ['debug', 'DEBUG'],
+    ])('%s emits [%s] at index 0, even with colour on', (method, token) => {
         ;(service as unknown as Record<string, (p: unknown) => void>)[method]({
             message: 'hello',
         })
@@ -80,13 +88,32 @@ describe('log level token', () => {
         cfg.enableCorrelationId = false
 
         service.warn({ message: 'no prefixes', correlationId: 'req-1' })
-        expect(firstLine()).toBe('[WARN] no prefixes')
+        expect(stripAnsi(firstLine())).toBe('[WARN] no prefixes')
+        // The token itself must NOT be inside the colour wrapper.
+        expect(firstLine().startsWith('[WARN] ')).toBe(true)
     })
 
     it('keeps the token at index 0 when a correlationId is present', () => {
         service.warn({ message: 'with correlation', correlationId: 'req-abc' })
         expect(firstLine().startsWith('[WARN] ')).toBe(true)
         expect(firstLine()).toContain('req-abc')
+    })
+
+    it('keeps the token outside the colour wrapper', () => {
+        // chalk wraps whatever it is given. A token inside it makes the line
+        // start with an ANSI escape, so an anchored shipper regex never
+        // matches and the level label silently goes empty again.
+        service.error({ message: 'boom' })
+
+        expect(firstLine().startsWith('[ERROR] ')).toBe(true)
+        expect(firstLine()).toContain('\u001b[') // colour really is on
+    })
+
+    it('prefixes the data line with the same token', () => {
+        service.warn({ message: 'with data', data: { a: 1 } })
+
+        const dataLine = consoleSpy.mock.calls[1]?.[0] as string
+        expect(dataLine.startsWith('[WARN] ')).toBe(true)
     })
 
     it('does not let message content forge a level', () => {

@@ -59,7 +59,7 @@ export class LogService {
         return level <= this.config.level
     }
 
-    private formatMessage(params: LogParams, level: LogLevelType): string {
+    private formatMessage(params: LogParams): string {
         const { message, correlationId } = params
         let formattedMessage = message
 
@@ -76,11 +76,6 @@ export class LogService {
         // timestamp/correlationId flags are set to. A shipper can then anchor
         // on `^\[LEVEL\]` instead of scanning the line for a keyword, which
         // is what let message *content* forge a level (#2054).
-        // An out-of-range level is a programming error, not a severity: fall
-        // back to INFO rather than emitting `[undefined]`, so the token at
-        // index 0 is always one a shipper can parse.
-        const token = LEVEL_TOKEN[level] ?? 'INFO'
-        formattedMessage = `[${token}] ${formattedMessage}`
 
         return formattedMessage
     }
@@ -127,24 +122,33 @@ export class LogService {
               }
             : params
 
-        const formattedMessage = this.formatMessage(effectiveParams, level)
+        const formattedMessage = this.formatMessage(effectiveParams)
         const color = this.getColor(level)
+
+        // The token sits OUTSIDE the colour wrapper. chalk wraps whatever it
+        // is given in ANSI escapes, so a token inside it would make the line
+        // start with \x1b[33m rather than [WARN] and defeat an anchored
+        // shipper regex entirely. An out-of-range level is a programming
+        // error, not a severity, so it falls back to INFO rather than
+        // emitting `[undefined]`.
+        const token = `[${LEVEL_TOKEN[level] ?? 'INFO'}] `
+
         // Strip control characters (CR/LF/etc.) so user-provided values in the
         // message can't forge additional log lines (log injection).
 
         const coloredMessage = color(sanitizeForLogging(formattedMessage))
 
-        console.log(coloredMessage)
+        console.log(token + coloredMessage)
 
         if (effectiveParams.data) {
             const sanitizedData = sanitizeForLogging(
                 serializeData(effectiveParams.data),
             )
-            console.log(color(sanitizedData))
+            console.log(token + color(sanitizedData))
         }
 
         if (effectiveParams.error) {
-            console.error(color(serializeError(effectiveParams.error)))
+            console.error(token + color(serializeError(effectiveParams.error)))
         }
     }
 
