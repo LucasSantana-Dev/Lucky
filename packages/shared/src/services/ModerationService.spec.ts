@@ -453,6 +453,18 @@ describe('ModerationService', () => {
             })
         })
 
+        it('updateCaseReason updates only the reason, by id', async () => {
+            const m = setupCaseMock()
+            m.update.mockResolvedValue({})
+
+            await service.updateCaseReason('case-1', 'corrected reason')
+
+            expect(m.update).toHaveBeenCalledWith({
+                where: { id: 'case-1' },
+                data: { reason: 'corrected reason' },
+            })
+        })
+
         it('appealCase records the appeal with reason and timestamp', async () => {
             const m = setupCaseMock()
             m.update.mockResolvedValue({})
