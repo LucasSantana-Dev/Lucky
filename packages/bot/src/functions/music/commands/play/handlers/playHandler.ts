@@ -99,8 +99,20 @@ export async function executePlayHandler({
                     deferredMsg.id,
                     interaction.channelId,
                 )
-            } catch {
-                // Non-fatal — playerStart will send a new message instead
+            } catch (error) {
+                // Non-fatal: playerStart sends its own message if this fails.
+                // Logged because an empty catch made the double failure
+                // (this AND playerStart) indistinguishable from success —
+                // the user got no now-playing message and nothing was
+                // recorded anywhere (#1993).
+                warnLog({
+                    message: 'Failed to register now-playing message',
+                    data: {
+                        guildId: interaction.guildId,
+                        channelId: interaction.channelId,
+                        error: String(error),
+                    },
+                })
             }
         }
 
@@ -218,6 +230,12 @@ export async function executePlayHandler({
 
         // Fire-and-forget: each op is isolated inside runPostPlayBackgroundOps so a
         // single failure never silently skips the others (#1085).
+        //
+        // Not awaited: these are background ops by design and the user-facing
+        // reply has already been sent, so awaiting would hold the command open
+        // on work the user is not waiting for. The catch is what #1997 was
+        // actually missing — anything escaping the internal isolation used to
+        // vanish into an unhandled rejection.
         void runPostPlayBackgroundOps({
             queue,
             guildId: assertDefined(
@@ -227,6 +245,12 @@ export async function executePlayHandler({
             track,
             hadQueueBeforePlay,
             isPlaylist,
+        }).catch((error: unknown) => {
+            errorLog({
+                message: 'Post-play background ops failed',
+                error,
+                data: { guildId: interaction.guildId, track: track?.title },
+            })
         })
     } catch (error) {
         if (isUnknownInteractionError(error)) {
