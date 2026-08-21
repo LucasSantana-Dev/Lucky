@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { ScoredTrack } from './autoplay/candidateCollector'
 import type { AutoplayContext } from './autoplay/autoplayContext'
 
-const getBatchAudioFeaturesMock = jest.fn()
 const getArtistGenresMock = jest.fn()
 const getValidAccessTokenMock = jest.fn()
 const getTagTopTracksMock = jest.fn()
@@ -28,8 +27,6 @@ jest.mock('discord-player', () => ({
 }))
 
 jest.mock('../../spotify/spotifyApi', () => ({
-    getBatchAudioFeatures: (...args: unknown[]) =>
-        getBatchAudioFeaturesMock(...args),
     getArtistGenres: (...args: unknown[]) => getArtistGenresMock(...args),
 }))
 
@@ -152,111 +149,6 @@ describe('interleaveByArtist', () => {
         expect(result).toHaveLength(4)
         const authors = result.map((t) => t.track.author)
         expect(new Set(authors.slice(0, 2)).size).toBe(2)
-    })
-})
-
-describe('enrichWithAudioFeatures', () => {
-    beforeEach(() => {
-        jest.clearAllMocks()
-    })
-
-    it('returns tracks unchanged when conditions prevent enrichment', async () => {
-        const tracks = [createScoredTrack('Artist A')]
-
-        // null currentFeatures
-        let result = await enrichWithAudioFeatures(tracks, 'user1', null)
-        expect(result).toBe(tracks)
-
-        // empty userId
-        result = await enrichWithAudioFeatures(tracks, '', {
-            energy: 0.7,
-            valence: 0.5,
-        } as never)
-        expect(result).toBe(tracks)
-
-        // no spotify token
-        getValidAccessTokenMock.mockResolvedValue(null)
-        result = await enrichWithAudioFeatures(tracks, 'user1', {
-            energy: 0.7,
-            valence: 0.5,
-        } as never)
-        expect(result).toBe(tracks)
-    })
-
-    it('adjusts score based on energy and valence similarity', async () => {
-        const spotifyUrl = 'https://open.spotify.com/track/abc123def456'
-        const trackFeatures = new Map([
-            ['abc123def456', { energy: 0.72, valence: 0.55 }],
-        ])
-
-        // Close match: boost
-        getValidAccessTokenMock.mockResolvedValue('token123')
-        getBatchAudioFeaturesMock.mockResolvedValue(trackFeatures)
-        getArtistGenresMock.mockResolvedValue([])
-        let track = createScoredTrack('Artist A', 0.5, spotifyUrl)
-        let result = await enrichWithAudioFeatures([track], 'user1', {
-            energy: 0.7,
-            valence: 0.5,
-        } as never)
-        expect(result[0].score).toBeGreaterThan(0.5)
-
-        // Far apart: penalize
-        jest.clearAllMocks()
-        getValidAccessTokenMock.mockResolvedValue('token123')
-        getBatchAudioFeaturesMock.mockResolvedValue(trackFeatures)
-        getArtistGenresMock.mockResolvedValue([])
-        track = createScoredTrack('Artist A', 0.5, spotifyUrl)
-        result = await enrichWithAudioFeatures([track], 'user1', {
-            energy: 0.1,
-            valence: 0.1,
-        } as never)
-        expect(result[0].score).toBeLessThan(0.5)
-    })
-
-    it('applies genre family penalty when artists differ', async () => {
-        getValidAccessTokenMock.mockResolvedValue('token123')
-        const spotifyUrl = 'https://open.spotify.com/track/abc123def456'
-        const track = createScoredTrack('Hip Hop Artist', 0.5, spotifyUrl)
-        const trackFeatures = new Map([
-            ['abc123def456', { energy: 0.72, valence: 0.55 }],
-        ])
-        getBatchAudioFeaturesMock.mockResolvedValue(trackFeatures)
-        getArtistGenresMock
-            .mockResolvedValueOnce(['rock'])
-            .mockResolvedValueOnce(['hip hop'])
-        calculateGenreFamilyPenaltyMock.mockReturnValue(-0.6)
-
-        const result = await enrichWithAudioFeatures(
-            [track],
-            'user1',
-            { energy: 0.7, valence: 0.5 } as never,
-            'Rock Artist',
-        )
-        expect(result[0].score).toBeLessThan(0.5)
-        expect(result[0].basis.signals).toContain('genre family drift')
-    })
-
-    it('gracefully handles API errors during enrichment', async () => {
-        getValidAccessTokenMock.mockResolvedValue('token123')
-        const spotifyUrl = 'https://open.spotify.com/track/abc123def456'
-        const track = createScoredTrack('Artist A', 0.5, spotifyUrl)
-
-        // getBatchAudioFeatures error
-        getBatchAudioFeaturesMock.mockRejectedValue(new Error('API error'))
-        let result = await enrichWithAudioFeatures([track], 'user1', {
-            energy: 0.7,
-            valence: 0.5,
-        } as never)
-        expect(result[0].score).toBe(0.5)
-
-        // getValidAccessToken error
-        jest.clearAllMocks()
-        getValidAccessTokenMock.mockRejectedValue(new Error('auth failure'))
-        result = await enrichWithAudioFeatures([track], 'user1', {
-            energy: 0.7,
-            valence: 0.5,
-        } as never)
-        expect(result[0].score).toBe(0.5)
     })
 })
 

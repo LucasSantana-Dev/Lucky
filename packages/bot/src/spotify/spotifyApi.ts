@@ -10,12 +10,6 @@ export interface SpotifyRecommendationTrack {
     duration_ms: number
 }
 
-export type SpotifyAudioFeatureConstraints = {
-    energy?: number
-    valence?: number
-    danceability?: number
-}
-
 async function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => {
         setTimeout(resolve, ms)
@@ -126,14 +120,6 @@ async function withSpotifyRetry<T>(
     }
 }
 
-export interface SpotifyAudioFeatures {
-    energy: number
-    valence: number
-    danceability: number
-    tempo: number
-    acousticness: number
-}
-
 interface PopularityEntry {
     value: number | null
 }
@@ -157,117 +143,6 @@ const artistGenresCache = new LRUCache<string, GenresEntry>({
  */
 export function _resetPopularityCache(): void {
     artistPopularityCache.clear()
-}
-
-export async function getAudioFeatures(
-    accessToken: string,
-    spotifyTrackId: string,
-): Promise<SpotifyAudioFeatures | null> {
-    try {
-        const data = await withSpotifyRetry(async () => {
-            const res = await spotifyFetch(
-                `https://api.spotify.com/v1/audio-features/${spotifyTrackId}`,
-                {
-                    method: 'GET',
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                    },
-                },
-            )
-
-            throwIfRetryable(res)
-            if (!res.ok) {
-                return null
-            }
-
-            return (await res.json().catch(() => null)) as {
-                energy?: number
-                valence?: number
-                danceability?: number
-                tempo?: number
-                acousticness?: number
-            }
-        })
-
-        if (!data?.energy || typeof data.valence !== 'number') {
-            return null
-        }
-
-        return {
-            energy: data.energy,
-            valence: data.valence,
-            danceability: data.danceability ?? 0,
-            tempo: data.tempo ?? 0,
-            acousticness: data.acousticness ?? 0,
-        }
-    } catch (err) {
-        logAndSwallow(err, 'spotify.getAudioFeatures', { spotifyTrackId })
-        return null
-    }
-}
-
-export async function getBatchAudioFeatures(
-    accessToken: string,
-    spotifyIds: string[],
-): Promise<Map<string, SpotifyAudioFeatures>> {
-    if (spotifyIds.length === 0) return new Map()
-
-    try {
-        const result = await withSpotifyRetry(async () => {
-            const ids = spotifyIds.slice(0, 100).join(',')
-            const res = await spotifyFetch(
-                `https://api.spotify.com/v1/audio-features?ids=${ids}`,
-                {
-                    method: 'GET',
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                    },
-                },
-            )
-
-            throwIfRetryable(res)
-            if (!res.ok) return null
-
-            return (await res.json().catch(() => null)) as {
-                audio_features?: Array<{
-                    id?: string
-                    energy?: number
-                    valence?: number
-                    danceability?: number
-                    tempo?: number
-                    acousticness?: number
-                } | null>
-            }
-        })
-
-        const resultMap = new Map<string, SpotifyAudioFeatures>()
-        if (!result?.audio_features) return resultMap
-
-        for (const feature of result.audio_features) {
-            if (
-                !feature?.id ||
-                typeof feature.energy !== 'number' ||
-                typeof feature.valence !== 'number'
-            ) {
-                continue
-            }
-
-            resultMap.set(feature.id, {
-                energy: feature.energy,
-                valence: feature.valence,
-                danceability: feature.danceability ?? 0,
-                tempo: feature.tempo ?? 0,
-                acousticness: feature.acousticness ?? 0,
-            })
-        }
-
-        return resultMap
-    } catch (err) {
-        logAndSwallow(err, 'spotify.getBatchAudioFeatures', {
-            count: spotifyIds.length,
-        })
-        return new Map()
-    }
 }
 
 export async function getArtistPopularity(

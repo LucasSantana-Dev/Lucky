@@ -7,7 +7,6 @@ import {
 import { collectLastFmCandidates } from '../../services/musicRecommendation/autoplay/lastFmSeeder'
 import { replenishQueue } from '../../services/musicRecommendation/autoplay/replenisher'
 import { calculateRecommendationScore } from '../../services/musicRecommendation/autoplay/candidateScorer'
-import { getTrackAudioFeatures } from '../../services/musicRecommendation/autoplay/audioFeatures'
 
 export { collectLastFmCandidates }
 export { replenishQueue }
@@ -18,7 +17,6 @@ export {
     type ScoredTrack,
 }
 export { calculateRecommendationScore }
-export { getTrackAudioFeatures }
 
 export * from '../../utils/music/trackNormalization'
 export * from './queueEditOps'
