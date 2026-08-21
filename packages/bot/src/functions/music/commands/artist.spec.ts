@@ -66,6 +66,7 @@ jest.mock('@lucky/shared/services', () => ({
 import artistCommand from './artist'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
+import { warnLog } from '@lucky/shared/utils'
 
 const createTrack = (title: string, author: string) => ({
     title,
@@ -179,5 +180,29 @@ describe('artist command search fallback', () => {
             searchEngine: 'SOUNDCLOUD_SEARCH',
         })
         expect(play).toHaveBeenCalled()
+    })
+
+    it('logs a rejecting arm as thrown, not as an empty result', async () => {
+        const search = jest
+            .fn()
+            .mockRejectedValueOnce(new Error('spotify token dead'))
+            .mockResolvedValueOnce({
+                tracks: [createTrack('Somebody To Love', 'Queen')],
+            })
+
+        await artistCommand.execute({
+            client: { player: { search, play: jest.fn(async () => ({})) } },
+            interaction: createInteraction(),
+        } as never)
+
+        const logged = (warnLog as jest.Mock).mock.calls.map(
+            ([params]) =>
+                params as { message: string; data: { engine: string } },
+        )
+        const spotifyLogs = logged.filter(
+            (l) => l.data.engine === 'SPOTIFY_SEARCH',
+        )
+        expect(spotifyLogs).toHaveLength(1)
+        expect(spotifyLogs[0].message).toBe('Artist search arm threw')
     })
 })

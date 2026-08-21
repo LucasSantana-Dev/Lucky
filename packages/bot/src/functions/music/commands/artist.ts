@@ -124,31 +124,33 @@ export default new Command({
         }
 
         try {
-            let searchResult: Awaited<
+            type ArtistSearchResult = Awaited<
                 ReturnType<typeof client.player.search>
-            > | null = null
+            >
+            let searchResult: ArtistSearchResult | null = null
             let resolvedEngine: QueryType = QueryType.SPOTIFY_SEARCH
 
             for (const arm of SEARCH_ARMS) {
-                const armResult = await client.player
-                    .search(artistName, {
+                let armResult: ArtistSearchResult | null = null
+                try {
+                    armResult = await client.player.search(artistName, {
                         requestedBy: interaction.user,
                         searchEngine: arm.engine,
                         ...(arm.blocked
                             ? { blockExtractors: [...arm.blocked] }
                             : {}),
                     })
-                    .catch((error: unknown) => {
-                        warnLog({
-                            message: 'Artist search arm threw',
-                            data: {
-                                artistName,
-                                engine: String(arm.engine),
-                                error: String(error),
-                            },
-                        })
-                        return null
+                } catch (error) {
+                    warnLog({
+                        message: 'Artist search arm threw',
+                        data: {
+                            artistName,
+                            engine: String(arm.engine),
+                            error: String(error),
+                        },
                     })
+                    continue
+                }
 
                 if (armResult?.tracks.length) {
                     searchResult = armResult
