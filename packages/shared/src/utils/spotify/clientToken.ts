@@ -1,6 +1,7 @@
 import { errorLog } from '../general/log'
 
 let cachedClientToken: { token: string; expiresAt: number } | null = null
+let inFlightRequest: Promise<string | null> | null = null
 
 /**
  * Client-credentials access token for Spotify's Web API, cached until 30s
@@ -15,6 +16,16 @@ export async function getSpotifyClientToken(): Promise<string | null> {
     if (cachedClientToken && Date.now() < cachedClientToken.expiresAt) {
         return cachedClientToken.token
     }
+    // At startup and at expiry every concurrent caller misses the cache
+    // before any of them stores a token, so without this they each open
+    // their own token exchange. Share the in-flight request instead.
+    inFlightRequest ??= requestClientToken().finally(() => {
+        inFlightRequest = null
+    })
+    return inFlightRequest
+}
+
+async function requestClientToken(): Promise<string | null> {
     const clientId = process.env.SPOTIFY_CLIENT_ID
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
     if (!clientId || !clientSecret) return null
@@ -53,4 +64,5 @@ export async function getSpotifyClientToken(): Promise<string | null> {
 /** Test seam: drop the cached token so a fresh request is made. */
 export function resetSpotifyClientTokenCache(): void {
     cachedClientToken = null
+    inFlightRequest = null
 }
