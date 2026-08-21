@@ -178,7 +178,7 @@ describe('playerFactory', () => {
             )
         })
 
-        it('logs warn when SpotifyExtractor registration fails', async () => {
+        it('logs error when SpotifyExtractor registration fails', async () => {
             jest.resetModules()
             jest.doMock('@lucky/shared/utils', () => ({
                 errorLog: jest.fn(),
@@ -187,9 +187,7 @@ describe('playerFactory', () => {
                 debugLog: jest.fn(),
             }))
 
-            const { SpotifyExtractor } = await import(
-                'discord-player-spotify'
-            )
+            const { SpotifyExtractor } = await import('discord-player-spotify')
             jest.doMock('discord-player', () => {
                 const register = jest.fn().mockImplementation((ext) => {
                     if (ext === SpotifyExtractor) {
@@ -202,20 +200,25 @@ describe('playerFactory', () => {
                 ) {
                     this.extractors = { register }
                     this.setMaxListeners = jest.fn()
-                    this.events = { on: jest.fn(), removeAllListeners: jest.fn() }
+                    this.events = {
+                        on: jest.fn(),
+                        removeAllListeners: jest.fn(),
+                    }
                 })
                 return { Player: MockPlayer }
             })
 
             const { createPlayer } =
                 await import('../../../src/handlers/player/playerFactory')
-            const { warnLog } = await import('@lucky/shared/utils')
+            const { errorLog } = await import('@lucky/shared/utils')
 
             createPlayer({ client: { user: { id: '123' } } as any })
             await new Promise((resolve) => setTimeout(resolve, 200))
 
+            // errorLog, not warnLog: warn never reaches Sentry, so a failed
+            // Spotify registration was invisible everywhere (#2051).
             expect(
-                (warnLog as jest.Mock).mock.calls.some((call) =>
+                (errorLog as jest.Mock).mock.calls.some((call) =>
                     (call[0]?.message as string)?.includes(
                         'SpotifyExtractor failed to register',
                     ),
@@ -232,9 +235,8 @@ describe('playerFactory', () => {
                 debugLog: jest.fn(),
             }))
 
-            const { SoundCloudExtractor } = await import(
-                '@discord-player/extractor'
-            )
+            const { SoundCloudExtractor } =
+                await import('@discord-player/extractor')
             jest.doMock('discord-player', () => {
                 const register = jest.fn().mockImplementation((ext) => {
                     if (ext === SoundCloudExtractor) {
@@ -247,7 +249,10 @@ describe('playerFactory', () => {
                 ) {
                     this.extractors = { register }
                     this.setMaxListeners = jest.fn()
-                    this.events = { on: jest.fn(), removeAllListeners: jest.fn() }
+                    this.events = {
+                        on: jest.fn(),
+                        removeAllListeners: jest.fn(),
+                    }
                 })
                 return { Player: MockPlayer }
             })
@@ -268,7 +273,7 @@ describe('playerFactory', () => {
             ).toBe(true)
         })
 
-        it('logs warn when SpotifyExtractor registration returns null', async () => {
+        it('logs error when SpotifyExtractor registration returns null', async () => {
             jest.resetModules()
             jest.doMock('@lucky/shared/utils', () => ({
                 errorLog: jest.fn(),
@@ -277,9 +282,7 @@ describe('playerFactory', () => {
                 debugLog: jest.fn(),
             }))
 
-            const { SpotifyExtractor } = await import(
-                'discord-player-spotify'
-            )
+            const { SpotifyExtractor } = await import('discord-player-spotify')
             jest.doMock('discord-player', () => {
                 const register = jest.fn().mockImplementation((ext) => {
                     if (ext === SpotifyExtractor) return Promise.resolve(null)
@@ -290,20 +293,23 @@ describe('playerFactory', () => {
                 ) {
                     this.extractors = { register }
                     this.setMaxListeners = jest.fn()
-                    this.events = { on: jest.fn(), removeAllListeners: jest.fn() }
+                    this.events = {
+                        on: jest.fn(),
+                        removeAllListeners: jest.fn(),
+                    }
                 })
                 return { Player: MockPlayer }
             })
 
             const { createPlayer } =
                 await import('../../../src/handlers/player/playerFactory')
-            const { warnLog } = await import('@lucky/shared/utils')
+            const { errorLog } = await import('@lucky/shared/utils')
 
             createPlayer({ client: { user: { id: '123' } } as any })
             await new Promise((resolve) => setTimeout(resolve, 200))
 
             expect(
-                (warnLog as jest.Mock).mock.calls.some((call) =>
+                (errorLog as jest.Mock).mock.calls.some((call) =>
                     (call[0]?.message as string)?.includes(
                         'SpotifyExtractor registration returned null',
                     ),
@@ -320,12 +326,12 @@ describe('playerFactory', () => {
                 debugLog: jest.fn(),
             }))
 
-            const { SoundCloudExtractor } = await import(
-                '@discord-player/extractor'
-            )
+            const { SoundCloudExtractor } =
+                await import('@discord-player/extractor')
             jest.doMock('discord-player', () => {
                 const register = jest.fn().mockImplementation((ext) => {
-                    if (ext === SoundCloudExtractor) return Promise.resolve(null)
+                    if (ext === SoundCloudExtractor)
+                        return Promise.resolve(null)
                     return Promise.resolve(true)
                 })
                 const MockPlayer = jest.fn().mockImplementation(function (
@@ -333,7 +339,10 @@ describe('playerFactory', () => {
                 ) {
                     this.extractors = { register }
                     this.setMaxListeners = jest.fn()
-                    this.events = { on: jest.fn(), removeAllListeners: jest.fn() }
+                    this.events = {
+                        on: jest.fn(),
+                        removeAllListeners: jest.fn(),
+                    }
                 })
                 return { Player: MockPlayer }
             })
