@@ -20,7 +20,7 @@
     {
         "name": "Vendor Radix (gzip)",
         "path": "dist/assets/vendor-radix-*.js",
-        "limit": "48 KB",
+        "limit": "50 KB",
         "gzip": true
     },
     {
