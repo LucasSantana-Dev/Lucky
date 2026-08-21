@@ -15,6 +15,7 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
+    requireDJRoleInGuild: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({

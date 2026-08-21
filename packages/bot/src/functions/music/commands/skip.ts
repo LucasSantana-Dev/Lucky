@@ -1,6 +1,5 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { debugLog, errorLog } from '@lucky/shared/utils'
-import { assertDefined } from '@lucky/shared/utils/guards'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import {
@@ -10,7 +9,7 @@ import {
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
 import {
     requireGuild,
-    requireDJRole,
+    requireDJRoleInGuild,
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
@@ -117,16 +116,7 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        if (
-            !(await requireDJRole(
-                interaction,
-                assertDefined(
-                    interaction.guildId,
-                    'guildId guaranteed by requireGuild guard',
-                ),
-            ))
-        )
-            return
+        if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 

@@ -1,12 +1,11 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import {
     requireVoiceChannel,
-    requireDJRole,
+    requireDJRoleInGuild,
 } from '../../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../../types/CommandData'
 import Command from '../../../../models/Command'
 import { executePlayHandler } from './handlers/playHandler'
-import { assertDefined } from '@lucky/shared/utils/guards'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -36,12 +35,10 @@ export default new Command({
     category: 'music',
     execute: async (params: CommandExecuteParams): Promise<void> => {
         if (!params.interaction.guildId) {
-            const { interactionReply } = await import(
-                '../../../../utils/general/interactionReply'
-            )
-            const { createErrorEmbed } = await import(
-                '../../../../utils/general/embeds'
-            )
+            const { interactionReply } =
+                await import('../../../../utils/general/interactionReply')
+            const { createErrorEmbed } =
+                await import('../../../../utils/general/embeds')
             await interactionReply({
                 interaction: params.interaction,
                 content: {
@@ -58,12 +55,7 @@ export default new Command({
         }
 
         if (!(await requireVoiceChannel(params.interaction))) return
-        if (
-            !(await requireDJRole(
-                params.interaction,
-                assertDefined(params.interaction.guildId, 'guildId guaranteed by preceding guard'),
-            ))
-        )
+        if (!(await requireDJRoleInGuild(params.interaction, 'preceding')))
             return
 
         await executePlayHandler(params)

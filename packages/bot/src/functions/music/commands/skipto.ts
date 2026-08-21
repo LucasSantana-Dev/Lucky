@@ -6,9 +6,8 @@ import {
     requireGuild,
     requireQueue,
     requireVoiceChannel,
-    requireDJRole,
+    requireDJRoleInGuild,
 } from '../../../utils/command/commandValidations'
-import { assertDefined } from '@lucky/shared/utils/guards'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import {
     createSuccessEmbed,
@@ -31,16 +30,7 @@ export default new Command({
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
         if (!(await requireVoiceChannel(interaction))) return
-        if (
-            !(await requireDJRole(
-                interaction,
-                assertDefined(
-                    interaction.guildId,
-                    'guildId guaranteed by requireGuild guard',
-                ),
-            ))
-        )
-            return
+        if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 

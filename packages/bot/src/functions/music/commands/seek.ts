@@ -7,11 +7,10 @@ import {
     requireCurrentTrack,
     requireIsPlaying,
     requireVoiceChannel,
-    requireDJRole,
+    requireDJRoleInGuild,
 } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { createErrorEmbed } from '../../../utils/general/embeds'
-import { assertDefined } from '@lucky/shared/utils/guards'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
 
 function parseTimeToMs(timeStr: string): number | null {
@@ -57,15 +56,7 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireVoiceChannel(interaction))) return
-        if (
-            !(await requireDJRole(
-                interaction,
-                assertDefined(
-                    interaction.guildId,
-                    'Guild ID required after requireVoiceChannel check',
-                ),
-            ))
-        )
+        if (!(await requireDJRoleInGuild(interaction, 'requireVoiceChannel')))
             return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
