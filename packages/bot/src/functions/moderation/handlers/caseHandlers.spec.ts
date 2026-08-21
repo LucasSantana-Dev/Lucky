@@ -7,7 +7,7 @@ import {
 
 const getCaseMock = jest.fn()
 const deactivateCaseMock = jest.fn()
-const prismaUpdateMock = jest.fn()
+const updateCaseReasonMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const infoLogMock = jest.fn()
 
@@ -15,15 +15,11 @@ jest.mock('@lucky/shared/services', () => ({
     moderationService: {
         getCase: (...args: unknown[]) => getCaseMock(...args),
         deactivateCase: (...args: unknown[]) => deactivateCaseMock(...args),
+        updateCaseReason: (...args: unknown[]) => updateCaseReasonMock(...args),
     },
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
-    getPrismaClient: () => ({
-        moderationCase: {
-            update: (...args: unknown[]) => prismaUpdateMock(...args),
-        },
-    }),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
 }))
 
@@ -109,7 +105,7 @@ describe('caseHandlers', () => {
         jest.clearAllMocks()
         getCaseMock.mockResolvedValue(null)
         deactivateCaseMock.mockResolvedValue(undefined)
-        prismaUpdateMock.mockResolvedValue({})
+        updateCaseReasonMock.mockResolvedValue({})
     })
 
     describe('handleCaseView', () => {
@@ -307,7 +303,7 @@ describe('caseHandlers', () => {
                 interaction,
                 content: { content: '❌ Case #999 not found.' },
             })
-            expect(prismaUpdateMock).not.toHaveBeenCalled()
+            expect(updateCaseReasonMock).not.toHaveBeenCalled()
         })
 
         test('updates case reason successfully', async () => {
@@ -321,10 +317,12 @@ describe('caseHandlers', () => {
 
             await handleCaseUpdate(interaction, 42)
 
-            expect(prismaUpdateMock).toHaveBeenCalledWith({
-                where: { id: 'case-123' },
-                data: { reason: 'Updated reason' },
-            })
+            // Asserts the service call, not a direct prisma write: routing
+            // through the service layer is the point of #1972.
+            expect(updateCaseReasonMock).toHaveBeenCalledWith(
+                'case-123',
+                'Updated reason',
+            )
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
                 content: {

@@ -4,12 +4,10 @@ import {
     PermissionFlagsBits,
 } from 'discord.js'
 import { moderationService } from '@lucky/shared/services'
-import { getPrismaClient, infoLog } from '@lucky/shared/utils'
+import { infoLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 import { formatDurationHuman } from '../../../utils/general/formatDuration'
-
-const prisma = getPrismaClient()
 
 const typeColors: Record<string, number> = {
     warn: 0xffa500,
@@ -114,10 +112,7 @@ export async function handleCaseUpdate(
         return
     }
 
-    await prisma.moderationCase.update({
-        where: { id: moderationCase.id },
-        data: { reason: newReason },
-    })
+    await moderationService.updateCaseReason(moderationCase.id, newReason)
 
     const embed = new EmbedBuilder()
         .setColor(0x5865f2)
@@ -142,7 +137,10 @@ export async function handleCaseDelete(
     interaction: ChatInputCommandInteraction,
     caseNumber: number,
 ): Promise<void> {
-    const member = await assertDefined(interaction.guild, 'Guild required for handler').members.fetch(interaction.user.id)
+    const member = await assertDefined(
+        interaction.guild,
+        'Guild required for handler',
+    ).members.fetch(interaction.user.id)
     if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
         await interactionReply({
             interaction,

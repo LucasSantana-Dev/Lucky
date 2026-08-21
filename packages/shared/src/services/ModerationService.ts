@@ -209,6 +209,18 @@ export class ModerationService {
         })
     }
 
+    /** Updates the stated reason on an existing moderation case. */
+    async updateCaseReason(
+        caseId: string,
+        reason: string,
+    ): Promise<ModerationCase> {
+        const prisma = getPrismaClient()
+        return await prisma.moderationCase.update({
+            where: { id: caseId },
+            data: { reason },
+        })
+    }
+
     /** Submits an appeal for a moderation case. */
     async appealCase(input: AppealCaseInput): Promise<ModerationCase> {
         const prisma = getPrismaClient()
