@@ -131,63 +131,6 @@ describe('Spotify API 429 Retry Logic', () => {
         })
     })
 
-    describe('getSpotifyRecommendations with 429 retry', () => {
-        it('should retry on 429 and return recommendations on second attempt', async () => {
-            let attemptCount = 0
-
-            fetchMock.mockImplementation(async () => {
-                attemptCount++
-                if (attemptCount === 1) {
-                    const error = new Response(null, { status: 429 })
-                    throw error
-                }
-                return new Response(
-                    JSON.stringify({
-                        tracks: [
-                            {
-                                id: 'rec1',
-                                name: 'Recommended Song',
-                                artists: [{ name: 'Artist' }],
-                                duration_ms: 180000,
-                            },
-                        ],
-                    }),
-                    { status: 200 },
-                )
-            })
-
-            const result = await spotifyApi.getSpotifyRecommendations(
-                'test-token',
-                ['seed1'],
-            )
-
-            expect(attemptCount).toBe(2)
-            expect(result).toHaveLength(1)
-            expect(result[0].name).toBe('Recommended Song')
-            expect(debugLog).toHaveBeenCalled()
-        })
-
-        it('should swallow error and return empty array after exhausting retries on multiple 429 responses', async () => {
-            let attemptCount = 0
-
-            fetchMock.mockImplementation(async () => {
-                attemptCount++
-                const error = new Response(null, { status: 429 })
-                throw error
-            })
-
-            const result = await spotifyApi.getSpotifyRecommendations(
-                'test-token',
-                ['seed1'],
-            )
-
-            expect(attemptCount).toBe(3) // initial + 2 retries
-            expect(warnLog).toHaveBeenCalled()
-            expect(logAndSwallow).toHaveBeenCalled()
-            expect(result).toEqual([])
-        })
-    })
-
     describe('getBatchAudioFeatures with 429 retry', () => {
         it('should retry on 429 and return features on second attempt', async () => {
             let attemptCount = 0

@@ -25,12 +25,9 @@ jest.mock('@lucky/shared/services', () => ({
     lastFmLinkService: jest.fn(),
 }))
 
-const collectSpotifyRecommendationCandidatesMock = jest.fn()
 const searchSeedCandidatesMock = jest.fn()
 
 jest.mock('./spotifyRecommender', () => ({
-    collectSpotifyRecommendationCandidates: (...args: unknown[]) =>
-        collectSpotifyRecommendationCandidatesMock(...args),
     searchSeedCandidates: (...args: unknown[]) =>
         searchSeedCandidatesMock(...args),
 }))
@@ -258,39 +255,7 @@ describe('candidateCollector', () => {
             )
         })
 
-        it('should collect candidates from Spotify API', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
-                undefined,
-            )
-            const seedResult = createTrack({
-                title: 'Spotify Result',
-                author: 'Spotify Artist',
-            })
-            searchSeedCandidatesMock.mockResolvedValue([seedResult])
-
-            const queue = createGuildQueue()
-            const seedTracks = [createTrack()]
-
-            const ctx = createAutoplayContext({
-                queue,
-                currentTrack: createTrack(),
-            })
-            const result = await collectRecommendationCandidates(
-                ctx,
-                seedTracks,
-                null,
-            )
-
-            expect(result.size).toBe(1)
-            expect(
-                collectSpotifyRecommendationCandidatesMock,
-            ).toHaveBeenCalled()
-        })
-
         it('should collect seed-based search candidates', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
-                undefined,
-            )
             const seedResult = createTrack({
                 title: 'Seed Result',
                 author: 'Seed Artist',
@@ -315,9 +280,6 @@ describe('candidateCollector', () => {
         })
 
         it('should exclude disliked candidates', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
-                undefined,
-            )
             const dislikedTrack = createTrack({
                 title: 'Bad Track',
                 author: 'Bad Artist',
@@ -351,9 +313,6 @@ describe('candidateCollector', () => {
         })
 
         it('should exclude duplicate candidates', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
-                undefined,
-            )
             const duplicateTrack = createTrack({
                 title: 'Duplicate',
                 author: 'Duplicate Artist',
@@ -378,9 +337,6 @@ describe('candidateCollector', () => {
         })
 
         it('should skip candidates with -Infinity score', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
-                undefined,
-            )
             const track = createTrack({
                 title: 'Low Score',
                 author: 'Low Score Artist',
@@ -411,9 +367,6 @@ describe('candidateCollector', () => {
         })
 
         it('should merge candidates from multiple seed tracks', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
-                undefined,
-            )
             const track1 = createTrack({
                 title: 'Track 1',
                 author: 'Artist 1',
@@ -447,9 +400,6 @@ describe('candidateCollector', () => {
         })
 
         it('should log completion with candidate count', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
-                undefined,
-            )
             searchSeedCandidatesMock.mockResolvedValue([
                 createTrack({
                     title: 'Logged Track',
@@ -474,9 +424,6 @@ describe('candidateCollector', () => {
         })
 
         it('blocks sertanejo candidates when blockSertanejo=true and tags match', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
-                undefined,
-            )
             const serTanejoTrack = createTrack({
                 title: 'Saudade do Nordeste',
                 author: 'Jorge e Mateus',
@@ -501,9 +448,6 @@ describe('candidateCollector', () => {
         })
 
         it('allows sertanejo candidates when blockSertanejo=false', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
-                undefined,
-            )
             const serTanejoTrack = createTrack({
                 title: 'Saudade do Nordeste',
                 author: 'Jorge e Mateus',
@@ -528,9 +472,6 @@ describe('candidateCollector', () => {
         })
 
         it('does not block sertanejo when tags are empty (fail-open when Last.fm unavailable)', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
-                undefined,
-            )
             const serTanejoTrack = createTrack({
                 title: 'Saudade do Nordeste',
                 author: 'Jorge e Mateus',
@@ -555,9 +496,6 @@ describe('candidateCollector', () => {
         })
 
         it('falls back to empty tags when getArtistTags rejects', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
-                undefined,
-            )
             const track = createTrack({
                 title: 'Some Song',
                 author: 'Some Artist',
