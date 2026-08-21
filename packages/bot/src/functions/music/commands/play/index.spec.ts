@@ -96,6 +96,7 @@ jest.mock('../../../../utils/command/commandValidations', () => ({
     requireVoiceChannel: (interaction: unknown) =>
         requireVoiceChannelMock(interaction),
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
+    requireDJRoleInGuild: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
