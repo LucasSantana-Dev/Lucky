@@ -15,15 +15,32 @@ import {
     createWarningEmbed,
 } from '../../../utils/general/embeds'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, warnLog } from '@lucky/shared/utils'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
+import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from './play/handlers/resolveProvider'
 
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 20
+
+// Spotify first (richest artist metadata), then the same text-search fallback
+// arms #play uses. SpotifyAPI.search() swallows every error and returns null,
+// so a dead credential or a rotated anon-token flow surfaced here as
+// "No tracks found for artist X" for *every* artist, with no telemetry (#2049).
+const SEARCH_ARMS = [
+    { engine: QueryType.SPOTIFY_SEARCH, blocked: undefined },
+    {
+        engine: QueryType.YOUTUBE_SEARCH,
+        blocked: TEXT_SEARCH_BLOCKED_EXTRACTORS,
+    },
+    {
+        engine: QueryType.SOUNDCLOUD_SEARCH,
+        blocked: TEXT_SEARCH_BLOCKED_EXTRACTORS,
+    },
+] as const
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -107,10 +124,43 @@ export default new Command({
         }
 
         try {
-            const searchResult = await client.player.search(artistName, {
-                requestedBy: interaction.user,
-                searchEngine: QueryType.SPOTIFY_SEARCH,
-            })
+            let searchResult: Awaited<
+                ReturnType<typeof client.player.search>
+            > | null = null
+            let resolvedEngine: QueryType = QueryType.SPOTIFY_SEARCH
+
+            for (const arm of SEARCH_ARMS) {
+                const armResult = await client.player
+                    .search(artistName, {
+                        requestedBy: interaction.user,
+                        searchEngine: arm.engine,
+                        ...(arm.blocked
+                            ? { blockExtractors: [...arm.blocked] }
+                            : {}),
+                    })
+                    .catch((error: unknown) => {
+                        warnLog({
+                            message: 'Artist search arm threw',
+                            data: {
+                                artistName,
+                                engine: String(arm.engine),
+                                error: String(error),
+                            },
+                        })
+                        return null
+                    })
+
+                if (armResult?.tracks.length) {
+                    searchResult = armResult
+                    resolvedEngine = arm.engine
+                    break
+                }
+
+                warnLog({
+                    message: 'Artist search arm returned no tracks',
+                    data: { artistName, engine: String(arm.engine) },
+                })
+            }
 
             if (!searchResult?.tracks.length) {
                 await interactionReply({
@@ -180,7 +230,10 @@ export default new Command({
                         leaveOnEndCooldown: 300_000,
                     },
                     requestedBy: interaction.user,
-                    searchEngine: QueryType.SPOTIFY_SONG,
+                    searchEngine:
+                        resolvedEngine === QueryType.SPOTIFY_SEARCH
+                            ? QueryType.SPOTIFY_SONG
+                            : QueryType.AUTO,
                 },
             )
 
