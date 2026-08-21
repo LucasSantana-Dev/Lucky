@@ -135,6 +135,29 @@ describe('expandSoundCloudShortUrl', () => {
     beforeEach(() => {
         fetchMock.mockReset()
         debugLogMock.mockReset()
+        warnLogMock.mockReset()
+    })
+
+    it('logs an expansion failure at warn, not debug', async () => {
+        // debug is filtered out in production, so this failure used to leave
+        // no trace: the user saw a generic "No results found" from the
+        // resolver with nothing indicating expansion was the failing step
+        // (#1994).
+        fetchMock.mockRejectedValueOnce(new Error('network down'))
+
+        const shortUrl = 'https://on.soundcloud.com/abc123'
+        const result = await expandSoundCloudShortUrl(shortUrl)
+
+        expect(result).toBe(shortUrl)
+        expect(debugLogMock).not.toHaveBeenCalled()
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining(
+                    'SoundCloud short URL expansion failed',
+                ),
+                data: expect.objectContaining({ originalUrl: shortUrl }),
+            }),
+        )
     })
 
     it('expands on.soundcloud.com short links to full soundcloud.com URLs', async () => {
@@ -172,7 +195,7 @@ describe('expandSoundCloudShortUrl', () => {
         const result = await expandSoundCloudShortUrl(shortUrl)
 
         expect(result).toBe(shortUrl)
-        expect(debugLogMock).toHaveBeenCalledWith(
+        expect(warnLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message:
                     'SoundCloud short URL expansion failed, using original URL',
@@ -200,7 +223,7 @@ describe('expandSoundCloudShortUrl', () => {
         const result = await expandSoundCloudShortUrl(shortUrl)
 
         expect(result).toBe(shortUrl)
-        expect(debugLogMock).toHaveBeenCalledWith(
+        expect(warnLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message:
                     'SoundCloud short URL expansion failed, using original URL',
