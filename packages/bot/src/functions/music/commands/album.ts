@@ -15,7 +15,7 @@ import {
     createWarningEmbed,
 } from '../../../utils/general/embeds'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, warnLog, searchSpotifyAlbums } from '@lucky/shared/utils'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
@@ -111,16 +111,43 @@ export default new Command({
         }
 
         try {
-            const isUrl = isSpotifyAlbumUrl(query)
-            const searchEngine = isUrl
-                ? QueryType.AUTO
-                : QueryType.SPOTIFY_SEARCH
-            const searchQuery =
-                !isUrl && artistFilter ? `${query} ${artistFilter}` : query
+            // A free-text query cannot reach an extractor's album branch: every
+            // search QueryType hits a *track* search and responds with
+            // `createResponse(null, tracks)`, so `searchResult.playlist` was
+            // always null and every text query failed (#2050). Resolve the
+            // query to an album URL first, then run the URL path that works.
+            let albumUrl = isSpotifyAlbumUrl(query) ? query : null
 
-            const searchResult = await client.player.search(searchQuery, {
+            if (!albumUrl) {
+                const albumQuery = artistFilter
+                    ? `${query} ${artistFilter}`
+                    : query
+                const [match] = await searchSpotifyAlbums(albumQuery, 1)
+                if (!match) {
+                    warnLog({
+                        message:
+                            'Album query did not resolve to a Spotify album',
+                        data: { query, artistFilter },
+                    })
+                    await interactionReply({
+                        interaction,
+                        content: {
+                            embeds: [
+                                createErrorEmbed(
+                                    'No album found',
+                                    `No album matched **${query}**${artistFilter ? ` by **${artistFilter}**` : ''}. Try the full album title, or paste a Spotify album URL.`,
+                                ),
+                            ],
+                        },
+                    })
+                    return
+                }
+                albumUrl = match.url
+            }
+
+            const searchResult = await client.player.search(albumUrl, {
                 requestedBy: interaction.user,
-                searchEngine,
+                searchEngine: QueryType.AUTO,
             })
 
             if (!searchResult?.tracks.length) {
@@ -139,13 +166,17 @@ export default new Command({
             }
 
             if (!searchResult.playlist) {
+                warnLog({
+                    message: 'Resolved album URL returned no playlist',
+                    data: { query, albumUrl },
+                })
                 await interactionReply({
                     interaction,
                     content: {
                         embeds: [
                             createErrorEmbed(
                                 'No album found',
-                                'Please provide a Spotify album URL or a more specific album search.',
+                                'Spotify returned tracks but no album listing. Try again, or paste a Spotify album URL.',
                             ),
                         ],
                     },
