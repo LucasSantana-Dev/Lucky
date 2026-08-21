@@ -126,6 +126,32 @@ describe('artist command search fallback', () => {
         const reply = (interactionReply as jest.Mock).mock.calls.at(-1)?.[0]
         expect(reply.content.embeds[0].title).toBe('🎤 Queen')
         expect(reply.content.embeds[0].description).toContain('**3**')
+
+        // The diagnostics are the point of this change: without them a
+        // recurrence is invisible in Loki again.
+        expect(warnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Artist search arm returned no tracks',
+                data: expect.objectContaining({ engine: 'SPOTIFY_SEARCH' }),
+            }),
+        )
+    })
+
+    it('plays a Spotify-resolved track with SPOTIFY_SONG', async () => {
+        const search = jest.fn(async () => ({
+            tracks: [createTrack('Bohemian Rhapsody', 'Queen')],
+        }))
+        const play = jest.fn(async () => ({ track: null }))
+
+        await artistCommand.execute({
+            client: { player: { search, play } },
+            interaction: createInteraction(),
+        } as never)
+
+        expect(search).toHaveBeenCalledTimes(1)
+        expect(play.mock.calls[0][2]).toMatchObject({
+            searchEngine: 'SPOTIFY_SONG',
+        })
     })
 
     it('plays a non-Spotify fallback track with AUTO rather than SPOTIFY_SONG', async () => {
