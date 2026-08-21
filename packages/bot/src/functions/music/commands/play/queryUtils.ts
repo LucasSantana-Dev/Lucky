@@ -59,39 +59,30 @@ export async function expandSoundCloudShortUrl(url: string): Promise<string> {
         // Follow redirects with a 5-second timeout, using HEAD first (no body download)
         const expanded = await withTimeout(
             (async () => {
-                try {
-                    const response = await (global.fetch as typeof fetch)(url, {
-                        method: 'HEAD',
-                        redirect: 'follow',
-                    })
-                    const finalUrl = response.url
+                const response = await (global.fetch as typeof fetch)(url, {
+                    method: 'HEAD',
+                    redirect: 'follow',
+                })
+                const finalUrl = response.url
 
-                    // Security check: ensure resolved URL is a soundcloud domain
-                    const finalParsed = new URL(finalUrl)
-                    if (
-                        finalParsed.hostname !== 'soundcloud.com' &&
-                        !finalParsed.hostname?.endsWith('.soundcloud.com')
-                    ) {
-                        // Redirect went somewhere unexpected — reject and fall back
-                        throw new Error(
-                            `Redirect destination is not a soundcloud.com domain: ${finalUrl}`,
-                        )
-                    }
-
-                    debugLog({
-                        message: 'SoundCloud short URL expanded',
-                        data: { originalUrl: url, expandedUrl: finalUrl },
-                    })
-
-                    return finalUrl
-                } catch (innerError) {
-                    debugLog({
-                        message:
-                            'Failed to expand SoundCloud short URL in fetch block',
-                        data: { url, error: String(innerError) },
-                    })
-                    throw innerError
+                // Security check: ensure resolved URL is a soundcloud domain
+                const finalParsed = new URL(finalUrl)
+                if (
+                    finalParsed.hostname !== 'soundcloud.com' &&
+                    !finalParsed.hostname?.endsWith('.soundcloud.com')
+                ) {
+                    // Redirect went somewhere unexpected — reject and fall back
+                    throw new Error(
+                        `Redirect destination is not a soundcloud.com domain: ${finalUrl}`,
+                    )
                 }
+
+                debugLog({
+                    message: 'SoundCloud short URL expanded',
+                    data: { originalUrl: url, expandedUrl: finalUrl },
+                })
+
+                return finalUrl
             })(),
             5000,
             'soundcloud-short-url-expansion',
@@ -99,8 +90,11 @@ export async function expandSoundCloudShortUrl(url: string): Promise<string> {
 
         return expanded
     } catch (error) {
-        // Network error, timeout, or security validation failed — gracefully fall back
-        debugLog({
+        // Network error, timeout, or security validation failed — gracefully
+        // fall back. warn, not debug: debug is filtered out in production, so
+        // the user saw a generic "No results found" from the resolver with no
+        // record that expansion was the step that actually failed (#1994).
+        warnLog({
             message:
                 'SoundCloud short URL expansion failed, using original URL',
             data: {
