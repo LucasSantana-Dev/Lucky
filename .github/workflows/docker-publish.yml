@@ -97,8 +97,12 @@ jobs:
                   build-args: |
                       COMMIT_SHA=${{ github.sha }}
                       NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
-                  cache-from: type=gha,scope=${{ matrix.service }}
-                  cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+                  # Ref-scoped, matching .github/actions/docker-build-service.
+                  # A bare service scope is shared with every other workflow
+                  # building the same service, so a mode=max export written by
+                  # one can land in the cache another reads (#2002).
+                  cache-from: type=gha,scope=${{ github.ref_name }}-${{ matrix.service }}
+                  cache-to: type=gha,mode=max,scope=${{ github.ref_name }}-${{ matrix.service }}
 
             - name: Smoke test yt-dlp
               if: matrix.service == 'bot'
