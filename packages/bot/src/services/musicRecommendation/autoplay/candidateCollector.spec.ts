@@ -255,29 +255,6 @@ describe('candidateCollector', () => {
             )
         })
 
-        it('should collect candidates from the seed search arm', async () => {
-            const seedResult = createTrack({
-                title: 'Spotify Result',
-                author: 'Spotify Artist',
-            })
-            searchSeedCandidatesMock.mockResolvedValue([seedResult])
-
-            const queue = createGuildQueue()
-            const seedTracks = [createTrack()]
-
-            const ctx = createAutoplayContext({
-                queue,
-                currentTrack: createTrack(),
-            })
-            const result = await collectRecommendationCandidates(
-                ctx,
-                seedTracks,
-                null,
-            )
-
-            expect(result.size).toBe(1)
-        })
-
         it('should collect seed-based search candidates', async () => {
             const seedResult = createTrack({
                 title: 'Seed Result',

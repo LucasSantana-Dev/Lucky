@@ -661,10 +661,9 @@ describe('queueManipulation — multi-user VC blend', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        // Observable: the Spotify path was exercised and results reached the
-        // queue. Asserts on the queue, not on a specific API call, so it stays
-        // valid as arms are added or retired.
-        expect(spotifyApiMock.searchSpotifyTrack).toHaveBeenCalled()
+        // Asserts on the OUTCOME only. searchSeedCandidates searches through
+        // queue.player.search (SPOTIFY_SEARCH), never spotifyApi.searchSpotifyTrack,
+        // so asserting on that mock would not verify the arm this test names.
         expect(addedTracks.length).toBeGreaterThan(0)
         expect((addedTracks[0] as any)?.title).toBeDefined()
     })
