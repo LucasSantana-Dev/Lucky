@@ -137,6 +137,63 @@ describe('artist command search fallback', () => {
         )
     })
 
+    it('keeps only the artist match even when fewer than three tracks match', async () => {
+        // Production 2026-08-21: Spotify's results for "queen" included
+        // "Queencard" by i-dle. The old `>= 3` threshold dropped the author
+        // filter whenever under three tracks matched, so the raw search order
+        // was queued and a K-pop track played after Bohemian Rhapsody.
+        const search = jest.fn(async () => ({
+            tracks: [
+                createTrack('Bohemian Rhapsody', 'Queen'),
+                createTrack('Queencard', 'i-dle'),
+                createTrack('Queen of Hearts', 'Fleetwood Mac'),
+                createTrack('Dancing Queen', 'ABBA'),
+            ],
+        }))
+        const addTrack = jest.fn()
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({
+            queue: { addTrack },
+        })
+        const play = jest.fn(async () => ({ track: null }))
+
+        await artistCommand.execute({
+            client: { player: { search, play } },
+            interaction: createInteraction(),
+        } as never)
+
+        // Only the one Queen track is queued; nothing by i-dle, Fleetwood Mac
+        // or ABBA reaches the queue or the first-play slot.
+        expect(play.mock.calls[0][1]).toContain('Bohemian%20Rhapsody')
+        const queuedAuthors = addTrack.mock.calls.map(
+            ([t]) => (t as { author: string }).author,
+        )
+        expect(queuedAuthors).toEqual([])
+    })
+
+    it('falls back to raw results only when nothing matches the artist', async () => {
+        const search = jest.fn(async () => ({
+            tracks: [
+                createTrack('Some Song', 'Totally Different'),
+                createTrack('Another', 'Also Different'),
+            ],
+        }))
+        const addTrack = jest.fn()
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({
+            queue: { addTrack },
+        })
+        const play = jest.fn(async () => ({ track: null }))
+
+        await artistCommand.execute({
+            client: { player: { search, play } },
+            interaction: createInteraction(),
+        } as never)
+
+        // No author matched, so the raw order is still used rather than
+        // reporting nothing — this covers misspellings and odd metadata.
+        expect(play).toHaveBeenCalled()
+        expect(addTrack).toHaveBeenCalledTimes(1)
+    })
+
     it('plays a Spotify-resolved track with SPOTIFY_SONG', async () => {
         const search = jest.fn(async () => ({
             tracks: [createTrack('Bohemian Rhapsody', 'Queen')],

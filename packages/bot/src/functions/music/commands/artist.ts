@@ -192,14 +192,25 @@ export default new Command({
             const substringMatch = searchResult.tracks.filter((t) =>
                 t.author.toLowerCase().includes(artistLower),
             )
+            // Take the narrowest tier that matched anything. The thresholds
+            // used to be `>= 3`, which discarded the artist filter whenever an
+            // artist had fewer than three tracks in the top results and queued
+            // the raw search order instead. `/artist queen` hit exactly that in
+            // production on 2026-08-21: Spotify's results for "queen" put
+            // "Queencard" by i-dle among them, and with under three
+            // author-matched tracks the filter was dropped, so a K-pop track
+            // played after Bohemian Rhapsody.
+            //
+            // Two tracks genuinely by the artist beat ten by whoever the
+            // provider ranked highly: /artist promises tracks BY the artist.
             const byArtist =
-                exactMatch.length >= 3
+                exactMatch.length > 0
                     ? exactMatch
-                    : wordMatch.length >= 3
+                    : wordMatch.length > 0
                       ? wordMatch
                       : substringMatch
             const tracks = (
-                byArtist.length >= 3 ? byArtist : searchResult.tracks
+                byArtist.length > 0 ? byArtist : searchResult.tracks
             ).slice(0, limit)
 
             const firstTrack = tracks[0]
