@@ -67,7 +67,15 @@ const registerExtractorsInOrder = async (player: Player): Promise<void> => {
     await registerRemainingExtractors(player)
 }
 
-const registerSpotifyExtractor = async (player: Player): Promise<void> => {
+export const registerSpotifyExtractor = async (
+    player: Player,
+): Promise<void> => {
+    // Failures here were previously warn-only, with no health state: unlike
+    // YouTube, Spotify never touched setExtractorDegraded, so a bot running
+    // without a Spotify extractor looked identical to one where the artist
+    // genuinely had no tracks. warnLog also never reaches Sentry — only
+    // errorLog does (utils/general/log/service.ts) — so nothing surfaced
+    // anywhere (#2051).
     try {
         const registered = await player.extractors.register(SpotifyExtractor, {
             clientId: process.env.SPOTIFY_CLIENT_ID ?? undefined,
@@ -75,17 +83,20 @@ const registerSpotifyExtractor = async (player: Player): Promise<void> => {
             market: 'US',
         })
         if (!registered) {
-            warnLog({
+            setExtractorDegraded('spotify', true)
+            errorLog({
                 message:
-                    'SpotifyExtractor registration returned null — Spotify searches degraded',
+                    'SpotifyExtractor registration returned null — Spotify searches degraded until restart',
             })
             return
         }
+        setExtractorDegraded('spotify', false)
         infoLog({ message: 'Registered SpotifyExtractor (priority 1)' })
     } catch (error) {
-        warnLog({
+        setExtractorDegraded('spotify', true)
+        errorLog({
             message:
-                'SpotifyExtractor failed to register — Spotify searches degraded',
+                'SpotifyExtractor failed to register — Spotify searches degraded until restart',
             error,
         })
     }
