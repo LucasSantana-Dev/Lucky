@@ -1,7 +1,7 @@
 import type { Track, GuildQueue } from 'discord-player'
 import { QueueRepeatMode } from 'discord-player'
 import { LRUCache } from 'lru-cache'
-import { infoLog, debugLog, errorLog, warnLog } from '@lucky/shared/utils'
+import { infoLog, debugLog, errorLog } from '@lucky/shared/utils'
 import { addTrackToHistory } from '../../utils/music/duplicateDetection'
 import { replenishQueue } from '../../services/musicManagement/queueOperations'
 import { resetAutoplayCount } from '../../utils/music/autoplayManager'
@@ -207,9 +207,15 @@ async function handleQueueReplenishment(
             setTimeout(() => {
                 replenishQueue(queue, undefined, () =>
                     getRecentSkipCount(queue.guild.id),
-                ).catch((retryErr) => {
-                    warnLog({
-                        message: 'Replenish retry failed',
+                ).catch((retryErr: unknown) => {
+                    // errorLog, not warnLog: this is the second consecutive
+                    // failure, so autoplay has stopped for this guild and will
+                    // not retry again. warn only adds a Sentry breadcrumb,
+                    // which is transmitted solely if some later error fires —
+                    // so the moment autoplay died was invisible (#1995).
+                    errorLog({
+                        message:
+                            'Replenish retry failed — autoplay stopped for this guild',
                         error: retryErr,
                         data: { guildId: queue.guild.id },
                     })
