@@ -17,6 +17,7 @@ const debugLogMock = jest.fn()
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
+    requireDJRoleInGuild: (...args: unknown[]) => requireDJRoleMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
     requireCurrentTrack: (...args: unknown[]) =>
         requireCurrentTrackMock(...args),
