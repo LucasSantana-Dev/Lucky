@@ -10,7 +10,7 @@ import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 import {
     requireGuild,
-    requireDJRole,
+    requireDJRoleInGuild,
     requireQueue,
 } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
@@ -73,16 +73,7 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        if (
-            !(await requireDJRole(
-                interaction,
-                assertDefined(
-                    interaction.guildId,
-                    'Guild ID required after requireGuild check',
-                ),
-            ))
-        )
-            return
+        if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return

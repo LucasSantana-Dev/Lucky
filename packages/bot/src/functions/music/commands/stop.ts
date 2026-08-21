@@ -6,13 +6,12 @@ import type { CommandExecuteParams } from '../../../types/CommandData'
 import {
     requireGuild,
     requireQueue,
-    requireDJRole,
+    requireDJRoleInGuild,
 } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { createSuccessEmbed } from '../../../utils/general/embeds'
 import { musicWatchdogService } from '../../../services/musicManagement/watchdog'
 import { musicSessionSnapshotService } from '../../../services/musicRecommendation/sessionSnapshots'
-import { assertDefined } from '@lucky/shared/utils/guards'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -25,16 +24,7 @@ export default new Command({
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 
         if (!(await requireQueue(queue, interaction))) return
-        if (
-            !(await requireDJRole(
-                interaction,
-                assertDefined(
-                    interaction.guildId,
-                    'Guild ID required after requireGuild check',
-                ),
-            ))
-        )
-            return
+        if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
 
         if (queue) {
             musicWatchdogService.markIntentionalStop(queue.guild.id)
