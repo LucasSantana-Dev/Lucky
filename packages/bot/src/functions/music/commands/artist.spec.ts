@@ -170,6 +170,36 @@ describe('artist command search fallback', () => {
         expect(queuedAuthors).toEqual([])
     })
 
+    it('does not let a single fuzzy match hijack the queue', async () => {
+        // cubic P2 on #2052: wordMatch tokenises the author, so "Prince Royce"
+        // matches /artist prince on one token. Trusting one fuzzy hit would
+        // confidently queue the wrong artist — the exact case the original
+        // >= 3 threshold existed to prevent.
+        const search = jest.fn(async () => ({
+            tracks: [
+                createTrack('Darte un Beso', 'Prince Royce'),
+                createTrack('Unrelated', 'Someone Else'),
+                createTrack('Another', 'Third Party'),
+            ],
+        }))
+        const addTrack = jest.fn()
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({
+            queue: { addTrack },
+        })
+        const play = jest.fn(async () => ({ track: null }))
+        const interaction = createInteraction()
+        interaction.options.getString = jest.fn(() => 'Prince')
+
+        await artistCommand.execute({
+            client: { player: { search, play } },
+            interaction,
+        } as never)
+
+        // One wordMatch is not enough, so it falls through to the raw results
+        // rather than presenting Prince Royce as if it were Prince.
+        expect(addTrack).toHaveBeenCalledTimes(2)
+    })
+
     it('falls back to raw results only when nothing matches the artist', async () => {
         const search = jest.fn(async () => ({
             tracks: [

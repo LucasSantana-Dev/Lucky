@@ -203,12 +203,26 @@ export default new Command({
             //
             // Two tracks genuinely by the artist beat ten by whoever the
             // provider ranked highly: /artist promises tracks BY the artist.
+            // Exact author match is trusted at any count: one track that is
+            // definitely by the artist beats ten the provider merely ranked
+            // highly. `/artist queen` hit that in production on 2026-08-21 —
+            // Spotify's results for "queen" include "Queencard" by i-dle, and
+            // the old `>= 3` threshold dropped the filter entirely whenever
+            // fewer than three tracks matched, queueing the raw order.
+            //
+            // The fuzzy tiers keep the higher bar. `wordMatch` tokenises the
+            // author, so `/artist prince` matches "Prince Royce" on one token;
+            // trusting a single fuzzy hit would confidently queue the wrong
+            // artist, which is the failure the original threshold was written
+            // to prevent.
             const byArtist =
                 exactMatch.length > 0
                     ? exactMatch
-                    : wordMatch.length > 0
+                    : wordMatch.length >= 3
                       ? wordMatch
-                      : substringMatch
+                      : substringMatch.length >= 3
+                        ? substringMatch
+                        : []
             const tracks = (
                 byArtist.length > 0 ? byArtist : searchResult.tracks
             ).slice(0, limit)
