@@ -27,6 +27,22 @@ function serializeError(err: unknown): string {
     }
 }
 
+/**
+ * Prefixes EVERY physical line, not just the first.
+ *
+ * serializeError emits `name: message\n<stack>` and serializeData uses
+ * JSON.stringify(..., 2), so both are routinely multi-line. Prefixing only the
+ * first line leaves every stack frame and every JSON continuation without the
+ * level token, which is exactly what an anchored per-line shipper parser drops.
+ * That would defeat the point of writing the level as a parseable token.
+ */
+function prefixLines(token: string, value: string): string {
+    return value
+        .split('\n')
+        .map((line) => token + line)
+        .join('\n')
+}
+
 function serializeData(data: unknown): string {
     try {
         return JSON.stringify(data, null, 2)
@@ -138,17 +154,22 @@ export class LogService {
 
         const coloredMessage = color(sanitizeForLogging(formattedMessage))
 
-        console.log(token + coloredMessage)
+        console.log(prefixLines(token, coloredMessage))
 
         if (effectiveParams.data) {
             const sanitizedData = sanitizeForLogging(
                 serializeData(effectiveParams.data),
             )
-            console.log(token + color(sanitizedData))
+            console.log(prefixLines(token, color(sanitizedData)))
         }
 
         if (effectiveParams.error) {
-            console.error(token + color(serializeError(effectiveParams.error)))
+            console.error(
+                prefixLines(
+                    token,
+                    color(serializeError(effectiveParams.error)),
+                ),
+            )
         }
     }
 

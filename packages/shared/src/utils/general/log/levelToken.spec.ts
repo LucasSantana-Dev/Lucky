@@ -63,6 +63,46 @@ describe('log level token', () => {
         expect(anchored.test(firstLine())).toBe(true)
     })
 
+    it('prefixes EVERY line of a multi-line error, not just the header', () => {
+        const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            const err = new Error('boom')
+            err.stack =
+                'Error: boom\n    at one (a.ts:1:1)\n    at two (b.ts:2:2)'
+            service.error({ message: 'failed', error: err })
+
+            const emitted = errSpy.mock.calls
+                .map((c: unknown[]) => stripAnsi(c[0] as string))
+                .find((line: string) => line.includes('boom'))
+            expect(emitted).toBeDefined()
+
+            const lines = (emitted as string).split('\n')
+            // The stack alone is 3 lines; a header-only prefix would leave
+            // every frame unparseable to the anchored shipper expression.
+            expect(lines.length).toBeGreaterThan(1)
+            for (const line of lines) {
+                expect(anchored.test(line)).toBe(true)
+            }
+        } finally {
+            errSpy.mockRestore()
+        }
+    })
+
+    it('keeps data on one line, because sanitizing collapses control chars', () => {
+        // Documents the asymmetry that caused the bug. sanitizeForLogging maps
+        // \x00-\x1f (newline included) to a space, so JSON.stringify indentation
+        // is already flattened by the time it is logged. serializeError instead
+        // sanitizes name/message/stack SEPARATELY and then joins them with a
+        // literal \n, which is why only the error path was ever multi-line.
+        service.info({ message: 'payload', data: { a: 1, b: { c: 2 } } })
+        const emitted = consoleSpy.mock.calls
+            .map((c: unknown[]) => stripAnsi(c[0] as string))
+            .find((line: string) => line.includes('"a"'))
+        expect(emitted).toBeDefined()
+        expect((emitted as string).split('\n')).toHaveLength(1)
+        expect(anchored.test(emitted as string)).toBe(true)
+    })
+
     it('maps SUCCESS to INFO, a bucket promtail understands', () => {
         service.success({ message: 'done' })
         expect(firstLine().startsWith('[INFO] ')).toBe(true)
