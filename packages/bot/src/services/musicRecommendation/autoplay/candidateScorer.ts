@@ -1,6 +1,4 @@
 import type { Track } from 'discord-player'
-import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
-import { getBatchAudioFeatures } from '../../../spotify/spotifyApi'
 import { spotifyLinkService } from '@lucky/shared/services'
 import type { SessionMood } from './sessionMood'
 import type { RecommendationSignal } from './recommendationBasis.js'
@@ -633,85 +631,4 @@ function splitTokens(value: string): string[] {
         .toLowerCase()
         .split(/[^a-z0-9]+/)
         .filter((token) => token.length > 2)
-}
-
-export async function enrichWithAudioFeatures(
-    tracks: ScoredTrack[],
-    userId: string,
-    currentFeatures: SpotifyAudioFeatures | null,
-    currentArtistName?: string,
-): Promise<ScoredTrack[]> {
-    if (!currentFeatures || !userId) return tracks
-
-    const token = await Promise.resolve(
-        spotifyLinkService.getValidAccessToken(userId),
-    ).catch(() => null)
-    if (!token) return tracks
-
-    const spotifyIds: string[] = []
-    const idToTrack = new Map<string, ScoredTrack>()
-
-    for (const track of tracks) {
-        if (track.track.url?.includes('open.spotify.com/track/')) {
-            const match = track.track.url.match(/track\/([a-zA-Z0-9]+)/)
-            if (match?.[1]) {
-                spotifyIds.push(match[1])
-                idToTrack.set(match[1], track)
-            }
-        }
-    }
-
-    if (spotifyIds.length === 0) return tracks
-
-    const features = await getBatchAudioFeatures(token, spotifyIds).catch(
-        () => new Map<string, SpotifyAudioFeatures>(),
-    )
-
-    // Genre-family scoring moved to in-pass `calculateRecommendationScore`
-    // via Last.fm tags so it works without a Spotify token. This pass is now
-    // limited to audio-feature (energy/valence) deltas, which the
-    // Last.fm-tag path can't substitute for.
-    void currentArtistName
-
-    for (const [id, feature] of features) {
-        const track = idToTrack.get(id)
-        if (!track) continue
-
-        const energyDelta = Math.abs(feature.energy - currentFeatures.energy)
-        const valenceDelta = Math.abs(feature.valence - currentFeatures.valence)
-
-        if (energyDelta < 0.15 && valenceDelta < 0.2) {
-            track.score += SCORE_DURATION_MATCH
-        } else if (energyDelta < 0.3 || valenceDelta < 0.35) {
-            track.score += 0.07
-        } else if (energyDelta > 0.6) {
-            track.score += SCORE_ACOUSTICNESS_MATCH * -1
-        }
-
-        if (currentFeatures.tempo && feature.tempo) {
-            const tempoDelta = Math.abs(currentFeatures.tempo - feature.tempo)
-            if (tempoDelta > 40) track.score += SCORE_TEMPO_PENALTY_LARGE
-            else if (tempoDelta > TEMPO_DELTA_SMALL)
-                track.score += SCORE_TEMPO_PENALTY_SMALL
-        }
-
-        if (
-            currentFeatures.acousticness !== undefined &&
-            feature.acousticness !== undefined
-        ) {
-            if (
-                currentFeatures.acousticness > 0.6 &&
-                feature.acousticness > 0.5
-            ) {
-                track.score += SCORE_ACOUSTICNESS_MATCH
-            } else if (
-                currentFeatures.acousticness < 0.2 &&
-                feature.acousticness > 0.6
-            ) {
-                track.score -= SCORE_ACOUSTICNESS_MATCH
-            }
-        }
-    }
-
-    return tracks.sort((a, b) => b.score - a.score)
 }

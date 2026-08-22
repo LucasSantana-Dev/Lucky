@@ -41,11 +41,9 @@ import type { QueueMetadata } from '../../../types/QueueMetadata'
 import {
     collectBroadFallbackCandidates,
     collectGenreCandidates,
-    enrichWithAudioFeatures,
     interleaveByArtist,
 } from '../candidateFallback'
 import { buildVcContributionWeights } from './vcWeights'
-import { getTrackAudioFeatures } from './audioFeatures'
 import { evaluateSkipRateBreaker } from './skipCircuitBreaker'
 
 // Autoplay backfill target. Reduced from 8→2 to prevent over-queueing: when
@@ -351,20 +349,10 @@ async function _replenishQueue(
         )
         const artistFrequency = buildArtistFrequency(persistentHistory)
 
-        // Fetch the token FIRST (it may refresh), then audio features —
-        // getTrackAudioFeatures also calls getValidAccessToken(userId)
-        // internally, so running them in parallel would race two concurrent
-        // token refreshes for the same user. Sequential keeps the refresh
-        // single; the second lookup is a cache hit.
         const spotifyToken = requestedBy?.id
             ? await Promise.resolve(
                   spotifyLinkService.getValidAccessToken(requestedBy.id),
               ).catch(() => null)
-            : null
-        const currentFeatures = requestedBy?.id
-            ? await getTrackAudioFeatures(currentTrack, requestedBy.id).catch(
-                  () => null,
-              )
             : null
         const replenishCount = replenishCounters.get(guildId) ?? 0
 
@@ -432,7 +420,6 @@ async function _replenishQueue(
             seedTracks,
             requestedBy,
             replenishCount,
-            currentFeatures,
             blockSertanejo,
         )
         sourcesCounts.recommendation = candidates.size
@@ -562,16 +549,7 @@ async function _replenishQueue(
             ),
         )
 
-        const currentAudioFeatures = await getTrackAudioFeatures(
-            currentTrack,
-            requestedBy?.id ?? '',
-        ).catch(() => null)
-        const enriched = await enrichWithAudioFeatures(
-            selected,
-            requestedBy?.id ?? '',
-            currentAudioFeatures,
-            currentTrack.author,
-        )
+        const enriched = selected
 
         if (requestedBy?.id) {
             const token = await Promise.resolve(
