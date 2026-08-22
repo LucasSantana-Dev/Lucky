@@ -87,7 +87,12 @@ function serializeData(data: unknown): string {
 
 function toError(err: unknown): Error {
     if (err instanceof Error) return err
-    return new Error(typeof err === 'string' ? err : JSON.stringify(err))
+    if (typeof err === 'string') return new Error(err)
+    // Last JSON.stringify in this file without a guard. It throws on a circular
+    // value or a throwing toJSON(), which would make service.error() throw
+    // AFTER it had already logged — reusing the serializer keeps the whole
+    // error path on the same fallback.
+    return new Error(serializeData(err))
 }
 
 /**

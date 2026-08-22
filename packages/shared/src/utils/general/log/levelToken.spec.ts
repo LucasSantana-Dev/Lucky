@@ -20,7 +20,6 @@ jest.mock('../../alerts', () => ({
 
 import chalk from 'chalk'
 import { LogService } from './service'
-import { LogLevel } from './types'
 
 // cubic flagged that these assertions would break under colour. Rather than
 // disabling colour, force it ON: the whole point of the token is that it
@@ -91,6 +90,22 @@ describe('log level token', () => {
             for (const line of lines) {
                 expect(anchored.test(line)).toBe(true)
             }
+        } finally {
+            errSpy.mockRestore()
+        }
+    })
+
+    it('does not throw when a circular non-Error reaches toError', () => {
+        // service.error() calls toError() AFTER logging; its JSON.stringify was
+        // the last unguarded one in the file, so a circular value made the call
+        // throw once the log line had already been written.
+        const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            const circular: Record<string, unknown> = { a: 1 }
+            circular.self = circular
+            expect(() =>
+                service.error({ message: 'circular', error: circular }),
+            ).not.toThrow()
         } finally {
             errSpy.mockRestore()
         }
