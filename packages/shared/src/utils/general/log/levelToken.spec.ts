@@ -63,7 +63,7 @@ describe('log level token', () => {
         expect(anchored.test(firstLine())).toBe(true)
     })
 
-    it('prefixes EVERY line of a multi-line error, not just the header', () => {
+    it('prefixes each stack FRAME, not just the header line', () => {
         const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
         try {
             const err = new Error('boom')
@@ -77,15 +77,34 @@ describe('log level token', () => {
             expect(emitted).toBeDefined()
 
             const lines = (emitted as string).split('\n')
-            // The stack alone is 3 lines; a header-only prefix would leave
-            // every frame unparseable to the anchored shipper expression.
-            expect(lines.length).toBeGreaterThan(1)
+            // Asserts the FRAMES survive as separate lines, not merely that the
+            // output is multi-line. An earlier version asserted length > 1 and
+            // passed with 2 lines while both frames sat flattened in the second
+            // one, which is the bug this guards.
+            expect(lines.some((l) => l.includes('at one (a.ts:1:1)'))).toBe(
+                true,
+            )
+            expect(lines.some((l) => l.includes('at two (b.ts:2:2)'))).toBe(
+                true,
+            )
+            expect(lines.length).toBeGreaterThanOrEqual(3)
             for (const line of lines) {
                 expect(anchored.test(line)).toBe(true)
             }
         } finally {
             errSpy.mockRestore()
         }
+    })
+
+    it('does not throw when data stringifies to undefined', () => {
+        // JSON.stringify returns undefined for functions and symbols; those are
+        // truthy, so they reach prefixLines, which would .split(undefined).
+        expect(() =>
+            service.info({ message: 'fn', data: () => undefined }),
+        ).not.toThrow()
+        expect(() =>
+            service.info({ message: 'sym', data: Symbol('x') }),
+        ).not.toThrow()
     })
 
     it('prefixes every line of multi-line data, which JSON.stringify indents', () => {

@@ -13,12 +13,13 @@ function sanitizeForLogging(text: string): string {
     return text.replace(/[\x00-\x1f\x7f]/g, ' ')
 }
 
+// Deliberately does NOT sanitize: prefixLines sanitizes each line AFTER
+// splitting, and sanitizing here first would turn every newline inside the
+// stack into a space, collapsing the frames into one blob that no per-line
+// parser can read. One sanitizer, at the choke point, after the split.
 function serializeError(err: unknown): string {
     if (err instanceof Error) {
-        const sanitizedName = sanitizeForLogging(err.name)
-        const sanitizedMessage = sanitizeForLogging(err.message)
-        const sanitizedStack = sanitizeForLogging(err.stack ?? '')
-        return `${sanitizedName}: ${sanitizedMessage}\n${sanitizedStack}`
+        return `${err.name}: ${err.message}\n${err.stack ?? ''}`
     }
     try {
         return JSON.stringify(err, null, 2)
@@ -57,7 +58,11 @@ function prefixLines(
 
 function serializeData(data: unknown): string {
     try {
-        return JSON.stringify(data, null, 2)
+        // JSON.stringify returns undefined (not a string) for functions,
+        // symbols, and objects whose toJSON() returns undefined. Those are all
+        // truthy, so the caller's guard lets them through and prefixLines would
+        // then call .split on undefined and throw.
+        return JSON.stringify(data, null, 2) ?? String(data)
     } catch {
         return String(data)
     }
