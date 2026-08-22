@@ -37,16 +37,26 @@ function serializeError(err: unknown): string {
             // name and message are VALUES: a newline in either would forge an
             // extra physical log record once prefixLines splits. The stack's
             // newlines are STRUCTURE (one per frame) and must survive.
-            const header = `${sanitizeForLogging(err.name)}: ${sanitizeForLogging(err.message)}`
-            // Strip the MESSAGE, not a reconstructed header. V8 embeds the
-            // message verbatim in err.stack, and that is where injected text
-            // lives, so removing it closes the hole regardless of how the
-            // engine formats the header line. Matching `name: message` failed
-            // for an empty name or message, and also whenever code reassigns
-            // err.name after construction, since the stack was captured first.
+            // Read each property EXACTLY once. A mutable getter that returns
+            // different values across reads would otherwise let the header be
+            // built from one string while the stack is stripped with another,
+            // leaving the injected text in place. Reproduced: 3 reads of
+            // message, and a getter changing on the third let a frame-shaped
+            // line through.
+            const rawName = err.name
+            const rawMessage = err.message
             const rawStack = err.stack ?? ''
-            const body = err.message
-                ? rawStack.replace(err.message, '')
+
+            // name and message are VALUES: a newline in either would forge an
+            // extra physical log record once prefixLines splits. The stack's
+            // newlines are STRUCTURE (one per frame) and must survive.
+            const header = `${sanitizeForLogging(rawName)}: ${sanitizeForLogging(rawMessage)}`
+            // Strip the MESSAGE, not a reconstructed header. The engine embeds
+            // it verbatim in the stack, and that is where injected text lives,
+            // so removing it closes the hole regardless of header format or of
+            // err.name being reassigned after the stack was captured.
+            const body = rawMessage
+                ? rawStack.replace(rawMessage, '')
                 : rawStack
             const frames = body
                 .split('\n')

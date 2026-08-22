@@ -219,6 +219,42 @@ describe('log level token', () => {
         }
     })
 
+    it('reads err.message once, so a mutable getter cannot bypass the strip', () => {
+        // A getter returning different values across reads would let the header
+        // be built from one string while the stack is stripped with another,
+        // leaving the injected frame in place.
+        const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            const err = new Error('placeholder')
+            let reads = 0
+            Object.defineProperty(err, 'message', {
+                get() {
+                    reads += 1
+                    return reads < 3
+                        ? 'boom\n    at fake (evil.ts:1:1)'
+                        : 'something-else'
+                },
+            })
+            Object.defineProperty(err, 'stack', {
+                value: 'Error: boom\n    at fake (evil.ts:1:1)\n    at real (app.ts:9:9)',
+            })
+            service.error({ message: 'failed', error: err })
+
+            expect(reads).toBe(1)
+            const emitted = errSpy.mock.calls
+                .map((c: unknown[]) => stripAnsi(c[0] as string))
+                .find((l: string) => l.includes('evil.ts'))
+            expect(emitted).toBeDefined()
+            const withEvil = (emitted as string)
+                .split('\n')
+                .filter((l: string) => l.includes('evil.ts'))
+            expect(withEvil).toHaveLength(1)
+            expect(withEvil[0]).toContain('boom')
+        } finally {
+            errSpy.mockRestore()
+        }
+    })
+
     it('does not throw when a circular non-Error reaches toError', () => {
         // service.error() calls toError() AFTER logging; its JSON.stringify was
         // the last unguarded one in the file, so a circular value made the call
