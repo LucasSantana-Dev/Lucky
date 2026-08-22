@@ -195,8 +195,12 @@ describe('artist command search fallback', () => {
             interaction,
         } as never)
 
-        // One wordMatch is not enough, so it falls through to the raw results
-        // rather than presenting Prince Royce as if it were Prince.
+        // Guards the fuzzy >= 3 threshold ONLY: one wordMatch does not promote
+        // Prince Royce to the artist filter, so byArtist stays empty and the
+        // raw results are used. Note what that means here — the raw order still
+        // LEADS with Prince Royce, which is played first. This assertion counts
+        // queued tracks (the first goes to play(), not addTrack) and does not
+        // verify which artist was surfaced. See #2052 for the residual gap.
         expect(addTrack).toHaveBeenCalledTimes(2)
     })
 
