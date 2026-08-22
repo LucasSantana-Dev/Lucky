@@ -16,6 +16,7 @@ Verified current state:
 - Session cookie: `httpOnly: true`, `secure: <prod>`, **`sameSite: 'lax'`**, 7-day maxAge.
   <br>⚠️ **No longer true in production since 2026-06-28** — see [Amendment 2026-08-21](#amendment-2026-08-21--production-runs-samesitenone).
 - CORS: origin allowlist with `credentials: true`. Allowlist includes `lucassantana.tech`/`*.lucassantana.tech`, `luk-homeserver.com.br`/`*.luk-homeserver.com.br`, `localhost`/`127.0.0.1`, **and `*.replit.dev` / `*.repl.co` / `*.replit.app`**.
+  <br>⚠️ **No longer true** — Decision #2 below was implemented: the replit entries are gone and `localhost`/`127.0.0.1` is gated to non-production. See [Amendment 2026-08-21](#amendment-2026-08-21--production-runs-samesitenone).
 - Mutations are POST/PUT/PATCH/DELETE with `application/json` (CORS-preflighted). **No state-changing GET routes.**
 - SPA↔API are same registrable domain (same-origin `/api` on the main host; `app.` ↔ `api.` subdomains on the homeserver = same-site).
 - `POST /api/support` is public + unauthenticated → CSRF N/A.
