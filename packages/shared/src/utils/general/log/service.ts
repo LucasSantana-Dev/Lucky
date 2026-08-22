@@ -29,10 +29,13 @@ function toDisplayString(value: unknown): string {
 // stack into a space, collapsing the frames into one blob that no per-line
 // parser can read. One sanitizer, at the choke point, after the split.
 function serializeError(err: unknown): string {
-    if (err instanceof Error) {
-        return `${err.name}: ${err.message}\n${err.stack ?? ''}`
-    }
     try {
+        // Inside the try: an Error can expose a throwing getter for name,
+        // message or stack, and reading one outside would crash the log call
+        // instead of falling back.
+        if (err instanceof Error) {
+            return `${err.name}: ${err.message}\n${err.stack ?? ''}`
+        }
         // Same undefined case as serializeData: JSON.stringify returns
         // undefined, not a string, for functions, symbols and objects whose
         // toJSON() returns undefined.

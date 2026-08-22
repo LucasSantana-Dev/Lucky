@@ -96,6 +96,26 @@ describe('log level token', () => {
         }
     })
 
+    it('does not throw when an Error property getter throws', () => {
+        // An Error can expose a hostile getter for name, message or stack.
+        // Reading it outside the try crashed the log call instead of falling
+        // back, and `instanceof Error` still passes for such an object.
+        const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            const hostile = new Error('boom')
+            Object.defineProperty(hostile, 'stack', {
+                get() {
+                    throw new TypeError('hostile stack getter')
+                },
+            })
+            expect(() =>
+                service.error({ message: 'failed', error: hostile }),
+            ).not.toThrow()
+        } finally {
+            errSpy.mockRestore()
+        }
+    })
+
     it('does not throw when the error stringifies to undefined', () => {
         // serializeError's non-Error branch had the same gap the data path got
         // fixed for: a truthy non-Error that JSON.stringify turns into
