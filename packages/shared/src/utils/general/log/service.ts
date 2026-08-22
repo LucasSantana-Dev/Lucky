@@ -36,10 +36,22 @@ function serializeError(err: unknown): string {
  * level token, which is exactly what an anchored per-line shipper parser drops.
  * That would defeat the point of writing the level as a parseable token.
  */
-function prefixLines(token: string, value: string): string {
-    return value
-        .split('\n')
-        .map((line) => token + line)
+function prefixLines(
+    token: string,
+    value: string,
+    color: (s: string) => string,
+): string {
+    const lines = value.split('\n')
+    // serializeError ends with the stack, which is empty when an Error carries
+    // none — that leaves a trailing '' segment that would emit a bare
+    // "[ERROR] " line with nothing after it.
+    if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop()
+    // Order matters: sanitise the RAW line, then colour it. Colouring first and
+    // sanitising after would strip the ANSI escapes, since \x1b is a control
+    // character. Sanitising here rather than at each caller keeps it a single
+    // choke point no caller can forget, and keeps the taint path visible.
+    return lines
+        .map((line) => token + color(sanitizeForLogging(line)))
         .join('\n')
 }
 
@@ -152,22 +164,20 @@ export class LogService {
         // Strip control characters (CR/LF/etc.) so user-provided values in the
         // message can't forge additional log lines (log injection).
 
-        const coloredMessage = color(sanitizeForLogging(formattedMessage))
-
-        console.log(prefixLines(token, coloredMessage))
+        console.log(prefixLines(token, formattedMessage, color))
 
         if (effectiveParams.data) {
-            const sanitizedData = sanitizeForLogging(
-                serializeData(effectiveParams.data),
+            console.log(
+                prefixLines(token, serializeData(effectiveParams.data), color),
             )
-            console.log(prefixLines(token, color(sanitizedData)))
         }
 
         if (effectiveParams.error) {
             console.error(
                 prefixLines(
                     token,
-                    color(serializeError(effectiveParams.error)),
+                    serializeError(effectiveParams.error),
+                    color,
                 ),
             )
         }
