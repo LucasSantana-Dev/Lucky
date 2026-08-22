@@ -255,6 +255,34 @@ describe('log level token', () => {
         }
     })
 
+    it('keeps every frame when the stack has no header line', () => {
+        // replace() removes the first match ANYWHERE, so with a headerless
+        // stack a message of "at " would eat a real frame's prefix and the
+        // frame filter would then drop that line entirely.
+        const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            const err = new Error('at ')
+            Object.defineProperty(err, 'stack', {
+                value: '    at real (app.ts:9:9)\n    at other (b.ts:2:2)',
+            })
+            service.error({ message: 'failed', error: err })
+
+            const emitted = errSpy.mock.calls
+                .map((c: unknown[]) => stripAnsi(c[0] as string))
+                .find((l: string) => l.includes('app.ts'))
+            expect(emitted).toBeDefined()
+            const lines = (emitted as string).split('\n')
+            expect(lines.some((l) => l.includes('at real (app.ts:9:9)'))).toBe(
+                true,
+            )
+            expect(lines.some((l) => l.includes('at other (b.ts:2:2)'))).toBe(
+                true,
+            )
+        } finally {
+            errSpy.mockRestore()
+        }
+    })
+
     it('does not throw when a circular non-Error reaches toError', () => {
         // service.error() calls toError() AFTER logging; its JSON.stringify was
         // the last unguarded one in the file, so a circular value made the call

@@ -28,6 +28,9 @@ function toDisplayString(value: unknown): string {
 // splitting, and sanitizing here first would turn every newline inside the
 // stack into a space, collapsing the frames into one blob that no per-line
 // parser can read. One sanitizer, at the choke point, after the split.
+/** A V8 stack frame line: leading whitespace then "at ". */
+const FRAME_LINE = /^\s*at\s/
+
 function serializeError(err: unknown): string {
     try {
         // Inside the try: an Error can expose a throwing getter for name,
@@ -55,12 +58,19 @@ function serializeError(err: unknown): string {
             // it verbatim in the stack, and that is where injected text lives,
             // so removing it closes the hole regardless of header format or of
             // err.name being reassigned after the stack was captured.
-            const body = rawMessage
-                ? rawStack.replace(rawMessage, '')
-                : rawStack
+            // Strip the message only when the stack HAS a header. replace()
+            // removes the first match anywhere, so with a custom stack that
+            // starts straight at the frames a message like "at " would eat a
+            // real frame's prefix and drop it. If the first line is already a
+            // frame there is no header, so there is nothing to remove.
+            const startsAtFrame = FRAME_LINE.test(rawStack.split('\n')[0] ?? '')
+            const body =
+                rawMessage && !startsAtFrame
+                    ? rawStack.replace(rawMessage, '')
+                    : rawStack
             const frames = body
                 .split('\n')
-                .filter((line) => /^\s*at\s/.test(line))
+                .filter((line) => FRAME_LINE.test(line))
                 .map((line) => sanitizeForLogging(line))
             return frames.length > 0
                 ? `${header}\n${frames.join('\n')}`
