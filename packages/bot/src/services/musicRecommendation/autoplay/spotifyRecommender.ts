@@ -6,7 +6,6 @@ import { spotifyLinkService } from '@lucky/shared/services'
 import {
     searchSpotifyTrack,
     getArtistGenres,
-    type SpotifyAudioFeatures,
 } from '../../../spotify/spotifyApi'
 import { getUserSpotifySeeds } from '../../../spotify/spotifyUserSeeds'
 import {
