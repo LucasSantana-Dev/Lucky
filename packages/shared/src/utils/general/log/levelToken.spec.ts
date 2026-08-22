@@ -96,6 +96,34 @@ describe('log level token', () => {
         }
     })
 
+    it('does not throw when the error stringifies to undefined', () => {
+        // serializeError's non-Error branch had the same gap the data path got
+        // fixed for: a truthy non-Error that JSON.stringify turns into
+        // undefined would reach prefixLines and .split(undefined).
+        const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            expect(() =>
+                service.error({ message: 'fn', error: () => undefined }),
+            ).not.toThrow()
+            expect(() =>
+                service.error({ message: 'sym', error: Symbol('x') }),
+            ).not.toThrow()
+        } finally {
+            errSpy.mockRestore()
+        }
+    })
+
+    it('does not throw when String() itself throws on the value', () => {
+        // A null-prototype object with no toPrimitive makes String() throw, so
+        // the fallback needed its own fallback.
+        const hostile = Object.assign(Object.create(null), {
+            toJSON: () => undefined,
+        })
+        expect(() =>
+            service.info({ message: 'hostile', data: hostile }),
+        ).not.toThrow()
+    })
+
     it('does not throw when data stringifies to undefined', () => {
         // JSON.stringify returns undefined for functions and symbols; those are
         // truthy, so they reach prefixLines, which would .split(undefined).

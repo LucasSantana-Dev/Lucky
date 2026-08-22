@@ -13,6 +13,17 @@ function sanitizeForLogging(text: string): string {
     return text.replace(/[\x00-\x1f\x7f]/g, ' ')
 }
 
+// Last-resort coercion. String() itself throws on a null-prototype object with
+// no toPrimitive, so the fallback needed its own fallback: a placeholder is
+// always better than a log call that crashes the caller.
+function toDisplayString(value: unknown): string {
+    try {
+        return String(value)
+    } catch {
+        return '[unserializable]'
+    }
+}
+
 // Deliberately does NOT sanitize: prefixLines sanitizes each line AFTER
 // splitting, and sanitizing here first would turn every newline inside the
 // stack into a space, collapsing the frames into one blob that no per-line
@@ -22,9 +33,12 @@ function serializeError(err: unknown): string {
         return `${err.name}: ${err.message}\n${err.stack ?? ''}`
     }
     try {
-        return JSON.stringify(err, null, 2)
+        // Same undefined case as serializeData: JSON.stringify returns
+        // undefined, not a string, for functions, symbols and objects whose
+        // toJSON() returns undefined.
+        return JSON.stringify(err, null, 2) ?? toDisplayString(err)
     } catch {
-        return String(err)
+        return toDisplayString(err)
     }
 }
 
@@ -62,9 +76,9 @@ function serializeData(data: unknown): string {
         // symbols, and objects whose toJSON() returns undefined. Those are all
         // truthy, so the caller's guard lets them through and prefixLines would
         // then call .split on undefined and throw.
-        return JSON.stringify(data, null, 2) ?? String(data)
+        return JSON.stringify(data, null, 2) ?? toDisplayString(data)
     } catch {
-        return String(data)
+        return toDisplayString(data)
     }
 }
 
