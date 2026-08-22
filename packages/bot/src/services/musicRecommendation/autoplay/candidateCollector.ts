@@ -1,7 +1,6 @@
 import type { Track } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog } from '@lucky/shared/utils'
-import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import type { AutoplayContext } from './autoplayContext'
 import { searchSeedCandidates } from './spotifyRecommender'
 import { calculateRecommendationScore } from './candidateScorer'
@@ -62,7 +61,6 @@ export async function collectRecommendationCandidates(
     seedTracks: Track[],
     requestedBy: User | null,
     _replenishCount = 0,
-    currentFeatures: SpotifyAudioFeatures | null = null,
     blockSertanejo = false,
 ): Promise<Map<string, ScoredTrack>> {
     const candidates = new Map<string, ScoredTrack>()

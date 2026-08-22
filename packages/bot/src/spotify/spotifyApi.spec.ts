@@ -7,9 +7,7 @@ import {
     afterEach,
 } from '@jest/globals'
 import {
-    getAudioFeatures,
     searchSpotifyTrack,
-    getBatchAudioFeatures,
     getArtistPopularity,
     getArtistGenres,
     getUserTopArtistsAndTracks,
@@ -46,8 +44,10 @@ describe('spotifyApi', () => {
 
     describe('request timeout (#1279)', () => {
         it('passes an AbortSignal deadline to the Spotify fetch', async () => {
+            // Vehicle only: any single-fetch helper exercises spotifyFetch's
+            // AbortSignal. Was getAudioFeatures until that endpoint was removed.
             fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) })
-            await getAudioFeatures('test-token', 'track-1')
+            await searchSpotifyTrack('test-token', 'Creep', 'Radiohead')
             expect(fetchMock).toHaveBeenCalledWith(
                 expect.anything(),
                 expect.objectContaining({ signal: expect.any(AbortSignal) }),
@@ -58,99 +58,13 @@ describe('spotifyApi', () => {
             fetchMock.mockRejectedValue(
                 new DOMException('The operation timed out', 'TimeoutError'),
             )
-            const result = await getAudioFeatures('test-token', 'track-1')
+            const result = await searchSpotifyTrack(
+                'test-token',
+                'Creep',
+                'Radiohead',
+            )
             expect(result).toBeNull()
             expect(fetchMock).toHaveBeenCalledTimes(1)
-        })
-    })
-
-    describe('getAudioFeatures', () => {
-        it.each([
-            [
-                'success',
-                async () => {
-                    fetchMock.mockResolvedValue({
-                        ok: true,
-                        json: async () => ({
-                            energy: 0.8,
-                            valence: 0.75,
-                            danceability: 0.65,
-                            tempo: 120,
-                            acousticness: 0.1,
-                        }),
-                    })
-                    const result = await getAudioFeatures(
-                        'test-token',
-                        'track-123',
-                    )
-                    expect(result).toEqual({
-                        energy: 0.8,
-                        valence: 0.75,
-                        danceability: 0.65,
-                        tempo: 120,
-                        acousticness: 0.1,
-                    })
-                },
-            ],
-            [
-                'success with defaults',
-                async () => {
-                    fetchMock.mockResolvedValue({
-                        ok: true,
-                        json: async () => ({ energy: 0.8, valence: 0.75 }),
-                    })
-                    const result = await getAudioFeatures(
-                        'test-token',
-                        'track-456',
-                    )
-                    expect(result).toEqual({
-                        energy: 0.8,
-                        valence: 0.75,
-                        danceability: 0,
-                        tempo: 0,
-                        acousticness: 0,
-                    })
-                },
-            ],
-            [
-                'error cases',
-                async () => {
-                    fetchMock.mockResolvedValue({ ok: false })
-                    let result = await getAudioFeatures(
-                        'test-token',
-                        'track-123',
-                    )
-                    expect(result).toBeNull()
-                    fetchMock.mockResolvedValue({
-                        ok: true,
-                        json: async () => {
-                            throw new Error('JSON parse error')
-                        },
-                    })
-                    result = await getAudioFeatures('test-token', 'track-123')
-                    expect(result).toBeNull()
-                    fetchMock.mockResolvedValue({
-                        ok: true,
-                        json: async () => ({
-                            valence: 0.75,
-                            danceability: 0.65,
-                        }),
-                    })
-                    result = await getAudioFeatures('test-token', 'track-123')
-                    expect(result).toBeNull()
-                    fetchMock.mockResolvedValue({
-                        ok: true,
-                        json: async () => ({ energy: 0.8, valence: 'high' }),
-                    })
-                    result = await getAudioFeatures('test-token', 'track-123')
-                    expect(result).toBeNull()
-                    fetchMock.mockRejectedValue(new Error('Network error'))
-                    result = await getAudioFeatures('test-token', 'track-123')
-                    expect(result).toBeNull()
-                },
-            ],
-        ])('%s', async (_label, test) => {
-            await test()
         })
     })
 
@@ -222,133 +136,6 @@ describe('spotifyApi', () => {
                         'Artist',
                     )
                     expect(result).toBeNull()
-                },
-            ],
-        ])('%s', async (_label, test) => {
-            await test()
-        })
-    })
-
-    describe('getBatchAudioFeatures', () => {
-        it.each([
-            [
-                'empty array',
-                async () => {
-                    const result = await getBatchAudioFeatures('token', [])
-                    expect(result.size).toBe(0)
-                },
-            ],
-            [
-                'success',
-                async () => {
-                    fetchMock.mockResolvedValue({
-                        ok: true,
-                        json: async () => ({
-                            audio_features: [
-                                {
-                                    id: 'track1',
-                                    energy: 0.8,
-                                    valence: 0.7,
-                                    danceability: 0.6,
-                                    tempo: 120,
-                                    acousticness: 0.1,
-                                },
-                                null,
-                                { id: 'track3', energy: 0.5, valence: 0.6 },
-                            ],
-                        }),
-                    })
-                    const result = await getBatchAudioFeatures('token', [
-                        'track1',
-                        'invalid',
-                        'track3',
-                    ])
-                    expect(result.size).toBe(2)
-                    expect(result.get('track1')).toEqual({
-                        energy: 0.8,
-                        valence: 0.7,
-                        danceability: 0.6,
-                        tempo: 120,
-                        acousticness: 0.1,
-                    })
-                    expect(result.get('track3')).toEqual({
-                        energy: 0.5,
-                        valence: 0.6,
-                        danceability: 0,
-                        tempo: 0,
-                        acousticness: 0,
-                    })
-                },
-            ],
-            [
-                'fetch error',
-                async () => {
-                    fetchMock.mockResolvedValue({ ok: false })
-                    const result = await getBatchAudioFeatures('token', [
-                        'track1',
-                    ])
-                    expect(result.size).toBe(0)
-                },
-            ],
-            [
-                'json parse error',
-                async () => {
-                    fetchMock.mockResolvedValue({
-                        ok: true,
-                        json: async () => {
-                            throw new Error('JSON error')
-                        },
-                    })
-                    const result = await getBatchAudioFeatures('token', [
-                        'track1',
-                    ])
-                    expect(result.size).toBe(0)
-                },
-            ],
-            [
-                'batches multiple track IDs into one fetch call',
-                async () => {
-                    fetchMock.mockResolvedValue({
-                        ok: true,
-                        json: async () => ({
-                            audio_features: [
-                                { id: 'track1', energy: 0.8, valence: 0.7 },
-                                { id: 'track2', energy: 0.6, valence: 0.5 },
-                                {
-                                    id: 'track3',
-                                    energy: 0.9,
-                                    valence: 0.85,
-                                },
-                                {
-                                    id: 'track4',
-                                    energy: 0.4,
-                                    valence: 0.3,
-                                },
-                                {
-                                    id: 'track5',
-                                    energy: 0.7,
-                                    valence: 0.65,
-                                },
-                            ],
-                        }),
-                    })
-                    const trackIds = [
-                        'track1',
-                        'track2',
-                        'track3',
-                        'track4',
-                        'track5',
-                    ]
-                    const result = await getBatchAudioFeatures(
-                        'token',
-                        trackIds,
-                    )
-                    expect(result.size).toBe(5)
-                    expect(fetchMock).toHaveBeenCalledTimes(1)
-                    const callUrl = String(fetchMock.mock.calls[0]![0])
-                    expect(callUrl).toContain(
-                        'ids=track1,track2,track3,track4,track5',
-                    )
                 },
             ],
         ])('%s', async (_label, test) => {
