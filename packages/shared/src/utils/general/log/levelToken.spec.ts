@@ -167,6 +167,58 @@ describe('log level token', () => {
         }
     })
 
+    it.each([
+        ['empty message', '', 'Error'],
+        ['empty name', 'x', ''],
+    ])(
+        'strips the stack header with %s, so no forged frame survives',
+        (_label, message, name) => {
+            const errSpy = jest
+                .spyOn(console, 'error')
+                .mockImplementation(() => {})
+            try {
+                const err = new Error(`${message}\n    at fake (evil.ts:1:1)`)
+                if (name === '') err.name = ''
+                service.error({ message: 'failed', error: err })
+
+                const emitted = errSpy.mock.calls
+                    .map((c: unknown[]) => stripAnsi(c[0] as string))
+                    .find((l: string) => l.includes('evil.ts'))
+                expect(emitted).toBeDefined()
+                const withEvil = (emitted as string)
+                    .split('\n')
+                    .filter((l: string) => l.includes('evil.ts'))
+                // Collapsed into one line, never standing as its own frame.
+                expect(withEvil).toHaveLength(1)
+            } finally {
+                errSpy.mockRestore()
+            }
+        },
+    )
+
+    it('strips the message even when err.name is reassigned after construction', () => {
+        // The stack is captured at construction, so a header rebuilt at log
+        // time from the CURRENT name will not match it. Stripping the message
+        // does not depend on the header's shape at all.
+        const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            const err = new Error('boom\n    at fake (evil.ts:1:1)')
+            err.name = 'ValidationError'
+            service.error({ message: 'failed', error: err })
+
+            const emitted = errSpy.mock.calls
+                .map((c: unknown[]) => stripAnsi(c[0] as string))
+                .find((l: string) => l.includes('evil.ts'))
+            expect(emitted).toBeDefined()
+            const withEvil = (emitted as string)
+                .split('\n')
+                .filter((l: string) => l.includes('evil.ts'))
+            expect(withEvil).toHaveLength(1)
+        } finally {
+            errSpy.mockRestore()
+        }
+    })
+
     it('does not throw when a circular non-Error reaches toError', () => {
         // service.error() calls toError() AFTER logging; its JSON.stringify was
         // the last unguarded one in the file, so a circular value made the call

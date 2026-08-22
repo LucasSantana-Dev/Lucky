@@ -38,14 +38,15 @@ function serializeError(err: unknown): string {
             // extra physical log record once prefixLines splits. The stack's
             // newlines are STRUCTURE (one per frame) and must survive.
             const header = `${sanitizeForLogging(err.name)}: ${sanitizeForLogging(err.message)}`
-            // V8 copies name and message verbatim into err.stack, so a message
-            // containing "\n    at fake (evil.ts:1:1)" would otherwise pass the
-            // frame filter below and forge a prefixed record. Strip that exact
-            // raw prefix FIRST, then keep only real frame lines.
+            // Strip the MESSAGE, not a reconstructed header. V8 embeds the
+            // message verbatim in err.stack, and that is where injected text
+            // lives, so removing it closes the hole regardless of how the
+            // engine formats the header line. Matching `name: message` failed
+            // for an empty name or message, and also whenever code reassigns
+            // err.name after construction, since the stack was captured first.
             const rawStack = err.stack ?? ''
-            const rawHeader = `${err.name}: ${err.message}`
-            const body = rawStack.startsWith(rawHeader)
-                ? rawStack.slice(rawHeader.length)
+            const body = err.message
+                ? rawStack.replace(err.message, '')
                 : rawStack
             const frames = body
                 .split('\n')
