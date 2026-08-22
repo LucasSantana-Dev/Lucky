@@ -140,7 +140,7 @@ describe('Spotify API 429 Retry Logic', () => {
                         })
                     }
                     return new Response(
-                        JSON.stringify({ id: 't', energy: 0.5, valence: 0.5 }),
+                        JSON.stringify({ tracks: { items: [{ id: 't' }] } }),
                         { status: 200 },
                     )
                 })
@@ -154,6 +154,7 @@ describe('Spotify API 429 Retry Logic', () => {
                 await promise
 
                 expect(attemptCount).toBe(2)
+                await expect(promise).resolves.not.toBeNull()
             } finally {
                 jest.useRealTimers()
             }
@@ -176,7 +177,7 @@ describe('Spotify API 429 Retry Logic', () => {
                         })
                     }
                     return new Response(
-                        JSON.stringify({ id: 't', energy: 0.5, valence: 0.5 }),
+                        JSON.stringify({ tracks: { items: [{ id: 't' }] } }),
                         { status: 200 },
                     )
                 })
@@ -190,6 +191,7 @@ describe('Spotify API 429 Retry Logic', () => {
                 await promise
 
                 expect(attemptCount).toBe(2)
+                await expect(promise).resolves.not.toBeNull()
             } finally {
                 jest.useRealTimers()
             }
