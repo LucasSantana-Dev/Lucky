@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.6](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.5...v2.39.6) (2026-08-22)
+
+
+### Bug Fixes
+
+* **bot:** drop the audio-features scoring path, spotify returns 403 ([#2074](https://github.com/LucasSantana-Dev/Lucky/issues/2074)) ([11891bf](https://github.com/LucasSantana-Dev/Lucky/commit/11891bf10c519b31c81485a24973b7ebda14022e))
+* **bot:** drop the autoplay arm that calls a removed spotify endpoint ([#2071](https://github.com/LucasSantana-Dev/Lucky/issues/2071)) ([682a795](https://github.com/LucasSantana-Dev/Lucky/commit/682a7959f8fcff1933aeb7d16b90b6b96df00cbd))
+* **bot:** fall back past a dead spotify arm in /artist ([#2052](https://github.com/LucasSantana-Dev/Lucky/issues/2052)) ([45dc998](https://github.com/LucasSantana-Dev/Lucky/commit/45dc998c9477eb406b5479a883f04a1b12674e0d))
+* **bot:** make three silent /play failures observable ([#2062](https://github.com/LucasSantana-Dev/Lucky/issues/2062)) ([e6b2810](https://github.com/LucasSantana-Dev/Lucky/commit/e6b28100185860e0b17052dd3148087a23d7967f))
+* **bot:** pick closest-duration soundcloud fallback match ([#2049](https://github.com/LucasSantana-Dev/Lucky/issues/2049)) ([738efb8](https://github.com/LucasSantana-Dev/Lucky/commit/738efb8a7f39f1f17584310c9d6508c28216d6e5))
+* **bot:** report a dead autoplay replenish at error level ([#2063](https://github.com/LucasSantana-Dev/Lucky/issues/2063)) ([2c5962e](https://github.com/LucasSantana-Dev/Lucky/commit/2c5962e649c198d3d6b0d09505a457b600a42c66))
+* **bot:** report spotify extractor health instead of failing silently ([#2060](https://github.com/LucasSantana-Dev/Lucky/issues/2060)) ([ddaa287](https://github.com/LucasSantana-Dev/Lucky/commit/ddaa287185764c0d046ef686819558c00d4df137))
+* **bot:** rerank search results toward exact artist/title match ([#2045](https://github.com/LucasSantana-Dev/Lucky/issues/2045)) ([0c719d5](https://github.com/LucasSantana-Dev/Lucky/commit/0c719d59ccf66048fa9ab84eace718ec1b811bf6))
+* **bot:** resolve /album text queries to an album url ([#2053](https://github.com/LucasSantana-Dev/Lucky/issues/2053)) ([4498299](https://github.com/LucasSantana-Dev/Lucky/commit/44982991cfab7adfe4b6bd68c46d9e9cce557268))
+* **bot:** restore youtube-dl-exec, discord-player-youtubei needs it undeclared ([#2040](https://github.com/LucasSantana-Dev/Lucky/issues/2040)) ([c75475b](https://github.com/LucasSantana-Dev/Lucky/commit/c75475b5a262d10bb71f14705787cf73bbe8fe4a))
+* **bot:** stop reporting an outage when the fallbacks found nothing ([#2069](https://github.com/LucasSantana-Dev/Lucky/issues/2069)) ([37412e2](https://github.com/LucasSantana-Dev/Lucky/commit/37412e27e5d354303b0fe62d558290375989d74f))
+* **bot:** surface dead last.fm env session key to sentry ([#2047](https://github.com/LucasSantana-Dev/Lucky/issues/2047)) ([3c97291](https://github.com/LucasSantana-Dev/Lucky/commit/3c9729156983b055068a31b83d097e675f83be87))
+* **bot:** update a case reason through the service layer ([#2066](https://github.com/LucasSantana-Dev/Lucky/issues/2066)) ([187d783](https://github.com/LucasSantana-Dev/Lucky/commit/187d783fac2e2d591d12037a41983bcc1e2ff59a))
+* **bot:** use metadata setter instead of direct property assignment ([#2042](https://github.com/LucasSantana-Dev/Lucky/issues/2042)) ([740d53e](https://github.com/LucasSantana-Dev/Lucky/commit/740d53e7aacf86de9b9e51440fced4ed602f04f2))
+
+
+### Performance Improvements
+
+* **bot:** cut yt-dlp timeout from 15s to 6s ([#2044](https://github.com/LucasSantana-Dev/Lucky/issues/2044)) ([39e9e3c](https://github.com/LucasSantana-Dev/Lucky/commit/39e9e3cd9705199f3836658a031e8c083f3d71e5))
+
 ## [2.39.5](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.4...v2.39.5) (2026-08-19)
 
 
