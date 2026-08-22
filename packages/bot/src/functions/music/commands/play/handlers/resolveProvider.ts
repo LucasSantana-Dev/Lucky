@@ -21,7 +21,7 @@ const ATTACHMENT_EXTRACTOR_ID = 'com.discord-player.attachmentextractor'
 // SOUNDCLOUD_SEARCH arms, so every arm failed as
 // "NoResultError (Extractor: com.discord-player.attachmentextractor)" and the
 // SoundCloud fallback never actually ran (#1930).
-const TEXT_SEARCH_BLOCKED_EXTRACTORS = [
+export const TEXT_SEARCH_BLOCKED_EXTRACTORS = [
     SPOTIFY_EXTRACTOR_ID,
     ATTACHMENT_EXTRACTOR_ID,
 ]
