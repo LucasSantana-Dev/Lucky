@@ -124,13 +124,44 @@ describe('log level token', () => {
                 .find((l: string) => l.includes('boom'))
             expect(emitted).toBeDefined()
             const lines = (emitted as string).split('\n')
-            // The frame survives as its own line; the message newline does not
-            // add one.
+
+            // The assertion that actually detects the forgery: the collapsed
+            // message must share the header's PHYSICAL line. Asserting only
+            // that 'forged' appears once passes either way, because a forged
+            // record also contains it exactly once — that was the earlier bug
+            // in this test.
+            const header = lines.find((l) => l.includes('boom'))
+            expect(header).toContain('forged')
+            expect(lines.filter((l) => l.includes('forged'))).toHaveLength(1)
+
             expect(lines.some((l) => l.includes('at one (a.ts:1:1)'))).toBe(
                 true,
             )
-            expect(lines.filter((l) => l.includes('forged'))).toHaveLength(1)
             for (const line of lines) expect(anchored.test(line)).toBe(true)
+        } finally {
+            errSpy.mockRestore()
+        }
+    })
+
+    it('a frame-shaped line inside the message is not emitted as a frame', () => {
+        const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            // V8 copies the message into err.stack, so this text would pass a
+            // naive /^\s*at\s/ frame filter and forge a prefixed record.
+            const err = new Error('boom\n    at fake (evil.ts:1:1)')
+            service.error({ message: 'failed', error: err })
+
+            const emitted = errSpy.mock.calls
+                .map((c: unknown[]) => stripAnsi(c[0] as string))
+                .find((l: string) => l.includes('boom'))
+            expect(emitted).toBeDefined()
+            const lines = (emitted as string).split('\n')
+            // The text is still logged — it belongs to the message — but only
+            // collapsed into the header's physical line, never as a frame of
+            // its own that a shipper would index as a separate record.
+            const withEvil = lines.filter((l) => l.includes('evil.ts'))
+            expect(withEvil).toHaveLength(1)
+            expect(withEvil[0]).toContain('boom')
         } finally {
             errSpy.mockRestore()
         }
