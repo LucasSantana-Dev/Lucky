@@ -95,6 +95,47 @@ describe('log level token', () => {
         }
     })
 
+    it('a newline in the message cannot forge a second log record', () => {
+        service.info({
+            message: 'login ok\n[ERROR] invalid password for admin',
+        })
+        const emitted = consoleSpy.mock.calls.map((c: unknown[]) =>
+            stripAnsi(c[0] as string),
+        )
+        const forged = emitted.filter((l: string) =>
+            l.includes('invalid password'),
+        )
+        expect(forged).toHaveLength(1)
+        // One physical line: the newline was collapsed, not turned into a
+        // second record the shipper would index separately.
+        expect(forged[0].split('\n')).toHaveLength(1)
+        expect(forged[0].startsWith('[INFO] ')).toBe(true)
+    })
+
+    it('a newline in the error message cannot forge a record either', () => {
+        const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            const err = new Error('boom\n[ERROR] forged')
+            err.stack = 'Error: boom\n[ERROR] forged\n    at one (a.ts:1:1)'
+            service.error({ message: 'failed', error: err })
+
+            const emitted = errSpy.mock.calls
+                .map((c: unknown[]) => stripAnsi(c[0] as string))
+                .find((l: string) => l.includes('boom'))
+            expect(emitted).toBeDefined()
+            const lines = (emitted as string).split('\n')
+            // The frame survives as its own line; the message newline does not
+            // add one.
+            expect(lines.some((l) => l.includes('at one (a.ts:1:1)'))).toBe(
+                true,
+            )
+            expect(lines.filter((l) => l.includes('forged'))).toHaveLength(1)
+            for (const line of lines) expect(anchored.test(line)).toBe(true)
+        } finally {
+            errSpy.mockRestore()
+        }
+    })
+
     it('does not throw when a circular non-Error reaches toError', () => {
         // service.error() calls toError() AFTER logging; its JSON.stringify was
         // the last unguarded one in the file, so a circular value made the call

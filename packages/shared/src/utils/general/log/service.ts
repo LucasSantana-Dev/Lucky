@@ -34,7 +34,20 @@ function serializeError(err: unknown): string {
         // message or stack, and reading one outside would crash the log call
         // instead of falling back.
         if (err instanceof Error) {
-            return `${err.name}: ${err.message}\n${err.stack ?? ''}`
+            // name and message are VALUES: a newline in either would forge an
+            // extra physical log record once prefixLines splits. The stack's
+            // newlines are STRUCTURE (one per frame) and must survive.
+            const header = `${sanitizeForLogging(err.name)}: ${sanitizeForLogging(err.message)}`
+            // Keep only frame lines. Everything before them is the engine
+            // repeating "Name: message", which we already emit as the header —
+            // and which carries the message's newlines, the injection vector.
+            const frames = (err.stack ?? '')
+                .split('\n')
+                .filter((line) => /^\s*at\s/.test(line))
+                .map((line) => sanitizeForLogging(line))
+            return frames.length > 0
+                ? `${header}\n${frames.join('\n')}`
+                : header
         }
         // Same undefined case as serializeData: JSON.stringify returns
         // undefined, not a string, for functions, symbols and objects whose
@@ -191,7 +204,12 @@ export class LogService {
         // Strip control characters (CR/LF/etc.) so user-provided values in the
         // message can't forge additional log lines (log injection).
 
-        console.log(prefixLines(token, formattedMessage, color))
+        // The message is single-line by contract, so sanitise it BEFORE the
+        // split: a newline from user input would otherwise become a second
+        // physical record. Only stacks are legitimately multi-line.
+        console.log(
+            prefixLines(token, sanitizeForLogging(formattedMessage), color),
+        )
 
         if (effectiveParams.data) {
             console.log(
