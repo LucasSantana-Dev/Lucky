@@ -440,7 +440,6 @@ describe('candidateCollector', () => {
                 [createTrack()],
                 null,
                 0,
-                null,
                 true, // blockSertanejo
             )
 
@@ -464,7 +463,6 @@ describe('candidateCollector', () => {
                 [createTrack()],
                 null,
                 0,
-                null,
                 false, // blockSertanejo
             )
 
@@ -488,7 +486,6 @@ describe('candidateCollector', () => {
                 [createTrack()],
                 null,
                 0,
-                null,
                 true, // blockSertanejo is true but tags are empty — must not block
             )
 
