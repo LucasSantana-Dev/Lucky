@@ -66,7 +66,7 @@ jobs:
             # stage graph and is equally exposed to the BuildKit
             # solver-level checksum race the CI validation matrix hit.
             - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+              uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
               with:
                   buildkitd-config-inline: |
                       [worker.oci]
@@ -176,7 +176,7 @@ jobs:
 
             - name: Upload Trivy SARIF
               if: always()
-              uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+              uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
               with:
                   sarif_file: trivy-image-${{ matrix.service }}.sarif
                   category: trivy-image-${{ matrix.service }}
