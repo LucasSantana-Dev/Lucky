@@ -2,9 +2,7 @@
     "compilerOptions": {
         "target": "ES2022",
         "module": "ESNext",
-        "lib": [
-            "ES2022"
-        ],
+        "lib": ["ES2022"],
         "moduleResolution": "bundler",
         "resolveJsonModule": true,
         "allowSyntheticDefaultImports": true,
@@ -14,28 +12,15 @@
         "forceConsistentCasingInFileNames": true,
         "rootDir": "./src",
         "outDir": "./dist",
-        "baseUrl": ".",
         "paths": {
-            "@/*": [
-                "./src/*"
-            ],
-            "@lucky/shared": [
-                "../shared/src/index.ts"
-            ],
-            "@lucky/shared/*": [
-                "../shared/src/*"
-            ]
+            "@/*": ["./src/*"],
+            "@lucky/shared": ["../shared/src/index.ts"],
+            "@lucky/shared/*": ["../shared/src/*"]
         },
         "ignoreDeprecations": "6.0"
     },
-    "include": [
-        "src/**/*"
-    ],
-    "exclude": [
-        "node_modules",
-        "dist",
-        "tests"
-    ],
+    "include": ["src/**/*"],
+    "exclude": ["node_modules", "dist", "tests"],
     "references": [
         {
             "path": "../shared"
