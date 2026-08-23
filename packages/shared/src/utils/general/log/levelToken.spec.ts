@@ -283,6 +283,38 @@ describe('log level token', () => {
         }
     })
 
+    it('strips a frame-shaped message even when the name is empty', () => {
+        // With an empty name and a message starting with "at ", V8 puts the
+        // MESSAGE on the stack's first line. Treating that as "headerless"
+        // skipped the strip and emitted the message as a forged frame.
+        const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            const err = new Error('at fake (evil.ts:1:1)')
+            err.name = ''
+            Object.defineProperty(err, 'stack', {
+                value: 'at fake (evil.ts:1:1)\n    at real (app.ts:9:9)',
+            })
+            service.error({ message: 'failed', error: err })
+
+            const emitted = errSpy.mock.calls
+                .map((c: unknown[]) => stripAnsi(c[0] as string))
+                .find((l: string) => l.includes('evil.ts'))
+            expect(emitted).toBeDefined()
+            const withEvil = (emitted as string)
+                .split('\n')
+                .filter((l: string) => l.includes('evil.ts'))
+            // Present once, inside the header — never as a frame of its own.
+            expect(withEvil).toHaveLength(1)
+            expect(
+                (emitted as string)
+                    .split('\n')
+                    .some((l: string) => l.includes('at real (app.ts:9:9)')),
+            ).toBe(true)
+        } finally {
+            errSpy.mockRestore()
+        }
+    })
+
     it('does not throw when a circular non-Error reaches toError', () => {
         // service.error() calls toError() AFTER logging; its JSON.stringify was
         // the last unguarded one in the file, so a circular value made the call

@@ -61,11 +61,20 @@ function serializeError(err: unknown): string {
             // Strip the message only when the stack HAS a header. replace()
             // removes the first match anywhere, so with a custom stack that
             // starts straight at the frames a message like "at " would eat a
-            // real frame's prefix and drop it. If the first line is already a
-            // frame there is no header, so there is nothing to remove.
-            const startsAtFrame = FRAME_LINE.test(rawStack.split('\n')[0] ?? '')
+            // real frame's prefix and drop it.
+            //
+            // But "first line is a frame" alone is not enough: with an empty
+            // name and a message starting with "at ", V8 puts the MESSAGE on
+            // that first line, and treating it as headerless skips the strip
+            // and emits the message as a forged frame. So a first line that is
+            // the message itself still counts as a header.
+            const firstStackLine = rawStack.split('\n')[0] ?? ''
+            const firstMessageLine = rawMessage.split('\n')[0] ?? ''
+            const headerless =
+                FRAME_LINE.test(firstStackLine) &&
+                !(rawMessage && firstStackLine.endsWith(firstMessageLine))
             const body =
-                rawMessage && !startsAtFrame
+                rawMessage && !headerless
                     ? rawStack.replace(rawMessage, '')
                     : rawStack
             const frames = body
