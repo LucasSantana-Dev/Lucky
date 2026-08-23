@@ -37,7 +37,7 @@
         "@types/express-session": "^1.19.0",
         "@types/jest": "^30.0.0",
         "@types/multer": "^2.2.0",
-        "@types/node": "^25.9.1",
+        "@types/node": "^26.2.0",
         "@types/session-file-store": "^1.2.6",
         "@types/supertest": "^7.2.1",
         "jest": "^30.4.2",
