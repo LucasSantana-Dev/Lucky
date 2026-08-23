@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.7](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.6...v2.39.7) (2026-08-23)
+
+
+### Bug Fixes
+
+* **shared:** write the log level as a parseable token ([#2081](https://github.com/LucasSantana-Dev/Lucky/issues/2081)) ([c66edc3](https://github.com/LucasSantana-Dev/Lucky/commit/c66edc31af08b05e3956ffbde4393ddf1349c796))
+
 ## [2.39.6](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.5...v2.39.6) (2026-08-22)
 
 
