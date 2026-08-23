@@ -6,37 +6,143 @@ import {
 } from '../../monitoring'
 import { recordWithCooldown, emitAlert } from '../../alerts'
 import { getLogContext } from './context'
+import { LEVEL_TOKEN } from './types'
 import type { LogLevelType, LogParams, LogConfig } from './types'
 
 function sanitizeForLogging(text: string): string {
     return text.replace(/[\x00-\x1f\x7f]/g, ' ')
 }
 
-function serializeError(err: unknown): string {
-    if (err instanceof Error) {
-        const sanitizedName = sanitizeForLogging(err.name)
-        const sanitizedMessage = sanitizeForLogging(err.message)
-        const sanitizedStack = sanitizeForLogging(err.stack ?? '')
-        return `${sanitizedName}: ${sanitizedMessage}\n${sanitizedStack}`
-    }
+// Last-resort coercion. String() itself throws on a null-prototype object with
+// no toPrimitive, so the fallback needed its own fallback: a placeholder is
+// always better than a log call that crashes the caller.
+function toDisplayString(value: unknown): string {
     try {
-        return JSON.stringify(err, null, 2)
+        return String(value)
     } catch {
-        return String(err)
+        return '[unserializable]'
     }
+}
+
+// Deliberately does NOT sanitize: prefixLines sanitizes each line AFTER
+// splitting, and sanitizing here first would turn every newline inside the
+// stack into a space, collapsing the frames into one blob that no per-line
+// parser can read. One sanitizer, at the choke point, after the split.
+/**
+ * A V8 stack frame line. The leading whitespace is REQUIRED, and that is the
+ * whole trick: the engine indents every frame and never indents the header, so
+ * indentation is what separates them. Allowing zero indentation let a header
+ * masquerade as a frame whenever the name or message happened to start with
+ * "at ", which cost several rounds of special-casing.
+ */
+const FRAME_LINE = /^\s+at\s/
+
+function serializeError(err: unknown): string {
+    try {
+        // Inside the try: an Error can expose a throwing getter for name,
+        // message or stack, and reading one outside would crash the log call
+        // instead of falling back.
+        if (err instanceof Error) {
+            // name and message are VALUES: a newline in either would forge an
+            // extra physical log record once prefixLines splits. The stack's
+            // newlines are STRUCTURE (one per frame) and must survive.
+            // Read each property EXACTLY once. A mutable getter that returns
+            // different values across reads would otherwise let the header be
+            // built from one string while the stack is stripped with another,
+            // leaving the injected text in place. Reproduced: 3 reads of
+            // message, and a getter changing on the third let a frame-shaped
+            // line through.
+            const rawName = err.name
+            const rawMessage = err.message
+            const rawStack = err.stack ?? ''
+
+            // name and message are VALUES: a newline in either would forge an
+            // extra physical log record once prefixLines splits. The stack's
+            // newlines are STRUCTURE (one per frame) and must survive.
+            const header = `${sanitizeForLogging(rawName)}: ${sanitizeForLogging(rawMessage)}`
+            // Strip the MESSAGE, not a reconstructed header. The engine embeds
+            // it verbatim in the stack, and that is where injected text lives,
+            // so removing it closes the hole regardless of header format or of
+            // err.name being reassigned after the stack was captured.
+            // Strip the message only when the stack HAS a header, because
+            // replace() removes the first match anywhere: with a custom stack
+            // that starts straight at the frames, a message of "at " would eat
+            // a real frame's prefix and the filter would drop that line.
+            //
+            // A header is simply a first line that is NOT indented. No
+            // comparison against the name or message is needed, so the
+            // frame-shaped-name and frame-shaped-message cases fall out for
+            // free rather than each needing their own branch.
+            const headerless = FRAME_LINE.test(rawStack.split('\n')[0] ?? '')
+            const body =
+                rawMessage && !headerless
+                    ? rawStack.replace(rawMessage, '')
+                    : rawStack
+            const frames = body
+                .split('\n')
+                .filter((line) => FRAME_LINE.test(line))
+                .map((line) => sanitizeForLogging(line))
+            return frames.length > 0
+                ? `${header}\n${frames.join('\n')}`
+                : header
+        }
+        // Same undefined case as serializeData: JSON.stringify returns
+        // undefined, not a string, for functions, symbols and objects whose
+        // toJSON() returns undefined.
+        return JSON.stringify(err, null, 2) ?? toDisplayString(err)
+    } catch {
+        return toDisplayString(err)
+    }
+}
+
+/**
+ * Prefixes EVERY physical line, not just the first.
+ *
+ * serializeError emits `name: message\n<stack>` and serializeData uses
+ * JSON.stringify(..., 2), so both are routinely multi-line. Prefixing only the
+ * first line leaves every stack frame and every JSON continuation without the
+ * level token, which is exactly what an anchored per-line shipper parser drops.
+ * That would defeat the point of writing the level as a parseable token.
+ */
+function prefixLines(
+    token: string,
+    value: string,
+    color: (s: string) => string,
+): string {
+    const lines = value.split('\n')
+    // serializeError ends with the stack, which is empty when an Error carries
+    // none — that leaves a trailing '' segment that would emit a bare
+    // "[ERROR] " line with nothing after it.
+    if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop()
+    // Order matters: sanitise the RAW line, then colour it. Colouring first and
+    // sanitising after would strip the ANSI escapes, since \x1b is a control
+    // character. Sanitising here rather than at each caller keeps it a single
+    // choke point no caller can forget, and keeps the taint path visible.
+    return lines
+        .map((line) => token + color(sanitizeForLogging(line)))
+        .join('\n')
 }
 
 function serializeData(data: unknown): string {
     try {
-        return JSON.stringify(data, null, 2)
+        // JSON.stringify returns undefined (not a string) for functions,
+        // symbols, and objects whose toJSON() returns undefined. Those are all
+        // truthy, so the caller's guard lets them through and prefixLines would
+        // then call .split on undefined and throw.
+        return JSON.stringify(data, null, 2) ?? toDisplayString(data)
     } catch {
-        return String(data)
+        return toDisplayString(data)
     }
 }
 
 function toError(err: unknown): Error {
     if (err instanceof Error) return err
-    return new Error(typeof err === 'string' ? err : JSON.stringify(err))
+    if (typeof err === 'string') return new Error(err)
+    // Last JSON.stringify in this file without a guard. It throws on a circular
+    // value or a throwing toJSON(), which would make service.error() throw
+    // AFTER it had already logged — reusing the serializer keeps the whole
+    // error path on the same fallback.
+    return new Error(serializeData(err))
 }
 
 /**
@@ -70,6 +176,11 @@ export class LogService {
         if (this.config.enableCorrelationId && correlationId) {
             formattedMessage = `[${correlationId}] ${formattedMessage}`
         }
+
+        // Prepended last so the level is always at index 0, whatever the
+        // timestamp/correlationId flags are set to. A shipper can then anchor
+        // on `^\[LEVEL\]` instead of scanning the line for a keyword, which
+        // is what let message *content* forge a level (#2054).
 
         return formattedMessage
     }
@@ -118,22 +229,39 @@ export class LogService {
 
         const formattedMessage = this.formatMessage(effectiveParams)
         const color = this.getColor(level)
+
+        // The token sits OUTSIDE the colour wrapper. chalk wraps whatever it
+        // is given in ANSI escapes, so a token inside it would make the line
+        // start with \x1b[33m rather than [WARN] and defeat an anchored
+        // shipper regex entirely. An out-of-range level is a programming
+        // error, not a severity, so it falls back to INFO rather than
+        // emitting `[undefined]`.
+        const token = `[${LEVEL_TOKEN[level] ?? 'INFO'}] `
+
         // Strip control characters (CR/LF/etc.) so user-provided values in the
         // message can't forge additional log lines (log injection).
 
-        const coloredMessage = color(sanitizeForLogging(formattedMessage))
-
-        console.log(coloredMessage)
+        // The message is single-line by contract, so sanitise it BEFORE the
+        // split: a newline from user input would otherwise become a second
+        // physical record. Only stacks are legitimately multi-line.
+        console.log(
+            prefixLines(token, sanitizeForLogging(formattedMessage), color),
+        )
 
         if (effectiveParams.data) {
-            const sanitizedData = sanitizeForLogging(
-                serializeData(effectiveParams.data),
+            console.log(
+                prefixLines(token, serializeData(effectiveParams.data), color),
             )
-            console.log(color(sanitizedData))
         }
 
         if (effectiveParams.error) {
-            console.error(color(serializeError(effectiveParams.error)))
+            console.error(
+                prefixLines(
+                    token,
+                    serializeError(effectiveParams.error),
+                    color,
+                ),
+            )
         }
     }
 
