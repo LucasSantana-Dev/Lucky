@@ -16,7 +16,6 @@
         "outDir": "./dist",
         "rootDir": "./src",
         "sourceMap": false,
-        "baseUrl": ".",
         "allowJs": true,
         "incremental": true,
         "tsBuildInfoFile": "./dist/.tsbuildinfo",
