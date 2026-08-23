@@ -70,9 +70,13 @@ function serializeError(err: unknown): string {
             // the message itself still counts as a header.
             const firstStackLine = rawStack.split('\n')[0] ?? ''
             const firstMessageLine = rawMessage.split('\n')[0] ?? ''
+            // Equality, not endsWith: a headerless stack whose first frame
+            // merely ENDS with the message (message "(app.ts:9:9)", frame
+            // "    at real (app.ts:9:9)") would otherwise be read as a header
+            // and have that text cut out of the frame.
             const headerless =
                 FRAME_LINE.test(firstStackLine) &&
-                !(rawMessage && firstStackLine.endsWith(firstMessageLine))
+                !(rawMessage && firstStackLine === firstMessageLine)
             const body =
                 rawMessage && !headerless
                     ? rawStack.replace(rawMessage, '')
