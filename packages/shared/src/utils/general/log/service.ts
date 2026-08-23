@@ -28,8 +28,14 @@ function toDisplayString(value: unknown): string {
 // splitting, and sanitizing here first would turn every newline inside the
 // stack into a space, collapsing the frames into one blob that no per-line
 // parser can read. One sanitizer, at the choke point, after the split.
-/** A V8 stack frame line: leading whitespace then "at ". */
-const FRAME_LINE = /^\s*at\s/
+/**
+ * A V8 stack frame line. The leading whitespace is REQUIRED, and that is the
+ * whole trick: the engine indents every frame and never indents the header, so
+ * indentation is what separates them. Allowing zero indentation let a header
+ * masquerade as a frame whenever the name or message happened to start with
+ * "at ", which cost several rounds of special-casing.
+ */
+const FRAME_LINE = /^\s+at\s/
 
 function serializeError(err: unknown): string {
     try {
@@ -58,25 +64,16 @@ function serializeError(err: unknown): string {
             // it verbatim in the stack, and that is where injected text lives,
             // so removing it closes the hole regardless of header format or of
             // err.name being reassigned after the stack was captured.
-            // Strip the message only when the stack HAS a header. replace()
-            // removes the first match anywhere, so with a custom stack that
-            // starts straight at the frames a message like "at " would eat a
-            // real frame's prefix and drop it.
+            // Strip the message only when the stack HAS a header, because
+            // replace() removes the first match anywhere: with a custom stack
+            // that starts straight at the frames, a message of "at " would eat
+            // a real frame's prefix and the filter would drop that line.
             //
-            // But "first line is a frame" alone is not enough: with an empty
-            // name and a message starting with "at ", V8 puts the MESSAGE on
-            // that first line, and treating it as headerless skips the strip
-            // and emits the message as a forged frame. So a first line that is
-            // the message itself still counts as a header.
-            const firstStackLine = rawStack.split('\n')[0] ?? ''
-            const firstMessageLine = rawMessage.split('\n')[0] ?? ''
-            // Equality, not endsWith: a headerless stack whose first frame
-            // merely ENDS with the message (message "(app.ts:9:9)", frame
-            // "    at real (app.ts:9:9)") would otherwise be read as a header
-            // and have that text cut out of the frame.
-            const headerless =
-                FRAME_LINE.test(firstStackLine) &&
-                !(rawMessage && firstStackLine === firstMessageLine)
+            // A header is simply a first line that is NOT indented. No
+            // comparison against the name or message is needed, so the
+            // frame-shaped-name and frame-shaped-message cases fall out for
+            // free rather than each needing their own branch.
+            const headerless = FRAME_LINE.test(rawStack.split('\n')[0] ?? '')
             const body =
                 rawMessage && !headerless
                     ? rawStack.replace(rawMessage, '')

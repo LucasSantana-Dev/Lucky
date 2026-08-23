@@ -343,6 +343,35 @@ describe('log level token', () => {
         }
     })
 
+    it('strips the message when err.name itself is frame-shaped', () => {
+        // name "at Weird" makes V8 write the header as "at Weird: boom", which
+        // looks like a frame. Indentation is what separates the two: the engine
+        // indents every frame and never indents the header.
+        const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            const err = new Error('boom\n    at fake (evil.ts:1:1)')
+            err.name = 'at Weird'
+            Object.defineProperty(err, 'stack', {
+                value: 'at Weird: boom\n    at fake (evil.ts:1:1)\n    at real (app.ts:9:9)',
+            })
+            service.error({ message: 'failed', error: err })
+
+            const emitted = errSpy.mock.calls
+                .map((c: unknown[]) => stripAnsi(c[0] as string))
+                .find((l: string) => l.includes('boom'))
+            expect(emitted).toBeDefined()
+            const lines = (emitted as string).split('\n')
+            const withEvil = lines.filter((l) => l.includes('evil.ts'))
+            expect(withEvil).toHaveLength(1)
+            expect(withEvil[0]).toContain('boom')
+            expect(lines.some((l) => l.includes('at real (app.ts:9:9)'))).toBe(
+                true,
+            )
+        } finally {
+            errSpy.mockRestore()
+        }
+    })
+
     it('does not throw when a circular non-Error reaches toError', () => {
         // service.error() calls toError() AFTER logging; its JSON.stringify was
         // the last unguarded one in the file, so a circular value made the call
