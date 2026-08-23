@@ -10,6 +10,24 @@ export const LogLevel = {
 /** Log level type. */
 export type LogLevelType = (typeof LogLevel)[keyof typeof LogLevel]
 
+/**
+ * Token written at the start of every log line so shippers can read the
+ * severity. The level was previously carried only by ANSI colour, which no
+ * shipper can parse: Loki's `level` label was empty for INFO/WARN and only
+ * ever matched lines whose *content* happened to contain "ERROR" (a track
+ * titled "BARRE DI TERRORE" labelled routine playback as an error). See #2054.
+ *
+ * SUCCESS maps to INFO because it is an informational outcome, and downstream
+ * (promtail, Grafana) has no SUCCESS bucket to route it to.
+ */
+export const LEVEL_TOKEN: Record<LogLevelType, string> = {
+    [LogLevel.ERROR]: 'ERROR',
+    [LogLevel.WARN]: 'WARN',
+    [LogLevel.INFO]: 'INFO',
+    [LogLevel.SUCCESS]: 'INFO',
+    [LogLevel.DEBUG]: 'DEBUG',
+}
+
 /** Parameters for logging. */
 export type LogParams = {
     message: string
