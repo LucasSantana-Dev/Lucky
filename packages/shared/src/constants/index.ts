@@ -6,6 +6,7 @@ export {
     BOT_INVITE_PERMISSIONS,
     buildBotInviteUrl,
 } from './invite'
+export { SUPPORT_SERVER_INVITE_URL } from './support'
 export {
     TOP_GG_BOT_ID,
     TOP_GG_VOTE_TIERS,

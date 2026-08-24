@@ -2,6 +2,7 @@ import { useMemo, type ReactElement } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { getBotInviteUrl } from '@/lib/discord'
+import { SUPPORT_SERVER_INVITE_URL } from '@lucky/shared/constants'
 import DocsShell, {
     type DocsNavGroup,
     type DocsTocItem,
@@ -64,7 +65,7 @@ const NAV: DocsNavGroup[] = [
             { label: 'Changelog', href: '/changelog' },
             {
                 label: 'Discord support',
-                href: 'https://discord.gg/lucky',
+                href: SUPPORT_SERVER_INVITE_URL,
                 external: true,
             },
         ],
@@ -550,10 +551,9 @@ $EDITOR .env`}</code>
                     <code>POSTGRES_PASSWORD</code> with{' '}
                     <code>openssl rand -hex 24</code> before the first{' '}
                     <code>docker compose up</code>. An empty value fails the
-                    compose guard on purpose. Optional integrations like
-                    Spotify and Last.fm get their own keys. The full list with
-                    notes lives in{' '}
-                    <a href='/docs?page=env'>Environment variables</a>.
+                    compose guard on purpose. Optional integrations like Spotify
+                    and Last.fm get their own keys. The full list with notes
+                    lives in <a href='/docs?page=env'>Environment variables</a>.
                 </p>
                 <p>
                     <code>SESSION_SECRET</code> must be 32+ random bytes.

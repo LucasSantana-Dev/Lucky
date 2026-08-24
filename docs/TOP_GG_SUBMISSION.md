@@ -4,13 +4,15 @@ Copy-paste artifacts for filing Lucky on https://top.gg. Launch sequence in `~/.
 
 ## 1. Bot identification
 
-| Field          | Value                                                                            |
-| -------------- | -------------------------------------------------------------------------------- |
-| Client ID      | `962198089161134131`                                                             |
-| Invite URL     | `https://lucky.lucassantana.tech/invite`                                         |
-| Website        | `https://lucky.lucassantana.tech`                                                |
-| GitHub         | `https://github.com/LucasSantana-Dev/Lucky`                                      |
-| Support server | _Create a Lucky Discord server first (Phase 0 task #7), then paste invite here._ |
+| Field          | Value                                       |
+| -------------- | ------------------------------------------- |
+| Client ID      | `962198089161134131`                        |
+| Invite URL     | `https://lucky.lucassantana.tech/invite`    |
+| Website        | `https://lucky.lucassantana.tech`           |
+| GitHub         | `https://github.com/LucasSantana-Dev/Lucky` |
+| Support server | `https://discord.gg/f2rxBWvqeR`             |
+
+**Note on the support server**: the invite is permanent by construction ("Expire After: Never", "Max Uses: No limit"). The first invite generated for this server carried `expires_at 2026-09-23` and was discarded: a support link that quietly expires is half of what made #2087 a bug. The single definition lives in `packages/shared/src/constants/support.ts`; do not paste the raw URL into new call sites.
 
 **Note on the invite URL** — do not hardcode a `permissions=` integer here. `https://lucky.lucassantana.tech/invite` redirects to Discord via the backend, which builds the URL from `BOT_INVITE_PERMISSIONS` in `packages/shared/src/constants/invite.ts`, and logs the `utm_*` parameters on the way through so directory clicks are attributable.
 
@@ -132,7 +134,7 @@ Finally, in `packages/bot/src/functions/general/commands/`, add `/voterewards` t
 - [ ] Short description pasted
 - [ ] Long description pasted
 - [ ] 3-8 tags selected
-- [ ] Support server invite link added
+- [x] Support server invite link added
 - [ ] GitHub URL added
 - [ ] Prefix: `/` (slash commands only)
 - [ ] Webhook URL set to `https://lucky-api.lucassantana.tech/webhooks/topgg-votes` (after deploy)
