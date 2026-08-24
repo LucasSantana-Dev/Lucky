@@ -467,6 +467,16 @@ async function main() {
             '       Manage Roles, Manage Guild, Read Message History, Pin Messages.',
         )
         console.log(
+            '       These are per-run grants, not a permanent state: the preflight',
+        )
+        console.log(
+            '       requires them again, so grant them once more before re-running.',
+        )
+        console.log(
+            '       Only the invite set (3173504) is meant to persist, per',
+        )
+        console.log('       decisions/2026-06-18-invite-permission-scope.md.')
+        console.log(
             '    2. If this is a new server, create a permanent invite:',
         )
         console.log(
