@@ -137,6 +137,6 @@ Finally, in `packages/bot/src/functions/general/commands/`, add `/voterewards` t
 - [x] Support server invite link added
 - [ ] GitHub URL added
 - [ ] Prefix: `/` (slash commands only)
-- [ ] Webhook URL set to `https://api.lucky.lucassantana.tech/webhooks/topgg-votes` (after deploy)
+- [ ] Webhook URL set to `https://lucky-api.lucassantana.tech/webhooks/topgg-votes` (after deploy)
 - [ ] Webhook auth token pasted in top.gg's field
 - [ ] Announce the listing in the support Discord + a GitHub release note
