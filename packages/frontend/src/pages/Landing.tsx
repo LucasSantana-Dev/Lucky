@@ -1,5 +1,6 @@
 import { reportError } from '@/lib/sentry'
 import { getBotInviteUrl } from '@/lib/discord'
+import { SUPPORT_SERVER_INVITE_URL } from '@lucky/shared/constants'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/authStore'
@@ -758,7 +759,7 @@ function FooterSection() {
                         heading={t('landing.footer.support')}
                         links={[
                             {
-                                href: 'https://discord.gg/lucky',
+                                href: SUPPORT_SERVER_INVITE_URL,
                                 label: t('landing.footer.discord'),
                                 external: true,
                             },
