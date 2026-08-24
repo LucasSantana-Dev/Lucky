@@ -136,7 +136,7 @@ keys it sketched. The real implementation:
 
 Verified reaching the backend in production on v2.39.8:
 
-```
+```console
 $ curl -s -i -X POST -H "Content-Type: application/json" \
     -d '{"type":"test"}' https://lucky-api.lucassantana.tech/webhooks/topgg-votes
 HTTP/2 503
@@ -185,7 +185,8 @@ Done:
 Blocked on approval:
 
 - [ ] Get the webhook token and set `TOPGG_AUTH_TOKEN` in production
-- [ ] Set the webhook URL in top.gg (only after the step above)
+- [ ] Set `TOPGG_TOKEN` in production so `topggStatsScheduler` can post the server count
+- [ ] Set the webhook URL in top.gg (only after `TOPGG_AUTH_TOKEN` is set)
 - [ ] Revisit imagery under the dashboard's `Appearance` section
 - [ ] Announce the listing in the support Discord and a GitHub release note
 
