@@ -67,6 +67,8 @@ const P = {
     CREATE_PUBLIC_THREADS: 1n << 35n,
     SEND_MESSAGES_IN_THREADS: 1n << 38n,
     ADD_REACTIONS: 1n << 6n,
+    READ_MESSAGE_HISTORY: 1n << 16n,
+    MANAGE_MESSAGES: 1n << 13n,
 }
 
 let calls = 0
@@ -234,19 +236,36 @@ async function main() {
     // enabled. Without it Discord rejects the create with 50035:
     // "Value must be one of {0, 2, 4, 6, 13, 14, 15, 16, 21}".
     const guild = await api('GET', `/guilds/${GUILD_ID}`)
+    const me = await api('GET', '/users/@me')
     const isCommunity = (guild.features ?? []).includes('COMMUNITY')
 
     console.log(`  Guild: ${target.name} (${GUILD_ID})`)
     console.log(`  Manage Channels: ${has(P.MANAGE_CHANNELS) ? 'yes' : 'NO'}`)
     console.log(`  Manage Roles:    ${has(P.MANAGE_ROLES) ? 'yes' : 'NO'}`)
     console.log(
-        `  Manage Guild:    ${has(P.MANAGE_GUILD) ? 'yes' : 'no (server settings will be skipped)'}\n`,
+        `  Manage Guild:    ${has(P.MANAGE_GUILD) ? 'yes' : 'no (server settings will be skipped)'}`,
     )
+    // Pins need both: GET /pins reads history, PUT /pins writes it.
+    console.log(
+        `  Read Msg History:${has(P.READ_MESSAGE_HISTORY) ? 'yes' : 'NO'}`,
+    )
+    console.log(`  Manage Messages: ${has(P.MANAGE_MESSAGES) ? 'yes' : 'NO'}\n`)
 
-    if (!has(P.MANAGE_CHANNELS) || !has(P.MANAGE_ROLES)) {
+    const missing = [
+        ['Manage Channels', P.MANAGE_CHANNELS],
+        ['Manage Roles', P.MANAGE_ROLES],
+        ['Read Message History', P.READ_MESSAGE_HISTORY],
+        ['Manage Messages', P.MANAGE_MESSAGES],
+    ]
+        .filter(([, bit]) => !has(bit))
+        .map(([name]) => name)
+
+    if (missing.length) {
         fail(
-            'Missing Manage Channels and/or Manage Roles in this guild.\n' +
-                '         Server Settings -> Roles -> Lucky -> enable both, then re-run.',
+            `Missing in this guild: ${missing.join(', ')}.\n` +
+                '         Server Settings -> Roles -> Lucky -> enable them, then re-run.\n' +
+                '         Read Message History and Manage Messages are needed for the\n' +
+                '         pinned welcome embeds, not just for channel creation.',
         )
     }
 
@@ -269,24 +288,50 @@ async function main() {
     const created = new Map()
 
     for (const group of STRUCTURE) {
+        // A locked category denies SEND_MESSAGES to @everyone, and the bot
+        // inherits that deny like anyone else. Without an explicit allow it
+        // cannot post the pinned welcome embeds into its own category. A
+        // member overwrite (type 1) avoids resolving the bot's role first.
+        const lockedOverwrites = [
+            {
+                id: GUILD_ID, // the @everyone role id equals the guild id
+                type: 0,
+                allow: String(P.VIEW_CHANNEL | P.ADD_REACTIONS),
+                deny: String(
+                    P.SEND_MESSAGES |
+                        P.CREATE_PUBLIC_THREADS |
+                        P.SEND_MESSAGES_IN_THREADS,
+                ),
+            },
+            {
+                id: me.id,
+                type: 1,
+                allow: String(
+                    P.VIEW_CHANNEL |
+                        P.SEND_MESSAGES |
+                        P.READ_MESSAGE_HISTORY |
+                        P.MANAGE_MESSAGES,
+                ),
+                deny: '0',
+            },
+        ]
+
         let parent = byName.get(group.category)
         if (parent) {
             console.log(`    = ${group.category} already exists, skipping`)
+            // An existing locked category from an older run predates the bot
+            // overwrite above and would still block pinning. Reconcile it.
+            const hasBotAllow = (parent.permission_overwrites ?? []).some(
+                (o) => o.id === me.id,
+            )
+            if (group.locked && !hasBotAllow) {
+                await api('PATCH', `/channels/${parent.id}`, {
+                    permission_overwrites: lockedOverwrites,
+                })
+                console.log('      ~ added the bot overwrite it was missing')
+            }
         } else {
-            const overwrites = group.locked
-                ? [
-                      {
-                          id: GUILD_ID, // the @everyone role id equals the guild id
-                          type: 0,
-                          allow: String(P.VIEW_CHANNEL | P.ADD_REACTIONS),
-                          deny: String(
-                              P.SEND_MESSAGES |
-                                  P.CREATE_PUBLIC_THREADS |
-                                  P.SEND_MESSAGES_IN_THREADS,
-                          ),
-                      },
-                  ]
-                : []
+            const overwrites = group.locked ? lockedOverwrites : []
             parent = await api('POST', `/guilds/${GUILD_ID}/channels`, {
                 name: group.category,
                 type: 4,
@@ -331,6 +376,12 @@ async function main() {
         }
         // Posting is not idempotent on its own: a second run would pin a second
         // copy of the same embed. Match on the embed title already pinned.
+        // In dry-run a freshly "created" channel carries a fabricated id, so a
+        // real GET against it would 404 and abort the whole dry run.
+        if (DRY_RUN && String(channel.id).startsWith('dry-')) {
+            console.log(`    + would pin in ${channelName} (new channel)`)
+            continue
+        }
         const pinned = await api('GET', `/channels/${channel.id}/pins`)
         const items = Array.isArray(pinned) ? pinned : (pinned?.items ?? [])
         const already = items.some((m) =>
@@ -383,7 +434,7 @@ async function main() {
     } else {
         console.log('\n  Server settings skipped (no Manage Guild).')
         console.log(
-            '    Set by hand: name "Lucky", icon assets/lucky-logo.png,',
+            '    Set by hand: name "Lucky", icon assets/outline-v4-neon.jpeg,',
         )
         console.log(
             '    verification level Medium, notifications "Only @mentions".',
@@ -401,9 +452,17 @@ async function main() {
             '    1. Revoke Manage Channels / Manage Roles / Manage Guild from Lucky.',
         )
         console.log(
-            '    2. Create a permanent invite: Expire After = Never, Max Uses = No limit.',
+            '    2. If this is a new server, create a permanent invite:',
         )
-        console.log('    3. Send me the invite code.\n')
+        console.log(
+            '       Expire After = Never, Max Uses = No limit. The Discord default',
+        )
+        console.log(
+            '       expires in 30 days, which silently rots every published link.',
+        )
+        console.log(
+            '    3. Put it in packages/shared/src/constants/support.ts, nowhere else.\n',
+        )
     }
 }
 

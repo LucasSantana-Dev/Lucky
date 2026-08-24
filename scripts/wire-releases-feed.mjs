@@ -102,30 +102,85 @@ async function main() {
         )
     }
 
-    // hook.token is only returned on create; rebuild the URL either way.
-    if (!hook.token) {
-        fail(
-            'Discord did not return a webhook token, so the URL cannot be rebuilt.\n' +
-                `         Delete webhook ${hook.id} on #${CHANNEL_NAME} and re-run to mint a fresh one.`,
-        )
-    }
-    const discordUrl = `https://discord.com/api/webhooks/${hook.id}/${hook.token}/github`
-
-    // --- GitHub side
+    // Discord returns webhook.token ONLY on creation. On a re-run the GET
+    // above omits it, so the URL cannot be rebuilt. That does not mean the
+    // wiring is broken: if a GitHub hook already points at this webhook id,
+    // the feed is live and there is nothing to rebuild. Check that first,
+    // and only fail when the token is genuinely needed.
     const hooksJson = await gh(['api', `repos/${REPO}/hooks`])
     const hooks = JSON.parse(hooksJson)
     const already = hooks.find((h) =>
         (h.config?.url ?? '').includes(`/webhooks/${hook.id}/`),
     )
+
     if (already) {
-        console.log(
-            `  = GitHub webhook already points at this Discord hook (id ${already.id}), skipping`,
+        // Reconcile rather than assume: a hook that exists but is disabled,
+        // lost the `release` event, or points at the base Discord URL without
+        // the /github suffix delivers nothing, and returning here would report
+        // success while the channel stays empty.
+        const url = already.config?.url ?? ''
+        const needsFix =
+            !already.active ||
+            !already.events?.includes('release') ||
+            !url.endsWith('/github')
+
+        if (!needsFix) {
+            console.log(
+                `  = GitHub webhook already wired (id ${already.id}), nothing to do`,
+            )
+            console.log(
+                `    events: ${already.events.join(', ')}  active: ${already.active}`,
+            )
+            return
+        }
+
+        if (!url.endsWith('/github') && !hook.token) {
+            fail(
+                `GitHub hook ${already.id} points at the Discord webhook without the\n` +
+                    '         /github suffix, and Discord will not hand back the token needed\n' +
+                    `         to rebuild the URL. Delete webhook ${hook.id} on #${CHANNEL_NAME},\n` +
+                    `         delete GitHub hook ${already.id}, then re-run.`,
+            )
+        }
+
+        const patch = JSON.stringify({
+            active: true,
+            events: ['release'],
+            config: {
+                url: url.endsWith('/github') ? url : `${url}/github`,
+                content_type: 'json',
+            },
+        })
+        const fixed = JSON.parse(
+            await gh(
+                [
+                    'api',
+                    `repos/${REPO}/hooks/${already.id}`,
+                    '--method',
+                    'PATCH',
+                    '--input',
+                    '-',
+                ],
+                patch,
+            ),
         )
+        console.log(`  ~ GitHub webhook repaired (id ${fixed.id})`)
         console.log(
-            `    events: ${already.events.join(', ')}  active: ${already.active}`,
+            `    events: ${fixed.events.join(', ')}  active: ${fixed.active}`,
         )
         return
     }
+
+    // No GitHub hook yet, so the URL is genuinely required.
+    if (!hook.token) {
+        fail(
+            'The Discord webhook already exists but Discord only returns its token\n' +
+                '         on creation, so the URL cannot be rebuilt, and no GitHub hook\n' +
+                `         points at it yet. Delete webhook ${hook.id} on #${CHANNEL_NAME}\n` +
+                '         and re-run to mint a fresh one.',
+        )
+    }
+    const discordUrl = `https://discord.com/api/webhooks/${hook.id}/${hook.token}/github`
 
     const payload = JSON.stringify({
         name: 'web',
