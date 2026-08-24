@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.8](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.7...v2.39.8) (2026-08-24)
+
+
+### Bug Fixes
+
+* **frontend:** point support link at our own support server ([#2092](https://github.com/LucasSantana-Dev/Lucky/issues/2092)) ([0e39fb0](https://github.com/LucasSantana-Dev/Lucky/commit/0e39fb048e3f205616e425f032a66342e92925d2))
+* **nginx:** route /webhooks/ to backend so top.gg vote calls land ([#2089](https://github.com/LucasSantana-Dev/Lucky/issues/2089)) ([5b084b2](https://github.com/LucasSantana-Dev/Lucky/commit/5b084b2e51c8abf8e31b6e17b76177a6f5dc8fa4))
+
 ## [2.39.7](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.6...v2.39.7) (2026-08-23)
 
 
