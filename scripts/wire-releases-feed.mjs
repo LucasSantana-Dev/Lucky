@@ -107,8 +107,14 @@ async function main() {
     // wiring is broken: if a GitHub hook already points at this webhook id,
     // the feed is live and there is nothing to rebuild. Check that first,
     // and only fail when the token is genuinely needed.
-    const hooksJson = await gh(['api', `repos/${REPO}/hooks`])
-    const hooks = JSON.parse(hooksJson)
+    // Default page is 30 hooks; a match on a later page would read as absent.
+    const hooksJson = await gh([
+        'api',
+        `repos/${REPO}/hooks`,
+        '--paginate',
+        '--slurp',
+    ])
+    const hooks = JSON.parse(hooksJson).flat()
     const already = hooks.find((h) =>
         (h.config?.url ?? '').includes(`/webhooks/${hook.id}/`),
     )
@@ -134,15 +140,8 @@ async function main() {
             return
         }
 
-        if (!url.endsWith('/github') && !hook.token) {
-            fail(
-                `GitHub hook ${already.id} points at the Discord webhook without the\n` +
-                    '         /github suffix, and Discord will not hand back the token needed\n' +
-                    `         to rebuild the URL. Delete webhook ${hook.id} on #${CHANNEL_NAME},\n` +
-                    `         delete GitHub hook ${already.id}, then re-run.`,
-            )
-        }
-
+        // The stored GitHub URL already contains the token, so the /github
+        // suffix can be appended without Discord handing it back.
         const patch = JSON.stringify({
             active: true,
             events: ['release'],

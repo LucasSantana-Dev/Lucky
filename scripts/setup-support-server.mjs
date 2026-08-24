@@ -68,7 +68,9 @@ const P = {
     SEND_MESSAGES_IN_THREADS: 1n << 38n,
     ADD_REACTIONS: 1n << 6n,
     READ_MESSAGE_HISTORY: 1n << 16n,
-    MANAGE_MESSAGES: 1n << 13n,
+    // Pinning has needed its own bit since 2026-02-23; MANAGE_MESSAGES
+    // only covers deleting other people's messages.
+    PIN_MESSAGES: 1n << 51n,
 }
 
 let calls = 0
@@ -249,13 +251,13 @@ async function main() {
     console.log(
         `  Read Msg History:${has(P.READ_MESSAGE_HISTORY) ? 'yes' : 'NO'}`,
     )
-    console.log(`  Manage Messages: ${has(P.MANAGE_MESSAGES) ? 'yes' : 'NO'}\n`)
+    console.log(`  Pin Messages:    ${has(P.PIN_MESSAGES) ? 'yes' : 'NO'}\n`)
 
     const missing = [
         ['Manage Channels', P.MANAGE_CHANNELS],
         ['Manage Roles', P.MANAGE_ROLES],
         ['Read Message History', P.READ_MESSAGE_HISTORY],
-        ['Manage Messages', P.MANAGE_MESSAGES],
+        ['Pin Messages', P.PIN_MESSAGES],
     ]
         .filter(([, bit]) => !has(bit))
         .map(([name]) => name)
@@ -264,7 +266,7 @@ async function main() {
         fail(
             `Missing in this guild: ${missing.join(', ')}.\n` +
                 '         Server Settings -> Roles -> Lucky -> enable them, then re-run.\n' +
-                '         Read Message History and Manage Messages are needed for the\n' +
+                '         Read Message History and Pin Messages are needed for the\n' +
                 '         pinned welcome embeds, not just for channel creation.',
         )
     }
@@ -310,7 +312,7 @@ async function main() {
                     P.VIEW_CHANNEL |
                         P.SEND_MESSAGES |
                         P.READ_MESSAGE_HISTORY |
-                        P.MANAGE_MESSAGES,
+                        P.PIN_MESSAGES,
                 ),
                 deny: '0',
             },
@@ -321,14 +323,24 @@ async function main() {
             console.log(`    = ${group.category} already exists, skipping`)
             // An existing locked category from an older run predates the bot
             // overwrite above and would still block pinning. Reconcile it.
-            const hasBotAllow = (parent.permission_overwrites ?? []).some(
-                (o) => o.id === me.id,
-            )
-            if (group.locked && !hasBotAllow) {
+            const botAllow = lockedOverwrites[1]
+            const current = parent.permission_overwrites ?? []
+            const mine = current.find((o) => o.id === me.id)
+            // Existence is not enough: an overwrite that predates PIN_MESSAGES
+            // grants too little and pinning still fails.
+            const needed = BigInt(botAllow.allow)
+            const ok = mine && (BigInt(mine.allow) & needed) === needed
+            if (group.locked && !ok) {
+                // Replace only the bot's entry; anything a human added stays.
                 await api('PATCH', `/channels/${parent.id}`, {
-                    permission_overwrites: lockedOverwrites,
+                    permission_overwrites: [
+                        ...current.filter((o) => o.id !== me.id),
+                        botAllow,
+                    ],
                 })
-                console.log('      ~ added the bot overwrite it was missing')
+                console.log(
+                    `      ~ ${mine ? 'widened' : 'added'} the bot overwrite`,
+                )
             }
         } else {
             const overwrites = group.locked ? lockedOverwrites : []
@@ -449,7 +461,10 @@ async function main() {
     } else {
         console.log('\n  Next, by hand:')
         console.log(
-            '    1. Revoke Manage Channels / Manage Roles / Manage Guild from Lucky.',
+            '    1. Revoke from Lucky what this run needed: Manage Channels,',
+        )
+        console.log(
+            '       Manage Roles, Manage Guild, Read Message History, Pin Messages.',
         )
         console.log(
             '    2. If this is a new server, create a permanent invite:',
