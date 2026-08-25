@@ -68,28 +68,51 @@ const MUST_DISCOVER = ['/invite', '/webhooks/topgg-votes']
 // trap this gate exists to avoid: a single-line-only regex finds ZERO of the
 // multi-line registrations and the check passes vacuously.
 const ROUTE_RE =
-    /\bapp\.(?:get|post|put|patch|delete|all|use)\(\s*(['"`])([^'"`]+)\1/g
+    /\bapp\.(?:get|post|put|patch|delete|head|options|all|use)\(\s*(['"`])([^'"`]+)\1/g
 
 // `location /x {`, `location = /x {`, `location ^~ /x {`, `location ~ ^/x {`.
 const LOCATION_RE = /^[ \t]*location\s+(?:(=|~\*?|\^~)\s+)?(\S+)\s*\{/gm
 
-async function collectRootRoutes() {
+// Recurses. packages/backend/src/routes/music/ already holds 5 files with route
+// registrations, and a top-level-only scan silently skipped all of them. A
+// non-/api route added under any such subdirectory would have been invisible
+// and the gate would have passed green while the path fell through.
+async function collectRouteFiles(dir) {
     let entries
     try {
-        entries = await readdir(ROUTES_DIR, { withFileTypes: true })
+        entries = await readdir(dir, { withFileTypes: true })
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         throw new Error(
-            `Unable to read route dir "${path.relative(repoRoot, ROUTES_DIR)}": ${message}. ` +
+            `Unable to read route dir "${path.relative(repoRoot, dir)}": ${message}. ` +
                 'If the routes moved, update ROUTES_DIR. A missing dir must fail loudly, ' +
                 'not pass green with zero coverage.',
             { cause: error },
         )
     }
 
-    const files = entries
-        .filter((entry) => entry.isFile() && entry.name.endsWith('.ts'))
-        .map((entry) => path.join(ROUTES_DIR, entry.name))
+    const nested = await Promise.all(
+        entries.map(async (entry) => {
+            const entryPath = path.join(dir, entry.name)
+            if (entry.isDirectory()) {
+                if (
+                    entry.name === '__tests__' ||
+                    entry.name === 'node_modules'
+                ) {
+                    return []
+                }
+                return collectRouteFiles(entryPath)
+            }
+            return entry.isFile() && entry.name.endsWith('.ts')
+                ? [entryPath]
+                : []
+        }),
+    )
+    return nested.flat()
+}
+
+async function collectRootRoutes() {
+    const files = await collectRouteFiles(ROUTES_DIR)
 
     const routes = new Map()
     let registrations = 0
@@ -126,15 +149,31 @@ async function collectLocations() {
 // what "fell through to the SPA" means, so it must never count as coverage.
 const isCatchAll = (loc) => loc.modifier === '' && loc.prefix === '/'
 
+// An Express `:param` never reaches the edge in template form: the client sends
+// `/foo/123`, not `/foo/:id`. So a naive string compare can call a route covered
+// while real requests fall through to `location /`, which is the exact wrong
+// answer this gate exists to prevent. Two rules follow:
+//   - an nginx prefix containing `:` is a LITERAL path segment and can never
+//     match a filled-in value, so it never counts as coverage
+//   - an `=` (exact) block can never cover a route that has a param
+// Prefix coverage of a param route is still valid when the prefix stops at or
+// before the first param segment: `location /foo/` does cover `/foo/:id`.
 function findCoveringLocation(routePath, locations) {
+    const staticPart = `${routePath.split('/:')[0]}/`
     for (const loc of locations) {
         if (isCatchAll(loc)) continue
+        if (loc.prefix.includes(':')) continue
         if (loc.modifier === '=') {
-            if (loc.prefix === routePath) return loc
+            if (!routePath.includes(':') && loc.prefix === routePath) return loc
             continue
         }
         if (loc.modifier === '' || loc.modifier === '^~') {
-            if (routePath.startsWith(loc.prefix)) return loc
+            if (
+                routePath.startsWith(loc.prefix) &&
+                loc.prefix.length <= staticPart.length
+            ) {
+                return loc
+            }
         }
         // `~` / `~*` regex locations are not evaluated. See the guard below.
     }
