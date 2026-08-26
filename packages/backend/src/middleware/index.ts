@@ -130,7 +130,24 @@ export function setupMiddleware(app: Express): void {
     app.use(requestId)
     app.use(requestLogger)
     app.use(metricsMiddleware)
-    app.use(express.json())
+    // The top.gg v1 webhook signs an HMAC over the EXACT bytes it sent, so the
+    // handler needs the unparsed body. express.json() consumes the stream, and
+    // re-serialising req.body would not reproduce those bytes (key order,
+    // whitespace, unicode escapes). Capture is scoped to the one path that
+    // needs it so no other request retains a second copy of its body.
+    app.use(
+        express.json({
+            verify: (req, _res, buf) => {
+                if (
+                    (req as { originalUrl?: string }).originalUrl?.startsWith(
+                        '/webhooks/topgg-votes',
+                    )
+                ) {
+                    ;(req as { rawBody?: Buffer }).rawBody = Buffer.from(buf)
+                }
+            },
+        }),
+    )
     app.use(express.urlencoded({ extended: true }))
     app.use(cookieParser())
     setupSessionMiddleware(app)

@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from 'express'
 import { timingSafeKeyCompare } from '../utils/timingSafeKeyCompare'
+import { verifyTopggSignature } from '../utils/topggSignature'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
@@ -30,13 +31,53 @@ function isDiscordSnowflake(value: string): boolean {
     return /^\d{17,20}$/.test(value)
 }
 
+/**
+ * top.gg has two webhook auth models and the route accepts both.
+ *
+ * v1 (anything created today): top.gg generates a `whs_`-prefixed secret and
+ * signs each delivery, sending `x-topgg-signature`. Configure
+ * TOPGG_WEBHOOK_SECRET.
+ *
+ * v0 (legacy): the owner picks a shared secret which top.gg echoes in the
+ * `Authorization` header. Configure TOPGG_AUTH_TOKEN.
+ *
+ * The presence of the signature header selects the model, so a v1 delivery can
+ * never be satisfied by the weaker v0 comparison, and vice versa. Supporting
+ * both is deliberate: it lets the secret be deployed before the webhook is
+ * created on top.gg, which is the only ordering that avoids top.gg recording a
+ * failed first delivery.
+ */
 function verifyTopggAuth(req: Request): void {
-    const expected = process.env.TOPGG_AUTH_TOKEN
-    if (!expected) {
+    const signatureHeader = req.header('x-topgg-signature')?.trim()
+    const webhookSecret = process.env.TOPGG_WEBHOOK_SECRET
+    const legacyToken = process.env.TOPGG_AUTH_TOKEN
+
+    if (signatureHeader) {
+        if (!webhookSecret) {
+            throw new AppError(503, 'TOPGG_WEBHOOK_SECRET not configured')
+        }
+        const result = verifyTopggSignature({
+            header: signatureHeader,
+            rawBody: (req as Request & { rawBody?: Buffer }).rawBody,
+            secret: webhookSecret,
+        })
+        if (!result.ok) {
+            // The reason is logged, never returned: telling a caller whether a
+            // signature was stale or simply wrong is a probing aid.
+            debugLog({
+                message: 'top.gg v1 signature rejected',
+                data: { reason: result.reason },
+            })
+            throw AppError.unauthorized('invalid top.gg webhook signature')
+        }
+        return
+    }
+
+    if (!legacyToken) {
         throw new AppError(503, 'TOPGG_AUTH_TOKEN not configured')
     }
     const provided = req.header('authorization')?.trim()
-    if (!provided || !timingSafeKeyCompare(provided, expected)) {
+    if (!provided || !timingSafeKeyCompare(provided, legacyToken)) {
         throw AppError.unauthorized('invalid top.gg webhook token')
     }
 }
