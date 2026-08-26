@@ -5,6 +5,18 @@
             "notInVoice": "Join a voice channel first.",
             "nothingPlaying": "Nothing is playing right now."
         },
-        "nowPlaying": "Now playing {{title}}, don't stop"
+        "nowPlaying": "Now playing {{title}}, don't stop",
+        "queue": {
+            "nowPlaying": "🎵 Now Playing",
+            "recommendedBecause": "\nRecommended because: _{{reason}}_",
+            "upcomingTracksCount": "📋 Upcoming Tracks ({{count}})",
+            "upcomingTracks": "📋 Upcoming Tracks",
+            "noTracks": "No tracks in queue",
+            "noDisplayableTracks": "No displayable tracks",
+            "statistics": "📊 Queue Statistics",
+            "status": "🎛️ Status",
+            "title": "📄 Music Queue",
+            "errorTitle": "❌ Queue Error"
+        }
     }
 }

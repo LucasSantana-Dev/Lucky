@@ -5,6 +5,18 @@
             "notInVoice": "Únete a un canal de voz primero.",
             "nothingPlaying": "No se está reproduciendo nada ahora mismo."
         },
-        "nowPlaying": "Reproduciendo {{title}}, no pares"
+        "nowPlaying": "Reproduciendo {{title}}, no pares",
+        "queue": {
+            "nowPlaying": "🎵 Reproduciendo ahora",
+            "recommendedBecause": "\nRecomendado porque: _{{reason}}_",
+            "upcomingTracksCount": "📋 Próximas pistas ({{count}})",
+            "upcomingTracks": "📋 Próximas pistas",
+            "noTracks": "No hay pistas en la cola",
+            "noDisplayableTracks": "No hay pistas que mostrar",
+            "statistics": "📊 Estadísticas de la cola",
+            "status": "🎛️ Estado",
+            "title": "📄 Cola de música",
+            "errorTitle": "❌ Error de cola"
+        }
     }
 }

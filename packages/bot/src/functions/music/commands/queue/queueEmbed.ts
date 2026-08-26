@@ -1,4 +1,5 @@
 import type { GuildQueue } from 'discord-player'
+import type { TFunction } from 'i18next'
 import {
     createEmbed,
     EMBED_COLORS,
@@ -28,6 +29,7 @@ function addCurrentTrackInfo(
     embed: EmbedBuilder,
     queue: GuildQueue,
     options: QueueDisplayOptions,
+    t: TFunction,
 ): void {
     if (options.showCurrentTrack && queue.currentTrack) {
         const { currentTrack } = queue
@@ -37,10 +39,12 @@ function addCurrentTrackInfo(
         }
         const reasonLine =
             metadata.isAutoplay && metadata.recommendationReason
-                ? `\nRecommended because: _${metadata.recommendationReason}_`
+                ? t('music.queue.recommendedBecause', {
+                      reason: metadata.recommendationReason,
+                  })
                 : ''
         embed.addFields({
-            name: '\u{1f3b5} Now Playing',
+            name: t('music.queue.nowPlaying'),
             value: `[${currentTrack.title}](${currentTrack.url}) by **${currentTrack.author}**${reasonLine}`,
             inline: false,
         })
@@ -56,6 +60,7 @@ async function addUpcomingTracks(
     queue: GuildQueue,
     options: QueueDisplayOptions,
     page: number,
+    t: TFunction,
 ): Promise<void> {
     if (!options.showUpcomingTracks) return
 
@@ -63,17 +68,19 @@ async function addUpcomingTracks(
 
     if (allTracks.length > 0) {
         const trackList = await createTrackListDisplay(allTracks, options, page)
-        const raw = trackList || 'No displayable tracks'
+        const raw = trackList || t('music.queue.noDisplayableTracks')
         const value = raw.length > 1024 ? raw.slice(0, 1021) + '…' : raw
         embed.addFields({
-            name: `\u{1F4CB} Upcoming Tracks (${allTracks.length})`,
+            name: t('music.queue.upcomingTracksCount', {
+                count: allTracks.length,
+            }),
             value,
             inline: false,
         })
     } else {
         embed.addFields({
-            name: '\u{1F4CB} Upcoming Tracks',
-            value: 'No tracks in queue',
+            name: t('music.queue.upcomingTracks'),
+            value: t('music.queue.noTracks'),
             inline: false,
         })
     }
@@ -83,6 +90,7 @@ async function addQueueStats(
     embed: EmbedBuilder,
     queue: GuildQueue,
     options: QueueDisplayOptions,
+    t: TFunction,
 ): Promise<void> {
     if (!options.showQueueStats) return
 
@@ -94,14 +102,14 @@ async function addQueueStats(
     )
 
     embed.addFields({
-        name: '\u{1F4CA} Queue Statistics',
+        name: t('music.queue.statistics'),
         value: summary,
         inline: true,
     })
 
     const status = getQueueStatus(queue)
     embed.addFields({
-        name: '\u{1F39B}\uFE0F Status',
+        name: t('music.queue.status'),
         value: status,
         inline: true,
     })
@@ -117,16 +125,17 @@ export async function createQueueEmbed(
         showQueueStats: true,
     },
     page = 0,
+    t: TFunction,
 ): Promise<QueueEmbedResult> {
     const embed = createEmbed({
-        title: '\u{1F4C4} Music Queue',
+        title: t('music.queue.title'),
         color: EMBED_COLORS.QUEUE as ColorResolvable,
         timestamp: true,
     })
 
-    addCurrentTrackInfo(embed, queue, options)
-    await addUpcomingTracks(embed, queue, options, page)
-    await addQueueStats(embed, queue, options)
+    addCurrentTrackInfo(embed, queue, options, t)
+    await addUpcomingTracks(embed, queue, options, page, t)
+    await addQueueStats(embed, queue, options, t)
 
     const totalTracks = queue.tracks.size
     const totalPages = Math.ceil(totalTracks / options.maxTracksToShow)
@@ -152,9 +161,9 @@ export function createEmptyQueueEmbed() {
     })
 }
 
-export function createQueueErrorEmbed(error: string) {
+export function createQueueErrorEmbed(error: string, t: TFunction) {
     return createEmbed({
-        title: '\u274C Queue Error',
+        title: t('music.queue.errorTitle'),
         description: error,
         color: EMBED_COLORS.ERROR as ColorResolvable,
         emoji: EMOJIS.ERROR,

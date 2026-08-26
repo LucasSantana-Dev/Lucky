@@ -5,6 +5,18 @@
             "notInVoice": "Entre em um canal de voz primeiro.",
             "nothingPlaying": "Nada está tocando no momento."
         },
-        "nowPlaying": "Tocando agora {{title}}, não pare"
+        "nowPlaying": "Tocando agora {{title}}, não pare",
+        "queue": {
+            "nowPlaying": "🎵 Tocando agora",
+            "recommendedBecause": "\nRecomendado porque: _{{reason}}_",
+            "upcomingTracksCount": "📋 Próximas faixas ({{count}})",
+            "upcomingTracks": "📋 Próximas faixas",
+            "noTracks": "Nenhuma faixa na fila",
+            "noDisplayableTracks": "Nenhuma faixa para exibir",
+            "statistics": "📊 Estatísticas da fila",
+            "status": "🎛️ Status",
+            "title": "📄 Fila de música",
+            "errorTitle": "❌ Erro na fila"
+        }
     }
 }

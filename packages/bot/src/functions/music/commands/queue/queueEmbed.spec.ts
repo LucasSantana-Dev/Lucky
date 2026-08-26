@@ -10,6 +10,11 @@ import {
     createEmptyQueueEmbed,
     createQueueErrorEmbed,
 } from './queueEmbed'
+import { translatorFor } from '../../../../i18n'
+
+// The real English translator, not a stub. These assertions then double as a
+// check that every key the embed asks for actually exists in en.json.
+const t = translatorFor('en')
 import type { QueueDisplayOptions } from './types'
 
 const addFieldsMock = jest.fn().mockReturnThis()
@@ -88,7 +93,7 @@ describe('queueEmbed', () => {
             const track = createTrack()
             const queue = createQueue({ currentTrack: track })
 
-            await createQueueEmbed(queue as any, defaultOptions)
+            await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
             const nowPlayingCall = addFieldsMock.mock.calls.find(
                 (call) => (call[0] as any).name === '\u{1f3b5} Now Playing',
@@ -110,7 +115,7 @@ describe('queueEmbed', () => {
             })
             const queue = createQueue({ currentTrack: track })
 
-            await createQueueEmbed(queue as any, defaultOptions)
+            await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
             const nowPlayingCall = addFieldsMock.mock.calls.find(
                 (call) => (call[0] as any).name === '\u{1f3b5} Now Playing',
@@ -126,7 +131,7 @@ describe('queueEmbed', () => {
             const track = createTrack({ metadata: { isAutoplay: true } })
             const queue = createQueue({ currentTrack: track })
 
-            await createQueueEmbed(queue as any, defaultOptions)
+            await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
             const nowPlayingCall = addFieldsMock.mock.calls.find(
                 (call) => (call[0] as any).name === '\u{1f3b5} Now Playing',
@@ -145,7 +150,7 @@ describe('queueEmbed', () => {
             })
             const queue = createQueue({ currentTrack: track })
 
-            await createQueueEmbed(queue as any, defaultOptions)
+            await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
             const nowPlayingCall = addFieldsMock.mock.calls.find(
                 (call) => (call[0] as any).name === '\u{1f3b5} Now Playing',
@@ -161,7 +166,7 @@ describe('queueEmbed', () => {
             })
             const queue = createQueue({ currentTrack: track })
 
-            await createQueueEmbed(queue as any, defaultOptions)
+            await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
             expect(setThumbnailMock).toHaveBeenCalledWith(
                 'https://example.com/thumb.jpg',
@@ -172,7 +177,7 @@ describe('queueEmbed', () => {
             const track = createTrack({ thumbnail: undefined })
             const queue = createQueue({ currentTrack: track })
 
-            await createQueueEmbed(queue as any, defaultOptions)
+            await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
             expect(setThumbnailMock).not.toHaveBeenCalled()
         })
@@ -184,7 +189,7 @@ describe('queueEmbed', () => {
                 tracks: { toArray: () => [track] },
             })
 
-            await createQueueEmbed(queue as any, defaultOptions)
+            await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
             const upcomingCall = addFieldsMock.mock.calls.find((call) =>
                 String((call[0] as any).name).startsWith(
@@ -200,7 +205,7 @@ describe('queueEmbed', () => {
                 tracks: { toArray: () => [] },
             })
 
-            await createQueueEmbed(queue as any, defaultOptions)
+            await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
             const emptyCall = addFieldsMock.mock.calls.find(
                 (call) => (call[0] as any).value === 'No tracks in queue',
@@ -211,7 +216,7 @@ describe('queueEmbed', () => {
         it('adds queue stats and status fields', async () => {
             const queue = createQueue()
 
-            await createQueueEmbed(queue as any, defaultOptions)
+            await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
             const statsCall = addFieldsMock.mock.calls.find(
                 (call) => (call[0] as any).name === '📊 Queue Statistics',
@@ -228,7 +233,7 @@ describe('queueEmbed', () => {
             const queue = createQueue({ currentTrack: track })
             const options = { ...defaultOptions, showCurrentTrack: false }
 
-            await createQueueEmbed(queue as any, options)
+            await createQueueEmbed(queue as any, options, 0, t)
 
             const nowPlayingCall = addFieldsMock.mock.calls.find(
                 (call) => (call[0] as any).name === '\u{1f3b5} Now Playing',
@@ -241,7 +246,7 @@ describe('queueEmbed', () => {
             const queue = createQueue({ tracks: { toArray: () => [track] } })
             const options = { ...defaultOptions, showUpcomingTracks: false }
 
-            await createQueueEmbed(queue as any, options)
+            await createQueueEmbed(queue as any, options, 0, t)
 
             const upcomingCall = addFieldsMock.mock.calls.find((call) =>
                 String((call[0] as any).name ?? '').startsWith('📋 Upcoming'),
@@ -257,7 +262,7 @@ describe('queueEmbed', () => {
                 tracks: { toArray: () => [track] },
             })
 
-            await createQueueEmbed(queue as any, defaultOptions)
+            await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
             const upcomingCall = addFieldsMock.mock.calls.find((call) =>
                 String((call[0] as any).name ?? '').startsWith(
@@ -276,6 +281,8 @@ describe('queueEmbed', () => {
             const { embed: result } = await createQueueEmbed(
                 queue as any,
                 defaultOptions,
+                0,
+                t,
             )
 
             expect(result).toBe(mockEmbed)
@@ -297,7 +304,7 @@ describe('queueEmbed', () => {
 
     describe('createQueueErrorEmbed', () => {
         it('calls createEmbed with the provided error message', () => {
-            createQueueErrorEmbed('Something went wrong')
+            createQueueErrorEmbed('Something went wrong', t)
 
             expect(createEmbedMock).toHaveBeenCalledWith(
                 expect.objectContaining({
