@@ -76,6 +76,7 @@ export async function acquireSendLock() {
                     '  If no broadcast is actually in flight (a previous run was killed), delete it:\n' +
                     `    rm ${LOCK}\n` +
                     '  Check the ledger first. A killed run can leave ambiguous guilds.',
+                { cause: err },
             )
         }
         throw err
@@ -394,8 +395,7 @@ async function main() {
         } catch (err) {
             fail(err.message)
         }
-    }
-    if (SEND) {
+
         // Resume: anything already recorded as sent is never posted again.
         // Failures are NOT skipped, so a rerun retries only what did not land.
         let priorLines = []
