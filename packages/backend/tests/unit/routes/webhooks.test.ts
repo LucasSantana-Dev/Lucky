@@ -549,10 +549,23 @@ describe('POST /webhooks/topgg-votes persistence', () => {
 })
 
 describe('webhook auth scheme selection (CodeQL: no user-controlled bypass)', () => {
-    const ORIGINAL = { ...process.env }
+    // Save and restore ONLY the keys these tests touch. Reassigning
+    // process.env wholesale replaces a special object and wipes whatever other
+    // suites set, which is exactly how this broke snowflakeValidation in the
+    // full run while passing in isolation.
+    let priorSecret: string | undefined
+    let priorToken: string | undefined
+
+    beforeEach(() => {
+        priorSecret = process.env.TOPGG_WEBHOOK_SECRET
+        priorToken = process.env.TOPGG_AUTH_TOKEN
+    })
 
     afterEach(() => {
-        process.env = { ...ORIGINAL }
+        if (priorSecret === undefined) delete process.env.TOPGG_WEBHOOK_SECRET
+        else process.env.TOPGG_WEBHOOK_SECRET = priorSecret
+        if (priorToken === undefined) delete process.env.TOPGG_AUTH_TOKEN
+        else process.env.TOPGG_AUTH_TOKEN = priorToken
     })
 
     function buildPublicApp(): express.Express {
