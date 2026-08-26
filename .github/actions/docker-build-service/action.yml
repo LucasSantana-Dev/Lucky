@@ -15,34 +15,19 @@ inputs:
         description: Load the built image into the local Docker daemon.
         required: false
         default: 'false'
-    write-cache:
-        description: >-
-            Export the gha layer cache for this service. Only the main-branch
-            warm job sets this. Every PR branch used to export its own
-            mode=max scope, and with four services per branch that filled the
-            repo's 10GB Actions cache (measured 10.9GB / 298 entries on
-            2026-08-26, i.e. already over the limit and evicting). Branch
-            scopes then evicted each other faster than any of them could be
-            reused, so the cache cost storage and bought nothing. One writer,
-            many readers.
-        required: false
-        default: 'false'
     use-cache:
         description: >-
-            Import AND export the gha layer cache for this service. Set to
-            'false' on retries: BuildKit's "failed to calculate checksum of
-            ref ...: not found" failure comes from a stale/corrupted gha
-            cache entry, and cache-from is scoped identically across retries
-            within the same job, so a retry that reimports it fails
-            identically instead of getting a fresh build. Evidence from
-            2026-08-14 (PR #1956, #1952) shows the same error on retries with
-            cache-from already disabled — cache-to's mode=max export also
-            has to "solve" a cache key for every intermediate stage,
-            including the branching installed-deps checkpoint (see Dockerfile
-            comment above that stage), so it can hit the identical
-            checksum-resolution failure on export alone. Disabling cache-to
-            too on retries gives a fully cache-free build for the class of
-            failure caching alone doesn't explain.
+            Import the gha layer cache for this service. Set to 'false' on
+            retries: BuildKit's "failed to calculate checksum of ref ...: not
+            found" failure comes from a stale/corrupted gha cache entry, and
+            cache-from is scoped identically across retries within the same
+            job, so a retry that reimports it fails identically instead of
+            getting a fresh build.
+
+            This action no longer exports (there is no cache-to) — see the
+            cache-from comment below. The earlier note here about disabling
+            cache-to on retries, from the 2026-08-14 evidence in PR #1956 and
+            #1952, still applies to docker-publish.yml, which does export.
         required: false
         default: 'true'
 runs:
@@ -97,11 +82,17 @@ runs:
               tags: lucky-${{ inputs.service }}:ci
               provenance: false
               sbom: false
-              # Read the scope main writes. A PR branch has no scope of its
-              # own any more (see write-cache above), so this is the only
-              # import and it is warm from the last merge instead of empty.
+              # Read the scope docker-publish.yml writes on every push to main
+              # (that workflow builds all four services with mode=max under
+              # scope=main-<service>). This job no longer writes a scope of its
+              # own: every PR branch used to export its own mode=max scope, and
+              # four services across several live branches had the repo's
+              # Actions cache at 10.9GB against a 10GB limit (298 entries,
+              # measured 2026-08-26). Branch scopes evicted each other, and the
+              # npm caches nine jobs depend on, before any of them was reused --
+              # while the import was empty anyway, because docker-build never
+              # runs on push. One writer, many readers.
               cache-from: ${{ inputs.use-cache == 'true' && format('type=gha,scope=main-{0}', inputs.service) || '' }}
-              cache-to: ${{ inputs.use-cache == 'true' && inputs.write-cache == 'true' && format('type=gha,mode=max,scope=main-{0}', inputs.service) || '' }}
               build-args: |
                   COMMIT_SHA=${{ github.sha }}
                   NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}

@@ -458,52 +458,6 @@ jobs:
               if: matrix.service == 'nginx'
               run: docker run --rm lucky-nginx:ci nginx -t
 
-    docker-cache-warm:
-        name: Warm Docker cache — ${{ matrix.service }}
-        runs-on: ubuntu-latest
-        # The single writer of the Docker layer cache.
-        #
-        # Before this, every PR branch exported its own mode=max scope and
-        # imported only that scope. docker-build never runs on push, so the
-        # import was empty on a branch's first build -- and four services per
-        # branch across several live branches had the repo's Actions cache at
-        # 10.9GB against a 10GB limit (298 entries, measured 2026-08-26), so
-        # branch scopes evicted each other before they could be reused. The
-        # cache cost storage and returned nothing, which is why "Build — bot"
-        # sat at 7.5 minutes: a full @discordjs/opus source compile, no
-        # prebuilt for Node 24 on Alpine (Dockerfile:14-17), every time.
-        #
-        # Now main writes and PRs read. This job gates nothing, appears in no
-        # needs: list, and is allowed to fail -- a cold cache is the status
-        # quo, so a failure here restores the old behaviour rather than
-        # breaking anything.
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        continue-on-error: true
-        concurrency:
-            # Per service, same reason as docker-build: a shared group makes the
-            # matrix legs cancel each other instead of superseded runs.
-            group: docker-cache-warm-${{ github.ref }}-${{ matrix.service }}
-            cancel-in-progress: true
-        strategy:
-            fail-fast: false
-            matrix:
-                include:
-                    - {service: bot, file: Dockerfile, target: production-bot}
-                    - {service: backend, file: Dockerfile, target: production-backend}
-                    - {service: frontend, file: Dockerfile, target: production-frontend}
-                    - {service: nginx, file: Dockerfile.nginx, target: ''}
-        steps:
-            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-            - name: Build ${{ matrix.service }} to populate the cache
-              uses: ./.github/actions/docker-build-service
-              with:
-                  service: ${{ matrix.service }}
-                  file: ${{ matrix.file }}
-                  target: ${{ matrix.target }}
-                  # Nothing consumes the image here; only cache-to matters.
-                  load: 'false'
-                  write-cache: 'true'
-
     docker-build-check:
         name: Build — Docker images
         runs-on: ubuntu-latest
