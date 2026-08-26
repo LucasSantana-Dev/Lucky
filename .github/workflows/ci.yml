@@ -74,6 +74,14 @@ jobs:
               run: npm run verify:shared-exports
               env:
                   DATABASE_URL: postgresql://localhost:5432/test
+            # `nginx -t` (Validate nginx config, below) is a SYNTAX check. A
+            # config that parses fine and routes nothing passes it. This asserts
+            # every backend route registered outside /api actually has a
+            # `location` block, i.e. that the edge forwards it. The fall-through
+            # shipped twice silently: /invite (#1888) and /webhooks/topgg-votes
+            # (#2086). Pure file parsing — no build, no DB.
+            - name: Verify nginx route parity
+              run: npm run verify:nginx-routes
             - name: Type check
               run: npm run type:check
             - name: Check documentation coverage
