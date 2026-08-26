@@ -1,0 +1,352 @@
+/**
+ * One-off broadcast to every guild Lucky is in, posting ONLY to that guild's
+ * Discord-designated system channel (the one that already receives join and
+ * boost messages). Guilds with no system channel, or where Lucky cannot
+ * actually post in it, are skipped and reported.
+ *
+ * Why system-channel-only: there is no per-guild "announcements channel" in the
+ * schema. `LevelConfig.announceChannel` is level-up specific and
+ * `ModerationSettings.modLogChannelId` is a staff surface; posting product news
+ * to either is the wrong audience. The system channel is the closest thing
+ * Discord gives to a sanctioned server-wide notice target, and a guild that has
+ * disabled it has effectively opted out.
+ *
+ * Sending is IRREVERSIBLE and reaches third-party communities. So:
+ *   - DRY_RUN is the DEFAULT. Sending requires CONFIRM_SEND=yes explicitly.
+ *   - Effective per-channel permissions are computed, not assumed. A bot that
+ *     holds Send Messages at guild level can still be denied by a channel
+ *     overwrite, and validating under a permission set you happen to have
+ *     rather than the one you documented has hidden real failures before.
+ *   - Every run writes a JSON log so a partial send is resumable and auditable.
+ *
+ * Usage:
+ *   node scripts/announce-broadcast.mjs                    # dry run, prints plan
+ *   CONFIRM_SEND=yes node scripts/announce-broadcast.mjs   # actually posts
+ *   SKIP_GUILDS=id1,id2 ...                                # exclude guilds
+ *   ONLY_GUILDS=id1,id2 ...                                # restrict (for a canary)
+ *
+ * DISCORD_TOKEN is read from the environment and never printed.
+ */
+
+import { writeFile } from 'node:fs/promises'
+
+const TOKEN = process.env.DISCORD_TOKEN
+const SEND = process.env.CONFIRM_SEND === 'yes'
+const SKIP = new Set(
+    (process.env.SKIP_GUILDS ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+)
+const ONLY = new Set(
+    (process.env.ONLY_GUILDS ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+)
+
+const API = 'https://discord.com/api/v10'
+const BRAND = 0x495df3
+const SITE = 'https://lucky.lucassantana.tech'
+const REPO = 'https://github.com/LucasSantana-Dev/Lucky'
+const SUPPORT = 'https://discord.gg/f2rxBWvqeR'
+const LISTING = 'https://top.gg/bot/962198089161134131'
+const VOTE = `${LISTING}/vote`
+
+// Served from the repo over raw.githubusercontent so the embed needs no deploy.
+// Discord fetches once, then serves its own cached copy from media.discordapp.net.
+const RAW = `${REPO.replace('github.com', 'raw.githubusercontent.com')}/main`
+const GIF_URL = `${RAW}/assets/lucky-welcome.gif`
+const LOGO_URL = `${RAW}/packages/frontend/public/lucky-logo.png`
+
+// Discord permission bits actually required to post this message.
+const VIEW_CHANNEL = 1n << 10n
+const SEND_MESSAGES = 1n << 11n
+const EMBED_LINKS = 1n << 14n
+const ADMINISTRATOR = 1n << 3n
+const REQUIRED = VIEW_CHANNEL | SEND_MESSAGES | EMBED_LINKS
+
+const GUILD_TEXT = 0
+const GUILD_NEWS = 5
+
+function fail(msg) {
+    console.error(`\n  ERROR  ${msg}\n`)
+    process.exit(1)
+}
+
+if (!TOKEN) fail('DISCORD_TOKEN is not set.')
+
+let calls = 0
+
+async function api(method, path, body) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+        calls++
+        const res = await fetch(`${API}${path}`, {
+            method,
+            headers: {
+                Authorization: `Bot ${TOKEN}`,
+                'Content-Type': 'application/json',
+            },
+            body: body ? JSON.stringify(body) : undefined,
+        })
+        if (res.status === 429) {
+            const retry = Number(res.headers.get('retry-after') ?? 1)
+            await new Promise((r) => setTimeout(r, (retry + 0.5) * 1000))
+            continue
+        }
+        if (res.status === 401) fail('DISCORD_TOKEN rejected by Discord (401).')
+        if (!res.ok) {
+            const text = await res.text()
+            const err = new Error(
+                `${method} ${path} -> ${res.status} ${text.slice(0, 200)}`,
+            )
+            err.status = res.status
+            throw err
+        }
+        return res.status === 204 ? null : await res.json()
+    }
+    throw new Error(`${method} ${path} still rate limited after 5 attempts`)
+}
+
+// Full Discord permission resolution. Guild-level perms are NOT enough: a
+// channel overwrite can deny what the role grants, and Administrator masks the
+// difference entirely (which is exactly how a previous ops script looked green
+// while being broken for non-admin runs).
+function effectivePermissions(guild, channel, memberRoleIds, botUserId) {
+    const everyone = guild.roles.find((r) => r.id === guild.id)
+    let perms = BigInt(everyone?.permissions ?? '0')
+    for (const role of guild.roles) {
+        if (memberRoleIds.includes(role.id)) perms |= BigInt(role.permissions)
+    }
+    if (perms & ADMINISTRATOR) return ~0n
+
+    const overwrites = channel.permission_overwrites ?? []
+    const everyoneOw = overwrites.find((o) => o.id === guild.id)
+    if (everyoneOw) {
+        perms &= ~BigInt(everyoneOw.deny)
+        perms |= BigInt(everyoneOw.allow)
+    }
+    let roleDeny = 0n
+    let roleAllow = 0n
+    for (const ow of overwrites) {
+        if (ow.type === 0 && memberRoleIds.includes(ow.id)) {
+            roleDeny |= BigInt(ow.deny)
+            roleAllow |= BigInt(ow.allow)
+        }
+    }
+    perms &= ~roleDeny
+    perms |= roleAllow
+
+    const memberOw = overwrites.find((o) => o.type === 1 && o.id === botUserId)
+    if (memberOw) {
+        perms &= ~BigInt(memberOw.deny)
+        perms |= BigInt(memberOw.allow)
+    }
+    return perms
+}
+
+function missingPermissionNames(perms) {
+    const names = []
+    if (!(perms & VIEW_CHANNEL)) names.push('View Channel')
+    if (!(perms & SEND_MESSAGES)) names.push('Send Messages')
+    if (!(perms & EMBED_LINKS)) names.push('Embed Links')
+    return names
+}
+
+// Discord embed formatting rules this obeys:
+//   - markdown links render in `description` and field `value`, NEVER in
+//     `title`, field `name`, or `footer.text`
+//   - `image` renders large at the bottom, `thumbnail` small at top-right
+//   - `inline: true` fields sit side by side, at most 3 per row
+//   - limits: description 4096, field value 1024, 25 fields, 6000 total
+function buildEmbed() {
+    return {
+        author: {
+            name: 'Lucky',
+            url: SITE,
+            icon_url: LOGO_URL,
+        },
+        title: 'Lucky is on top.gg, and now has a support server',
+        url: LISTING,
+        color: BRAND,
+        description: [
+            'Two quick things, then straight back to the music.',
+            '',
+            'Lucky just got approved on top.gg. If it earns its place in this server,',
+            'an upvote is the single best way to help other people find it.',
+        ].join('\n'),
+        fields: [
+            {
+                name: 'Upvote on top.gg',
+                value: `[One click, once every 12h](${VOTE})`,
+                inline: true,
+            },
+            {
+                name: 'Support server',
+                value: `[Bugs, questions, setup help](${SUPPORT})`,
+                inline: true,
+            },
+            {
+                name: 'Everything else',
+                value: `[Dashboard](${SITE}) · [Commands](${SITE}/docs) · [GitHub](${REPO})`,
+                inline: false,
+            },
+        ],
+        image: { url: GIF_URL },
+        footer: {
+            text: 'One-off notice from the Lucky team. Lucky does not send recurring announcements.',
+            icon_url: LOGO_URL,
+        },
+        timestamp: new Date().toISOString(),
+    }
+}
+
+async function main() {
+    const mode = SEND ? 'SEND (irreversible)' : 'DRY RUN'
+    console.log(`\n  Lucky broadcast (${mode})\n`)
+
+    const me = await api('GET', '/users/@me')
+    const botUserId = me.id
+
+    // Paginate: /users/@me/guilds caps at 200 per page.
+    const guilds = []
+    let after = ''
+    for (;;) {
+        const page = await api(
+            'GET',
+            `/users/@me/guilds?limit=200${after ? `&after=${after}` : ''}`,
+        )
+        guilds.push(...page)
+        if (page.length < 200) break
+        after = page[page.length - 1].id
+    }
+    console.log(`  Guilds Lucky is in: ${guilds.length}\n`)
+    if (guilds.length === 0)
+        fail('Bot reports zero guilds. Refusing to continue.')
+
+    const targets = []
+    const skipped = []
+
+    for (const g of guilds) {
+        if (ONLY.size > 0 && !ONLY.has(g.id)) continue
+        if (SKIP.has(g.id)) {
+            skipped.push({ guild: g.name, id: g.id, reason: 'in SKIP_GUILDS' })
+            continue
+        }
+        let guild
+        let channels
+        let member
+        try {
+            guild = await api('GET', `/guilds/${g.id}`)
+            if (!guild.system_channel_id) {
+                skipped.push({
+                    guild: g.name,
+                    id: g.id,
+                    reason: 'no system channel set',
+                })
+                continue
+            }
+            channels = await api('GET', `/guilds/${g.id}/channels`)
+            member = await api('GET', `/guilds/${g.id}/members/${botUserId}`)
+        } catch (err) {
+            skipped.push({
+                guild: g.name,
+                id: g.id,
+                reason: `lookup failed: ${err.message}`,
+            })
+            continue
+        }
+
+        const channel = channels.find((c) => c.id === guild.system_channel_id)
+        if (!channel) {
+            skipped.push({
+                guild: g.name,
+                id: g.id,
+                reason: 'system channel not visible to bot',
+            })
+            continue
+        }
+        if (channel.type !== GUILD_TEXT && channel.type !== GUILD_NEWS) {
+            skipped.push({
+                guild: g.name,
+                id: g.id,
+                reason: `system channel type ${channel.type} not postable`,
+            })
+            continue
+        }
+
+        const perms = effectivePermissions(
+            guild,
+            channel,
+            member.roles ?? [],
+            botUserId,
+        )
+        const missing = missingPermissionNames(perms)
+        if (missing.length > 0) {
+            skipped.push({
+                guild: g.name,
+                id: g.id,
+                reason: `missing in #${channel.name}: ${missing.join(', ')}`,
+            })
+            continue
+        }
+
+        targets.push({
+            guild: g.name,
+            id: g.id,
+            channelId: channel.id,
+            channelName: channel.name,
+        })
+    }
+
+    console.log(`  WOULD POST to ${targets.length} guild(s):`)
+    for (const t of targets)
+        console.log(`    ${t.guild}  ->  #${t.channelName}`)
+    console.log(`\n  SKIPPED ${skipped.length} guild(s):`)
+    for (const s of skipped) console.log(`    ${s.guild}  ::  ${s.reason}`)
+
+    const results = []
+    if (SEND) {
+        console.log(`\n  Sending to ${targets.length} guild(s)...\n`)
+        const embed = buildEmbed()
+        for (const t of targets) {
+            try {
+                await api('POST', `/channels/${t.channelId}/messages`, {
+                    embeds: [embed],
+                })
+                results.push({ ...t, status: 'sent' })
+                console.log(`    sent    ${t.guild}`)
+            } catch (err) {
+                results.push({ ...t, status: 'failed', error: err.message })
+                console.log(`    FAILED  ${t.guild}  ${err.message}`)
+            }
+            // Deliberately unhurried: this is a one-off, not a race.
+            await new Promise((r) => setTimeout(r, 1200))
+        }
+    }
+
+    const log = {
+        mode: SEND ? 'send' : 'dry-run',
+        guildsTotal: guilds.length,
+        targets,
+        skipped,
+        results,
+        apiCalls: calls,
+    }
+    const path = `announce-broadcast-${SEND ? 'send' : 'dryrun'}.json`
+    await writeFile(path, JSON.stringify(log, null, 2))
+
+    const sent = results.filter((r) => r.status === 'sent').length
+    const failed = results.filter((r) => r.status === 'failed').length
+    console.log(
+        `\n  ${SEND ? `Sent ${sent}, failed ${failed}.` : 'Dry run. Nothing was sent.'}`,
+    )
+    console.log(`  Log: ${path}   (${calls} API calls)\n`)
+    if (!SEND) {
+        console.log(
+            '  To actually send:  CONFIRM_SEND=yes node scripts/announce-broadcast.mjs\n',
+        )
+    }
+}
+
+main().catch((err) => fail(err.stack ?? String(err)))
