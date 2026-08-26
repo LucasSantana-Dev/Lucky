@@ -155,14 +155,23 @@ const GUILD_NEWS = 5
 
 // Guild names come from the Discord API and are attacker-controlled: a server
 // owner picks them. JSON.stringify already prevents breaking the JSONL
-// structure, but the ledger is a file a human reads with `cat`, and ANSI escape
-// sequences in a name would rewrite their terminal. Strip control characters
-// and bound the length. Discord caps names at 100 chars, so a longer value is
-// itself a signal something is off.
+// structure, but the ledger is a file a human reads with `cat`, and a name can
+// rewrite what they see in two ways: ANSI escape sequences via control
+// characters, and bidi overrides (U+202E and friends) that reorder the rest of
+// the line so a name appears to be a different one. Zero-width characters go
+// too, since they hide differences between names that render identically.
+//
+// Length is bounded as well. Discord caps names at 100 chars, so a longer value
+// is itself a signal something is off.
 export function safeName(value) {
     if (typeof value !== 'string') return ''
-    // eslint-disable-next-line no-control-regex
-    return value.replace(/[\u0000-\u001F\u007F-\u009F]/g, '').slice(0, 100)
+    return (
+        value
+            // eslint-disable-next-line no-control-regex
+            .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+            .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+            .slice(0, 100)
+    )
 }
 
 function fail(msg) {
@@ -295,6 +304,11 @@ function buildEmbed() {
     }
 }
 
+// Whether THIS process currently owns the send lock. Without it a crash
+// between acquire and release leaves the lock behind and every later send is
+// refused until someone deletes it by hand.
+let holdingLock = false
+
 async function main() {
     if (!TOKEN) fail('DISCORD_TOKEN is not set.')
     const mode = SEND ? 'SEND (irreversible)' : 'DRY RUN'
@@ -404,7 +418,10 @@ async function main() {
     if (SEND) {
         try {
             await acquireSendLock()
+            holdingLock = true
         } catch (err) {
+            // Never set holdingLock here: the usual cause is that ANOTHER run
+            // owns the lock, and releasing it would be deleting their lock.
             fail(err.message)
         }
 
@@ -489,7 +506,10 @@ async function main() {
         results,
         apiCalls: calls,
     }
-    if (SEND) await releaseSendLock()
+    if (holdingLock) {
+        await releaseSendLock()
+        holdingLock = false
+    }
 
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
     const path = `announce-broadcast-${SEND ? 'send' : 'dryrun'}-${stamp}.json`
@@ -522,5 +542,8 @@ async function main() {
 // Only run when executed directly. Importing this file (for tests of
 // classifyLedger) must not start a broadcast or demand a token.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-    main().catch((err) => fail(err.stack ?? String(err)))
+    main().catch(async (err) => {
+        if (holdingLock) await releaseSendLock()
+        fail(err.stack ?? String(err))
+    })
 }

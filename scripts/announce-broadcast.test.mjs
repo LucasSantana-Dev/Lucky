@@ -140,3 +140,25 @@ test('safeName tolerates a non-string', () => {
 test('safeName leaves ordinary names untouched', () => {
     assert.equal(safeName('Servidor do Luk 🎵'), 'Servidor do Luk 🎵')
 })
+
+test('safeName strips bidi overrides that reorder the rest of the line', () => {
+    // U+202E makes everything after it render right-to-left, so a guild owner
+    // can make their name display as a different one in the audit files.
+    const out = safeName('evil\u202Etxt.exe')
+
+    assert.equal(out, 'eviltxt.exe')
+    assert.ok(!out.includes('\u202E'))
+})
+
+test('safeName strips zero-width characters that hide name differences', () => {
+    // Two names that render identically must not be indistinguishable in the
+    // ledger a human reads to decide what actually went out.
+    assert.equal(safeName('a\u200Bb'), 'ab')
+    assert.equal(safeName('a\u200Fb'), 'ab')
+    assert.equal(safeName('a\u2066b\u2069c'), 'abc')
+    assert.equal(safeName('a\uFEFFb'), 'ab')
+})
+
+test('safeName leaves an ordinary name untouched', () => {
+    assert.equal(safeName('Servidor Legal'), 'Servidor Legal')
+})
