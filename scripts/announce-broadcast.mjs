@@ -28,7 +28,7 @@
  * DISCORD_TOKEN is read from the environment and never printed.
  */
 
-import { writeFile } from 'node:fs/promises'
+import { appendFile, readFile, writeFile } from 'node:fs/promises'
 
 const TOKEN = process.env.DISCORD_TOKEN
 const SEND = process.env.CONFIRM_SEND === 'yes'
@@ -44,6 +44,14 @@ const ONLY = new Set(
         .map((s) => s.trim())
         .filter(Boolean),
 )
+
+// Append-only delivery ledger, written after EVERY post before the next one is
+// attempted. Holding results in memory until the end meant that a crash, a
+// Ctrl-C, or a killed container left no record of what had already gone out,
+// and the obvious response (rerun) would post to every guild a second time.
+// Double-posting to third-party servers is the specific harm this whole script
+// is built to avoid, so the ledger is the durable part, not the summary.
+const LEDGER = 'announce-broadcast-ledger.jsonl'
 
 const API = 'https://discord.com/api/v10'
 const BRAND = 0x495df3
@@ -64,7 +72,6 @@ const VIEW_CHANNEL = 1n << 10n
 const SEND_MESSAGES = 1n << 11n
 const EMBED_LINKS = 1n << 14n
 const ADMINISTRATOR = 1n << 3n
-const REQUIRED = VIEW_CHANNEL | SEND_MESSAGES | EMBED_LINKS
 
 const GUILD_TEXT = 0
 const GUILD_NEWS = 5
@@ -307,6 +314,30 @@ async function main() {
 
     const results = []
     if (SEND) {
+        // Resume: anything already recorded as sent is never posted again.
+        // Failures are NOT skipped, so a rerun retries only what did not land.
+        const alreadySent = new Set()
+        try {
+            const prior = await readFile(LEDGER, 'utf8')
+            for (const line of prior.split('\n')) {
+                if (!line.trim()) continue
+                const row = JSON.parse(line)
+                if (row.status === 'sent') alreadySent.add(row.id)
+            }
+        } catch (err) {
+            if (err.code !== 'ENOENT') throw err
+        }
+        if (alreadySent.size > 0) {
+            console.log(
+                `  Resuming: ${alreadySent.size} guild(s) already recorded as sent in ${LEDGER}, skipping them.`,
+            )
+        }
+        const pending = targets.filter((t) => !alreadySent.has(t.id))
+        console.log(`  ${pending.length} guild(s) still to send.\n`)
+        targets.length = 0
+        targets.push(...pending)
+    }
+    if (SEND) {
         console.log(`\n  Sending to ${targets.length} guild(s)...\n`)
         const embed = buildEmbed()
         for (const t of targets) {
@@ -320,6 +351,13 @@ async function main() {
                 results.push({ ...t, status: 'failed', error: err.message })
                 console.log(`    FAILED  ${t.guild}  ${err.message}`)
             }
+            // Record BEFORE the next attempt, so an interrupt at any point
+            // leaves an accurate account of what actually went out.
+            const row = results[results.length - 1]
+            await appendFile(
+                LEDGER,
+                `${JSON.stringify({ ...row, at: new Date().toISOString() })}\n`,
+            )
             // Deliberately unhurried: this is a one-off, not a race.
             await new Promise((r) => setTimeout(r, 1200))
         }
@@ -333,7 +371,8 @@ async function main() {
         results,
         apiCalls: calls,
     }
-    const path = `announce-broadcast-${SEND ? 'send' : 'dryrun'}.json`
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const path = `announce-broadcast-${SEND ? 'send' : 'dryrun'}-${stamp}.json`
     await writeFile(path, JSON.stringify(log, null, 2))
 
     const sent = results.filter((r) => r.status === 'sent').length
