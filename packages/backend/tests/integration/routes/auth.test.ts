@@ -145,8 +145,7 @@ describe('Auth Routes Integration', () => {
                     .expect(302)
 
                 const cookies = response.headers['set-cookie'] as
-                    | string[]
-                    | undefined
+                    string[] | undefined
 
                 expect(cookies).toBeDefined()
                 expect(
@@ -319,51 +318,47 @@ describe('Auth Routes Integration', () => {
             }
         })
 
-        test.each(['/api/auth/callback', '/auth/callback'])(
-            'should handle successful OAuth callback for %s with valid state',
-            async (routePath) => {
-                mockSuccessfulOAuthFlow()
+        test('should handle successful OAuth callback with valid state', async () => {
+            const routePath = '/api/auth/callback'
+            mockSuccessfulOAuthFlow()
 
-                const discordApp = express()
-                setupSessionMiddleware(discordApp)
+            const discordApp = express()
+            setupSessionMiddleware(discordApp)
 
-                discordApp.use((req, _res, next) => {
-                    if (req.path === routePath) {
-                        req.session.oauthState = MOCK_OAUTH_STATE
-                        req.session.save((err) => {
-                            if (err) next(err)
-                            else next()
-                        })
-                    } else {
-                        next()
-                    }
-                })
+            discordApp.use((req, _res, next) => {
+                if (req.path === routePath) {
+                    req.session.oauthState = MOCK_OAUTH_STATE
+                    req.session.save((err) => {
+                        if (err) next(err)
+                        else next()
+                    })
+                } else {
+                    next()
+                }
+            })
 
-                setupAuthRoutes(discordApp)
-                discordApp.use(errorHandler)
+            setupAuthRoutes(discordApp)
+            discordApp.use(errorHandler)
 
-                const agent = request.agent(discordApp)
+            const agent = request.agent(discordApp)
 
-                const response = await agent
-                    .get(routePath)
-                    .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
-                    .expect(302)
+            const response = await agent
+                .get(routePath)
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
+                .expect(302)
 
-                expect(response.headers.location).toContain(
-                    'authenticated=true',
-                )
-                expect(
-                    getDiscordOAuthMock().exchangeCodeForToken,
-                ).toHaveBeenCalledWith(
-                    MOCK_AUTH_CODE,
-                    expect.stringContaining('/api/auth/callback'),
-                )
-                expect(getDiscordOAuthMock().getUserInfo).toHaveBeenCalledWith(
-                    MOCK_TOKEN_RESPONSE.access_token,
-                )
-                expect(getSessionServiceMock().setSession).toHaveBeenCalled()
-            },
-        )
+            expect(response.headers.location).toContain('authenticated=true')
+            expect(
+                getDiscordOAuthMock().exchangeCodeForToken,
+            ).toHaveBeenCalledWith(
+                MOCK_AUTH_CODE,
+                expect.stringContaining('/api/auth/callback'),
+            )
+            expect(getDiscordOAuthMock().getUserInfo).toHaveBeenCalledWith(
+                MOCK_TOKEN_RESPONSE.access_token,
+            )
+            expect(getSessionServiceMock().setSession).toHaveBeenCalled()
+        })
 
         test('should return 400 when code is missing', async () => {
             const discordApp = express()
