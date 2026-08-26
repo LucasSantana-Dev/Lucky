@@ -9,6 +9,7 @@ import { requestId } from './requestId'
 import { requestLogger } from './requestLogger'
 import { metricsMiddleware } from './metrics'
 import { getFrontendOrigins } from '../utils/frontendOrigin'
+import { TOPGG_WEBHOOK_PATH } from '../utils/topggSignature'
 
 export function setupMiddleware(app: Express): void {
     const configuredOrigins = getFrontendOrigins()
@@ -130,7 +131,31 @@ export function setupMiddleware(app: Express): void {
     app.use(requestId)
     app.use(requestLogger)
     app.use(metricsMiddleware)
-    app.use(express.json())
+    // The top.gg v1 webhook signs an HMAC over the EXACT bytes it sent, so the
+    // handler needs the unparsed body. express.json() consumes the stream, and
+    // re-serialising req.body would not reproduce those bytes (key order,
+    // whitespace, unicode escapes). Capture is scoped to the one path that
+    // needs it so no other request retains a second copy of its body.
+    app.use(
+        express.json({
+            verify: (req, _res, buf) => {
+                // Exact pathname, not a prefix: a public URL that merely
+                // starts with this path has no route behind it and should not
+                // retain a second copy of its body. The optional trailing
+                // slash is included because Express (non-strict routing)
+                // routes it to the same handler, and capturing nothing there
+                // would fail verification on a delivery that did arrive.
+                const requestPath = (
+                    req as { originalUrl?: string }
+                ).originalUrl
+                    ?.split('?')[0]
+                    ?.replace(/\/+$/, '')
+                if (requestPath === TOPGG_WEBHOOK_PATH) {
+                    ;(req as { rawBody?: Buffer }).rawBody = Buffer.from(buf)
+                }
+            },
+        }),
+    )
     app.use(express.urlencoded({ extended: true }))
     app.use(cookieParser())
     setupSessionMiddleware(app)

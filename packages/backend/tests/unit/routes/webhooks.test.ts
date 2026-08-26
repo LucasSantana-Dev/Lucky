@@ -8,6 +8,8 @@ import {
 } from '@jest/globals'
 import express from 'express'
 import request from 'supertest'
+import { createHmac } from 'node:crypto'
+import { TOPGG_WEBHOOK_PATH } from '../../../src/utils/topggSignature'
 
 // Mock chalk to avoid "color is not a function" in LogService
 jest.mock('chalk', () => ({
@@ -40,20 +42,27 @@ jest.mock('../../../src/middleware/auth', () => ({
 const mockFindUnique = jest.fn()
 const mockTransaction = jest.fn()
 
-jest.mock('@lucky/shared/utils', () => {
-    const actual = jest.requireActual('@lucky/shared/utils')
-    return {
-        ...actual,
-        getPrismaClient: jest.fn(() => ({
-            topggVote: {
-                findUnique: mockFindUnique,
-            },
-            $transaction: mockTransaction,
-        })),
-    }
-}, { virtual: true })
+jest.mock(
+    '@lucky/shared/utils',
+    () => {
+        const actual = jest.requireActual('@lucky/shared/utils')
+        return {
+            ...actual,
+            getPrismaClient: jest.fn(() => ({
+                topggVote: {
+                    findUnique: mockFindUnique,
+                },
+                $transaction: mockTransaction,
+            })),
+        }
+    },
+    { virtual: true },
+)
 
-import { setupWebhookRoutes } from '../../../src/routes/webhooks'
+import {
+    setupWebhookRoutes,
+    setupWebhookPublicRoutes,
+} from '../../../src/routes/webhooks'
 
 function buildApp(): express.Express {
     const app = express()
@@ -252,8 +261,13 @@ describe('GET /api/me/vote-status', () => {
         expect(res.body.hasVoted).toBe(true)
         expect(res.body.streak).toBe(14)
         expect(res.body.tier).toEqual({ label: 'Lucky Regular', threshold: 14 })
-        expect(res.body.nextTier).toEqual({ label: 'Lucky Legend', threshold: 30 })
-        expect(res.body.voteUrl).toBe('https://top.gg/bot/962198089161134131/vote')
+        expect(res.body.nextTier).toEqual({
+            label: 'Lucky Legend',
+            threshold: 30,
+        })
+        expect(res.body.voteUrl).toBe(
+            'https://top.gg/bot/962198089161134131/vote',
+        )
     })
 
     it('returns tier=null for a 0-streak user', async () => {
@@ -353,7 +367,9 @@ describe('POST /webhooks/topgg-votes persistence', () => {
                     }),
                     upsert: jest.fn(async (arg) => {
                         txUpsertCalls.push(arg)
-                        throw new Error('upsert should not be called on duplicate')
+                        throw new Error(
+                            'upsert should not be called on duplicate',
+                        )
                     }),
                 },
             }
@@ -531,5 +547,184 @@ describe('POST /webhooks/topgg-votes persistence', () => {
             .send({ user: 'streak:123', type: 'upvote' })
         expect(res.status).toBe(400)
         expect(mockTransaction).not.toHaveBeenCalled()
+    })
+})
+
+describe('webhook auth scheme selection (CodeQL: no user-controlled bypass)', () => {
+    // Save and restore ONLY the keys these tests touch. Reassigning
+    // process.env wholesale replaces a special object and wipes whatever other
+    // suites set, which is exactly how this broke snowflakeValidation in the
+    // full run while passing in isolation.
+    let priorSecret: string | undefined
+    let priorToken: string | undefined
+
+    beforeEach(() => {
+        priorSecret = process.env.TOPGG_WEBHOOK_SECRET
+        priorToken = process.env.TOPGG_AUTH_TOKEN
+    })
+
+    afterEach(() => {
+        if (priorSecret === undefined) delete process.env.TOPGG_WEBHOOK_SECRET
+        else process.env.TOPGG_WEBHOOK_SECRET = priorSecret
+        if (priorToken === undefined) delete process.env.TOPGG_AUTH_TOKEN
+        else process.env.TOPGG_AUTH_TOKEN = priorToken
+    })
+
+    // Production captures the unparsed body in an express.json verify hook
+    // (src/middleware/index.ts). Without it here req.rawBody is undefined and
+    // verifyTopggSignature short-circuits to `malformed-header` before it ever
+    // parses the header or compares an HMAC -- every v1 assertion below would
+    // pass for the wrong reason, and keep passing with verification broken.
+    function buildPublicApp(): express.Express {
+        const app = express()
+        app.use(
+            express.json({
+                verify: (req, _res, buf) => {
+                    if (
+                        (req as { originalUrl?: string }).originalUrl
+                            ?.split('?')[0]
+                            ?.replace(/\/+$/, '') === TOPGG_WEBHOOK_PATH
+                    ) {
+                        ;(req as { rawBody?: Buffer }).rawBody =
+                            Buffer.from(buf)
+                    }
+                },
+            }),
+        )
+        setupWebhookPublicRoutes(app)
+        app.use(
+            (
+                err: { statusCode?: number; message?: string },
+                _req: express.Request,
+                res: express.Response,
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                _next: express.NextFunction,
+            ) => {
+                res.status(err.statusCode ?? 500).json({
+                    error: err.message ?? 'unknown',
+                })
+            },
+        )
+        return app
+    }
+
+    it('with TOPGG_WEBHOOK_SECRET set, omitting the signature does NOT fall back to v0', async () => {
+        // The downgrade CodeQL flagged: a caller must not be able to pick the
+        // weaker scheme by leaving the header out.
+        process.env.TOPGG_WEBHOOK_SECRET = 'whs_v1_secret'
+        process.env.TOPGG_AUTH_TOKEN = 'legacy-token'
+
+        const res = await request(buildPublicApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'legacy-token')
+            .send({ type: 'test' })
+
+        expect(res.status).toBe(401)
+    })
+
+    it('with TOPGG_WEBHOOK_SECRET set, a valid legacy token is still rejected', async () => {
+        process.env.TOPGG_WEBHOOK_SECRET = 'whs_v1_secret'
+        process.env.TOPGG_AUTH_TOKEN = 'legacy-token'
+
+        const res = await request(buildPublicApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'legacy-token')
+            .set('x-topgg-signature', 't=1,v1=deadbeef')
+            .send({ type: 'test' })
+
+        expect(res.status).toBe(401)
+    })
+
+    it('accepts a correctly signed v1 delivery', async () => {
+        process.env.TOPGG_WEBHOOK_SECRET = 'whs_v1_secret'
+        delete process.env.TOPGG_AUTH_TOKEN
+
+        const body = { type: 'test' }
+        const raw = JSON.stringify(body)
+        const timestamp = Math.floor(Date.now() / 1000)
+        const signature = createHmac('sha256', 'whs_v1_secret')
+            .update(`${timestamp}.${raw}`)
+            .digest('hex')
+
+        const res = await request(buildPublicApp())
+            .post(TOPGG_WEBHOOK_PATH)
+            .set('content-type', 'application/json')
+            .set('x-topgg-signature', `t=${timestamp},v1=${signature}`)
+            .send(raw)
+
+        expect(res.status).toBe(200)
+    })
+
+    it('accepts a valid signature sent as uppercase hex', async () => {
+        process.env.TOPGG_WEBHOOK_SECRET = 'whs_v1_secret'
+        delete process.env.TOPGG_AUTH_TOKEN
+
+        const body = { type: 'test' }
+        const raw = JSON.stringify(body)
+        const timestamp = Math.floor(Date.now() / 1000)
+        const signature = createHmac('sha256', 'whs_v1_secret')
+            .update(`${timestamp}.${raw}`)
+            .digest('hex')
+            .toUpperCase()
+
+        const res = await request(buildPublicApp())
+            .post(TOPGG_WEBHOOK_PATH)
+            .set('content-type', 'application/json')
+            .set('x-topgg-signature', `t=${timestamp},v1=${signature}`)
+            .send(raw)
+
+        expect(res.status).toBe(200)
+    })
+
+    it('verifies a delivery to the trailing-slash form of the path', async () => {
+        // Express routes /webhooks/topgg-votes/ to the same handler, so the
+        // raw-body capture has to agree or verification fails on a delivery
+        // that genuinely arrived.
+        process.env.TOPGG_WEBHOOK_SECRET = 'whs_v1_secret'
+        delete process.env.TOPGG_AUTH_TOKEN
+
+        const raw = JSON.stringify({ type: 'test' })
+        const timestamp = Math.floor(Date.now() / 1000)
+        const signature = createHmac('sha256', 'whs_v1_secret')
+            .update(`${timestamp}.${raw}`)
+            .digest('hex')
+
+        const res = await request(buildPublicApp())
+            .post(`${TOPGG_WEBHOOK_PATH}/`)
+            .set('content-type', 'application/json')
+            .set('x-topgg-signature', `t=${timestamp},v1=${signature}`)
+            .send(raw)
+
+        expect(res.status).toBe(200)
+    })
+
+    it('rejects a body tampered with after signing', async () => {
+        process.env.TOPGG_WEBHOOK_SECRET = 'whs_v1_secret'
+        delete process.env.TOPGG_AUTH_TOKEN
+
+        const timestamp = Math.floor(Date.now() / 1000)
+        const signature = createHmac('sha256', 'whs_v1_secret')
+            .update(`${timestamp}.${JSON.stringify({ type: 'test' })}`)
+            .digest('hex')
+
+        const res = await request(buildPublicApp())
+            .post(TOPGG_WEBHOOK_PATH)
+            .set('content-type', 'application/json')
+            .set('x-topgg-signature', `t=${timestamp},v1=${signature}`)
+            .send(JSON.stringify({ type: 'upvote', user: '1' }))
+
+        expect(res.status).toBe(401)
+    })
+
+    it('falls back to v0 only when no v1 secret is configured', async () => {
+        delete process.env.TOPGG_WEBHOOK_SECRET
+        process.env.TOPGG_AUTH_TOKEN = 'legacy-token'
+
+        const res = await request(buildPublicApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'legacy-token')
+            .send({ type: 'test' })
+
+        expect(res.status).toBe(200)
     })
 })
