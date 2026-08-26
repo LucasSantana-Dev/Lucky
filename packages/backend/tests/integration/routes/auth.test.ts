@@ -145,8 +145,7 @@ describe('Auth Routes Integration', () => {
                     .expect(302)
 
                 const cookies = response.headers['set-cookie'] as
-                    | string[]
-                    | undefined
+                    string[] | undefined
 
                 expect(cookies).toBeDefined()
                 expect(
@@ -319,7 +318,7 @@ describe('Auth Routes Integration', () => {
             }
         })
 
-        test.each(['/api/auth/callback', '/auth/callback'])(
+        test.each(['/api/auth/callback'])(
             'should handle successful OAuth callback for %s with valid state',
             async (routePath) => {
                 mockSuccessfulOAuthFlow()

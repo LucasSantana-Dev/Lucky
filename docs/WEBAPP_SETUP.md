@@ -188,7 +188,6 @@ The backend API will be available at `http://localhost:3000`.
 
 - `GET /api/auth/discord` - Initiate Discord OAuth flow (redirects to Discord)
 - `GET /api/auth/callback` - OAuth callback handler (redirects to frontend)
-- `GET /auth/callback` - Compatibility alias for OAuth callback handler
 - `GET /api/auth/logout` - Logout user
 - `GET /api/auth/status` - Check authentication status
 - `GET /api/auth/user` - Get current user info
