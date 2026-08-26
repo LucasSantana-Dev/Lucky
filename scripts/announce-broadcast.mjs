@@ -493,7 +493,18 @@ async function main() {
 
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
     const path = `announce-broadcast-${SEND ? 'send' : 'dryrun'}-${stamp}.json`
-    await writeFile(path, JSON.stringify(log, null, 2))
+    // Same reasoning as the ledger: this summary is a file a human opens, and
+    // every `guild` in it is a name a server owner chose. Sanitising in the
+    // replacer covers targets, skipped and results at the one point they are
+    // serialised, instead of at each of the eight places a name is collected.
+    await writeFile(
+        path,
+        JSON.stringify(
+            log,
+            (key, value) => (key === 'guild' ? safeName(value) : value),
+            2,
+        ),
+    )
 
     const sent = results.filter((r) => r.status === 'sent').length
     const failed = results.filter((r) => r.status === 'failed').length
