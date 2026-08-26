@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.8...v2.40.0) (2026-08-26)
+
+
+### Features
+
+* **i18n:** bot language primitives and the first translated surface ([#2102](https://github.com/LucasSantana-Dev/Lucky/issues/2102)) ([68346bd](https://github.com/LucasSantana-Dev/Lucky/commit/68346bdc74d370143f1085caec513437ed19f0d9))
+* **music:** speak on stage channels instead of failing silently ([#2107](https://github.com/LucasSantana-Dev/Lucky/issues/2107)) ([4d57262](https://github.com/LucasSantana-Dev/Lucky/commit/4d57262a76f32e609ba2b92a21da6f970ef56e51))
+* **scripts:** one-off broadcast for top.gg listing and support server ([#2100](https://github.com/LucasSantana-Dev/Lucky/issues/2100)) ([6398a07](https://github.com/LucasSantana-Dev/Lucky/commit/6398a071c5060ee668c67dd0ee07870ef79efe60))
+* **webhooks:** verify top.gg v1 hmac signatures ([#2103](https://github.com/LucasSantana-Dev/Lucky/issues/2103)) ([4166574](https://github.com/LucasSantana-Dev/Lucky/commit/416657467ab4cbaa20d58fdd4cff3702075c8547))
+
+
+### Bug Fixes
+
+* **music:** strip youtube mix context so /play resolves the video ([#2104](https://github.com/LucasSantana-Dev/Lucky/issues/2104)) ([bf027b7](https://github.com/LucasSantana-Dev/Lucky/commit/bf027b7b865965fc10e516f50e015d5d8701af9c))
+
+
+### Performance Improvements
+
+* **ci:** cancel superseded runs and give docker one cache writer ([#2112](https://github.com/LucasSantana-Dev/Lucky/issues/2112)) ([505bd92](https://github.com/LucasSantana-Dev/Lucky/commit/505bd9252a555bc43351d9e14727301695c1b853))
+
 ## [2.39.8](https://github.com/LucasSantana-Dev/Lucky/compare/v2.39.7...v2.39.8) (2026-08-24)
 
 
