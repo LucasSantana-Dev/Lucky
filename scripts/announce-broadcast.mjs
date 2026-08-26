@@ -29,6 +29,7 @@
  */
 
 import { appendFile, readFile, writeFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 
 const TOKEN = process.env.DISCORD_TOKEN
 const SEND = process.env.CONFIRM_SEND === 'yes'
@@ -45,13 +46,47 @@ const ONLY = new Set(
         .filter(Boolean),
 )
 
-// Append-only delivery ledger, written after EVERY post before the next one is
-// attempted. Holding results in memory until the end meant that a crash, a
+// Append-only, WRITE-AHEAD delivery ledger. An `attempting` row is written
+// BEFORE the POST and a terminal row after it, because Discord can accept a
+// message and the process die before the result is recorded. Writing only after
+// the POST left that window, and a rerun would duplicate the announcement in a
+// third-party server. Holding results in memory until the end meant that a crash, a
 // Ctrl-C, or a killed container left no record of what had already gone out,
 // and the obvious response (rerun) would post to every guild a second time.
 // Double-posting to third-party servers is the specific harm this whole script
 // is built to avoid, so the ledger is the durable part, not the summary.
 const LEDGER = 'announce-broadcast-ledger.jsonl'
+
+// Pure, so the resume rules are testable without Discord or the filesystem.
+// Returns the three states a guild can be in after a previous run:
+//   sent      -> terminal success, never retry
+//   failed    -> terminal failure, safe to retry
+//   ambiguous -> `attempting` with no terminal row. The POST may or may not have
+//                landed. NEVER auto-retried; a human decides.
+export function classifyLedger(lines) {
+    const lastByGuild = new Map()
+    for (const line of lines) {
+        if (!line.trim()) continue
+        let row
+        try {
+            row = JSON.parse(line)
+        } catch {
+            continue // a torn final line from a hard kill is not fatal
+        }
+        if (!row?.id) continue
+        const prev = lastByGuild.get(row.id)
+        // Terminal rows win over `attempting` regardless of order.
+        if (prev === 'sent' || prev === 'failed') continue
+        lastByGuild.set(row.id, row.status)
+    }
+    const sent = new Set()
+    const ambiguous = new Set()
+    for (const [id, status] of lastByGuild) {
+        if (status === 'sent') sent.add(id)
+        else if (status === 'attempting') ambiguous.add(id)
+    }
+    return { sent, ambiguous }
+}
 
 const API = 'https://discord.com/api/v10'
 const BRAND = 0x495df3
@@ -80,8 +115,6 @@ function fail(msg) {
     console.error(`\n  ERROR  ${msg}\n`)
     process.exit(1)
 }
-
-if (!TOKEN) fail('DISCORD_TOKEN is not set.')
 
 let calls = 0
 
@@ -209,6 +242,7 @@ function buildEmbed() {
 }
 
 async function main() {
+    if (!TOKEN) fail('DISCORD_TOKEN is not set.')
     const mode = SEND ? 'SEND (irreversible)' : 'DRY RUN'
     console.log(`\n  Lucky broadcast (${mode})\n`)
 
@@ -316,23 +350,41 @@ async function main() {
     if (SEND) {
         // Resume: anything already recorded as sent is never posted again.
         // Failures are NOT skipped, so a rerun retries only what did not land.
-        const alreadySent = new Set()
+        let priorLines = []
         try {
-            const prior = await readFile(LEDGER, 'utf8')
-            for (const line of prior.split('\n')) {
-                if (!line.trim()) continue
-                const row = JSON.parse(line)
-                if (row.status === 'sent') alreadySent.add(row.id)
-            }
+            priorLines = (await readFile(LEDGER, 'utf8')).split('\n')
         } catch (err) {
             if (err.code !== 'ENOENT') throw err
         }
+        const { sent: alreadySent, ambiguous } = classifyLedger(priorLines)
+
         if (alreadySent.size > 0) {
             console.log(
-                `  Resuming: ${alreadySent.size} guild(s) already recorded as sent in ${LEDGER}, skipping them.`,
+                `  Resuming: ${alreadySent.size} guild(s) recorded as sent in ${LEDGER}, skipping them.`,
             )
         }
-        const pending = targets.filter((t) => !alreadySent.has(t.id))
+        if (ambiguous.size > 0) {
+            console.log(
+                `\n  ${ambiguous.size} guild(s) are AMBIGUOUS: the POST was started but no result was\n` +
+                    '  recorded, so the announcement may or may not have landed. They are NOT\n' +
+                    '  retried automatically, because retrying a delivered message double-posts\n' +
+                    "  into someone else's server. Check the channel, then either mark it sent:\n" +
+                    `    echo '{"id":"<guildId>","status":"sent"}' >> ${LEDGER}\n` +
+                    '  or mark it failed to let the next run retry it:\n' +
+                    `    echo '{"id":"<guildId>","status":"failed"}' >> ${LEDGER}\n`,
+            )
+            for (const id of ambiguous) {
+                const t = targets.find((x) => x.id === id)
+                console.log(
+                    `    ${id}  ${t ? t.guild : '(not in current targets)'}`,
+                )
+            }
+            console.log('')
+        }
+
+        const pending = targets.filter(
+            (t) => !alreadySent.has(t.id) && !ambiguous.has(t.id),
+        )
         console.log(`  ${pending.length} guild(s) still to send.\n`)
         targets.length = 0
         targets.push(...pending)
@@ -341,6 +393,12 @@ async function main() {
         console.log(`\n  Sending to ${targets.length} guild(s)...\n`)
         const embed = buildEmbed()
         for (const t of targets) {
+            // Write-ahead: intent is recorded before the network call, so a
+            // crash mid-POST is detectable as ambiguous rather than invisible.
+            await appendFile(
+                LEDGER,
+                `${JSON.stringify({ id: t.id, guild: t.guild, status: 'attempting', at: new Date().toISOString() })}\n`,
+            )
             try {
                 await api('POST', `/channels/${t.channelId}/messages`, {
                     embeds: [embed],
@@ -388,4 +446,8 @@ async function main() {
     }
 }
 
-main().catch((err) => fail(err.stack ?? String(err)))
+// Only run when executed directly. Importing this file (for tests of
+// classifyLedger) must not start a broadcast or demand a token.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+    main().catch((err) => fail(err.stack ?? String(err)))
+}
