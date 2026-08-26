@@ -163,13 +163,27 @@ const GUILD_NEWS = 5
 //
 // Length is bounded as well. Discord caps names at 100 chars, so a longer value
 // is itself a signal something is off.
+// Unicode format and invisible characters, by what they do to a reader:
+//   U+034F         combining grapheme joiner, renders as nothing
+//   U+061C         Arabic letter mark, a bidi control
+//   U+200B-U+200F  zero width space/joiners, LRM and RLM
+//   U+202A-U+202E  bidi embeddings and overrides (U+202E is the classic spoof)
+//   U+2060-U+2064  word joiner and the invisible operators
+//   U+2066-U+2069  bidi isolates
+//   U+FEFF         zero width no-break space, the BOM as a body character
+// All of them either reorder the rest of the rendered line or occupy no space,
+// so two different names can be made to look like the same one in a file a
+// human reads to decide what actually went out.
+const FORMAT_AND_INVISIBLE_RE =
+    /[\u034F\u061C\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g
+
 export function safeName(value) {
     if (typeof value !== 'string') return ''
     return (
         value
             // eslint-disable-next-line no-control-regex
             .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-            .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+            .replace(FORMAT_AND_INVISIBLE_RE, '')
             .slice(0, 100)
     )
 }

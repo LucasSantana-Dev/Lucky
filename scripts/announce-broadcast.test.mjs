@@ -150,13 +150,29 @@ test('safeName strips bidi overrides that reorder the rest of the line', () => {
     assert.ok(!out.includes('\u202E'))
 })
 
-test('safeName strips zero-width characters that hide name differences', () => {
-    // Two names that render identically must not be indistinguishable in the
-    // ledger a human reads to decide what actually went out.
-    assert.equal(safeName('a\u200Bb'), 'ab')
-    assert.equal(safeName('a\u200Fb'), 'ab')
-    assert.equal(safeName('a\u2066b\u2069c'), 'abc')
-    assert.equal(safeName('a\uFEFFb'), 'ab')
+test('safeName strips every invisible and format character it claims to', () => {
+    // Each of these either reorders the rest of the rendered line or takes no
+    // space at all, so a name carrying one can be made to look like another.
+    const invisible = [
+        '\u034F', // combining grapheme joiner
+        '\u061C', // Arabic letter mark
+        '\u200B', // zero width space
+        '\u200D', // zero width joiner
+        '\u200F', // right-to-left mark
+        '\u202A', // left-to-right embedding
+        '\u2060', // word joiner
+        '\u2062', // invisible times
+        '\u2066', // left-to-right isolate
+        '\uFEFF', // zero width no-break space
+    ]
+
+    for (const char of invisible) {
+        assert.equal(
+            safeName(`a${char}b`),
+            'ab',
+            `failed to strip U+${char.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`,
+        )
+    }
 })
 
 test('safeName leaves an ordinary name untouched', () => {
