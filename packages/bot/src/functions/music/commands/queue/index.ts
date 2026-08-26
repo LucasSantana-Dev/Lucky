@@ -7,6 +7,7 @@ import {
 } from '../../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../../types/CommandData'
 import { createQueueEmbed, createQueueErrorEmbed } from './queueEmbed'
+import { translatorForInteraction } from '../../../../i18n/translatorForInteraction'
 import {
     createErrorEmbed,
     createSuccessEmbed,
@@ -54,6 +55,9 @@ export default new Command({
         if (!(await requireQueue(queue, interaction))) return
 
         await interaction.deferReply()
+
+        // Resolved once per invocation; the resolver caches per Guild.
+        const t = await translatorForInteraction(interaction)
 
         try {
             const action = resolveAction(
@@ -130,7 +134,12 @@ export default new Command({
                 data: { queueExists: !!queue },
             })
 
-            const { embed, components } = await createQueueEmbed(queue)
+            const { embed, components } = await createQueueEmbed(
+                queue,
+                undefined,
+                0,
+                t,
+            )
 
             await interactionReply({
                 interaction,
@@ -144,6 +153,7 @@ export default new Command({
 
             const errorEmbed = createQueueErrorEmbed(
                 createUserFriendlyError(error),
+                t,
             )
 
             await interactionReply({
