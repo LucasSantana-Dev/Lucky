@@ -1,5 +1,20 @@
 {
     "music": {
+        "common": {
+            "error": "Error",
+            "guildNotFound": "Guild Not Found",
+            "guildNotFoundDetail": "Unable to retrieve guild information.",
+            "guildOnly": "This command can only be used in a server.",
+            "featureUnavailable": "Feature unavailable",
+            "noResults": "No results",
+            "unknownSubcommand": "Unknown Subcommand",
+            "missingInput": "Missing Input",
+            "emptyQueue": "Empty queue",
+            "queueAlreadyEmpty": "🗑️ The queue is already empty!",
+            "notInVoice": "Bot is not in a voice channel.",
+            "queueCreateFailed": "Could not create queue.",
+            "notLinked": "Not linked"
+        },
         "errors": {
             "notInGuild": "This command only works inside a server.",
             "notInVoice": "Join a voice channel first.",
