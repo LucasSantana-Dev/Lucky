@@ -9,6 +9,7 @@ import { requestId } from './requestId'
 import { requestLogger } from './requestLogger'
 import { metricsMiddleware } from './metrics'
 import { getFrontendOrigins } from '../utils/frontendOrigin'
+import { TOPGG_WEBHOOK_PATH } from '../utils/topggSignature'
 
 export function setupMiddleware(app: Express): void {
     const configuredOrigins = getFrontendOrigins()
@@ -138,11 +139,13 @@ export function setupMiddleware(app: Express): void {
     app.use(
         express.json({
             verify: (req, _res, buf) => {
-                if (
-                    (req as { originalUrl?: string }).originalUrl?.startsWith(
-                        '/webhooks/topgg-votes',
-                    )
-                ) {
+                // Exact pathname, not a prefix: a public URL that merely
+                // starts with this path has no route behind it and should not
+                // retain a second copy of its body.
+                const requestPath = (
+                    req as { originalUrl?: string }
+                ).originalUrl?.split('?')[0]
+                if (requestPath === TOPGG_WEBHOOK_PATH) {
                     ;(req as { rawBody?: Buffer }).rawBody = Buffer.from(buf)
                 }
             },

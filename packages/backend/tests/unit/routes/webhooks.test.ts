@@ -8,6 +8,8 @@ import {
 } from '@jest/globals'
 import express from 'express'
 import request from 'supertest'
+import { createHmac } from 'node:crypto'
+import { TOPGG_WEBHOOK_PATH } from '../../../src/utils/topggSignature'
 
 // Mock chalk to avoid "color is not a function" in LogService
 jest.mock('chalk', () => ({
@@ -568,9 +570,27 @@ describe('webhook auth scheme selection (CodeQL: no user-controlled bypass)', ()
         else process.env.TOPGG_AUTH_TOKEN = priorToken
     })
 
+    // Production captures the unparsed body in an express.json verify hook
+    // (src/middleware/index.ts). Without it here req.rawBody is undefined and
+    // verifyTopggSignature short-circuits to `malformed-header` before it ever
+    // parses the header or compares an HMAC -- every v1 assertion below would
+    // pass for the wrong reason, and keep passing with verification broken.
     function buildPublicApp(): express.Express {
         const app = express()
-        app.use(express.json())
+        app.use(
+            express.json({
+                verify: (req, _res, buf) => {
+                    if (
+                        (req as { originalUrl?: string }).originalUrl?.split(
+                            '?',
+                        )[0] === TOPGG_WEBHOOK_PATH
+                    ) {
+                        ;(req as { rawBody?: Buffer }).rawBody =
+                            Buffer.from(buf)
+                    }
+                },
+            }),
+        )
         setupWebhookPublicRoutes(app)
         app.use(
             (
@@ -611,6 +631,65 @@ describe('webhook auth scheme selection (CodeQL: no user-controlled bypass)', ()
             .set('authorization', 'legacy-token')
             .set('x-topgg-signature', 't=1,v1=deadbeef')
             .send({ type: 'test' })
+
+        expect(res.status).toBe(401)
+    })
+
+    it('accepts a correctly signed v1 delivery', async () => {
+        process.env.TOPGG_WEBHOOK_SECRET = 'whs_v1_secret'
+        delete process.env.TOPGG_AUTH_TOKEN
+
+        const body = { type: 'test' }
+        const raw = JSON.stringify(body)
+        const timestamp = Math.floor(Date.now() / 1000)
+        const signature = createHmac('sha256', 'whs_v1_secret')
+            .update(`${timestamp}.${raw}`)
+            .digest('hex')
+
+        const res = await request(buildPublicApp())
+            .post(TOPGG_WEBHOOK_PATH)
+            .set('content-type', 'application/json')
+            .set('x-topgg-signature', `t=${timestamp},v1=${signature}`)
+            .send(raw)
+
+        expect(res.status).toBe(200)
+    })
+
+    it('accepts a valid signature sent as uppercase hex', async () => {
+        process.env.TOPGG_WEBHOOK_SECRET = 'whs_v1_secret'
+        delete process.env.TOPGG_AUTH_TOKEN
+
+        const body = { type: 'test' }
+        const raw = JSON.stringify(body)
+        const timestamp = Math.floor(Date.now() / 1000)
+        const signature = createHmac('sha256', 'whs_v1_secret')
+            .update(`${timestamp}.${raw}`)
+            .digest('hex')
+            .toUpperCase()
+
+        const res = await request(buildPublicApp())
+            .post(TOPGG_WEBHOOK_PATH)
+            .set('content-type', 'application/json')
+            .set('x-topgg-signature', `t=${timestamp},v1=${signature}`)
+            .send(raw)
+
+        expect(res.status).toBe(200)
+    })
+
+    it('rejects a body tampered with after signing', async () => {
+        process.env.TOPGG_WEBHOOK_SECRET = 'whs_v1_secret'
+        delete process.env.TOPGG_AUTH_TOKEN
+
+        const timestamp = Math.floor(Date.now() / 1000)
+        const signature = createHmac('sha256', 'whs_v1_secret')
+            .update(`${timestamp}.${JSON.stringify({ type: 'test' })}`)
+            .digest('hex')
+
+        const res = await request(buildPublicApp())
+            .post(TOPGG_WEBHOOK_PATH)
+            .set('content-type', 'application/json')
+            .set('x-topgg-signature', `t=${timestamp},v1=${signature}`)
+            .send(JSON.stringify({ type: 'upvote', user: '1' }))
 
         expect(res.status).toBe(401)
     })

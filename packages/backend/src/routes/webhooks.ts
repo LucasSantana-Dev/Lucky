@@ -1,6 +1,9 @@
 import type { Express, Request, Response } from 'express'
 import { timingSafeKeyCompare } from '../utils/timingSafeKeyCompare'
-import { verifyTopggSignature } from '../utils/topggSignature'
+import {
+    verifyTopggSignature,
+    TOPGG_WEBHOOK_PATH,
+} from '../utils/topggSignature'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
@@ -228,7 +231,7 @@ export function setupWebhookApiRoutes(app: Express): void {
 
 export function setupWebhookPublicRoutes(app: Express): void {
     app.post(
-        '/webhooks/topgg-votes',
+        TOPGG_WEBHOOK_PATH,
         writeLimiter,
         asyncHandler(async (req: Request, res: Response) => {
             verifyTopggAuth(req)

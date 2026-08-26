@@ -16,6 +16,14 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 // usual figure for signed webhooks (Stripe, GitHub) and bounds replay of a
 // captured request without being tight enough to break on ordinary clock skew
 // between top.gg and the host.
+/**
+ * The one path that receives v1 deliveries. Shared so the route and the
+ * raw-body capture hook in the middleware cannot drift apart: if they did,
+ * verification would start failing with `malformed-header` on every real
+ * delivery.
+ */
+export const TOPGG_WEBHOOK_PATH = '/webhooks/topgg-votes'
+
 export const SIGNATURE_TOLERANCE_SECONDS = 5 * 60
 
 export type SignatureFailure =
@@ -81,8 +89,11 @@ export function verifyTopggSignature(params: {
         .update(rawBody)
         .digest('hex')
 
-    const a = Buffer.from(expected, 'utf8')
-    const b = Buffer.from(parsed.signature, 'utf8')
+    // Compare the decoded bytes, not the hex text. The parser accepts either
+    // case, so comparing strings would reject a valid uppercase signature
+    // against a digest that is always lowercase.
+    const a = Buffer.from(expected, 'hex')
+    const b = Buffer.from(parsed.signature, 'hex')
     // timingSafeEqual throws on length mismatch, which would leak length via an
     // exception path, so compare lengths first and still run the constant-time
     // compare when they match.
