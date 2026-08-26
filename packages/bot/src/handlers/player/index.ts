@@ -4,6 +4,7 @@ import { createPlayer } from './playerFactory'
 import { setupErrorHandlers } from './errorHandlers'
 import {
     setupLifecycleHandlers,
+    setupStageSpeaker,
     setupVoiceKickDetection,
 } from './lifecycleHandlers'
 import { setupTrackHandlers } from './trackHandlers'
@@ -36,6 +37,7 @@ export const createPlayerWithHandlers = ({
         client,
     })
     setupVoiceKickDetection(client)
+    setupStageSpeaker(client)
 
     return player
 }
