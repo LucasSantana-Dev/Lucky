@@ -32,7 +32,8 @@ const cache = new Map<string, Entry>()
 // A cold guild that receives several interactions at once would otherwise put
 // one settings query on the wire per interaction, which is exactly what the
 // cache exists to prevent. Concurrent misses share one load.
-const inFlight = new Map<string, Promise<BotLanguage>>()
+type InFlightLoad = { promise: Promise<BotLanguage> }
+const inFlight = new Map<string, InFlightLoad>()
 
 /** Injected so tests do not depend on the real clock. */
 let now = (): number => Date.now()
@@ -122,25 +123,36 @@ export async function resolveGuildLanguage(
     }
 
     const pending = inFlight.get(guildId)
-    if (pending) return pending
+    if (pending) return pending.promise
 
-    const request: Promise<BotLanguage> = (async () => {
-        let language: BotLanguage
+    // A stable identity for this load, so the body can ask whether it is
+    // still the registered one. A promise cannot reference itself from inside
+    // its own executor, and a plain holder avoids that entirely.
+    const entry = {} as InFlightLoad
+    entry.promise = (async () => {
         try {
-            language = pickLanguage(await load())
+            const language: BotLanguage = pickLanguage(await load())
+            // Losing the in-flight slot means invalidateGuildLanguage() ran
+            // while this load was on the wire, so the value just read is
+            // already stale. Writing it would undo the invalidation and pin
+            // the OLD language for a whole TTL.
+            if (inFlight.get(guildId) === entry) {
+                cache.set(guildId, { language, expiresAt: now() + TTL_MS })
+            }
+            return language
         } catch {
             // A settings lookup that fails must not break a music reply. Fall
             // back and do NOT cache, so the next call retries rather than
             // pinning English for the whole TTL.
             return DEFAULT_BOT_LANGUAGE
         } finally {
-            inFlight.delete(guildId)
+            // Only clear our OWN entry. An invalidation may have dropped it
+            // mid-flight and a newer request registered since; deleting that
+            // one would orphan it and defeat its deduping.
+            if (inFlight.get(guildId) === entry) inFlight.delete(guildId)
         }
-
-        cache.set(guildId, { language, expiresAt: now() + TTL_MS })
-        return language
     })()
 
-    inFlight.set(guildId, request)
-    return request
+    inFlight.set(guildId, entry)
+    return entry.promise
 }

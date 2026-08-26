@@ -194,6 +194,61 @@ describe('resolveGuildLanguage concurrency and eviction', () => {
         expect(await resolveGuildLanguage('g1', load)).toBe('es')
     })
 
+    it('does not let an invalidated in-flight load write a stale language', async () => {
+        // An admin changes the language while a load is already on the wire.
+        // Caching what that load read would undo the invalidation and pin the
+        // old language for the whole TTL.
+        let release: (v: { settingsLanguage: string }) => void = () => {}
+        const slow = jest.fn(
+            () =>
+                new Promise<{ settingsLanguage: string }>((resolve) => {
+                    release = resolve
+                }),
+        )
+
+        const pending = resolveGuildLanguage('g1', slow)
+        invalidateGuildLanguage('g1')
+        release({ settingsLanguage: 'pt-BR' })
+        await pending
+
+        expect(__cacheSizeForTests()).toBe(0)
+    })
+
+    it('does not orphan a newer request registered after an invalidation', async () => {
+        let releaseFirst: (v: { settingsLanguage: string }) => void = () => {}
+        const first = jest.fn(
+            () =>
+                new Promise<{ settingsLanguage: string }>((resolve) => {
+                    releaseFirst = resolve
+                }),
+        )
+        // Kept pending on purpose: if it resolved here, the cache entry it
+        // writes would answer the third call and hide the clobber entirely.
+        const laterResolvers: Array<(v: { settingsLanguage: string }) => void> =
+            []
+        const second = jest.fn(
+            () =>
+                new Promise<{ settingsLanguage: string }>((resolve) => {
+                    laterResolvers.push(resolve)
+                }),
+        )
+
+        const a = resolveGuildLanguage('g1', first)
+        invalidateGuildLanguage('g1')
+        const b = resolveGuildLanguage('g1', second)
+
+        // The first load finishing must not delete the second's in-flight
+        // entry, or this third caller starts yet another query.
+        releaseFirst({ settingsLanguage: 'pt-BR' })
+        await a
+
+        const c = resolveGuildLanguage('g1', second)
+        laterResolvers.forEach((resolve) => resolve({ settingsLanguage: 'es' }))
+        await Promise.all([b, c])
+
+        expect(second).toHaveBeenCalledTimes(1)
+    })
+
     it('evicts an expired entry instead of leaving it in the map forever', async () => {
         let clock = 1_000_000
         __setClockForTests(() => clock)
