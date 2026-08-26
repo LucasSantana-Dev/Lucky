@@ -26,6 +26,7 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(scriptDir, '..')
 
 const ROUTES_DIR = path.join(repoRoot, 'packages/backend/src/routes')
+const BACKEND_SRC = path.join(repoRoot, 'packages/backend/src')
 const NGINX_CONF = path.join(repoRoot, 'nginx/nginx.conf')
 
 // Root-level routes intentionally NOT reachable from the edge. Each entry must
@@ -68,7 +69,22 @@ const MUST_DISCOVER = ['/invite', '/webhooks/topgg-votes']
 // trap this gate exists to avoid: a single-line-only regex finds ZERO of the
 // multi-line registrations and the check passes vacuously.
 const ROUTE_RE =
-    /\bapp\.(?:get|post|put|patch|delete|head|options|all|use)\(\s*(['"`])([^'"`]+)\1/g
+    /\bapp\.(?:get|post|put|patch|delete|head|options|all|use)\(\s*(?:(['"`])([^'"`]+)\1|([A-Za-z_$][\w$]*))/g
+
+// A path extracted into a constant (`app.post(TOPGG_WEBHOOK_PATH, …)`) is
+// invisible to a literal-only scan. That is not hypothetical: #2103 moved the
+// top.gg webhook path into a shared constant so the route and the raw-body
+// capture hook could not drift, and this gate went red on the canary below --
+// working exactly as intended, but the right answer is to resolve the constant
+// rather than to forbid the pattern.
+//
+// Resolution is deliberately shallow: match `const NAME = '/literal'` anywhere
+// under the backend source and key it by name, with no import graph. An
+// identifier that does not resolve is treated as middleware (`app.use(cors)`,
+// `app.use(express.json(...))`) and skipped -- which is why the MUST_DISCOVER
+// canary, not this resolver, remains the thing that makes a degraded scan loud.
+const PATH_CONST_RE =
+    /\bconst\s+([A-Za-z_$][\w$]*)\s*(?::\s*string\s*)?=\s*(['"`])(\/[^'"`]*)\2/g
 
 // `location /x {`, `location = /x {`, `location ^~ /x {`, `location ~ ^/x {`.
 const LOCATION_RE = /^[ \t]*location\s+(?:(=|~\*?|\^~)\s+)?(\S+)\s*\{/gm
@@ -111,8 +127,37 @@ async function collectRouteFiles(dir) {
     return nested.flat()
 }
 
+/**
+ * name -> path, for every `const NAME = '/literal'` under the backend source.
+ * A name bound to two different paths is dropped: guessing which one a route
+ * meant is exactly the silent-wrong-answer this gate exists to prevent.
+ */
+async function collectPathConstants() {
+    const files = await collectRouteFiles(BACKEND_SRC)
+    const seen = new Map()
+
+    for (const filePath of files) {
+        const content = await readFile(filePath, 'utf8')
+        for (const match of content.matchAll(PATH_CONST_RE)) {
+            const [, name, , value] = match
+            if (!seen.has(name)) seen.set(name, new Set())
+            seen.get(name).add(value)
+        }
+    }
+
+    const resolved = new Map()
+    const ambiguous = []
+    for (const [name, values] of seen) {
+        if (values.size === 1) resolved.set(name, [...values][0])
+        else ambiguous.push(`${name} -> ${[...values].join(', ')}`)
+    }
+
+    return { resolved, ambiguous }
+}
+
 async function collectRootRoutes() {
     const files = await collectRouteFiles(ROUTES_DIR)
+    const { resolved: pathConstants, ambiguous } = await collectPathConstants()
 
     const routes = new Map()
     let registrations = 0
@@ -121,7 +166,9 @@ async function collectRootRoutes() {
         const content = await readFile(filePath, 'utf8')
         for (const match of content.matchAll(ROUTE_RE)) {
             registrations += 1
-            const routePath = match[2]
+            // match[2] is a string literal, match[3] a bare identifier.
+            const routePath = match[2] ?? pathConstants.get(match[3])
+            if (!routePath) continue
             if (!routePath.startsWith('/')) continue
             // `/api` is covered by `location /api` by construction.
             if (routePath === '/api' || routePath.startsWith('/api/')) continue
@@ -134,7 +181,7 @@ async function collectRootRoutes() {
         }
     }
 
-    return { routes, files, registrations }
+    return { routes, files, registrations, ambiguous }
 }
 
 async function collectLocations() {
@@ -183,6 +230,7 @@ function findCoveringLocation(routePath, locations) {
 const failures = []
 let routes = new Map()
 let locations = []
+let ambiguousConstants = []
 let files = []
 let registrations = 0
 
@@ -191,6 +239,7 @@ try {
     routes = scan.routes
     files = scan.files
     registrations = scan.registrations
+    ambiguousConstants = scan.ambiguous
     locations = await collectLocations()
 } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -234,6 +283,13 @@ if (failures.length === 0) {
                     'add explicit support before relying on it to cover a root-level route',
             )
         }
+    }
+    for (const entry of ambiguousConstants) {
+        failures.push(
+            `path constant "${entry}" is bound to more than one value, so a route using it ` +
+                'cannot be resolved and was skipped. Give the constants distinct names, or ' +
+                'this gate silently stops covering that route.',
+        )
     }
     for (const expected of MUST_DISCOVER) {
         if (!routes.has(expected)) {
