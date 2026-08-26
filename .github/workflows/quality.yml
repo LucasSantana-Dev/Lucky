@@ -6,6 +6,14 @@ on:
     pull_request:
         branches: ['release/**', main]
 
+# Without this, a superseded run keeps going to completion. Measured on
+# 2026-08-26: 45 runs, ZERO cancelled, 281 minutes of compute, on a day when
+# five PRs were pushed to repeatedly. ci.yml cancelled 17 of its 46 runs the
+# same day because it has had this block all along.
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
 jobs:
     quality:
         uses: LucasSantana-Dev/.github/.github/workflows/quality.yml@ad6776a59b88a798b145e7b555368c39799e23e7

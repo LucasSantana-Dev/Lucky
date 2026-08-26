@@ -11,6 +11,12 @@ on:
             - 'Dockerfile.*'
             - 'nginx/**'
             - 'package*.json'
+            # Dockerfile:152 copies this into the frontend image, because the
+            # /changelog page imports it with vite's raw loader. Omitting it
+            # meant a release-please merge -- which changes ONLY this file --
+            # published no image, so /changelog served the previous release's
+            # text until some unrelated change happened to trigger a rebuild.
+            - 'CHANGELOG.md'
             - '.github/workflows/docker-publish.yml'
 
 concurrency:

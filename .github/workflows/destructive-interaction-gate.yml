@@ -19,6 +19,14 @@ on:
     merge_group:
         branches: [main, 'release/**']
 
+# A force-push or branch update leaves the previous run going to completion,
+# which is pure waste: its result is about a commit nobody will merge.
+# cancel-in-progress is deliberately NOT applied to merge_group -- cancelling a
+# merge-queue run would stall the queue rather than save anything.
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
     contents: read
 
