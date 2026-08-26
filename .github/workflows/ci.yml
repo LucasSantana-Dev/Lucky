@@ -82,6 +82,11 @@ jobs:
             # (#2086). Pure file parsing — no build, no DB.
             - name: Verify nginx route parity
               run: npm run verify:nginx-routes
+            # A missing translation key does NOT throw: i18next serves the
+            # English string via fallbackLng. Correct at runtime, and exactly
+            # why an untranslated feature is invisible without this gate.
+            - name: Verify locale key parity
+              run: npm run verify:locales
             - name: Type check
               run: npm run type:check
             - name: Check documentation coverage
