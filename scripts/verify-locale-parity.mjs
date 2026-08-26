@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
@@ -18,7 +18,38 @@ const repoRoot = path.resolve(scriptDir, '..')
 const LOCALES_DIR = path.join(repoRoot, 'packages/bot/src/locales')
 
 const REFERENCE = 'en'
-const LOCALES = ['en', 'pt-BR', 'es']
+
+// Catalogues that MUST exist. Discovery below adds anything else it finds, so a
+// fourth locale is covered the moment its file lands; this list is what makes
+// DELETING or renaming one of the three loud instead of silently shrinking the
+// gate's scope to whatever happens to be on disk.
+const REQUIRED_LOCALES = ['en', 'pt-BR', 'es']
+
+/**
+ * Every catalogue actually present. Reading the directory rather than trusting
+ * a hardcoded list is the point: with a fixed list, both the load loop and the
+ * count guard below referenced the SAME constant, so a new fr.json was ignored
+ * by the loop and the guard agreed with itself that nothing was missing.
+ */
+async function discoverLocales() {
+    const entries = await readdir(LOCALES_DIR, { withFileTypes: true })
+    return entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+        .map((entry) => entry.name.slice(0, -'.json'.length))
+        .sort()
+}
+
+let LOCALES
+try {
+    LOCALES = await discoverLocales()
+} catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(
+        `\nlocale parity check FAILED\n\n- cannot read ${path.relative(repoRoot, LOCALES_DIR)}: ${message}. ` +
+            'A missing catalogue directory must fail loudly, not pass green with zero coverage.\n',
+    )
+    process.exit(1)
+}
 
 // Keys deliberately present in ONE locale only, with the reason. An entry here
 // must still exist in the reference catalogue, so a rename cannot leave a stale
@@ -62,9 +93,18 @@ for (const locale of LOCALES) {
 // --- Vacuous-pass guards -------------------------------------------------
 // An empty key set trivially satisfies "no missing keys".
 if (failures.length === 0) {
+    for (const required of REQUIRED_LOCALES) {
+        if (!keysByLocale.has(required)) {
+            failures.push(
+                `required catalogue ${required}.json is missing. It was deleted or renamed; ` +
+                    'update REQUIRED_LOCALES on purpose rather than letting the gate quietly ' +
+                    'stop covering that language.',
+            )
+        }
+    }
     if (keysByLocale.size !== LOCALES.length) {
         failures.push(
-            `expected ${LOCALES.length} catalogues, loaded ${keysByLocale.size}`,
+            `discovered ${LOCALES.length} catalogues but loaded ${keysByLocale.size}`,
         )
     }
     for (const [locale, keys] of keysByLocale) {
