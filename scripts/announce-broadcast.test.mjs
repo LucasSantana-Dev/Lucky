@@ -41,12 +41,28 @@ test('attempting followed by failed is retryable, not ambiguous', () => {
     assert.equal(ambiguous.size, 0)
 })
 
-test('a later attempting cannot demote an earlier terminal result', () => {
+test('a stale failed row cannot mask a later attempting (retry crash)', () => {
+    // The bug cubic caught. Run 1 fails, run 2 retries and the POST lands but
+    // the process dies before the terminal row. With terminal-wins the stale
+    // `failed` won and the guild looked safe to retry, double-posting into a
+    // server that had already received the announcement.
     const { sent, ambiguous } = classifyLedger([
-        row('F', 'sent'),
+        row('F', 'attempting'),
+        row('F', 'failed'),
         row('F', 'attempting'),
     ])
-    assert.deepEqual([...sent], ['F'])
+    assert.equal(sent.size, 0)
+    assert.deepEqual([...ambiguous], ['F'], 'must be ambiguous, never retried')
+})
+
+test('last row wins, so a re-send recorded after a failure counts as sent', () => {
+    const { sent, ambiguous } = classifyLedger([
+        row('G', 'attempting'),
+        row('G', 'failed'),
+        row('G', 'attempting'),
+        row('G', 'sent'),
+    ])
+    assert.deepEqual([...sent], ['G'])
     assert.equal(ambiguous.size, 0)
 })
 

@@ -74,9 +74,12 @@ export function classifyLedger(lines) {
             continue // a torn final line from a hard kill is not fatal
         }
         if (!row?.id) continue
-        const prev = lastByGuild.get(row.id)
-        // Terminal rows win over `attempting` regardless of order.
-        if (prev === 'sent' || prev === 'failed') continue
+        // STRICT last-line-wins, by file order. An earlier terminal row must
+        // never mask a later `attempting`: a guild that failed in run 1 and was
+        // retried in run 2 has rows [attempting, failed, attempting], and if the
+        // stale `failed` won, the guild would read as safe to retry while the
+        // run-2 POST may already have been delivered. That is the double-post
+        // this ledger exists to prevent.
         lastByGuild.set(row.id, row.status)
     }
     const sent = new Set()
