@@ -107,10 +107,6 @@ export async function expandSoundCloudShortUrl(url: string): Promise<string> {
 }
 
 /**
- * Strips SoundCloud playlist-context query params (`?in=...`) that the
- * SoundCloud extractor cannot resolve. The bare track URL resolves correctly.
- */
-/**
  * True when the URL's real host is `domain` or a subdomain of it.
  *
  * Testing the raw URL string with `includes` is not enough: any third-party
@@ -119,12 +115,18 @@ export async function expandSoundCloudShortUrl(url: string): Promise<string> {
  * the query params of a URL that has nothing to do with that service.
  */
 function hasHost(url: URL, ...domains: string[]): boolean {
-    const host = url.hostname.toLowerCase()
+    // A fully qualified host may carry a trailing root dot ("youtube.com."),
+    // which URL.hostname preserves and which would otherwise miss every match.
+    const host = url.hostname.toLowerCase().replace(/\.$/, '')
     return domains.some(
         (domain) => host === domain || host.endsWith(`.${domain}`),
     )
 }
 
+/**
+ * Strips SoundCloud playlist-context query params (`?in=...`) that the
+ * SoundCloud extractor cannot resolve. The bare track URL resolves correctly.
+ */
 export function normalizeSoundCloudUrl(url: string): string {
     try {
         const parsed = new URL(url)

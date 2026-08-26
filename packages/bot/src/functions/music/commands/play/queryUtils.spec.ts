@@ -94,6 +94,13 @@ describe('host matching', () => {
         expect(normalizeSoundCloudUrl(url)).toBe(url)
     })
 
+    it('still strips a mix on a fully qualified host with a trailing dot', () => {
+        const result = normalizeYouTubeUrl(
+            'https://www.youtube.com./watch?v=abc&list=RDabc&start_radio=1',
+        )
+        expect(result).toBe('https://www.youtube.com./watch?v=abc')
+    })
+
     it('still strips a mix on a real youtube subdomain', () => {
         const result = normalizeYouTubeUrl(
             'https://music.youtube.com/watch?v=abc&list=RDabc&start_radio=1',
