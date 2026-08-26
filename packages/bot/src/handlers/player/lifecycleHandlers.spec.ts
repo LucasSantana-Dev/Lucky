@@ -63,6 +63,7 @@ import {
     setupLifecycleHandlers,
     setupStageSpeaker,
     setupVoiceKickDetection,
+    __resetStagePausedForTests,
 } from './lifecycleHandlers'
 
 type PlayerEventHandler = (queue: GuildQueue, message?: string) => Promise<void>
@@ -521,6 +522,9 @@ describe('setupStageSpeaker', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
+        // Module state: without this the pause recorded by one test leaks into
+        // the next and makes a resume assertion pass for the wrong reason.
+        __resetStagePausedForTests()
         ensureStageSpeakerMock.mockResolvedValue('requested')
     })
 
@@ -609,7 +613,19 @@ describe('setupStageSpeaker', () => {
         expect(send).not.toHaveBeenCalled()
     })
 
-    it('pauses a playing queue when a moderator revokes speaker mid-session', async () => {
+    it('holds playback on joining a stage, before the first track starts', async () => {
+        // isPlaying() is false at join time. Gating the pause on it let the
+        // first track drain into a muted channel while approval was pending.
+        const queue = buildQueue({ playing: false })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0]({ channelId: null, suppress: false }, stageState())
+
+        expect(queue.node.pause).toHaveBeenCalled()
+    })
+
+    it('pauses when a moderator revokes speaker mid-session', async () => {
         const queue = buildQueue({ playing: true })
         const { client, listeners } = buildClient(queue)
         setupStageSpeaker(client as any)
@@ -622,7 +638,28 @@ describe('setupStageSpeaker', () => {
         expect(queue.node.pause).toHaveBeenCalled()
     })
 
-    it('resumes a paused queue once approved to speak', async () => {
+    it('resumes only the queue it paused itself', async () => {
+        let paused = false
+        const queue = buildQueue({ playing: true })
+        queue.node.isPaused = () => paused
+        queue.node.pause = jest.fn(() => {
+            paused = true
+        })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0]({ channelId: null, suppress: false }, stageState())
+        expect(queue.node.pause).toHaveBeenCalled()
+
+        await listeners[0](
+            stageState({ suppress: true }),
+            stageState({ suppress: false }),
+        )
+        expect(queue.node.resume).toHaveBeenCalled()
+    })
+
+    it('does not resume a queue the user paused with /pause', async () => {
+        // Approval must not restart playback somebody deliberately stopped.
         const queue = buildQueue({ paused: true })
         const { client, listeners } = buildClient(queue)
         setupStageSpeaker(client as any)
@@ -632,7 +669,50 @@ describe('setupStageSpeaker', () => {
             stageState({ suppress: false }),
         )
 
+        expect(queue.node.resume).not.toHaveBeenCalled()
+    })
+
+    it('resumes held playback when the bot is moved off the stage', async () => {
+        let paused = false
+        const queue = buildQueue({ playing: true })
+        queue.node.isPaused = () => paused
+        queue.node.pause = jest.fn(() => {
+            paused = true
+        })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0]({ channelId: null, suppress: false }, stageState())
+        expect(queue.node.pause).toHaveBeenCalled()
+
+        // A moderator drags the bot into an ordinary voice channel. Nothing
+        // suppresses it there, so the hold must be released.
+        await listeners[0](
+            stageState(),
+            stageState({
+                channel: { type: VOICE_CHANNEL_TYPE, id: 'voice-1' },
+                channelId: 'voice-1',
+                suppress: false,
+            }),
+        )
+
         expect(queue.node.resume).toHaveBeenCalled()
-        expect(ensureStageSpeakerMock).not.toHaveBeenCalled()
+    })
+
+    it('leaves an untouched queue alone when moved off a stage', async () => {
+        const queue = buildQueue({ paused: true })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0](
+            stageState(),
+            stageState({
+                channel: { type: VOICE_CHANNEL_TYPE, id: 'voice-1' },
+                channelId: 'voice-1',
+                suppress: false,
+            }),
+        )
+
+        expect(queue.node.resume).not.toHaveBeenCalled()
     })
 })
