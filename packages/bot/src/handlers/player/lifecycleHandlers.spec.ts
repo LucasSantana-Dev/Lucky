@@ -3,6 +3,7 @@ import type { GuildQueue } from 'discord-player'
 
 const debugLogMock = jest.fn()
 const infoLogMock = jest.fn()
+const warnLogMock = jest.fn()
 const restoreSnapshotMock = jest.fn()
 const saveSnapshotMock = jest.fn()
 const watchdogArmMock = jest.fn()
@@ -15,6 +16,7 @@ const replenishQueueMock = jest.fn()
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
@@ -39,10 +41,31 @@ jest.mock('../../services/musicManagement/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
 }))
 
+const ensureStageSpeakerMock = jest.fn<() => Promise<string>>()
+
+jest.mock('../../services/musicManagement/stageSpeaker', () => ({
+    ensureStageSpeaker: (...args: unknown[]) => ensureStageSpeakerMock(),
+}))
+
+jest.mock('../../utils/general/embeds', () => ({
+    createErrorEmbed: (title: string, body: string) => ({
+        kind: 'error',
+        title,
+        body,
+    }),
+    createWarningEmbed: (title: string, body: string) => ({
+        kind: 'warning',
+        title,
+        body,
+    }),
+}))
+
 import { setReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 import {
     setupLifecycleHandlers,
+    setupStageSpeaker,
     setupVoiceKickDetection,
+    __resetStagePausedForTests,
 } from './lifecycleHandlers'
 
 type PlayerEventHandler = (queue: GuildQueue, message?: string) => Promise<void>
@@ -448,5 +471,268 @@ describe('setupVoiceKickDetection', () => {
         voiceStateUpdateListeners[0](oldState, newState)
 
         expect(watchdogMarkIntentionalStopMock).not.toHaveBeenCalled()
+    })
+})
+
+const STAGE_CHANNEL_TYPE = 13
+const VOICE_CHANNEL_TYPE = 2
+
+describe('setupStageSpeaker', () => {
+    const buildClient = (queue?: unknown) => {
+        const listeners: Array<
+            (oldState: any, newState: any) => Promise<void> | void
+        > = []
+        const client = {
+            user: { id: 'bot-user-id' },
+            player: { nodes: { get: jest.fn(() => queue ?? null) } },
+            on: jest.fn(
+                (
+                    event: string,
+                    handler: (oldState: any, newState: any) => Promise<void>,
+                ) => {
+                    if (event === 'voiceStateUpdate') listeners.push(handler)
+                },
+            ),
+        }
+        return { client, listeners }
+    }
+
+    const buildQueue = ({
+        paused = false,
+        playing = false,
+        send = jest.fn<() => Promise<void>>(),
+    } = {}) => ({
+        guild: { id: 'guild-1' },
+        metadata: { channel: { send } },
+        node: {
+            isPaused: () => paused,
+            isPlaying: () => playing,
+            pause: jest.fn(),
+            resume: jest.fn(),
+        },
+        send,
+    })
+
+    const stageState = (over: Record<string, unknown> = {}) => ({
+        member: { id: 'bot-user-id' },
+        channel: { type: STAGE_CHANNEL_TYPE, id: 'stage-1' },
+        channelId: 'stage-1',
+        suppress: true,
+        guild: { id: 'guild-1', name: 'Test Guild' },
+        ...over,
+    })
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        // Module state: without this the pause recorded by one test leaks into
+        // the next and makes a resume assertion pass for the wrong reason.
+        __resetStagePausedForTests()
+        ensureStageSpeakerMock.mockResolvedValue('requested')
+    })
+
+    it('ignores voiceStateUpdate for other members', async () => {
+        const { client, listeners } = buildClient()
+        setupStageSpeaker(client as any)
+
+        await listeners[0](
+            { channelId: null, suppress: true },
+            stageState({ member: { id: 'someone-else' } }),
+        )
+
+        expect(ensureStageSpeakerMock).not.toHaveBeenCalled()
+    })
+
+    it('ignores normal voice channels', async () => {
+        const { client, listeners } = buildClient()
+        setupStageSpeaker(client as any)
+
+        await listeners[0](
+            { channelId: null, suppress: true },
+            stageState({
+                channel: { type: VOICE_CHANNEL_TYPE, id: 'voice-1' },
+            }),
+        )
+
+        expect(ensureStageSpeakerMock).not.toHaveBeenCalled()
+    })
+
+    it('ignores the echo of its own request so it cannot loop', async () => {
+        const { client, listeners } = buildClient()
+        setupStageSpeaker(client as any)
+
+        // Same channel, same suppress flag: this is the state update Discord
+        // emits in response to our own setRequestToSpeak call.
+        await listeners[0](
+            stageState(),
+            stageState({ requestToSpeakTimestamp: 12345 }),
+        )
+
+        expect(ensureStageSpeakerMock).not.toHaveBeenCalled()
+    })
+
+    it('requests to speak on joining a stage and warns the channel', async () => {
+        const send = jest.fn<() => Promise<void>>()
+        const queue = buildQueue({ send })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0]({ channelId: null, suppress: false }, stageState())
+
+        expect(ensureStageSpeakerMock).toHaveBeenCalled()
+        expect(send).toHaveBeenCalledWith({
+            embeds: [
+                expect.objectContaining({
+                    kind: 'warning',
+                    title: expect.stringContaining('stage approval'),
+                }),
+            ],
+        })
+    })
+
+    it('reports an error embed when it cannot speak at all', async () => {
+        ensureStageSpeakerMock.mockResolvedValue('blocked')
+        const send = jest.fn<() => Promise<void>>()
+        const queue = buildQueue({ send })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0]({ channelId: null, suppress: false }, stageState())
+
+        expect(send).toHaveBeenCalledWith({
+            embeds: [expect.objectContaining({ kind: 'error' })],
+        })
+    })
+
+    it('warns rather than swallowing the outcome when there is no text channel', async () => {
+        // Session restore builds queues with metadata.channel null. Dropping
+        // the explanation there is the exact silent failure this handler ends.
+        ensureStageSpeakerMock.mockResolvedValue('blocked')
+        const queue = buildQueue()
+        queue.metadata = { channel: null }
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0]({ channelId: null, suppress: false }, stageState())
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringMatching(/no text channel/i),
+            }),
+        )
+    })
+
+    it('stays quiet when it takes the mic on its own', async () => {
+        ensureStageSpeakerMock.mockResolvedValue('unsuppressed')
+        const send = jest.fn<() => Promise<void>>()
+        const queue = buildQueue({ send })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0]({ channelId: null, suppress: false }, stageState())
+
+        expect(send).not.toHaveBeenCalled()
+    })
+
+    it('holds playback on joining a stage, before the first track starts', async () => {
+        // isPlaying() is false at join time. Gating the pause on it let the
+        // first track drain into a muted channel while approval was pending.
+        const queue = buildQueue({ playing: false })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0]({ channelId: null, suppress: false }, stageState())
+
+        expect(queue.node.pause).toHaveBeenCalled()
+    })
+
+    it('pauses when a moderator revokes speaker mid-session', async () => {
+        const queue = buildQueue({ playing: true })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0](
+            stageState({ suppress: false }),
+            stageState({ suppress: true }),
+        )
+
+        expect(queue.node.pause).toHaveBeenCalled()
+    })
+
+    it('resumes only the queue it paused itself', async () => {
+        let paused = false
+        const queue = buildQueue({ playing: true })
+        queue.node.isPaused = () => paused
+        queue.node.pause = jest.fn(() => {
+            paused = true
+        })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0]({ channelId: null, suppress: false }, stageState())
+        expect(queue.node.pause).toHaveBeenCalled()
+
+        await listeners[0](
+            stageState({ suppress: true }),
+            stageState({ suppress: false }),
+        )
+        expect(queue.node.resume).toHaveBeenCalled()
+    })
+
+    it('does not resume a queue the user paused with /pause', async () => {
+        // Approval must not restart playback somebody deliberately stopped.
+        const queue = buildQueue({ paused: true })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0](
+            stageState({ suppress: true }),
+            stageState({ suppress: false }),
+        )
+
+        expect(queue.node.resume).not.toHaveBeenCalled()
+    })
+
+    it('resumes held playback when the bot is moved off the stage', async () => {
+        let paused = false
+        const queue = buildQueue({ playing: true })
+        queue.node.isPaused = () => paused
+        queue.node.pause = jest.fn(() => {
+            paused = true
+        })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0]({ channelId: null, suppress: false }, stageState())
+        expect(queue.node.pause).toHaveBeenCalled()
+
+        // A moderator drags the bot into an ordinary voice channel. Nothing
+        // suppresses it there, so the hold must be released.
+        await listeners[0](
+            stageState(),
+            stageState({
+                channel: { type: VOICE_CHANNEL_TYPE, id: 'voice-1' },
+                channelId: 'voice-1',
+                suppress: false,
+            }),
+        )
+
+        expect(queue.node.resume).toHaveBeenCalled()
+    })
+
+    it('leaves an untouched queue alone when moved off a stage', async () => {
+        const queue = buildQueue({ paused: true })
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0](
+            stageState(),
+            stageState({
+                channel: { type: VOICE_CHANNEL_TYPE, id: 'voice-1' },
+                channelId: 'voice-1',
+                suppress: false,
+            }),
+        )
+
+        expect(queue.node.resume).not.toHaveBeenCalled()
     })
 })
