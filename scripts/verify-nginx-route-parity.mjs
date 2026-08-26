@@ -39,15 +39,6 @@ const NOT_EDGE_EXPOSED = new Map([
             'allowlist). The ABSENCE of an nginx location is the control keeping it off the ' +
             'public edge. Adding one would expose runtime metrics to anyone.',
     ],
-    [
-        '/auth/callback',
-        'Compatibility alias for /api/auth/callback (auth.ts binds both to the same handler). ' +
-            'getOAuthRedirectUri() -> normalizeCallbackPath() rewrites /auth/callback to ' +
-            '/api/auth/callback, so the backend never emits the bare path as a redirect_uri. ' +
-            'Reachability gap tracked in #2098: docs/WEBAPP_SETUP.md:191 advertises it as a ' +
-            'working endpoint while the edge does not route it. Remove this entry when ' +
-            '#2098 resolves either way.',
-    ],
 ])
 
 // Canary: routes this gate MUST rediscover on every run. Both incidents it
