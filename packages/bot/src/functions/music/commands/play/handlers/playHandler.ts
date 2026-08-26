@@ -15,6 +15,7 @@ import {
     isUnknownInteractionError,
     resolveSearchEngine,
     normalizeSoundCloudUrl,
+    normalizeYouTubeUrl,
     expandSoundCloudShortUrl,
 } from '../queryUtils'
 import {
@@ -60,8 +61,9 @@ export async function executePlayHandler({
     const rawQuery = interaction.options.getString('query', true)
     // Expand SoundCloud short links first (on.soundcloud.com → full URL)
     const expandedQuery = await expandSoundCloudShortUrl(rawQuery)
-    // Then normalize (strip ?in= params)
-    const query = normalizeSoundCloudUrl(expandedQuery)
+    // Then normalize: SoundCloud `?in=` playlist context, and YouTube Mix
+    // (`list=RD...`) context that the youtubei extractor cannot resolve.
+    const query = normalizeYouTubeUrl(normalizeSoundCloudUrl(expandedQuery))
     const provider = interaction.options.getString('provider')
     const collaborativeCheck = collaborativePlaylistService.canAddTracks(
         interaction.guildId,
