@@ -32,38 +32,40 @@ function isDiscordSnowflake(value: string): boolean {
 }
 
 /**
- * top.gg has two webhook auth models and the route accepts both.
+ * top.gg has two webhook auth models, and the SERVER picks which one is active.
  *
  * v1 (anything created today): top.gg generates a `whs_`-prefixed secret and
  * signs each delivery, sending `x-topgg-signature`. Configure
  * TOPGG_WEBHOOK_SECRET.
  *
- * v0 (legacy): the owner picks a shared secret which top.gg echoes in the
- * `Authorization` header. Configure TOPGG_AUTH_TOKEN.
+ * v0 (legacy): the owner picks a shared secret which top.gg echoes verbatim in
+ * the `Authorization` header. Configure TOPGG_AUTH_TOKEN.
  *
- * The presence of the signature header selects the model, so a v1 delivery can
- * never be satisfied by the weaker v0 comparison, and vice versa. Supporting
- * both is deliberate: it lets the secret be deployed before the webhook is
- * created on top.gg, which is the only ordering that avoids top.gg recording a
- * failed first delivery.
+ * The choice is made by which env var is set, NEVER by the request. An earlier
+ * version branched on whether `x-topgg-signature` was present, which let the
+ * caller select the scheme: with both configured, omitting the header dropped
+ * verification from an HMAC over the body to a plaintext token comparison. That
+ * is an auth downgrade, and the fact that v0 still needs the shared secret does
+ * not save it, because a v0 token travels in cleartext on every delivery and so
+ * is far more exposed than a signing key that never leaves the server.
+ *
+ * So: TOPGG_WEBHOOK_SECRET present means v1 only. v0 is reachable only when no
+ * v1 secret is configured at all, which is also what allows the v1 secret to be
+ * deployed before the webhook exists on top.gg.
  */
 function verifyTopggAuth(req: Request): void {
-    const signatureHeader = req.header('x-topgg-signature')?.trim()
     const webhookSecret = process.env.TOPGG_WEBHOOK_SECRET
     const legacyToken = process.env.TOPGG_AUTH_TOKEN
 
-    if (signatureHeader) {
-        if (!webhookSecret) {
-            throw new AppError(503, 'TOPGG_WEBHOOK_SECRET not configured')
-        }
+    if (webhookSecret) {
         const result = verifyTopggSignature({
-            header: signatureHeader,
+            header: req.header('x-topgg-signature')?.trim(),
             rawBody: (req as Request & { rawBody?: Buffer }).rawBody,
             secret: webhookSecret,
         })
         if (!result.ok) {
-            // The reason is logged, never returned: telling a caller whether a
-            // signature was stale or simply wrong is a probing aid.
+            // Logged, never returned: telling a caller whether a signature was
+            // stale, absent, or simply wrong is a probing aid.
             debugLog({
                 message: 'top.gg v1 signature rejected',
                 data: { reason: result.reason },

@@ -40,20 +40,27 @@ jest.mock('../../../src/middleware/auth', () => ({
 const mockFindUnique = jest.fn()
 const mockTransaction = jest.fn()
 
-jest.mock('@lucky/shared/utils', () => {
-    const actual = jest.requireActual('@lucky/shared/utils')
-    return {
-        ...actual,
-        getPrismaClient: jest.fn(() => ({
-            topggVote: {
-                findUnique: mockFindUnique,
-            },
-            $transaction: mockTransaction,
-        })),
-    }
-}, { virtual: true })
+jest.mock(
+    '@lucky/shared/utils',
+    () => {
+        const actual = jest.requireActual('@lucky/shared/utils')
+        return {
+            ...actual,
+            getPrismaClient: jest.fn(() => ({
+                topggVote: {
+                    findUnique: mockFindUnique,
+                },
+                $transaction: mockTransaction,
+            })),
+        }
+    },
+    { virtual: true },
+)
 
-import { setupWebhookRoutes } from '../../../src/routes/webhooks'
+import {
+    setupWebhookRoutes,
+    setupWebhookPublicRoutes,
+} from '../../../src/routes/webhooks'
 
 function buildApp(): express.Express {
     const app = express()
@@ -252,8 +259,13 @@ describe('GET /api/me/vote-status', () => {
         expect(res.body.hasVoted).toBe(true)
         expect(res.body.streak).toBe(14)
         expect(res.body.tier).toEqual({ label: 'Lucky Regular', threshold: 14 })
-        expect(res.body.nextTier).toEqual({ label: 'Lucky Legend', threshold: 30 })
-        expect(res.body.voteUrl).toBe('https://top.gg/bot/962198089161134131/vote')
+        expect(res.body.nextTier).toEqual({
+            label: 'Lucky Legend',
+            threshold: 30,
+        })
+        expect(res.body.voteUrl).toBe(
+            'https://top.gg/bot/962198089161134131/vote',
+        )
     })
 
     it('returns tier=null for a 0-streak user', async () => {
@@ -353,7 +365,9 @@ describe('POST /webhooks/topgg-votes persistence', () => {
                     }),
                     upsert: jest.fn(async (arg) => {
                         txUpsertCalls.push(arg)
-                        throw new Error('upsert should not be called on duplicate')
+                        throw new Error(
+                            'upsert should not be called on duplicate',
+                        )
                     }),
                 },
             }
@@ -531,5 +545,72 @@ describe('POST /webhooks/topgg-votes persistence', () => {
             .send({ user: 'streak:123', type: 'upvote' })
         expect(res.status).toBe(400)
         expect(mockTransaction).not.toHaveBeenCalled()
+    })
+})
+
+describe('webhook auth scheme selection (CodeQL: no user-controlled bypass)', () => {
+    const ORIGINAL = { ...process.env }
+
+    afterEach(() => {
+        process.env = { ...ORIGINAL }
+    })
+
+    function buildPublicApp(): express.Express {
+        const app = express()
+        app.use(express.json())
+        setupWebhookPublicRoutes(app)
+        app.use(
+            (
+                err: { statusCode?: number; message?: string },
+                _req: express.Request,
+                res: express.Response,
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                _next: express.NextFunction,
+            ) => {
+                res.status(err.statusCode ?? 500).json({
+                    error: err.message ?? 'unknown',
+                })
+            },
+        )
+        return app
+    }
+
+    it('with TOPGG_WEBHOOK_SECRET set, omitting the signature does NOT fall back to v0', async () => {
+        // The downgrade CodeQL flagged: a caller must not be able to pick the
+        // weaker scheme by leaving the header out.
+        process.env.TOPGG_WEBHOOK_SECRET = 'whs_v1_secret'
+        process.env.TOPGG_AUTH_TOKEN = 'legacy-token'
+
+        const res = await request(buildPublicApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'legacy-token')
+            .send({ type: 'test' })
+
+        expect(res.status).toBe(401)
+    })
+
+    it('with TOPGG_WEBHOOK_SECRET set, a valid legacy token is still rejected', async () => {
+        process.env.TOPGG_WEBHOOK_SECRET = 'whs_v1_secret'
+        process.env.TOPGG_AUTH_TOKEN = 'legacy-token'
+
+        const res = await request(buildPublicApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'legacy-token')
+            .set('x-topgg-signature', 't=1,v1=deadbeef')
+            .send({ type: 'test' })
+
+        expect(res.status).toBe(401)
+    })
+
+    it('falls back to v0 only when no v1 secret is configured', async () => {
+        delete process.env.TOPGG_WEBHOOK_SECRET
+        process.env.TOPGG_AUTH_TOKEN = 'legacy-token'
+
+        const res = await request(buildPublicApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'legacy-token')
+            .send({ type: 'test' })
+
+        expect(res.status).toBe(200)
     })
 })
