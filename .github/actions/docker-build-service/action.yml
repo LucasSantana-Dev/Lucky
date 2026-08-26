@@ -15,6 +15,18 @@ inputs:
         description: Load the built image into the local Docker daemon.
         required: false
         default: 'false'
+    write-cache:
+        description: >-
+            Export the gha layer cache for this service. Only the main-branch
+            warm job sets this. Every PR branch used to export its own
+            mode=max scope, and with four services per branch that filled the
+            repo's 10GB Actions cache (measured 10.9GB / 298 entries on
+            2026-08-26, i.e. already over the limit and evicting). Branch
+            scopes then evicted each other faster than any of them could be
+            reused, so the cache cost storage and bought nothing. One writer,
+            many readers.
+        required: false
+        default: 'false'
     use-cache:
         description: >-
             Import AND export the gha layer cache for this service. Set to
@@ -85,8 +97,11 @@ runs:
               tags: lucky-${{ inputs.service }}:ci
               provenance: false
               sbom: false
-              cache-from: ${{ inputs.use-cache == 'true' && format('type=gha,scope={0}-{1}', github.ref_name, inputs.service) || '' }}
-              cache-to: ${{ inputs.use-cache == 'true' && format('type=gha,mode=max,scope={0}-{1}', github.ref_name, inputs.service) || '' }}
+              # Read the scope main writes. A PR branch has no scope of its
+              # own any more (see write-cache above), so this is the only
+              # import and it is warm from the last merge instead of empty.
+              cache-from: ${{ inputs.use-cache == 'true' && format('type=gha,scope=main-{0}', inputs.service) || '' }}
+              cache-to: ${{ inputs.use-cache == 'true' && inputs.write-cache == 'true' && format('type=gha,mode=max,scope=main-{0}', inputs.service) || '' }}
               build-args: |
                   COMMIT_SHA=${{ github.sha }}
                   NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
