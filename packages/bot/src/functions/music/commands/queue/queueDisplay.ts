@@ -100,7 +100,9 @@ export async function createTrackListDisplay(
         result += `\n... and ${remaining} more tracks`
     }
 
-    return result || 'No tracks in queue'
+    // Empty, not an English sentinel: the only caller has a localized
+    // fallback, and a truthy sentinel here would always win over it.
+    return result
 }
 
 export async function findSimilarTracksInQueue(

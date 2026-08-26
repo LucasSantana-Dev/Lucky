@@ -29,6 +29,11 @@ type Entry = { language: BotLanguage; expiresAt: number }
 
 const cache = new Map<string, Entry>()
 
+// A cold guild that receives several interactions at once would otherwise put
+// one settings query on the wire per interaction, which is exactly what the
+// cache exists to prevent. Concurrent misses share one load.
+const inFlight = new Map<string, Promise<BotLanguage>>()
+
 /** Injected so tests do not depend on the real clock. */
 let now = (): number => Date.now()
 
@@ -40,6 +45,11 @@ export function __resetClockForTests(): void {
     now = () => Date.now()
 }
 
+/** Number of live cache entries. Test-only: proves expired entries are evicted. */
+export function __cacheSizeForTests(): number {
+    return cache.size
+}
+
 /**
  * Drop a Guild's cached language. MUST be called whenever
  * `GuildSettings.language` is written, or an admin changes the language and
@@ -47,10 +57,12 @@ export function __resetClockForTests(): void {
  */
 export function invalidateGuildLanguage(guildId: string): void {
     cache.delete(guildId)
+    inFlight.delete(guildId)
 }
 
 export function clearGuildLanguageCache(): void {
     cache.clear()
+    inFlight.clear()
 }
 
 export type GuildLanguageSources = {
@@ -87,7 +99,8 @@ export function pickLanguage(sources: GuildLanguageSources): BotLanguage {
 }
 
 /**
- * Cached resolution. `load` is only invoked on a miss.
+ * Cached resolution. `load` is invoked once per miss, and concurrent misses
+ * for the same Guild share that one call.
  *
  * A `guildId` of null/undefined means there is no Guild to resolve against:
  * music commands guard this case explicitly (album.ts, artist.ts, queryUtils.ts,
@@ -100,18 +113,34 @@ export async function resolveGuildLanguage(
     if (!guildId) return DEFAULT_BOT_LANGUAGE
 
     const hit = cache.get(guildId)
-    if (hit && hit.expiresAt > now()) return hit.language
-
-    let language: BotLanguage
-    try {
-        language = pickLanguage(await load())
-    } catch {
-        // A settings lookup that fails must not break a music reply. Fall back
-        // and do NOT cache, so the next call retries rather than pinning
-        // English for the whole TTL.
-        return DEFAULT_BOT_LANGUAGE
+    if (hit) {
+        if (hit.expiresAt > now()) return hit.language
+        // Drop it on the way past. cache.set is otherwise the only write, so
+        // every guild ever resolved would keep an entry for the life of the
+        // process, including guilds that stopped playing or left.
+        cache.delete(guildId)
     }
 
-    cache.set(guildId, { language, expiresAt: now() + TTL_MS })
-    return language
+    const pending = inFlight.get(guildId)
+    if (pending) return pending
+
+    const request: Promise<BotLanguage> = (async () => {
+        let language: BotLanguage
+        try {
+            language = pickLanguage(await load())
+        } catch {
+            // A settings lookup that fails must not break a music reply. Fall
+            // back and do NOT cache, so the next call retries rather than
+            // pinning English for the whole TTL.
+            return DEFAULT_BOT_LANGUAGE
+        } finally {
+            inFlight.delete(guildId)
+        }
+
+        cache.set(guildId, { language, expiresAt: now() + TTL_MS })
+        return language
+    })()
+
+    inFlight.set(guildId, request)
+    return request
 }

@@ -13,6 +13,7 @@ import {
     clearGuildLanguageCache,
     __setClockForTests,
     __resetClockForTests,
+    __cacheSizeForTests,
 } from './resolveGuildLanguage'
 
 beforeEach(() => {
@@ -138,5 +139,78 @@ describe('resolveGuildLanguage', () => {
         expect(await resolveGuildLanguage('g1', load)).toBe('en')
         expect(await resolveGuildLanguage('g1', load)).toBe('pt-BR')
         expect(load).toHaveBeenCalledTimes(2)
+    })
+})
+
+describe('resolveGuildLanguage concurrency and eviction', () => {
+    it('shares one load across concurrent misses for the same guild', async () => {
+        let release: (v: { settingsLanguage: string }) => void = () => {}
+        const load = jest.fn(
+            () =>
+                new Promise<{ settingsLanguage: string }>((resolve) => {
+                    release = resolve
+                }),
+        )
+
+        // Three interactions land together on a cold guild. Without in-flight
+        // deduping each one puts its own settings query on the wire.
+        const all = Promise.all([
+            resolveGuildLanguage('g1', load),
+            resolveGuildLanguage('g1', load),
+            resolveGuildLanguage('g1', load),
+        ])
+        release({ settingsLanguage: 'pt-BR' })
+
+        expect(await all).toEqual(['pt-BR', 'pt-BR', 'pt-BR'])
+        expect(load).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not share a load across different guilds', async () => {
+        const load = jest
+            .fn<() => Promise<{ settingsLanguage: string }>>()
+            .mockResolvedValue({ settingsLanguage: 'es' })
+
+        await Promise.all([
+            resolveGuildLanguage('g1', load),
+            resolveGuildLanguage('g2', load),
+        ])
+
+        expect(load).toHaveBeenCalledTimes(2)
+    })
+
+    it('retries after a shared failed load instead of caching it', async () => {
+        const load = jest
+            .fn<() => Promise<{ settingsLanguage: string }>>()
+            .mockRejectedValueOnce(new Error('db down'))
+            .mockResolvedValue({ settingsLanguage: 'es' })
+
+        const [a, b] = await Promise.all([
+            resolveGuildLanguage('g1', load),
+            resolveGuildLanguage('g1', load),
+        ])
+        expect([a, b]).toEqual(['en', 'en'])
+        expect(load).toHaveBeenCalledTimes(1)
+
+        expect(await resolveGuildLanguage('g1', load)).toBe('es')
+    })
+
+    it('evicts an expired entry instead of leaving it in the map forever', async () => {
+        let clock = 1_000_000
+        __setClockForTests(() => clock)
+        const load = jest
+            .fn<() => Promise<{ settingsLanguage: string }>>()
+            .mockResolvedValueOnce({ settingsLanguage: 'pt-BR' })
+            .mockRejectedValue(new Error('db down'))
+
+        await resolveGuildLanguage('g1', load)
+        expect(__cacheSizeForTests()).toBe(1)
+
+        clock += 10 * 60 * 1000
+
+        // The retry fails, so nothing is written back. Only eviction on the
+        // way past the stale entry can take the map to zero -- otherwise the
+        // dead entry outlives the process's interest in this guild.
+        expect(await resolveGuildLanguage('g1', load)).toBe('en')
+        expect(__cacheSizeForTests()).toBe(0)
     })
 })

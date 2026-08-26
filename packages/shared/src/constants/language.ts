@@ -28,7 +28,7 @@ export function isBotLanguage(value: unknown): value is BotLanguage {
  * `GuildSettings.language` row written before the column was validated, which
  * can hold anything at all.
  *
- * Prefix-based on purpose: `es-ES` and `es-419` are both Spanish for our
+ * Primary-subtag based on purpose: `es-ES` and `es-419` are both Spanish for our
  * purposes, and pretending to distinguish them would mean catalogues we do not
  * have. Anything unrecognised resolves to the default rather than throwing,
  * because a corrupt settings row must not break a music reply.
@@ -37,8 +37,12 @@ export function coerceBotLanguage(value: unknown): BotLanguage {
     if (typeof value !== 'string') return DEFAULT_BOT_LANGUAGE
     const tag = value.trim().toLowerCase()
     if (!tag) return DEFAULT_BOT_LANGUAGE
-    if (tag.startsWith('pt')) return 'pt-BR'
-    if (tag.startsWith('es')) return 'es'
-    if (tag.startsWith('en')) return 'en'
+    // The primary subtag only. Matching a bare prefix would let a corrupt
+    // settings row like `entirely-broken` read as English and override the
+    // Guild's Discord locale.
+    const primary = tag.split('-')[0]
+    if (primary === 'pt') return 'pt-BR'
+    if (primary === 'es') return 'es'
+    if (primary === 'en') return 'en'
     return DEFAULT_BOT_LANGUAGE
 }

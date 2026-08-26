@@ -80,3 +80,21 @@ describe('bot language constants', () => {
         )
     })
 })
+
+describe('coerceBotLanguage subtag boundary', () => {
+    it('keeps regional variants mapping to their language', () => {
+        expect(coerceBotLanguage('pt-PT')).toBe('pt-BR')
+        expect(coerceBotLanguage('es-419')).toBe('es')
+        expect(coerceBotLanguage('en-GB')).toBe('en')
+    })
+
+    it('does not treat a corrupt value as a language just because it starts with one', () => {
+        // A settings row written before the column was validated can hold
+        // anything; a bare prefix match would let these override the Guild's
+        // Discord locale.
+        expect(coerceBotLanguage('entirely-broken')).toBe('en')
+        expect(coerceBotLanguage('espanol')).toBe('en')
+        expect(coerceBotLanguage('portuguese')).toBe('en')
+        expect(coerceBotLanguage('ptbr')).toBe('en')
+    })
+})

@@ -213,6 +213,25 @@ describe('queueEmbed', () => {
             expect(emptyCall).toBeDefined()
         })
 
+        it('uses the localized fallback when the page has nothing to render', async () => {
+            // Tracks exist, but this page is past the end, so the list comes
+            // back empty. It used to come back as the English sentinel
+            // 'No tracks in queue', which is truthy and always beat the
+            // localized fallback.
+            const queue = createQueue({
+                tracks: { toArray: () => [{ title: 'a' }, { title: 'b' }] },
+            })
+            createTrackListDisplayMock.mockResolvedValueOnce('')
+
+            await createQueueEmbed(queue as any, defaultOptions, 9, t)
+
+            const values = addFieldsMock.mock.calls.map(
+                (call) => (call[0] as any).value,
+            )
+            expect(values).toContain('No displayable tracks')
+            expect(values).not.toContain('No tracks in queue')
+        })
+
         it('adds queue stats and status fields', async () => {
             const queue = createQueue()
 
