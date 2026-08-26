@@ -28,7 +28,7 @@
  * DISCORD_TOKEN is read from the environment and never printed.
  */
 
-import { appendFile, readFile, writeFile } from 'node:fs/promises'
+import { appendFile, open, readFile, unlink, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
 const TOKEN = process.env.DISCORD_TOKEN
@@ -56,6 +56,44 @@ const ONLY = new Set(
 // Double-posting to third-party servers is the specific harm this whole script
 // is built to avoid, so the ledger is the durable part, not the summary.
 const LEDGER = 'announce-broadcast-ledger.jsonl'
+
+// Exclusive lock for send mode. Two CONFIRM_SEND=yes processes started together
+// would both replay the same ledger, select the same pending targets, and post
+// to the same channels: the write-ahead rows are appended too late to stop
+// that. Created with the 'wx' flag, which fails if the file already exists, so
+// the check and the claim are one atomic filesystem operation rather than a
+// read-then-write race.
+const LOCK = 'announce-broadcast.lock'
+
+export async function acquireSendLock() {
+    let handle
+    try {
+        handle = await open(LOCK, 'wx')
+    } catch (err) {
+        if (err.code === 'EEXIST') {
+            throw new Error(
+                `another send appears to be running: ${LOCK} exists.\n` +
+                    '  If no broadcast is actually in flight (a previous run was killed), delete it:\n' +
+                    `    rm ${LOCK}\n` +
+                    '  Check the ledger first. A killed run can leave ambiguous guilds.',
+            )
+        }
+        throw err
+    }
+    await handle.writeFile(
+        JSON.stringify({ pid: process.pid, at: new Date().toISOString() }) +
+            '\n',
+    )
+    await handle.close()
+}
+
+export async function releaseSendLock() {
+    try {
+        await unlink(LOCK)
+    } catch (err) {
+        if (err.code !== 'ENOENT') throw err
+    }
+}
 
 // Pure, so the resume rules are testable without Discord or the filesystem.
 // Returns the three states a guild can be in after a previous run:
@@ -351,6 +389,13 @@ async function main() {
 
     const results = []
     if (SEND) {
+        try {
+            await acquireSendLock()
+        } catch (err) {
+            fail(err.message)
+        }
+    }
+    if (SEND) {
         // Resume: anything already recorded as sent is never posted again.
         // Failures are NOT skipped, so a rerun retries only what did not land.
         let priorLines = []
@@ -432,6 +477,8 @@ async function main() {
         results,
         apiCalls: calls,
     }
+    if (SEND) await releaseSendLock()
+
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
     const path = `announce-broadcast-${SEND ? 'send' : 'dryrun'}-${stamp}.json`
     await writeFile(path, JSON.stringify(log, null, 2))

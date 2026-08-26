@@ -1,6 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { classifyLedger } from './announce-broadcast.mjs'
+import {
+    classifyLedger,
+    acquireSendLock,
+    releaseSendLock,
+} from './announce-broadcast.mjs'
+import { rm } from 'node:fs/promises'
 
 const row = (id, status) => JSON.stringify({ id, status })
 
@@ -87,4 +92,23 @@ test('mixed run: only untouched and failed guilds stay eligible', () => {
     const targets = ['A', 'B', 'C', 'D', 'E']
     const pending = targets.filter((id) => !sent.has(id) && !ambiguous.has(id))
     assert.deepEqual(pending, ['C', 'E'])
+})
+
+test('the send lock refuses a second concurrent run', async () => {
+    // Two CONFIRM_SEND=yes processes would otherwise replay the same ledger and
+    // post to the same channels.
+    await rm('announce-broadcast.lock', { force: true })
+    await acquireSendLock()
+    await assert.rejects(
+        () => acquireSendLock(),
+        /another send appears to be running/,
+    )
+    await releaseSendLock()
+    await acquireSendLock() // free again once released
+    await releaseSendLock()
+})
+
+test('releasing a lock that is already gone does not throw', async () => {
+    await rm('announce-broadcast.lock', { force: true })
+    await assert.doesNotReject(() => releaseSendLock())
 })
