@@ -107,14 +107,69 @@ export async function expandSoundCloudShortUrl(url: string): Promise<string> {
 }
 
 /**
+ * True when the URL's real host is `domain` or a subdomain of it.
+ *
+ * Testing the raw URL string with `includes` is not enough: any third-party
+ * link that merely mentions the domain somewhere (a share wrapper, a
+ * `?ref=youtube.com` param, a path segment) would match, and we would rewrite
+ * the query params of a URL that has nothing to do with that service.
+ */
+function hasHost(url: URL, ...domains: string[]): boolean {
+    // A fully qualified host may carry a trailing root dot ("youtube.com."),
+    // which URL.hostname preserves and which would otherwise miss every match.
+    const host = url.hostname.toLowerCase().replace(/\.$/, '')
+    return domains.some(
+        (domain) => host === domain || host.endsWith(`.${domain}`),
+    )
+}
+
+/**
  * Strips SoundCloud playlist-context query params (`?in=...`) that the
  * SoundCloud extractor cannot resolve. The bare track URL resolves correctly.
  */
 export function normalizeSoundCloudUrl(url: string): string {
-    if (!url.includes('soundcloud.com')) return url
     try {
         const parsed = new URL(url)
+        if (!hasHost(parsed, 'soundcloud.com')) return url
         parsed.searchParams.delete('in')
+        return parsed.toString()
+    } catch {
+        return url
+    }
+}
+
+/**
+ * Strips YouTube Mix / radio context from a watch URL.
+ *
+ * A "Mix" (`list=RD<videoId>`, usually with `start_radio=1`) is generated on
+ * demand by YouTube and is not a real playlist, so the youtubei extractor
+ * cannot resolve it and returns NoResultError for the whole query. The bare
+ * watch URL for the same video resolves fine, which is exactly what was
+ * observed in production: `watch?v=Gx9xqXlU9gE&list=RDGx9xqXlU9gE&start_radio=1`
+ * failed, and `watch?v=Gx9xqXlU9gE` played seconds later.
+ *
+ * Only auto-generated lists are stripped. A real playlist id (`PL...`, `UU...`,
+ * `OL...`) is left alone, because a user pasting a playlist URL usually means
+ * to queue the playlist.
+ *
+ * Same shape as normalizeSoundCloudUrl above, which strips SoundCloud's
+ * equivalent `?in=` playlist context.
+ */
+export function normalizeYouTubeUrl(url: string): string {
+    try {
+        const parsed = new URL(url)
+        if (!hasHost(parsed, 'youtube.com', 'youtu.be')) return url
+        const list = parsed.searchParams.get('list')
+
+        // RD = radio/mix. RDMM is "My Mix". Both are generated per-request.
+        if (list && /^RD/i.test(list)) {
+            parsed.searchParams.delete('list')
+            parsed.searchParams.delete('start_radio')
+            // `index` only means something inside a list; left behind it makes
+            // the URL look like a playlist position that no longer exists.
+            parsed.searchParams.delete('index')
+        }
+
         return parsed.toString()
     } catch {
         return url
