@@ -16,7 +16,8 @@
             "statistics": "📊 Queue Statistics",
             "status": "🎛️ Status",
             "title": "📄 Music Queue",
-            "errorTitle": "❌ Queue Error"
+            "errorTitle": "❌ Queue Error",
+            "fallbackProbe": "English only, on purpose"
         }
     }
 }
