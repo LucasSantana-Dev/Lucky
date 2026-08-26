@@ -67,6 +67,7 @@ Object.defineProperty(global, 'fetch', {
 // which will properly await and resolve promises
 
 import {
+    normalizeYouTubeUrl,
     normalizeSoundCloudUrl,
     isUrl,
     executePlayAtTop,
@@ -322,5 +323,67 @@ describe('executePlayAtTop — fallback chain', () => {
             }),
         )
         expect(interactionReplyMock).toHaveBeenCalled()
+    })
+})
+
+describe('normalizeYouTubeUrl', () => {
+    it('strips the Mix context that broke the production request', () => {
+        // The exact URL from the 2026-08-26 16:09:07 NoResultError.
+        expect(
+            normalizeYouTubeUrl(
+                'https://www.youtube.com/watch?v=Gx9xqXlU9gE&list=RDGx9xqXlU9gE&start_radio=1',
+            ),
+        ).toBe('https://www.youtube.com/watch?v=Gx9xqXlU9gE')
+    })
+
+    it('strips index alongside the mix, since it indexes a list that is gone', () => {
+        expect(
+            normalizeYouTubeUrl(
+                'https://www.youtube.com/watch?v=abc123&list=RDMMabc123&index=4&start_radio=1',
+            ),
+        ).toBe('https://www.youtube.com/watch?v=abc123')
+    })
+
+    it('keeps a real playlist, which the user probably meant to queue', () => {
+        const url =
+            'https://www.youtube.com/watch?v=abc123&list=PLrAbCdEfGh&index=2'
+        expect(normalizeYouTubeUrl(url)).toBe(url)
+    })
+
+    it.each([['UUabc'], ['OLabc'], ['PLabc']])(
+        'keeps non-radio list id %s',
+        (list) => {
+            const url = `https://www.youtube.com/watch?v=x&list=${list}`
+            expect(normalizeYouTubeUrl(url)).toBe(url)
+        },
+    )
+
+    it('handles youtu.be short links', () => {
+        expect(
+            normalizeYouTubeUrl('https://youtu.be/abc123?list=RDabc123'),
+        ).toBe('https://youtu.be/abc123')
+    })
+
+    it('leaves a plain watch URL untouched', () => {
+        const url = 'https://www.youtube.com/watch?v=abc123'
+        expect(normalizeYouTubeUrl(url)).toBe(url)
+    })
+
+    it('leaves non-YouTube URLs alone', () => {
+        const url = 'https://soundcloud.com/artist/track?in=user/sets/playlist'
+        expect(normalizeYouTubeUrl(url)).toBe(url)
+    })
+
+    it('returns malformed input unchanged rather than throwing', () => {
+        expect(() => normalizeYouTubeUrl('youtube.com not a url')).not.toThrow()
+        expect(normalizeYouTubeUrl('youtube.com not a url')).toBe(
+            'youtube.com not a url',
+        )
+    })
+
+    it('is case-insensitive on the RD prefix', () => {
+        expect(
+            normalizeYouTubeUrl('https://www.youtube.com/watch?v=x&list=rdXYZ'),
+        ).toBe('https://www.youtube.com/watch?v=x')
     })
 })

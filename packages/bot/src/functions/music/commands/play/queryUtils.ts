@@ -121,6 +121,44 @@ export function normalizeSoundCloudUrl(url: string): string {
     }
 }
 
+/**
+ * Strips YouTube Mix / radio context from a watch URL.
+ *
+ * A "Mix" (`list=RD<videoId>`, usually with `start_radio=1`) is generated on
+ * demand by YouTube and is not a real playlist, so the youtubei extractor
+ * cannot resolve it and returns NoResultError for the whole query. The bare
+ * watch URL for the same video resolves fine, which is exactly what was
+ * observed in production: `watch?v=Gx9xqXlU9gE&list=RDGx9xqXlU9gE&start_radio=1`
+ * failed, and `watch?v=Gx9xqXlU9gE` played seconds later.
+ *
+ * Only auto-generated lists are stripped. A real playlist id (`PL...`, `UU...`,
+ * `OL...`) is left alone, because a user pasting a playlist URL usually means
+ * to queue the playlist.
+ *
+ * Same shape as normalizeSoundCloudUrl above, which strips SoundCloud's
+ * equivalent `?in=` playlist context.
+ */
+export function normalizeYouTubeUrl(url: string): string {
+    if (!/(?:youtube\.com|youtu\.be)/i.test(url)) return url
+    try {
+        const parsed = new URL(url)
+        const list = parsed.searchParams.get('list')
+
+        // RD = radio/mix. RDMM is "My Mix". Both are generated per-request.
+        if (list && /^RD/i.test(list)) {
+            parsed.searchParams.delete('list')
+            parsed.searchParams.delete('start_radio')
+            // `index` only means something inside a list; left behind it makes
+            // the URL look like a playlist position that no longer exists.
+            parsed.searchParams.delete('index')
+        }
+
+        return parsed.toString()
+    } catch {
+        return url
+    }
+}
+
 export function resolveSearchEngine(
     query: string,
     provider?: string | null,
