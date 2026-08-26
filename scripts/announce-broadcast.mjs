@@ -153,6 +153,18 @@ const ADMINISTRATOR = 1n << 3n
 const GUILD_TEXT = 0
 const GUILD_NEWS = 5
 
+// Guild names come from the Discord API and are attacker-controlled: a server
+// owner picks them. JSON.stringify already prevents breaking the JSONL
+// structure, but the ledger is a file a human reads with `cat`, and ANSI escape
+// sequences in a name would rewrite their terminal. Strip control characters
+// and bound the length. Discord caps names at 100 chars, so a longer value is
+// itself a signal something is off.
+export function safeName(value) {
+    if (typeof value !== 'string') return ''
+    // eslint-disable-next-line no-control-regex
+    return value.replace(/[\u0000-\u001F\u007F-\u009F]/g, '').slice(0, 100)
+}
+
 function fail(msg) {
     console.error(`\n  ERROR  ${msg}\n`)
     process.exit(1)
@@ -445,7 +457,7 @@ async function main() {
             // crash mid-POST is detectable as ambiguous rather than invisible.
             await appendFile(
                 LEDGER,
-                `${JSON.stringify({ id: t.id, guild: t.guild, status: 'attempting', at: new Date().toISOString() })}\n`,
+                `${JSON.stringify({ id: t.id, guild: safeName(t.guild), status: 'attempting', at: new Date().toISOString() })}\n`,
             )
             try {
                 await api('POST', `/channels/${t.channelId}/messages`, {
@@ -462,7 +474,7 @@ async function main() {
             const row = results[results.length - 1]
             await appendFile(
                 LEDGER,
-                `${JSON.stringify({ ...row, at: new Date().toISOString() })}\n`,
+                `${JSON.stringify({ ...row, guild: safeName(row.guild), at: new Date().toISOString() })}\n`,
             )
             // Deliberately unhurried: this is a one-off, not a race.
             await new Promise((r) => setTimeout(r, 1200))

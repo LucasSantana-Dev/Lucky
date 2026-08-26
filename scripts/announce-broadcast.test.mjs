@@ -4,6 +4,7 @@ import {
     classifyLedger,
     acquireSendLock,
     releaseSendLock,
+    safeName,
 } from './announce-broadcast.mjs'
 import { rm } from 'node:fs/promises'
 
@@ -111,4 +112,31 @@ test('the send lock refuses a second concurrent run', async () => {
 test('releasing a lock that is already gone does not throw', async () => {
     await rm('announce-broadcast.lock', { force: true })
     await assert.doesNotReject(() => releaseSendLock())
+})
+
+test('safeName strips ANSI escapes that would rewrite the reader terminal', () => {
+    // A guild owner controls this string; the ledger is read with `cat`.
+    const evil = 'Evil\u001b[2J\u001b[HGuild'
+    const out = safeName(evil)
+    assert.equal(out, 'Evil[2J[HGuild')
+    assert.ok(!out.includes('\u001b'))
+})
+
+test('safeName removes newlines so one row cannot forge another', () => {
+    const out = safeName('a\nb\rc')
+    assert.equal(out, 'abc')
+})
+
+test('safeName bounds length past the Discord 100-char cap', () => {
+    assert.equal(safeName('x'.repeat(500)).length, 100)
+})
+
+test('safeName tolerates a non-string', () => {
+    assert.equal(safeName(undefined), '')
+    assert.equal(safeName(null), '')
+    assert.equal(safeName(42), '')
+})
+
+test('safeName leaves ordinary names untouched', () => {
+    assert.equal(safeName('Servidor do Luk 🎵'), 'Servidor do Luk 🎵')
 })
