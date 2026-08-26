@@ -74,6 +74,41 @@ import {
     expandSoundCloudShortUrl,
 } from './queryUtils'
 
+describe('host matching', () => {
+    it('leaves a foreign URL that merely mentions youtube alone', () => {
+        // The old guard tested the raw string, so any link carrying
+        // "youtube.com" anywhere had its list/start_radio params stripped.
+        const url =
+            'https://example.com/watch?ref=youtube.com&list=RD123&start_radio=1'
+        expect(normalizeYouTubeUrl(url)).toBe(url)
+    })
+
+    it('leaves a lookalike host alone', () => {
+        const url = 'https://notyoutube.com/watch?v=abc&list=RDabc'
+        expect(normalizeYouTubeUrl(url)).toBe(url)
+    })
+
+    it('leaves a foreign URL that merely mentions soundcloud alone', () => {
+        const url =
+            'https://example.com/track?from=soundcloud.com&in=sets%2Fmix'
+        expect(normalizeSoundCloudUrl(url)).toBe(url)
+    })
+
+    it('still strips a mix on a real youtube subdomain', () => {
+        const result = normalizeYouTubeUrl(
+            'https://music.youtube.com/watch?v=abc&list=RDabc&start_radio=1',
+        )
+        expect(result).toBe('https://music.youtube.com/watch?v=abc')
+    })
+
+    it('still strips playlist context on a real soundcloud host', () => {
+        const result = normalizeSoundCloudUrl(
+            'https://m.soundcloud.com/artist/track?in=artist%2Fsets%2Fmix',
+        )
+        expect(result).toBe('https://m.soundcloud.com/artist/track')
+    })
+})
+
 describe('normalizeSoundCloudUrl', () => {
     it('strips ?in= playlist context from SoundCloud track URLs', () => {
         const url =

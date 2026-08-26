@@ -110,10 +110,25 @@ export async function expandSoundCloudShortUrl(url: string): Promise<string> {
  * Strips SoundCloud playlist-context query params (`?in=...`) that the
  * SoundCloud extractor cannot resolve. The bare track URL resolves correctly.
  */
+/**
+ * True when the URL's real host is `domain` or a subdomain of it.
+ *
+ * Testing the raw URL string with `includes` is not enough: any third-party
+ * link that merely mentions the domain somewhere (a share wrapper, a
+ * `?ref=youtube.com` param, a path segment) would match, and we would rewrite
+ * the query params of a URL that has nothing to do with that service.
+ */
+function hasHost(url: URL, ...domains: string[]): boolean {
+    const host = url.hostname.toLowerCase()
+    return domains.some(
+        (domain) => host === domain || host.endsWith(`.${domain}`),
+    )
+}
+
 export function normalizeSoundCloudUrl(url: string): string {
-    if (!url.includes('soundcloud.com')) return url
     try {
         const parsed = new URL(url)
+        if (!hasHost(parsed, 'soundcloud.com')) return url
         parsed.searchParams.delete('in')
         return parsed.toString()
     } catch {
@@ -139,9 +154,9 @@ export function normalizeSoundCloudUrl(url: string): string {
  * equivalent `?in=` playlist context.
  */
 export function normalizeYouTubeUrl(url: string): string {
-    if (!/(?:youtube\.com|youtu\.be)/i.test(url)) return url
     try {
         const parsed = new URL(url)
+        if (!hasHost(parsed, 'youtube.com', 'youtu.be')) return url
         const list = parsed.searchParams.get('list')
 
         // RD = radio/mix. RDMM is "My Mix". Both are generated per-request.
