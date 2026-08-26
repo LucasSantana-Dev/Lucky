@@ -8,6 +8,13 @@ export {
 } from './invite'
 export { SUPPORT_SERVER_INVITE_URL } from './support'
 export {
+    SUPPORTED_BOT_LANGUAGES,
+    DEFAULT_BOT_LANGUAGE,
+    isBotLanguage,
+    coerceBotLanguage,
+    type BotLanguage,
+} from './language'
+export {
     TOP_GG_BOT_ID,
     TOP_GG_VOTE_TIERS,
     TOP_GG_VOTE_URL,

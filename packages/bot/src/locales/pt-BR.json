@@ -1,0 +1,10 @@
+{
+    "music": {
+        "errors": {
+            "notInGuild": "Este comando só funciona dentro de um servidor.",
+            "notInVoice": "Entre em um canal de voz primeiro.",
+            "nothingPlaying": "Nada está tocando no momento."
+        },
+        "nowPlaying": "Tocando agora {{title}}, não pare"
+    }
+}
