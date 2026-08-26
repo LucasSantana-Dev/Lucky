@@ -3,6 +3,7 @@ import type { GuildQueue } from 'discord-player'
 
 const debugLogMock = jest.fn()
 const infoLogMock = jest.fn()
+const warnLogMock = jest.fn()
 const restoreSnapshotMock = jest.fn()
 const saveSnapshotMock = jest.fn()
 const watchdogArmMock = jest.fn()
@@ -15,6 +16,7 @@ const replenishQueueMock = jest.fn()
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
@@ -599,6 +601,24 @@ describe('setupStageSpeaker', () => {
         expect(send).toHaveBeenCalledWith({
             embeds: [expect.objectContaining({ kind: 'error' })],
         })
+    })
+
+    it('warns rather than swallowing the outcome when there is no text channel', async () => {
+        // Session restore builds queues with metadata.channel null. Dropping
+        // the explanation there is the exact silent failure this handler ends.
+        ensureStageSpeakerMock.mockResolvedValue('blocked')
+        const queue = buildQueue()
+        queue.metadata = { channel: null }
+        const { client, listeners } = buildClient(queue)
+        setupStageSpeaker(client as any)
+
+        await listeners[0]({ channelId: null, suppress: false }, stageState())
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringMatching(/no text channel/i),
+            }),
+        )
     })
 
     it('stays quiet when it takes the mic on its own', async () => {
