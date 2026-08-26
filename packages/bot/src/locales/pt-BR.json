@@ -1,5 +1,20 @@
 {
     "music": {
+        "common": {
+            "error": "Erro",
+            "guildNotFound": "Servidor não encontrado",
+            "guildNotFoundDetail": "Não foi possível obter as informações do servidor.",
+            "guildOnly": "Este comando só funciona dentro de um servidor.",
+            "featureUnavailable": "Recurso indisponível",
+            "noResults": "Nenhum resultado",
+            "unknownSubcommand": "Subcomando desconhecido",
+            "missingInput": "Faltou informação",
+            "emptyQueue": "Fila vazia",
+            "queueAlreadyEmpty": "🗑️ A fila já está vazia!",
+            "notInVoice": "O bot não está em um canal de voz.",
+            "queueCreateFailed": "Não foi possível criar a fila.",
+            "notLinked": "Não vinculado"
+        },
         "errors": {
             "notInGuild": "Este comando só funciona dentro de um servidor.",
             "notInVoice": "Entre em um canal de voz primeiro.",
