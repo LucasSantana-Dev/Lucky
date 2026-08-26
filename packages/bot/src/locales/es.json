@@ -1,0 +1,37 @@
+{
+    "music": {
+        "common": {
+            "error": "Error",
+            "guildNotFound": "Servidor no encontrado",
+            "guildNotFoundDetail": "No se pudo obtener la información del servidor.",
+            "guildOnly": "Este comando solo funciona dentro de un servidor.",
+            "featureUnavailable": "Función no disponible",
+            "noResults": "Sin resultados",
+            "unknownSubcommand": "Subcomando desconocido",
+            "missingInput": "Falta información",
+            "emptyQueue": "Cola vacía",
+            "queueAlreadyEmpty": "🗑️ ¡La cola ya está vacía!",
+            "notInVoice": "El bot no está en un canal de voz.",
+            "queueCreateFailed": "No se pudo crear la cola.",
+            "notLinked": "No vinculado"
+        },
+        "errors": {
+            "notInGuild": "Este comando solo funciona dentro de un servidor.",
+            "notInVoice": "Únete a un canal de voz primero.",
+            "nothingPlaying": "No se está reproduciendo nada ahora mismo."
+        },
+        "nowPlaying": "Reproduciendo {{title}}, no pares",
+        "queue": {
+            "nowPlaying": "🎵 Reproduciendo ahora",
+            "recommendedBecause": "\nRecomendado porque: _{{reason}}_",
+            "upcomingTracksCount": "📋 Próximas pistas ({{count}})",
+            "upcomingTracks": "📋 Próximas pistas",
+            "noTracks": "No hay pistas en la cola",
+            "noDisplayableTracks": "No hay pistas que mostrar",
+            "statistics": "📊 Estadísticas de la cola",
+            "status": "🎛️ Estado",
+            "title": "📄 Cola de música",
+            "errorTitle": "❌ Error de cola"
+        }
+    }
+}

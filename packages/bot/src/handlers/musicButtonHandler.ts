@@ -13,6 +13,7 @@ import {
     createLeaderboardPaginationButtons,
 } from '../utils/music/buttonComponents'
 import { createQueueEmbed } from '../functions/music/commands/queue/queueEmbed'
+import { translatorForInteraction } from '../i18n/translatorForInteraction'
 import { shuffleQueue } from '../services/musicManagement/queueManipulation'
 import type { GuildQueue } from 'discord-player'
 import { resolveGuildQueue } from '../services/musicManagement/queueResolver'
@@ -260,7 +261,13 @@ async function handleQueuePage(
     if (!pageMatch?.[1]) return
 
     const page = parseInt(pageMatch[1], 10)
-    const { embed, components } = await createQueueEmbed(queue, undefined, page)
+    const t = await translatorForInteraction(interaction)
+    const { embed, components } = await createQueueEmbed(
+        queue,
+        undefined,
+        page,
+        t,
+    )
 
     await interaction.editReply({
         embeds: [embed],

@@ -81,6 +81,14 @@ describe('queueDisplay', () => {
     })
 
     describe('createTrackListDisplay', () => {
+        it('returns empty rather than an English sentinel when nothing renders', async () => {
+            // The caller supplies a localized fallback. Returning a truthy
+            // English string here would always beat it.
+            const result = await createTrackListDisplay([], defaultOptions)
+
+            expect(result).toBe('')
+        })
+
         it('renders plain track entry without reason tag for non-autoplay tracks', async () => {
             const track = createTrack()
             const result = await createTrackListDisplay(
