@@ -1,6 +1,16 @@
 import type { GuildQueue } from 'discord-player'
-import type { Client } from 'discord.js'
-import { infoLog, debugLog } from '@lucky/shared/utils'
+import type { Client, VoiceState } from 'discord.js'
+import { ChannelType } from 'discord.js'
+import { infoLog, debugLog, warnLog } from '@lucky/shared/utils'
+import {
+    createErrorEmbed,
+    createWarningEmbed,
+} from '../../utils/general/embeds'
+import {
+    ensureStageSpeaker,
+    type StageSpeakerOutcome,
+} from '../../services/musicManagement/stageSpeaker'
+import type { CustomClient } from '../../types'
 import * as voiceStatus from '../../services/VoiceChannelStatusService'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
@@ -21,6 +31,142 @@ export const setupVoiceKickDetection = (client: Client): void => {
             })
         }
     })
+}
+
+const STAGE_NOTICES: Partial<
+    Record<StageSpeakerOutcome, { title: string; body: string }>
+> = {
+    requested: {
+        title: '🙋 Waiting for stage approval',
+        body: "I joined the stage but Discord keeps bots in the audience, so nobody can hear me yet. I've raised my hand — a moderator needs to invite me to speak.",
+    },
+    blocked: {
+        title: "🔇 I can't speak on this stage",
+        body: 'I need **Request to Speak** (or **Mute Members**) on this stage channel. Grant either one and start playback again, or use a normal voice channel instead.',
+    },
+    failed: {
+        title: "🔇 I couldn't get on stage",
+        body: 'Discord rejected my request to speak on this stage. Try inviting me to speak manually, or use a normal voice channel instead.',
+    },
+}
+
+async function notifyStageOutcome(
+    queue: GuildQueue | undefined,
+    outcome: StageSpeakerOutcome,
+): Promise<void> {
+    const notice = STAGE_NOTICES[outcome]
+    if (!notice) return
+
+    const channel = (queue?.metadata as QueueMetadata | undefined)?.channel
+    if (!channel) {
+        // Session restore builds queues with `metadata: { channel: null }`, so
+        // there is nobody to tell. Log it rather than drop it: silent is the
+        // exact failure mode this whole handler exists to end.
+        warnLog({
+            message: `Cannot explain stage outcome "${outcome}" in ${queue?.guild.name ?? 'unknown guild'}: queue has no text channel`,
+            data: { guildId: queue?.guild.id, outcome },
+        })
+        return
+    }
+
+    const embed =
+        outcome === 'requested'
+            ? createWarningEmbed(notice.title, notice.body)
+            : createErrorEmbed(notice.title, notice.body)
+
+    try {
+        await channel.send({ embeds: [embed] })
+    } catch (error) {
+        debugLog({
+            message: 'Failed to notify channel about stage speaker outcome',
+            error,
+            data: { guildId: queue?.guild.id, outcome },
+        })
+    }
+}
+
+/**
+ * Keep the bot audible on stage channels.
+ *
+ * Connecting to a `GuildStageVoice` channel succeeds and streams audio while
+ * the bot sits suppressed in the audience — no error, no log, no sound. This
+ * listener is the fix, and it hangs off `voiceStateUpdate` rather than the
+ * player's `connection` event for two reasons: the voice state is fresh by
+ * construction (no race against the gateway populating `members.me.voice`),
+ * and it also catches a moderator revoking speaker mid-session, which the
+ * connect path never sees.
+ */
+// Guilds whose queue THIS handler paused because the bot could not speak.
+// Without it, approval would resume a queue a user had paused with /pause, and
+// a bot moved off a stage while still suppressed would stay paused forever.
+const stagePaused = new Set<string>()
+
+/** Test seam: the set is module state and each test needs a clean one. */
+export const __resetStagePausedForTests = (): void => {
+    stagePaused.clear()
+}
+
+function resumeIfStagePaused(guildId: string, queue?: GuildQueue): boolean {
+    if (!stagePaused.delete(guildId)) return false
+    if (queue?.node.isPaused()) queue.node.resume()
+    return true
+}
+
+export const setupStageSpeaker = (client: CustomClient): void => {
+    client.on(
+        'voiceStateUpdate',
+        async (oldState: VoiceState, newState: VoiceState) => {
+            if (newState.member?.id !== client.user?.id) return
+
+            const guildId = newState.guild.id
+            const queue = client.player.nodes.get(guildId) ?? undefined
+
+            if (newState.channel?.type !== ChannelType.GuildStageVoice) {
+                // Moved off the stage (or disconnected) while we were holding
+                // playback. Nothing suppresses us here, so let it play.
+                if (resumeIfStagePaused(guildId, queue)) {
+                    infoLog({
+                        message: `Left the stage in ${newState.guild.name} — resuming held playback`,
+                    })
+                }
+                return
+            }
+
+            // Our own setRequestToSpeak echoes back as a voiceStateUpdate with
+            // the channel and the suppress flag both unchanged. Acting on that
+            // echo would ask again, and again, forever.
+            const movedChannel = oldState.channelId !== newState.channelId
+            const suppressFlipped = oldState.suppress !== newState.suppress
+            if (!movedChannel && !suppressFlipped) return
+
+            if (!newState.suppress) {
+                if (resumeIfStagePaused(guildId, queue)) {
+                    infoLog({
+                        message: `Granted speaker on stage in ${newState.guild.name} — resuming`,
+                    })
+                }
+                return
+            }
+
+            const outcome = await ensureStageSpeaker(newState)
+            infoLog({
+                message: `Stage speaker attempt in ${newState.guild.name}: ${outcome}`,
+            })
+
+            // Hold playback whenever the bot is not going to be heard, without
+            // asking whether a track has started. Gating on isPlaying() missed
+            // the join case entirely, because at join time playback has not
+            // begun yet and the first track then drained into a muted channel.
+            // Recording the pause is what makes it ours to undo: a queue the
+            // user paused is never in this set, so approval never resumes it.
+            if (outcome !== 'unsuppressed' && queue && !queue.node.isPaused()) {
+                queue.node.pause()
+                stagePaused.add(guildId)
+            }
+
+            await notifyStageOutcome(queue, outcome)
+        },
+    )
 }
 
 export const setupLifecycleHandlers = (player: {
