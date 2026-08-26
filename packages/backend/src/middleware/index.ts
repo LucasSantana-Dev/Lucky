@@ -141,10 +141,15 @@ export function setupMiddleware(app: Express): void {
             verify: (req, _res, buf) => {
                 // Exact pathname, not a prefix: a public URL that merely
                 // starts with this path has no route behind it and should not
-                // retain a second copy of its body.
+                // retain a second copy of its body. The optional trailing
+                // slash is included because Express (non-strict routing)
+                // routes it to the same handler, and capturing nothing there
+                // would fail verification on a delivery that did arrive.
                 const requestPath = (
                     req as { originalUrl?: string }
-                ).originalUrl?.split('?')[0]
+                ).originalUrl
+                    ?.split('?')[0]
+                    ?.replace(/\/+$/, '')
                 if (requestPath === TOPGG_WEBHOOK_PATH) {
                     ;(req as { rawBody?: Buffer }).rawBody = Buffer.from(buf)
                 }

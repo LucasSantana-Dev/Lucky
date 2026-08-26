@@ -581,9 +581,9 @@ describe('webhook auth scheme selection (CodeQL: no user-controlled bypass)', ()
             express.json({
                 verify: (req, _res, buf) => {
                     if (
-                        (req as { originalUrl?: string }).originalUrl?.split(
-                            '?',
-                        )[0] === TOPGG_WEBHOOK_PATH
+                        (req as { originalUrl?: string }).originalUrl
+                            ?.split('?')[0]
+                            ?.replace(/\/+$/, '') === TOPGG_WEBHOOK_PATH
                     ) {
                         ;(req as { rawBody?: Buffer }).rawBody =
                             Buffer.from(buf)
@@ -669,6 +669,28 @@ describe('webhook auth scheme selection (CodeQL: no user-controlled bypass)', ()
 
         const res = await request(buildPublicApp())
             .post(TOPGG_WEBHOOK_PATH)
+            .set('content-type', 'application/json')
+            .set('x-topgg-signature', `t=${timestamp},v1=${signature}`)
+            .send(raw)
+
+        expect(res.status).toBe(200)
+    })
+
+    it('verifies a delivery to the trailing-slash form of the path', async () => {
+        // Express routes /webhooks/topgg-votes/ to the same handler, so the
+        // raw-body capture has to agree or verification fails on a delivery
+        // that genuinely arrived.
+        process.env.TOPGG_WEBHOOK_SECRET = 'whs_v1_secret'
+        delete process.env.TOPGG_AUTH_TOKEN
+
+        const raw = JSON.stringify({ type: 'test' })
+        const timestamp = Math.floor(Date.now() / 1000)
+        const signature = createHmac('sha256', 'whs_v1_secret')
+            .update(`${timestamp}.${raw}`)
+            .digest('hex')
+
+        const res = await request(buildPublicApp())
+            .post(`${TOPGG_WEBHOOK_PATH}/`)
             .set('content-type', 'application/json')
             .set('x-topgg-signature', `t=${timestamp},v1=${signature}`)
             .send(raw)
