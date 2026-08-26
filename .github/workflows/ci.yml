@@ -91,19 +91,24 @@ jobs:
               run: npm run type:check
             - name: Check documentation coverage
               run: npm run docs:check --workspace=packages/shared
-            # `npm run build` used to run here and was almost entirely
-            # duplicated work. Counting the actual chain in this one job:
-            # `type:check` above already runs the bot's `preflight`
-            # (db:generate + build:shared), then `npm run build` runs
-            # db:generate + build:shared itself, then its build:bot leg runs
-            # that same preflight a third time -- all on top of the
-            # build-shared artifact this job downloaded before any of it.
+            # This was `npm run build`, which was almost entirely duplicated
+            # work. Counting the actual chain in this one job: `type:check`
+            # above already runs the bot's `preflight` (db:generate +
+            # build:shared), then `npm run build` ran db:generate +
+            # build:shared itself, then its build:bot leg ran that same
+            # preflight a third time -- all on top of the build-shared
+            # artifact this job downloaded before any of it.
             #
-            # What the step actually asserted is covered elsewhere: types by
-            # `type:check` above (tsc --noEmit across all four workspaces), and
-            # frontend bundling (tsc && vite build && prerender) by the
-            # docker-build frontend leg plus bundle-size.yml, both of which
-            # trigger on exactly the changes that could break a bundle.
+            # Only the frontend leg is kept, because only it asserts something
+            # `type:check` does not: `vite build` and the prerender step, which
+            # fail on bundling and SSR errors that tsc --noEmit never sees.
+            #
+            # It has to run on push too, not just pull_request. bundle-size.yml
+            # is pull_request-only and ci.yml's docker-build is
+            # pull_request/merge_group-only, so on a push to main nothing else
+            # bundles the frontend at all.
+            - name: Build frontend (bundle + prerender gate)
+              run: npm run build --workspace=packages/frontend
 
     test-shared:
         name: Test — shared

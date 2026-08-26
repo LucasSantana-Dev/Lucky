@@ -164,10 +164,15 @@ jobs:
 
                     # Check if this commit touched Docker-relevant paths.
                     # docker-publish.yml only triggers on: packages/**, prisma/**, Dockerfile*,
-                    # nginx/**, package*.json — if none of those changed, no rebuild is needed
-                    # and deploying with the existing latest images is safe.
-                    # Mirrors the exact path triggers from docker-publish.yml.
-                    docker_path_pattern='^(packages/|prisma/|Dockerfile|Dockerfile\.|nginx/|package\.json|package-lock\.json)'
+                    # nginx/**, package*.json, CHANGELOG.md — if none of those changed, no
+                    # rebuild is needed and deploying with the existing latest images is safe.
+                    # Mirrors the exact path triggers from docker-publish.yml. CHANGELOG.md is
+                    # in that list because Dockerfile:152 copies it into the frontend image for
+                    # the /changelog page; without it here, a release-please commit whose
+                    # docker-publish run is not yet visible would skip the image wait and deploy
+                    # the PREVIOUS frontend image, serving last release's changelog.
+                    # KEEP IN SYNC with docker-publish.yml's push.paths.
+                    docker_path_pattern='^(packages/|prisma/|Dockerfile|Dockerfile\.|nginx/|package\.json|package-lock\.json|CHANGELOG\.md)'
 
                     if ! changed_files=$(gh api \
                       "repos/${{ github.repository }}/commits/${commit_sha}" \
