@@ -4,9 +4,18 @@ import {
     DEFAULT_BOT_LANGUAGE,
     type BotLanguage,
 } from '@lucky/shared/constants'
-import en from '../locales/en.json'
-import ptBR from '../locales/pt-BR.json'
-import es from '../locales/es.json'
+// `with { type: 'json' }` is REQUIRED, not decoration. This package is
+// "type": "module", so the built output is real ESM and Node refuses a JSON
+// import without the attribute:
+//   ERR_IMPORT_ATTRIBUTE_MISSING: Module ".../dist/locales/en.json" needs an
+//   import attribute of "type: json"
+// It shipped in v2.40.0 and crash-looped the bot at boot. Nothing in CI runs
+// the built output: jest transpiles to CJS, where a bare JSON import is legal,
+// and `npm run build` compiles without executing. A static gate for this class
+// is in #2114.
+import en from '../locales/en.json' with { type: 'json' }
+import ptBR from '../locales/pt-BR.json' with { type: 'json' }
+import es from '../locales/es.json' with { type: 'json' }
 
 /**
  * Bot-side i18n.
