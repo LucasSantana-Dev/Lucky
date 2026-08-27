@@ -51,6 +51,7 @@
         "db:studio": "prisma studio --config prisma/prisma.config.ts",
         "deploy:remote": "./scripts/deploy-remote.sh",
         "deploy:homelab": "./scripts/deploy-remote.sh main",
+        "test:scripts": "node --test scripts/*.test.mjs",
         "test:shared": "npm run test:ci --workspace=packages/shared"
     },
     "lint-staged": {
