@@ -66,20 +66,19 @@ type NormalizedVote =
     | { kind: 'unsupported'; type: unknown }
 
 /**
+ * A UNION, not an intersection. Intersecting the two collapses `type` to
+ * `undefined` (the literal unions have no overlap) and every case below stops
+ * compiling; as a discriminated union it narrows correctly and both shapes stay
+ * load-bearing instead of decorative.
+ */
+type TopggPayload = TopggV0Payload | TopggV1Payload
+
+/**
  * One place that understands both wire formats, so the handler below never has
  * to care which one arrived.
  */
 export function normalizeTopggPayload(body: unknown): NormalizedVote {
-    // Read the wire shape structurally rather than as `V0 & V1`: intersecting
-    // the two literal unions collapses `type` to `undefined` and every case
-    // below becomes uncomparable. The named types above stay as the record of
-    // what each format looks like.
-    const payload = (body ?? {}) as {
-        type?: string
-        user?: unknown
-        isWeekend?: unknown
-        data?: { weight?: unknown; user?: { platform_id?: unknown } }
-    }
+    const payload = (body ?? {}) as TopggPayload
 
     switch (payload.type) {
         case 'webhook.test':
@@ -90,7 +89,7 @@ export function normalizeTopggPayload(body: unknown): NormalizedVote {
                 kind: 'vote',
                 // platform_id, NOT id — see the note above.
                 userId: payload.data?.user?.platform_id,
-                isWeekend: Number(payload.data?.weight ?? 1) >= 2,
+                isWeekend: (payload.data?.weight ?? 1) >= 2,
             }
         case 'upvote':
             return {
