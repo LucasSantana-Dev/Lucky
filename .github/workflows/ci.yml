@@ -87,6 +87,12 @@ jobs:
             # why an untranslated feature is invisible without this gate.
             - name: Verify locale key parity
               run: npm run verify:locales
+            # `scripts/` holds the release-side guards: the broadcast send
+            # ledger, the http probe, the json-import gate. They had tests and
+            # nothing ran them, so the guards on a one-off broadcast to real
+            # servers were never enforced. Plain node, no build, no DB.
+            - name: Test release scripts
+              run: npm run test:scripts
             - name: Type check
               run: npm run type:check
             - name: Check documentation coverage
