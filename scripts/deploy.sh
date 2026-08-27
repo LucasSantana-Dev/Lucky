@@ -449,7 +449,13 @@ run_health_checks() {
         fi
         if [[ "$bot_health" == "unhealthy" ]]; then
             log "HEALTH: bot container unhealthy (Discord gateway not connected)"
-            docker logs lucky-bot --tail=40 --no-color 2>/dev/null || true
+            # `--no-color` is a `docker compose logs` flag; `docker logs`
+            # rejects it with "unknown flag", and 2>/dev/null || true swallowed
+            # that. This line is the ONLY explanation of a failed bot deploy and
+            # it printed nothing on every auto-rollback since it was written --
+            # the v2.40.0 logs had to be recovered from Loki instead. Keep
+            # stderr: a broken diagnostic must be loud.
+            docker logs lucky-bot --tail=60 2>&1 || true
             return 1
         fi
         sleep 5
