@@ -44,7 +44,14 @@ const JSON_IMPORT_RE = /\bimport\s+(?:[^;'"]*?\bfrom\s*)?(['"])([^'"]*\.json)\1/
 // it, letting a genuinely bare import through. A false negative is the
 // expensive kind of gate bug: it is the one that ships.
 const ATTRIBUTE_WINDOW = 200
-const WITH_CLAUSE = /^(?:\s|\/\*[\s\S]*?\*\/)*with\s*\{([^}]*)\}/
+
+// Comments are legal in both token gaps. ECMAScript has no
+// `[no LineTerminator here]` between the specifier and `with`, so a line
+// comment or a newline there is valid code and must not read as a missing
+// attribute. The block-comment branch is the unrolled-loop form on purpose:
+// the obvious `\/\*[\s\S]*?\*\/` backtracks exponentially on repeated `*//*`.
+const TRIVIA = String.raw`(?:\s|\/\/[^\r\n\u2028\u2029]*|\/\*[^*]*\*+(?:[^\/*][^*]*\*+)*\/)*`
+const WITH_CLAUSE = new RegExp(String.raw`^${TRIVIA}with${TRIVIA}\{([^}]*)\}`)
 const JSON_TYPE = /\btype\s*:\s*['"]json['"]/
 
 export function hasJsonAttribute(content, endOfMatch) {

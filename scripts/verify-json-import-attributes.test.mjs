@@ -101,3 +101,32 @@ test('accepts a block comment between the specifier and the attribute', () => {
         [],
     )
 })
+
+test('accepts a line comment between the specifier and the attribute', () => {
+    // There is no `[no LineTerminator here]` before `with`, so this is valid
+    // ESM. Rejecting it would fail correct code, the failure mode this gate
+    // has already shipped twice.
+    assert.deepEqual(
+        bare("import a from './x.json' // keep\nwith { type: 'json' }\n"),
+        [],
+    )
+})
+
+test('accepts comments between `with` and its object', () => {
+    assert.deepEqual(
+        bare("import a from './x.json' with /* keep */ { type: 'json' }\n"),
+        [],
+    )
+})
+
+test('a comment-only gap never invents an attribute', () => {
+    assert.deepEqual(bare("import a from './x.json' /* with */\n"), ['./x.json'])
+})
+
+test('pathological comment input still terminates', () => {
+    // Regression: the old `\/\*[\s\S]*?\*\/` alternative backtracked
+    // exponentially here. Completing at all is the assertion; a hang blows the
+    // test timeout instead of failing an equality check.
+    const evil = "import a from './x.json'" + '/*' + '*//*'.repeat(48)
+    assert.deepEqual(bare(evil), ['./x.json'])
+})
