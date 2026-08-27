@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.40.1...v2.40.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* **webhooks:** read the v1 payload shape, not just the v1 signature ([#2119](https://github.com/LucasSantana-Dev/Lucky/issues/2119)) ([9f9fbc6](https://github.com/LucasSantana-Dev/Lucky/commit/9f9fbc64a7bc75c425b6fc5c2a9549349016dfd9))
+
 ## [2.40.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.40.0...v2.40.1) (2026-08-27)
 
 
