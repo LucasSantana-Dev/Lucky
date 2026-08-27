@@ -1,12 +1,19 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-const repoRoot = new URL('..', import.meta.url)
-const probeScript = new URL('./http-probe.sh', import.meta.url)
+// `fileURLToPath`, not the URL's percent-encoded path property: a repo
+// checked out under a directory containing a space yields
+// `/Volumes/External%20HD/...`. That directory does not exist, spawn fails
+// with ENOENT, and `status` comes back `null` instead of a non-zero exit,
+// which reads as an assertion bug rather than a path bug. CI runners have
+// no space in their checkout path, so CI would never have caught this.
+const repoRoot = fileURLToPath(new URL('..', import.meta.url))
+const probeScript = fileURLToPath(new URL('./http-probe.sh', import.meta.url))
 
 test('falls back to wget when curl is unavailable', () => {
   const tempDir = mkdtempSync(join(tmpdir(), 'lucky-http-probe-'))
@@ -36,8 +43,8 @@ printf '  HTTP/1.1 200 OK\\n' >&2
       { mode: 0o755 },
     )
 
-    const result = spawnSync('/bin/bash', [probeScript.pathname, 'http://example.test/health'], {
-      cwd: repoRoot.pathname,
+    const result = spawnSync('/bin/bash', [probeScript, 'http://example.test/health'], {
+      cwd: repoRoot,
       env: {
         ...process.env,
         PATH: binDir,
