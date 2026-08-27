@@ -8,7 +8,12 @@ import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
-import { debugLog, errorLog, getPrismaClient } from '@lucky/shared/utils'
+import {
+    debugLog,
+    errorLog,
+    warnLog,
+    getPrismaClient,
+} from '@lucky/shared/utils'
 import {
     TOP_GG_VOTE_TIERS,
     TOP_GG_VOTE_URL,
@@ -22,12 +27,80 @@ const VOTE_TTL_MILLISECONDS = 60 * 60 * 12 * 1000
 // doesn't lose their streak due to timezone or minor scheduling drift.
 const STREAK_TTL_MILLISECONDS = 60 * 60 * 36 * 1000
 
-type TopggVotePayload = {
+/**
+ * top.gg changed the BODY as well as the auth scheme, and the two are
+ * independent. #2103 implemented v1 signature verification while leaving the v0
+ * payload reader in place, so the first real delivery was rejected with
+ * `400 unsupported vote type`.
+ *
+ * v0: { user: '<discord id>', type: 'upvote' | 'test', isWeekend: bool }
+ * v1: { type: 'vote.create' | 'webhook.test',
+ *       data: { user: { id, platform_id }, weight } }
+ *
+ * The trap is `data.user`. `id` is top.gg's OWN user id; the Discord snowflake
+ * is `platform_id`. Reading `id` would credit votes to a different user, and
+ * only the snowflake check downstream would catch it -- and only by luck, if
+ * the top.gg id happened not to look like a snowflake.
+ *
+ * Weekend double votes moved too: v0 said `isWeekend`, v1 says `weight: 2`.
+ */
+type TopggV0Payload = {
     bot?: string
     user?: string
     type?: 'upvote' | 'test'
     isWeekend?: boolean
     query?: string
+}
+
+type TopggV1Payload = {
+    type?: 'vote.create' | 'webhook.test'
+    data?: {
+        weight?: number
+        user?: { id?: string; platform_id?: string }
+    }
+}
+
+type NormalizedVote =
+    | { kind: 'test' }
+    | { kind: 'vote'; userId: unknown; isWeekend: boolean }
+    | { kind: 'unsupported'; type: unknown }
+
+/**
+ * One place that understands both wire formats, so the handler below never has
+ * to care which one arrived.
+ */
+export function normalizeTopggPayload(body: unknown): NormalizedVote {
+    // Read the wire shape structurally rather than as `V0 & V1`: intersecting
+    // the two literal unions collapses `type` to `undefined` and every case
+    // below becomes uncomparable. The named types above stay as the record of
+    // what each format looks like.
+    const payload = (body ?? {}) as {
+        type?: string
+        user?: unknown
+        isWeekend?: unknown
+        data?: { weight?: unknown; user?: { platform_id?: unknown } }
+    }
+
+    switch (payload.type) {
+        case 'webhook.test':
+        case 'test':
+            return { kind: 'test' }
+        case 'vote.create':
+            return {
+                kind: 'vote',
+                // platform_id, NOT id — see the note above.
+                userId: payload.data?.user?.platform_id,
+                isWeekend: Number(payload.data?.weight ?? 1) >= 2,
+            }
+        case 'upvote':
+            return {
+                kind: 'vote',
+                userId: payload.user,
+                isWeekend: payload.isWeekend === true,
+            }
+        default:
+            return { kind: 'unsupported', type: payload.type }
+    }
 }
 
 function isDiscordSnowflake(value: string): boolean {
@@ -236,22 +309,28 @@ export function setupWebhookPublicRoutes(app: Express): void {
         asyncHandler(async (req: Request, res: Response) => {
             verifyTopggAuth(req)
 
-            const payload = (req.body ?? {}) as TopggVotePayload
+            const event = normalizeTopggPayload(req.body)
 
-            if (payload.type === 'test') {
+            if (event.kind === 'test') {
                 debugLog({ message: 'top.gg webhook test received' })
                 res.status(200).json({ ok: true, test: true })
                 return
             }
 
-            // Only persist genuine upvotes. Unknown/future event types
-            // (e.g. downvotes, if top.gg ever adds them) must not bump the
-            // streak counter.
-            if (payload.type !== 'upvote') {
+            // Only persist genuine votes. Unknown/future event types must not
+            // bump the streak counter. The rejected type is logged because the
+            // first v1 delivery failed here and the log said only "400" -- a
+            // rejection that does not name what it rejected cannot be
+            // diagnosed from the outside.
+            if (event.kind === 'unsupported') {
+                warnLog({
+                    message: 'top.gg webhook: unsupported event type',
+                    data: { type: String(event.type) },
+                })
                 throw AppError.badRequest('unsupported vote type')
             }
 
-            const userId = validateVoteUserId(payload.user)
+            const userId = validateVoteUserId(event.userId)
 
             try {
                 const recordResult = await recordVote(userId)
@@ -270,7 +349,7 @@ export function setupWebhookPublicRoutes(app: Express): void {
                     message: 'top.gg vote recorded',
                     data: {
                         userId,
-                        isWeekend: payload.isWeekend === true,
+                        isWeekend: event.isWeekend,
                     },
                 })
                 res.status(200).json({ ok: true })
