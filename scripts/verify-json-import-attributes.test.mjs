@@ -130,3 +130,24 @@ test('pathological comment input still terminates', () => {
     const evil = "import a from './x.json'" + '/*' + '*//*'.repeat(48)
     assert.deepEqual(bare(evil), ['./x.json'])
 })
+
+test('a `with` written inside a line comment never vouches for a bare import', () => {
+    // False NEGATIVE, the expensive direction, and one the line-comment trivia
+    // introduced: `[^\r\n]*` is greedy but backtracks, so it could give back
+    // the comment body and expose the `with` written inside it.
+    assert.deepEqual(
+        bare("import a from './x.json' // with { type: 'json' }\n"),
+        ['./x.json'],
+    )
+    assert.deepEqual(
+        bare("import a from './x.json'\n// with { type: 'json' }\n"),
+        ['./x.json'],
+    )
+})
+
+test('a `with` inside a block comment never vouches either', () => {
+    assert.deepEqual(
+        bare("import a from './x.json' /* with { type: 'json' } */\n"),
+        ['./x.json'],
+    )
+})

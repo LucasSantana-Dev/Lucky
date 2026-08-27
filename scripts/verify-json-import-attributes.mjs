@@ -50,7 +50,13 @@ const ATTRIBUTE_WINDOW = 200
 // comment or a newline there is valid code and must not read as a missing
 // attribute. The block-comment branch is the unrolled-loop form on purpose:
 // the obvious `\/\*[\s\S]*?\*\/` backtracks exponentially on repeated `*//*`.
-const TRIVIA = String.raw`(?:\s|\/\/[^\r\n\u2028\u2029]*|\/\*[^*]*\*+(?:[^\/*][^*]*\*+)*\/)*`
+// The line-comment branch is anchored to the end of the line on purpose.
+// The character class is greedy but it BACKTRACKS, so without the lookahead
+// it can give the comment body back and expose a `with` written inside it,
+// letting `import a from './x.json' // with { type: 'json' }` read as
+// attributed and ship. Only the full run to a line terminator satisfies the
+// lookahead, which makes the branch effectively atomic.
+const TRIVIA = String.raw`(?:\s|\/\/[^\r\n\u2028\u2029]*(?=[\r\n\u2028\u2029]|$)|\/\*[^*]*\*+(?:[^\/*][^*]*\*+)*\/)*`
 const WITH_CLAUSE = new RegExp(String.raw`^${TRIVIA}with${TRIVIA}\{([^}]*)\}`)
 const JSON_TYPE = /\btype\s*:\s*['"]json['"]/
 
