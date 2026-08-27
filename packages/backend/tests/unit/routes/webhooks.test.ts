@@ -62,6 +62,7 @@ jest.mock(
 import {
     setupWebhookRoutes,
     setupWebhookPublicRoutes,
+    normalizeTopggPayload,
 } from '../../../src/routes/webhooks'
 
 function buildApp(): express.Express {
@@ -726,5 +727,79 @@ describe('webhook auth scheme selection (CodeQL: no user-controlled bypass)', ()
             .send({ type: 'test' })
 
         expect(res.status).toBe(200)
+    })
+})
+
+describe('top.gg payload shapes (v0 and v1)', () => {
+    // The first real v1 delivery was rejected with 400 because #2103 shipped v1
+    // signature verification while still reading the v0 body. These lock both
+    // wire formats down.
+
+    it('reads a v1 vote.create, taking the DISCORD id from platform_id', () => {
+        // data.user.id is top.gg's own id. Reading it would credit the vote to
+        // a different user, and only the snowflake check downstream would
+        // notice -- and only if that id happened not to look like a snowflake.
+        expect(
+            normalizeTopggPayload({
+                type: 'vote.create',
+                data: {
+                    weight: 1,
+                    user: {
+                        id: '808499215864008704',
+                        platform_id: '160105994217586689',
+                    },
+                },
+            }),
+        ).toEqual({
+            kind: 'vote',
+            userId: '160105994217586689',
+            isWeekend: false,
+        })
+    })
+
+    it('treats v1 weight 2 as a weekend vote', () => {
+        const event = normalizeTopggPayload({
+            type: 'vote.create',
+            data: { weight: 2, user: { platform_id: '160105994217586689' } },
+        })
+        expect(event).toEqual({
+            kind: 'vote',
+            userId: '160105994217586689',
+            isWeekend: true,
+        })
+    })
+
+    it('accepts the v1 dashboard test event', () => {
+        expect(normalizeTopggPayload({ type: 'webhook.test' })).toEqual({
+            kind: 'test',
+        })
+    })
+
+    it('still reads the v0 shape', () => {
+        expect(
+            normalizeTopggPayload({
+                type: 'upvote',
+                user: '160105994217586689',
+                isWeekend: true,
+            }),
+        ).toEqual({
+            kind: 'vote',
+            userId: '160105994217586689',
+            isWeekend: true,
+        })
+        expect(normalizeTopggPayload({ type: 'test' })).toEqual({
+            kind: 'test',
+        })
+    })
+
+    it('reports an unknown type rather than guessing', () => {
+        expect(normalizeTopggPayload({ type: 'vote.delete' })).toEqual({
+            kind: 'unsupported',
+            type: 'vote.delete',
+        })
+        expect(normalizeTopggPayload({})).toEqual({
+            kind: 'unsupported',
+            type: undefined,
+        })
     })
 })
