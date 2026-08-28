@@ -221,12 +221,26 @@ export function initializeSentry(options: InitializeSentryOptions = {}): void {
         tracesSampleRate,
         profilesSampleRate,
         integrations: [],
+        // The ~1160 infoLog/warnLog/debugLog calls only became BREADCRUMBS, and a
+        // breadcrumb shows up attached to an error event: with no error, none of it
+        // existed in Sentry. With this, a log becomes a record of its own, queryable on
+        // its own.
+        enableLogs: true,
         initialScope: {
             tags: getSentryTags(options, appName, serviceName),
         },
         beforeSend(event) {
             event.extra = getSanitizedExtra(event.extra)
             return event
+        },
+        // `beforeSend` does NOT run for logs: logs have their own hook. Without this,
+        // attributes would skip the sanitisation error events already get, and enabling
+        // logs would have opened a fresh path for sensitive data to leave.
+        beforeSendLog(log) {
+            log.attributes = getSanitizedExtra(
+                log.attributes as Record<string, unknown> | undefined,
+            ) as typeof log.attributes
+            return log
         },
     })
 
@@ -311,4 +325,51 @@ export function monitorInteractionHandling(
             guildId,
         })
     }
+}
+
+/**
+ * Emits a structured LOG to Sentry, separate from the error event.
+ *
+ * It exists so the shared logger has a single exit point, instead of each of the ~1160
+ * call sites knowing about the SDK. Silent by construction: telemetry that takes the
+ * process down would be worse than no telemetry.
+ */
+export function logToSentry(
+    level: 'debug' | 'info' | 'warn' | 'error',
+    message: string,
+    attributes?: Record<string, unknown>,
+): void {
+    try {
+        Sentry.logger[level](message, attributes)
+    } catch {
+        // swallowed on purpose: see the note above
+    }
+}
+
+/**
+ * Runs `fn` in an ISOLATED Sentry scope carrying whoever triggered the interaction.
+ *
+ * The isolation is not a detail: `Sentry.setUser` on the global scope applies process-wide,
+ * and the bot serves many guilds at the same time. Without it, one user's error would be
+ * stamped with another user's id, which is worse than having no user at all: wrong data
+ * wearing the face of right data.
+ *
+ * **Only the `id` travels.** No username, nickname, avatar or email, and `sendDefaultPii`
+ * stays `false`. A Discord id already shows up in any mention, and it is what Sentry needs
+ * to count how many distinct PEOPLE an error hit, which was the question left unanswered
+ * while every issue read `Users: 0`.
+ *
+ * If this ever has to be anonymous, the swap is one line: pass a hash of the id instead.
+ * Unique counts still hold; per-user investigation does not.
+ */
+export function withSentryRequestScope<T>(
+    ctx: { userId?: string; guildId?: string; correlationId?: string },
+    fn: () => T,
+): T {
+    return Sentry.withIsolationScope(() => {
+        if (ctx.userId) Sentry.setUser({ id: ctx.userId })
+        if (ctx.guildId) Sentry.setTag('guildId', ctx.guildId)
+        if (ctx.correlationId) Sentry.setTag('correlationId', ctx.correlationId)
+        return fn()
+    })
 }

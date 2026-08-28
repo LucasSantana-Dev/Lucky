@@ -3,11 +3,40 @@ import {
     addBreadcrumb,
     captureException,
     captureMessage,
+    logToSentry,
 } from '../../monitoring'
 import { recordWithCooldown, emitAlert } from '../../alerts'
 import { getLogContext } from './context'
 import { LEVEL_TOKEN } from './types'
 import type { LogLevelType, LogParams, LogConfig } from './types'
+
+// LogLevelType -> Sentry level. SUCCESS has no counterpart there and maps to info.
+const SENTRY_LOG_LEVEL: Record<number, 'debug' | 'info' | 'warn' | 'error'> = {
+    0: 'error',
+    1: 'warn',
+    2: 'info',
+    3: 'info',
+    4: 'debug',
+}
+
+// A log attribute has to be a flat map. `data` can be anything (array, string, null), so
+// whatever is not a plain object goes under one key instead of being spread or silently
+// dropped.
+function asLogAttributes(
+    params: LogParams,
+): Record<string, unknown> | undefined {
+    const attrs: Record<string, unknown> = {}
+    if (params.correlationId) attrs.correlationId = params.correlationId
+    if (params.data !== undefined) {
+        const d = params.data
+        if (d !== null && typeof d === 'object' && !Array.isArray(d)) {
+            Object.assign(attrs, d as Record<string, unknown>)
+        } else {
+            attrs.data = d
+        }
+    }
+    return Object.keys(attrs).length > 0 ? attrs : undefined
+}
 
 function sanitizeForLogging(text: string): string {
     return text.replace(/[\x00-\x1f\x7f]/g, ' ')
@@ -263,6 +292,20 @@ export class LogService {
                 ),
             )
         }
+
+        // A single exit point to Sentry, instead of the ~1160 call sites knowing about
+        // the SDK. It sits AFTER `shouldLog`, so the configured level still rules: with
+        // debug off in production, those calls do not travel.
+        //
+        // The message goes sanitised for the same reason the console output does: a value
+        // coming from a user must not forge a record. SUCCESS (3) maps to info because
+        // Sentry has no such level, and inventing one would be worse than mapping to the
+        // nearest.
+        logToSentry(
+            SENTRY_LOG_LEVEL[level] ?? 'info',
+            sanitizeForLogging(formattedMessage),
+            asLogAttributes(effectiveParams),
+        )
     }
 
     error(params: LogParams): void {

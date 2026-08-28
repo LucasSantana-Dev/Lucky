@@ -11,6 +11,7 @@ jest.mock('../../monitoring', () => ({
     addBreadcrumb: jest.fn(),
     captureException: jest.fn(),
     captureMessage: jest.fn(),
+    logToSentry: jest.fn(),
 }))
 
 jest.mock('../../alerts', () => ({

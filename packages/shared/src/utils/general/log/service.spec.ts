@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { LogService } from './service'
+import { logToSentry } from '../../monitoring'
 
 jest.mock('../../monitoring', () => ({
     captureException: jest.fn(),
     captureMessage: jest.fn(),
     addBreadcrumb: jest.fn(),
+    logToSentry: jest.fn(),
 }))
 
 jest.mock('../../alerts', () => ({
@@ -32,6 +34,59 @@ describe('LogService', () => {
         jest.spyOn(console, 'log').mockImplementation(() => {})
         jest.spyOn(console, 'error').mockImplementation(() => {})
         service = new LogService()
+    })
+
+    // The ~1160 infoLog/warnLog/debugLog calls only became breadcrumbs, and a breadcrumb
+    // only shows up attached to an error event. These tests pin down the log's own exit.
+    describe('emission to Sentry', () => {
+        it('info becomes an info-level log, with data as attributes', () => {
+            service.info({ message: 'playing track', data: { guildId: '42' } })
+
+            expect(logToSentry).toHaveBeenCalledWith(
+                'info',
+                expect.stringContaining('playing track'),
+                expect.objectContaining({ guildId: '42' }),
+            )
+        })
+
+        it('warn becomes warn and error becomes error', () => {
+            service.warn({ message: 'queue full' })
+            service.error({ message: 'it failed' })
+
+            expect(logToSentry).toHaveBeenCalledWith(
+                'warn',
+                expect.stringContaining('queue full'),
+                undefined,
+            )
+            expect(logToSentry).toHaveBeenCalledWith(
+                'error',
+                expect.stringContaining('it failed'),
+                undefined,
+            )
+        })
+
+        // Counter-proof: without it, enabling logs would ship 340 debugLog calls even
+        // with the level switched off in production.
+        it('a disabled level does NOT travel: suppressed debug never reaches Sentry', () => {
+            service.setLogLevel(0) // ERROR only
+            jest.clearAllMocks()
+
+            service.debug({ message: 'debug noise' })
+
+            expect(logToSentry).not.toHaveBeenCalled()
+        })
+
+        // Log injection: the same reason the console output is sanitised.
+        it('the message goes sanitised, with no newline', () => {
+            service.info({ message: 'linha1\nlinha2' })
+
+            const [, message] = (logToSentry as jest.Mock).mock.calls[0] as [
+                string,
+                string,
+                unknown,
+            ]
+            expect(message).not.toContain('\n')
+        })
     })
 
     describe('setLogLevel', () => {

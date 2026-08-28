@@ -7,6 +7,12 @@ const flushMock = jest.fn<(timeout?: number) => Promise<boolean>>()
 const addBreadcrumbMock = jest.fn()
 const setContextMock = jest.fn()
 
+const setUserMock = jest.fn()
+const setTagMock = jest.fn()
+// The real one creates an isolated scope; here it is enough to run `fn` so we can observe
+// what was set INSIDE it.
+const withIsolationScopeMock = jest.fn(<T>(fn: () => T): T => fn())
+
 jest.mock('@sentry/node', () => ({
     captureException: captureExceptionMock,
     captureMessage: captureMessageMock,
@@ -14,6 +20,15 @@ jest.mock('@sentry/node', () => ({
     flush: flushMock,
     addBreadcrumb: addBreadcrumbMock,
     setContext: setContextMock,
+    setUser: setUserMock,
+    setTag: setTagMock,
+    withIsolationScope: withIsolationScopeMock,
+    logger: {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+    },
 }))
 
 jest.mock('../general/log', () => ({
@@ -30,6 +45,7 @@ import {
     addBreadcrumb,
     monitorCommandExecution,
     monitorInteractionHandling,
+    withSentryRequestScope,
 } from './sentry'
 
 describe('sentry monitoring', () => {
@@ -379,5 +395,46 @@ describe('sentry monitoring', () => {
             expect(captured).toBe(true)
             expect(captureMessageMock).toHaveBeenCalledTimes(1)
         })
+    })
+})
+
+describe('withSentryRequestScope', () => {
+    beforeEach(() => {
+        setUserMock.mockClear()
+        setTagMock.mockClear()
+        withIsolationScopeMock.mockClear()
+    })
+
+    it('runs inside an ISOLATED scope', () => {
+        withSentryRequestScope({ userId: 'u1' }, () => undefined)
+
+        expect(withIsolationScopeMock).toHaveBeenCalledTimes(1)
+    })
+
+    // What the issues could not answer: how many PEOPLE an error hit (`Users: 0`).
+    it('identifies by id, and by id ONLY', () => {
+        withSentryRequestScope(
+            { userId: 'u1', guildId: 'g9', correlationId: 'cid' },
+            () => undefined,
+        )
+
+        expect(setUserMock).toHaveBeenCalledWith({ id: 'u1' })
+        // No username, no email, no ip: `sendDefaultPii` stays false and this must not
+        // become the back door PII leaves through.
+        const [sent] = setUserMock.mock.calls[0] as [Record<string, unknown>]
+        expect(Object.keys(sent)).toEqual(['id'])
+        expect(setTagMock).toHaveBeenCalledWith('guildId', 'g9')
+        expect(setTagMock).toHaveBeenCalledWith('correlationId', 'cid')
+    })
+
+    // An interaction with no guild (DM) must not stamp an empty guildId.
+    it('does not set what does not exist', () => {
+        withSentryRequestScope({ userId: 'u1' }, () => undefined)
+
+        expect(setTagMock).not.toHaveBeenCalled()
+    })
+
+    it('returns the value of fn', () => {
+        expect(withSentryRequestScope({}, () => 42)).toBe(42)
     })
 })

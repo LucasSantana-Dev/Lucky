@@ -16,9 +16,12 @@ import {
     infoLog,
     debugLog,
     captureException,
+    runWithLogContext,
+    withSentryRequestScope,
 } from '@lucky/shared/utils'
 import { interactionReply } from '../utils/general/interactionReply'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
+import { mintCorrelationId } from '@lucky/shared/utils/support/correlationId'
 import { handleMessageCreate } from './messageHandler'
 import { handleMemberEvents } from './memberHandler'
 import { handleAuditEvents } from './auditHandler'
@@ -269,6 +272,39 @@ async function handleAutocomplete(interaction: Interaction): Promise<void> {
 }
 
 async function handleInteractionCreate(
+    client: Client,
+    interaction: Interaction,
+): Promise<void> {
+    // One scope per interaction, established at the funnel every interaction goes
+    // through.
+    //
+    // This settles three loose ends at once: Sentry learns WHO was affected (issues read
+    // `Users: 0`), logs gain `correlationId` and `guildId` without anyone threading them
+    // by hand, and the isolated scope keeps one user's id from leaking into another
+    // user's error in a process that serves many guilds at once.
+    //
+    // `runWithLogContext` already existed and had never been called by anyone: the
+    // AsyncLocalStorage was ready and idle.
+    const correlationId = mintCorrelationId()
+    return withSentryRequestScope(
+        {
+            userId: interaction.user?.id,
+            guildId: interaction.guildId ?? undefined,
+            correlationId,
+        },
+        () =>
+            runWithLogContext(
+                {
+                    correlationId,
+                    guildId: interaction.guildId ?? undefined,
+                    userId: interaction.user?.id,
+                },
+                () => runInteraction(client, interaction),
+            ),
+    )
+}
+
+async function runInteraction(
     client: Client,
     interaction: Interaction,
 ): Promise<void> {

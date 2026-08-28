@@ -109,6 +109,15 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     captureException: (...args: unknown[]) => captureExceptionMock(...args),
+    // Pass-through: the eventHandler test is not about Sentry scoping or
+    // AsyncLocalStorage, it only needs the interaction body to run. Isolation behaviour is
+    // covered where it lives, in shared.
+    runWithLogContext: <T>(_ctx: unknown, fn: () => T): T => fn(),
+    withSentryRequestScope: <T>(_ctx: unknown, fn: () => T): T => fn(),
+}))
+
+jest.mock('@lucky/shared/utils/support/correlationId', () => ({
+    mintCorrelationId: () => 'test-cid',
 }))
 
 jest.mock('../services/AiDevToolkitService', () => ({

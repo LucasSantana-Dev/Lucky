@@ -17,6 +17,15 @@ const DEFAULT_TICK_INTERVAL_MS = 30 * 60 * 1000
 // single-flight guard set forever (which would skip every later tick).
 const TOPGG_FETCH_TIMEOUT_MS = 10_000
 
+// A rejected credential does not heal on retry. Before this, every !response.ok took the
+// same path, so a 401 retried every 30 minutes forever: Sentry issue LUCKY-62 collected
+// 109 events over two days and was still firing. That noise buries the errors a retry CAN
+// fix.
+//
+// On these statuses the scheduler stops and says so once. Same shape the file already uses
+// for a missing TOPGG_TOKEN, the other "nothing changes until a human acts" case.
+const NON_RETRYABLE_STATUS = new Set([401, 403])
+
 type TopggStatsSchedulerOptions = {
     tickIntervalMs?: number
     fetch?: typeof fetch
@@ -25,6 +34,7 @@ type TopggStatsSchedulerOptions = {
 export class TopggStatsScheduler extends IntervalScheduler {
     private readonly fetchFn: typeof fetch
     private loggedMissingToken = false
+    private credentialRejected = false
 
     constructor(options: TopggStatsSchedulerOptions = {}) {
         super(options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS)
@@ -91,6 +101,30 @@ export class TopggStatsScheduler extends IntervalScheduler {
                 const text = await response.text()
                 const statusText =
                     response.statusText || `HTTP ${response.status}`
+
+                if (NON_RETRYABLE_STATUS.has(response.status)) {
+                    // `error`, not `warning`: this needs a person to rotate the token,
+                    // and a warning nobody acts on is the same as no signal at all.
+                    if (!this.credentialRejected) {
+                        this.credentialRejected = true
+                        captureMessage(
+                            `Top.gg stats disabled: token rejected (${statusText}). Rotate TOPGG_TOKEN and restart.`,
+                            'error',
+                            {
+                                category: 'topgg.stats',
+                                status: response.status,
+                                serverCount,
+                            },
+                        )
+                        warnLog({
+                            message: `Top.gg stats disabled: token rejected (${statusText}). Rotate TOPGG_TOKEN and restart the bot.`,
+                            data: { status: response.status },
+                        })
+                    }
+                    this.stop()
+                    return
+                }
+
                 warnLog({
                     message: `Top.gg stats POST failed: ${statusText}`,
                     data: {
