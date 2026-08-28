@@ -221,12 +221,25 @@ export function initializeSentry(options: InitializeSentryOptions = {}): void {
         tracesSampleRate,
         profilesSampleRate,
         integrations: [],
+        // Os ~1160 infoLog/warnLog/debugLog do codigo so viravam BREADCRUMB, e breadcrumb
+        // aparece anexado a um evento de erro: sem erro, nada disso existia no Sentry. Com
+        // isto, o log vira registro proprio, consultavel por conta propria.
+        enableLogs: true,
         initialScope: {
             tags: getSentryTags(options, appName, serviceName),
         },
         beforeSend(event) {
             event.extra = getSanitizedExtra(event.extra)
             return event
+        },
+        // `beforeSend` NAO roda para log: log tem hook proprio. Sem esta linha, os
+        // atributos escapariam a sanitizacao que o evento de erro ja recebe, e ligar logs
+        // teria aberto um caminho novo para dado sensivel sair.
+        beforeSendLog(log) {
+            log.attributes = getSanitizedExtra(
+                log.attributes as Record<string, unknown> | undefined,
+            ) as typeof log.attributes
+            return log
         },
     })
 
@@ -310,5 +323,24 @@ export function monitorInteractionHandling(
             userId,
             guildId,
         })
+    }
+}
+
+/**
+ * Emite um LOG estruturado para o Sentry, separado do evento de erro.
+ *
+ * Existe para o logger do `shared` ter um ponto unico de saida, em vez de cada um dos ~1160
+ * call sites conhecer o SDK. Silencioso por construcao: telemetria que derruba o processo
+ * seria pior que a ausencia dela.
+ */
+export function logToSentry(
+    level: 'debug' | 'info' | 'warn' | 'error',
+    message: string,
+    attributes?: Record<string, unknown>,
+): void {
+    try {
+        Sentry.logger[level](message, attributes)
+    } catch {
+        // ignorado de proposito: ver o comentario acima
     }
 }
