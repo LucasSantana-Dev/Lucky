@@ -10,7 +10,7 @@ import { getLogContext } from './context'
 import { LEVEL_TOKEN } from './types'
 import type { LogLevelType, LogParams, LogConfig } from './types'
 
-// LogLevelType -> nivel do Sentry. SUCCESS nao existe la e cai em info.
+// LogLevelType -> Sentry level. SUCCESS has no counterpart there and maps to info.
 const SENTRY_LOG_LEVEL: Record<number, 'debug' | 'info' | 'warn' | 'error'> = {
     0: 'error',
     1: 'warn',
@@ -19,9 +19,9 @@ const SENTRY_LOG_LEVEL: Record<number, 'debug' | 'info' | 'warn' | 'error'> = {
     4: 'debug',
 }
 
-// Atributo de log tem que ser um mapa plano. `data` pode ser qualquer coisa (array,
-// string, null), entao o que nao for objeto simples entra sob uma chave, em vez de ser
-// espalhado ou descartado em silencio.
+// A log attribute has to be a flat map. `data` can be anything (array, string, null), so
+// whatever is not a plain object goes under one key instead of being spread or silently
+// dropped.
 function asLogAttributes(
     params: LogParams,
 ): Record<string, unknown> | undefined {
@@ -293,13 +293,14 @@ export class LogService {
             )
         }
 
-        // Um ponto so de saida para o Sentry, em vez de os ~1160 call sites conhecerem o
-        // SDK. Fica DEPOIS do `shouldLog`, entao o nivel configurado continua mandando: se
-        // debug esta desligado em producao, ele nao viaja.
+        // A single exit point to Sentry, instead of the ~1160 call sites knowing about
+        // the SDK. It sits AFTER `shouldLog`, so the configured level still rules: with
+        // debug off in production, those calls do not travel.
         //
-        // A mensagem vai sanitizada, pelo mesmo motivo do console: valor vindo do usuario
-        // nao pode forjar registro. SUCCESS (3) entra como info porque o Sentry nao tem
-        // esse nivel, e inventar um seria pior que mapear no mais proximo.
+        // The message goes sanitised for the same reason the console output does: a value
+        // coming from a user must not forge a record. SUCCESS (3) maps to info because
+        // Sentry has no such level, and inventing one would be worse than mapping to the
+        // nearest.
         logToSentry(
             SENTRY_LOG_LEVEL[level] ?? 'info',
             sanitizeForLogging(formattedMessage),

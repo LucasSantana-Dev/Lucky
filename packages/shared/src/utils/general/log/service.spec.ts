@@ -36,56 +36,56 @@ describe('LogService', () => {
         service = new LogService()
     })
 
-    // Os ~1160 infoLog/warnLog/debugLog do codigo so viravam breadcrumb, e breadcrumb so
-    // aparece anexado a um evento de erro. Estes testes travam a saida propria para o log.
-    describe('emissao para o Sentry', () => {
-        it('info vira log de nivel info, com os dados como atributo', () => {
-            service.info({ message: 'tocando faixa', data: { guildId: '42' } })
+    // The ~1160 infoLog/warnLog/debugLog calls only became breadcrumbs, and a breadcrumb
+    // only shows up attached to an error event. These tests pin down the log's own exit.
+    describe('emission to Sentry', () => {
+        it('info becomes an info-level log, with data as attributes', () => {
+            service.info({ message: 'playing track', data: { guildId: '42' } })
 
             expect(logToSentry).toHaveBeenCalledWith(
                 'info',
-                expect.stringContaining('tocando faixa'),
+                expect.stringContaining('playing track'),
                 expect.objectContaining({ guildId: '42' }),
             )
         })
 
-        it('warn vira warn e error vira error', () => {
-            service.warn({ message: 'fila cheia' })
-            service.error({ message: 'falhou' })
+        it('warn becomes warn and error becomes error', () => {
+            service.warn({ message: 'queue full' })
+            service.error({ message: 'it failed' })
 
             expect(logToSentry).toHaveBeenCalledWith(
                 'warn',
-                expect.stringContaining('fila cheia'),
+                expect.stringContaining('queue full'),
                 undefined,
             )
             expect(logToSentry).toHaveBeenCalledWith(
                 'error',
-                expect.stringContaining('falhou'),
+                expect.stringContaining('it failed'),
                 undefined,
             )
         })
 
-        // Contraprova: sem ela, ligar logs mandaria 340 debugLog para fora mesmo com o
-        // nivel desligado em producao.
-        it('nivel desligado NAO viaja: debug suprimido nao chega ao Sentry', () => {
-            service.setLogLevel(0) // so ERROR
+        // Counter-proof: without it, enabling logs would ship 340 debugLog calls even
+        // with the level switched off in production.
+        it('a disabled level does NOT travel: suppressed debug never reaches Sentry', () => {
+            service.setLogLevel(0) // ERROR only
             jest.clearAllMocks()
 
-            service.debug({ message: 'ruido de debug' })
+            service.debug({ message: 'debug noise' })
 
             expect(logToSentry).not.toHaveBeenCalled()
         })
 
-        // Log injection: o mesmo motivo pelo qual o console e sanitizado.
-        it('mensagem vai sanitizada, sem quebra de linha', () => {
+        // Log injection: the same reason the console output is sanitised.
+        it('the message goes sanitised, with no newline', () => {
             service.info({ message: 'linha1\nlinha2' })
 
-            const [, mensagem] = (logToSentry as jest.Mock).mock.calls[0] as [
+            const [, message] = (logToSentry as jest.Mock).mock.calls[0] as [
                 string,
                 string,
                 unknown,
             ]
-            expect(mensagem).not.toContain('\n')
+            expect(message).not.toContain('\n')
         })
     })
 

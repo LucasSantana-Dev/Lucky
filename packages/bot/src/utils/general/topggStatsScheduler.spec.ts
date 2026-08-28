@@ -168,9 +168,9 @@ describe('TopggStatsScheduler', () => {
         scheduler.stop()
     })
 
-    // O caso que gerou LUCKY-62: 109 eventos em dois dias porque um 401 era tratado como
-    // erro transitorio e repetido a cada 30 minutos, para sempre.
-    test('401 para o scheduler e reporta UMA vez, com nivel error', async () => {
+    // The case behind LUCKY-62: 109 events over two days because a 401 was treated as a
+    // transient error and retried every 30 minutes, forever.
+    test('401 stops the scheduler and reports ONCE, at error level', async () => {
         process.env.TOPGG_TOKEN = 'token-revogado'
         const mockFetch = jest.fn().mockResolvedValue({
             ok: false,
@@ -184,7 +184,7 @@ describe('TopggStatsScheduler', () => {
         })
         scheduler.start(makeClient(10) as any)
 
-        // Tempo suficiente para varios ticks, se ele ainda estivesse de pe.
+        // Long enough for several ticks, had it still been running.
         await new Promise((resolve) => setTimeout(resolve, 120))
 
         expect(mockFetch).toHaveBeenCalledTimes(1)
@@ -198,9 +198,9 @@ describe('TopggStatsScheduler', () => {
         scheduler.stop()
     })
 
-    // Contraprova: sem ela, "parar no 401" poderia virar "parar em qualquer falha", e o
-    // bot deixaria de postar stats por causa de um 500 passageiro.
-    test('500 NAO para o scheduler: erro transitorio ainda merece retry', async () => {
+    // Counter-proof: without it, "stop on 401" could quietly become "stop on anything",
+    // and the bot would stop posting stats over a passing 500.
+    test('500 does NOT stop the scheduler: a transient error still deserves a retry', async () => {
         process.env.TOPGG_TOKEN = 'token-valido'
         const mockFetch = jest.fn().mockResolvedValue({
             ok: false,

@@ -109,15 +109,15 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     captureException: (...args: unknown[]) => captureExceptionMock(...args),
-    // Passagem direta: o teste do eventHandler nao e sobre escopo do Sentry nem sobre
-    // AsyncLocalStorage, so precisa que o corpo da interacao rode. O comportamento de
-    // isolamento e coberto onde ele mora, no shared.
+    // Pass-through: the eventHandler test is not about Sentry scoping or
+    // AsyncLocalStorage, it only needs the interaction body to run. Isolation behaviour is
+    // covered where it lives, in shared.
     runWithLogContext: <T>(_ctx: unknown, fn: () => T): T => fn(),
     withSentryRequestScope: <T>(_ctx: unknown, fn: () => T): T => fn(),
 }))
 
 jest.mock('@lucky/shared/utils/support/correlationId', () => ({
-    mintCorrelationId: () => 'cid-de-teste',
+    mintCorrelationId: () => 'test-cid',
 }))
 
 jest.mock('../services/AiDevToolkitService', () => ({

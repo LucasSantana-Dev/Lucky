@@ -221,9 +221,10 @@ export function initializeSentry(options: InitializeSentryOptions = {}): void {
         tracesSampleRate,
         profilesSampleRate,
         integrations: [],
-        // Os ~1160 infoLog/warnLog/debugLog do codigo so viravam BREADCRUMB, e breadcrumb
-        // aparece anexado a um evento de erro: sem erro, nada disso existia no Sentry. Com
-        // isto, o log vira registro proprio, consultavel por conta propria.
+        // The ~1160 infoLog/warnLog/debugLog calls only became BREADCRUMBS, and a
+        // breadcrumb shows up attached to an error event: with no error, none of it
+        // existed in Sentry. With this, a log becomes a record of its own, queryable on
+        // its own.
         enableLogs: true,
         initialScope: {
             tags: getSentryTags(options, appName, serviceName),
@@ -232,9 +233,9 @@ export function initializeSentry(options: InitializeSentryOptions = {}): void {
             event.extra = getSanitizedExtra(event.extra)
             return event
         },
-        // `beforeSend` NAO roda para log: log tem hook proprio. Sem esta linha, os
-        // atributos escapariam a sanitizacao que o evento de erro ja recebe, e ligar logs
-        // teria aberto um caminho novo para dado sensivel sair.
+        // `beforeSend` does NOT run for logs: logs have their own hook. Without this,
+        // attributes would skip the sanitisation error events already get, and enabling
+        // logs would have opened a fresh path for sensitive data to leave.
         beforeSendLog(log) {
             log.attributes = getSanitizedExtra(
                 log.attributes as Record<string, unknown> | undefined,
@@ -327,11 +328,11 @@ export function monitorInteractionHandling(
 }
 
 /**
- * Emite um LOG estruturado para o Sentry, separado do evento de erro.
+ * Emits a structured LOG to Sentry, separate from the error event.
  *
- * Existe para o logger do `shared` ter um ponto unico de saida, em vez de cada um dos ~1160
- * call sites conhecer o SDK. Silencioso por construcao: telemetria que derruba o processo
- * seria pior que a ausencia dela.
+ * It exists so the shared logger has a single exit point, instead of each of the ~1160
+ * call sites knowing about the SDK. Silent by construction: telemetry that takes the
+ * process down would be worse than no telemetry.
  */
 export function logToSentry(
     level: 'debug' | 'info' | 'warn' | 'error',
@@ -341,25 +342,25 @@ export function logToSentry(
     try {
         Sentry.logger[level](message, attributes)
     } catch {
-        // ignorado de proposito: ver o comentario acima
+        // swallowed on purpose: see the note above
     }
 }
 
 /**
- * Roda `fn` num escopo ISOLADO do Sentry, com quem disparou a interacao.
+ * Runs `fn` in an ISOLATED Sentry scope carrying whoever triggered the interaction.
  *
- * O isolamento nao e detalhe: `Sentry.setUser` no escopo global vale para o processo
- * inteiro, e o bot atende varios servidores ao mesmo tempo. Sem isto, o erro de um usuario
- * sairia carimbado com o id de outro que passou por ali no meio, o que e pior que nao ter
- * usuario nenhum: dado errado com cara de dado certo.
+ * The isolation is not a detail: `Sentry.setUser` on the global scope applies process-wide,
+ * and the bot serves many guilds at the same time. Without it, one user's error would be
+ * stamped with another user's id, which is worse than having no user at all: wrong data
+ * wearing the face of right data.
  *
- * **So o `id` viaja.** Nada de username, nickname, avatar ou e-mail, e `sendDefaultPii`
- * segue `false`. O id do Discord ja aparece em qualquer mencao, e e o que o Sentry precisa
- * para contar quantas PESSOAS distintas um erro atingiu, que era a pergunta sem resposta
- * enquanto as issues diziam `Users: 0`.
+ * **Only the `id` travels.** No username, nickname, avatar or email, and `sendDefaultPii`
+ * stays `false`. A Discord id already shows up in any mention, and it is what Sentry needs
+ * to count how many distinct PEOPLE an error hit, which was the question left unanswered
+ * while every issue read `Users: 0`.
  *
- * Se um dia isso precisar ser anonimo, o ponto de troca e uma linha: passar um hash do id
- * em vez do id. A contagem de unicos continua valendo; a investigacao individual, nao.
+ * If this ever has to be anonymous, the swap is one line: pass a hash of the id instead.
+ * Unique counts still hold; per-user investigation does not.
  */
 export function withSentryRequestScope<T>(
     ctx: { userId?: string; guildId?: string; correlationId?: string },

@@ -275,15 +275,16 @@ async function handleInteractionCreate(
     client: Client,
     interaction: Interaction,
 ): Promise<void> {
-    // Um escopo por interacao, estabelecido no funil por onde TODA interacao passa.
+    // One scope per interaction, established at the funnel every interaction goes
+    // through.
     //
-    // Resolve tres coisas que estavam soltas: o Sentry passa a saber QUEM foi afetado (as
-    // issues diziam `Users: 0`), os logs ganham `correlationId` e `guildId` sem ninguem
-    // passar a mao, e o escopo isolado impede que o id de um usuario vaze para o erro de
-    // outro num processo que atende varios servidores ao mesmo tempo.
+    // This settles three loose ends at once: Sentry learns WHO was affected (issues read
+    // `Users: 0`), logs gain `correlationId` and `guildId` without anyone threading them
+    // by hand, and the isolated scope keeps one user's id from leaking into another
+    // user's error in a process that serves many guilds at once.
     //
-    // `runWithLogContext` ja existia e nunca tinha sido chamado por ninguem: o
-    // AsyncLocalStorage estava pronto e ocioso.
+    // `runWithLogContext` already existed and had never been called by anyone: the
+    // AsyncLocalStorage was ready and idle.
     const correlationId = mintCorrelationId()
     return withSentryRequestScope(
         {
@@ -298,12 +299,12 @@ async function handleInteractionCreate(
                     guildId: interaction.guildId ?? undefined,
                     userId: interaction.user?.id,
                 },
-                () => executarInteracao(client, interaction),
+                () => runInteraction(client, interaction),
             ),
     )
 }
 
-async function executarInteracao(
+async function runInteraction(
     client: Client,
     interaction: Interaction,
 ): Promise<void> {

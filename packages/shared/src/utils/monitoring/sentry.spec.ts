@@ -9,8 +9,8 @@ const setContextMock = jest.fn()
 
 const setUserMock = jest.fn()
 const setTagMock = jest.fn()
-// O de verdade cria um escopo isolado; aqui basta executar `fn` para poder observar o que
-// foi setado DENTRO dele.
+// The real one creates an isolated scope; here it is enough to run `fn` so we can observe
+// what was set INSIDE it.
 const withIsolationScopeMock = jest.fn(<T>(fn: () => T): T => fn())
 
 jest.mock('@sentry/node', () => ({
@@ -405,36 +405,36 @@ describe('withSentryRequestScope', () => {
         withIsolationScopeMock.mockClear()
     })
 
-    it('roda dentro de um escopo ISOLADO', () => {
+    it('runs inside an ISOLATED scope', () => {
         withSentryRequestScope({ userId: 'u1' }, () => undefined)
 
         expect(withIsolationScopeMock).toHaveBeenCalledTimes(1)
     })
 
-    // O que as issues nao sabiam responder: quantas PESSOAS um erro atingiu (`Users: 0`).
-    it('identifica pelo id, e SO pelo id', () => {
+    // What the issues could not answer: how many PEOPLE an error hit (`Users: 0`).
+    it('identifies by id, and by id ONLY', () => {
         withSentryRequestScope(
             { userId: 'u1', guildId: 'g9', correlationId: 'cid' },
             () => undefined,
         )
 
         expect(setUserMock).toHaveBeenCalledWith({ id: 'u1' })
-        // Sem username, sem e-mail, sem ip: `sendDefaultPii` continua false e isto nao
-        // pode ser a porta dos fundos por onde PII sai.
-        const [enviado] = setUserMock.mock.calls[0] as [Record<string, unknown>]
-        expect(Object.keys(enviado)).toEqual(['id'])
+        // No username, no email, no ip: `sendDefaultPii` stays false and this must not
+        // become the back door PII leaves through.
+        const [sent] = setUserMock.mock.calls[0] as [Record<string, unknown>]
+        expect(Object.keys(sent)).toEqual(['id'])
         expect(setTagMock).toHaveBeenCalledWith('guildId', 'g9')
         expect(setTagMock).toHaveBeenCalledWith('correlationId', 'cid')
     })
 
-    // Interacao sem servidor (DM) nao pode carimbar guildId vazio.
-    it('nao seta o que nao existe', () => {
+    // An interaction with no guild (DM) must not stamp an empty guildId.
+    it('does not set what does not exist', () => {
         withSentryRequestScope({ userId: 'u1' }, () => undefined)
 
         expect(setTagMock).not.toHaveBeenCalled()
     })
 
-    it('devolve o valor de fn', () => {
+    it('returns the value of fn', () => {
         expect(withSentryRequestScope({}, () => 42)).toBe(42)
     })
 })

@@ -19,13 +19,12 @@ const TOPGG_FETCH_TIMEOUT_MS = 10_000
 
 // A rejected credential does not heal on retry. Before this, every !response.ok took the
 // same path, so a 401 retried every 30 minutes forever: Sentry issue LUCKY-62 collected
-// **109 events over two days** and was still firing. That noise buries the errors that a
-// retry CAN fix.
+// 109 events over two days and was still firing. That noise buries the errors a retry CAN
+// fix.
 //
 // On these statuses the scheduler stops and says so once. Same shape the file already uses
-// for a missing TOPGG_TOKEN, which is the other "nothing will change until a human acts"
-// case.
-const STATUS_SEM_RETRY = new Set([401, 403])
+// for a missing TOPGG_TOKEN, the other "nothing changes until a human acts" case.
+const NON_RETRYABLE_STATUS = new Set([401, 403])
 
 type TopggStatsSchedulerOptions = {
     tickIntervalMs?: number
@@ -35,7 +34,7 @@ type TopggStatsSchedulerOptions = {
 export class TopggStatsScheduler extends IntervalScheduler {
     private readonly fetchFn: typeof fetch
     private loggedMissingToken = false
-    private credencialRejeitada = false
+    private credentialRejected = false
 
     constructor(options: TopggStatsSchedulerOptions = {}) {
         super(options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS)
@@ -103,11 +102,11 @@ export class TopggStatsScheduler extends IntervalScheduler {
                 const statusText =
                     response.statusText || `HTTP ${response.status}`
 
-                if (STATUS_SEM_RETRY.has(response.status)) {
-                    // `error`, not `warning`: this needs a person to rotate the token, and
-                    // a warning that nobody acts on is the same as no signal at all.
-                    if (!this.credencialRejeitada) {
-                        this.credencialRejeitada = true
+                if (NON_RETRYABLE_STATUS.has(response.status)) {
+                    // `error`, not `warning`: this needs a person to rotate the token,
+                    // and a warning nobody acts on is the same as no signal at all.
+                    if (!this.credentialRejected) {
+                        this.credentialRejected = true
                         captureMessage(
                             `Top.gg stats disabled: token rejected (${statusText}). Rotate TOPGG_TOKEN and restart.`,
                             'error',
