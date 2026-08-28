@@ -16,9 +16,12 @@ import {
     infoLog,
     debugLog,
     captureException,
+    runWithLogContext,
+    withSentryRequestScope,
 } from '@lucky/shared/utils'
 import { interactionReply } from '../utils/general/interactionReply'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
+import { mintCorrelationId } from '@lucky/shared/utils/support/correlationId'
 import { handleMessageCreate } from './messageHandler'
 import { handleMemberEvents } from './memberHandler'
 import { handleAuditEvents } from './auditHandler'
@@ -269,6 +272,38 @@ async function handleAutocomplete(interaction: Interaction): Promise<void> {
 }
 
 async function handleInteractionCreate(
+    client: Client,
+    interaction: Interaction,
+): Promise<void> {
+    // Um escopo por interacao, estabelecido no funil por onde TODA interacao passa.
+    //
+    // Resolve tres coisas que estavam soltas: o Sentry passa a saber QUEM foi afetado (as
+    // issues diziam `Users: 0`), os logs ganham `correlationId` e `guildId` sem ninguem
+    // passar a mao, e o escopo isolado impede que o id de um usuario vaze para o erro de
+    // outro num processo que atende varios servidores ao mesmo tempo.
+    //
+    // `runWithLogContext` ja existia e nunca tinha sido chamado por ninguem: o
+    // AsyncLocalStorage estava pronto e ocioso.
+    const correlationId = mintCorrelationId()
+    return withSentryRequestScope(
+        {
+            userId: interaction.user?.id,
+            guildId: interaction.guildId ?? undefined,
+            correlationId,
+        },
+        () =>
+            runWithLogContext(
+                {
+                    correlationId,
+                    guildId: interaction.guildId ?? undefined,
+                    userId: interaction.user?.id,
+                },
+                () => executarInteracao(client, interaction),
+            ),
+    )
+}
+
+async function executarInteracao(
     client: Client,
     interaction: Interaction,
 ): Promise<void> {

@@ -344,3 +344,31 @@ export function logToSentry(
         // ignorado de proposito: ver o comentario acima
     }
 }
+
+/**
+ * Roda `fn` num escopo ISOLADO do Sentry, com quem disparou a interacao.
+ *
+ * O isolamento nao e detalhe: `Sentry.setUser` no escopo global vale para o processo
+ * inteiro, e o bot atende varios servidores ao mesmo tempo. Sem isto, o erro de um usuario
+ * sairia carimbado com o id de outro que passou por ali no meio, o que e pior que nao ter
+ * usuario nenhum: dado errado com cara de dado certo.
+ *
+ * **So o `id` viaja.** Nada de username, nickname, avatar ou e-mail, e `sendDefaultPii`
+ * segue `false`. O id do Discord ja aparece em qualquer mencao, e e o que o Sentry precisa
+ * para contar quantas PESSOAS distintas um erro atingiu, que era a pergunta sem resposta
+ * enquanto as issues diziam `Users: 0`.
+ *
+ * Se um dia isso precisar ser anonimo, o ponto de troca e uma linha: passar um hash do id
+ * em vez do id. A contagem de unicos continua valendo; a investigacao individual, nao.
+ */
+export function withSentryRequestScope<T>(
+    ctx: { userId?: string; guildId?: string; correlationId?: string },
+    fn: () => T,
+): T {
+    return Sentry.withIsolationScope(() => {
+        if (ctx.userId) Sentry.setUser({ id: ctx.userId })
+        if (ctx.guildId) Sentry.setTag('guildId', ctx.guildId)
+        if (ctx.correlationId) Sentry.setTag('correlationId', ctx.correlationId)
+        return fn()
+    })
+}
