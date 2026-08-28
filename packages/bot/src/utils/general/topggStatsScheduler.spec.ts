@@ -168,6 +168,59 @@ describe('TopggStatsScheduler', () => {
         scheduler.stop()
     })
 
+    // O caso que gerou LUCKY-62: 109 eventos em dois dias porque um 401 era tratado como
+    // erro transitorio e repetido a cada 30 minutos, para sempre.
+    test('401 para o scheduler e reporta UMA vez, com nivel error', async () => {
+        process.env.TOPGG_TOKEN = 'token-revogado'
+        const mockFetch = jest.fn().mockResolvedValue({
+            ok: false,
+            status: 401,
+            statusText: 'Unauthorized',
+            text: jest.fn().mockResolvedValue('unauthorized'),
+        })
+        const scheduler = new TopggStatsScheduler({
+            tickIntervalMs: 20,
+            fetch: mockFetch,
+        })
+        scheduler.start(makeClient(10) as any)
+
+        // Tempo suficiente para varios ticks, se ele ainda estivesse de pe.
+        await new Promise((resolve) => setTimeout(resolve, 120))
+
+        expect(mockFetch).toHaveBeenCalledTimes(1)
+        expect(captureMessage).toHaveBeenCalledTimes(1)
+        expect(captureMessage).toHaveBeenCalledWith(
+            expect.stringContaining('token rejected'),
+            'error',
+            expect.objectContaining({ category: 'topgg.stats', status: 401 }),
+        )
+
+        scheduler.stop()
+    })
+
+    // Contraprova: sem ela, "parar no 401" poderia virar "parar em qualquer falha", e o
+    // bot deixaria de postar stats por causa de um 500 passageiro.
+    test('500 NAO para o scheduler: erro transitorio ainda merece retry', async () => {
+        process.env.TOPGG_TOKEN = 'token-valido'
+        const mockFetch = jest.fn().mockResolvedValue({
+            ok: false,
+            status: 500,
+            statusText: 'Internal Server Error',
+            text: jest.fn().mockResolvedValue('boom'),
+        })
+        const scheduler = new TopggStatsScheduler({
+            tickIntervalMs: 20,
+            fetch: mockFetch,
+        })
+        scheduler.start(makeClient(10) as any)
+
+        await new Promise((resolve) => setTimeout(resolve, 120))
+
+        expect(mockFetch.mock.calls.length).toBeGreaterThan(1)
+
+        scheduler.stop()
+    })
+
     test('should log warning on fetch error', async () => {
         process.env.TOPGG_TOKEN = 'test-token-123'
         const testError = new Error('Network error')
