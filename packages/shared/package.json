@@ -87,10 +87,10 @@
         "lint:fix": "npm run lint -- --fix"
     },
     "dependencies": {
-        "@prisma/client": "^7.8.0",
-        "@sentry/node": "^10.68.0",
+        "@prisma/client": "^7.10.0",
+        "@sentry/node": "^10.71.0",
         "axios": "^1.18.1",
-        "bullmq": "^6.0.9",
+        "bullmq": "^6.2.2",
         "chalk": "^5.6.2",
         "dotenv": "^17.4.2",
         "ioredis": "^6.0.0",
@@ -104,7 +104,7 @@
     "devDependencies": {
         "@swc/cli": "^0.8.1",
         "@swc/core": "^1.15.46",
-        "@types/luxon": "^3.4.2",
+        "@types/luxon": "^3.7.5",
         "@types/node": "^26.2.0",
         "glob": "^13.0.6",
         "typedoc": "^0.28.20",
