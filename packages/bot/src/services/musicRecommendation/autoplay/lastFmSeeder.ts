@@ -315,11 +315,13 @@ export async function searchLastFmQuery(
         }
     }
     if (hadError) {
-        // Warn only once all engines are exhausted AND at least one actually
-        // threw — an empty result with no errors is a genuine "no match",
-        // not a failure worth surfacing (#2134).
+        // Warn once engines are exhausted with no result AND at least one
+        // engine actually threw (not just "no match") — an empty result
+        // with zero errors is a genuine "no match", not a failure worth
+        // surfacing (#2134). This can fire when only *some* engines threw
+        // and the rest simply found nothing, hence "at least one", not "all".
         logAndWarn(
-            new Error('All search engines threw for this query'),
+            new Error('No engine produced results; at least one threw'),
             'lastFmSeeder.searchLastFmQuery.exhausted',
             { query },
         )

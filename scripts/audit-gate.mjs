@@ -51,6 +51,10 @@ const ACCEPTED = {
             "and npm's suggested fix (`prisma@6.19.3`) is a major-version downgrade, " +
             'not worth taking for a driver this app never uses.',
         until: 'prisma ships a version bundling mysql2>=3.22.0 (tracked in #2136)',
+        // If another production dependency ever pulls mysql2 in directly,
+        // that's a different exposure than "bundled inside an unused prisma
+        // driver adapter" — re-review before letting the exception cover it.
+        requireTransitive: true,
         advisories: {
             1153173:
                 'GHSA-3f6p-5ww8-9rcr: MySQL2 auth plugin downgrade leaks plaintext credentials',
@@ -120,6 +124,14 @@ for (const [name, vulnerability] of Object.entries(vulnerabilities)) {
 
     if (!entry) {
         blocking.push({ ...summary, why: 'not accepted' });
+        continue;
+    }
+
+    if (entry.requireTransitive && vulnerability.isDirect) {
+        blocking.push({
+            ...summary,
+            why: 'accepted only while transitive, but is now a direct production dependency',
+        });
         continue;
     }
 
