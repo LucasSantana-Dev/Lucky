@@ -48,8 +48,7 @@ export function preferExactMatch(
         // so a "requestedQuery" full of a raw URL (repeated on every
         // playlist track) would be noise with no requested-vs-delivered
         // signal (#2134 review).
-        const isUrlQuery =
-            query.startsWith('http://') || query.startsWith('https://')
+        const isUrlQuery = /^https?:\/\//i.test(query.trim())
         if (!isUrlQuery) {
             for (const track of result.tracks) {
                 const existingMetadata =
