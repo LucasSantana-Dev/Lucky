@@ -135,7 +135,10 @@ export async function addTrackToHistory(
             .metadata
         const metadata =
             rawMetadata && typeof rawMetadata === 'object'
-                ? (rawMetadata as { isAutoplay?: boolean })
+                ? (rawMetadata as {
+                      isAutoplay?: boolean
+                      requestedQuery?: string
+                  })
                 : undefined
 
         await trackHistoryService.addTrackToHistory(
@@ -148,6 +151,7 @@ export async function addTrackToHistory(
                         ? track.duration
                         : String(track.duration),
                 url: track.url,
+                requestedQuery: metadata?.requestedQuery,
                 metadata: { isAutoplay: Boolean(metadata?.isAutoplay) },
             },
             guildId,
