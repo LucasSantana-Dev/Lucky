@@ -41,7 +41,29 @@ const TRANSITIVE = Symbol('transitive');
  * are accepted, so a new CVE in an already-listed package is not silently
  * inherited by the acceptance.
  */
-const ACCEPTED = {};
+const ACCEPTED = {
+    mysql2: {
+        reason:
+            'Transitive dep of prisma\'s bundled MySQL driver adapter. Lucky only ' +
+            'ever connects to Postgres (prisma/schema.prisma: provider = "postgresql") ' +
+            'so the vulnerable mysql_clear_password auth-downgrade path is never ' +
+            'exercised. No non-major fix exists: prisma@7.9.1 bundles mysql2@3.15.3, ' +
+            "and npm's suggested fix (`prisma@6.19.3`) is a major-version downgrade, " +
+            'not worth taking for a driver this app never uses.',
+        until: 'prisma ships a version bundling mysql2>=3.22.0 (tracked in #2136)',
+        advisories: {
+            1153173:
+                'GHSA-3f6p-5ww8-9rcr: MySQL2 auth plugin downgrade leaks plaintext credentials',
+        },
+    },
+    prisma: {
+        reason:
+            'Reported only as a consequence of the mysql2 finding above ' +
+            '(prisma\'s `via` is ["mysql2"], no advisory of its own).',
+        until: 'clears once mysql2 above is fixed/upgraded',
+        advisories: TRANSITIVE,
+    },
+};
 
 // The policy above is only worth something if every entry actually carries its
 // justification. Enforce it rather than trusting the comment.
