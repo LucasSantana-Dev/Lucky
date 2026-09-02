@@ -299,11 +299,15 @@ describe('resolveQueryWithFallbacks', () => {
     })
 })
 
+function makeMockTrack(title: string, author: string) {
+    return { title, author, metadata: null, setMetadata: jest.fn() }
+}
+
 describe('preferExactMatch', () => {
     it('promotes a track whose author exactly matches the query', async () => {
         const tracks = [
-            { title: 'Adicto', author: 'Prince Royce' },
-            { title: 'Purple Rain', author: 'Prince' },
+            makeMockTrack('Adicto', 'Prince Royce'),
+            makeMockTrack('Purple Rain', 'Prince'),
         ]
         const result = {
             hasPlaylist: () => false,
@@ -313,16 +317,18 @@ describe('preferExactMatch', () => {
 
         await preferExactMatch('Prince')(result as any)
 
-        expect(result.setTracks).toHaveBeenCalledWith([
-            { title: 'Purple Rain', author: 'Prince' },
-            { title: 'Adicto', author: 'Prince Royce' },
-        ])
+        for (const track of tracks) {
+            expect(track.setMetadata).toHaveBeenCalledWith({
+                requestedQuery: 'Prince',
+            })
+        }
+        expect(result.setTracks).toHaveBeenCalledWith([tracks[1], tracks[0]])
     })
 
     it('promotes a track whose title exactly matches the query', async () => {
         const tracks = [
-            { title: 'Some Other Song', author: 'Someone Else' },
-            { title: 'prince', author: 'A Tribute Band' },
+            makeMockTrack('Some Other Song', 'Someone Else'),
+            makeMockTrack('prince', 'A Tribute Band'),
         ]
         const result = {
             hasPlaylist: () => false,
@@ -332,16 +338,13 @@ describe('preferExactMatch', () => {
 
         await preferExactMatch('Prince')(result as any)
 
-        expect(result.setTracks).toHaveBeenCalledWith([
-            { title: 'prince', author: 'A Tribute Band' },
-            { title: 'Some Other Song', author: 'Someone Else' },
-        ])
+        expect(result.setTracks).toHaveBeenCalledWith([tracks[1], tracks[0]])
     })
 
     it('leaves the result untouched when no exact match exists', async () => {
         const tracks = [
-            { title: 'Bohemian Rhapsody', author: 'Queen' },
-            { title: 'Somebody to Love', author: 'Queen' },
+            makeMockTrack('Bohemian Rhapsody', 'Queen'),
+            makeMockTrack('Somebody to Love', 'Queen'),
         ]
         const result = {
             hasPlaylist: () => false,
@@ -359,8 +362,8 @@ describe('preferExactMatch', () => {
 
     it('leaves the result untouched when the exact match is already first', async () => {
         const tracks = [
-            { title: 'Purple Rain', author: 'Prince' },
-            { title: 'Adicto', author: 'Prince Royce' },
+            makeMockTrack('Purple Rain', 'Prince'),
+            makeMockTrack('Adicto', 'Prince Royce'),
         ]
         const result = {
             hasPlaylist: () => false,
@@ -373,10 +376,10 @@ describe('preferExactMatch', () => {
         expect(result.setTracks).not.toHaveBeenCalled()
     })
 
-    it('skips reordering for playlist results', async () => {
+    it('skips reordering for playlist results but still stamps requestedQuery', async () => {
         const tracks = [
-            { title: 'Adicto', author: 'Prince Royce' },
-            { title: 'Purple Rain', author: 'Prince' },
+            makeMockTrack('Adicto', 'Prince Royce'),
+            makeMockTrack('Purple Rain', 'Prince'),
         ]
         const result = {
             hasPlaylist: () => true,
@@ -387,6 +390,11 @@ describe('preferExactMatch', () => {
         await preferExactMatch('Prince')(result as any)
 
         expect(result.setTracks).not.toHaveBeenCalled()
+        for (const track of tracks) {
+            expect(track.setMetadata).toHaveBeenCalledWith({
+                requestedQuery: 'Prince',
+            })
+        }
     })
 })
 

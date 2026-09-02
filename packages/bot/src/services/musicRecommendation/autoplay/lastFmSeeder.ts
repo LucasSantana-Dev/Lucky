@@ -1,6 +1,7 @@
 import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { lastFmLinkService } from '@lucky/shared/services'
+import { logAndSwallow, logAndWarn } from '@lucky/shared/utils/error'
 import {
     consumeLastFmSeedSlice,
     consumeBlendedSeedSlice,
@@ -288,6 +289,7 @@ export async function searchLastFmQuery(
         QueryType.YOUTUBE_SEARCH,
         QueryType.AUTO,
     ]
+    let hadError = false
     for (const engine of engines) {
         try {
             const result = await queue.player.search(query, {
@@ -302,9 +304,25 @@ export async function searchLastFmQuery(
                 )
                 .slice(0, SEARCH_RESULTS_LIMIT)
             if (tracks.length > 0) return tracks
-        } catch {
-            continue
+        } catch (err) {
+            // Debug per engine — a single engine failing while another
+            // succeeds is normal fallback, not worth alerting on.
+            hadError = true
+            logAndSwallow(err, 'lastFmSeeder.searchLastFmQuery', {
+                query,
+                engine: String(engine),
+            })
         }
+    }
+    if (hadError) {
+        // Warn only once all engines are exhausted AND at least one actually
+        // threw — an empty result with no errors is a genuine "no match",
+        // not a failure worth surfacing (#2134).
+        logAndWarn(
+            new Error('All search engines threw for this query'),
+            'lastFmSeeder.searchLastFmQuery.exhausted',
+            { query },
+        )
     }
     return []
 }

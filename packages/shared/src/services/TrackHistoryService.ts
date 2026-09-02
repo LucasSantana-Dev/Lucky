@@ -21,6 +21,10 @@ export interface TrackHistoryInput {
     author: string
     duration: string
     url: string
+    /** Original search query, when known — logged alongside the resolved
+     * title so requested-vs-delivered mismatches (e.g. remix substitution)
+     * can be queried instead of guessed from the title alone. */
+    requestedQuery?: string
     metadata?: { isAutoplay?: boolean }
 }
 
@@ -121,6 +125,9 @@ export class TrackHistoryService {
 
             infoLog({
                 message: `Added track to history: ${track.title} in guild ${guildId}`,
+                data: track.requestedQuery
+                    ? { requestedQuery: track.requestedQuery }
+                    : undefined,
             })
             return true
         } catch (error) {
@@ -409,7 +416,10 @@ export class TrackHistoryService {
                     (trackCounts.get(row.trackId) ?? 0) + 1,
                 )
                 const normalizedArtist = row.author.toLowerCase().trim()
-                artistCounts.set(normalizedArtist, (artistCounts.get(normalizedArtist) ?? 0) + 1)
+                artistCounts.set(
+                    normalizedArtist,
+                    (artistCounts.get(normalizedArtist) ?? 0) + 1,
+                )
             }
 
             const trackIds = new Set<string>()

@@ -40,6 +40,17 @@ export function preferExactMatch(
     const normalizedQuery = query.trim().toLowerCase()
 
     return async (result) => {
+        // Stamps the original query onto every candidate track's metadata so
+        // downstream logs can pair requested-vs-resolved title instead of
+        // just scanning resolved titles for remix/edit keywords.
+        for (const track of result.tracks) {
+            const existingMetadata =
+                track.metadata && typeof track.metadata === 'object'
+                    ? (track.metadata as Record<string, unknown>)
+                    : {}
+            track.setMetadata({ ...existingMetadata, requestedQuery: query })
+        }
+
         if (result.hasPlaylist() || result.tracks.length <= 1) return result
 
         const bestIndex = result.tracks.findIndex((track) => {
