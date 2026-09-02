@@ -325,7 +325,11 @@ describe('preferExactMatch', () => {
         expect(result.setTracks).toHaveBeenCalledWith([tracks[1], tracks[0]])
     })
 
-    it('does not stamp requestedQuery for a URL query', async () => {
+    it.each([
+        ['https://open.spotify.com/track/abc123'],
+        ['HTTP://open.spotify.com/track/abc123'],
+        ['  https://open.spotify.com/track/abc123'],
+    ])('does not stamp requestedQuery for a URL query: %s', async (query) => {
         const tracks = [makeMockTrack('Adicto', 'Prince Royce')]
         const result = {
             hasPlaylist: () => false,
@@ -333,9 +337,7 @@ describe('preferExactMatch', () => {
             setTracks: jest.fn(() => result),
         }
 
-        await preferExactMatch('https://open.spotify.com/track/abc123')(
-            result as any,
-        )
+        await preferExactMatch(query)(result as any)
 
         expect(tracks[0].setMetadata).not.toHaveBeenCalled()
     })
