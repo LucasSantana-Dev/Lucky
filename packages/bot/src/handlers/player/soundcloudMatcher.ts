@@ -35,9 +35,13 @@ export async function refreshSoundCloudClientId(): Promise<void> {
                 'play-dl getFreeClientID',
             )
             await playdl.setToken({ soundcloud: { client_id: clientId } })
-            lastRefreshAt = Date.now()
             infoLog({ message: 'play-dl: SoundCloud client ID initialized' })
         } finally {
+            // Stamp the ATTEMPT, not the success. A refresh that fails (a 10s
+            // getFreeClientID timeout, soundcloud.com unreachable) has to
+            // throttle the next one too, or every following track pays that
+            // same 10s scrape, which is the stall the cooldown exists to stop.
+            lastRefreshAt = Date.now()
             refreshInFlight = null
         }
     })()

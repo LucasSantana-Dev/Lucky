@@ -438,4 +438,22 @@ describe('streamViaSoundCloud – client id refresh', () => {
         // error surfaced untouched instead of paying for a pointless retry.
         expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
     })
+
+    it('throttles the next scrape even when the refresh itself failed', async () => {
+        // The case that matters most: soundcloud.com unreachable. If only a
+        // successful refresh started the cooldown, every following track would
+        // pay another full getFreeClientID timeout.
+        mockGetFreeClientID.mockRejectedValue(new Error('soundcloud.com down'))
+        mockSearch.mockRejectedValue(new Error('401 Unauthorized'))
+
+        await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
+            '401 Unauthorized',
+        )
+        expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
+
+        await expect(streamViaSoundCloud('other song', '3:30')).rejects.toThrow(
+            '401 Unauthorized',
+        )
+        expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
+    })
 })
