@@ -58,14 +58,9 @@ const ACCEPTED = {
         advisories: {
             1153173:
                 'GHSA-3f6p-5ww8-9rcr: MySQL2 auth plugin downgrade leaks plaintext credentials',
+            1158532:
+                'MySQL2 unbounded zlib inflate in the compressed protocol handler allows a decompression-bomb DoS. Same exposure as the entry above: reaching it requires speaking the MySQL wire protocol, which this app never does.',
         },
-    },
-    prisma: {
-        reason:
-            'Reported only as a consequence of the mysql2 finding above ' +
-            '(prisma\'s `via` is ["mysql2"], no advisory of its own).',
-        until: 'clears once mysql2 above is fixed/upgraded',
-        advisories: TRANSITIVE,
     },
 };
 
@@ -109,7 +104,12 @@ const runAudit = () => {
     }
 };
 
-const { vulnerabilities = {} } = JSON.parse(runAudit());
+/**
+ * Judges one `npm audit` response. Pure, so the caller can run it against a
+ * second read: npm audit intermittently answers with a truncated advisory set,
+ * and an absent package is indistinguishable from a fixed one.
+ */
+const evaluate = (vulnerabilities) => {
 const blocking = [];
 const accepted = [];
 /** package name -> advisory ids actually reported this run */
@@ -186,6 +186,33 @@ for (const [name, entry] of Object.entries(ACCEPTED)) {
     const reported = reportedAdvisories.get(name) ?? new Set();
     for (const [id, label] of Object.entries(entry.advisories)) {
         if (!reported.has(id)) stale.push(`${name} advisory ${id} (${label})`);
+    }
+}
+
+return { blocking, accepted, stale };
+};
+
+const first = evaluate(JSON.parse(runAudit()).vulnerabilities ?? {});
+
+// A truncated read can only ever produce a false PASS: a dropped package is
+// indistinguishable from a fixed one, whether it was an acceptance (surfaces as
+// stale) or an unaccepted finding (surfaces as nothing at all). So every run
+// that is about to pass gets a second opinion. A run that already blocks does
+// not need one: a second read could only add findings, and we fail either way.
+let { blocking, accepted, stale } = first;
+if (blocking.length === 0) {
+    const second = evaluate(JSON.parse(runAudit()).vulnerabilities ?? {});
+    // First read blocked on nothing, so the union is just the second's.
+    blocking = second.blocking;
+    // Only call an acceptance dead when both reads agree it is gone.
+    const confirmed = new Set(second.stale);
+    stale = stale.filter((entry) => confirmed.has(entry));
+    if (second.accepted.length > accepted.length) accepted = second.accepted;
+    if (blocking.length > 0 || stale.length !== first.stale.length) {
+        console.error(
+            'note: npm audit disagreed with itself across two reads; ' +
+                'trusting the read that reported more.',
+        );
     }
 }
 

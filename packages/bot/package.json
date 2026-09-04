@@ -27,7 +27,7 @@
         "@lucky/shared": "file:../shared",
         "@sentry/node": "^10.68.0",
         "bullmq": "^6.0.9",
-        "chalk": "^5.6.2",
+        "chalk": "^6.0.0",
         "discord-player": "^7.2.0",
         "discord-player-spotify": "^1.1.9",
         "discord-player-youtubei": "^3.0.0-beta.4",
