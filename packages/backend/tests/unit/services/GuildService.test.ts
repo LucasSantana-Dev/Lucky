@@ -592,6 +592,28 @@ describe('GuildService', () => {
 
             expect(channels).toEqual([])
         })
+
+        test('rejects a non-snowflake guildId without calling fetch or the bot client', async () => {
+            process.env.DISCORD_TOKEN = 'test-bot-token'
+            const fetchSpy = jest.fn()
+            global.fetch = fetchSpy as unknown as typeof fetch
+            const clientFetch = jest.fn()
+
+            setBotClient({
+                guilds: {
+                    cache: new Map(),
+                    fetch: clientFetch,
+                },
+            } as unknown as Client)
+
+            const channels = await guildService.getGuildTextChannelOptions(
+                '123/../../users/@me',
+            )
+
+            expect(channels).toEqual([])
+            expect(fetchSpy).not.toHaveBeenCalled()
+            expect(clientFetch).not.toHaveBeenCalled()
+        })
     })
 
     describe('getGuildDetails', () => {

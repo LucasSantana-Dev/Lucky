@@ -1,6 +1,6 @@
 import WebSocket from 'ws'
 import type { Client } from 'discord.js'
-import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
+import { errorLog, infoLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { getTwitchUserAccessToken } from './token'
 import {
     type NotificationPayload,
@@ -17,7 +17,8 @@ import {
     handleChannelRaid,
 } from './eventsubSubscriptions'
 
-const EVENTSUB_WS_URL = 'wss://eventsub.wss.twitch.tv/ws'
+const EVENTSUB_HOST = 'eventsub.wss.twitch.tv'
+const EVENTSUB_WS_URL = `wss://${EVENTSUB_HOST}/ws`
 const STREAM_ONLINE_TYPE = 'stream.online'
 const STREAM_OFFLINE_TYPE = 'stream.offline'
 const CHANNEL_UPDATE_TYPE = 'channel.update'
@@ -74,6 +75,46 @@ export class TwitchEventSubClient {
         }
         this.client = discordClient
         await this.connect(EVENTSUB_WS_URL)
+    }
+
+    // Twitch's session_reconnect message hands us a URL to reconnect to; only
+    // trust it when it points at the real EventSub host, otherwise fall back
+    // to the known-good constant (SSRF guard). On a match the returned URL is
+    // rebuilt from the EVENTSUB_HOST literal (never from `parsed.host`/the raw
+    // input) so the request's authority can never be attacker-controlled,
+    // even though the path/query below still come from the validated input.
+    // This breaks the taint path structurally for CodeQL js/request-forgery,
+    // instead of just gating the original string behind a boolean check.
+    private resolveConnectUrl(url: string): {
+        url: string
+        wasRejected: boolean
+    } {
+        try {
+            const parsed = new URL(url)
+            // A trailing dot denotes the DNS root and is semantically
+            // identical to the bare hostname (RFC 1034 section 3.1). Strip
+            // it before comparing so a legitimate FQDN reconnect url isn't
+            // rejected on a technicality.
+            const hostname = parsed.hostname.replace(/\.$/, '')
+            if (
+                parsed.protocol === 'wss:' &&
+                hostname === EVENTSUB_HOST &&
+                parsed.port === ''
+            ) {
+                return {
+                    url: `wss://${EVENTSUB_HOST}${parsed.pathname}${parsed.search}`,
+                    wasRejected: false,
+                }
+            }
+        } catch {
+            // Invalid URL - falls through to the warn + default below.
+        }
+        warnLog({
+            message:
+                'Twitch EventSub: rejected reconnect url outside the allowed host, using default',
+            data: { url },
+        })
+        return { url: EVENTSUB_WS_URL, wasRejected: true }
     }
 
     private async connect(url: string): Promise<void> {
@@ -215,7 +256,23 @@ export class TwitchEventSubClient {
                 const p = msg.payload as ReconnectPayload
                 if (p.session.reconnect_url && this.ws) {
                     this.ws.close(1000)
-                    this.connect(p.session.reconnect_url)
+                    const { url: safeUrl, wasRejected } =
+                        this.resolveConnectUrl(p.session.reconnect_url)
+                    if (wasRejected) {
+                        // The given reconnect url wasn't trusted, so this
+                        // isn't a session-preserving reconnect: it's
+                        // effectively a brand-new connection. Clear the
+                        // dedupe sets or the new session's welcome would skip
+                        // every id as "already subscribed" and register zero
+                        // subscriptions (same failure mode as the unexpected
+                        // close reset below, and this path bypasses that one
+                        // since it closes with code 1000).
+                        this.subscribedUserIds.clear()
+                        this.subscribedOfflineIds.clear()
+                        this.subscribedUpdateIds.clear()
+                        this.subscribedRaidIds.clear()
+                    }
+                    this.connect(safeUrl)
                 }
                 break
             }
