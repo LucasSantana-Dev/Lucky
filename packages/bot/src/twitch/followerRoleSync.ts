@@ -6,12 +6,15 @@ import {
 } from '@lucky/shared/services'
 import { getTwitchEnv } from './token'
 
+// #2160 follow-up: an HTTP failure here used to warnLog per link, which
+// bursts once per user on an outage. checkTwitchFollow now only debugLogs
+// per link; the caller aggregates failures into one warnLog per sync run.
 async function checkTwitchFollow(
     twitchUserId: string,
     broadcasterId: string,
     accessToken: string,
     clientId: string,
-): Promise<boolean> {
+): Promise<{ isFollower: boolean; httpErrorStatus?: number }> {
     try {
         const url = new URL('https://api.twitch.tv/helix/channels/followers')
         url.searchParams.set('broadcaster_id', broadcasterId)
@@ -24,15 +27,15 @@ async function checkTwitchFollow(
             signal: AbortSignal.timeout(10_000),
         })
         if (!res.ok) {
-            warnLog({
+            debugLog({
                 message: `Twitch follow check failed ${res.status} for user ${twitchUserId}`,
             })
-            return false
+            return { isFollower: false, httpErrorStatus: res.status }
         }
         const data = (await res.json()) as { total?: number }
-        return (data.total ?? 0) > 0
+        return { isFollower: (data.total ?? 0) > 0 }
     } catch {
-        return false
+        return { isFollower: false }
     }
 }
 
@@ -55,6 +58,8 @@ export async function syncGuildFollowerRoles(
 
     let updated = 0
     let errors = 0
+    let followCheckFailures = 0
+    let firstFollowCheckFailureStatus: number | undefined
 
     const guild = client.guilds.cache.get(guildId)
     if (!guild) return { updated: 0, errors: 0 }
@@ -62,12 +67,18 @@ export async function syncGuildFollowerRoles(
     for (const link of links) {
         try {
             if (config && twitchReady) {
-                const isFollower = await checkTwitchFollow(
+                const followResult = await checkTwitchFollow(
                     link.twitchUserId,
                     config.twitchBroadcasterId,
                     accessToken!,
                     clientId!,
                 )
+                const isFollower = followResult.isFollower
+                if (followResult.httpErrorStatus !== undefined) {
+                    followCheckFailures++
+                    firstFollowCheckFailureStatus ??=
+                        followResult.httpErrorStatus
+                }
 
                 await twitchFollowerRoleService.updateFollowerStatus(
                     link.discordUserId,
@@ -136,6 +147,17 @@ export async function syncGuildFollowerRoles(
                 error,
             })
         }
+    }
+
+    if (followCheckFailures > 0) {
+        warnLog({
+            message: `Twitch follow check failed for ${followCheckFailures} user(s) in guild ${guildId}`,
+            data: {
+                guildId,
+                count: followCheckFailures,
+                firstStatus: firstFollowCheckFailureStatus,
+            },
+        })
     }
 
     return { updated, errors }

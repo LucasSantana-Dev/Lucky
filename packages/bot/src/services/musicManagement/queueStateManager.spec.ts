@@ -157,14 +157,47 @@ describe('queueStateManager', () => {
     })
 
     describe('failure warn throttle (#2160)', () => {
-        it('warns at most once per minute for the same guild', () => {
+        function throwingQueueForGuild(guildId: string): void {
             ;(mockQueue.node?.isPlaying as jest.Mock).mockImplementation(() => {
                 throw new Error('Queue error')
             })
-            ;(mockQueue as { guild?: { id: string } }).guild = { id: 'g1' }
+            ;(mockQueue as { guild?: { id: string } }).guild = { id: guildId }
+        }
+
+        afterEach(() => {
+            jest.useRealTimers()
+        })
+
+        it('warns at most once per minute for the same guild', () => {
+            throwingQueueForGuild('throttle-same-guild')
             getQueueState(mockQueue)
             getQueueState(mockQueue)
             expect(warnLogMock).toHaveBeenCalledTimes(1)
+        })
+
+        it('does not suppress a second guild within the same window', () => {
+            throwingQueueForGuild('throttle-guild-a')
+            getQueueState(mockQueue)
+            throwingQueueForGuild('throttle-guild-b')
+            getQueueState(mockQueue)
+            expect(warnLogMock).toHaveBeenCalledTimes(2)
+        })
+
+        it('warns again for the same guild once the window elapses', () => {
+            jest.useFakeTimers()
+            throwingQueueForGuild('throttle-window-guild')
+            getQueueState(mockQueue)
+            expect(warnLogMock).toHaveBeenCalledTimes(1)
+
+            // Still inside the 1-minute window: suppressed.
+            jest.advanceTimersByTime(59_000)
+            getQueueState(mockQueue)
+            expect(warnLogMock).toHaveBeenCalledTimes(1)
+
+            // Past the window: warns again.
+            jest.advanceTimersByTime(2_000)
+            getQueueState(mockQueue)
+            expect(warnLogMock).toHaveBeenCalledTimes(2)
         })
     })
 

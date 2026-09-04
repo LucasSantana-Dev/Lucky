@@ -1,20 +1,11 @@
 import type { Track, GuildQueue } from 'discord-player'
 import type { QueueState } from '../../utils/music/types'
 import { warnLog } from '@lucky/shared/utils'
+import { createGuildWarnThrottle } from '../../utils/misc/guildWarnThrottle'
 
 // #2160: these getters can be polled often (e.g. by the 30s webMusic publish
 // tick), so cap the warn to once per minute per guild instead of every call.
-const WARN_INTERVAL_MS = 60_000
-const lastWarnAt = new Map<string, number>()
-
-function shouldWarn(guildId: string | undefined): boolean {
-    if (!guildId) return true
-    const now = Date.now()
-    const last = lastWarnAt.get(guildId)
-    if (last !== undefined && now - last < WARN_INTERVAL_MS) return false
-    lastWarnAt.set(guildId, now)
-    return true
-}
+const { shouldWarn } = createGuildWarnThrottle(60_000)
 
 /**
  * Get current queue state

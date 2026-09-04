@@ -438,7 +438,10 @@ export async function getArtistTopTags(
                 `${API_BASE}?method=artist.gettoptags&artist=${encodeURIComponent(trimmed)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
                 { signal: AbortSignal.timeout(15_000) },
             )
-            if (!response.ok) return []
+            if (!response.ok) {
+                warnLastFmHttpError('getArtistTopTags', response)
+                return []
+            }
             const data = (await response.json()) as {
                 error?: number
                 message?: string

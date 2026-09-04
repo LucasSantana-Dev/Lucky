@@ -627,6 +627,17 @@ describe('lastFmApi', () => {
             expect(filtered).toEqual(['jazz', 'fusion'])
         })
 
+        it('returns empty array and warns on HTTP error', async () => {
+            fetchMock.mockResolvedValueOnce({ ok: false })
+            const tags = await getArtistTopTags('Unique HTTP Error Artist')
+            expect(tags).toEqual([])
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'lastFmApi: getArtistTopTags HTTP error',
+                }),
+            )
+        })
+
         it.each([
             [
                 'guard cases',

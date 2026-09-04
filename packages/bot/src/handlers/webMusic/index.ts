@@ -8,20 +8,11 @@ import { infoLog, errorLog, warnLog, debugLog } from '@lucky/shared/utils'
 import { buildQueueState } from './mappers'
 import * as playback from './commandHandlers'
 import * as queue from './queueHandlers'
+import { createGuildWarnThrottle } from '../../utils/misc/guildWarnThrottle'
 
 // #2160: the periodic publish tick runs every 30s, so cap its failure warn to
 // once per minute per guild instead of every tick.
-const WARN_INTERVAL_MS = 60_000
-const lastPublishWarnAt = new Map<string, number>()
-
-function shouldWarnPublishFailure(guildId: string | undefined): boolean {
-    if (!guildId) return true
-    const now = Date.now()
-    const last = lastPublishWarnAt.get(guildId)
-    if (last !== undefined && now - last < WARN_INTERVAL_MS) return false
-    lastPublishWarnAt.set(guildId, now)
-    return true
-}
+const publishWarnThrottle = createGuildWarnThrottle(60_000)
 
 const commandMap: Record<
     string,
@@ -146,7 +137,7 @@ export async function setupWebMusicHandler(
                     }
                 }
             } catch (error) {
-                if (shouldWarnPublishFailure(currentGuildId)) {
+                if (publishWarnThrottle.shouldWarn(currentGuildId)) {
                     warnLog({
                         message: 'Error during periodic state publish',
                         data: {
@@ -172,4 +163,5 @@ export function stopWebMusicHandler(): void {
         clearInterval(webMusicPublishInterval)
         webMusicPublishInterval = null
     }
+    publishWarnThrottle.clear()
 }
