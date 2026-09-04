@@ -87,7 +87,7 @@
         "lint:fix": "npm run lint -- --fix"
     },
     "dependencies": {
-        "@prisma/client": "^7.8.0",
+        "@prisma/client": "^7.10.0",
         "@sentry/node": "^10.68.0",
         "axios": "^1.18.1",
         "bullmq": "^6.0.9",
