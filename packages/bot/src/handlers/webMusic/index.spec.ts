@@ -18,6 +18,7 @@ const buildQueueStateMock = jest.fn(async () => ({
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
+const warnLogMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     musicControlService: {
@@ -31,6 +32,7 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...a: unknown[]) => infoLogMock(...a),
     errorLog: (...a: unknown[]) => errorLogMock(...a),
     debugLog: (...a: unknown[]) => debugLogMock(...a),
+    warnLog: (...a: unknown[]) => warnLogMock(...a),
 }))
 jest.mock('./mappers', () => ({
     buildQueueState: (...a: unknown[]) => buildQueueStateMock(...a),
@@ -89,6 +91,32 @@ describe('setupWebMusicHandler — playerFinish', () => {
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Error publishing queue state after playerFinish:',
+            }),
+        )
+    })
+})
+
+describe('setupWebMusicHandler — periodic publish (#2160)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        jest.useFakeTimers()
+    })
+    afterEach(() => {
+        jest.useRealTimers()
+    })
+
+    it('warns (visible in prod) when the 30s periodic publish tick fails', async () => {
+        const { client } = makeClient()
+        client.player.nodes.cache.set('g1', { guild: { id: 'g1' } })
+        buildQueueStateMock.mockRejectedValueOnce(new Error('boom'))
+        await setupWebMusicHandler(client)
+
+        await jest.advanceTimersByTimeAsync(30000)
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error during periodic state publish',
+                data: expect.objectContaining({ guildId: 'g1' }),
             }),
         )
     })
