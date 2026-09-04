@@ -194,24 +194,24 @@ return { blocking, accepted, stale };
 
 const first = evaluate(JSON.parse(runAudit()).vulnerabilities ?? {});
 
-// A stale acceptance is the one verdict a truncated audit response can fake, and
-// it is fatal, so it gets a second opinion before we act on it. Blocking findings
-// take the union (never drop a real one because a read came back short); stale
-// takes the intersection (never delete an acceptance the registry merely forgot
-// to mention once). Only paid when something already looks stale.
+// A truncated read can only ever produce a false PASS: a dropped package is
+// indistinguishable from a fixed one, whether it was an acceptance (surfaces as
+// stale) or an unaccepted finding (surfaces as nothing at all). So every run
+// that is about to pass gets a second opinion. A run that already blocks does
+// not need one: a second read could only add findings, and we fail either way.
 let { blocking, accepted, stale } = first;
-if (stale.length > 0) {
+if (blocking.length === 0) {
     const second = evaluate(JSON.parse(runAudit()).vulnerabilities ?? {});
+    // First read blocked on nothing, so the union is just the second's.
+    blocking = second.blocking;
+    // Only call an acceptance dead when both reads agree it is gone.
     const confirmed = new Set(second.stale);
     stale = stale.filter((entry) => confirmed.has(entry));
-    const seen = new Set(blocking.map((finding) => finding.name));
-    for (const finding of second.blocking) {
-        if (!seen.has(finding.name)) blocking.push(finding);
-    }
-    if (stale.length !== first.stale.length) {
+    if (second.accepted.length > accepted.length) accepted = second.accepted;
+    if (blocking.length > 0 || stale.length !== first.stale.length) {
         console.error(
             'note: npm audit disagreed with itself across two reads; ' +
-                'kept only the acceptances both runs called stale.',
+                'trusting the read that reported more.',
         );
     }
 }
