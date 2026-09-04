@@ -591,6 +591,14 @@ describe('fallback stage stamping', () => {
         expect(getStreamBridgeFallbackLabel(track)).toBe(
             'SoundCloud title-only search',
         )
+        // #2140: the primary-stage failure must be visible in prod (LOG_LEVEL=2
+        // suppresses debugLog), so it is logged at warnLog, not debugLog.
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message:
+                    'Bridge: SoundCloud primary search failed, retrying with title only',
+            }),
+        )
     })
 
     it('stamps soundcloud-core when only the core-title search resolves', async () => {
@@ -606,6 +614,13 @@ describe('fallback stage stamping', () => {
         await createResilientStream(track)
         expect(getStreamBridgeFallbackLabel(track)).toBe(
             'SoundCloud simplified-title search',
+        )
+        // #2140: the title-only-stage failure must also be visible in prod.
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message:
+                    'Bridge: title-only SoundCloud failed, retrying without parentheticals',
+            }),
         )
     })
 

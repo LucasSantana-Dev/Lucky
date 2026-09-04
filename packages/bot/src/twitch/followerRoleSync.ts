@@ -1,5 +1,5 @@
 import type { Client } from 'discord.js'
-import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
+import { errorLog, infoLog, debugLog, warnLog } from '@lucky/shared/utils'
 import {
     twitchFollowerRoleService,
     twitchSubscriberRoleService,
@@ -24,7 +24,7 @@ async function checkTwitchFollow(
             signal: AbortSignal.timeout(10_000),
         })
         if (!res.ok) {
-            debugLog({
+            warnLog({
                 message: `Twitch follow check failed ${res.status} for user ${twitchUserId}`,
             })
             return false

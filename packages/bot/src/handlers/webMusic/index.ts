@@ -4,10 +4,24 @@ import {
     type MusicCommand,
     type MusicCommandResult,
 } from '@lucky/shared/services'
-import { infoLog, errorLog, debugLog } from '@lucky/shared/utils'
+import { infoLog, errorLog, warnLog, debugLog } from '@lucky/shared/utils'
 import { buildQueueState } from './mappers'
 import * as playback from './commandHandlers'
 import * as queue from './queueHandlers'
+
+// #2160: the periodic publish tick runs every 30s, so cap its failure warn to
+// once per minute per guild instead of every tick.
+const WARN_INTERVAL_MS = 60_000
+const lastPublishWarnAt = new Map<string, number>()
+
+function shouldWarnPublishFailure(guildId: string | undefined): boolean {
+    if (!guildId) return true
+    const now = Date.now()
+    const last = lastPublishWarnAt.get(guildId)
+    if (last !== undefined && now - last < WARN_INTERVAL_MS) return false
+    lastPublishWarnAt.set(guildId, now)
+    return true
+}
 
 const commandMap: Record<
     string,
@@ -120,9 +134,11 @@ export async function setupWebMusicHandler(
             clearInterval(webMusicPublishInterval)
         }
         webMusicPublishInterval = setInterval(async () => {
+            let currentGuildId: string | undefined
             try {
                 for (const queue of client.player.nodes.cache.values()) {
                     if (!queue) continue
+                    currentGuildId = queue.guild.id
                     const state = await buildQueueState(client, queue.guild.id)
                     // Only publish if queue is active (playing or has tracks)
                     if (state.isPlaying || state.tracks.length > 0) {
@@ -130,15 +146,18 @@ export async function setupWebMusicHandler(
                     }
                 }
             } catch (error) {
-                debugLog({
-                    message: 'Error during periodic state publish',
-                    data: {
-                        error:
-                            error instanceof Error
-                                ? error.message
-                                : String(error),
-                    },
-                })
+                if (shouldWarnPublishFailure(currentGuildId)) {
+                    warnLog({
+                        message: 'Error during periodic state publish',
+                        data: {
+                            guildId: currentGuildId,
+                            error:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
+                        },
+                    })
+                }
             }
         }, 30000)
 

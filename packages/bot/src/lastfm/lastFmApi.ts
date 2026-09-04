@@ -8,7 +8,7 @@ import crypto from 'node:crypto'
 import { LRUCache } from 'lru-cache'
 import { lastFmLinkService } from '@lucky/shared/services'
 import { logAndSwallow, logAndWarn } from '@lucky/shared/utils/error'
-import { debugLog } from '@lucky/shared/utils/general/log'
+import { warnLog } from '@lucky/shared/utils/general/log'
 
 const API_BASE = 'https://ws.audioscrobbler.com/2.0/'
 
@@ -21,6 +21,19 @@ export class LastFmSessionExpiredError extends Error {
         super(message)
         this.name = 'LastFmSessionExpiredError'
     }
+}
+
+// #2160: production runs LOG_LEVEL=2 (debugLog is suppressed), so an HTTP
+// error from Last.fm was invisible. One helper for all 5 call sites so the
+// promotion to warnLog lives in a single place.
+function warnLastFmHttpError(context: string, response: Response): void {
+    warnLog({
+        message: `lastFmApi: ${context} HTTP error`,
+        data: {
+            status: response.status,
+            statusText: response.statusText,
+        },
+    })
 }
 
 function getApiConfig(): { apiKey: string; secret: string } | null {
@@ -185,13 +198,7 @@ export async function getTrackMetadata(
                 { signal: AbortSignal.timeout(15_000) },
             )
             if (!response.ok) {
-                debugLog({
-                    message: 'lastFmApi: getTrackMetadata HTTP error',
-                    data: {
-                        status: response.status,
-                        statusText: response.statusText,
-                    },
-                })
+                warnLastFmHttpError('getTrackMetadata', response)
                 return null
             }
             const data = (await response.json()) as {
@@ -371,13 +378,7 @@ export async function getRecentTracks(
             { signal: AbortSignal.timeout(15_000) },
         )
         if (!response.ok) {
-            debugLog({
-                message: 'lastFmApi: getRecentTracks HTTP error',
-                data: {
-                    status: response.status,
-                    statusText: response.statusText,
-                },
-            })
+            warnLastFmHttpError('getRecentTracks', response)
             return []
         }
         const data = (await response.json()) as {
@@ -483,13 +484,7 @@ export async function getSimilarTracks(
             { signal: AbortSignal.timeout(15_000) },
         )
         if (!response.ok) {
-            debugLog({
-                message: 'lastFmApi: getSimilarTracks HTTP error',
-                data: {
-                    status: response.status,
-                    statusText: response.statusText,
-                },
-            })
+            warnLastFmHttpError('getSimilarTracks', response)
             return []
         }
         const data = (await response.json()) as {
@@ -524,13 +519,7 @@ export async function getTagTopTracks(
             { signal: AbortSignal.timeout(15_000) },
         )
         if (!response.ok) {
-            debugLog({
-                message: 'lastFmApi: getTagTopTracks HTTP error',
-                data: {
-                    status: response.status,
-                    statusText: response.statusText,
-                },
-            })
+            warnLastFmHttpError('getTagTopTracks', response)
             return []
         }
         const data = (await response.json()) as {
@@ -563,13 +552,7 @@ export async function getLovedTracks(
             { signal: AbortSignal.timeout(15_000) },
         )
         if (!response.ok) {
-            debugLog({
-                message: 'lastFmApi: getLovedTracks HTTP error',
-                data: {
-                    status: response.status,
-                    statusText: response.statusText,
-                },
-            })
+            warnLastFmHttpError('getLovedTracks', response)
             return []
         }
         const data = (await response.json()) as {

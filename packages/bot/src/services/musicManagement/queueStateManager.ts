@@ -1,6 +1,20 @@
 import type { Track, GuildQueue } from 'discord-player'
 import type { QueueState } from '../../utils/music/types'
-import { debugLog } from '@lucky/shared/utils'
+import { warnLog } from '@lucky/shared/utils'
+
+// #2160: these getters can be polled often (e.g. by the 30s webMusic publish
+// tick), so cap the warn to once per minute per guild instead of every call.
+const WARN_INTERVAL_MS = 60_000
+const lastWarnAt = new Map<string, number>()
+
+function shouldWarn(guildId: string | undefined): boolean {
+    if (!guildId) return true
+    const now = Date.now()
+    const last = lastWarnAt.get(guildId)
+    if (last !== undefined && now - last < WARN_INTERVAL_MS) return false
+    lastWarnAt.set(guildId, now)
+    return true
+}
 
 /**
  * Get current queue state
@@ -30,7 +44,13 @@ export function getQueueState(queue: GuildQueue): QueueState {
             duration,
         }
     } catch (error) {
-        debugLog({ message: 'Error getting queue state:', error })
+        if (shouldWarn(queue.guild?.id)) {
+            warnLog({
+                message: 'Error getting queue state:',
+                error,
+                data: { guildId: queue.guild?.id },
+            })
+        }
         return {
             isPlaying: false,
             isPaused: false,
@@ -98,7 +118,13 @@ export function getQueueStats(queue: GuildQueue): {
             artists: Array.from(artists),
         }
     } catch (error) {
-        debugLog({ message: 'Error getting queue stats:', error })
+        if (shouldWarn(queue.guild?.id)) {
+            warnLog({
+                message: 'Error getting queue stats:',
+                error,
+                data: { guildId: queue.guild?.id },
+            })
+        }
         return {
             totalTracks: 0,
             totalDuration: 0,
@@ -117,7 +143,13 @@ export function getNextTrack(queue: GuildQueue): Track | null {
         const tracks = queue.tracks.toArray()
         return tracks.length > 0 ? tracks[0] : null
     } catch (error) {
-        debugLog({ message: 'Error getting next track:', error })
+        if (shouldWarn(queue.guild?.id)) {
+            warnLog({
+                message: 'Error getting next track:',
+                error,
+                data: { guildId: queue.guild?.id },
+            })
+        }
         return null
     }
 }
@@ -136,7 +168,13 @@ export function getTrackAtPosition(
         }
         return tracks[position]
     } catch (error) {
-        debugLog({ message: 'Error getting track at position:', error })
+        if (shouldWarn(queue.guild?.id)) {
+            warnLog({
+                message: 'Error getting track at position:',
+                error,
+                data: { guildId: queue.guild?.id },
+            })
+        }
         return null
     }
 }
@@ -151,7 +189,13 @@ export function isTrackInQueue(queue: GuildQueue, trackId: string): boolean {
             (track) => track.id === trackId || track.url === trackId,
         )
     } catch (error) {
-        debugLog({ message: 'Error checking if track is in queue:', error })
+        if (shouldWarn(queue.guild?.id)) {
+            warnLog({
+                message: 'Error checking if track is in queue:',
+                error,
+                data: { guildId: queue.guild?.id },
+            })
+        }
         return false
     }
 }
@@ -167,7 +211,13 @@ export function getTrackPosition(queue: GuildQueue, trackId: string): number {
         )
         return index >= 0 ? index : -1
     } catch (error) {
-        debugLog({ message: 'Error getting track position:', error })
+        if (shouldWarn(queue.guild?.id)) {
+            warnLog({
+                message: 'Error getting track position:',
+                error,
+                data: { guildId: queue.guild?.id },
+            })
+        }
         return -1
     }
 }
