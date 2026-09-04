@@ -35,12 +35,16 @@ FROM node:${NODE_VERSION} AS base-runtime
 # yt-dlp is installed into a dedicated venv at /opt/ytdlp so we avoid
 # `--break-system-packages` (Alpine's PEP 668 marker). The venv binary
 # is symlinked into /usr/local/bin so callers don't need to know the path.
+# `apk upgrade` patches Alpine OS packages already present in the base image
+# (e.g. libexpat, pulled in as a python3 dependency) to the current package
+# index, closing CVE-2026-76641 / CVE-2026-66046 (libexpat < 2.8.4-r0).
 RUN apk add --no-cache \
     python3 \
     py3-pip \
     ffmpeg \
     opus \
     opus-tools \
+    && apk upgrade --no-cache \
     && python3 -m venv /opt/ytdlp \
     && /opt/ytdlp/bin/pip install --no-cache-dir --upgrade pip yt-dlp \
     && ln -s /opt/ytdlp/bin/yt-dlp /usr/local/bin/yt-dlp \
