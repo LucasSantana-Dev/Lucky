@@ -226,6 +226,66 @@ describe('replenishQueue', () => {
         await result
     })
 
+    // #2146: production runs LOG_LEVEL=2, so the per-source breakdown that
+    // used to sit on the debug line below this warn was invisible exactly
+    // when it was needed. These pin it to the warn.
+    it('reports the per-source breakdown when no candidates are selected', async () => {
+        const { warnLog } = require('@lucky/shared/utils')
+        const queue = createGuildQueue()
+
+        await replenishQueue(queue)
+
+        const call = warnLog.mock.calls.find(
+            ([arg]: [{ message: string }]) =>
+                arg.message ===
+                'Autoplay: no candidates selected — queue may stall',
+        )
+        expect(call).toBeDefined()
+        expect(call[0].data).toEqual(
+            expect.objectContaining({
+                candidatePoolSize: 0,
+                sources: {
+                    recommendation: 0,
+                    seedSimilar: 0,
+                    lastfm: 0,
+                    fallback: 0,
+                    genre: 0,
+                },
+                hasRequester: false,
+            }),
+        )
+    })
+
+    it('distinguishes a collector that ran and found nothing from a skipped one', async () => {
+        const { warnLog } = require('@lucky/shared/utils')
+        const {
+            collectRecommendationCandidates,
+        } = require('./candidateCollector')
+        // Pool is non-empty, but nothing survives selection. Proves the
+        // breakdown reports real counts rather than a hardcoded zero.
+        collectRecommendationCandidates.mockResolvedValue(
+            new Map([
+                ['a', { track: createTrack() }],
+                ['b', { track: createTrack() }],
+            ]),
+        )
+        const queue = createGuildQueue({
+            metadata: { requestedBy: { id: 'u1' } },
+        } as Partial<GuildQueue>)
+
+        await replenishQueue(queue)
+
+        const call = warnLog.mock.calls.find(
+            ([arg]: [{ message: string }]) =>
+                arg.message ===
+                'Autoplay: no candidates selected — queue may stall',
+        )
+        expect(call).toBeDefined()
+        expect(call[0].data.candidatePoolSize).toBe(2)
+        expect(call[0].data.sources.recommendation).toBe(2)
+        expect(call[0].data.hasRequester).toBe(true)
+    })
+
     it('should serialize concurrent calls with locks', async () => {
         const queue = createGuildQueue()
 
