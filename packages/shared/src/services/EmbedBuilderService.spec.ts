@@ -1,14 +1,32 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 
-const mockFindFirst = jest.fn<any>()
-const mockCreate = jest.fn<any>()
-const mockUpdate = jest.fn<any>()
-const mockFindMany = jest.fn<any>()
-const mockDeleteMany = jest.fn<any>()
-const mockUpdateMany = jest.fn<any>()
-const mockFindUnique = jest.fn<any>()
-const mockExecuteRaw = jest.fn<any>()
-const mockTransaction = jest.fn<any>()
+const mockFindFirst = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockCreate = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockUpdate = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockFindMany = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockDeleteMany = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockUpdateMany = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockFindUnique = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockExecuteRaw = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockTransaction = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
 
 const mockPrismaClient = {
     embedTemplate: {
@@ -244,15 +262,23 @@ describe('EmbedBuilderService', () => {
 
     describe('upsertTemplate', () => {
         it('creates template when not found', async () => {
-            const txCreate = jest.fn<any>()
-            const txFindUnique = jest.fn<any>()
+            const txCreate = jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >
+            const txFindUnique = jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >
             const mockTx = {
                 embedTemplate: {
                     findUnique: txFindUnique,
                     create: txCreate,
-                    update: jest.fn<any>(),
+                    update: jest.fn() as jest.MockedFunction<
+                        (...args: any[]) => Promise<any>
+                    >,
                 },
-                $executeRaw: jest.fn<any>(),
+                $executeRaw: jest.fn() as jest.MockedFunction<
+                    (...args: any[]) => Promise<any>
+                >,
             }
 
             txFindUnique.mockResolvedValue(null)
@@ -302,15 +328,23 @@ describe('EmbedBuilderService', () => {
         })
 
         it('updates template when already exists', async () => {
-            const txFindUnique = jest.fn<any>()
-            const txUpdate = jest.fn<any>()
+            const txFindUnique = jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >
+            const txUpdate = jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >
             const mockTx = {
                 embedTemplate: {
                     findUnique: txFindUnique,
-                    create: jest.fn<any>(),
+                    create: jest.fn() as jest.MockedFunction<
+                        (...args: any[]) => Promise<any>
+                    >,
                     update: txUpdate,
                 },
-                $executeRaw: jest.fn<any>(),
+                $executeRaw: jest.fn() as jest.MockedFunction<
+                    (...args: any[]) => Promise<any>
+                >,
             }
 
             txFindUnique.mockResolvedValue({ id: 'tmpl-1' })
@@ -346,14 +380,22 @@ describe('EmbedBuilderService', () => {
         })
 
         it('normalizes template name in upsert', async () => {
-            const txFindUnique = jest.fn<any>()
+            const txFindUnique = jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >
             const mockTx = {
                 embedTemplate: {
                     findUnique: txFindUnique,
-                    create: jest.fn<any>(),
-                    update: jest.fn<any>(),
+                    create: jest.fn() as jest.MockedFunction<
+                        (...args: any[]) => Promise<any>
+                    >,
+                    update: jest.fn() as jest.MockedFunction<
+                        (...args: any[]) => Promise<any>
+                    >,
                 },
-                $executeRaw: jest.fn<any>(),
+                $executeRaw: jest.fn() as jest.MockedFunction<
+                    (...args: any[]) => Promise<any>
+                >,
             }
 
             txFindUnique.mockResolvedValue(null)
@@ -376,15 +418,23 @@ describe('EmbedBuilderService', () => {
         })
 
         it('uses Prisma.JsonNull when fields is undefined in upsert', async () => {
-            const txFindUnique = jest.fn<any>()
-            const txCreate = jest.fn<any>()
+            const txFindUnique = jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >
+            const txCreate = jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >
             const mockTx = {
                 embedTemplate: {
                     findUnique: txFindUnique,
                     create: txCreate,
-                    update: jest.fn<any>(),
+                    update: jest.fn() as jest.MockedFunction<
+                        (...args: any[]) => Promise<any>
+                    >,
                 },
-                $executeRaw: jest.fn<any>(),
+                $executeRaw: jest.fn() as jest.MockedFunction<
+                    (...args: any[]) => Promise<any>
+                >,
             }
 
             txFindUnique.mockResolvedValue(null)
@@ -402,15 +452,23 @@ describe('EmbedBuilderService', () => {
 
         it('handles fields in upsert payload', async () => {
             const fields = [{ name: 'Field1', value: 'Value1' }]
-            const txFindUnique = jest.fn<any>()
-            const txCreate = jest.fn<any>()
+            const txFindUnique = jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >
+            const txCreate = jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >
             const mockTx = {
                 embedTemplate: {
                     findUnique: txFindUnique,
                     create: txCreate,
-                    update: jest.fn<any>(),
+                    update: jest.fn() as jest.MockedFunction<
+                        (...args: any[]) => Promise<any>
+                    >,
                 },
-                $executeRaw: jest.fn<any>(),
+                $executeRaw: jest.fn() as jest.MockedFunction<
+                    (...args: any[]) => Promise<any>
+                >,
             }
 
             txFindUnique.mockResolvedValue(null)

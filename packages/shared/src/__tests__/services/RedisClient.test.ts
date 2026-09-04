@@ -1,7 +1,7 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 
 // Mock ioredis — controllable per test
-const mockIoredisConstructor = jest.fn<any>()
+const mockIoredisConstructor = jest.fn()
 
 jest.mock('ioredis', () => {
     return mockIoredisConstructor

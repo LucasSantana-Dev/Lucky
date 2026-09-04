@@ -2,9 +2,13 @@ import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import { RecommendationSource } from '../types'
 
 // Mock functions defined first (before jest.mock calls)
-const mockGroupBy = jest.fn<any>()
-const mockCount = jest.fn<any>()
-const mockGetPrismaClient = jest.fn<any>()
+const mockGroupBy = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockCount = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockGetPrismaClient = jest.fn()
 
 jest.mock('../utils/database/prismaClient', () => ({
     getPrismaClient: mockGetPrismaClient,
