@@ -1,7 +1,11 @@
 import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals'
 
-const mockFindUnique = jest.fn<any>()
-const mockUpsert = jest.fn<any>()
+const mockFindUnique = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockUpsert = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
 const mockPrismaClient = {
     globalFeatureToggle: {
         findUnique: (...args: unknown[]) => mockFindUnique(...args),
