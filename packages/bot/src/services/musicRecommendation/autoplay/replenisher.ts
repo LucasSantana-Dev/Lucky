@@ -159,7 +159,6 @@ async function _replenishQueue(
 ): Promise<void> {
     const startTime = Date.now()
     const guildId = queue.guild.id
-    let candidatePoolSize = 0
     const sourcesCounts = {
         recommendation: 0,
         seedSimilar: 0,
@@ -423,7 +422,6 @@ async function _replenishQueue(
             blockSertanejo,
         )
         sourcesCounts.recommendation = candidates.size
-        candidatePoolSize = candidates.size
         debugLog({
             message: 'Autoplay: recommendation candidates',
             data: { guildId, count: candidates.size, source: 'recommendation' },
@@ -640,7 +638,10 @@ async function _replenishQueue(
                 guildId,
                 tracksAdded: enriched.length,
                 newQueueSize: queue.tracks.size,
-                candidatePoolSize,
+                // #2147: read the final pool size directly (as the warn path
+                // below already does), not a variable assigned once after the
+                // first of five collectors.
+                candidatePoolSize: candidates.size,
                 durationMs: Date.now() - startTime,
                 sources: sourcesCounts,
             },
