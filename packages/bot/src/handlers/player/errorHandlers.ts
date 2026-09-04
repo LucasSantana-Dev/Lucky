@@ -83,7 +83,10 @@ function safeErrorLog(payload: {
     try {
         errorLog(payload)
     } catch (error) {
-        debugLog({ message: 'errorHandlers: errorLog failed', error })
+        // errorLog itself failed, so fall back to console.error, which does
+        // not depend on the logger that just threw, keeping the original
+        // player error from being lost.
+        console.error(payload.message, payload.error, payload.data, error)
     }
 }
 
