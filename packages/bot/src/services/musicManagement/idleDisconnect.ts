@@ -64,8 +64,8 @@ async function disconnectIdle(queue: GuildQueue): Promise<void> {
                     '👋 Left the voice channel due to inactivity.',
                 )
             } catch (error) {
-                // Farewell message failures are cosmetic — keep at debug so
-                // they can't mask a real teardown failure above.
+                // Farewell message failures are cosmetic, so keep them at
+                // debug: they can't mask a real teardown failure above.
                 debugLog({
                     message: 'Failed to send idle disconnect farewell message',
                     data: { guildId, error: String(error) },
