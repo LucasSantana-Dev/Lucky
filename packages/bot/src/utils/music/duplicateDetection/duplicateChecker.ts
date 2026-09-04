@@ -1,10 +1,12 @@
 import type { Track } from 'discord-player'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
-import { trackHistoryService } from '@lucky/shared/services'
+import {
+    trackHistoryService,
+    type TrackHistoryEntry,
+} from '@lucky/shared/services'
 import { areTracksSimilar, calculateSimilarityScore } from './similarityChecker'
 import { extractTags } from './tagExtractor'
 import type { DuplicateCheckResult, SimilarityConfig } from './types'
-// import type { TrackLike } from '../../../types/music'
 
 async function checkExactUrlMatch(
     _track: Track,
@@ -15,7 +17,7 @@ async function checkExactUrlMatch(
 
 async function checkSimilarTracks(
     track: Track,
-    recentHistory: Track[],
+    recentHistory: (Track | TrackHistoryEntry)[],
     config: SimilarityConfig,
     guildId: string,
 ): Promise<DuplicateCheckResult | null> {
@@ -32,17 +34,22 @@ async function checkSimilarTracks(
         return {
             isDuplicate: true,
             reason: `Similar track found (${Math.round(maxSimilarity * 100)}% similarity)`,
-            similarTracks: similarTracks.map((t) => ({
-                trackId: t.id || t.url,
-                title: t.title,
-                author: t.author,
-                duration: t.duration,
-                url: t.url,
-                timestamp: Date.now(),
-                guildId: guildId,
-                playedBy: t.requestedBy?.id || 'unknown',
-                isAutoplay: false,
-            })),
+            similarTracks: similarTracks.map((t) => {
+                const isHistoryEntry = 'trackId' in t
+                return {
+                    trackId: isHistoryEntry ? t.trackId : t.id || t.url,
+                    title: t.title,
+                    author: t.author,
+                    duration: t.duration,
+                    url: t.url,
+                    timestamp: isHistoryEntry ? t.timestamp : Date.now(),
+                    guildId: guildId,
+                    playedBy: isHistoryEntry
+                        ? t.playedBy || 'unknown'
+                        : t.requestedBy?.id || 'unknown',
+                    isAutoplay: isHistoryEntry ? t.isAutoplay : false,
+                }
+            }),
             confidence: maxSimilarity,
         }
     }
@@ -51,7 +58,7 @@ async function checkSimilarTracks(
 
 async function checkSameArtistTracks(
     track: Track,
-    recentHistory: Track[],
+    recentHistory: (Track | TrackHistoryEntry)[],
     guildId: string,
 ): Promise<DuplicateCheckResult | null> {
     const sameArtistTracks = recentHistory.filter(
@@ -63,17 +70,22 @@ async function checkSameArtistTracks(
         return {
             isDuplicate: true,
             reason: 'Too many tracks from the same artist recently',
-            similarTracks: sameArtistTracks.slice(0, 3).map((t) => ({
-                trackId: t.id || t.url,
-                title: t.title,
-                author: t.author,
-                duration: t.duration,
-                url: t.url,
-                timestamp: Date.now(),
-                guildId: guildId,
-                playedBy: t.requestedBy?.id || 'unknown',
-                isAutoplay: false,
-            })),
+            similarTracks: sameArtistTracks.slice(0, 3).map((t) => {
+                const isHistoryEntry = 'trackId' in t
+                return {
+                    trackId: isHistoryEntry ? t.trackId : t.id || t.url,
+                    title: t.title,
+                    author: t.author,
+                    duration: t.duration,
+                    url: t.url,
+                    timestamp: isHistoryEntry ? t.timestamp : Date.now(),
+                    guildId: guildId,
+                    playedBy: isHistoryEntry
+                        ? t.playedBy || 'unknown'
+                        : t.requestedBy?.id || 'unknown',
+                    isAutoplay: isHistoryEntry ? t.isAutoplay : false,
+                }
+            }),
             confidence: 0.6,
         }
     }
@@ -92,7 +104,10 @@ export async function checkForDuplicate(
         const exactMatch = await checkExactUrlMatch(track, guildId)
         if (exactMatch) return exactMatch
 
-        const recentHistory: Track[] = []
+        const recentHistory = await trackHistoryService.getTrackHistory(
+            guildId,
+            20,
+        )
 
         const similarMatch = await checkSimilarTracks(
             track,
