@@ -34,6 +34,7 @@ jobs:
     destructive-interaction-gate:
         name: Destructive interaction gate
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         steps:
             - name: Merge-queue short-circuit
               if: github.event_name == 'merge_group'
