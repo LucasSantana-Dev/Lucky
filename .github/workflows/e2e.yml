@@ -1,0 +1,69 @@
+name: Frontend E2E
+
+on:
+    pull_request:
+        branches: [main, 'release/**']
+        paths:
+            - 'packages/frontend/**'
+            - 'packages/shared/**'
+            - 'package.json'
+            - 'package-lock.json'
+            - '.github/workflows/e2e.yml'
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    e2e:
+        name: Playwright — frontend
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        env:
+            # This job runs a bare `npm ci` (needs the frontend build), so unlike
+            # ci.yml/madge it can't use --ignore-scripts. Without this,
+            # youtube-dl-exec's postinstall fetches the yt-dlp binary from GitHub
+            # unauthenticated (~60/hr/IP) and flakes red on shared-runner rate
+            # limits (#1827), matching bundle-size.yml's convention.
+            YOUTUBE_DL_SKIP_DOWNLOAD: 'true'
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+              with:
+                  persist-credentials: false
+
+            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+              with:
+                  node-version: '24'
+                  cache: 'npm'
+
+            - name: Install dependencies
+              run: npm ci --legacy-peer-deps
+
+            - name: Generate Prisma client
+              run: npm run db:generate
+
+            - name: Build shared package
+              run: npm run build:shared
+
+            - name: Install Playwright chromium
+              run: npx playwright install --with-deps chromium
+              working-directory: packages/frontend
+
+            # visual/ is excluded: its baseline PNGs were captured on macOS
+            # (*-chromium-darwin.png) and have no Linux counterpart, so
+            # toHaveScreenshot() fails on every run here regardless of the
+            # app under test. Tracked as follow-up (see PR description).
+            - name: Run frontend e2e tests
+              run: npx playwright test tests/e2e/*.spec.ts tests/e2e/performance --project=chromium --reporter=list
+              working-directory: packages/frontend
+
+            - name: Upload Playwright report
+              if: failure()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+              with:
+                  name: playwright-report
+                  path: packages/frontend/playwright-report
+                  retention-days: 7
