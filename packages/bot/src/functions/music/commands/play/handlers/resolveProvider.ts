@@ -78,6 +78,26 @@ export function preferExactMatch(
     }
 }
 
+// #2145: discord-player-spotify's client-credentials search() (used for
+// plain-text queries) wraps its whole HTTP round trip — including the
+// client-credentials token fetch — in a bare try/catch that swallows any
+// failure into a plain empty result, which surfaces here as NoResultError.
+// A transient token/network hiccup and a genuine no-match are therefore
+// indistinguishable from this side, but only the token/network case is
+// worth retrying: the library's GraphQL search path already retries on its
+// own, this one doesn't. One immediate retry is safe because search()
+// throwing means no queue/voice connection was created yet.
+//
+// NoResultError is not part of discord-player's public exports (checked
+// dist/index.js and dist/index.d.ts — not in either), so `instanceof` isn't
+// available here. discord-player's DiscordPlayerError base class sets
+// `this.name = this.constructor.name` on every instance, so `.name` is a
+// stable, instance-level check rather than depending on constructor
+// identity across module boundaries.
+function isNoResultError(error: unknown): boolean {
+    return error instanceof Error && error.name === 'NoResultError'
+}
+
 export type PlayResolutionArm =
     'primary' | 'youtube-fallback' | 'soundcloud-fallback' | 'failed'
 
@@ -126,13 +146,39 @@ export async function resolveQueryWithFallbacks(
         return { result, telemetry }
     } catch (primaryError) {
         if (searchEngine !== QueryType.AUTO) {
+            // Retry the primary provider once before conceding to YouTube.
+            // Scoped to Spotify: the swallowed-failure behavior this works
+            // around (see isNoResultError above) is specific to
+            // discord-player-spotify's client-credentials search(). An
+            // explicit YouTube/SoundCloud NoResultError is a real no-match
+            // from a provider with no such bug, so it should fall straight
+            // through to the next fallback instead of paying a retry.
+            let lastPrimaryError = primaryError
+            if (
+                searchEngine === QueryType.SPOTIFY_SEARCH &&
+                isNoResultError(primaryError)
+            ) {
+                try {
+                    const result = await player.play(
+                        voiceChannel,
+                        query,
+                        resolvedPlayOptions,
+                    )
+                    telemetry.latencyMs = Date.now() - startTime
+                    telemetry.resolvedVia = 'primary'
+                    return { result, telemetry }
+                } catch (retryError) {
+                    lastPrimaryError = retryError
+                }
+            }
+
             warnLog({
                 message: 'Primary search failed, falling back to YouTube',
                 data: {
                     query,
                     requestedProvider,
                     searchEngine: String(searchEngine),
-                    error: String(primaryError),
+                    error: String(lastPrimaryError),
                 },
             })
 
