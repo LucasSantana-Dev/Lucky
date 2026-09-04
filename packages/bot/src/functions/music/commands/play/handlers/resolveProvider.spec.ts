@@ -300,6 +300,31 @@ describe('resolveQueryWithFallbacks', () => {
             expect(mockPlayer.play).toHaveBeenCalledTimes(2)
             expect(telemetry.resolvedVia).toBe('youtube-fallback')
         })
+
+        it('does not retry a NoResultError when the primary provider is YouTube', async () => {
+            const noResultError = new NoResultError('No results found')
+            const mockTrack = { title: 'Test Song' }
+
+            mockPlayer.play
+                .mockRejectedValueOnce(noResultError)
+                .mockResolvedValueOnce(mockTrack)
+
+            const { telemetry } = await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'test query',
+                'youtube',
+                QueryType.YOUTUBE_SEARCH,
+                mockPlayOptions,
+            )
+
+            // The retry exists for Spotify's swallowed client-credentials
+            // failure only. An explicit YouTube no-result is a real
+            // no-match, so it goes straight to the next fallback arm — one
+            // primary call, then one YouTube-fallback call.
+            expect(mockPlayer.play).toHaveBeenCalledTimes(2)
+            expect(telemetry.resolvedVia).toBe('youtube-fallback')
+        })
     })
 
     describe('failure handling', () => {

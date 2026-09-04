@@ -87,8 +87,15 @@ export function preferExactMatch(
 // worth retrying: the library's GraphQL search path already retries on its
 // own, this one doesn't. One immediate retry is safe because search()
 // throwing means no queue/voice connection was created yet.
+//
+// NoResultError is not part of discord-player's public exports (checked
+// dist/index.js and dist/index.d.ts — not in either), so `instanceof` isn't
+// available here. discord-player's DiscordPlayerError base class sets
+// `this.name = this.constructor.name` on every instance, so `.name` is a
+// stable, instance-level check rather than depending on constructor
+// identity across module boundaries.
 function isNoResultError(error: unknown): boolean {
-    return error instanceof Error && error.constructor.name === 'NoResultError'
+    return error instanceof Error && error.name === 'NoResultError'
 }
 
 export type PlayResolutionArm =
@@ -140,10 +147,17 @@ export async function resolveQueryWithFallbacks(
     } catch (primaryError) {
         if (searchEngine !== QueryType.AUTO) {
             // Retry the primary provider once before conceding to YouTube.
-            // See isNoResultError above for why this is scoped to that
-            // error and safe to retry.
+            // Scoped to Spotify: the swallowed-failure behavior this works
+            // around (see isNoResultError above) is specific to
+            // discord-player-spotify's client-credentials search(). An
+            // explicit YouTube/SoundCloud NoResultError is a real no-match
+            // from a provider with no such bug, so it should fall straight
+            // through to the next fallback instead of paying a retry.
             let lastPrimaryError = primaryError
-            if (isNoResultError(primaryError)) {
+            if (
+                searchEngine === QueryType.SPOTIFY_SEARCH &&
+                isNoResultError(primaryError)
+            ) {
                 try {
                     const result = await player.play(
                         voiceChannel,
