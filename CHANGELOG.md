@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.41.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.41.0...v2.41.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* **bot:** log the autoplay source breakdown on an empty pool ([#2149](https://github.com/LucasSantana-Dev/Lucky/issues/2149)) ([10f12cf](https://github.com/LucasSantana-Dev/Lucky/commit/10f12cf21c862efed7434fcb507b801921783311))
+* **bot:** refresh the soundcloud client id instead of trusting boot ([#2144](https://github.com/LucasSantana-Dev/Lucky/issues/2144)) ([3274aa9](https://github.com/LucasSantana-Dev/Lucky/commit/3274aa97f0965b9a4ddb447dcaaf4292092f1609))
+* **deps:** bump fast-uri past the ssrf advisories, refresh audit gate ([#2148](https://github.com/LucasSantana-Dev/Lucky/issues/2148)) ([d67daa7](https://github.com/LucasSantana-Dev/Lucky/commit/d67daa7c7933774ad008e9b928706e7ec9b4bf77))
+
 ## [2.41.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.40.3...v2.41.0) (2026-09-02)
 
 
