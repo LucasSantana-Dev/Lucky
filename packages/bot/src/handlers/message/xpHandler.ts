@@ -1,6 +1,6 @@
 import type { Message, TextChannel } from 'discord.js'
 import { levelService } from '@lucky/shared/services'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, warnLog } from '@lucky/shared/utils'
 import type {
     MessageContext,
     MessageHandler,
@@ -63,7 +63,17 @@ export const xpHandler: MessageHandler = {
                 if (reward) {
                     await context.member.roles
                         .add(reward.roleId)
-                        .catch(() => {})
+                        .catch((error: unknown) =>
+                            warnLog({
+                                message: 'xp: reward role assignment failed',
+                                data: {
+                                    guildId,
+                                    roleId: reward.roleId,
+                                    userId,
+                                    error: String(error),
+                                },
+                            }),
+                        )
                 }
             }
 
