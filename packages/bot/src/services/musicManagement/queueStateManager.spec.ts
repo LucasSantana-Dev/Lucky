@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { GuildQueue, Track } from 'discord-player'
 
-const debugLogMock = jest.fn()
+const warnLogMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
-    debugLog: (...args: unknown[]) => debugLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 import {
@@ -136,9 +136,10 @@ describe('queueStateManager', () => {
                 position: 0,
                 duration: 0,
             })
-            expect(debugLogMock).toHaveBeenCalledWith({
+            expect(warnLogMock).toHaveBeenCalledWith({
                 message: 'Error getting queue state:',
                 error: expect.any(Error),
+                data: { guildId: undefined },
             })
         })
 
@@ -152,6 +153,51 @@ describe('queueStateManager', () => {
             expect(state.isPlaying).toBe(false)
             expect(state.isPaused).toBe(true)
             expect(state.repeatMode).toBe('QUEUE')
+        })
+    })
+
+    describe('failure warn throttle (#2160)', () => {
+        function throwingQueueForGuild(guildId: string): void {
+            ;(mockQueue.node?.isPlaying as jest.Mock).mockImplementation(() => {
+                throw new Error('Queue error')
+            })
+            ;(mockQueue as { guild?: { id: string } }).guild = { id: guildId }
+        }
+
+        afterEach(() => {
+            jest.useRealTimers()
+        })
+
+        it('warns at most once per minute for the same guild', () => {
+            throwingQueueForGuild('throttle-same-guild')
+            getQueueState(mockQueue)
+            getQueueState(mockQueue)
+            expect(warnLogMock).toHaveBeenCalledTimes(1)
+        })
+
+        it('does not suppress a second guild within the same window', () => {
+            throwingQueueForGuild('throttle-guild-a')
+            getQueueState(mockQueue)
+            throwingQueueForGuild('throttle-guild-b')
+            getQueueState(mockQueue)
+            expect(warnLogMock).toHaveBeenCalledTimes(2)
+        })
+
+        it('warns again for the same guild once the window elapses', () => {
+            jest.useFakeTimers()
+            throwingQueueForGuild('throttle-window-guild')
+            getQueueState(mockQueue)
+            expect(warnLogMock).toHaveBeenCalledTimes(1)
+
+            // Still inside the 1-minute window: suppressed.
+            jest.advanceTimersByTime(59_000)
+            getQueueState(mockQueue)
+            expect(warnLogMock).toHaveBeenCalledTimes(1)
+
+            // Past the window: warns again.
+            jest.advanceTimersByTime(2_000)
+            getQueueState(mockQueue)
+            expect(warnLogMock).toHaveBeenCalledTimes(2)
         })
     })
 
@@ -280,9 +326,10 @@ describe('queueStateManager', () => {
                 genres: [],
                 artists: [],
             })
-            expect(debugLogMock).toHaveBeenCalledWith({
+            expect(warnLogMock).toHaveBeenCalledWith({
                 message: 'Error getting queue stats:',
                 error: expect.any(Error),
+                data: { guildId: undefined },
             })
         })
     })
@@ -307,9 +354,10 @@ describe('queueStateManager', () => {
         it('returns null on exception and logs it', () => {
             withTracksThrow()
             expect(getNextTrack(mockQueue)).toBeNull()
-            expect(debugLogMock).toHaveBeenCalledWith({
+            expect(warnLogMock).toHaveBeenCalledWith({
                 message: 'Error getting next track:',
                 error: expect.any(Error),
+                data: { guildId: undefined },
             })
         })
     })
@@ -334,9 +382,10 @@ describe('queueStateManager', () => {
         it('returns null on exception and logs it', () => {
             withTracksThrow()
             expect(getTrackAtPosition(mockQueue, 0)).toBeNull()
-            expect(debugLogMock).toHaveBeenCalledWith({
+            expect(warnLogMock).toHaveBeenCalledWith({
                 message: 'Error getting track at position:',
                 error: expect.any(Error),
+                data: { guildId: undefined },
             })
         })
     })
@@ -369,9 +418,10 @@ describe('queueStateManager', () => {
         it('returns false on exception and logs it', () => {
             withTracksThrow()
             expect(isTrackInQueue(mockQueue, 'track-1')).toBe(false)
-            expect(debugLogMock).toHaveBeenCalledWith({
+            expect(warnLogMock).toHaveBeenCalledWith({
                 message: 'Error checking if track is in queue:',
                 error: expect.any(Error),
+                data: { guildId: undefined },
             })
         })
     })
@@ -398,9 +448,10 @@ describe('queueStateManager', () => {
         it('returns -1 on exception and logs it', () => {
             withTracksThrow()
             expect(getTrackPosition(mockQueue, 'track-1')).toBe(-1)
-            expect(debugLogMock).toHaveBeenCalledWith({
+            expect(warnLogMock).toHaveBeenCalledWith({
                 message: 'Error getting track position:',
                 error: expect.any(Error),
+                data: { guildId: undefined },
             })
         })
     })

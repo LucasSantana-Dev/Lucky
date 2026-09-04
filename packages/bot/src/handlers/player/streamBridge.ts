@@ -386,7 +386,7 @@ export async function createResilientStream(
         stampFallbackStage(track, 'soundcloud-full')
         return stream
     } catch (primaryError) {
-        debugLog({
+        warnLog({
             message:
                 'Bridge: SoundCloud primary search failed, retrying with title only',
             data: {
@@ -401,7 +401,7 @@ export async function createResilientStream(
         stampFallbackStage(track, 'soundcloud-title')
         return stream
     } catch (titleOnlyError) {
-        debugLog({
+        warnLog({
             message:
                 'Bridge: title-only SoundCloud failed, retrying without parentheticals',
             data: {

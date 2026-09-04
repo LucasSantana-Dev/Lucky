@@ -1,5 +1,5 @@
 import type { Track } from 'discord-player'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { trackHistoryService } from '@lucky/shared/services'
 import { areTracksSimilar, calculateSimilarityScore } from './similarityChecker'
 import { extractTags } from './tagExtractor'
@@ -113,7 +113,7 @@ export async function checkForDuplicate(
             isDuplicate: false,
         }
     } catch (error) {
-        debugLog({
+        warnLog({
             message: 'Error checking for duplicates',
             error,
         })
