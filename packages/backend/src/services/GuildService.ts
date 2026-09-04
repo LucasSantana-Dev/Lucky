@@ -15,6 +15,7 @@ import {
     type RoleUpsertData,
 } from './RoleService'
 import { debugLog, errorLog } from '@lucky/shared/utils'
+import { isSnowflakeId } from '../schemas/common'
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
 const BOT_GUILD_CACHE_TTL_MS = 60_000
@@ -222,6 +223,11 @@ class GuildService {
         userId: string,
     ): Promise<GuildMemberContext> {
         const fallback: GuildMemberContext = { nickname: null, roleIds: [] }
+
+        if (!isSnowflakeId(guildId)) {
+            return fallback
+        }
+
         const client = this.getBotClient()
 
         if (client) {
@@ -290,6 +296,10 @@ class GuildService {
     async getGuildTextChannelOptions(
         guildId: string,
     ): Promise<GuildChannelOption[]> {
+        if (!isSnowflakeId(guildId)) {
+            return []
+        }
+
         const client = this.getBotClient()
 
         if (client) {

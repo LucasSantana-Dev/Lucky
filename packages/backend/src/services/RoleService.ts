@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { Guild, Role } from 'discord.js'
 import { getClient, getServableGuild } from '../utils/discordClientAccessor'
 import { debugLog, errorLog } from '@lucky/shared/utils'
+import { isSnowflakeId } from '../schemas/common'
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
 // Discord permission bitfield literal representing zero permissions granted
@@ -304,6 +305,10 @@ class RoleService {
     }
 
     async getGuildRoleOptions(guildId: string): Promise<GuildRoleOption[]> {
+        if (!isSnowflakeId(guildId)) {
+            return []
+        }
+
         const clientRoles = await this.fetchClientGuildRoles(
             guildId,
             'Failed to fetch guild roles from bot client',
@@ -325,6 +330,10 @@ class RoleService {
     }
 
     async getFullGuildRoles(guildId: string): Promise<GuildRoleManage[]> {
+        if (!isSnowflakeId(guildId)) {
+            return []
+        }
+
         const clientRoles = await this.fetchClientGuildRoles(
             guildId,
             'Failed to fetch full guild roles from bot client',
@@ -349,6 +358,10 @@ class RoleService {
         guildId: string,
         data: RoleUpsertData,
     ): Promise<GuildRoleManage> {
+        if (!isSnowflakeId(guildId)) {
+            throw new Error('Invalid Discord guild id')
+        }
+
         const guild = await getServableGuild(guildId)
 
         if (guild) {
@@ -371,6 +384,10 @@ class RoleService {
         roleId: string,
         data: RoleUpsertData,
     ): Promise<GuildRoleManage> {
+        if (!isSnowflakeId(guildId)) {
+            throw new Error('Invalid Discord guild id')
+        }
+
         const guild = await getServableGuild(guildId)
 
         if (guild) {
@@ -390,6 +407,10 @@ class RoleService {
     }
 
     async deleteGuildRole(guildId: string, roleId: string): Promise<void> {
+        if (!isSnowflakeId(guildId)) {
+            throw new Error('Invalid Discord guild id')
+        }
+
         const guild = await getServableGuild(guildId)
 
         if (guild) {
