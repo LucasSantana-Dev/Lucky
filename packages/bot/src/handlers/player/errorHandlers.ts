@@ -86,7 +86,7 @@ function safeErrorLog(payload: {
         // errorLog itself failed, so fall back to console.error, which does
         // not depend on the logger that just threw, keeping the original
         // player error from being lost.
-        console.error(payload.message, payload.error, error)
+        console.error(payload.message, payload.error, payload.data, error)
     }
 }
 

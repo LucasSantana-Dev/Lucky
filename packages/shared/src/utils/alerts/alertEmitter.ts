@@ -42,10 +42,20 @@ export async function emitAlert(payload: AlertPayload): Promise<void> {
         })
         if (!res.ok) throw new Error(`Webhook ${res.status}`)
     } catch (error) {
-        // Fire-and-forget — a failed alert must never crash the caller
-        warnLog({
-            message: 'alertEmitter: webhook delivery failed',
-            data: { title: payload.title, error: String(error) },
-        })
+        // Fire-and-forget: a failed alert must never crash the caller, and
+        // that includes warnLog itself failing (Sentry breadcrumb, etc.).
+        try {
+            warnLog({
+                message: 'alertEmitter: webhook delivery failed',
+                data: { title: payload.title, error: String(error) },
+            })
+        } catch (logError) {
+            console.error(
+                'alertEmitter: webhook delivery failed',
+                payload.title,
+                error,
+                logError,
+            )
+        }
     }
 }

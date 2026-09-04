@@ -742,7 +742,7 @@ describe('setupErrorHandlers', () => {
         )
     })
 
-    it('falls back to console.error with the original message and error when errorLog itself throws', () => {
+    it('falls back to console.error with the original message, error and data when errorLog itself throws', () => {
         const { playerHandlers } = createPlayerWithHandlers()
         const loggerError = new Error('errorLog transport failed')
         errorLogMock.mockImplementationOnce(() => {
@@ -758,6 +758,10 @@ describe('setupErrorHandlers', () => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
             'Unhandled player error:',
             originalError,
+            expect.objectContaining({
+                errorMessage: 'Unhandled player error',
+                errorName: 'Error',
+            }),
             loggerError,
         )
 

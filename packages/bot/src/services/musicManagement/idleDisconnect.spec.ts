@@ -106,7 +106,10 @@ describe('idleDisconnect', () => {
         expect(mockWarnLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Error during idle disconnect',
-                data: expect.objectContaining({ guildId: 'guild-1' }),
+                data: expect.objectContaining({
+                    guildId: 'guild-1',
+                    error: 'Error: boom',
+                }),
             }),
         )
     })

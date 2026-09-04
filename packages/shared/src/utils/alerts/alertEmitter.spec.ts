@@ -77,6 +77,32 @@ describe('emitAlert', () => {
         })
     })
 
+    it('falls back to console.error and still does not throw when warnLog itself throws', async () => {
+        global.fetch = jest.fn(async () => {
+            throw new Error('network down')
+        }) as unknown as typeof fetch
+        const loggerError = new Error('warnLog transport failed')
+        warnLogMock.mockImplementationOnce(() => {
+            throw loggerError
+        })
+        const consoleErrorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => {})
+
+        await expect(
+            emitAlert({ title: 'Spam detected', description: 'Desc' }),
+        ).resolves.toBeUndefined()
+
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+            'alertEmitter: webhook delivery failed',
+            'Spam detected',
+            expect.any(Error),
+            loggerError,
+        )
+
+        consoleErrorSpy.mockRestore()
+    })
+
     it('does not warn when the webhook POST succeeds', async () => {
         global.fetch = jest.fn(async () => ({
             ok: true,
