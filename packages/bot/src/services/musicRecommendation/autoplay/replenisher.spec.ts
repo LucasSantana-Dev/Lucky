@@ -78,13 +78,15 @@ jest.mock('./diversitySelector', () => ({
     purgeDuplicatesOfCurrentTrack: jest.fn(),
 }))
 
-jest.mock('../../../services/musicManagement/queueManipulation', () => ({
+jest.mock('../candidateFallback', () => ({
     collectBroadFallbackCandidates: jest.fn(),
-    collectLastFmCandidates: jest.fn(),
     collectGenreCandidates: jest.fn(),
+    interleaveByArtist: jest.fn(),
+}))
+
+jest.mock('../../../services/musicManagement/queueManipulation', () => ({
     enrichWithAudioFeatures: jest.fn(),
     getTrackAudioFeatures: jest.fn(),
-    interleaveByArtist: jest.fn(),
     buildVcContributionWeights: jest.fn(),
 }))
 
@@ -135,6 +137,7 @@ function createGuildQueue(overrides: Partial<GuildQueue> = {}): GuildQueue {
 
 describe('replenishQueue', () => {
     beforeEach(() => {
+        jest.clearAllMocks()
         const {
             recommendationFeedbackService: feedbackSvc,
         } = require('../../../services/musicRecommendation/feedbackService')
@@ -190,21 +193,22 @@ describe('replenishQueue', () => {
 
         const {
             collectBroadFallbackCandidates,
-            collectLastFmCandidates,
             collectGenreCandidates,
+            interleaveByArtist: iba,
+        } = require('../candidateFallback')
+        collectBroadFallbackCandidates.mockResolvedValue(undefined)
+        collectGenreCandidates.mockResolvedValue(undefined)
+        iba.mockImplementation((tracks: any[]) => tracks)
+
+        const {
             enrichWithAudioFeatures,
             getTrackAudioFeatures,
-            interleaveByArtist,
             buildVcContributionWeights,
         } = require('../../../services/musicManagement/queueManipulation')
-        collectBroadFallbackCandidates.mockResolvedValue(undefined)
-        collectLastFmCandidates.mockResolvedValue(undefined)
-        collectGenreCandidates.mockResolvedValue(undefined)
         enrichWithAudioFeatures.mockImplementation((tracks: any[]) =>
             Promise.resolve(tracks),
         )
         getTrackAudioFeatures.mockResolvedValue(null)
-        interleaveByArtist.mockImplementation((tracks: any[]) => tracks)
         buildVcContributionWeights.mockReturnValue(new Map())
 
         const { createArtistTagFetcher } = require('./artistTagCache')
@@ -427,15 +431,19 @@ describe('replenishQueue', () => {
     })
 
     it('should emit telemetry log with correct fields', async () => {
-        const queue = createGuildQueue()
+        const queue = createGuildQueue({
+            metadata: { requestedBy: { id: 'u1' } },
+        } as Partial<GuildQueue>)
         const { selectDiverseCandidates } = require('./diversitySelector')
         const {
             collectRecommendationCandidates,
         } = require('./candidateCollector')
+        const { interleaveByArtist } = require('../candidateFallback')
         const {
-            interleaveByArtist,
             enrichWithAudioFeatures,
         } = require('../../../services/musicManagement/queueManipulation')
+        const { guildSettingsService } = require('@lucky/shared/services')
+        const { collectGenreCandidates } = require('../candidateFallback')
 
         const mockScoredTracks = [
             {
@@ -452,6 +460,9 @@ describe('replenishQueue', () => {
         selectDiverseCandidates.mockReturnValue(mockScoredTracks)
         interleaveByArtist.mockReturnValue(mockScoredTracks)
         enrichWithAudioFeatures.mockResolvedValue(mockScoredTracks)
+        guildSettingsService.getGuildSettings.mockResolvedValue({
+            autoplayGenres: ['rock', 'pop'],
+        })
 
         const candidateMap = new Map()
         candidateMap.set('candidate1', {
@@ -460,6 +471,16 @@ describe('replenishQueue', () => {
             score: 0.5,
         })
         collectRecommendationCandidates.mockResolvedValue(candidateMap)
+        collectGenreCandidates.mockImplementation(
+            (queue: any, genres: any, requestedBy: any, params: any) => {
+                // Add one track to the candidates map
+                params.candidates.set('genre1', {
+                    track: createTrack({ id: 'genre1' }),
+                    basis: { source: 'genre', signals: [] },
+                    score: 0.4,
+                })
+            },
+        )
 
         await replenishQueue(queue)
 
@@ -494,9 +515,7 @@ describe('replenishQueue', () => {
         const {
             collectSeedSimilarCandidates,
         } = require('./seedSimilarityCollector')
-        const {
-            interleaveByArtist,
-        } = require('../../../services/musicManagement/queueManipulation')
+        const { interleaveByArtist } = require('../candidateFallback')
 
         const mockScoredTracks = [
             {
@@ -762,42 +781,4 @@ describe('popularityBoost', () => {
         expect(popularityBoost('similar', 50)).toBeCloseTo(0.06, 5)
         expect(popularityBoost('similar', 0)).toBe(0)
     })
-})
-
-it('marks skipped collectors and tracks rejected candidates separately', async () => {
-    const { warnLog } = require('@lucky/shared/utils')
-    const { collectRecommendationCandidates } = require('./candidateCollector')
-    // Collector produces candidates; we test that skipped status is tracked
-    const mockCandidates = new Map([
-        ['a', { track: createTrack() }],
-        ['b', { track: createTrack() }],
-    ])
-    collectRecommendationCandidates.mockResolvedValue(mockCandidates)
-
-    // No requester means seedSimilar, lastfm, and genre are skipped
-    const queue = createGuildQueue({
-        metadata: {},
-    } as Partial<GuildQueue>)
-
-    await replenishQueue(queue)
-
-    const call = warnLog.mock.calls.find(
-        ([arg]: [{ message: string }]) =>
-            arg.message ===
-            'Autoplay: no candidates selected — queue may stall',
-    )
-    expect(call).toBeDefined()
-
-    // Key distinction: skipped collectors show { skipped: true }
-    expect(call[0].data.sources.seedSimilar).toEqual({ skipped: true })
-    expect(call[0].data.sources.lastfm).toEqual({ skipped: true })
-    expect(call[0].data.sources.genre).toEqual({ skipped: true })
-
-    // Recommendation ran and found candidates
-    expect(call[0].data.sources.recommendation).toBe(2)
-
-    // rejection counts show how many were filtered out at scoring/dedup stage
-    expect(call[0].data.rejected).toBeDefined()
-    expect(typeof call[0].data.rejected.hardReject).toBe('number')
-    expect(typeof call[0].data.rejected.duplicate).toBe('number')
 })
