@@ -25,8 +25,8 @@
         "@discordjs/builders": "^1.14.1",
         "@discordjs/opus": "^0.10.0",
         "@lucky/shared": "file:../shared",
-        "@sentry/node": "^10.68.0",
-        "bullmq": "^6.0.9",
+        "@sentry/node": "^10.73.0",
+        "bullmq": "^6.3.3",
         "chalk": "^5.6.2",
         "discord-player": "^7.2.0",
         "discord-player-spotify": "^1.1.9",
@@ -46,12 +46,12 @@
     },
     "devDependencies": {
         "@types/jest": "^30.0.0",
-        "@types/node": "^26.2.0",
+        "@types/node": "^26.4.0",
         "@types/ws": "^8.5.13",
-        "jest": "^30.4.2",
+        "jest": "^30.5.0",
         "ts-jest": "^29.4.11",
         "tsup": "^8.5.1",
-        "tsx": "^4.23.1",
+        "tsx": "^4.23.13",
         "typescript": "^6.0.3"
     }
 }
