@@ -208,6 +208,9 @@ RUN --mount=type=cache,id=npm-build-stage-v4-${NPM_CACHE_KEY},target=/root/.npm,
 
 FROM deps-production-base AS deps-production-bot
 RUN npm prune --omit=dev --legacy-peer-deps
+# Same guard as deps-production-backend below: nested workspace node_modules
+# can hoist away between installs and COPY --from hard-fails on a missing dir.
+RUN mkdir -p packages/shared/node_modules packages/bot/node_modules
 
 FROM deps-production-base AS deps-production-backend
 RUN npm prune --omit=dev --legacy-peer-deps
@@ -216,7 +219,7 @@ RUN npm prune --omit=dev --legacy-peer-deps
 # installs with no source change (e.g. deepmerge-ts override regen dropped
 # it to zero). COPY --from of a nonexistent dir hard-fails the build, so
 # guarantee the dir exists — empty is harmless, real nested deps still copy.
-RUN mkdir -p packages/backend/node_modules
+RUN mkdir -p packages/backend/node_modules packages/shared/node_modules
 
 # Production stage — bot (full runtime with ffmpeg/opus/yt-dlp)
 FROM base-runtime AS production-bot
