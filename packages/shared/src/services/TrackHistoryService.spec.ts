@@ -1,12 +1,22 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 
 // Mock functions defined first (before jest.mock calls).
-const mockCreate = jest.fn<any>()
-const mockFindMany = jest.fn<any>()
-const mockFindFirst = jest.fn<any>()
-const mockCount = jest.fn<any>()
-const mockDeleteMany = jest.fn<any>()
-const mockGetPrismaClient = jest.fn<any>()
+const mockCreate = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockFindMany = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockFindFirst = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockCount = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockDeleteMany = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockGetPrismaClient = jest.fn()
 
 jest.mock('../utils/database/prismaClient', () => ({
     getPrismaClient: mockGetPrismaClient,

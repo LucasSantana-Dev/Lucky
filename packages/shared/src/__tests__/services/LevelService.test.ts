@@ -5,20 +5,40 @@ let mockTx: any = {}
 jest.mock('../../utils/database/prismaClient', () => ({
     getPrismaClient: () => ({
         memberXP: {
-            upsert: jest.fn<any>(),
-            update: jest.fn<any>(),
-            findUnique: jest.fn<any>(),
-            findMany: jest.fn<any>(),
-            count: jest.fn<any>(),
+            upsert: jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >,
+            update: jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >,
+            findUnique: jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >,
+            findMany: jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >,
+            count: jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >,
         },
         levelConfig: {
-            findUnique: jest.fn<any>(),
-            upsert: jest.fn<any>(),
+            findUnique: jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >,
+            upsert: jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >,
         },
         levelReward: {
-            upsert: jest.fn<any>(),
-            deleteMany: jest.fn<any>(),
-            findMany: jest.fn<any>(),
+            upsert: jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >,
+            deleteMany: jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >,
+            findMany: jest.fn() as jest.MockedFunction<
+                (...args: any[]) => Promise<any>
+            >,
         },
         $transaction: jest.fn<any>((callback: any) =>
             Promise.resolve().then(() => callback(mockTx)),
@@ -36,8 +56,12 @@ describe('LevelService', () => {
         jest.clearAllMocks()
         mockTx = {
             memberXP: {
-                upsert: jest.fn<any>(),
-                update: jest.fn<any>(),
+                upsert: jest.fn() as jest.MockedFunction<
+                    (...args: any[]) => Promise<any>
+                >,
+                update: jest.fn() as jest.MockedFunction<
+                    (...args: any[]) => Promise<any>
+                >,
             },
         }
         service = new LevelService()
