@@ -57,7 +57,7 @@ jobs:
             # toHaveScreenshot() fails on every run here regardless of the
             # app under test. Tracked as follow-up (see PR description).
             - name: Run frontend e2e tests
-              run: npx playwright test tests/e2e/*.spec.ts tests/e2e/performance --project=chromium --reporter=list
+              run: npx playwright test tests/e2e/*.spec.ts tests/e2e/performance --project=chromium --reporter=list,html
               working-directory: packages/frontend
 
             - name: Upload Playwright report
