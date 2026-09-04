@@ -1,9 +1,15 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 
 // Service captures getPrismaClient() lazily per call; mock returns a stable client.
-const mockUpsert = jest.fn<any>()
-const mockFindUnique = jest.fn<any>()
-const mockDeleteMany = jest.fn<any>()
+const mockUpsert = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockFindUnique = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockDeleteMany = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
 const mockPrisma = {
     guildSettings: {
         upsert: mockUpsert,

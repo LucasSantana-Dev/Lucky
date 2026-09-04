@@ -1,10 +1,16 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 
-const mockFindUnique = jest.fn<any>()
-const mockUpsert = jest.fn<any>()
-const mockUpdateMany = jest.fn<any>()
-const mockGetPrismaClient = jest.fn<any>()
-const mockErrorLog = jest.fn<any>()
+const mockFindUnique = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockUpsert = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockUpdateMany = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockGetPrismaClient = jest.fn()
+const mockErrorLog = jest.fn()
 
 jest.mock('../utils/database/prismaClient', () => ({
     getPrismaClient: mockGetPrismaClient,
@@ -169,11 +175,21 @@ describe('GuildSettingsService — counters (Postgres) + rate limit (in-memory)'
 // surviving mutants). These assert the exact prisma upsert/find/delete clauses,
 // the full row->settings mapping incl. null fallbacks, and the delegation logic.
 describe('GuildSettingsService — settings CRUD + counter methods', () => {
-    const sFindUnique = jest.fn<any>()
-    const sUpsert = jest.fn<any>()
-    const sDeleteMany = jest.fn<any>()
-    const cFindUnique = jest.fn<any>()
-    const cUpsert = jest.fn<any>()
+    const sFindUnique = jest.fn() as jest.MockedFunction<
+        (...args: any[]) => Promise<any>
+    >
+    const sUpsert = jest.fn() as jest.MockedFunction<
+        (...args: any[]) => Promise<any>
+    >
+    const sDeleteMany = jest.fn() as jest.MockedFunction<
+        (...args: any[]) => Promise<any>
+    >
+    const cFindUnique = jest.fn() as jest.MockedFunction<
+        (...args: any[]) => Promise<any>
+    >
+    const cUpsert = jest.fn() as jest.MockedFunction<
+        (...args: any[]) => Promise<any>
+    >
     let service: GuildSettingsService
 
     beforeEach(() => {
