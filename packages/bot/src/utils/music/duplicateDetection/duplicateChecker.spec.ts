@@ -297,6 +297,43 @@ describe('duplicateChecker', () => {
             expect(result.reason).toContain('95%')
         })
 
+        it('flags a third track by the same artist as duplicate', async () => {
+            const byArtist = (trackId: string) => ({
+                trackId,
+                title: `Song ${trackId}`,
+                author: track.author,
+                duration: '3:21',
+                url: `https://example.com/${trackId}`,
+                timestamp: Date.now(),
+                guildId: 'guild-1',
+                isAutoplay: false,
+            })
+
+            getTrackHistoryMock.mockResolvedValueOnce([
+                byArtist('a'),
+                byArtist('b'),
+                byArtist('c'),
+            ])
+            areTracksSimilarMock
+                .mockReturnValueOnce(false)
+                .mockReturnValueOnce(false)
+                .mockReturnValueOnce(false)
+
+            const result = await checkForDuplicate(track, 'guild-1', {
+                titleThreshold: 0.8,
+                artistThreshold: 0.8,
+                durationThreshold: 0.2,
+                overallThreshold: 0.75,
+            })
+
+            expect(result.isDuplicate).toBe(true)
+            expect(result.reason).toBe(
+                'Too many tracks from the same artist recently',
+            )
+            expect(result.similarTracks).toHaveLength(3)
+            expect(result.similarTracks?.[0].playedBy).toBe('unknown')
+        })
+
         it('does not flag an unrelated track as duplicate', async () => {
             const historyTrack = {
                 trackId: 'other-track',

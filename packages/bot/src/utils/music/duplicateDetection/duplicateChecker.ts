@@ -9,23 +9,10 @@ import { extractTags } from './tagExtractor'
 import type { DuplicateCheckResult, SimilarityConfig } from './types'
 
 function toHistoryEntry(
-    t: Track | TrackHistoryEntry,
+    t: TrackHistoryEntry,
     guildId: string,
 ): TrackHistoryEntry {
-    if ('trackId' in t) {
-        return { ...t, guildId, playedBy: t.playedBy || 'unknown' }
-    }
-    return {
-        trackId: t.id || t.url,
-        title: t.title,
-        author: t.author,
-        duration: t.duration,
-        url: t.url,
-        timestamp: Date.now(),
-        guildId,
-        playedBy: t.requestedBy?.id || 'unknown',
-        isAutoplay: false,
-    }
+    return { ...t, guildId, playedBy: t.playedBy || 'unknown' }
 }
 
 async function checkExactUrlMatch(
@@ -37,7 +24,7 @@ async function checkExactUrlMatch(
 
 async function checkSimilarTracks(
     track: Track,
-    recentHistory: (Track | TrackHistoryEntry)[],
+    recentHistory: TrackHistoryEntry[],
     config: SimilarityConfig,
     guildId: string,
 ): Promise<DuplicateCheckResult | null> {
@@ -63,7 +50,7 @@ async function checkSimilarTracks(
 
 async function checkSameArtistTracks(
     track: Track,
-    recentHistory: (Track | TrackHistoryEntry)[],
+    recentHistory: TrackHistoryEntry[],
     guildId: string,
 ): Promise<DuplicateCheckResult | null> {
     const sameArtistTracks = recentHistory.filter(
