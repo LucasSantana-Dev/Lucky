@@ -103,6 +103,28 @@ const DEP_FIELDS = [
 const lockChanged = all.some((p) => p === 'package-lock.json')
 const changedPackageJsons = all.filter((p) => /(^|\/)package\.json$/.test(p))
 
+// Shallow checkouts (the reusable workflow fetches depth 50) can leave the
+// base commit unavailable to local git, so JSONDiffForFile throws on heavily
+// rebased PRs and the old catch-all failed the build on a scripts-only edit
+// (#2182). Before failing, re-read both versions through the API.
+async function depFieldsChangedViaApi(path: string): Promise<boolean> {
+    const { owner, repo } = danger.github.thisPR
+    const slug = `${owner}/${repo}`
+    const [base, head] = await Promise.all([
+        danger.github.utils.fileContents(path, slug, danger.github.pr.base.sha),
+        danger.github.utils.fileContents(path, slug, danger.github.pr.head.sha),
+    ])
+    const parse = (raw: string): Record<string, unknown> =>
+        raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
+    const before = parse(base)
+    const after = parse(head)
+    return DEP_FIELDS.some(
+        (f) =>
+            JSON.stringify(before[f] ?? null) !==
+            JSON.stringify(after[f] ?? null),
+    )
+}
+
 async function checkLockfileGuard(): Promise<void> {
     if (changedPackageJsons.length === 0 || lockChanged) return
     for (const path of changedPackageJsons) {
@@ -112,9 +134,15 @@ async function checkLockfileGuard(): Promise<void> {
             // A dependency field appears in the diff only when it changed.
             depFieldChanged = DEP_FIELDS.some((f) => Boolean(diff?.[f]))
         } catch {
-            // If the diff can't be computed (e.g. malformed JSON), fall back
-            // to the conservative guard rather than silently passing.
-            depFieldChanged = true
+            try {
+                depFieldChanged = await depFieldsChangedViaApi(path)
+            } catch (error) {
+                warn(
+                    `Could not diff \`${path}\` locally or through the API ` +
+                        `(${String(error)}); lockfile guard skipped for this file.`,
+                )
+                continue
+            }
         }
         if (depFieldChanged) {
             fail(
