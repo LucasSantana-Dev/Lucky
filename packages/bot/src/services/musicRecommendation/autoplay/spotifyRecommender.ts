@@ -1,6 +1,6 @@
 import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
-import { debugLog } from '@lucky/shared/utils'
+import { debugLog, warnLog } from '@lucky/shared/utils'
 import { logAndSwallow } from '@lucky/shared/utils/error'
 import { spotifyLinkService } from '@lucky/shared/services'
 import {
@@ -87,7 +87,7 @@ export async function searchSeedCandidates(
 
         return tracks
     } catch (error) {
-        debugLog({
+        warnLog({
             message: 'Autoplay: seed search failed',
             data: { spotifyQuery, error: String(error) },
         })
