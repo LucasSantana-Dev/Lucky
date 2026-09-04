@@ -19,6 +19,7 @@ jobs:
     size-limit:
         name: Size Limit Check
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         env:
             # This job runs a bare `npm ci` (needs the frontend build), so unlike
             # ci.yml/madge it can't use --ignore-scripts. Without this, youtube-dl-exec's

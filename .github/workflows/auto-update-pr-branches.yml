@@ -37,6 +37,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Update behind, auto-merge-enabled PRs
         env:

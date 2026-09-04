@@ -26,6 +26,7 @@ jobs:
     pr-agent:
         name: AI Code Review
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         if: ${{ github.event.sender.type != 'Bot' && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null) }}
         permissions:
             issues: write
