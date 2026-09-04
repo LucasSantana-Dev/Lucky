@@ -244,13 +244,17 @@ describe('replenishQueue', () => {
         expect(call[0].data).toEqual(
             expect.objectContaining({
                 candidatePoolSize: 0,
-                sources: {
+                sources: expect.objectContaining({
                     recommendation: 0,
-                    seedSimilar: 0,
-                    lastfm: 0,
+                    seedSimilar: { skipped: true },
+                    lastfm: { skipped: true },
                     fallback: 0,
-                    genre: 0,
-                },
+                    genre: { skipped: true },
+                }),
+                rejected: expect.objectContaining({
+                    hardReject: 0,
+                    duplicate: 0,
+                }),
                 hasRequester: false,
             }),
         )
@@ -758,4 +762,42 @@ describe('popularityBoost', () => {
         expect(popularityBoost('similar', 50)).toBeCloseTo(0.06, 5)
         expect(popularityBoost('similar', 0)).toBe(0)
     })
+})
+
+it('marks skipped collectors and tracks rejected candidates separately', async () => {
+    const { warnLog } = require('@lucky/shared/utils')
+    const { collectRecommendationCandidates } = require('./candidateCollector')
+    // Collector produces candidates; we test that skipped status is tracked
+    const mockCandidates = new Map([
+        ['a', { track: createTrack() }],
+        ['b', { track: createTrack() }],
+    ])
+    collectRecommendationCandidates.mockResolvedValue(mockCandidates)
+
+    // No requester means seedSimilar, lastfm, and genre are skipped
+    const queue = createGuildQueue({
+        metadata: {},
+    } as Partial<GuildQueue>)
+
+    await replenishQueue(queue)
+
+    const call = warnLog.mock.calls.find(
+        ([arg]: [{ message: string }]) =>
+            arg.message ===
+            'Autoplay: no candidates selected — queue may stall',
+    )
+    expect(call).toBeDefined()
+
+    // Key distinction: skipped collectors show { skipped: true }
+    expect(call[0].data.sources.seedSimilar).toEqual({ skipped: true })
+    expect(call[0].data.sources.lastfm).toEqual({ skipped: true })
+    expect(call[0].data.sources.genre).toEqual({ skipped: true })
+
+    // Recommendation ran and found candidates
+    expect(call[0].data.sources.recommendation).toBe(2)
+
+    // rejection counts show how many were filtered out at scoring/dedup stage
+    expect(call[0].data.rejected).toBeDefined()
+    expect(typeof call[0].data.rejected.hardReject).toBe('number')
+    expect(typeof call[0].data.rejected.duplicate).toBe('number')
 })
