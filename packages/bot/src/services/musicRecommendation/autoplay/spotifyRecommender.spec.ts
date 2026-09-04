@@ -9,10 +9,12 @@ import {
 import type { SessionMood } from './sessionMood'
 import type { AutoplayContext } from './autoplayContext'
 
+const warnLogMock = jest.fn()
+
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
-    warnLog: jest.fn(),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 const spotifyLinkServiceMock = jest.fn()
@@ -105,6 +107,13 @@ describe('spotifyRecommender', () => {
             )
 
             expect(result).toEqual([])
+            // #2160: a seed search failure must be visible in prod
+            // (LOG_LEVEL=2 suppresses debugLog).
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Autoplay: seed search failed',
+                }),
+            )
         })
 
         it('returns empty array when Spotify returns 0 results — no YouTube fallback', async () => {
