@@ -104,7 +104,12 @@ const runAudit = () => {
     }
 };
 
-const { vulnerabilities = {} } = JSON.parse(runAudit());
+/**
+ * Judges one `npm audit` response. Pure, so the caller can run it against a
+ * second read: npm audit intermittently answers with a truncated advisory set,
+ * and an absent package is indistinguishable from a fixed one.
+ */
+const evaluate = (vulnerabilities) => {
 const blocking = [];
 const accepted = [];
 /** package name -> advisory ids actually reported this run */
@@ -181,6 +186,33 @@ for (const [name, entry] of Object.entries(ACCEPTED)) {
     const reported = reportedAdvisories.get(name) ?? new Set();
     for (const [id, label] of Object.entries(entry.advisories)) {
         if (!reported.has(id)) stale.push(`${name} advisory ${id} (${label})`);
+    }
+}
+
+return { blocking, accepted, stale };
+};
+
+const first = evaluate(JSON.parse(runAudit()).vulnerabilities ?? {});
+
+// A stale acceptance is the one verdict a truncated audit response can fake, and
+// it is fatal, so it gets a second opinion before we act on it. Blocking findings
+// take the union (never drop a real one because a read came back short); stale
+// takes the intersection (never delete an acceptance the registry merely forgot
+// to mention once). Only paid when something already looks stale.
+let { blocking, accepted, stale } = first;
+if (stale.length > 0) {
+    const second = evaluate(JSON.parse(runAudit()).vulnerabilities ?? {});
+    const confirmed = new Set(second.stale);
+    stale = stale.filter((entry) => confirmed.has(entry));
+    const seen = new Set(blocking.map((finding) => finding.name));
+    for (const finding of second.blocking) {
+        if (!seen.has(finding.name)) blocking.push(finding);
+    }
+    if (stale.length !== first.stale.length) {
+        console.error(
+            'note: npm audit disagreed with itself across two reads; ' +
+                'kept only the acceptances both runs called stale.',
+        );
     }
 }
 
