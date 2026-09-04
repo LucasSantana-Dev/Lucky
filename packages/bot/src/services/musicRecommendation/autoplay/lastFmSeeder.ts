@@ -96,6 +96,7 @@ export async function collectLastFmCandidates(
                     track,
                     ctx.excludedUrls,
                     ctx.excludedKeys,
+                    candidates,
                 )
             )
                 continue
@@ -155,6 +156,7 @@ export async function collectLastFmCandidates(
                         track,
                         ctx.excludedUrls,
                         ctx.excludedKeys,
+                        candidates,
                     )
                 )
                     continue
@@ -228,6 +230,7 @@ export async function collectLastFmCandidates(
                             track,
                             ctx.excludedUrls,
                             ctx.excludedKeys,
+                            candidates,
                         )
                     )
                         continue

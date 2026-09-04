@@ -12,6 +12,30 @@ import { normalizeTrackKey } from './scoringUtils'
 import { isDuplicateCandidate } from './diversitySelector'
 
 /**
+ * Rejection counter shared across a single replenish cycle.
+ * Keyed by candidates map (WeakMap so garbage collection works).
+ */
+const rejectionCounters = new WeakMap<
+    Map<string, ScoredTrack>,
+    { hardReject: number; duplicate: number }
+>()
+
+/**
+ * Get the current rejection counts, lazily initializing if not yet set.
+ */
+export function getRejectionCounts(candidates: Map<string, ScoredTrack>): {
+    hardReject: number
+    duplicate: number
+} {
+    let counts = rejectionCounters.get(candidates)
+    if (!counts) {
+        counts = { hardReject: 0, duplicate: 0 }
+        rejectionCounters.set(candidates, counts)
+    }
+    return counts
+}
+
+/**
  * Include a candidate in the pool if it hasn't been played recently
  * and isn't in the disliked set.
  */
@@ -19,8 +43,14 @@ export function shouldIncludeCandidate(
     track: Track,
     excludedUrls: Set<string>,
     excludedKeys: Set<string>,
+    candidates?: Map<string, ScoredTrack>,
 ): boolean {
-    return !isDuplicateCandidate(track, excludedUrls, excludedKeys)
+    const isDuplicate = isDuplicateCandidate(track, excludedUrls, excludedKeys)
+    if (isDuplicate && candidates) {
+        const counts = getRejectionCounts(candidates)
+        counts.duplicate++
+    }
+    return !isDuplicate
 }
 
 /**
@@ -59,6 +89,9 @@ export function upsertScoredCandidate(
             source: scored.source,
             signals: scored.signals,
         }
+        // Track hard-rejects for telemetry
+        const counts = getRejectionCounts(candidates)
+        counts.hardReject++
         auditCollector?.recordEvaluated(
             candidate,
             scored.score,

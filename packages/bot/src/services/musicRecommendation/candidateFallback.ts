@@ -58,7 +58,14 @@ function addGenreTrackCandidate(
     tag: string,
     ctx: CandidateContext,
 ): void {
-    if (!shouldIncludeCandidate(track, ctx.excludedUrls, ctx.excludedKeys))
+    if (
+        !shouldIncludeCandidate(
+            track,
+            ctx.excludedUrls,
+            ctx.excludedKeys,
+            ctx.candidates,
+        )
+    )
         return
     const key = normalizeTrackKey(track.title, track.author)
     const dislikedWeight = ctx.dislikedTrackKeys.get(key)
@@ -131,6 +138,7 @@ export async function collectBroadFallbackCandidates(
                         track,
                         ctx.excludedUrls,
                         ctx.excludedKeys,
+                        candidates,
                     )
                 )
                     continue

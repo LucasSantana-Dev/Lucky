@@ -78,13 +78,15 @@ jest.mock('./diversitySelector', () => ({
     purgeDuplicatesOfCurrentTrack: jest.fn(),
 }))
 
-jest.mock('../../../services/musicManagement/queueManipulation', () => ({
+jest.mock('../candidateFallback', () => ({
     collectBroadFallbackCandidates: jest.fn(),
-    collectLastFmCandidates: jest.fn(),
     collectGenreCandidates: jest.fn(),
+    interleaveByArtist: jest.fn(),
+}))
+
+jest.mock('../../../services/musicManagement/queueManipulation', () => ({
     enrichWithAudioFeatures: jest.fn(),
     getTrackAudioFeatures: jest.fn(),
-    interleaveByArtist: jest.fn(),
     buildVcContributionWeights: jest.fn(),
 }))
 
@@ -135,6 +137,7 @@ function createGuildQueue(overrides: Partial<GuildQueue> = {}): GuildQueue {
 
 describe('replenishQueue', () => {
     beforeEach(() => {
+        jest.clearAllMocks()
         const {
             recommendationFeedbackService: feedbackSvc,
         } = require('../../../services/musicRecommendation/feedbackService')
@@ -190,21 +193,22 @@ describe('replenishQueue', () => {
 
         const {
             collectBroadFallbackCandidates,
-            collectLastFmCandidates,
             collectGenreCandidates,
+            interleaveByArtist: iba,
+        } = require('../candidateFallback')
+        collectBroadFallbackCandidates.mockResolvedValue(undefined)
+        collectGenreCandidates.mockResolvedValue(undefined)
+        iba.mockImplementation((tracks: any[]) => tracks)
+
+        const {
             enrichWithAudioFeatures,
             getTrackAudioFeatures,
-            interleaveByArtist,
             buildVcContributionWeights,
         } = require('../../../services/musicManagement/queueManipulation')
-        collectBroadFallbackCandidates.mockResolvedValue(undefined)
-        collectLastFmCandidates.mockResolvedValue(undefined)
-        collectGenreCandidates.mockResolvedValue(undefined)
         enrichWithAudioFeatures.mockImplementation((tracks: any[]) =>
             Promise.resolve(tracks),
         )
         getTrackAudioFeatures.mockResolvedValue(null)
-        interleaveByArtist.mockImplementation((tracks: any[]) => tracks)
         buildVcContributionWeights.mockReturnValue(new Map())
 
         const { createArtistTagFetcher } = require('./artistTagCache')
@@ -244,13 +248,17 @@ describe('replenishQueue', () => {
         expect(call[0].data).toEqual(
             expect.objectContaining({
                 candidatePoolSize: 0,
-                sources: {
+                sources: expect.objectContaining({
                     recommendation: 0,
-                    seedSimilar: 0,
-                    lastfm: 0,
+                    seedSimilar: { skipped: true },
+                    lastfm: { skipped: true },
                     fallback: 0,
-                    genre: 0,
-                },
+                    genre: { skipped: true },
+                }),
+                rejected: expect.objectContaining({
+                    hardReject: 0,
+                    duplicate: 0,
+                }),
                 hasRequester: false,
             }),
         )
@@ -423,15 +431,19 @@ describe('replenishQueue', () => {
     })
 
     it('should emit telemetry log with correct fields', async () => {
-        const queue = createGuildQueue()
+        const queue = createGuildQueue({
+            metadata: { requestedBy: { id: 'u1' } },
+        } as Partial<GuildQueue>)
         const { selectDiverseCandidates } = require('./diversitySelector')
         const {
             collectRecommendationCandidates,
         } = require('./candidateCollector')
+        const { interleaveByArtist } = require('../candidateFallback')
         const {
-            interleaveByArtist,
             enrichWithAudioFeatures,
         } = require('../../../services/musicManagement/queueManipulation')
+        const { guildSettingsService } = require('@lucky/shared/services')
+        const { collectGenreCandidates } = require('../candidateFallback')
 
         const mockScoredTracks = [
             {
@@ -448,6 +460,9 @@ describe('replenishQueue', () => {
         selectDiverseCandidates.mockReturnValue(mockScoredTracks)
         interleaveByArtist.mockReturnValue(mockScoredTracks)
         enrichWithAudioFeatures.mockResolvedValue(mockScoredTracks)
+        guildSettingsService.getGuildSettings.mockResolvedValue({
+            autoplayGenres: ['rock', 'pop'],
+        })
 
         const candidateMap = new Map()
         candidateMap.set('candidate1', {
@@ -456,6 +471,16 @@ describe('replenishQueue', () => {
             score: 0.5,
         })
         collectRecommendationCandidates.mockResolvedValue(candidateMap)
+        collectGenreCandidates.mockImplementation(
+            (queue: any, genres: any, requestedBy: any, params: any) => {
+                // Add one track to the candidates map
+                params.candidates.set('genre1', {
+                    track: createTrack({ id: 'genre1' }),
+                    basis: { source: 'genre', signals: [] },
+                    score: 0.4,
+                })
+            },
+        )
 
         await replenishQueue(queue)
 
@@ -490,9 +515,7 @@ describe('replenishQueue', () => {
         const {
             collectSeedSimilarCandidates,
         } = require('./seedSimilarityCollector')
-        const {
-            interleaveByArtist,
-        } = require('../../../services/musicManagement/queueManipulation')
+        const { interleaveByArtist } = require('../candidateFallback')
 
         const mockScoredTracks = [
             {

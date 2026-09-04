@@ -45,6 +45,7 @@ import {
 } from '../candidateFallback'
 import { buildVcContributionWeights } from './vcWeights'
 import { evaluateSkipRateBreaker } from './skipCircuitBreaker'
+import { getRejectionCounts } from './candidateContracts'
 
 // Autoplay backfill target. Reduced from 8→2 to prevent over-queueing: when
 // too many songs are queued ahead, most get evicted before playerStart without
@@ -159,7 +160,7 @@ async function _replenishQueue(
 ): Promise<void> {
     const startTime = Date.now()
     const guildId = queue.guild.id
-    const sourcesCounts = {
+    const sourcesCounts: Record<string, number | { skipped: true }> = {
         recommendation: 0,
         seedSimilar: 0,
         lastfm: 0,
@@ -448,6 +449,8 @@ async function _replenishQueue(
                     source: 'seed-similar',
                 },
             })
+        } else {
+            sourcesCounts.seedSimilar = { skipped: true }
         }
 
         if (requestedBy?.id) {
@@ -468,6 +471,8 @@ async function _replenishQueue(
                     source: 'lastfm',
                 },
             })
+        } else {
+            sourcesCounts.lastfm = { skipped: true }
         }
         if (requestedBy && guildSettings?.autoplayGenres?.length) {
             const beforeGenre = candidates.size
@@ -507,6 +512,8 @@ async function _replenishQueue(
                     source: 'genre',
                 },
             })
+        } else {
+            sourcesCounts.genre = { skipped: true }
         }
         if (candidates.size === 0 && currentTrack) {
             const beforeFallback = candidates.size
@@ -580,12 +587,15 @@ async function _replenishQueue(
             // debug below it: production runs LOG_LEVEL=2, so the debug is
             // suppressed and an empty pool was indistinguishable from "which
             // of the five collectors came back dry" (#2146).
+            // sources now includes skipped markers and rejected shows
+            // how many candidates were vetoed by scoring or deduplication.
             warnLog({
                 message: 'Autoplay: no candidates selected — queue may stall',
                 data: {
                     guildId: queue.guild.id,
                     candidatePoolSize: candidates.size,
                     sources: sourcesCounts,
+                    rejected: getRejectionCounts(candidates),
                     autoplayMode,
                     // Four of the five collectors are gated on a requester, so
                     // a zero count means "skipped" rather than "found nothing"

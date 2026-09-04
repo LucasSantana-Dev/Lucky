@@ -127,6 +127,7 @@ export async function collectSeedSimilarCandidates(
                     track,
                     ctx.excludedUrls,
                     ctx.excludedKeys,
+                    candidates,
                 )
             )
                 continue
