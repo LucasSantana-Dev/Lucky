@@ -14,9 +14,11 @@ jest.mock('@lucky/shared/services', () => ({
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
+    warnLog: jest.fn(),
 }))
 
 import { levelService } from '@lucky/shared/services'
+import { warnLog } from '@lucky/shared/utils'
 
 describe('xpHandler', () => {
     beforeEach(() => {
@@ -275,6 +277,67 @@ describe('xpHandler', () => {
             const result = await xpHandler.handle(message, context)
             expect(result.stop).toBe(false)
             expect(context.member.roles.add).toHaveBeenCalledWith('role5')
+        })
+
+        it('should warn (not throw) when role reward assignment is rejected', async () => {
+            const now = Date.now()
+            ;(levelService.getConfig as jest.Mock).mockResolvedValue({
+                enabled: true,
+                xpCooldownMs: 60000,
+                xpPerMessage: 10,
+                announceChannel: 'announce1',
+            })
+            ;(levelService.getMemberXP as jest.Mock).mockResolvedValue({
+                lastXpAt: new Date(now - 61000),
+            })
+            ;(levelService.addXP as jest.Mock).mockResolvedValue({
+                leveledUp: true,
+                newLevel: 5,
+            })
+            ;(levelService.getRewards as jest.Mock).mockResolvedValue([
+                { level: 5, roleId: 'role5' },
+            ])
+
+            const mockChannel = {
+                isTextBased: jest.fn().mockReturnValue(true),
+                send: jest.fn().mockResolvedValue(undefined),
+            }
+
+            const message = {
+                author: {
+                    id: 'user1',
+                    bot: false,
+                    toString: jest.fn(() => '<@user1>'),
+                },
+                channelId: 'channel1',
+                client: {
+                    channels: {
+                        fetch: jest.fn().mockResolvedValue(mockChannel),
+                    },
+                },
+            } as unknown as Message
+
+            const roleError = new Error('Missing Permissions')
+            const context: MessageContext = {
+                guild: { id: 'guild1' } as any,
+                member: {
+                    roles: { add: jest.fn().mockRejectedValue(roleError) },
+                } as any,
+                featureToggles: {},
+            }
+
+            const result = await xpHandler.handle(message, context)
+
+            expect(result.stop).toBe(false)
+            expect(warnLog).toHaveBeenCalledWith({
+                message: 'xp: reward role assignment failed',
+                data: {
+                    guildId: 'guild1',
+                    roleId: 'role5',
+                    userId: 'user1',
+                    error: String(roleError),
+                },
+            })
         })
 
         it('should handle first-time XP addition with no prior record', async () => {
