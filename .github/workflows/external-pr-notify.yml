@@ -19,6 +19,7 @@ jobs:
         name: Notify new external PR
         if: github.event_name == 'pull_request_target'
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         steps:
             - name: Post Discord alert
               if: contains(fromJSON('["FIRST_TIMER","FIRST_TIME_CONTRIBUTOR","CONTRIBUTOR","NONE"]'), github.event.pull_request.author_association)
@@ -69,6 +70,7 @@ jobs:
         name: External PR digest
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         steps:
             - name: Post digest of open external PRs
               uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0

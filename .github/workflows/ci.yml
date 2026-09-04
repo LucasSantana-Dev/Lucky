@@ -19,6 +19,7 @@ jobs:
     build-shared:
         name: Build — shared
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
             - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -43,6 +44,7 @@ jobs:
     checks:
         name: Checks
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         needs: build-shared
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
@@ -125,6 +127,7 @@ jobs:
     test-shared:
         name: Test — shared
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         needs: build-shared
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
@@ -147,6 +150,7 @@ jobs:
     test-backend:
         name: Test — backend
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         needs: build-shared
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
@@ -172,6 +176,7 @@ jobs:
     test-bot:
         name: Test — bot
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         needs: build-shared
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
@@ -220,6 +225,7 @@ jobs:
     test-youtube-smoke:
         name: Test — YouTube smoke (dependency guard)
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         needs: build-shared
         # Only runs on dependabot/renovate pull_request events touching YouTube packages.
         if: |
@@ -252,6 +258,7 @@ jobs:
     test-frontend:
         name: Test — frontend
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         needs: build-shared
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
@@ -288,6 +295,7 @@ jobs:
     madge:
         name: madge / packages/bot
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         needs: build-shared
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
@@ -336,6 +344,7 @@ jobs:
     detect-docker-changes:
         name: Detect Docker-relevant changes
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         outputs:
             relevant: ${{ steps.filter.outputs.relevant }}
@@ -376,6 +385,7 @@ jobs:
     docker-build:
         name: Build — ${{ matrix.service }}
         runs-on: ubuntu-latest
+        timeout-minutes: 60
         needs: detect-docker-changes
         if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.detect-docker-changes.outputs.relevant == 'true'
         concurrency:
@@ -484,6 +494,7 @@ jobs:
     docker-build-check:
         name: Build — Docker images
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         needs: [detect-docker-changes, docker-build]
         if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
         steps:
@@ -506,6 +517,7 @@ jobs:
         # test-youtube-smoke intentionally excluded: advisory-only, runs on YouTube dependency PRs only
         name: Quality Gates
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         needs: [build-shared, checks, test-shared, test-backend, test-bot, test-frontend]
         if: always()
         steps:
@@ -524,6 +536,7 @@ jobs:
     sonar:
         name: SonarCloud Scan
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         needs: [test-backend, test-bot, test-frontend]
         # Fork PRs get no secrets, so SONAR_TOKEN is never present and the
         # token policy step would hard-fail this required check. Skip the job
@@ -599,6 +612,7 @@ jobs:
     security:
         name: Security
         runs-on: ubuntu-latest
+        timeout-minutes: 25
         concurrency:
             group: ${{ github.workflow }}-security-${{ github.ref }}
             cancel-in-progress: true
