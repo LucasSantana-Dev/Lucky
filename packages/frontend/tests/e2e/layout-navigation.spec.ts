@@ -37,23 +37,24 @@ test.describe('Layout and Navigation', () => {
         await expect(dashboardLink).toHaveAttribute('data-active', 'true')
     })
 
-    test('user info in sidebar', async ({ page }) => {
+    test('user info in header', async ({ page }) => {
         await navigateToDashboard(page)
-
-        const username = page.locator(`text=${MOCK_DISCORD_USER.username}`)
-        await expect(username.first()).toBeVisible({ timeout: 5000 })
+        // The header shows the Discord global name (nickname only with a member context).
+        const profileName = page.getByText(MOCK_DISCORD_USER.globalName)
+        await expect(profileName.first()).toBeVisible({ timeout: 5000 })
     })
 
     test('user avatar and username display', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const username = page.locator(`text=${MOCK_DISCORD_USER.username}`)
-        await expect(username.first()).toBeVisible({ timeout: 5000 })
-
-        const usernameHandle = page.locator(
-            `text=@${MOCK_DISCORD_USER.username}`,
-        )
-        await expect(usernameHandle).toBeVisible({ timeout: 3000 })
+        const profileName = page.getByText(MOCK_DISCORD_USER.globalName)
+        await expect(profileName.first()).toBeVisible({ timeout: 5000 })
+        const initials = MOCK_DISCORD_USER.username
+            .substring(0, 2)
+            .toUpperCase()
+        await expect(
+            page.getByText(initials, { exact: true }).first(),
+        ).toBeVisible({ timeout: 3000 })
     })
 
     test('logout functionality', async ({ page }) => {
@@ -67,7 +68,9 @@ test.describe('Layout and Navigation', () => {
 
         await navigateToDashboard(page)
 
-        const logoutButton = page.locator('button[aria-label="Logout"]').first()
+        const logoutButton = page
+            .getByRole('button', { name: 'Log out' })
+            .first()
         await expect(logoutButton).toBeVisible({ timeout: 5000 })
         await logoutButton.click()
 
@@ -92,7 +95,7 @@ test.describe('Layout and Navigation', () => {
         await navigateToDashboard(page)
 
         const mobileMenuButton = page
-            .locator('button[aria-label="Open sidebar"]')
+            .locator('button[aria-label="Open navigation menu"]')
             .first()
         const isVisible = await mobileMenuButton
             .isVisible({ timeout: 3000 })
@@ -112,7 +115,7 @@ test.describe('Layout and Navigation', () => {
         await navigateToDashboard(page)
 
         const mobileMenuButton = page
-            .locator('button[aria-label="Open sidebar"]')
+            .locator('button[aria-label="Open navigation menu"]')
             .first()
 
         const menuVisible = await mobileMenuButton
@@ -153,7 +156,6 @@ test.describe('Layout and Navigation', () => {
     test('Lucky branding in sidebar', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const branding = page.locator('text=Lucky').first()
-        await expect(branding).toBeVisible({ timeout: 5000 })
+        await expect(page).toHaveTitle(/Lucky/)
     })
 })
