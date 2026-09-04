@@ -33,7 +33,7 @@ This document summarizes the project’s NPM dependencies: what is used where, w
 
 ### `packages/bot`
 
-- **Discord**: `discord.js` 14, `@discordjs/builders`, `discord-player`, `discord-player-youtubei`, `youtubei.js` – all maintained; discord-player 7 is the current major.
+- **Discord**: `discord.js` 14, `@discordjs/builders`, `discord-player`, `discord-player-youtubei` (which brings `youtubei.js` as its own dependency) – all maintained; discord-player 7 is the current major.
 - **Runtime**: `tsx` (dev), `tsup` (build) – bundler resolves modules; no need for `module-alias` at runtime.
 - **Removed**: `module-alias` – unused in `packages/bot/src`; tsup handles resolution. Removed to avoid legacy runtime patching.
 - **Audio stack**: `opusscript`, `ffmpeg-static` – voice/encoding.
