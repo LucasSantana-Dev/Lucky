@@ -1,5 +1,7 @@
 import * as playdl from 'play-dl'
 import type { Readable } from 'stream'
+import { infoLog, warnLog } from '@lucky/shared/utils'
+import { withTimeout } from './withTimeout'
 
 type SoundCloudSearchResult = {
     name: string
@@ -8,6 +10,87 @@ type SoundCloudSearchResult = {
 }
 
 const TITLE_MATCH_THRESHOLD = 0.75
+const CLIENT_ID_TIMEOUT_MS = 10_000
+const REFRESH_COOLDOWN_MS = 60_000
+
+/**
+ * play-dl authenticates SoundCloud with an anonymous client id scraped from
+ * soundcloud.com, and those ids rotate. #2139: the id was fetched once at boot
+ * and never refreshed, so once it expired every SoundCloud fallback stage
+ * failed for the rest of the process lifetime while the bot still reported
+ * healthy and logged nothing above debug level.
+ *
+ * Single-flight, because a queue that fails several tracks at once would
+ * otherwise scrape a new id per failure.
+ */
+let refreshInFlight: Promise<void> | null = null
+let lastRefreshAt = 0
+
+export async function refreshSoundCloudClientId(): Promise<void> {
+    refreshInFlight ??= (async () => {
+        try {
+            const clientId = await withTimeout(
+                playdl.getFreeClientID(),
+                CLIENT_ID_TIMEOUT_MS,
+                'play-dl getFreeClientID',
+            )
+            await playdl.setToken({ soundcloud: { client_id: clientId } })
+            infoLog({ message: 'play-dl: SoundCloud client ID initialized' })
+        } finally {
+            // Stamp the ATTEMPT, not the success. A refresh that fails (a 10s
+            // getFreeClientID timeout, soundcloud.com unreachable) has to
+            // throttle the next one too, or every following track pays that
+            // same 10s scrape, which is the stall the cooldown exists to stop.
+            lastRefreshAt = Date.now()
+            refreshInFlight = null
+        }
+    })()
+    return refreshInFlight
+}
+
+// Test-only: the cooldown above is module-level state, so tests that assert on
+// the refresh path must reset it between cases instead of relying on run order.
+export function __resetSoundCloudRefreshStateForTests(): void {
+    refreshInFlight = null
+    lastRefreshAt = 0
+}
+
+/**
+ * Runs a play-dl network call; on failure refreshes the client id once and
+ * retries. Only the play-dl calls are wrapped: the "no results" and "no
+ * validated match" rejections below are raised after a *successful* search, so
+ * a genuine miss never triggers a scrape.
+ */
+async function withClientIdRetry<T>(
+    op: () => Promise<T>,
+    label: string,
+): Promise<T> {
+    try {
+        return await op()
+    } catch (error) {
+        // Not every rejection is an expired token: a deleted track, a socket
+        // blip or a rate limit lands here too, and scraping a fresh id for each
+        // of those would make a queue of bad tracks pay a 10s stall per track.
+        // Classifying the error by message would be the obvious scope, but that
+        // couples recovery to play-dl's wording and silently stops working when
+        // it changes. A cooldown bounds the waste without reading the error:
+        // a genuinely stale token is fixed by the first refresh, and everything
+        // failing after it rethrows untouched.
+        if (Date.now() - lastRefreshAt < REFRESH_COOLDOWN_MS) throw error
+
+        warnLog({
+            message: `SoundCloud: ${label} failed, refreshing client ID and retrying once`,
+            error,
+        })
+        try {
+            await refreshSoundCloudClientId()
+        } catch {
+            // Surface why the call actually failed, not why the recovery did.
+            throw error
+        }
+        return op()
+    }
+}
 
 export async function streamViaSoundCloud(
     query: string,
@@ -17,10 +100,14 @@ export async function streamViaSoundCloud(
         throw new Error('SoundCloud: empty query')
     }
 
-    const results = await playdl.search(query, {
-        source: { soundcloud: 'tracks' },
-        limit: 5,
-    })
+    const results = await withClientIdRetry(
+        () =>
+            playdl.search(query, {
+                source: { soundcloud: 'tracks' },
+                limit: 5,
+            }),
+        'search',
+    )
 
     if (!results.length) {
         throw new Error(`SoundCloud: no results for "${query}"`)
@@ -35,7 +122,10 @@ export async function streamViaSoundCloud(
 
     let scStream: Awaited<ReturnType<typeof playdl.stream>>
     try {
-        scStream = await playdl.stream(match.url)
+        scStream = await withClientIdRetry(
+            () => playdl.stream(match.url),
+            'stream',
+        )
     } catch (err) {
         throw new Error(
             `SoundCloud: stream creation failed for "${match.name}" — ${(err as Error).message}`,

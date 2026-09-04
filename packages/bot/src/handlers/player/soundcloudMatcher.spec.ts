@@ -4,16 +4,27 @@ import { PassThrough } from 'stream'
 // --- mocks ---
 const mockSearch = jest.fn()
 const mockStream = jest.fn()
+const mockGetFreeClientID = jest.fn()
+const mockSetToken = jest.fn()
+const mockInfoLog = jest.fn()
+const mockWarnLog = jest.fn()
 
 jest.mock('play-dl', () => ({
     search: (...args: unknown[]) => mockSearch(...args),
     stream: (...args: unknown[]) => mockStream(...args),
+    getFreeClientID: (...args: unknown[]) => mockGetFreeClientID(...args),
+    setToken: (...args: unknown[]) => mockSetToken(...args),
+}))
+jest.mock('@lucky/shared/utils', () => ({
+    infoLog: (...args: unknown[]) => mockInfoLog(...args),
+    warnLog: (...args: unknown[]) => mockWarnLog(...args),
 }))
 
 import {
     streamViaSoundCloud,
     findMatchingSoundCloudResult,
     parseDurationString,
+    __resetSoundCloudRefreshStateForTests,
 } from './soundcloudMatcher.js'
 
 // ---------------------------------------------------------------------------
@@ -242,7 +253,11 @@ describe('findMatchingSoundCloudResult – duration matching', () => {
 
 describe('streamViaSoundCloud', () => {
     beforeEach(() => {
+        jest.clearAllMocks()
+        __resetSoundCloudRefreshStateForTests()
         mockStream.mockResolvedValue({ stream: fakeReadable })
+        mockGetFreeClientID.mockResolvedValue('fresh-client-id')
+        mockSetToken.mockResolvedValue(undefined)
     })
 
     it('throws on empty query', async () => {
@@ -298,5 +313,147 @@ describe('streamViaSoundCloud', () => {
 
         // Verify that a stream is returned
         expect(result).toBe(fakeReadable)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// #2139 — the boot-scraped client id expires; the bridge must recover instead
+// of failing every fallback for the rest of the process lifetime.
+// ---------------------------------------------------------------------------
+
+describe('streamViaSoundCloud – client id refresh', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        __resetSoundCloudRefreshStateForTests()
+        mockStream.mockResolvedValue({ stream: fakeReadable })
+        mockGetFreeClientID.mockResolvedValue('fresh-client-id')
+        mockSetToken.mockResolvedValue(undefined)
+    })
+
+    it('refreshes the client id and retries once when search fails', async () => {
+        mockSearch
+            .mockRejectedValueOnce(new Error('401 Unauthorized'))
+            .mockResolvedValueOnce([makeResult('Song Name', 210)])
+
+        const result = await streamViaSoundCloud('song name', '3:30')
+
+        expect(result).toBe(fakeReadable)
+        expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
+        expect(mockSetToken).toHaveBeenCalledWith({
+            soundcloud: { client_id: 'fresh-client-id' },
+        })
+        expect(mockSearch).toHaveBeenCalledTimes(2)
+    })
+
+    it('refreshes the client id and retries once when stream creation fails', async () => {
+        mockSearch.mockResolvedValue([makeResult('Song Name', 210)])
+        mockStream
+            .mockRejectedValueOnce(new Error('401 Unauthorized'))
+            .mockResolvedValueOnce({ stream: fakeReadable })
+
+        const result = await streamViaSoundCloud('song name', '3:30')
+
+        expect(result).toBe(fakeReadable)
+        expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
+        expect(mockStream).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not refresh when the search succeeds but genuinely has no results', async () => {
+        mockSearch.mockResolvedValue([])
+
+        await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
+            'SoundCloud: no results for "song name"',
+        )
+        expect(mockGetFreeClientID).not.toHaveBeenCalled()
+    })
+
+    it('does not refresh when the search succeeds but nothing validates', async () => {
+        mockSearch.mockResolvedValue([makeResult('Completely Different', 300)])
+
+        await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
+            'SoundCloud: no validated match',
+        )
+        expect(mockGetFreeClientID).not.toHaveBeenCalled()
+    })
+
+    it('surfaces the original failure, not the refresh failure', async () => {
+        mockSearch.mockRejectedValue(new Error('401 Unauthorized'))
+        mockGetFreeClientID.mockRejectedValue(new Error('soundcloud.com down'))
+
+        await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
+            '401 Unauthorized',
+        )
+        // One attempt only: the retry is skipped when recovery failed.
+        expect(mockSearch).toHaveBeenCalledTimes(1)
+    })
+
+    it('propagates the retry failure when the refreshed id is still rejected', async () => {
+        mockSearch.mockRejectedValue(new Error('401 Unauthorized'))
+
+        await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
+            '401 Unauthorized',
+        )
+        expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
+        expect(mockSearch).toHaveBeenCalledTimes(2)
+    })
+
+    it('scrapes a single id when concurrent calls fail together', async () => {
+        mockSearch
+            .mockRejectedValueOnce(new Error('401 Unauthorized'))
+            .mockRejectedValueOnce(new Error('401 Unauthorized'))
+            .mockResolvedValue([makeResult('Song Name', 210)])
+
+        let releaseScrape: (id: string) => void = () => {}
+        mockGetFreeClientID.mockReturnValue(
+            new Promise<string>((resolve) => {
+                releaseScrape = resolve
+            }),
+        )
+
+        const both = Promise.all([
+            streamViaSoundCloud('song name', '3:30'),
+            streamViaSoundCloud('song name', '3:30'),
+        ])
+        await Promise.resolve()
+        releaseScrape('fresh-client-id')
+
+        await expect(both).resolves.toEqual([fakeReadable, fakeReadable])
+        expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not scrape a second id for a failure right after a refresh', async () => {
+        // A deleted track or a socket blip lands in the same catch as an expired
+        // token. The first failure may scrape; the ones behind it must not.
+        mockSearch
+            .mockRejectedValueOnce(new Error('401 Unauthorized'))
+            .mockResolvedValueOnce([makeResult('Song Name', 210)])
+        await streamViaSoundCloud('song name', '3:30')
+        expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
+
+        mockSearch.mockRejectedValue(new Error('404 Not Found'))
+        await expect(streamViaSoundCloud('gone track', '3:30')).rejects.toThrow(
+            '404 Not Found',
+        )
+        // Still 1: the cooldown suppressed a second scrape, and the original
+        // error surfaced untouched instead of paying for a pointless retry.
+        expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
+    })
+
+    it('throttles the next scrape even when the refresh itself failed', async () => {
+        // The case that matters most: soundcloud.com unreachable. If only a
+        // successful refresh started the cooldown, every following track would
+        // pay another full getFreeClientID timeout.
+        mockGetFreeClientID.mockRejectedValue(new Error('soundcloud.com down'))
+        mockSearch.mockRejectedValue(new Error('401 Unauthorized'))
+
+        await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
+            '401 Unauthorized',
+        )
+        expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
+
+        await expect(streamViaSoundCloud('other song', '3:30')).rejects.toThrow(
+            '401 Unauthorized',
+        )
+        expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
     })
 })

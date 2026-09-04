@@ -7,11 +7,10 @@ import {
     AttachmentExtractor,
 } from '@discord-player/extractor'
 import { SpotifyExtractor } from 'discord-player-spotify'
-import * as playdl from 'play-dl'
 import type { CustomClient } from '../../types'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { createResilientStream } from './streamBridge'
-import { withTimeout } from './withTimeout'
+import { refreshSoundCloudClientId } from './soundcloudMatcher'
 import { setExtractorDegraded } from './extractorHealth'
 
 type CreatePlayerParams = {
@@ -130,13 +129,9 @@ const registerRemainingExtractors = async (player: Player): Promise<void> => {
 
 const initPlayDlSoundCloud = async (): Promise<void> => {
     try {
-        const clientId = await withTimeout(
-            playdl.getFreeClientID(),
-            10_000,
-            'play-dl getFreeClientID',
-        )
-        await playdl.setToken({ soundcloud: { client_id: clientId } })
-        infoLog({ message: 'play-dl: SoundCloud client ID initialized' })
+        // Shared with the bridge's per-failure refresh (#2139) so the boot path
+        // and the recovery path cannot drift apart.
+        await refreshSoundCloudClientId()
     } catch (error) {
         warnLog({
             message:
