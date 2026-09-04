@@ -58,14 +58,9 @@ const ACCEPTED = {
         advisories: {
             1153173:
                 'GHSA-3f6p-5ww8-9rcr: MySQL2 auth plugin downgrade leaks plaintext credentials',
+            1158532:
+                'MySQL2 unbounded zlib inflate in the compressed protocol handler allows a decompression-bomb DoS. Same exposure as the entry above: reaching it requires speaking the MySQL wire protocol, which this app never does.',
         },
-    },
-    prisma: {
-        reason:
-            'Reported only as a consequence of the mysql2 finding above ' +
-            '(prisma\'s `via` is ["mysql2"], no advisory of its own).',
-        until: 'clears once mysql2 above is fixed/upgraded',
-        advisories: TRANSITIVE,
     },
 };
 
