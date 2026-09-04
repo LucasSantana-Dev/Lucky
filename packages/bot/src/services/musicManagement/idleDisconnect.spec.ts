@@ -12,6 +12,7 @@ const mockMarkIntentionalStop = jest.fn()
 const mockClearGuildState = jest.fn()
 const mockDebugLog = jest.fn()
 const mockErrorLog = jest.fn()
+const mockWarnLog = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     guildSettingsService: {
@@ -21,6 +22,7 @@ jest.mock('@lucky/shared/services', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: mockDebugLog,
     errorLog: mockErrorLog,
+    warnLog: mockWarnLog,
 }))
 jest.mock('./watchdog', () => ({
     musicWatchdogService: {
@@ -91,7 +93,7 @@ describe('idleDisconnect', () => {
         expect(queue.delete).toHaveBeenCalled()
     })
 
-    it('swallows errors raised while disconnecting', async () => {
+    it('warns (not just debug-logs) when queue.delete throws, and includes the guildId', async () => {
         mockGetGuildSettings.mockResolvedValueOnce({ idleTimeoutMinutes: 5 })
         const queue = makeQueue()
         queue.delete.mockImplementation(() => {
@@ -101,11 +103,31 @@ describe('idleDisconnect', () => {
         scheduleIdleDisconnect(queue)
         await jest.advanceTimersByTimeAsync(5 * 60 * 1000)
 
-        expect(mockDebugLog).toHaveBeenCalledWith(
+        expect(mockWarnLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Error during idle disconnect',
+                data: expect.objectContaining({ guildId: 'guild-1' }),
             }),
         )
+    })
+
+    it('keeps a failed farewell message at debug without masking a successful teardown', async () => {
+        mockGetGuildSettings.mockResolvedValueOnce({ idleTimeoutMinutes: 5 })
+        const send = jest.fn().mockRejectedValue(new Error('missing access'))
+        const queue = makeQueue({ metadata: { channel: { send } } })
+
+        scheduleIdleDisconnect(queue)
+        await jest.advanceTimersByTimeAsync(5 * 60 * 1000)
+
+        expect(queue.delete).toHaveBeenCalled()
+        expect(mockClearGuildState).toHaveBeenCalledWith('guild-1')
+        expect(mockDebugLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Failed to send idle disconnect farewell message',
+                data: expect.objectContaining({ guildId: 'guild-1' }),
+            }),
+        )
+        expect(mockWarnLog).not.toHaveBeenCalled()
     })
 
     it('logs and does not throw when settings lookup rejects', async () => {

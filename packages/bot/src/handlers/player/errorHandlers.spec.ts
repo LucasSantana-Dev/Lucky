@@ -79,9 +79,7 @@ function createPlayerWithHandlers(): {
                 (
                     event: string,
                     handler:
-                        | QueueErrorHandler
-                        | PlayerErrorHandler
-                        | DebugHandler,
+                        QueueErrorHandler | PlayerErrorHandler | DebugHandler,
                 ) => {
                     queueHandlers[event] = handler
                 },
@@ -742,6 +740,28 @@ describe('setupErrorHandlers', () => {
                 message: expect.stringContaining('no title'),
             }),
         )
+    })
+
+    it('falls back to console.error with the original message and error when errorLog itself throws', () => {
+        const { playerHandlers } = createPlayerWithHandlers()
+        const loggerError = new Error('errorLog transport failed')
+        errorLogMock.mockImplementationOnce(() => {
+            throw loggerError
+        })
+        const consoleErrorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => {})
+
+        const originalError = new Error('Unhandled player error')
+        ;(playerHandlers.error as TopLevelErrorHandler)(originalError)
+
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+            'Unhandled player error:',
+            originalError,
+            loggerError,
+        )
+
+        consoleErrorSpy.mockRestore()
     })
 
     it('uses "this track" in notification embed when trackTitle is empty', async () => {

@@ -1,6 +1,6 @@
 import type { GuildQueue } from 'discord-player'
 import { guildSettingsService } from '@lucky/shared/services'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { musicWatchdogService } from './watchdog'
 import { collaborativePlaylistService } from '../musicRecommendation/collaborativePlaylist'
 import type { QueueMetadata } from '../../types/QueueMetadata'
@@ -59,12 +59,21 @@ async function disconnectIdle(queue: GuildQueue): Promise<void> {
         collaborativePlaylistService.clearGuildState(guildId)
 
         if (metadata?.channel) {
-            await metadata.channel.send(
-                '👋 Left the voice channel due to inactivity.',
-            )
+            try {
+                await metadata.channel.send(
+                    '👋 Left the voice channel due to inactivity.',
+                )
+            } catch (error) {
+                // Farewell message failures are cosmetic — keep at debug so
+                // they can't mask a real teardown failure above.
+                debugLog({
+                    message: 'Failed to send idle disconnect farewell message',
+                    data: { guildId, error: String(error) },
+                })
+            }
         }
     } catch (error) {
-        debugLog({
+        warnLog({
             message: 'Error during idle disconnect',
             data: { guildId, error: String(error) },
         })

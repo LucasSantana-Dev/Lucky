@@ -1,3 +1,5 @@
+import { warnLog } from '../general/log'
+
 const COLOR: Record<string, number> = {
     danger: 0xed4245,
     warning: 0xfee75c,
@@ -39,7 +41,11 @@ export async function emitAlert(payload: AlertPayload): Promise<void> {
             signal: AbortSignal.timeout(5_000),
         })
         if (!res.ok) throw new Error(`Webhook ${res.status}`)
-    } catch {
+    } catch (error) {
         // Fire-and-forget — a failed alert must never crash the caller
+        warnLog({
+            message: 'alertEmitter: webhook delivery failed',
+            data: { title: payload.title, error: String(error) },
+        })
     }
 }
