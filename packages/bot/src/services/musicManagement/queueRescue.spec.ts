@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 
 const errorLogMock = jest.fn()
+const debugLogMock = jest.fn()
 const replenishQueueMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
+    debugLog: (...args: unknown[]) => debugLogMock(...args),
 }))
 
 jest.mock('../../services/musicRecommendation/autoplay/replenisher', () => ({
@@ -180,6 +182,11 @@ describe('rescueQueue', () => {
         })
         expect(result.removedTracks).toBe(1)
         expect(result.keptTracks).toBe(0)
+        expect(debugLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Track resolvability probe failed',
+            }),
+        )
     })
 })
 

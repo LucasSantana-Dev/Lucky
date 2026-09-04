@@ -237,8 +237,12 @@ const handlePlayerStart = async (
     try {
         evictOldEntries()
         trackStartTimes.set(trackStartKey(queue.guild.id, track.id), Date.now())
+        const requestedQuery = (
+            track.metadata as { requestedQuery?: string } | null
+        )?.requestedQuery
         infoLog({
             message: `Started playing "${track.title}" in ${queue.guild.name}`,
+            data: requestedQuery ? { requestedQuery } : undefined,
         })
         debugLog({ message: `Track URL: ${track.url}` })
         if (queue.node.volume !== constants.VOLUME)
