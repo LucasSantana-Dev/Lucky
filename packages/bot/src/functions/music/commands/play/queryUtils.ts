@@ -33,7 +33,7 @@ export function isUnknownInteractionError(error: unknown): boolean {
 }
 
 export function isUrl(query: string): boolean {
-    return query.startsWith('http://') || query.startsWith('https://')
+    return /^https?:\/\//i.test(query)
 }
 
 /**
@@ -128,6 +128,8 @@ function hasHost(url: URL, ...domains: string[]): boolean {
  * SoundCloud extractor cannot resolve. The bare track URL resolves correctly.
  */
 export function normalizeSoundCloudUrl(url: string): string {
+    if (!isUrl(url)) return url
+
     try {
         const parsed = new URL(url)
         if (!hasHost(parsed, 'soundcloud.com')) return url
@@ -163,6 +165,8 @@ export function normalizeSoundCloudUrl(url: string): string {
  * equivalent `?in=` playlist context.
  */
 export function normalizeYouTubeUrl(url: string): string {
+    if (!isUrl(url)) return url
+
     try {
         const parsed = new URL(url)
         if (!hasHost(parsed, 'youtube.com', 'youtu.be')) return url

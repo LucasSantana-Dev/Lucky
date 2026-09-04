@@ -429,3 +429,69 @@ describe('normalizeYouTubeUrl', () => {
         ).toBe('https://www.youtube.com/watch?v=x')
     })
 })
+
+describe('normalization logging behavior', () => {
+    beforeEach(() => {
+        warnLogMock.mockReset()
+    })
+
+    describe('normalizeSoundCloudUrl', () => {
+        it('produces no warnLog for plain text queries', () => {
+            normalizeSoundCloudUrl('bohemian rhapsody queen')
+            expect(warnLogMock).not.toHaveBeenCalled()
+        })
+
+        it('produces no warnLog for non-URL strings', () => {
+            normalizeSoundCloudUrl('not a url at all')
+            expect(warnLogMock).not.toHaveBeenCalled()
+        })
+
+        it('still warns for malformed http URLs', () => {
+            // soundcloud.com/... without protocol looks like a URL (could be
+            // user pasting), so attempting to parse it should warn when it fails
+            normalizeSoundCloudUrl('http://invalid[url')
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message:
+                        'SoundCloud URL normalization failed, using original URL',
+                }),
+            )
+        })
+    })
+
+    describe('normalizeYouTubeUrl', () => {
+        it('produces no warnLog for plain text queries', () => {
+            normalizeYouTubeUrl('never gonna give you up')
+            expect(warnLogMock).not.toHaveBeenCalled()
+        })
+
+        it('produces no warnLog for non-URL strings', () => {
+            normalizeYouTubeUrl('youtube not a url here')
+            expect(warnLogMock).not.toHaveBeenCalled()
+        })
+
+        it('still warns for malformed http URLs', () => {
+            normalizeYouTubeUrl('https://[invalid-url')
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message:
+                        'YouTube URL normalization failed, using original URL',
+                }),
+            )
+        })
+    })
+})
+
+describe('uppercase scheme', () => {
+    it('isUrl accepts an uppercase scheme', () => {
+        expect(isUrl('HTTPS://SOUNDCLOUD.COM/artist/track')).toBe(true)
+    })
+
+    it('normalizeSoundCloudUrl still strips playlist context', () => {
+        expect(
+            normalizeSoundCloudUrl(
+                'HTTPS://SOUNDCLOUD.COM/artist/track?in=artist/sets/mix',
+            ),
+        ).not.toContain('in=')
+    })
+})
