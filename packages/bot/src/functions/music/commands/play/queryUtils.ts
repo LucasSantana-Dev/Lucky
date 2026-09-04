@@ -33,7 +33,7 @@ export function isUnknownInteractionError(error: unknown): boolean {
 }
 
 export function isUrl(query: string): boolean {
-    return query.startsWith('http://') || query.startsWith('https://')
+    return /^https?:\/\//i.test(query)
 }
 
 /**
