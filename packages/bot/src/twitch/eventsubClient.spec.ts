@@ -20,6 +20,7 @@ const handleChannelRaidMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
+const warnLogMock = jest.fn()
 
 const mockWsHandlers: Record<string, (...args: unknown[]) => void> = {}
 const mockWsInstance = {
@@ -28,11 +29,13 @@ const mockWsInstance = {
     pong: jest.fn(),
     readyState: 1,
 }
+const mockWsUrls: string[] = []
 
 jest.mock('ws', () => {
     // Plain function (not jest.fn) so the bot suite's resetMocks/restoreMocks
     // can't strip the constructor's return value between tests.
-    function MockWebSocket(): typeof mockWsInstance {
+    function MockWebSocket(url: string): typeof mockWsInstance {
+        mockWsUrls.push(url)
         return mockWsInstance
     }
     // The client reads WebSocket.OPEN to gate the keepalive close.
@@ -59,6 +62,7 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: errorLogMock,
     infoLog: infoLogMock,
     debugLog: debugLogMock,
+    warnLog: warnLogMock,
 }))
 
 import { TwitchEventSubClient } from './eventsubClient'
@@ -74,6 +78,7 @@ describe('TwitchEventSubClient', () => {
         for (const key of Object.keys(mockWsHandlers))
             delete mockWsHandlers[key]
         mockWsInstance.readyState = 1
+        mockWsUrls.length = 0
         mockWsInstance.on.mockImplementation((...args: unknown[]) => {
             const [event, cb] = args as [string, (...a: unknown[]) => void]
             mockWsHandlers[event] = cb
@@ -199,6 +204,81 @@ describe('TwitchEventSubClient', () => {
             expect(setSizesAtCall).toEqual([0, 0])
 
             jest.useRealTimers()
+        })
+    })
+
+    describe('session_reconnect url validation', () => {
+        const fireWelcome = (sessionId: string): void => {
+            mockWsHandlers.message?.(
+                Buffer.from(
+                    JSON.stringify({
+                        metadata: { message_type: 'session_welcome' },
+                        payload: {
+                            session: {
+                                id: sessionId,
+                                status: 'connected',
+                                keepalive_timeout_seconds: 600,
+                                reconnect_url: null,
+                            },
+                        },
+                    }),
+                ),
+            )
+        }
+
+        const fireReconnect = (reconnectUrl: string): void => {
+            mockWsHandlers.message?.(
+                Buffer.from(
+                    JSON.stringify({
+                        metadata: { message_type: 'session_reconnect' },
+                        payload: { session: { reconnect_url: reconnectUrl } },
+                    }),
+                ),
+            )
+        }
+
+        it('refuses a hostile reconnect url and reconnects to the known EventSub host instead', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+
+            expect(mockWsUrls).toEqual(['wss://eventsub.wss.twitch.tv/ws'])
+
+            fireReconnect('wss://evil.attacker.example/ws')
+            await Promise.resolve()
+
+            expect(mockWsUrls).toEqual([
+                'wss://eventsub.wss.twitch.tv/ws',
+                'wss://eventsub.wss.twitch.tv/ws',
+            ])
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'rejected reconnect url outside the allowed host',
+                    ) as string,
+                }),
+            )
+        })
+
+        it('accepts a reconnect url on the real EventSub host', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+
+            fireReconnect('wss://eventsub.wss.twitch.tv/ws?session=abc')
+            await Promise.resolve()
+
+            expect(mockWsUrls).toEqual([
+                'wss://eventsub.wss.twitch.tv/ws',
+                'wss://eventsub.wss.twitch.tv/ws?session=abc',
+            ])
+            expect(warnLogMock).not.toHaveBeenCalled()
         })
     })
 })

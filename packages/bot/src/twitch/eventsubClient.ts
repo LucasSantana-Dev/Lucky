@@ -1,6 +1,6 @@
 import WebSocket from 'ws'
 import type { Client } from 'discord.js'
-import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
+import { errorLog, infoLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { getTwitchUserAccessToken } from './token'
 import {
     type NotificationPayload,
@@ -76,9 +76,33 @@ export class TwitchEventSubClient {
         await this.connect(EVENTSUB_WS_URL)
     }
 
+    // Twitch's session_reconnect message hands us a URL to reconnect to; only
+    // trust it when it points at the real EventSub host, otherwise fall back
+    // to the known-good constant (SSRF guard).
+    private resolveConnectUrl(url: string): string {
+        try {
+            const parsed = new URL(url)
+            if (
+                parsed.protocol === 'wss:' &&
+                parsed.host === 'eventsub.wss.twitch.tv'
+            ) {
+                return url
+            }
+        } catch {
+            // Falls through to the warn + default below.
+        }
+        warnLog({
+            message:
+                'Twitch EventSub: rejected reconnect url outside the allowed host, using default',
+            data: { url },
+        })
+        return EVENTSUB_WS_URL
+    }
+
     private async connect(url: string): Promise<void> {
+        const safeUrl = this.resolveConnectUrl(url)
         return new Promise((resolve) => {
-            this.ws = new WebSocket(url)
+            this.ws = new WebSocket(safeUrl)
             this.ws.on('open', () =>
                 debugLog({ message: 'Twitch EventSub: WebSocket connected' }),
             )
