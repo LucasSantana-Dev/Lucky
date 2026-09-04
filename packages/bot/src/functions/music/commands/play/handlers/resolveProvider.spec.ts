@@ -205,6 +205,103 @@ describe('resolveQueryWithFallbacks', () => {
         })
     })
 
+    // #2145: a plain-text query ("human nature", "chicago michael jackson",
+    // "eu vi tudo zimbra") surfaced NoResultError from the Spotify extractor
+    // in prod even though Spotify resolves those trivially in its own
+    // client. discord-player-spotify's client-credentials search() swallows
+    // any failure (including a transient token/network hiccup) into an
+    // empty result, which becomes NoResultError here — indistinguishable
+    // from a genuine no-match on this side, but worth one immediate retry.
+    describe('primary retry on NoResultError (#2145)', () => {
+        class NoResultError extends Error {
+            constructor(message: string) {
+                super(message)
+                this.name = 'NoResultError'
+            }
+        }
+
+        it('retries the primary provider once and resolves without falling back', async () => {
+            const noResultError = new NoResultError(
+                'No results found for "human nature" (Extractor: com.discord-player.itsmaat.spotifyextractor)',
+            )
+            const mockTrack = { title: 'Human Nature' }
+
+            mockPlayer.play
+                .mockRejectedValueOnce(noResultError)
+                .mockResolvedValueOnce(mockTrack)
+
+            const { result, telemetry } = await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'human nature',
+                'default',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            expect(result).toEqual(mockTrack)
+            expect(telemetry.resolvedVia).toBe('primary')
+            expect(mockPlayer.play).toHaveBeenCalledTimes(2)
+            // No fallback warning: the retry recovered before conceding.
+            expect(warnLogMock).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Primary search failed, falling back to YouTube',
+                }),
+            )
+        })
+
+        it('falls back to YouTube when the retry also fails', async () => {
+            const noResultError = new NoResultError('No results found')
+            const mockTrack = { title: 'Test Song' }
+
+            mockPlayer.play
+                .mockRejectedValueOnce(noResultError)
+                .mockRejectedValueOnce(noResultError)
+                .mockResolvedValueOnce(mockTrack)
+
+            const { result, telemetry } = await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'human nature',
+                'default',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            expect(result).toEqual(mockTrack)
+            expect(telemetry.resolvedVia).toBe('youtube-fallback')
+            expect(mockPlayer.play).toHaveBeenCalledTimes(3)
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Primary search failed, falling back to YouTube',
+                }),
+            )
+        })
+
+        it('does not retry a non-NoResultError primary failure', async () => {
+            const primaryError = new Error('Primary failed')
+            const mockTrack = { title: 'Test Song' }
+
+            mockPlayer.play
+                .mockRejectedValueOnce(primaryError)
+                .mockResolvedValueOnce(mockTrack)
+
+            const { telemetry } = await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'test query',
+                'default',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            // One primary call, then straight to the YouTube fallback — no
+            // extra retry call in between.
+            expect(mockPlayer.play).toHaveBeenCalledTimes(2)
+            expect(telemetry.resolvedVia).toBe('youtube-fallback')
+        })
+    })
+
     describe('failure handling', () => {
         it('should include error class when all attempts fail', async () => {
             class CustomError extends Error {
