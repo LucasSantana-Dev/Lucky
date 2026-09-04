@@ -11,6 +11,7 @@ type SoundCloudSearchResult = {
 
 const TITLE_MATCH_THRESHOLD = 0.75
 const CLIENT_ID_TIMEOUT_MS = 10_000
+const REFRESH_COOLDOWN_MS = 60_000
 
 /**
  * play-dl authenticates SoundCloud with an anonymous client id scraped from
@@ -23,6 +24,7 @@ const CLIENT_ID_TIMEOUT_MS = 10_000
  * otherwise scrape a new id per failure.
  */
 let refreshInFlight: Promise<void> | null = null
+let lastRefreshAt = 0
 
 export async function refreshSoundCloudClientId(): Promise<void> {
     refreshInFlight ??= (async () => {
@@ -33,12 +35,20 @@ export async function refreshSoundCloudClientId(): Promise<void> {
                 'play-dl getFreeClientID',
             )
             await playdl.setToken({ soundcloud: { client_id: clientId } })
+            lastRefreshAt = Date.now()
             infoLog({ message: 'play-dl: SoundCloud client ID initialized' })
         } finally {
             refreshInFlight = null
         }
     })()
     return refreshInFlight
+}
+
+// Test-only: the cooldown above is module-level state, so tests that assert on
+// the refresh path must reset it between cases instead of relying on run order.
+export function __resetSoundCloudRefreshStateForTests(): void {
+    refreshInFlight = null
+    lastRefreshAt = 0
 }
 
 /**
@@ -54,6 +64,16 @@ async function withClientIdRetry<T>(
     try {
         return await op()
     } catch (error) {
+        // Not every rejection is an expired token: a deleted track, a socket
+        // blip or a rate limit lands here too, and scraping a fresh id for each
+        // of those would make a queue of bad tracks pay a 10s stall per track.
+        // Classifying the error by message would be the obvious scope, but that
+        // couples recovery to play-dl's wording and silently stops working when
+        // it changes. A cooldown bounds the waste without reading the error:
+        // a genuinely stale token is fixed by the first refresh, and everything
+        // failing after it rethrows untouched.
+        if (Date.now() - lastRefreshAt < REFRESH_COOLDOWN_MS) throw error
+
         warnLog({
             message: `SoundCloud: ${label} failed, refreshing client ID and retrying once`,
             error,

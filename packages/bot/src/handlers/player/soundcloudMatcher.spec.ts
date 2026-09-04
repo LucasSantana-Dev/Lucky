@@ -24,6 +24,7 @@ import {
     streamViaSoundCloud,
     findMatchingSoundCloudResult,
     parseDurationString,
+    __resetSoundCloudRefreshStateForTests,
 } from './soundcloudMatcher.js'
 
 // ---------------------------------------------------------------------------
@@ -253,6 +254,7 @@ describe('findMatchingSoundCloudResult – duration matching', () => {
 describe('streamViaSoundCloud', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        __resetSoundCloudRefreshStateForTests()
         mockStream.mockResolvedValue({ stream: fakeReadable })
         mockGetFreeClientID.mockResolvedValue('fresh-client-id')
         mockSetToken.mockResolvedValue(undefined)
@@ -322,6 +324,7 @@ describe('streamViaSoundCloud', () => {
 describe('streamViaSoundCloud – client id refresh', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        __resetSoundCloudRefreshStateForTests()
         mockStream.mockResolvedValue({ stream: fakeReadable })
         mockGetFreeClientID.mockResolvedValue('fresh-client-id')
         mockSetToken.mockResolvedValue(undefined)
@@ -415,6 +418,24 @@ describe('streamViaSoundCloud – client id refresh', () => {
         releaseScrape('fresh-client-id')
 
         await expect(both).resolves.toEqual([fakeReadable, fakeReadable])
+        expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not scrape a second id for a failure right after a refresh', async () => {
+        // A deleted track or a socket blip lands in the same catch as an expired
+        // token. The first failure may scrape; the ones behind it must not.
+        mockSearch
+            .mockRejectedValueOnce(new Error('401 Unauthorized'))
+            .mockResolvedValueOnce([makeResult('Song Name', 210)])
+        await streamViaSoundCloud('song name', '3:30')
+        expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
+
+        mockSearch.mockRejectedValue(new Error('404 Not Found'))
+        await expect(streamViaSoundCloud('gone track', '3:30')).rejects.toThrow(
+            '404 Not Found',
+        )
+        // Still 1: the cooldown suppressed a second scrape, and the original
+        // error surfaced untouched instead of paying for a pointless retry.
         expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
     })
 })
