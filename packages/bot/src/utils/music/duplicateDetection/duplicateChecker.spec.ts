@@ -8,6 +8,8 @@ import {
 const addTrackToHistoryMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
+const warnLogMock = jest.fn()
+const getTrackHistoryMock = jest.fn()
 const extractTagsMock = jest.fn()
 const areTracksSimilarMock = jest.fn()
 const calculateSimilarityScoreMock = jest.fn()
@@ -16,12 +18,14 @@ jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         addTrackToHistory: (...args: unknown[]) =>
             addTrackToHistoryMock(...args),
+        getTrackHistory: (...args: unknown[]) => getTrackHistoryMock(...args),
     },
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 jest.mock('./tagExtractor', () => ({
@@ -50,6 +54,7 @@ describe('duplicateChecker', () => {
         extractTagsMock.mockReturnValue(['rock', 'live'])
         areTracksSimilarMock.mockReturnValue(false)
         calculateSimilarityScoreMock.mockReturnValue(0)
+        getTrackHistoryMock.mockResolvedValue([])
     })
 
     it('returns non-duplicate when no recent history is available', async () => {
@@ -260,6 +265,131 @@ describe('duplicateChecker', () => {
             const metadata = await getTrackMetadata(track, 'guild-1')
 
             expect(metadata.views).toBe(1)
+        })
+    })
+
+    describe('checkForDuplicate with real history', () => {
+        it('flags a track present in recent history as duplicate', async () => {
+            const historyTrack = {
+                trackId: 'track-1',
+                title: 'Song Name',
+                author: 'Artist',
+                duration: '3:21',
+                url: 'https://example.com/song',
+                timestamp: Date.now(),
+                guildId: 'guild-1',
+                isAutoplay: false,
+            }
+
+            getTrackHistoryMock.mockResolvedValueOnce([historyTrack])
+            areTracksSimilarMock.mockReturnValueOnce(true)
+            calculateSimilarityScoreMock.mockReturnValueOnce(0.95)
+
+            const result = await checkForDuplicate(track, 'guild-1', {
+                titleThreshold: 0.8,
+                artistThreshold: 0.8,
+                durationThreshold: 0.2,
+                overallThreshold: 0.75,
+            })
+
+            expect(getTrackHistoryMock).toHaveBeenCalledWith('guild-1', 20)
+            expect(result.isDuplicate).toBe(true)
+            expect(result.reason).toContain('95%')
+        })
+
+        it('flags a third track by the same artist as duplicate', async () => {
+            const byArtist = (trackId: string) => ({
+                trackId,
+                title: `Song ${trackId}`,
+                author: track.author,
+                duration: '3:21',
+                url: `https://example.com/${trackId}`,
+                timestamp: Date.now(),
+                guildId: 'guild-1',
+                isAutoplay: false,
+            })
+
+            getTrackHistoryMock.mockResolvedValueOnce([
+                byArtist('a'),
+                byArtist('b'),
+                byArtist('c'),
+            ])
+            areTracksSimilarMock
+                .mockReturnValueOnce(false)
+                .mockReturnValueOnce(false)
+                .mockReturnValueOnce(false)
+
+            const result = await checkForDuplicate(track, 'guild-1', {
+                titleThreshold: 0.8,
+                artistThreshold: 0.8,
+                durationThreshold: 0.2,
+                overallThreshold: 0.75,
+            })
+
+            expect(result.isDuplicate).toBe(true)
+            expect(result.reason).toBe(
+                'Too many tracks from the same artist recently',
+            )
+            expect(result.similarTracks).toHaveLength(3)
+            expect(result.similarTracks?.[0].playedBy).toBe('unknown')
+        })
+
+        it('does not flag an unrelated track as duplicate', async () => {
+            const historyTrack = {
+                trackId: 'other-track',
+                title: 'Different Song',
+                author: 'Other Artist',
+                duration: '4:30',
+                url: 'https://example.com/other',
+                timestamp: Date.now(),
+                guildId: 'guild-1',
+                isAutoplay: false,
+            }
+
+            getTrackHistoryMock.mockResolvedValueOnce([historyTrack])
+            areTracksSimilarMock.mockReturnValueOnce(false)
+
+            const result = await checkForDuplicate(track, 'guild-1', {
+                titleThreshold: 0.8,
+                artistThreshold: 0.8,
+                durationThreshold: 0.2,
+                overallThreshold: 0.75,
+            })
+
+            expect(result.isDuplicate).toBe(false)
+        })
+
+        it('logs via warnLog when similarity check throws', async () => {
+            const error = new Error('similarity check failed')
+            const historyTrack = {
+                trackId: 'other-track',
+                title: 'Different Song',
+                author: 'Other Artist',
+                duration: '4:30',
+                url: 'https://example.com/other',
+                timestamp: Date.now(),
+                guildId: 'guild-1',
+                isAutoplay: false,
+            }
+            getTrackHistoryMock.mockResolvedValueOnce([historyTrack])
+            areTracksSimilarMock.mockImplementationOnce(() => {
+                throw error
+            })
+
+            const result = await checkForDuplicate(track, 'guild-1', {
+                titleThreshold: 0.8,
+                artistThreshold: 0.8,
+                durationThreshold: 0.2,
+                overallThreshold: 0.75,
+            })
+
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Error checking for duplicates',
+                    error,
+                }),
+            )
+            expect(result.isDuplicate).toBe(false)
         })
     })
 })
