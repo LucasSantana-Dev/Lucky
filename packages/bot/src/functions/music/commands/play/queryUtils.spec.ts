@@ -481,3 +481,17 @@ describe('normalization logging behavior', () => {
         })
     })
 })
+
+describe('uppercase scheme', () => {
+    it('isUrl accepts an uppercase scheme', () => {
+        expect(isUrl('HTTPS://SOUNDCLOUD.COM/artist/track')).toBe(true)
+    })
+
+    it('normalizeSoundCloudUrl still strips playlist context', () => {
+        expect(
+            normalizeSoundCloudUrl(
+                'HTTPS://SOUNDCLOUD.COM/artist/track?in=artist/sets/mix',
+            ),
+        ).not.toContain('in=')
+    })
+})
