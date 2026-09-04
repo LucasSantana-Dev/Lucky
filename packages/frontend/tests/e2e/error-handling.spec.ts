@@ -25,15 +25,15 @@ test.describe('Error Handling', () => {
             })
         })
 
-        await page.goto('/')
+        await page.goto('/login')
         await page.evaluate(() => localStorage.clear())
         await page.reload()
         await page.waitForLoadState('domcontentloaded')
         await page.waitForTimeout(2000)
 
-        const loginButton = page.locator(
-            'button:has-text("Login with Discord")',
-        )
+        const loginButton = page.getByRole('button', {
+            name: /login with discord/i,
+        })
         await expect(loginButton).toBeVisible({ timeout: 5000 })
     })
 

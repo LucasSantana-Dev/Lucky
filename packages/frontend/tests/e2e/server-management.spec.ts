@@ -103,7 +103,7 @@ test.describe('Server Management', () => {
     test('server filtering (bot added vs not added)', async ({ page }) => {
         await navigateToServers(page)
 
-        await verifyBadge(page, 'Bot Added')
-        await verifyBadge(page, 'Not Added')
+        await verifyBadge(page, 'Lucky installed')
+        await verifyBadge(page, 'Add Bot')
     })
 })

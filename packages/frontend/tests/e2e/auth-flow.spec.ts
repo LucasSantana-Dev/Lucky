@@ -6,6 +6,7 @@ import {
     verifySessionCookie,
     interceptAuthRequests,
 } from './helpers/auth-helpers'
+import { mockAuthStatus } from './helpers/api-helpers'
 import {
     MOCK_OAUTH_STATE,
     MOCK_AUTH_CODE,
@@ -15,15 +16,16 @@ import {
 test.describe('OAuth Login Flow', () => {
     test.beforeEach(async ({ page }) => {
         await clearSession(page)
+        await mockAuthStatus(page, false)
     })
 
     test('Login button click and redirect', async ({ page }) => {
-        await page.goto('/')
+        await page.goto('/login')
         await page.waitForLoadState('domcontentloaded')
 
-        const loginButton = page.locator(
-            'button:has-text("Login with Discord")',
-        )
+        const loginButton = page.getByRole('button', {
+            name: /login with discord/i,
+        })
         await expect(loginButton).toBeVisible()
         await expect(loginButton).toBeEnabled()
 
@@ -70,12 +72,12 @@ test.describe('OAuth Login Flow', () => {
     })
 
     test('OAuth redirect targets Discord auth endpoint', async ({ page }) => {
-        await page.goto('/')
+        await page.goto('/login')
         await page.waitForLoadState('domcontentloaded')
 
-        const loginButton = page.locator(
-            'button:has-text("Login with Discord")',
-        )
+        const loginButton = page.getByRole('button', {
+            name: /login with discord/i,
+        })
         await expect(loginButton).toBeVisible()
         await loginButton.click()
 
@@ -85,35 +87,35 @@ test.describe('OAuth Login Flow', () => {
     })
 
     test('Error handling - invalid state parameter', async ({ page }) => {
-        await page.goto('/?error=invalid_state')
+        await page.goto('/login?error=invalid_state')
         await page.waitForLoadState('domcontentloaded')
         await page.waitForTimeout(500)
 
-        const loginButton = page.locator(
-            'button:has-text("Login with Discord")',
-        )
+        const loginButton = page.getByRole('button', {
+            name: /login with discord/i,
+        })
         await expect(loginButton).toBeVisible({ timeout: 5000 })
     })
 
     test('Error handling - missing authorization code', async ({ page }) => {
-        await page.goto('/?error=missing_code')
+        await page.goto('/login?error=missing_code')
         await page.waitForLoadState('domcontentloaded')
         await page.waitForTimeout(500)
 
-        const loginButton = page.locator(
-            'button:has-text("Login with Discord")',
-        )
+        const loginButton = page.getByRole('button', {
+            name: /login with discord/i,
+        })
         await expect(loginButton).toBeVisible({ timeout: 5000 })
     })
 
     test('Error handling - authentication failed', async ({ page }) => {
-        await page.goto('/?error=auth_failed')
+        await page.goto('/login?error=auth_failed')
         await page.waitForLoadState('domcontentloaded')
         await page.waitForTimeout(500)
 
-        const loginButton = page.locator(
-            'button:has-text("Login with Discord")',
-        )
+        const loginButton = page.getByRole('button', {
+            name: /login with discord/i,
+        })
         await expect(loginButton).toBeVisible({ timeout: 5000 })
     })
 
@@ -151,25 +153,25 @@ test.describe('OAuth Login Flow', () => {
     })
 
     test('Login page displays correctly', async ({ page }) => {
-        await page.goto('/')
+        await page.goto('/login')
         await page.waitForLoadState('domcontentloaded')
 
         await expect(page.locator('h1:has-text("Lucky")').first()).toBeVisible()
         await expect(
-            page.locator('h2:has-text("Welcome to Lucky Dashboard")'),
+            page.locator('h2:has-text("Manage your Discord servers")'),
         ).toBeVisible()
         await expect(
-            page.locator('button:has-text("Login with Discord")'),
+            page.getByRole('button', { name: /login with discord/i }),
         ).toBeVisible()
     })
 
     test('Loading state during authentication check', async ({ page }) => {
-        await page.goto('/')
+        await page.goto('/login')
         await page.waitForLoadState('domcontentloaded')
 
-        const loginButton = page.locator(
-            'button:has-text("Login with Discord")',
-        )
+        const loginButton = page.getByRole('button', {
+            name: /login with discord/i,
+        })
         await expect(loginButton).toBeVisible()
     })
 })
@@ -216,7 +218,7 @@ test.describe('Session Management', () => {
             })
         })
 
-        const logoutButton = page.locator('button:has-text("Logout")')
+        const logoutButton = page.getByRole('button', { name: /log out/i })
         if (await logoutButton.isVisible()) {
             await logoutButton.click()
             await page.waitForTimeout(1000)

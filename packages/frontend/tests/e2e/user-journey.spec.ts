@@ -81,7 +81,9 @@ test.describe('User Journey', () => {
 
         await navigateToDashboard(page)
 
-        const logoutButton = page.locator('button[aria-label="Logout"]').first()
+        const logoutButton = page
+            .getByRole('button', { name: 'Log out' })
+            .first()
         await expect(logoutButton).toBeVisible({ timeout: 5000 })
 
         await page.route('**/api/auth/status', async (route) => {
@@ -95,10 +97,11 @@ test.describe('User Journey', () => {
         await logoutButton.click()
         await page.waitForTimeout(2000)
 
-        const loginButton = page.locator(
-            'button:has-text("Login with Discord")',
+        // Logout lands on the public landing page (or /login), never the dashboard.
+        await expect(page.getByRole('button', { name: 'Log out' })).toHaveCount(
+            0,
         )
-        await expect(loginButton).toBeVisible({ timeout: 5000 })
+        await expect(page).toHaveURL(/\/($|login)/)
     })
 
     test('session persistence', async ({ page }) => {

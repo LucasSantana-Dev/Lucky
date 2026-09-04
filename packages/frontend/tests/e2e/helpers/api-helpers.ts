@@ -127,16 +127,14 @@ export async function mockGuildMemberContext(
                 username: MOCK_API_RESPONSES.authUser.username,
                 globalName: null,
                 roleIds: [],
-                effectiveAccess:
-                    guild?.effectiveAccess ??
-                    {
-                        overview: 'none',
-                        settings: 'none',
-                        moderation: 'none',
-                        automation: 'none',
-                        music: 'none',
-                        integrations: 'none',
-                    },
+                effectiveAccess: guild?.effectiveAccess ?? {
+                    overview: 'none',
+                    settings: 'none',
+                    moderation: 'none',
+                    automation: 'none',
+                    music: 'none',
+                    integrations: 'none',
+                },
                 canManageRbac: Boolean(guild?.canManageRbac),
             }),
         })
@@ -147,49 +145,55 @@ export async function mockModerationStats(
     page: Page,
     guildId: string,
 ): Promise<void> {
-    await page.route(`**/api/guilds/${guildId}/moderation/stats`, async (route) => {
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true',
-            },
-            body: JSON.stringify({
-                stats: {
-                    totalCases: 0,
-                    activeCases: 0,
-                    recentCases: 0,
-                    casesByType: {
-                        warn: 0,
-                        mute: 0,
-                        kick: 0,
-                        ban: 0,
-                    },
+    await page.route(
+        `**/api/guilds/${guildId}/moderation/stats`,
+        async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Credentials': 'true',
                 },
-            }),
-        })
-    })
+                body: JSON.stringify({
+                    stats: {
+                        totalCases: 0,
+                        activeCases: 0,
+                        recentCases: 0,
+                        casesByType: {
+                            warn: 0,
+                            mute: 0,
+                            kick: 0,
+                            ban: 0,
+                        },
+                    },
+                }),
+            })
+        },
+    )
 }
 
 export async function mockModerationCases(
     page: Page,
     guildId: string,
 ): Promise<void> {
-    await page.route(`**/api/guilds/${guildId}/moderation/cases*`, async (route) => {
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true',
-            },
-            body: JSON.stringify({
-                cases: [],
-                total: 0,
-            }),
-        })
-    })
+    await page.route(
+        `**/api/guilds/${guildId}/moderation/cases*`,
+        async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Credentials': 'true',
+                },
+                body: JSON.stringify({
+                    cases: [],
+                    total: 0,
+                }),
+            })
+        },
+    )
 }
 
 export async function mockAuthStatus(

@@ -76,12 +76,12 @@ test.describe('Music Page', () => {
         await page.goto('/music')
         await page.waitForLoadState('domcontentloaded')
 
-        const reconnectingStatus = page.getByRole('status', {
-            name: /Reconnecting to live updates/i,
-        })
-        const noTrackStatus = page.getByRole('status', {
-            name: /No track playing/i,
-        })
+        const reconnectingStatus = page
+            .getByRole('status', { name: /Reconnecting to live updates/i })
+            .first()
+        const noTrackStatus = page
+            .getByRole('status', { name: /live updates/i })
+            .first()
 
         const isVisible = await reconnectingStatus
             .isVisible({ timeout: 5000 })

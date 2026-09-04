@@ -95,7 +95,7 @@ test.describe('Responsive Design', () => {
         await navigateToDashboard(page)
 
         const mobileMenuButton = page
-            .locator('button[aria-label="Open sidebar"]')
+            .locator('button[aria-label="Open navigation menu"]')
             .first()
         await expect(mobileMenuButton).toBeVisible({ timeout: 5000 })
     })

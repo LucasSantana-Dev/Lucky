@@ -7,9 +7,8 @@ export function getServerCard(page: Page, serverName: string): Locator {
 export function getFeatureCard(page: Page, featureName: string): Locator {
     const formattedName = featureName.replace(/_/g, ' ')
     return page
-        .locator(`text=/.*${formattedName}.*/i`)
-        .locator('..')
-        .locator('..')
+        .getByRole('article')
+        .filter({ hasText: new RegExp(formattedName, 'i') })
         .first()
 }
 
@@ -31,7 +30,7 @@ export async function verifyToast(
 }
 
 export function getServerGrid(page: Page): Locator {
-    return page.locator('section[aria-labelledby="servers-heading"]').first()
+    return page.locator('[role="article"]').first()
 }
 
 export function getSidebar(page: Page): Locator {

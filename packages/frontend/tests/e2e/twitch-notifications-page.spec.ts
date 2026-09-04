@@ -67,6 +67,20 @@ function mockTwitchNotifications(
 
 test.describe('Twitch Notifications Page', () => {
     test.beforeEach(async ({ page }) => {
+        await page.route('**/api/twitch/status', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ configured: true }),
+            })
+        })
+        await page.route('**/api/guilds/*/channels**', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ channels: [] }),
+            })
+        })
         await setupMockApiResponses(page)
         await page.route('**/api/guilds/*/me**', async (route) => {
             await route.fulfill({
@@ -125,7 +139,9 @@ test.describe('Twitch Notifications Page', () => {
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
         await expect(
-            page.getByRole('heading', { name: /Twitch Notifications/i }),
+            page
+                .locator('#lucky-main-content')
+                .getByRole('heading', { name: /Twitch Notifications/i }),
         ).toBeVisible({ timeout: 10000 })
         await waitForAppLoaderToSettle(page)
 
@@ -166,7 +182,9 @@ test.describe('Twitch Notifications Page', () => {
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
         await expect(
-            page.getByRole('heading', { name: /Twitch Notifications/i }),
+            page
+                .locator('#lucky-main-content')
+                .getByRole('heading', { name: /Twitch Notifications/i }),
         ).toBeVisible({ timeout: 10000 })
         await waitForAppLoaderToSettle(page)
 
@@ -207,19 +225,15 @@ test.describe('Twitch Notifications Page', () => {
             await expect(formTitle).toBeVisible({ timeout: 3000 })
 
             const usernameInput = page.locator(
-                'input[placeholder="Twitch username"]',
+                'input[placeholder^="Twitch URL or login"]',
             )
             await expect(usernameInput).toBeVisible()
 
-            const userIdInput = page.locator(
-                'input[placeholder="Twitch user ID"]',
-            )
-            await expect(userIdInput).toBeVisible()
-
-            const channelInput = page.locator(
-                'input[placeholder="Discord channel ID"]',
-            )
-            await expect(channelInput).toBeVisible()
+            // The channel is picked from a select, not typed as an ID.
+            const channelSelect = page
+                .getByRole('combobox')
+                .filter({ hasText: 'Select Discord channel' })
+            await expect(channelSelect.first()).toBeVisible()
         }
     })
 
@@ -313,7 +327,9 @@ test.describe('Twitch Notifications Page', () => {
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
         await expect(
-            page.getByRole('heading', { name: /Twitch Notifications/i }),
+            page
+                .locator('#lucky-main-content')
+                .getByRole('heading', { name: /Twitch Notifications/i }),
         ).toBeVisible({ timeout: 10000 })
         await waitForAppLoaderToSettle(page)
 

@@ -1,8 +1,5 @@
 import { test, expect } from '@playwright/test'
-import {
-    setupMockApiResponses,
-    mockInviteUrl,
-} from './helpers/api-helpers'
+import { setupMockApiResponses, mockInviteUrl } from './helpers/api-helpers'
 import { navigateToServers, waitForServerList } from './helpers/page-helpers'
 import {
     getServerCard,
@@ -23,7 +20,9 @@ test.describe('Servers Page', () => {
     test('displays user avatar and username', async ({ page }) => {
         await navigateToServers(page)
 
-        const username = page.locator('main').getByText(MOCK_DISCORD_USER.username)
+        const username = page
+            .locator('main')
+            .getByText(MOCK_DISCORD_USER.username)
         await expect(username.first()).toBeVisible()
 
         const heading = page.getByRole('heading', { name: 'Servers' }).first()
@@ -62,7 +61,9 @@ test.describe('Servers Page', () => {
         const serverWithBot = MOCK_GUILDS.find((g) => g.hasBot)
         if (serverWithBot) {
             const serverCard = getServerCard(page, serverWithBot.name)
-            await expect(serverCard.getByText('Bot Added')).toBeVisible()
+            await expect(
+                serverCard.getByRole('button', { name: /^Manage/ }),
+            ).toBeVisible()
         }
     })
 
@@ -75,7 +76,9 @@ test.describe('Servers Page', () => {
         const serverWithoutBot = MOCK_GUILDS.find((g) => !g.hasBot)
         if (serverWithoutBot) {
             const serverCard = getServerCard(page, serverWithoutBot.name)
-            await expect(serverCard.getByText('Not Added')).toBeVisible()
+            await expect(
+                serverCard.getByRole('button', { name: /^Add bot/i }),
+            ).toBeVisible()
         }
     })
 
@@ -149,7 +152,7 @@ test.describe('Servers Page', () => {
         await navigateToServers(page)
         await waitForServerList(page)
 
-        const emptyState = page.getByText('No servers found matching the filter.')
+        const emptyState = page.getByText(/No servers yet/)
         await expect(emptyState).toBeVisible()
     })
 

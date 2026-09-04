@@ -54,10 +54,12 @@ test.describe('Features Page', () => {
             .catch(() => {})
 
         await expect(
-            page.getByRole('heading', { name: 'Features' }),
+            page
+                .locator('#lucky-main-content')
+                .getByRole('heading', { name: 'Features', exact: true }),
         ).toBeVisible({ timeout: 15000 })
         await expect(
-            page.locator('[aria-labelledby="server-toggles-heading"]'),
+            page.getByRole('heading', { name: 'Available Features' }),
         ).toBeVisible({ timeout: 5000 })
     })
 
@@ -91,9 +93,11 @@ test.describe('Features Page', () => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
 
-        await expect(
-            page.getByRole('heading', { name: /Global Toggles/i }),
-        ).toBeVisible({ timeout: 5000 })
+        // Global toggles moved to /admin; the features page marks them as
+        // managed globally on each card instead of rendering a section.
+        await expect(page.getByLabel('Global feature').first()).toBeVisible({
+            timeout: 5000,
+        })
     })
 
     test('toggles feature on/off (server-specific)', async ({ page }) => {
@@ -103,8 +107,9 @@ test.describe('Features Page', () => {
         const firstFeature = MOCK_FEATURES[0]
         const featureCard = getFeatureCard(page, firstFeature.name)
 
-        const switchButton = featureCard
-            .locator('[role="switch"], button[aria-checked]')
+        // Global features render a disabled switch; toggle a server-owned one.
+        const switchButton = page
+            .getByRole('switch', { disabled: false })
             .first()
         const isVisible = await switchButton
             .isVisible({ timeout: 3000 })
@@ -198,7 +203,9 @@ test.describe('Features Page', () => {
         }
         await waitForFeatures(page)
         await expect(
-            page.getByRole('heading', { name: 'Features' }),
+            page
+                .locator('#lucky-main-content')
+                .getByRole('heading', { name: 'Features', exact: true }),
         ).toBeVisible({ timeout: 10000 })
     })
 
@@ -208,7 +215,9 @@ test.describe('Features Page', () => {
 
         const firstFeature = MOCK_FEATURES[0]
         const featureCard = getFeatureCard(page, firstFeature.name)
-        const switchButton = featureCard.locator('[role="switch"]').first()
+        const switchButton = page
+            .getByRole('switch', { disabled: false })
+            .first()
 
         const isVisible = await switchButton
             .isVisible({ timeout: 3000 })
@@ -240,9 +249,9 @@ test.describe('Features Page', () => {
 
         if (isVisible) {
             await expect(
-                featureCard.locator(
-                    `text=/.*${firstFeature.name.replace(/_/g, ' ')}.*/i`,
-                ),
+                featureCard.getByRole('heading', {
+                    name: new RegExp(firstFeature.name.replace(/_/g, ' '), 'i'),
+                }),
             ).toBeVisible()
         }
     })

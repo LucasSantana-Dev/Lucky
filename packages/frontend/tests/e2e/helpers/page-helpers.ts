@@ -22,7 +22,9 @@ export async function selectServer(
     page: Page,
     serverId: string,
 ): Promise<void> {
-    const serverSelector = page.locator('button[aria-haspopup="listbox"]').first()
+    const serverSelector = page
+        .locator('button[aria-haspopup="listbox"]')
+        .first()
     await serverSelector.click()
 
     const serverOption = page
@@ -67,9 +69,9 @@ export async function waitForServerList(
     page: Page,
     timeout = 10000,
 ): Promise<void> {
-    await page.waitForSelector('main section[aria-labelledby="servers-heading"]', {
-        timeout,
-    })
+    await page
+        .getByRole('heading', { name: 'Your Servers' })
+        .waitFor({ state: 'visible', timeout })
     await page.waitForLoadState('domcontentloaded')
 }
 
@@ -78,8 +80,8 @@ export async function waitForFeatures(
     timeout = 10000,
 ): Promise<void> {
     await page
-        .locator('main')
-        .getByRole('heading', { name: 'Features' })
+        .locator('#lucky-main-content')
+        .getByRole('heading', { name: 'Features', exact: true })
         .first()
         .waitFor({
             state: 'visible',

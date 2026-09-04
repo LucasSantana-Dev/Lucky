@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Authentication Performance', () => {
     test('Time to redirect to Discord OAuth', async ({ page }) => {
-        await page.goto('/')
+        await page.goto('/login')
         await page.waitForLoadState('domcontentloaded')
 
         const startTime = Date.now()
@@ -47,7 +47,7 @@ test.describe('Authentication Performance', () => {
 
         const startTime = Date.now()
 
-        await page.goto('/')
+        await page.goto('/login')
         await page.waitForLoadState('domcontentloaded')
 
         const loginButton = page.locator(
@@ -85,7 +85,7 @@ test.describe('Authentication Performance', () => {
     test('Page load performance', async ({ page }) => {
         const startTime = Date.now()
 
-        await page.goto('/')
+        await page.goto('/login')
         await page.waitForLoadState('domcontentloaded')
 
         const endTime = Date.now()
@@ -103,7 +103,7 @@ test.describe('Authentication Performance', () => {
             }
         })
 
-        await page.goto('/')
+        await page.goto('/login')
         await page.waitForLoadState('domcontentloaded')
 
         await page.waitForTimeout(2000)
