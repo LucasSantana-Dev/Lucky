@@ -68,9 +68,10 @@ const userFacingChange = all.some((p) =>
 // Dropped: chore/test/refactor/perf — they often touch user-facing code.
 const TITLE_PREFIX_SKIP =
     /^(chore\(deps(-dev)?\)|ci|build|style|docs)(\([^)]*\))?:\s/
-const hasSkipLabel =
-    pr.labels?.some((l: { name: string }) => l.name === 'skip-changelog') ??
-    false
+// `danger.github.pr` (GitHubPRDSL) has no `labels`; the issue view does.
+const hasSkipLabel = danger.github.issue.labels.some(
+    (l) => l.name === 'skip-changelog',
+)
 if (
     userFacingChange &&
     !changelogTouched &&
