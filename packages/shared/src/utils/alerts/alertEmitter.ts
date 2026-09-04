@@ -1,3 +1,5 @@
+import { warnLog } from '../general/log'
+
 const COLOR: Record<string, number> = {
     danger: 0xed4245,
     warning: 0xfee75c,
@@ -39,7 +41,21 @@ export async function emitAlert(payload: AlertPayload): Promise<void> {
             signal: AbortSignal.timeout(5_000),
         })
         if (!res.ok) throw new Error(`Webhook ${res.status}`)
-    } catch {
-        // Fire-and-forget — a failed alert must never crash the caller
+    } catch (error) {
+        // Fire-and-forget: a failed alert must never crash the caller, and
+        // that includes warnLog itself failing (Sentry breadcrumb, etc.).
+        try {
+            warnLog({
+                message: 'alertEmitter: webhook delivery failed',
+                data: { title: payload.title, error: String(error) },
+            })
+        } catch (logError) {
+            console.error(
+                'alertEmitter: webhook delivery failed',
+                payload.title,
+                error,
+                logError,
+            )
+        }
     }
 }
