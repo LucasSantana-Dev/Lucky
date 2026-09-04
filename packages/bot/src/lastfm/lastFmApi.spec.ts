@@ -42,11 +42,11 @@ const fetchMock =
         ) => Promise<MockFetchResponse>
     >()
 
-const debugLogMock = jest.fn()
+const warnLogMock = jest.fn()
 
 jest.mock('@lucky/shared/utils/general/log', () => ({
-    debugLog: (params: unknown) => debugLogMock(params),
-    warnLog: jest.fn(),
+    debugLog: jest.fn(),
+    warnLog: (params: unknown) => warnLogMock(params),
     errorLog: jest.fn(),
     infoLog: jest.fn(),
     successLog: jest.fn(),
@@ -368,7 +368,7 @@ describe('lastFmApi', () => {
                     fetchMock.mockResolvedValueOnce({ ok: false })
                     tracks = await getRecentTracks('username')
                     expect(tracks).toEqual([])
-                    expect(debugLogMock).toHaveBeenCalledWith(
+                    expect(warnLogMock).toHaveBeenCalledWith(
                         expect.objectContaining({
                             message: 'lastFmApi: getRecentTracks HTTP error',
                         }),
@@ -437,7 +437,7 @@ describe('lastFmApi', () => {
                     fetchMock.mockResolvedValueOnce({ ok: false })
                     tracks = await getSimilarTracks('Artist', 'Track')
                     expect(tracks).toEqual([])
-                    expect(debugLogMock).toHaveBeenCalledWith(
+                    expect(warnLogMock).toHaveBeenCalledWith(
                         expect.objectContaining({
                             message: 'lastFmApi: getSimilarTracks HTTP error',
                         }),
@@ -553,7 +553,7 @@ describe('lastFmApi', () => {
                     fetchMock.mockResolvedValueOnce({ ok: false })
                     tracks = await getTagTopTracks('jazz')
                     expect(tracks).toEqual([])
-                    expect(debugLogMock).toHaveBeenCalledWith(
+                    expect(warnLogMock).toHaveBeenCalledWith(
                         expect.objectContaining({
                             message: 'lastFmApi: getTagTopTracks HTTP error',
                         }),
@@ -625,6 +625,17 @@ describe('lastFmApi', () => {
             })
             const filtered = await getArtistTopTags('Snarky Puppy')
             expect(filtered).toEqual(['jazz', 'fusion'])
+        })
+
+        it('returns empty array and warns on HTTP error', async () => {
+            fetchMock.mockResolvedValueOnce({ ok: false })
+            const tags = await getArtistTopTags('Unique HTTP Error Artist')
+            expect(tags).toEqual([])
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'lastFmApi: getArtistTopTags HTTP error',
+                }),
+            )
         })
 
         it.each([
@@ -708,7 +719,7 @@ describe('lastFmApi', () => {
                     fetchMock.mockResolvedValueOnce({ ok: false })
                     let result = await getLovedTracks('user', 10)
                     expect(result).toEqual([])
-                    expect(debugLogMock).toHaveBeenCalledWith(
+                    expect(warnLogMock).toHaveBeenCalledWith(
                         expect.objectContaining({
                             message: 'lastFmApi: getLovedTracks HTTP error',
                         }),
