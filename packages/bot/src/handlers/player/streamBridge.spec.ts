@@ -8,6 +8,7 @@ const mockStreamViaSoundCloud = jest.fn()
 const mockCleanTitle = jest.fn()
 const mockCleanAuthor = jest.fn()
 const mockCleanSearchQuery = jest.fn()
+const mockExtractSongCore = jest.fn()
 const mockIsAvailable = jest.fn()
 const mockDebugLog = jest.fn()
 const mockInfoLog = jest.fn()
@@ -34,6 +35,7 @@ jest.mock('../../utils/music/searchQueryCleaner', () => ({
     cleanTitle: (...args: unknown[]) => mockCleanTitle(...args),
     cleanAuthor: (...args: unknown[]) => mockCleanAuthor(...args),
     cleanSearchQuery: (...args: unknown[]) => mockCleanSearchQuery(...args),
+    extractSongCore: (...args: unknown[]) => mockExtractSongCore(...args),
 }))
 jest.mock('../../utils/music/search/providerHealth', () => ({
     providerHealthService: {
@@ -73,6 +75,7 @@ import {
     createResilientStream,
     getStreamBridgeFallbackLabel,
     STREAM_BRIDGE_FALLBACK_METADATA_KEY,
+    YTDLP_STREAM_START_TIMEOUT_MS,
     __resetYtdlpCookiesLogStateForTests,
 } from './streamBridge.js'
 
@@ -277,10 +280,17 @@ describe('streamViaYtDlp – process lifecycle', () => {
         mockSpawn.mockReturnValue(proc)
         // never emit stdout data — let the timeout fire
         const promise = streamViaYtDlp(validUrl)
-        jest.advanceTimersByTime(6_000)
+        jest.advanceTimersByTime(YTDLP_STREAM_START_TIMEOUT_MS)
         await expect(promise).rejects.toThrow('yt-dlp: timed out')
         expect(proc.kill).toHaveBeenCalled()
         jest.useRealTimers()
+    })
+
+    // #2141: the prior 6s budget was below the measured p100 with cookies
+    // (the live prod path), killing 16.8% of healthy resolutions. Pins the
+    // raised constant so a future regression back to a too-short value fails.
+    it('uses the raised #2141 timeout constant, not the old 6s budget', () => {
+        expect(YTDLP_STREAM_START_TIMEOUT_MS).toBeGreaterThan(6_000)
     })
 })
 
@@ -306,6 +316,7 @@ describe('createResilientStream', () => {
         mockCleanTitle.mockReturnValue('Test Track')
         mockCleanAuthor.mockReturnValue('Test Artist')
         mockCleanSearchQuery.mockReturnValue('test track test artist')
+        mockExtractSongCore.mockReturnValue(null)
         mockIsAvailable.mockReturnValue(true)
     })
 
@@ -538,6 +549,7 @@ describe('fallback stage stamping', () => {
         mockCleanTitle.mockReturnValue('Test Track')
         mockCleanAuthor.mockReturnValue('Test Artist')
         mockCleanSearchQuery.mockReturnValue('test track test artist')
+        mockExtractSongCore.mockReturnValue(null)
         mockIsAvailable.mockReturnValue(true)
     })
 
@@ -607,6 +619,52 @@ describe('fallback stage stamping', () => {
         expect(getStreamBridgeFallbackLabel(track)).toBe(
             'SoundCloud simplified-title search',
         )
+    })
+
+    // #2142: the stage used to be gated on "title has a parenthetical to
+    // strip", so titles like "Michael Jackson - Human Nature" never got a
+    // third attempt. It must now run whenever stage 2 fails, broadening via
+    // extractSongCore instead of being skipped outright.
+    it('runs the core stage for a title with no parenthetical/suffix', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaSoundCloud
+            .mockRejectedValueOnce(new Error('no results'))
+            .mockRejectedValueOnce(new Error('no results'))
+            .mockResolvedValueOnce(fakeStream)
+        mockCleanTitle.mockReturnValue('Michael Jackson - Human Nature')
+        mockExtractSongCore.mockReturnValue('Human Nature')
+        const track = makeTrack({ title: 'Michael Jackson - Human Nature' })
+
+        await createResilientStream(track)
+
+        expect(mockStreamViaSoundCloud).toHaveBeenNthCalledWith(
+            3,
+            'Human Nature',
+            track.duration,
+        )
+        expect(getStreamBridgeFallbackLabel(track)).toBe(
+            'SoundCloud simplified-title search',
+        )
+    })
+
+    it('skips the core stage when the broadened query is byte-identical to one already tried', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
+        mockCleanTitle.mockReturnValue('Simple Song Name')
+        // No separator to extract a core from — nothing new to try.
+        mockExtractSongCore.mockReturnValue(null)
+        const track = makeTrack({ title: 'Simple Song Name' })
+
+        await expect(createResilientStream(track)).rejects.toThrow(
+            'Bridge exhausted',
+        )
+
+        // Only the two prior stages (full + title-only) were attempted.
+        expect(mockStreamViaSoundCloud).toHaveBeenCalledTimes(2)
     })
 
     it('preserves existing track metadata when stamping the fallback stage', async () => {

@@ -479,6 +479,64 @@ describe('replenishQueue', () => {
         )
     })
 
+    // #2147: candidatePoolSize used to be assigned once right after the first
+    // (recommendation) collector and never reassigned, so telemetry
+    // understated the pool by whatever the later collectors contributed.
+    it('reports the final pool size after every collector runs, not just the first', async () => {
+        const { selectDiverseCandidates } = require('./diversitySelector')
+        const {
+            collectRecommendationCandidates,
+        } = require('./candidateCollector')
+        const {
+            collectSeedSimilarCandidates,
+        } = require('./seedSimilarityCollector')
+        const {
+            interleaveByArtist,
+        } = require('../../../services/musicManagement/queueManipulation')
+
+        const mockScoredTracks = [
+            {
+                track: createTrack({ id: 'a' }),
+                score: 0.8,
+                basis: { source: 'spotify-rec', signals: [] },
+            },
+        ]
+        selectDiverseCandidates.mockReturnValue(mockScoredTracks)
+        interleaveByArtist.mockReturnValue(mockScoredTracks)
+
+        collectRecommendationCandidates.mockResolvedValue(
+            new Map([['a', { track: createTrack({ id: 'a' }) }]]),
+        )
+        // Mutates the shared candidates Map the same way the real collector
+        // does — this is what the stale variable failed to pick up.
+        collectSeedSimilarCandidates.mockImplementation(
+            async (
+                _ctx: unknown,
+                _requestedBy: unknown,
+                candidates: Map<string, unknown>,
+            ) => {
+                candidates.set('b', { track: createTrack({ id: 'b' }) })
+                candidates.set('c', { track: createTrack({ id: 'c' }) })
+            },
+        )
+
+        const queue = createGuildQueue({
+            metadata: { requestedBy: { id: 'u1' } },
+        } as Partial<GuildQueue>)
+
+        await replenishQueue(queue)
+
+        const { debugLog } = require('@lucky/shared/utils')
+        const call = debugLog.mock.calls.find(
+            ([arg]: [{ message: string }]) =>
+                arg.message === 'Autoplay pass complete',
+        )
+        expect(call).toBeDefined()
+        // 1 from recommendation + 2 from seed-similar = 3, the final pool —
+        // not 1, the stale first-collector value.
+        expect(call[0].data.candidatePoolSize).toBe(3)
+    })
+
     it('calls recordRecommendationOutcome with rejected for purged autoplay tracks', async () => {
         const { purgeDuplicatesOfCurrentTrack } = require('./diversitySelector')
         const autoplayTrack = createTrack({

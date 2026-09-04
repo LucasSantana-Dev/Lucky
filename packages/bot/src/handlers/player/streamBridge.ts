@@ -9,6 +9,7 @@ import {
     cleanTitle,
     cleanAuthor,
     cleanSearchQuery,
+    extractSongCore,
 } from '../../utils/music/searchQueryCleaner'
 import { providerHealthService } from '../../utils/music/search/providerHealth'
 import { streamViaSoundCloud } from './soundcloudMatcher'
@@ -95,6 +96,13 @@ function ytdlpCookiesArgs(): string[] {
     return ['--cookies', cookiesFile]
 }
 
+// #2141: the prior 6s budget (set by #2044) sat inside the normal latency
+// distribution rather than above it. Prod measurement with --cookies (the
+// live path, since YTDLP_COOKIES_FILE is set) gave a p100 of 7673ms, and the
+// 6s budget was killing 16.8% of otherwise-healthy resolutions. Set just
+// above that measured p100.
+export const YTDLP_STREAM_START_TIMEOUT_MS = 8_000
+
 export function streamViaYtDlp(url: string): Promise<Readable> {
     try {
         validateYtDlpUrl(url)
@@ -122,14 +130,15 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
             { stdio: ['ignore', 'pipe', 'pipe'] },
         )
 
-        // Kept short: on every attempt this fires, the caller still has to
-        // wait out the full duration before falling back to SoundCloud, so
-        // a long timeout directly taxes perceived playback latency whenever
-        // yt-dlp is degraded (rate-limited/blocked) rather than erroring fast.
+        // On every attempt this fires, the caller still has to wait out the
+        // full duration before falling back to SoundCloud, so a long timeout
+        // directly taxes perceived playback latency whenever yt-dlp is
+        // degraded (rate-limited/blocked) rather than erroring fast. See the
+        // constant above for why this isn't shorter.
         const timeout = setTimeout(() => {
             proc.kill()
             reject(new Error('yt-dlp: timed out waiting for stream start'))
-        }, 6_000)
+        }, YTDLP_STREAM_START_TIMEOUT_MS)
 
         const stderrChunks: Buffer[] = []
         assertDefined(proc.stderr, 'stderr guaranteed by stdio config').on(
@@ -411,10 +420,25 @@ export async function createResilientStream(
         })
     }
 
+    // #2142: this stage used to be gated on "the title had a parenthetical to
+    // strip", so titles without one (most tracks) silently never got a third
+    // attempt. It now always runs after stage 2 fails, broadening via
+    // extractSongCore (e.g. "Artist - Song" -> "Song") when there is no
+    // parenthetical to strip. The only reason to skip is a query that would
+    // be byte-identical to one already tried.
     const openParen = cleanedTitle.indexOf('(')
-    const coreTitle =
+    const parenStrippedTitle =
         openParen > 0 ? cleanedTitle.slice(0, openParen).trim() : cleanedTitle
-    if (coreTitle && coreTitle !== cleanedTitle) {
+    const coreTitle =
+        parenStrippedTitle !== cleanedTitle
+            ? parenStrippedTitle
+            : (extractSongCore(cleanedTitle, cleanedAuthor) ??
+              parenStrippedTitle)
+    const alreadyTriedQueries = new Set([
+        cleanSearchQuery(cleanedTitle, cleanedAuthor),
+        cleanedTitle,
+    ])
+    if (coreTitle && !alreadyTriedQueries.has(coreTitle)) {
         try {
             const stream = await streamViaSoundCloud(coreTitle, track.duration)
             stampFallbackStage(track, 'soundcloud-core')
