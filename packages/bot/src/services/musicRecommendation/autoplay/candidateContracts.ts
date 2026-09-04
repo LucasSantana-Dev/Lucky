@@ -21,22 +21,18 @@ const rejectionCounters = new WeakMap<
 >()
 
 /**
- * Initialize rejection tracking for a replenish cycle.
- */
-export function initializeRejectionTracking(
-    candidates: Map<string, ScoredTrack>,
-): void {
-    rejectionCounters.set(candidates, { hardReject: 0, duplicate: 0 })
-}
-
-/**
- * Get the current rejection counts (returns empty if not initialized).
+ * Get the current rejection counts, lazily initializing if not yet set.
  */
 export function getRejectionCounts(candidates: Map<string, ScoredTrack>): {
     hardReject: number
     duplicate: number
 } {
-    return rejectionCounters.get(candidates) ?? { hardReject: 0, duplicate: 0 }
+    let counts = rejectionCounters.get(candidates)
+    if (!counts) {
+        counts = { hardReject: 0, duplicate: 0 }
+        rejectionCounters.set(candidates, counts)
+    }
+    return counts
 }
 
 /**
@@ -51,8 +47,8 @@ export function shouldIncludeCandidate(
 ): boolean {
     const isDuplicate = isDuplicateCandidate(track, excludedUrls, excludedKeys)
     if (isDuplicate && candidates) {
-        const counts = rejectionCounters.get(candidates)
-        if (counts) counts.duplicate++
+        const counts = getRejectionCounts(candidates)
+        counts.duplicate++
     }
     return !isDuplicate
 }
@@ -94,8 +90,8 @@ export function upsertScoredCandidate(
             signals: scored.signals,
         }
         // Track hard-rejects for telemetry
-        const counts = rejectionCounters.get(candidates)
-        if (counts) counts.hardReject++
+        const counts = getRejectionCounts(candidates)
+        counts.hardReject++
         auditCollector?.recordEvaluated(
             candidate,
             scored.score,

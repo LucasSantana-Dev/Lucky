@@ -85,6 +85,7 @@ export async function collectRecommendationCandidates(
                     candidate,
                     ctx.excludedUrls,
                     ctx.excludedKeys,
+                    candidates,
                 )
             ) {
                 continue

@@ -45,10 +45,7 @@ import {
 } from '../candidateFallback'
 import { buildVcContributionWeights } from './vcWeights'
 import { evaluateSkipRateBreaker } from './skipCircuitBreaker'
-import {
-    initializeRejectionTracking,
-    getRejectionCounts,
-} from './candidateContracts'
+import { getRejectionCounts } from './candidateContracts'
 
 // Autoplay backfill target. Reduced from 8→2 to prevent over-queueing: when
 // too many songs are queued ahead, most get evicted before playerStart without
@@ -169,11 +166,6 @@ async function _replenishQueue(
         lastfm: 0,
         fallback: 0,
         genre: 0,
-    }
-    // Placeholder; will be populated with actual rejection counts below
-    let rejectionCounts = {
-        hardReject: 0,
-        duplicate: 0,
     }
 
     try {
@@ -430,8 +422,6 @@ async function _replenishQueue(
             replenishCount,
             blockSertanejo,
         )
-        // Initialize rejection tracking for this replenish cycle
-        initializeRejectionTracking(candidates)
         sourcesCounts.recommendation = candidates.size
         debugLog({
             message: 'Autoplay: recommendation candidates',
@@ -597,16 +587,15 @@ async function _replenishQueue(
             // debug below it: production runs LOG_LEVEL=2, so the debug is
             // suppressed and an empty pool was indistinguishable from "which
             // of the five collectors came back dry" (#2146).
-            // sources now includes skipped markers and rejectionCounts shows
+            // sources now includes skipped markers and rejected shows
             // how many candidates were vetoed by scoring or deduplication.
-            rejectionCounts = getRejectionCounts(candidates)
             warnLog({
                 message: 'Autoplay: no candidates selected — queue may stall',
                 data: {
                     guildId: queue.guild.id,
                     candidatePoolSize: candidates.size,
                     sources: sourcesCounts,
-                    rejected: rejectionCounts,
+                    rejected: getRejectionCounts(candidates),
                     autoplayMode,
                     // Four of the five collectors are gated on a requester, so
                     // a zero count means "skipped" rather than "found nothing"
