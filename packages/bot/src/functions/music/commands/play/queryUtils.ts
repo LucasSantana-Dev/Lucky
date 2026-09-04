@@ -133,7 +133,14 @@ export function normalizeSoundCloudUrl(url: string): string {
         if (!hasHost(parsed, 'soundcloud.com')) return url
         parsed.searchParams.delete('in')
         return parsed.toString()
-    } catch {
+    } catch (error) {
+        // Same reasoning as expandSoundCloudShortUrl above (#1994): warn, not
+        // debug, so a malformed URL reaching here leaves a trace instead of
+        // silently skipping normalization.
+        warnLog({
+            message: 'SoundCloud URL normalization failed, using original URL',
+            data: { originalUrl: url, error: String(error) },
+        })
         return url
     }
 }
@@ -171,7 +178,11 @@ export function normalizeYouTubeUrl(url: string): string {
         }
 
         return parsed.toString()
-    } catch {
+    } catch (error) {
+        warnLog({
+            message: 'YouTube URL normalization failed, using original URL',
+            data: { originalUrl: url, error: String(error) },
+        })
         return url
     }
 }

@@ -578,11 +578,21 @@ async function _replenishQueue(
         }
 
         if (enriched.length === 0) {
+            // The per-source breakdown has to ride on this warn, not on the
+            // debug below it: production runs LOG_LEVEL=2, so the debug is
+            // suppressed and an empty pool was indistinguishable from "which
+            // of the five collectors came back dry" (#2146).
             warnLog({
                 message: 'Autoplay: no candidates selected — queue may stall',
                 data: {
                     guildId: queue.guild.id,
                     candidatePoolSize: candidates.size,
+                    sources: sourcesCounts,
+                    autoplayMode,
+                    // Four of the five collectors are gated on a requester, so
+                    // a zero count means "skipped" rather than "found nothing"
+                    // when this is false. Without it the breakdown is ambiguous.
+                    hasRequester: Boolean(requestedBy),
                 },
             })
             replenishCounters.set(guildId, replenishCount + 1)

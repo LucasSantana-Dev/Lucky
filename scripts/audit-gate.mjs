@@ -41,7 +41,28 @@ const TRANSITIVE = Symbol('transitive');
  * are accepted, so a new CVE in an already-listed package is not silently
  * inherited by the acceptance.
  */
-const ACCEPTED = {};
+const ACCEPTED = {
+    mysql2: {
+        reason:
+            'Transitive dep of prisma\'s bundled MySQL driver adapter. Lucky only ' +
+            'ever connects to Postgres (prisma/schema.prisma: provider = "postgresql") ' +
+            'so the vulnerable mysql_clear_password auth-downgrade path is never ' +
+            'exercised. No non-major fix exists: prisma@7.9.1 bundles mysql2@3.15.3, ' +
+            "and npm's suggested fix (`prisma@6.19.3`) is a major-version downgrade, " +
+            'not worth taking for a driver this app never uses.',
+        until: 'prisma ships a version bundling mysql2>=3.22.0 (tracked in #2136)',
+        // If another production dependency ever pulls mysql2 in directly,
+        // that's a different exposure than "bundled inside an unused prisma
+        // driver adapter" — re-review before letting the exception cover it.
+        requireTransitive: true,
+        advisories: {
+            1153173:
+                'GHSA-3f6p-5ww8-9rcr: MySQL2 auth plugin downgrade leaks plaintext credentials',
+            1158532:
+                'MySQL2 unbounded zlib inflate in the compressed protocol handler allows a decompression-bomb DoS. Same exposure as the entry above: reaching it requires speaking the MySQL wire protocol, which this app never does.',
+        },
+    },
+};
 
 // The policy above is only worth something if every entry actually carries its
 // justification. Enforce it rather than trusting the comment.
@@ -83,7 +104,12 @@ const runAudit = () => {
     }
 };
 
-const { vulnerabilities = {} } = JSON.parse(runAudit());
+/**
+ * Judges one `npm audit` response. Pure, so the caller can run it against a
+ * second read: npm audit intermittently answers with a truncated advisory set,
+ * and an absent package is indistinguishable from a fixed one.
+ */
+const evaluate = (vulnerabilities) => {
 const blocking = [];
 const accepted = [];
 /** package name -> advisory ids actually reported this run */
@@ -98,6 +124,14 @@ for (const [name, vulnerability] of Object.entries(vulnerabilities)) {
 
     if (!entry) {
         blocking.push({ ...summary, why: 'not accepted' });
+        continue;
+    }
+
+    if (entry.requireTransitive && vulnerability.isDirect) {
+        blocking.push({
+            ...summary,
+            why: 'accepted only while transitive, but is now a direct production dependency',
+        });
         continue;
     }
 
@@ -152,6 +186,33 @@ for (const [name, entry] of Object.entries(ACCEPTED)) {
     const reported = reportedAdvisories.get(name) ?? new Set();
     for (const [id, label] of Object.entries(entry.advisories)) {
         if (!reported.has(id)) stale.push(`${name} advisory ${id} (${label})`);
+    }
+}
+
+return { blocking, accepted, stale };
+};
+
+const first = evaluate(JSON.parse(runAudit()).vulnerabilities ?? {});
+
+// A truncated read can only ever produce a false PASS: a dropped package is
+// indistinguishable from a fixed one, whether it was an acceptance (surfaces as
+// stale) or an unaccepted finding (surfaces as nothing at all). So every run
+// that is about to pass gets a second opinion. A run that already blocks does
+// not need one: a second read could only add findings, and we fail either way.
+let { blocking, accepted, stale } = first;
+if (blocking.length === 0) {
+    const second = evaluate(JSON.parse(runAudit()).vulnerabilities ?? {});
+    // First read blocked on nothing, so the union is just the second's.
+    blocking = second.blocking;
+    // Only call an acceptance dead when both reads agree it is gone.
+    const confirmed = new Set(second.stale);
+    stale = stale.filter((entry) => confirmed.has(entry));
+    if (second.accepted.length > accepted.length) accepted = second.accepted;
+    if (blocking.length > 0 || stale.length !== first.stale.length) {
+        console.error(
+            'note: npm audit disagreed with itself across two reads; ' +
+                'trusting the read that reported more.',
+        );
     }
 }
 
