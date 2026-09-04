@@ -269,6 +269,9 @@ describe('replenishQueue', () => {
                 ['b', { track: createTrack() }],
             ]),
         )
+        const {
+            collectSeedSimilarCandidates,
+        } = require('./seedSimilarityCollector')
         const queue = createGuildQueue({
             metadata: { requestedBy: { id: 'u1' } },
         } as Partial<GuildQueue>)
@@ -281,8 +284,16 @@ describe('replenishQueue', () => {
                 'Autoplay: no candidates selected — queue may stall',
         )
         expect(call).toBeDefined()
+        // Counts are real, not hardcoded zeros.
         expect(call[0].data.candidatePoolSize).toBe(2)
         expect(call[0].data.sources.recommendation).toBe(2)
+
+        // And this is the distinction the breakdown exists to make. The seed
+        // collector is gated on a requester; here one is present, so it ran and
+        // legitimately found nothing. Its 0 therefore means "empty", not
+        // "skipped" — and hasRequester is what tells the two apart in the log.
+        expect(collectSeedSimilarCandidates).toHaveBeenCalled()
+        expect(call[0].data.sources.seedSimilar).toBe(0)
         expect(call[0].data.hasRequester).toBe(true)
     })
 
