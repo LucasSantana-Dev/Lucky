@@ -8,6 +8,26 @@ import { areTracksSimilar, calculateSimilarityScore } from './similarityChecker'
 import { extractTags } from './tagExtractor'
 import type { DuplicateCheckResult, SimilarityConfig } from './types'
 
+function toHistoryEntry(
+    t: Track | TrackHistoryEntry,
+    guildId: string,
+): TrackHistoryEntry {
+    if ('trackId' in t) {
+        return { ...t, guildId, playedBy: t.playedBy || 'unknown' }
+    }
+    return {
+        trackId: t.id || t.url,
+        title: t.title,
+        author: t.author,
+        duration: t.duration,
+        url: t.url,
+        timestamp: Date.now(),
+        guildId,
+        playedBy: t.requestedBy?.id || 'unknown',
+        isAutoplay: false,
+    }
+}
+
 async function checkExactUrlMatch(
     _track: Track,
     _guildId: string,
@@ -34,22 +54,7 @@ async function checkSimilarTracks(
         return {
             isDuplicate: true,
             reason: `Similar track found (${Math.round(maxSimilarity * 100)}% similarity)`,
-            similarTracks: similarTracks.map((t) => {
-                const isHistoryEntry = 'trackId' in t
-                return {
-                    trackId: isHistoryEntry ? t.trackId : t.id || t.url,
-                    title: t.title,
-                    author: t.author,
-                    duration: t.duration,
-                    url: t.url,
-                    timestamp: isHistoryEntry ? t.timestamp : Date.now(),
-                    guildId: guildId,
-                    playedBy: isHistoryEntry
-                        ? t.playedBy || 'unknown'
-                        : t.requestedBy?.id || 'unknown',
-                    isAutoplay: isHistoryEntry ? t.isAutoplay : false,
-                }
-            }),
+            similarTracks: similarTracks.map((t) => toHistoryEntry(t, guildId)),
             confidence: maxSimilarity,
         }
     }
@@ -70,22 +75,9 @@ async function checkSameArtistTracks(
         return {
             isDuplicate: true,
             reason: 'Too many tracks from the same artist recently',
-            similarTracks: sameArtistTracks.slice(0, 3).map((t) => {
-                const isHistoryEntry = 'trackId' in t
-                return {
-                    trackId: isHistoryEntry ? t.trackId : t.id || t.url,
-                    title: t.title,
-                    author: t.author,
-                    duration: t.duration,
-                    url: t.url,
-                    timestamp: isHistoryEntry ? t.timestamp : Date.now(),
-                    guildId: guildId,
-                    playedBy: isHistoryEntry
-                        ? t.playedBy || 'unknown'
-                        : t.requestedBy?.id || 'unknown',
-                    isAutoplay: isHistoryEntry ? t.isAutoplay : false,
-                }
-            }),
+            similarTracks: sameArtistTracks
+                .slice(0, 3)
+                .map((t) => toHistoryEntry(t, guildId)),
             confidence: 0.6,
         }
     }
