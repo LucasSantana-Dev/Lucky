@@ -71,6 +71,35 @@ describe('TwitchEventSubClient', () => {
     let client: TwitchEventSubClient
     let mockDiscordClient: Partial<Client>
 
+    const fireWelcome = (sessionId: string): void => {
+        mockWsHandlers.message?.(
+            Buffer.from(
+                JSON.stringify({
+                    metadata: { message_type: 'session_welcome' },
+                    payload: {
+                        session: {
+                            id: sessionId,
+                            status: 'connected',
+                            keepalive_timeout_seconds: 600,
+                            reconnect_url: null,
+                        },
+                    },
+                }),
+            ),
+        )
+    }
+
+    const fireReconnect = (reconnectUrl: string): void => {
+        mockWsHandlers.message?.(
+            Buffer.from(
+                JSON.stringify({
+                    metadata: { message_type: 'session_reconnect' },
+                    payload: { session: { reconnect_url: reconnectUrl } },
+                }),
+            ),
+        )
+    }
+
     beforeEach(() => {
         jest.clearAllMocks()
         // resetMocks wipes implementations each test, so (re)install the handler
@@ -155,24 +184,6 @@ describe('TwitchEventSubClient', () => {
     })
 
     describe('reconnect resubscription', () => {
-        const fireWelcome = (sessionId: string): void => {
-            mockWsHandlers.message?.(
-                Buffer.from(
-                    JSON.stringify({
-                        metadata: { message_type: 'session_welcome' },
-                        payload: {
-                            session: {
-                                id: sessionId,
-                                status: 'connected',
-                                keepalive_timeout_seconds: 600,
-                                reconnect_url: null,
-                            },
-                        },
-                    }),
-                ),
-            )
-        }
-
         it('clears the dedupe set on unexpected close so the new session re-subscribes from empty', async () => {
             jest.useFakeTimers()
             // Simulate the real subscribe: record the set size seen on each call,
@@ -208,35 +219,6 @@ describe('TwitchEventSubClient', () => {
     })
 
     describe('session_reconnect url validation', () => {
-        const fireWelcome = (sessionId: string): void => {
-            mockWsHandlers.message?.(
-                Buffer.from(
-                    JSON.stringify({
-                        metadata: { message_type: 'session_welcome' },
-                        payload: {
-                            session: {
-                                id: sessionId,
-                                status: 'connected',
-                                keepalive_timeout_seconds: 600,
-                                reconnect_url: null,
-                            },
-                        },
-                    }),
-                ),
-            )
-        }
-
-        const fireReconnect = (reconnectUrl: string): void => {
-            mockWsHandlers.message?.(
-                Buffer.from(
-                    JSON.stringify({
-                        metadata: { message_type: 'session_reconnect' },
-                        payload: { session: { reconnect_url: reconnectUrl } },
-                    }),
-                ),
-            )
-        }
-
         it('refuses a hostile reconnect url and reconnects to the known EventSub host instead', async () => {
             getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
 
@@ -279,6 +261,73 @@ describe('TwitchEventSubClient', () => {
                 'wss://eventsub.wss.twitch.tv/ws?session=abc',
             ])
             expect(warnLogMock).not.toHaveBeenCalled()
+        })
+
+        it('accepts a reconnect url whose host has a trailing DNS-root dot', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+
+            fireReconnect('wss://eventsub.wss.twitch.tv./ws?session=abc')
+            await Promise.resolve()
+
+            expect(mockWsUrls).toEqual([
+                'wss://eventsub.wss.twitch.tv/ws',
+                'wss://eventsub.wss.twitch.tv/ws?session=abc',
+            ])
+            expect(warnLogMock).not.toHaveBeenCalled()
+        })
+
+        it('rejects a reconnect url on the right host but a non-default port', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+
+            fireReconnect('wss://eventsub.wss.twitch.tv:8443/ws')
+            await Promise.resolve()
+
+            expect(mockWsUrls).toEqual([
+                'wss://eventsub.wss.twitch.tv/ws',
+                'wss://eventsub.wss.twitch.tv/ws',
+            ])
+            expect(warnLogMock).toHaveBeenCalled()
+        })
+
+        it('clears the subscription dedupe sets when a hostile reconnect url is rejected', async () => {
+            const setSizesAtCall: number[] = []
+            subscribeToStreamOnlineMock.mockImplementation(
+                (_sessionId: string, _clientId: string, set: Set<string>) => {
+                    setSizesAtCall.push(set.size)
+                    set.add('broadcaster-1')
+                    return Promise.resolve()
+                },
+            )
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+
+            // Reconnect closes with code 1000, which normally preserves the
+            // dedupe sets (session-continuing reconnect) — but this url is
+            // rejected, so it must fall back to the reset-and-resubscribe
+            // path just like an unexpected close would.
+            fireReconnect('wss://evil.attacker.example/ws')
+            await Promise.resolve()
+            fireWelcome('session-2')
+            await Promise.resolve()
+
+            // Before the fix, the second call saw size 1 and skipped
+            // broadcaster-1 as "already subscribed" even though the fallback
+            // connection is a brand-new session that knows nothing about it.
+            expect(setSizesAtCall).toEqual([0, 0])
         })
     })
 })
