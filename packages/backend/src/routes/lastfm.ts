@@ -150,6 +150,7 @@ export function setupLastFmRoutes(app: Express): void {
     app.get(
         '/api/lastfm/connect',
         optionalAuth,
+        apiLimiter,
         (req: AuthenticatedRequest, res: Response) => {
             try {
                 if (!isLastFmAuthConfigured()) {

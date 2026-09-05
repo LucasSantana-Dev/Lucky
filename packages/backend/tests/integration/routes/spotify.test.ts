@@ -156,6 +156,38 @@ describe('Spotify Routes', () => {
                 'error=spotify_not_configured',
             )
         })
+
+        it('sets a state cookie for the session id, not a foreign signed state, when authenticated', async () => {
+            mockSpotifyAuthService.isSpotifyAuthConfigured.mockReturnValue(true)
+
+            const attackerId = 'attacker-discord-id'
+            const attackerPayload =
+                Buffer.from(attackerId).toString('base64url')
+            const attackerSig = require('crypto')
+                .createHmac('sha256', 'test-secret')
+                .update(attackerId)
+                .digest('hex')
+            const foreignState = `${attackerPayload}.${attackerSig}`
+
+            const res = await request(app).get(
+                `/api/spotify/connect?state=${foreignState}`,
+            )
+
+            expect(res.status).toBe(302)
+            const cookies = res.header['set-cookie']
+            const stateCookie = Array.isArray(cookies)
+                ? cookies.find((c: string) => c.startsWith('spotify_state='))
+                : undefined
+            expect(stateCookie).toBeDefined()
+            const cookieValue = stateCookie!.split(';')[0].split('=')[1]
+            const decodedPayload = cookieValue.split('.')[0]
+            const decodedId = Buffer.from(decodedPayload, 'base64url').toString(
+                'utf8',
+            )
+
+            expect(decodedId).toBe('test-discord-id')
+            expect(decodedId).not.toBe(attackerId)
+        })
     })
 
     describe('GET /api/spotify/callback', () => {
