@@ -25,13 +25,17 @@ jest.mock(
 
 import { setupSpotifyRoutes } from '../../../src/routes/spotify'
 
+const mockAuthState: { user: { id: string } | null } = {
+    user: { id: 'test-discord-id' },
+}
+
 jest.mock('../../../src/middleware/auth', () => ({
     requireAuth: (req: any, res: any, next: any) => {
         req.user = { id: 'test-discord-id' }
         next()
     },
     optionalAuth: (req: any, res: any, next: any) => {
-        req.user = { id: 'test-discord-id' }
+        if (mockAuthState.user) req.user = mockAuthState.user
         next()
     },
 }))
@@ -188,6 +192,39 @@ describe('Spotify Routes', () => {
             expect(decodedId).toBe('test-discord-id')
             expect(decodedId).not.toBe(attackerId)
         })
+
+        it('keeps the provided signed state when the request is unauthenticated', async () => {
+            mockSpotifyAuthService.isSpotifyAuthConfigured.mockReturnValue(true)
+            mockAuthState.user = null
+            try {
+                const botUserId = 'bot-link-discord-id'
+                const payload = Buffer.from(botUserId).toString('base64url')
+                const sig = require('crypto')
+                    .createHmac('sha256', 'test-secret')
+                    .update(botUserId)
+                    .digest('hex')
+                const providedState = `${payload}.${sig}`
+
+                const res = await request(app).get(
+                    `/api/spotify/connect?state=${providedState}`,
+                )
+
+                expect(res.status).toBe(302)
+                expect(res.header.location).toContain('accounts.spotify.com')
+                const cookies = res.header['set-cookie']
+                const stateCookie = Array.isArray(cookies)
+                    ? cookies.find((c: string) =>
+                          c.startsWith('spotify_state='),
+                      )
+                    : undefined
+                expect(stateCookie).toBeDefined()
+                expect(stateCookie!.split(';')[0].split('=')[1]).toBe(
+                    providedState,
+                )
+            } finally {
+                mockAuthState.user = { id: 'test-discord-id' }
+            }
+        })
     })
 
     describe('GET /api/spotify/callback', () => {
@@ -282,7 +319,7 @@ describe('Spotify Routes', () => {
         })
     })
 
-    describe('GET /api/spotify/connect — edge cases', () => {
+    describe('GET /api/spotify/connect edge cases', () => {
         it('redirects with error when no discord id resolvable', async () => {
             mockSpotifyAuthService.isSpotifyAuthConfigured.mockReturnValue(true)
             const app2 = express()
