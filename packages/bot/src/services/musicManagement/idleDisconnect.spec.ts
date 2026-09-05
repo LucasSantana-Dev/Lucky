@@ -192,6 +192,33 @@ describe('idleDisconnect', () => {
         expect(queue.delete).toHaveBeenCalledTimes(1)
     })
 
+    it('clearIdleTimer before settings resolve leaves zero timers armed', async () => {
+        let resolveSettings: (value: {
+            idleTimeoutMinutes: number
+        }) => void = () => {}
+        mockGetGuildSettings.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolveSettings = resolve
+                }),
+        )
+        const queue = makeQueue()
+
+        // playerStart calls clearIdleTimer on playback resume; if the
+        // in-flight settings fetch is not invalidated, its callback can
+        // arm a timer that later kills the now-active playback (#2218 P1).
+        scheduleIdleDisconnect(queue)
+        clearIdleTimer('guild-1')
+        resolveSettings({ idleTimeoutMinutes: 5 })
+        await jest.advanceTimersByTimeAsync(0)
+
+        expect(jest.getTimerCount()).toBe(0)
+
+        await jest.advanceTimersByTimeAsync(5 * 60 * 1000)
+
+        expect(queue.delete).not.toHaveBeenCalled()
+    })
+
     it('rescheduling clears any prior timer for the guild', async () => {
         mockGetGuildSettings.mockResolvedValue({ idleTimeoutMinutes: 5 })
         const queue = makeQueue()

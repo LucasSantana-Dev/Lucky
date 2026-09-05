@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals'
+import { afterEach, describe, expect, it, jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import type { TrackManagementOptions } from './types'
 
@@ -23,6 +23,13 @@ const asQueue = (tracks: Track[] = []): GuildQueue =>
 
 describe('validateTrack', () => {
     const options: TrackManagementOptions = {}
+
+    afterEach(() => {
+        // clearMocks (jest.config.cjs) only wipes call data, not a
+        // mockImplementation set on a plain jest.fn() — reset explicitly so
+        // the throw doesn't leak into a later test in this file.
+        calculateTrackQualityMock.mockReset()
+    })
 
     it('rejects and warns when calculateTrackQuality throws', () => {
         const track = asTrack({

@@ -145,9 +145,22 @@ describe('Session Middleware', () => {
     })
 
     test('warns when Postgres session store initialization fails', async () => {
-        // getPrismaClient is not part of the global @lucky/shared/utils mock,
-        // so PrismaSessionStore always throws in this test environment and
-        // createPrimaryStore falls back to the local store on every run.
+        // Force the failure explicitly instead of relying on the global
+        // @lucky/shared/utils mock's accidental omission of getPrismaClient
+        // (that gap is a separate bug — see the mock in tests/setup.ts). This
+        // mocks the PrismaSessionStore module directly, which the other test
+        // in this file relies on too — both want createPrimaryStore to fail
+        // deterministically, so leaving it registered for the rest of the
+        // file matches every remaining test's own precondition.
+        jest.doMock('../../../src/middleware/prismaSessionStore', () => ({
+            PrismaSessionStore: class {
+                constructor() {
+                    throw new Error('database unreachable')
+                }
+            },
+        }))
+        jest.resetModules()
+
         const { warnLog } = await import('@lucky/shared/utils')
         const { setupSessionMiddleware } =
             await import('../../../src/middleware/session')
@@ -165,40 +178,46 @@ describe('Session Middleware', () => {
     })
 
     test('errors when production falls back to an in-memory session store', async () => {
-        jest.resetModules()
-        jest.doMock('session-file-store', () =>
-            jest.fn(() => {
-                throw new Error('file store unavailable')
-            }),
-        )
-        jest.doMock('express-session', () => {
-            class Store {}
-            class MemoryStore extends Store {}
-            return Object.assign(
-                () => (_req: unknown, _res: unknown, next: () => void) =>
-                    next(),
-                { Store, MemoryStore },
-            )
-        })
-
+        const originalEnv = process.env.NODE_ENV
+        // Override the already-registered global mocks in place instead of
+        // doMock/resetModules: session-file-store's default export is a
+        // jest.fn(), so mockImplementationOnce self-cleans after this test's
+        // single call, and MemoryStore's class name is restored in the
+        // finally block below — neither leaves state for later tests.
         const { errorLog } = await import('@lucky/shared/utils')
+        const { default: sessionFileStoreFactory } =
+            await import('session-file-store')
+        const { default: session } = await import('express-session')
         const { setupSessionMiddleware } =
             await import('../../../src/middleware/session')
 
-        const originalEnv = process.env.NODE_ENV
-        process.env.NODE_ENV = 'production'
+        ;(sessionFileStoreFactory as jest.Mock).mockImplementationOnce(() => {
+            throw new Error('file store unavailable')
+        })
 
-        setupSessionMiddleware(express())
+        const MemoryStoreClass = session.MemoryStore
+        const originalMemoryStoreName = MemoryStoreClass.name
 
-        expect(errorLog).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: expect.stringContaining('in-memory'),
-            }),
-        )
+        try {
+            process.env.NODE_ENV = 'production'
+            Object.defineProperty(MemoryStoreClass, 'name', {
+                value: 'MemoryStore',
+                configurable: true,
+            })
 
-        process.env.NODE_ENV = originalEnv
-        jest.dontMock('session-file-store')
-        jest.dontMock('express-session')
-        jest.resetModules()
+            setupSessionMiddleware(express())
+
+            expect(errorLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('in-memory'),
+                }),
+            )
+        } finally {
+            process.env.NODE_ENV = originalEnv
+            Object.defineProperty(MemoryStoreClass, 'name', {
+                value: originalMemoryStoreName,
+                configurable: true,
+            })
+        }
     })
 })
