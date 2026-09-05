@@ -270,7 +270,7 @@ describe('ServerSettingsPage', () => {
         })
     })
 
-    test('clamps a cleared commandCooldown to its schema minimum on save', async () => {
+    test('clamps an over-max commandCooldown to its schema maximum on save', async () => {
         const user = userEvent.setup()
         mockGuildStoreFn(mockGuild)
         vi.mocked(api.guilds.getSettings).mockResolvedValue({
@@ -286,6 +286,7 @@ describe('ServerSettingsPage', () => {
 
         const commandCooldownInput = screen.getByDisplayValue('3')
         await user.clear(commandCooldownInput)
+        await user.type(commandCooldownInput, '500')
 
         const saveButton = screen.getAllByRole('button', {
             name: /Save Changes/,
@@ -295,9 +296,8 @@ describe('ServerSettingsPage', () => {
         await waitFor(() => {
             expect(api.guilds.updateSettings).toHaveBeenCalledWith(
                 '123',
-                // commandCooldown's schema minimum is 0, so this asserts the
-                // clamp fallback rather than a change from the old behavior.
-                expect.objectContaining({ commandCooldown: 0 }),
+                // 500 exceeds NUMBER_FIELD_BOUNDS.commandCooldown.max (300).
+                expect.objectContaining({ commandCooldown: 300 }),
             )
         })
     })
