@@ -80,12 +80,13 @@ import {
     searchLastFmQuery,
     collectLastFmCandidates,
     recordSpotifySearchResult,
+    resetSpotifySearchTracking,
 } from './lastFmSeeder'
 
-// Every test starts with a clean rolling window so an accumulated streak from
-// one test's SPOTIFY_SEARCH calls cannot bleed into another's assertions.
+// Every test starts with a clean rolling window and warn cooldown so a streak
+// or a warn from one test cannot bleed into another's assertions.
 beforeEach(() => {
-    recordSpotifySearchResult(true)
+    resetSpotifySearchTracking()
 })
 
 function createTrack(
@@ -233,22 +234,49 @@ describe('recordSpotifySearchResult', () => {
         )
     })
 
-    it('resets the window on a non-empty result', () => {
+    it('keeps successes in the window so the empty rate is a real rate', () => {
         const t = 1_700_100_000_000
+        // 7 empties and 3 hits: 70%, under the 80% threshold.
+        for (let i = 0; i < 7; i++) {
+            recordSpotifySearchResult(false, t)
+        }
+        for (let i = 0; i < 3; i++) {
+            recordSpotifySearchResult(true, t)
+        }
+        expect(warnLogMock).not.toHaveBeenCalled()
+
+        // Four more empties: 11 of 14 is still under 80%.
+        for (let i = 0; i < 4; i++) {
+            recordSpotifySearchResult(false, t)
+        }
+        expect(warnLogMock).not.toHaveBeenCalled()
+
+        // 12 of 15 reaches 80%.
+        recordSpotifySearchResult(false, t)
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining(
+                    'Spotify search returned nothing for 12 of the last 15 queries',
+                ),
+            }),
+        )
+    })
+
+    it('drops old samples once the window is full', () => {
+        const t = 1_700_150_000_000
         for (let i = 0; i < 10; i++) {
             recordSpotifySearchResult(false, t)
         }
         expect(warnLogMock).toHaveBeenCalledTimes(1)
-
-        recordSpotifySearchResult(true, t)
         warnLogMock.mockClear()
 
-        // Well outside the cooldown, so this only re-warns if the reset
-        // failed to clear the window (i.e. it would instantly cross
-        // MIN_SAMPLES again instead of needing 10 fresh empties).
-        for (let i = 0; i < 9; i++) {
-            recordSpotifySearchResult(false, t + 60 * 60 * 1000)
+        // 20 hits push every empty out of the 20-sample window; the next
+        // empty (well past the cooldown) is 1 of 20 and must not warn.
+        for (let i = 0; i < 20; i++) {
+            recordSpotifySearchResult(true, t)
         }
+        recordSpotifySearchResult(false, t + 60 * 60 * 1000)
         expect(warnLogMock).not.toHaveBeenCalled()
     })
 

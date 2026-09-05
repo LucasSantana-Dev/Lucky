@@ -38,9 +38,8 @@ const SPOTIFY_SEARCH_MIN_SAMPLES = 10
 const SPOTIFY_SEARCH_EMPTY_RATE_THRESHOLD = 0.8
 const SPOTIFY_SEARCH_WARN_COOLDOWN_MS = 5 * 60 * 1000
 
-// Rolling window of recent SPOTIFY_SEARCH outcomes (always empty by
-// construction — see recordSpotifySearchResult below).
-let spotifySearchEmptyResults: boolean[] = []
+// Rolling window of recent SPOTIFY_SEARCH outcomes (true = had results).
+let spotifySearchResults: boolean[] = []
 let spotifySearchWarnedAt = 0
 
 /**
@@ -50,30 +49,27 @@ let spotifySearchWarnedAt = 0
  * `discord-player-spotify`'s `search()` swallows API errors and returns an
  * empty result instead of throwing, so a Spotify outage looks identical to a
  * genuine "no match" and the `engines exhausted` warn below never fires for
- * it (#2134, #2207). This gives that degraded state its own signal: once at
- * least SPOTIFY_SEARCH_MIN_SAMPLES calls have landed in the rolling window
- * and the empty rate crosses SPOTIFY_SEARCH_EMPTY_RATE_THRESHOLD, warn once
- * (rate-limited by SPOTIFY_SEARCH_WARN_COOLDOWN_MS). A non-empty result
- * clears the window — the outage is over, start counting fresh.
+ * it (#2134, #2207). This gives that degraded state its own signal: both
+ * outcomes stay in the rolling window, and once at least
+ * SPOTIFY_SEARCH_MIN_SAMPLES calls have landed and the empty rate crosses
+ * SPOTIFY_SEARCH_EMPTY_RATE_THRESHOLD, warn once (rate-limited by
+ * SPOTIFY_SEARCH_WARN_COOLDOWN_MS). Keeping successes in the window means an
+ * intermittent outage still registers, and a short run of ordinary no-match
+ * queries does not.
  */
 export function recordSpotifySearchResult(
     hadResults: boolean,
     now: number = Date.now(),
 ): void {
-    if (hadResults) {
-        spotifySearchEmptyResults = []
-        return
+    spotifySearchResults.push(hadResults)
+    if (spotifySearchResults.length > SPOTIFY_SEARCH_WINDOW) {
+        spotifySearchResults.shift()
     }
 
-    spotifySearchEmptyResults.push(false)
-    if (spotifySearchEmptyResults.length > SPOTIFY_SEARCH_WINDOW) {
-        spotifySearchEmptyResults.shift()
-    }
-
-    const total = spotifySearchEmptyResults.length
+    const total = spotifySearchResults.length
     if (total < SPOTIFY_SEARCH_MIN_SAMPLES) return
 
-    const emptyCount = spotifySearchEmptyResults.filter((r) => !r).length
+    const emptyCount = spotifySearchResults.filter((r) => !r).length
     if (emptyCount / total < SPOTIFY_SEARCH_EMPTY_RATE_THRESHOLD) return
 
     if (now - spotifySearchWarnedAt < SPOTIFY_SEARCH_WARN_COOLDOWN_MS) return
@@ -82,6 +78,12 @@ export function recordSpotifySearchResult(
     warnLog({
         message: `Autoplay: Spotify search returned nothing for ${emptyCount} of the last ${total} queries`,
     })
+}
+
+/** Test hook: clears the rolling window and the warn cooldown. */
+export function resetSpotifySearchTracking(): void {
+    spotifySearchResults = []
+    spotifySearchWarnedAt = 0
 }
 
 export async function collectLastFmCandidates(

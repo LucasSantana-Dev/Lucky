@@ -19,6 +19,12 @@ describe('detectQueryType', () => {
             expect(detectQueryType('youtube.com/watch?v=abc')).toBe('youtube')
         })
 
+        it('accepts a fully-qualified host with a trailing dot', () => {
+            expect(
+                detectQueryType('https://www.youtube.com./watch?v=abc'),
+            ).toBe('youtube')
+        })
+
         it('does not treat a bare lookalike host as youtube', () => {
             expect(
                 detectQueryType('evil-youtube.com.attacker.tld/watch?v=abc'),
