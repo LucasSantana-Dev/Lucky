@@ -2,6 +2,7 @@ import { EmbedBuilder } from 'discord.js'
 import type { Track } from 'discord-player'
 import type { User } from 'discord.js'
 import { COLOR } from '@lucky/shared/constants'
+import { isHost } from '../general/urlHost'
 
 export type PlayResponseKind = 'nowPlaying' | 'addedToQueue' | 'playlistQueued'
 
@@ -72,16 +73,16 @@ export function detectSource(track: {
         return SOURCE_BADGES[sourceHint]
     }
 
-    const url = (track.url ?? '').toLowerCase()
+    const url = track.url ?? ''
     if (!url) return DEFAULT_BADGE
 
-    if (url.includes('spotify.com')) return SOURCE_BADGES.spotify
-    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    if (isHost(url, 'spotify.com')) return SOURCE_BADGES.spotify
+    if (isHost(url, 'youtube.com') || isHost(url, 'youtu.be')) {
         return SOURCE_BADGES.youtube
     }
-    if (url.includes('soundcloud.com')) return SOURCE_BADGES.soundcloud
-    if (url.includes('music.apple.com')) return SOURCE_BADGES.apple_music
-    if (url.includes('vimeo.com')) return SOURCE_BADGES.vimeo
+    if (isHost(url, 'soundcloud.com')) return SOURCE_BADGES.soundcloud
+    if (isHost(url, 'music.apple.com')) return SOURCE_BADGES.apple_music
+    if (isHost(url, 'vimeo.com')) return SOURCE_BADGES.vimeo
     return DEFAULT_BADGE
 }
 

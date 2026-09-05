@@ -22,6 +22,7 @@ import {
 } from '../../lastfm'
 import { getSkipReasonEmojis } from '../../utils/music/skipReasonMap'
 import { getStreamBridgeFallbackLabel } from './streamBridge'
+import { isHost } from '../../utils/general/urlHost'
 
 /**
  * Track which guilds have logged a skip-reason prefill failure in this session.
@@ -177,10 +178,9 @@ function formatDuration(duration: string) {
 }
 
 function getSource(url: string) {
-    if (url.includes('youtube.com') || url.includes('youtu.be'))
-        return 'YouTube'
-    if (url.includes('spotify.com')) return 'Spotify'
-    if (url.includes('soundcloud.com')) return 'SoundCloud'
+    if (isHost(url, 'youtube.com') || isHost(url, 'youtu.be')) return 'YouTube'
+    if (isHost(url, 'spotify.com')) return 'Spotify'
+    if (isHost(url, 'soundcloud.com')) return 'SoundCloud'
     return 'Unknown'
 }
 

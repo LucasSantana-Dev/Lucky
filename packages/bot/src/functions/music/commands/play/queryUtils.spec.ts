@@ -70,6 +70,7 @@ import {
     normalizeYouTubeUrl,
     normalizeSoundCloudUrl,
     isUrl,
+    isHost,
     executePlayAtTop,
     expandSoundCloudShortUrl,
 } from './queryUtils'
@@ -171,6 +172,24 @@ describe('isUrl', () => {
 
     it('returns false for plain text', () => {
         expect(isUrl('some song title')).toBe(false)
+    })
+})
+
+describe('isHost', () => {
+    it('rejects a lookalike host with the real domain as a suffix', () => {
+        expect(
+            isHost('https://evil-youtube.com.attacker.tld/x', 'youtube.com'),
+        ).toBe(false)
+    })
+
+    it('accepts a real youtube subdomain', () => {
+        expect(
+            isHost('https://music.youtube.com/watch?v=1', 'youtube.com'),
+        ).toBe(true)
+    })
+
+    it('returns false for non-URL strings', () => {
+        expect(isHost('not a url', 'youtube.com')).toBe(false)
     })
 })
 

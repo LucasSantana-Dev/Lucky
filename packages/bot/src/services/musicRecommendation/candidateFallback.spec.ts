@@ -6,6 +6,7 @@ const getArtistGenresMock = jest.fn()
 const getValidAccessTokenMock = jest.fn()
 const getTagTopTracksMock = jest.fn()
 const searchLastFmQueryMock = jest.fn()
+const recordSpotifySearchResultMock = jest.fn()
 const shouldIncludeCandidateMock = jest.fn()
 const upsertScoredCandidateMock = jest.fn()
 const calculateRecommendationScoreMock = jest.fn()
@@ -43,6 +44,8 @@ jest.mock('../../lastfm', () => ({
 
 jest.mock('./autoplay/lastFmSeeder', () => ({
     searchLastFmQuery: (...args: unknown[]) => searchLastFmQueryMock(...args),
+    recordSpotifySearchResult: (...args: unknown[]) =>
+        recordSpotifySearchResultMock(...args),
 }))
 
 jest.mock('./autoplay/candidateCollector', () => ({
@@ -404,5 +407,58 @@ describe('collectBroadFallbackCandidates', () => {
         })
         await collectBroadFallbackCandidates(ctx, candidates)
         expect(getArtistGenresMock).not.toHaveBeenCalled()
+    })
+
+    it('records a degraded-search sample for every SPOTIFY_SEARCH call', async () => {
+        const foundTrack = {
+            title: 'Song',
+            author: 'Artist',
+            url: 'u2',
+            durationMS: 180_000,
+        }
+        const searchMock = jest.fn().mockResolvedValue({ tracks: [foundTrack] })
+        const queue = { player: { search: searchMock } } as never
+        const currentTrack = {
+            author: 'Artist',
+            title: 'Song',
+            url: 'u1',
+            durationMS: 200_000,
+        } as never
+        const ctx = createAutoplayContext({ queue, currentTrack })
+        await collectBroadFallbackCandidates(ctx, new Map())
+
+        expect(recordSpotifySearchResultMock).toHaveBeenCalledWith(true)
+    })
+
+    it('records an empty sample when the search returns nothing', async () => {
+        const searchMock = jest.fn().mockResolvedValue({ tracks: [] })
+        const queue = { player: { search: searchMock } } as never
+        const currentTrack = {
+            author: 'Artist',
+            title: 'Song',
+            url: 'u1',
+            durationMS: 200_000,
+        } as never
+        const ctx = createAutoplayContext({ queue, currentTrack })
+        await collectBroadFallbackCandidates(ctx, new Map())
+
+        expect(recordSpotifySearchResultMock).toHaveBeenCalledWith(false)
+    })
+
+    it('records an empty sample when the search throws', async () => {
+        const searchMock = jest
+            .fn()
+            .mockRejectedValue(new Error('network error'))
+        const queue = { player: { search: searchMock } } as never
+        const currentTrack = {
+            author: 'Artist',
+            title: 'Song',
+            url: 'u1',
+            durationMS: 200_000,
+        } as never
+        const ctx = createAutoplayContext({ queue, currentTrack })
+        await collectBroadFallbackCandidates(ctx, new Map())
+
+        expect(recordSpotifySearchResultMock).toHaveBeenCalledWith(false)
     })
 })
