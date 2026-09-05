@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.42.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.41.1...v2.42.0) (2026-09-05)
+
+
+### Features
+
+* add forum discussion cta and autoplay telemetry panel ([#2232](https://github.com/LucasSantana-Dev/Lucky/issues/2232)) ([498e5cf](https://github.com/LucasSantana-Dev/Lucky/commit/498e5cfc96f8d4b66a49056a18d5ddc1abacef62))
+
+
+### Bug Fixes
+
+* **backend:** prioritize session state, rate limit oauth connect routes ([#2229](https://github.com/LucasSantana-Dev/Lucky/issues/2229)) ([377b4eb](https://github.com/LucasSantana-Dev/Lucky/commit/377b4eb9d77d4f15c73c8f1c372fdae0c7016451))
+* **bot:** accept uppercase schemes in the url guard ([#2200](https://github.com/LucasSantana-Dev/Lucky/issues/2200)) ([09dd5fd](https://github.com/LucasSantana-Dev/Lucky/commit/09dd5fd575688d250a20e40a3adcac46714802e5))
+* **bot:** promote hidden failure logs to warn level ([#2176](https://github.com/LucasSantana-Dev/Lucky/issues/2176)) ([1947f77](https://github.com/LucasSantana-Dev/Lucky/commit/1947f7711c8fd572f957f2b5d273c7a31c35962b))
+* **bot:** raise yt-dlp start timeout, run core stage, report final pool size ([#2171](https://github.com/LucasSantana-Dev/Lucky/issues/2171)) ([d2eacef](https://github.com/LucasSantana-Dev/Lucky/commit/d2eacefaef478b392b89ff7523372dc271d15942))
+* **bot:** resolve plain-text spotify searches instead of noresulterror ([#2179](https://github.com/LucasSantana-Dev/Lucky/issues/2179)) ([3e504e3](https://github.com/LucasSantana-Dev/Lucky/commit/3e504e3dca0eface9ab32ce695374a9b74a85708))
+* **bot:** stop hiding player, alert, idle-disconnect and xp failures ([#2175](https://github.com/LucasSantana-Dev/Lucky/issues/2175)) ([4b9b152](https://github.com/LucasSantana-Dev/Lucky/commit/4b9b152eef79311532634a2ff0795508e4427551)), closes [#2153](https://github.com/LucasSantana-Dev/Lucky/issues/2153) [#2155](https://github.com/LucasSantana-Dev/Lucky/issues/2155) [#2156](https://github.com/LucasSantana-Dev/Lucky/issues/2156) [#2157](https://github.com/LucasSantana-Dev/Lucky/issues/2157)
+* **bot:** stop warning on url normalization for plain-text queries ([#2198](https://github.com/LucasSantana-Dev/Lucky/issues/2198)) ([4ba6841](https://github.com/LucasSantana-Dev/Lucky/commit/4ba684136776c8a5c9a641894446e1a78d508c8f))
+* **bot:** validate url hosts and warn on spotify search outages ([#2235](https://github.com/LucasSantana-Dev/Lucky/issues/2235)) ([37e8177](https://github.com/LucasSantana-Dev/Lucky/commit/37e8177998854044797ecff570d5fef442347644))
+* **bot:** wire real recent history into duplicate detection ([#2197](https://github.com/LucasSantana-Dev/Lucky/issues/2197)) ([2c5aa76](https://github.com/LucasSantana-Dev/Lucky/commit/2c5aa762700bfa0cacccc314ea6a61f62497e60d))
+* bump node base digest and pin safe mysql2/qs versions ([#2230](https://github.com/LucasSantana-Dev/Lucky/issues/2230)) ([83d0a80](https://github.com/LucasSantana-Dev/Lucky/commit/83d0a80d860f4f4e16d66b8ebc08ad7075de418c))
+* **dashboard:** persist server settings to real guildsettings columns ([#2236](https://github.com/LucasSantana-Dev/Lucky/issues/2236)) ([6595fbc](https://github.com/LucasSantana-Dev/Lucky/commit/6595fbc7ff58a5b567818d3723bdb652e9ae636f))
+* **deps:** pin override ranges to exact versions ([#2196](https://github.com/LucasSantana-Dev/Lucky/issues/2196)) ([c59a023](https://github.com/LucasSantana-Dev/Lucky/commit/c59a023d8cf149200aeb3a9b2b9384365c628301))
+* **deps:** sync lockfile with undici 7.29.1 so npm ci passes again ([#2186](https://github.com/LucasSantana-Dev/Lucky/issues/2186)) ([2fcef3c](https://github.com/LucasSantana-Dev/Lucky/commit/2fcef3cbec9b334e144ab3ebf3b9b97280471e93))
+* **docker:** bump bot image base to clear two high cves ([#2183](https://github.com/LucasSantana-Dev/Lucky/issues/2183)) ([6d557ec](https://github.com/LucasSantana-Dev/Lucky/commit/6d557ecae56ff4d282bf22f2ce8aec59f3a7a6ab))
+* **docker:** scope the apk upgrade to libexpat ([#2191](https://github.com/LucasSantana-Dev/Lucky/issues/2191)) ([5e8378b](https://github.com/LucasSantana-Dev/Lucky/commit/5e8378b8e48771272812f659775ebdff241a6dac))
+* **frontend:** stop the login auth-check loop, refresh stale e2e specs ([#2205](https://github.com/LucasSantana-Dev/Lucky/issues/2205)) ([19cb594](https://github.com/LucasSantana-Dev/Lucky/commit/19cb594d2a4ce8476de0147d6e4a5140af955e00))
+* **observability:** distinguish autoplay collector skip vs dry vs vetoed ([#2199](https://github.com/LucasSantana-Dev/Lucky/issues/2199)) ([c078aca](https://github.com/LucasSantana-Dev/Lucky/commit/c078aca9d93d10a0dba936e27c398ee14bd23c9d))
+* validate guild ids and twitch reconnect url before outbound requests ([#2173](https://github.com/LucasSantana-Dev/Lucky/issues/2173)) ([fb8a762](https://github.com/LucasSantana-Dev/Lucky/commit/fb8a762871295300fbfc182c4feb86e19a92cab3))
+* warn on swallowed session, ticket, track errors; fix idle race ([#2231](https://github.com/LucasSantana-Dev/Lucky/issues/2231)) ([3e45a84](https://github.com/LucasSantana-Dev/Lucky/commit/3e45a84f8ecf350ff332efaaf93fd961646a7dda))
+
 ## [2.41.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.41.0...v2.41.1) (2026-09-04)
 
 
