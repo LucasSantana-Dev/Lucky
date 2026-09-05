@@ -145,10 +145,11 @@
         "follow-redirects": "1.16.0",
         "ip-address": "10.5.0",
         "esbuild": "0.28.1",
-        "qs": "6.15.3",
+        "qs": "6.16.0",
         "@opentelemetry/core": "2.10.0",
         "find-my-way": "9.8.0",
-        "deepmerge-ts": "8.0.2"
+        "deepmerge-ts": "8.0.2",
+        "mysql2": "3.24.3"
     },
     "allowScripts": {
         "@discordjs/opus@0.10.0": true
