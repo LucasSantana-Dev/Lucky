@@ -1,33 +1,8 @@
 import { test, expect } from '@playwright/test'
 import { setupMockApiResponses } from './helpers/api-helpers'
+import { GUILD_STORAGE, mockMusicState } from './helpers/music-state'
 
-const GUILD_STORAGE = JSON.stringify({
-    id: '111111111111111111',
-    name: 'Test Server 1',
-})
-
-function mockMusicState(page: import('@playwright/test').Page) {
-    return page.route('**/api/guilds/*/music*', async (route) => {
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true',
-            },
-            body: JSON.stringify({
-                isPlaying: false,
-                currentTrack: null,
-                tracks: [],
-                volume: 80,
-                repeatMode: 'off',
-                voiceChannelName: null,
-            }),
-        })
-    })
-}
-
-const CTA_NAME = /Ver discussão no Discord/i
+const CTA_NAME = /View discussion on Discord/i
 
 test.describe('Forum thread CTA on the Music page', () => {
     test.beforeEach(async ({ page }) => {
@@ -87,7 +62,9 @@ test.describe('Forum thread CTA on the Music page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         await expect(
-            page.getByRole('heading', { name: /Music Player/i }),
+            page
+                .locator('#lucky-main-content')
+                .getByRole('heading', { name: /Music Player/i }),
         ).toBeVisible({ timeout: 10000 })
         await expect(page.getByRole('link', { name: CTA_NAME })).toHaveCount(0)
     })

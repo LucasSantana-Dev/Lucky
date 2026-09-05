@@ -25,7 +25,7 @@ describe('ForumThreadCta', () => {
         render(<ForumThreadCta guildId={guildId} slug='music' />)
 
         const link = await screen.findByRole('link', {
-            name: /Ver discussão no Discord/,
+            name: /View discussion on Discord/,
         })
         expect(link).toHaveAttribute(
             'href',
@@ -41,7 +41,7 @@ describe('ForumThreadCta', () => {
 
         await waitFor(() => expect(api.forum.getThread).toHaveBeenCalled())
         expect(
-            screen.queryByRole('link', { name: /Ver discussão no Discord/ }),
+            screen.queryByRole('link', { name: /View discussion on Discord/ }),
         ).not.toBeInTheDocument()
     })
 
@@ -52,7 +52,7 @@ describe('ForumThreadCta', () => {
 
         await waitFor(() => expect(api.forum.getThread).toHaveBeenCalled())
         expect(
-            screen.queryByRole('link', { name: /Ver discussão no Discord/ }),
+            screen.queryByRole('link', { name: /View discussion on Discord/ }),
         ).not.toBeInTheDocument()
     })
 })

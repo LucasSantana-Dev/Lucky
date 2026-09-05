@@ -1,31 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { setupMockApiResponses } from './helpers/api-helpers'
-
-const GUILD_STORAGE = JSON.stringify({
-    id: '111111111111111111',
-    name: 'Test Server 1',
-})
-
-function mockMusicState(page: import('@playwright/test').Page) {
-    return page.route('**/api/guilds/*/music*', async (route) => {
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true',
-            },
-            body: JSON.stringify({
-                isPlaying: false,
-                currentTrack: null,
-                tracks: [],
-                volume: 80,
-                repeatMode: 'off',
-                voiceChannelName: null,
-            }),
-        })
-    })
-}
+import { GUILD_STORAGE, mockMusicState } from './helpers/music-state'
 
 test.describe('Music Page', () => {
     test.beforeEach(async ({ page }) => {

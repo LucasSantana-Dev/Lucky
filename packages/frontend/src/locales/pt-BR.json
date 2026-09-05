@@ -766,7 +766,19 @@
         "progressMayBeOutdated": "pode estar desatualizado",
         "commandInProgress": "Executando o comando…",
         "dismissError": "Dispensar",
-        "playerNotConnected": "O player não está conectado"
+        "playerNotConnected": "O player não está conectado",
+        "viewDiscussion": "Ver discussão no Discord",
+        "autoplayAcceptance": "Aceitação do autoplay",
+        "timeWindow": "Janela de tempo",
+        "tableHeaderSource": "Fonte",
+        "tableHeaderCandidates": "Candidatos",
+        "tableHeaderAccepted": "Aceitos",
+        "tableHeaderRate": "Taxa",
+        "autoplayLoading": "Carregando…",
+        "autoplayLoadFailed": "Falha ao carregar os dados de aceitação do autoplay.",
+        "noAutoplayHistoryTitle": "Ainda não há histórico de autoplay",
+        "noAutoplayHistoryDescription": "Nenhuma recomendação foi registrada para este servidor nos últimos {{days}} dias.",
+        "autoplayOverallSummary": "{{accepted}} de {{total}} escolhas aceitas no total ({{rate}}) nos últimos {{days}} dias."
     },
     "preferredArtists": {
         "noServerSelected": "Nenhum Servidor Selecionado",

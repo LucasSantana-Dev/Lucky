@@ -69,6 +69,41 @@ describe('AutoplayTelemetry', () => {
         ).toBeInTheDocument()
     })
 
+    test('labels a null source as unknown', async () => {
+        vi.mocked(api.recommendations.getHistory).mockResolvedValue({
+            data: {
+                summary: MOCK_HISTORY.summary,
+                perSource: [
+                    {
+                        source: null,
+                        count: 5,
+                        acceptedCount: 2,
+                        rejectedCount: 1,
+                        pendingCount: 2,
+                        acceptanceRate: null,
+                    },
+                ],
+            },
+        } as any)
+
+        render(<AutoplayTelemetry guildId={guildId} />)
+
+        expect(await screen.findByText('Unknown')).toBeInTheDocument()
+        expect(screen.getByText('—')).toBeInTheDocument()
+    })
+
+    test('shows a failure message when the history request rejects', async () => {
+        vi.mocked(api.recommendations.getHistory).mockRejectedValue(
+            new Error('network error'),
+        )
+
+        render(<AutoplayTelemetry guildId={guildId} />)
+
+        expect(
+            await screen.findByText('Failed to load autoplay acceptance data.'),
+        ).toBeInTheDocument()
+    })
+
     test('refetches with 30 days when the 30d toggle is clicked', async () => {
         vi.mocked(api.recommendations.getHistory).mockResolvedValue({
             data: MOCK_HISTORY,
