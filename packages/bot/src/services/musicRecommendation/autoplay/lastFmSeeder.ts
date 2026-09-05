@@ -353,6 +353,11 @@ export async function searchLastFmQuery(
                 requestedBy,
                 searchEngine: engine,
             })
+            if (engine === QueryType.SPOTIFY_SEARCH) {
+                // Raw API count, same meaning as in candidateFallback: a hit
+                // whose tracks all exceed the duration cap is not an outage.
+                recordSpotifySearchResult(result.tracks.length > 0)
+            }
             const tracks = result.tracks
                 .filter(
                     (t) =>
@@ -360,9 +365,6 @@ export async function searchLastFmQuery(
                         t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
                 )
                 .slice(0, SEARCH_RESULTS_LIMIT)
-            if (engine === QueryType.SPOTIFY_SEARCH) {
-                recordSpotifySearchResult(tracks.length > 0)
-            }
             if (tracks.length > 0) return tracks
         } catch (err) {
             if (engine === QueryType.SPOTIFY_SEARCH) {

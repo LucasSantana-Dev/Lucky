@@ -190,6 +190,32 @@ describe('searchLastFmQuery', () => {
         expect(result).toContain(goodTrack)
     })
 
+    it('samples the raw spotify count, so over-cap hits are not outage signals', async () => {
+        const longTrack = createTrack()
+        ;(longTrack as unknown as { durationMS: number }).durationMS =
+            15 * 60 * 1000
+        const queue = createQueue({ tracks: [longTrack] })
+        const user = createUser()
+        const t = 1_700_300_000_000
+
+        // 7 empties, then 3 searches whose only hit is filtered out by the
+        // duration cap: 7 of 10 empties if sampled raw (no warn), 10 of 10
+        // if sampled after the filter (warn).
+        for (let i = 0; i < 7; i++) {
+            recordSpotifySearchResult(false, t)
+        }
+        for (let i = 0; i < 3; i++) {
+            await searchLastFmQuery(queue, 'query', user)
+        }
+        expect(warnLogMock).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining(
+                    'Spotify search returned nothing',
+                ),
+            }),
+        )
+    })
+
     it('returns empty array when search returns no tracks', async () => {
         const queue = createQueue({ tracks: [] })
         const user = createUser()
