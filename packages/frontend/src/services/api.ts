@@ -33,6 +33,8 @@ import { inferApiBase } from './apiBase'
 import { createRolesManageApi } from './rolesManageApi'
 import { createRoleGroupsApi } from './roleGroupsApi'
 import { createBatchJobsApi } from './batchJobsApi'
+import { createForumApi } from './forumApi'
+import { createRecommendationsApi } from './recommendationsApi'
 
 const browserLocation =
     typeof globalThis !== 'undefined' && 'window' in globalThis
@@ -100,8 +102,7 @@ apiClient.interceptors.response.use(
 
         const status: number = error.response.status
         const data = error.response.data as
-            | { error?: string; details?: unknown }
-            | undefined
+            { error?: string; details?: unknown } | undefined
         const message = data?.error || error.message || 'An error occurred'
 
         if (
@@ -455,6 +456,8 @@ export const api = {
     support: createSupportApi(apiClient, NORMALIZED_API_BASE),
     rolesManage: createRolesManageApi(apiClient),
     batchJobs: createBatchJobsApi(apiClient),
+    forum: createForumApi(apiClient),
+    recommendations: createRecommendationsApi(apiClient),
 }
 
 export { ApiError } from './ApiError'

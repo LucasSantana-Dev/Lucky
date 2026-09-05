@@ -770,7 +770,19 @@
         "progressMayBeOutdated": "may be outdated",
         "commandInProgress": "Working on that command…",
         "dismissError": "Dismiss",
-        "playerNotConnected": "Player is not connected"
+        "playerNotConnected": "Player is not connected",
+        "viewDiscussion": "View discussion on Discord",
+        "autoplayAcceptance": "Autoplay acceptance",
+        "timeWindow": "Time window",
+        "tableHeaderSource": "Source",
+        "tableHeaderCandidates": "Candidates",
+        "tableHeaderAccepted": "Accepted",
+        "tableHeaderRate": "Rate",
+        "autoplayLoading": "Loading…",
+        "autoplayLoadFailed": "Failed to load autoplay acceptance data.",
+        "noAutoplayHistoryTitle": "No autoplay history yet",
+        "noAutoplayHistoryDescription": "No recommendations were recorded for this server in the last {{days}} days.",
+        "autoplayOverallSummary": "{{accepted}} of {{total}} picks accepted overall ({{rate}}) in the last {{days}} days."
     },
     "preferredArtists": {
         "noServerSelected": "No Server Selected",
