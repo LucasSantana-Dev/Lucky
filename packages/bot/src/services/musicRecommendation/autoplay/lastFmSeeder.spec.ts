@@ -15,6 +15,11 @@ const calculateRecommendationScoreMock = jest.fn()
 const shouldIncludeCandidateMock = jest.fn()
 const upsertScoredCandidateMock = jest.fn()
 const normalizeTrackKeyMock = jest.fn()
+const warnLogMock = jest.fn()
+
+jest.mock('@lucky/shared/utils', () => ({
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
+}))
 
 jest.mock('discord-player', () => ({
     QueryType: {
@@ -71,7 +76,17 @@ jest.mock('./scoringUtils', () => ({
     normalizeTrackKey: (...args: unknown[]) => normalizeTrackKeyMock(...args),
 }))
 
-import { searchLastFmQuery, collectLastFmCandidates } from './lastFmSeeder'
+import {
+    searchLastFmQuery,
+    collectLastFmCandidates,
+    recordSpotifySearchResult,
+} from './lastFmSeeder'
+
+// Every test starts with a clean rolling window so an accumulated streak from
+// one test's SPOTIFY_SEARCH calls cannot bleed into another's assertions.
+beforeEach(() => {
+    recordSpotifySearchResult(true)
+})
 
 function createTrack(
     title = 'Track',
@@ -189,6 +204,68 @@ describe('searchLastFmQuery', () => {
         const user = createUser()
         const result = await searchLastFmQuery(queue, 'query', user)
         expect(result.length).toBeLessThanOrEqual(8)
+    })
+})
+
+describe('recordSpotifySearchResult', () => {
+    // Each test anchors to its own far-apart timestamp so a warn recorded by
+    // one test can never fall inside another test's 5-minute cooldown window.
+    beforeEach(() => {
+        warnLogMock.mockClear()
+    })
+
+    it('warns once after 10 empty results', () => {
+        const t = 1_700_000_000_000
+        for (let i = 0; i < 9; i++) {
+            recordSpotifySearchResult(false, t)
+        }
+        expect(warnLogMock).not.toHaveBeenCalled()
+
+        recordSpotifySearchResult(false, t)
+
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining(
+                    'Spotify search returned nothing for 10 of the last 10 queries',
+                ),
+            }),
+        )
+    })
+
+    it('resets the window on a non-empty result', () => {
+        const t = 1_700_100_000_000
+        for (let i = 0; i < 10; i++) {
+            recordSpotifySearchResult(false, t)
+        }
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+
+        recordSpotifySearchResult(true, t)
+        warnLogMock.mockClear()
+
+        // Well outside the cooldown, so this only re-warns if the reset
+        // failed to clear the window (i.e. it would instantly cross
+        // MIN_SAMPLES again instead of needing 10 fresh empties).
+        for (let i = 0; i < 9; i++) {
+            recordSpotifySearchResult(false, t + 60 * 60 * 1000)
+        }
+        expect(warnLogMock).not.toHaveBeenCalled()
+    })
+
+    it('suppresses a second warn within the cooldown window', () => {
+        const t = 1_700_200_000_000
+        for (let i = 0; i < 10; i++) {
+            recordSpotifySearchResult(false, t)
+        }
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+
+        // Still empty, still within the 5-minute cooldown.
+        recordSpotifySearchResult(false, t + 60_000)
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+
+        // Past the cooldown: allowed to warn again.
+        recordSpotifySearchResult(false, t + 6 * 60 * 1000)
+        expect(warnLogMock).toHaveBeenCalledTimes(2)
     })
 })
 

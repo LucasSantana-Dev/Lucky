@@ -19,6 +19,7 @@ import {
     safeUrlOrigin,
     scrubUrls,
 } from '../../utils/monitoring/sentry'
+import { isHost } from '../../utils/general/urlHost'
 
 const ALLOWED_YTDLP_DOMAINS = new Set([
     'youtube.com',
@@ -249,7 +250,9 @@ export async function createResilientStream(
 ): Promise<Readable> {
     const cleanedTitle = cleanTitle(track.title)
     const cleanedAuthor = cleanAuthor(track.author)
-    const isSpotifyUrl = track.url?.includes('open.spotify.com') ?? false
+    const isSpotifyUrl = track.url
+        ? isHost(track.url, 'open.spotify.com')
+        : false
 
     debugLog({
         message: 'Bridge: resolving stream',

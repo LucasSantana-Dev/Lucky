@@ -5,7 +5,10 @@ import { assertDefined } from '@lucky/shared/utils/guards'
 import { spotifyLinkService } from '@lucky/shared/services'
 import type { AutoplayContext } from './autoplay/autoplayContext'
 import { getTagTopTracks } from '../../lastfm'
-import { searchLastFmQuery } from './autoplay/lastFmSeeder'
+import {
+    searchLastFmQuery,
+    recordSpotifySearchResult,
+} from './autoplay/lastFmSeeder'
 import {
     shouldIncludeCandidate,
     upsertScoredCandidate,
@@ -131,6 +134,7 @@ export async function collectBroadFallbackCandidates(
                         t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
                 )
                 .slice(0, SEARCH_RESULTS_LIMIT)
+            recordSpotifySearchResult(tracks.length > 0)
 
             for (const track of tracks) {
                 if (
@@ -185,6 +189,7 @@ export async function collectBroadFallbackCandidates(
                 )
             }
         } catch (err: unknown) {
+            recordSpotifySearchResult(false)
             logAndSwallow(err, 'candidateFallback.spotifySearch', { query })
             continue
         }

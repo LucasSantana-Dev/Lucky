@@ -26,6 +26,18 @@ describe('detectQueryType', () => {
                 ),
             ).toBe('youtube')
         })
+
+        it('detects a real youtube subdomain', () => {
+            expect(detectQueryType('https://music.youtube.com/watch?v=1')).toBe(
+                'youtube',
+            )
+        })
+
+        it('does not detect a lookalike host as youtube', () => {
+            expect(
+                detectQueryType('https://evil-youtube.com.attacker.tld/x'),
+            ).not.toBe('youtube')
+        })
     })
 
     describe('spotify detection', () => {
