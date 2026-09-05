@@ -20,6 +20,8 @@ import SearchBar from '@/components/Music/SearchBar'
 import ImportPlaylist from '@/components/Music/ImportPlaylist'
 import QueueList from '@/components/Music/QueueList'
 import AutoplayGenres from '@/components/Music/AutoplayGenres'
+import AutoplayTelemetry from '@/components/Music/AutoplayTelemetry'
+import ForumThreadCta from '@/components/Music/ForumThreadCta'
 import EmptyState from '@/components/ui/EmptyState'
 import type { QueueState } from '@/types'
 import type { MusicActionKey } from '@/hooks/useMusicPlayer'
@@ -92,7 +94,12 @@ export default function MusicPage() {
                         </p>
                     </div>
                 </div>
-                <ConnectionBadge connected={player.isConnected} />
+                <div className='flex items-center gap-3 shrink-0'>
+                    {guildId && (
+                        <ForumThreadCta guildId={guildId} slug='music' />
+                    )}
+                    <ConnectionBadge connected={player.isConnected} />
+                </div>
             </header>
 
             <NowPlayingHero
@@ -138,6 +145,8 @@ export default function MusicPage() {
             </div>
 
             {guildId && <AutoplayGenres guildId={guildId} />}
+
+            {guildId && <AutoplayTelemetry guildId={guildId} />}
 
             <div>
                 <h2 className='type-title text-lucky-text-primary mb-3 px-1'>
