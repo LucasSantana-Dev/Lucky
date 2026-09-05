@@ -73,7 +73,7 @@ Unlike Groovy, Rythm, or Hydra (all shut down by third-party enforcement), Lucky
 - **Guild management**: Control settings and features per server
 - **Music controls**: Queue, playback, and playlist management from the web
 - **Moderation overview**: Case history, warnings, and actions
-- **Feature toggles**: Enable/disable per-guild
+- **Feature status view**: Global, admin-managed
 
 ### 📈 Reliability & Monitoring
 - **CI/CD**: Every PR runs lint, build, the full test suite, and SonarCloud gates
@@ -144,7 +144,7 @@ echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
 #   - DISCORD_TOKEN (from Discord Developer Portal)
 #   - CLIENT_ID (your bot's client ID)
 #   - DATABASE_URL (postgres://...)
-#   - REDIS_URL (redis://...)
+#   - REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_DB (defaults work for the bundled Redis container)
 
 # Start everything
 docker compose up -d
@@ -188,7 +188,10 @@ CLIENT_ID=your_client_id
 
 # Database
 DATABASE_URL=postgres://user:pass@localhost:5432/lucky
-REDIS_URL=redis://localhost:6379
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
 
 # Spotify (optional)
 SPOTIFY_CLIENT_ID=...
@@ -206,12 +209,12 @@ SENTRY_DSN=...
 | Command | Purpose |
 |---------|---------|
 | `/play` | Play a song, playlist, or search query |
-| `/pause` / `/resume` | Control playback |
+| `/pause` | Toggle pause/resume |
 | `/skip` | Skip to next track |
 | `/stop` | Stop and clear queue |
 | `/queue` | View current queue |
 | `/shuffle` | Randomize queue order |
-| `/repeat` | Toggle repeat modes (off / all / one) |
+| `/repeat` | Toggle repeat modes (off / track / queue) |
 | `/lyrics` | Show lyrics for current track |
 | `/autoplay` | Toggle smart recommendations |
 | `/songinfo` | Details on current track |
