@@ -1,6 +1,6 @@
 import type { Track, GuildQueue } from 'discord-player'
 import type { TrackValidationResult, TrackManagementOptions } from './types'
-import { debugLog } from '@lucky/shared/utils'
+import { warnLog } from '@lucky/shared/utils'
 import {
     calculateTrackSimilarity,
     calculateTrackQuality,
@@ -53,7 +53,11 @@ export function validateTrack(
 
         return { isValid: true, score: calculateTrackQuality(track) }
     } catch (error) {
-        debugLog({ message: 'Error validating track:', error })
+        warnLog({
+            message: 'Error validating track:',
+            error,
+            data: { title: track?.title, url: track?.url },
+        })
         return { isValid: false, reason: 'Validation error' }
     }
 }
