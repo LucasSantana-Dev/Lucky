@@ -10,23 +10,18 @@ export function detectQueryType(
     const isRealUrl =
         query.startsWith('http://') || query.startsWith('https://')
 
-    // Real URLs are matched by host only, so a spoofed lookalike
-    // (evil-youtube.com.attacker.tld) is not misdetected as youtube/spotify.
+    // Match by host only, so a spoofed lookalike (evil-youtube.com.attacker.tld)
+    // or a path/query segment that merely mentions the host is not misdetected.
     // Bare text without a protocol (a user pasting "youtube.com/..." without
-    // https://) keeps the old substring check, since it is not a URL at all
-    // and there is no host to parse.
-    if (
-        isHost(query, 'youtube.com', 'youtu.be') ||
-        (!isRealUrl &&
-            (query.includes('youtube.com') || query.includes('youtu.be')))
-    ) {
+    // https://) is parsed the same way after prefixing https://, so it gets
+    // the host check instead of a substring match.
+    const candidate = isRealUrl ? query : `https://${query}`
+
+    if (isHost(candidate, 'youtube.com', 'youtu.be')) {
         return 'youtube'
     }
 
-    if (
-        isHost(query, 'spotify.com') ||
-        (!isRealUrl && query.includes('spotify.com'))
-    ) {
+    if (isHost(candidate, 'spotify.com')) {
         return 'spotify'
     }
 
