@@ -1183,111 +1183,56 @@ docker compose up -d <service>`}</code>
         breadcrumb: 'Docs / Custom commands',
         toc: [
             { id: 'create-one', label: 'Create one' },
-            { id: 'variables', label: 'Variables' },
-            { id: 'embeds', label: 'Embed responses' },
-            { id: 'permissions', label: 'Permissions & scope' },
-            { id: 'examples', label: 'Patterns & examples' },
+            { id: 'how-it-triggers', label: 'How it triggers' },
+            { id: 'manage', label: 'Edit, list, delete' },
+            { id: 'scope', label: 'Scope' },
         ],
         content: () => (
             <>
                 <p>
-                    Build slash commands without writing code. Useful for FAQ
-                    replies, role toggles, embed posts, server-specific
-                    shortcuts, and quick info lookups.
+                    Canned text replies without writing code. Useful for FAQ
+                    answers, rules reminders, and server-specific shortcuts.
                 </p>
                 <h2 id='create-one'>Create one</h2>
                 <pre>
-                    <code>{`/customcommand create rules
-> response: "Read the rules in #rules-channel, ${'$'}{user}."`}</code>
+                    <code>{`/customcommand create name:rules response:"Read the rules in #rules-channel." description:"Points to the rules"`}</code>
                 </pre>
                 <p>
-                    Or use the dashboard: <strong>Custom commands / New</strong>
-                    . The dashboard form lets you preview the response live with
-                    sample variable values.
+                    <code>name</code> and <code>response</code> are required;
+                    <code>description</code> is optional and only shows in{' '}
+                    <code>/customcommand list</code> and{' '}
+                    <code>/customcommand info</code>. Names are lowercased and
+                    must be unique per server. The response is sent exactly as
+                    written: there is no variable substitution, no embed mode,
+                    and no per-command cooldown. The dashboard{' '}
+                    <strong>Commands</strong> page enables or disables built-in
+                    commands; it does not create custom ones.
                 </p>
-                <h2 id='variables'>Variables</h2>
-                <ul>
-                    <li>
-                        <code>{'{user}'}</code> — the invoking user's mention.
-                    </li>
-                    <li>
-                        <code>{'{user.name}'}</code> — username only.
-                    </li>
-                    <li>
-                        <code>{'{user.id}'}</code> — snowflake ID.
-                    </li>
-                    <li>
-                        <code>{'{user.joinedAt}'}</code> — formatted join date.
-                    </li>
-                    <li>
-                        <code>{'{server}'}</code> — server name.
-                    </li>
-                    <li>
-                        <code>{'{server.memberCount}'}</code> — total members.
-                    </li>
-                    <li>
-                        <code>{'{channel}'}</code> — current channel mention.
-                    </li>
-                    <li>
-                        <code>{'{arg1}'}</code>, <code>{'{arg2}'}</code> ... —
-                        positional arguments.
-                    </li>
-                    <li>
-                        <code>{'{args}'}</code> — everything after the command
-                        name as one string.
-                    </li>
-                </ul>
-                <h2 id='embeds'>Embed responses</h2>
+                <h2 id='how-it-triggers'>How it triggers</h2>
                 <p>
-                    Custom commands can return rich embeds. In the dashboard,
-                    toggle <strong>Embed mode</strong> on the command and use
-                    the embed builder — title, description, color, fields,
-                    footer. Variables interpolate inside embed fields too.
+                    A custom command is not a slash command. Lucky replies when
+                    a member sends a message whose text is exactly the command
+                    name, or starts with the name followed by a space. For the
+                    example above, sending <code>rules</code> in any channel the
+                    bot can read posts the reply. The{' '}
+                    <strong>Custom commands</strong> feature toggle must be on
+                    for the server.
                 </p>
-                <h2 id='permissions'>Permissions & scope</h2>
-                <ul>
-                    <li>
-                        <strong>Role gate.</strong> Restrict who can invoke.
-                        Default is everyone.
-                    </li>
-                    <li>
-                        <strong>Channel gate.</strong> Restrict where it can be
-                        invoked.
-                    </li>
-                    <li>
-                        <strong>Cooldown.</strong> Per-user or per-channel.
-                    </li>
-                    <li>
-                        <strong>Ephemeral.</strong> Response only visible to the
-                        invoker (useful for self-service info).
-                    </li>
-                </ul>
-                <h2 id='examples'>Patterns & examples</h2>
-                <p>
-                    <strong>Welcome reply</strong>
-                </p>
+                <h2 id='manage'>Edit, list, delete</h2>
                 <pre>
-                    <code>{`/customcommand create welcome
-> response: "Welcome to {server}, {user}! Read #rules and grab a role in #pick-roles."`}</code>
+                    <code>{`/customcommand edit name:rules response:"Rules moved to #welcome."
+/customcommand info name:rules
+/customcommand list
+/customcommand delete name:rules`}</code>
                 </pre>
+                <h2 id='scope'>Scope</h2>
                 <p>
-                    <strong>Repeatable info card</strong> with an embed:
+                    Each command stores optional allowed-role and
+                    allowed-channel lists, and the bot ignores a trigger from
+                    anyone or anywhere outside them. Neither the slash command
+                    nor the dashboard exposes those lists yet, so every command
+                    you create today answers everyone in every channel.
                 </p>
-                <pre>
-                    <code>{`/customcommand create faq
-> embed
-> title: "Server FAQ"
-> description: "Common questions answered here. {server.memberCount} members and growing."
-> color: pink`}</code>
-                </pre>
-                <p>
-                    <strong>Mod-only utility</strong> with a role gate:
-                </p>
-                <pre>
-                    <code>{`/customcommand create staff-ping
-> response: "Heads up @Staff — {user} is asking for help in {channel}."
-> roles: [Moderator]`}</code>
-                </pre>
             </>
         ),
     },
@@ -1383,8 +1328,8 @@ docker compose up -d <service>`}</code>
                         actions, audit log, cases.
                     </li>
                     <li>
-                        <strong>Custom commands.</strong> Build, edit, and scope
-                        custom replies. Live preview.
+                        <strong>Custom commands.</strong> Canned text replies
+                        managed with <code>/customcommand</code>.
                     </li>
                     <li>
                         <strong>Reaction roles.</strong> Self-assign roles from
