@@ -290,13 +290,12 @@ const PAGES: DocsPage[] = [
                     <li>
                         <code>/queue</code> — see what's coming up. Use{' '}
                         <code>/skip</code>, <code>/pause</code>,{' '}
-                        <code>/resume</code>, <code>/loop</code> to control
-                        playback.
+                        <code>/repeat</code> to control playback.
                     </li>
                     <li>
                         <code>
-                            /cc create welcome &quot;Welcome to {'{server}'},{' '}
-                            {'{user}'}!&quot;
+                            /customcommand create welcome &quot;Welcome to{' '}
+                            {'{server}'}, {'{user}'}!&quot;
                         </code>{' '}
                         — make a custom command. Run <code>/welcome</code> to
                         test it.
@@ -603,11 +602,9 @@ docker compose ps`}</code>
                 <p>
                     The bot registers commands automatically on first start,
                     both globally and per-guild for testing. If new commands
-                    don't show up, force re-registration with:
+                    don't show up, restart the bot; commands register
+                    automatically on boot.
                 </p>
-                <pre>
-                    <code>{`docker compose exec bot npm run register-commands`}</code>
-                </pre>
                 <h2 id='verify'>Verify the install</h2>
                 <ol>
                     <li>
@@ -915,11 +912,8 @@ docker compose up -d <service>`}</code>
                         after registration.
                     </li>
                     <li>
-                        Force re-register:{' '}
-                        <code>
-                            docker compose exec bot npm run register-commands
-                        </code>
-                        .
+                        Force re-register: restart the bot; commands register
+                        automatically on boot.
                     </li>
                     <li>
                         Per-guild registration is instant. Set{' '}
@@ -1005,11 +999,11 @@ docker compose up -d <service>`}</code>
                         track.
                     </li>
                     <li>
-                        <code>/pause</code> / <code>/resume</code>.
+                        <code>/pause</code>, toggles pause/resume.
                     </li>
                     <li>
-                        <code>/loop track|queue|off</code> — loop the current
-                        track, the whole queue, or disable.
+                        <code>/repeat mode:off|track|queue</code>, repeats the
+                        current track, the whole queue, or disables.
                     </li>
                     <li>
                         <code>/shuffle</code> — shuffle the remainder of the
@@ -1060,9 +1054,9 @@ docker compose up -d <service>`}</code>
                 <p>
                     Per-server allow-list of artists autoplay prefers. Add via{' '}
                     <strong>Music / Preferred artists</strong> in the dashboard,
-                    or with <code>/preferred add</code>. Useful for keeping a
-                    server's musical identity intact without micromanaging every
-                    play.
+                    or with <code>/autoplay artist prefer</code>. Useful for
+                    keeping a server's musical identity intact without
+                    micromanaging every play.
                 </p>
                 <h2 id='last-fm'>Last.fm scrobbling</h2>
                 <p>
@@ -1083,9 +1077,9 @@ docker compose up -d <service>`}</code>
                 <h2 id='filters'>Filters & shaping</h2>
                 <p>
                     Audio filters are off by default. Available via{' '}
-                    <code>/filter</code>: bass boost, nightcore, karaoke.
-                    Filters apply to the live stream, so you can toggle
-                    mid-track. Heavier filters add ~50ms of latency.
+                    <code>/effects</code>: bassboost, nightcore, reset. Filters
+                    apply to the live stream, so you can toggle mid-track.
+                    Heavier filters add ~50ms of latency.
                 </p>
             </>
         ),
@@ -1147,24 +1141,24 @@ docker compose up -d <service>`}</code>
                 </p>
                 <h2 id='manual-actions'>Manual actions</h2>
                 <p>
-                    Run <code>/mod ban</code>, <code>/mod kick</code>,{' '}
-                    <code>/mod tempban</code>, <code>/mod warn</code>, or{' '}
-                    <code>/mod mute</code>. Each accepts a reason that's sent to
-                    the user via DM (if they allow them), written to your audit
-                    log, and copied to the Discord audit trail.
+                    Run <code>/ban</code>, <code>/kick</code>,{' '}
+                    <code>/mute</code>, or <code>/warn</code>. Each accepts a
+                    reason that's sent to the user via DM (if they allow them),
+                    written to your audit log, and copied to the Discord audit
+                    trail.
                 </p>
                 <pre>
-                    <code>{`/mod tempban @user 7d reason: "raiding from alt account"
-/mod warn @user reason: "first warning for caps"`}</code>
+                    <code>{`/mute user:@user duration:1h reason:"raiding from alt account"
+/warn user:@user reason:"first warning for caps"`}</code>
                 </pre>
                 <h2 id='cases'>Cases & appeals</h2>
                 <p>
-                    Every manual action creates a numbered case. Users can run{' '}
-                    <code>/case &lt;id&gt;</code> to see their own case detail,
-                    or moderators can run <code>/case @user</code> to see a
-                    user's case history. Cases can be edited (
-                    <code>/case edit</code>) and appealed (
-                    <code>/case appeal</code>).
+                    Every manual action creates a numbered case. Moderators can
+                    run <code>/case view &lt;id&gt;</code> to see a case's
+                    detail, or <code>/cases user:@user</code> to see a user's
+                    case history. A case's reason can be updated (
+                    <code>/case update</code>) or the case removed (
+                    <code>/case delete</code>).
                 </p>
                 <h2 id='audit'>Audit log</h2>
                 <p>
@@ -1189,111 +1183,56 @@ docker compose up -d <service>`}</code>
         breadcrumb: 'Docs / Custom commands',
         toc: [
             { id: 'create-one', label: 'Create one' },
-            { id: 'variables', label: 'Variables' },
-            { id: 'embeds', label: 'Embed responses' },
-            { id: 'permissions', label: 'Permissions & scope' },
-            { id: 'examples', label: 'Patterns & examples' },
+            { id: 'how-it-triggers', label: 'How it triggers' },
+            { id: 'manage', label: 'Edit, list, delete' },
+            { id: 'scope', label: 'Scope' },
         ],
         content: () => (
             <>
                 <p>
-                    Build slash commands without writing code. Useful for FAQ
-                    replies, role toggles, embed posts, server-specific
-                    shortcuts, and quick info lookups.
+                    Canned text replies without writing code. Useful for FAQ
+                    answers, rules reminders, and server-specific shortcuts.
                 </p>
                 <h2 id='create-one'>Create one</h2>
                 <pre>
-                    <code>{`/cc create rules
-> response: "Read the rules in #rules-channel, ${'$'}{user}."`}</code>
+                    <code>{`/customcommand create name:rules response:"Read the rules in #rules-channel." description:"Points to the rules"`}</code>
                 </pre>
                 <p>
-                    Or use the dashboard: <strong>Custom commands / New</strong>
-                    . The dashboard form lets you preview the response live with
-                    sample variable values.
+                    <code>name</code> and <code>response</code> are required;
+                    <code>description</code> is optional and only shows in{' '}
+                    <code>/customcommand list</code> and{' '}
+                    <code>/customcommand info</code>. Names are lowercased and
+                    must be unique per server. The response is sent exactly as
+                    written: there is no variable substitution, no embed mode,
+                    and no per-command cooldown. The dashboard{' '}
+                    <strong>Commands</strong> page enables or disables built-in
+                    commands; it does not create custom ones.
                 </p>
-                <h2 id='variables'>Variables</h2>
-                <ul>
-                    <li>
-                        <code>{'{user}'}</code> — the invoking user's mention.
-                    </li>
-                    <li>
-                        <code>{'{user.name}'}</code> — username only.
-                    </li>
-                    <li>
-                        <code>{'{user.id}'}</code> — snowflake ID.
-                    </li>
-                    <li>
-                        <code>{'{user.joinedAt}'}</code> — formatted join date.
-                    </li>
-                    <li>
-                        <code>{'{server}'}</code> — server name.
-                    </li>
-                    <li>
-                        <code>{'{server.memberCount}'}</code> — total members.
-                    </li>
-                    <li>
-                        <code>{'{channel}'}</code> — current channel mention.
-                    </li>
-                    <li>
-                        <code>{'{arg1}'}</code>, <code>{'{arg2}'}</code> ... —
-                        positional arguments.
-                    </li>
-                    <li>
-                        <code>{'{args}'}</code> — everything after the command
-                        name as one string.
-                    </li>
-                </ul>
-                <h2 id='embeds'>Embed responses</h2>
+                <h2 id='how-it-triggers'>How it triggers</h2>
                 <p>
-                    Custom commands can return rich embeds. In the dashboard,
-                    toggle <strong>Embed mode</strong> on the command and use
-                    the embed builder — title, description, color, fields,
-                    footer. Variables interpolate inside embed fields too.
+                    A custom command is not a slash command. Lucky replies when
+                    a member sends a message whose text is exactly the command
+                    name, or starts with the name followed by a space. For the
+                    example above, sending <code>rules</code> in any channel the
+                    bot can read posts the reply. The{' '}
+                    <strong>Custom commands</strong> feature toggle must be on
+                    for the server.
                 </p>
-                <h2 id='permissions'>Permissions & scope</h2>
-                <ul>
-                    <li>
-                        <strong>Role gate.</strong> Restrict who can invoke.
-                        Default is everyone.
-                    </li>
-                    <li>
-                        <strong>Channel gate.</strong> Restrict where it can be
-                        invoked.
-                    </li>
-                    <li>
-                        <strong>Cooldown.</strong> Per-user or per-channel.
-                    </li>
-                    <li>
-                        <strong>Ephemeral.</strong> Response only visible to the
-                        invoker (useful for self-service info).
-                    </li>
-                </ul>
-                <h2 id='examples'>Patterns & examples</h2>
-                <p>
-                    <strong>Welcome reply</strong>
-                </p>
+                <h2 id='manage'>Edit, list, delete</h2>
                 <pre>
-                    <code>{`/cc create welcome
-> response: "Welcome to {server}, {user}! Read #rules and grab a role in #pick-roles."`}</code>
+                    <code>{`/customcommand edit name:rules response:"Rules moved to #welcome."
+/customcommand info name:rules
+/customcommand list
+/customcommand delete name:rules`}</code>
                 </pre>
+                <h2 id='scope'>Scope</h2>
                 <p>
-                    <strong>Repeatable info card</strong> with an embed:
+                    Each command stores optional allowed-role and
+                    allowed-channel lists, and the bot ignores a trigger from
+                    anyone or anywhere outside them. Neither the slash command
+                    nor the dashboard exposes those lists yet, so every command
+                    you create today answers everyone in every channel.
                 </p>
-                <pre>
-                    <code>{`/cc create faq
-> embed
-> title: "Server FAQ"
-> description: "Common questions answered here. {server.memberCount} members and growing."
-> color: pink`}</code>
-                </pre>
-                <p>
-                    <strong>Mod-only utility</strong> with a role gate:
-                </p>
-                <pre>
-                    <code>{`/cc create staff-ping
-> response: "Heads up @Staff — {user} is asking for help in {channel}."
-> roles: [Moderator]`}</code>
-                </pre>
             </>
         ),
     },
@@ -1389,8 +1328,8 @@ docker compose up -d <service>`}</code>
                         actions, audit log, cases.
                     </li>
                     <li>
-                        <strong>Custom commands.</strong> Build, edit, and scope
-                        custom replies. Live preview.
+                        <strong>Custom commands.</strong> Canned text replies
+                        managed with <code>/customcommand</code>.
                     </li>
                     <li>
                         <strong>Reaction roles.</strong> Self-assign roles from
@@ -1508,15 +1447,15 @@ docker compose up -d <service>`}</code>
                         </tr>
                         <tr>
                             <td>
-                                <code>/pause</code> / <code>/resume</code>
+                                <code>/pause</code>
                             </td>
-                            <td>Pause and resume playback.</td>
+                            <td>Toggle pause/resume playback.</td>
                         </tr>
                         <tr>
                             <td>
-                                <code>/loop track|queue|off</code>
+                                <code>/repeat mode:off|track|queue</code>
                             </td>
-                            <td>Configure looping.</td>
+                            <td>Configure repeat mode.</td>
                         </tr>
                         <tr>
                             <td>
@@ -1568,11 +1507,9 @@ docker compose up -d <service>`}</code>
                         </tr>
                         <tr>
                             <td>
-                                <code>/filter &lt;name&gt;</code>
+                                <code>/effects bassboost|nightcore|reset</code>
                             </td>
-                            <td>
-                                Apply audio filters (bass, nightcore, karaoke).
-                            </td>
+                            <td>Apply audio effects to the current track.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -1587,7 +1524,7 @@ docker compose up -d <service>`}</code>
                     <tbody>
                         <tr>
                             <td>
-                                <code>/mod ban</code>
+                                <code>/ban</code>
                             </td>
                             <td>
                                 Permanent ban with reason and audit-log entry.
@@ -1595,33 +1532,33 @@ docker compose up -d <service>`}</code>
                         </tr>
                         <tr>
                             <td>
-                                <code>/mod kick</code>
+                                <code>/kick</code>
                             </td>
                             <td>Kick from the server.</td>
                         </tr>
                         <tr>
                             <td>
-                                <code>/mod tempban</code>
-                            </td>
-                            <td>Temporary ban with auto-revoke.</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <code>/mod mute</code>
+                                <code>/mute</code>
                             </td>
                             <td>Discord timeout with duration.</td>
                         </tr>
                         <tr>
                             <td>
-                                <code>/mod warn</code>
+                                <code>/warn</code>
                             </td>
                             <td>Warn a user, DM them, log it.</td>
                         </tr>
                         <tr>
                             <td>
-                                <code>/case &lt;id|user&gt;</code>
+                                <code>/case view &lt;id&gt;</code>
                             </td>
-                            <td>Look up moderation cases.</td>
+                            <td>Look up a moderation case by ID.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <code>/cases user:&lt;user&gt;</code>
+                            </td>
+                            <td>List a user's moderation case history.</td>
                         </tr>
                         <tr>
                             <td>
@@ -1642,19 +1579,19 @@ docker compose up -d <service>`}</code>
                     <tbody>
                         <tr>
                             <td>
-                                <code>/cc create</code>
+                                <code>/customcommand create</code>
                             </td>
                             <td>Build a custom command.</td>
                         </tr>
                         <tr>
                             <td>
-                                <code>/cc edit</code>
+                                <code>/customcommand edit</code>
                             </td>
                             <td>Edit an existing custom command.</td>
                         </tr>
                         <tr>
                             <td>
-                                <code>/cc delete</code>
+                                <code>/customcommand delete</code>
                             </td>
                             <td>Delete a custom command.</td>
                         </tr>

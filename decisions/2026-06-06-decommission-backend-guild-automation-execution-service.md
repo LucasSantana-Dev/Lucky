@@ -43,10 +43,9 @@ Rationale: the file is **already** dead (no callers), so deletion is runtime-saf
 nothing at execution time. Remaining executors are ported **fresh per module**, not copy-pasted
 from this file, so it is a _reference at best_, and git serves that better than drift-prone live
 code. "Retain until migration completes" is a weak contract that historically becomes "retain
-forever" on this repo (cf. the per-guild-toggle orphan that sat dead for 2 weeks —
-[2026-05-19-retire-per-guild-feature-toggles](2026-05-19-retire-per-guild-feature-toggles.md)),
-and the passing test is a false coverage signal that invites future devs to treat dead code as
-load-bearing.
+forever" on this repo (cf. the per-guild-toggle orphan that sat dead for 2 weeks before removal,
+which never got its own decision record), and the passing test is a false coverage signal that
+invites future devs to treat dead code as load-bearing.
 
 ## Alternatives considered
 
