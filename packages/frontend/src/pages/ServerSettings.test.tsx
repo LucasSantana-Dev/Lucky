@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import ServerSettingsPage from './ServerSettings'
@@ -13,12 +13,15 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const mockGuild = { id: '123', name: 'Test Guild', canManageRbac: false }
 const mockSettings = {
-    nickname: 'Lucky',
-    commandPrefix: '!',
-    managerRoles: [],
-    updatesChannel: '',
-    timezone: 'UTC',
-    disableWarnings: false,
+    prefix: '!',
+    embedColor: '0x5865F2',
+    language: 'en',
+    allowPlaylists: true,
+    allowSpotify: true,
+    commandCooldown: 3,
+    maxQueueSize: 100,
+    defaultVolume: 50,
+    voteSkipThreshold: 50,
 }
 
 const defaultAccess = {
@@ -79,9 +82,6 @@ const renderPage = () =>
 describe('ServerSettingsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        vi.mocked(api.guilds.getChannels).mockResolvedValue({
-            data: { channels: [] },
-        } as any)
         vi.mocked(api.guilds.getSettings).mockResolvedValue({
             data: { settings: mockSettings },
         } as any)
@@ -135,11 +135,12 @@ describe('ServerSettingsPage', () => {
             screen.getByText(/General configuration for Test Guild/),
         ).toBeInTheDocument()
         expect(screen.getByText('General')).toBeInTheDocument()
-        expect(screen.getByText('Region & Notifications')).toBeInTheDocument()
-        expect(screen.getByText('Disable Command Warnings')).toBeInTheDocument()
+        expect(screen.getByText('Language')).toBeInTheDocument()
+        expect(screen.getByText('Music Defaults')).toBeInTheDocument()
+        expect(screen.getByText('Allow Playlists')).toBeInTheDocument()
     })
 
-    test('renders nickname and prefix inputs', async () => {
+    test('renders prefix input', async () => {
         mockGuildStoreFn(mockGuild)
         vi.mocked(api.guilds.getSettings).mockResolvedValue({
             data: { settings: mockSettings },
@@ -148,10 +149,8 @@ describe('ServerSettingsPage', () => {
         renderPage()
 
         await waitFor(() => {
-            expect(screen.getByPlaceholderText('Lucky')).toBeInTheDocument()
+            expect(screen.getByPlaceholderText('!')).toBeInTheDocument()
         })
-
-        expect(screen.getByPlaceholderText('!')).toBeInTheDocument()
     })
 
     test('save button calls updateSettings', async () => {
@@ -177,11 +176,14 @@ describe('ServerSettingsPage', () => {
             expect(api.guilds.updateSettings).toHaveBeenCalledWith(
                 '123',
                 expect.objectContaining({
-                    nickname: 'Lucky',
-                    commandPrefix: '!',
+                    prefix: '!',
                 }),
             )
         })
+        // Regression guard for #2219: the payload must carry the real
+        // `prefix` column, never the old dead `commandPrefix` field name.
+        const payload = vi.mocked(api.guilds.updateSettings).mock.calls[0][1]
+        expect(payload).not.toHaveProperty('commandPrefix')
     })
 
     test('save success shows toast', async () => {
@@ -236,26 +238,24 @@ describe('ServerSettingsPage', () => {
         })
     })
 
-    test('warnings switch toggles', async () => {
+    test('permission switches toggle', async () => {
         const user = userEvent.setup()
         mockGuildStoreFn(mockGuild)
         vi.mocked(api.guilds.getSettings).mockResolvedValue({
-            data: { settings: mockSettings },
+            data: { settings: { ...mockSettings, allowPlaylists: false } },
         } as any)
 
         renderPage()
 
         await waitFor(() => {
-            expect(
-                screen.getByText('Disable Command Warnings'),
-            ).toBeInTheDocument()
+            expect(screen.getByText('Allow Playlists')).toBeInTheDocument()
         })
 
-        const warningSwitch = screen.getByRole('switch')
-        expect(warningSwitch).not.toBeChecked()
+        const [allowPlaylistsSwitch] = screen.getAllByRole('switch')
+        expect(allowPlaylistsSwitch).not.toBeChecked()
 
-        await user.click(warningSwitch)
-        expect(warningSwitch).toBeChecked()
+        await user.click(allowPlaylistsSwitch)
+        expect(allowPlaylistsSwitch).toBeChecked()
     })
 
     test('shows actionable load error and retry when settings fetch fails', async () => {
@@ -336,7 +336,11 @@ describe('ServerSettingsPage', () => {
                 /Only server owner or users with Administrator\/Manage Server permission can manage RBAC policy/i,
             ),
         ).toBeInTheDocument()
-        expect(api.guilds.getRbac).toHaveBeenCalledWith(mockGuild.id)
+        // Without canManageRbac, loadRbac never calls the API (guarded by
+        // the same flag) — the removed managerRoleOptions effect used to
+        // call getRbac unconditionally, which is what this assertion used
+        // to (coincidentally) verify.
+        expect(api.guilds.getRbac).not.toHaveBeenCalled()
     })
 
     test('loads RBAC policy and saves newly added rule', async () => {
@@ -558,26 +562,6 @@ describe('ServerSettingsPage', () => {
         ).toBeInTheDocument()
     })
 
-    test('handles getChannels failure gracefully', async () => {
-        mockGuildStoreFn(mockGuild)
-        vi.mocked(api.guilds.getChannels).mockRejectedValue(
-            new Error('network'),
-        )
-        vi.mocked(api.guilds.getSettings).mockResolvedValue({
-            data: { settings: mockSettings },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('Server Settings')).toBeInTheDocument()
-        })
-
-        expect(
-            screen.getByPlaceholderText('Channel ID for bot updates'),
-        ).toBeInTheDocument()
-    })
-
     test('handles getRbac failure in mounted effect gracefully', async () => {
         mockGuildStoreFn(mockGuild)
         vi.mocked(api.guilds.getSettings).mockResolvedValue({
@@ -630,23 +614,7 @@ describe('ServerSettingsPage', () => {
         expect(screen.queryByTitle('Remove rule')).not.toBeInTheDocument()
     })
 
-    test('updates nickname on input change', async () => {
-        const user = userEvent.setup()
-        mockGuildStoreFn(mockGuild)
-        vi.mocked(api.guilds.getSettings).mockResolvedValue({
-            data: { settings: mockSettings },
-        } as any)
-
-        renderPage()
-
-        const nicknameInput = await screen.findByPlaceholderText('Lucky')
-        await user.clear(nicknameInput)
-        await user.type(nicknameInput, 'BotName')
-
-        expect(nicknameInput).toHaveValue('BotName')
-    })
-
-    test('updates commandPrefix on input change', async () => {
+    test('updates prefix on input change', async () => {
         const user = userEvent.setup()
         mockGuildStoreFn(mockGuild)
         vi.mocked(api.guilds.getSettings).mockResolvedValue({
@@ -660,152 +628,6 @@ describe('ServerSettingsPage', () => {
         await user.type(prefixInput, '/')
 
         expect(prefixInput).toHaveValue('/')
-    })
-
-    test('updates updatesChannel via input when no channels available', async () => {
-        const user = userEvent.setup()
-        mockGuildStoreFn(mockGuild)
-        vi.mocked(api.guilds.getChannels).mockResolvedValue({
-            data: { channels: [] },
-        } as any)
-        vi.mocked(api.guilds.getSettings).mockResolvedValue({
-            data: { settings: mockSettings },
-        } as any)
-
-        renderPage()
-
-        const channelInput = await screen.findByPlaceholderText(
-            'Channel ID for bot updates',
-        )
-        await user.type(channelInput, '987654321')
-
-        expect(channelInput).toHaveValue('987654321')
-    })
-
-    test('removes manager role from list when remove button clicked', async () => {
-        const user = userEvent.setup()
-        mockGuildStoreFn(mockGuild)
-        vi.mocked(api.guilds.getSettings).mockResolvedValue({
-            data: {
-                settings: {
-                    ...mockSettings,
-                    managerRoles: ['222222222222222222', '333333333333333333'],
-                },
-            },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(
-                screen.getAllByRole('button', { name: 'Remove role' }),
-            ).toHaveLength(2)
-        })
-
-        await user.click(
-            screen.getAllByRole('button', { name: 'Remove role' })[0],
-        )
-
-        await waitFor(() => {
-            expect(
-                screen.getAllByRole('button', { name: 'Remove role' }),
-            ).toHaveLength(1)
-        })
-    })
-
-    test('renders updatesChannel Select when channels are available', async () => {
-        mockGuildStoreFn(mockGuild)
-        vi.mocked(api.guilds.getChannels).mockResolvedValue({
-            data: { channels: [{ id: 'ch1', name: 'general' }] },
-        } as any)
-        vi.mocked(api.guilds.getSettings).mockResolvedValue({
-            data: { settings: { ...mockSettings, updatesChannel: '' } },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('Server Settings')).toBeInTheDocument()
-        })
-        expect(
-            screen.queryByPlaceholderText('Channel ID for bot updates'),
-        ).not.toBeInTheDocument()
-    })
-
-    test('renders updatesChannel Select with pre-selected channel', async () => {
-        mockGuildStoreFn(mockGuild)
-        vi.mocked(api.guilds.getChannels).mockResolvedValue({
-            data: { channels: [{ id: 'ch1', name: 'general' }] },
-        } as any)
-        vi.mocked(api.guilds.getSettings).mockResolvedValue({
-            data: { settings: { ...mockSettings, updatesChannel: 'ch1' } },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('Server Settings')).toBeInTheDocument()
-        })
-        expect(
-            screen.queryByPlaceholderText('Channel ID for bot updates'),
-        ).not.toBeInTheDocument()
-    })
-
-    test('does not setState after unmount on channels/rbac resolve', async () => {
-        let resolveChannels!: (v: any) => void
-        let resolveRbac!: (v: any) => void
-        vi.mocked(api.guilds.getChannels).mockReturnValue(
-            new Promise((r) => {
-                resolveChannels = r
-            }),
-        )
-        vi.mocked(api.guilds.getRbac).mockReturnValue(
-            new Promise((r) => {
-                resolveRbac = r
-            }),
-        )
-        mockGuildStoreFn(mockGuild)
-
-        const { unmount } = renderPage()
-        unmount()
-
-        await act(async () => {
-            resolveChannels({ data: { channels: [] } })
-            resolveRbac({
-                data: {
-                    guildId: mockGuild.id,
-                    modules: [],
-                    grants: [],
-                    roles: [],
-                    effectiveAccess: defaultAccess,
-                    canManageRbac: false,
-                },
-            })
-        })
-    })
-
-    test('does not setState after unmount on channels/rbac reject', async () => {
-        let rejectChannels!: (e: any) => void
-        let rejectRbac!: (e: any) => void
-        vi.mocked(api.guilds.getChannels).mockReturnValue(
-            new Promise((_, r) => {
-                rejectChannels = r
-            }),
-        )
-        vi.mocked(api.guilds.getRbac).mockReturnValue(
-            new Promise((_, r) => {
-                rejectRbac = r
-            }),
-        )
-        mockGuildStoreFn(mockGuild)
-
-        const { unmount } = renderPage()
-        unmount()
-
-        await act(async () => {
-            rejectChannels(new Error('network'))
-            rejectRbac(new Error('network'))
-        })
     })
 
     test('Add Rule button is disabled and tooltip-free while rbac loads', async () => {

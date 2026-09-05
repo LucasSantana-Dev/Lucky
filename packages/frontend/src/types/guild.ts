@@ -18,12 +18,15 @@ export interface Guild {
 }
 
 export interface ServerSettings {
-    nickname: string
-    commandPrefix: string
-    managerRoles: string[]
-    updatesChannel: string
-    timezone: string
-    disableWarnings: boolean
+    prefix: string
+    embedColor: string
+    language: string
+    allowPlaylists: boolean
+    allowSpotify: boolean
+    commandCooldown: number
+    maxQueueSize: number
+    defaultVolume: number
+    voteSkipThreshold: number
 }
 
 export interface ServerListing {
@@ -69,8 +72,4 @@ export interface LogEntry {
 }
 
 export type LogCategory =
-    | 'Dashboard'
-    | 'Warnings'
-    | 'Moderation'
-    | 'Automod'
-    | 'Commands'
+    'Dashboard' | 'Warnings' | 'Moderation' | 'Automod' | 'Commands'

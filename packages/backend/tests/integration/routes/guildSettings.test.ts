@@ -2,10 +2,14 @@ import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
-import { setupGuildSettingsRoutes } from '../../../src/routes/guildSettings'
+import {
+    setupGuildSettingsRoutes,
+    settingsBody,
+} from '../../../src/routes/guildSettings'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import { GUILD_SETTINGS_EDITABLE_FIELDS } from '@lucky/shared/services'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -17,6 +21,7 @@ const mockGetSettings = jest.fn<any>()
 const mockSetSettings = jest.fn<any>()
 
 jest.mock('@lucky/shared/services', () => ({
+    ...(jest.requireActual('@lucky/shared/services') as object),
     guildSettingsService: {
         getGuildSettings: (...args: any[]) => mockGetSettings(...args),
         setGuildSettings: (...args: any[]) => mockSetSettings(...args),
@@ -45,12 +50,15 @@ describe('Guild Settings Routes', () => {
             mockSession.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
             const settings = {
-                nickname: 'TestBot',
-                commandPrefix: '!',
-                managerRoles: [],
-                updatesChannel: '',
-                timezone: 'UTC',
-                disableWarnings: false,
+                prefix: '!',
+                embedColor: '0x5865F2',
+                language: 'en',
+                allowPlaylists: true,
+                allowSpotify: true,
+                commandCooldown: 3,
+                maxQueueSize: 100,
+                defaultVolume: 50,
+                voteSkipThreshold: 50,
             }
             mockGetSettings.mockResolvedValue(settings)
 
@@ -74,7 +82,7 @@ describe('Guild Settings Routes', () => {
                 .set('Cookie', ['sessionId=valid_session_id'])
 
             expect(res.status).toBe(200)
-            expect(res.body.settings.commandPrefix).toBe('/')
+            expect(res.body.settings.prefix).toBe('/')
         })
 
         test('should return 401 when not authenticated', async () => {
@@ -102,14 +110,34 @@ describe('Guild Settings Routes', () => {
             const res = await request(app)
                 .post(`/api/guilds/${GUILD_ID}/settings`)
                 .set('Cookie', ['sessionId=valid_session_id'])
-                .send({ nickname: 'NewName', commandPrefix: '!' })
+                .send({ prefix: '!', defaultVolume: 75 })
 
             expect(res.status).toBe(200)
             expect(res.body.success).toBe(true)
             expect(mockSetSettings).toHaveBeenCalledWith(GUILD_ID, {
-                nickname: 'NewName',
-                commandPrefix: '!',
+                prefix: '!',
+                defaultVolume: 75,
             })
+        })
+
+        test('rejects fields with no reader (regression guard for #2219)', async () => {
+            const mockSession = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSession.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/settings`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({
+                    nickname: 'NewName',
+                    commandPrefix: '!',
+                    managerRoles: [],
+                    updatesChannel: '',
+                    disableWarnings: false,
+                })
+
+            expect(res.status).toBe(400)
         })
 
         test('should reject invalid fields', async () => {
@@ -124,6 +152,17 @@ describe('Guild Settings Routes', () => {
                 .send({ invalidField: 'value' })
 
             expect(res.status).toBe(400)
+        })
+    })
+
+    describe('settingsBody schema / editable field list agreement', () => {
+        test('every schema key appears in the shared editable field list', () => {
+            const schemaKeys = Object.keys(settingsBody.shape)
+
+            expect(schemaKeys.length).toBeGreaterThan(0)
+            for (const key of schemaKeys) {
+                expect(GUILD_SETTINGS_EDITABLE_FIELDS).toContain(key)
+            }
         })
     })
 

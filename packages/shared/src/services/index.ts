@@ -44,6 +44,7 @@ export {
 } from './TrackHistoryService'
 export {
     guildSettingsService,
+    GUILD_SETTINGS_EDITABLE_FIELDS,
     type GuildSettings,
     type GuildSettingsPatch,
     type AutoplayCounter,
