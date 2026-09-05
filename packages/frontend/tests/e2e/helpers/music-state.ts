@@ -9,7 +9,7 @@ export const GUILD_STORAGE = JSON.stringify({
 })
 
 export function mockMusicState(page: Page) {
-    return page.route('**/api/guilds/*/music*', async (route) => {
+    return page.route('**/api/guilds/*/music/state**', async (route) => {
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
