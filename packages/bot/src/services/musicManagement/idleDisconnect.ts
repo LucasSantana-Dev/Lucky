@@ -77,7 +77,13 @@ export function clearIdleTimer(guildId: string): void {
     // Invalidate any schedule still awaiting settings, or already armed, for
     // this guild — e.g. playerStart calling this on playback resume must stop
     // a pending idle-disconnect from later killing live playback (#2218).
-    idleGenerations.delete(guildId)
+    //
+    // Advance the counter instead of deleting it: deleting would let the
+    // NEXT scheduleIdleDisconnect restart at generation 1, which can collide
+    // with a still-pending (cleared) call's captured generation and let it
+    // pass the equality check and arm a second timer. Only the identity
+    // guarded releaseGeneration (fire/error paths) may delete the entry.
+    idleGenerations.set(guildId, (idleGenerations.get(guildId) ?? 0) + 1)
     clearArmedTimer(guildId)
 }
 

@@ -219,6 +219,39 @@ describe('idleDisconnect', () => {
         expect(queue.delete).not.toHaveBeenCalled()
     })
 
+    it('schedule, clear, reschedule: exactly one timer, belonging to the second schedule', async () => {
+        const resolvers: Array<
+            (value: { idleTimeoutMinutes: number }) => void
+        > = []
+        mockGetGuildSettings.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolvers.push(resolve)
+                }),
+        )
+        const queueA = makeQueue()
+        const queueB = makeQueue()
+
+        // Regression for a fix that deleted the generation entry on clear:
+        // the next schedule then restarted at generation 1 and collided with
+        // A's still-pending captured generation, letting A's callback arm a
+        // second timer once its settings fetch resolved.
+        scheduleIdleDisconnect(queueA)
+        clearIdleTimer('guild-1')
+        scheduleIdleDisconnect(queueB)
+
+        resolvers[0]?.({ idleTimeoutMinutes: 5 })
+        resolvers[1]?.({ idleTimeoutMinutes: 5 })
+        await jest.advanceTimersByTimeAsync(0)
+
+        expect(jest.getTimerCount()).toBe(1)
+
+        await jest.advanceTimersByTimeAsync(5 * 60 * 1000)
+
+        expect(queueA.delete).not.toHaveBeenCalled()
+        expect(queueB.delete).toHaveBeenCalledTimes(1)
+    })
+
     it('rescheduling clears any prior timer for the guild', async () => {
         mockGetGuildSettings.mockResolvedValue({ idleTimeoutMinutes: 5 })
         const queue = makeQueue()
