@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from '@jest/globals'
+import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import express from 'express'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -142,5 +142,63 @@ describe('Session Middleware', () => {
         expect(source).toContain("sameSite: isProduction ? 'none' : 'lax'")
 
         process.env.NODE_ENV = originalEnv
+    })
+
+    test('warns when Postgres session store initialization fails', async () => {
+        // getPrismaClient is not part of the global @lucky/shared/utils mock,
+        // so PrismaSessionStore always throws in this test environment and
+        // createPrimaryStore falls back to the local store on every run.
+        const { warnLog } = await import('@lucky/shared/utils')
+        const { setupSessionMiddleware } =
+            await import('../../../src/middleware/session')
+
+        setupSessionMiddleware(app)
+
+        expect(warnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining(
+                    'Postgres session store initialization failed',
+                ),
+                error: expect.anything(),
+            }),
+        )
+    })
+
+    test('errors when production falls back to an in-memory session store', async () => {
+        jest.resetModules()
+        jest.doMock('session-file-store', () =>
+            jest.fn(() => {
+                throw new Error('file store unavailable')
+            }),
+        )
+        jest.doMock('express-session', () => {
+            class Store {}
+            class MemoryStore extends Store {}
+            return Object.assign(
+                () => (_req: unknown, _res: unknown, next: () => void) =>
+                    next(),
+                { Store, MemoryStore },
+            )
+        })
+
+        const { errorLog } = await import('@lucky/shared/utils')
+        const { setupSessionMiddleware } =
+            await import('../../../src/middleware/session')
+
+        const originalEnv = process.env.NODE_ENV
+        process.env.NODE_ENV = 'production'
+
+        setupSessionMiddleware(express())
+
+        expect(errorLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('in-memory'),
+            }),
+        )
+
+        process.env.NODE_ENV = originalEnv
+        jest.dontMock('session-file-store')
+        jest.dontMock('express-session')
+        jest.resetModules()
     })
 })

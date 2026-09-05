@@ -6,13 +6,24 @@ import { collaborativePlaylistService } from '../musicRecommendation/collaborati
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
 const idleTimers = new Map<string, ReturnType<typeof setTimeout>>()
+// Bumped synchronously on every call so a later scheduleIdleDisconnect call
+// can invalidate an earlier one that is still awaiting guild settings — see
+// #2218 (two rapid calls could otherwise both survive to arm a timer).
+const idleGenerations = new Map<string, number>()
 
 export function scheduleIdleDisconnect(queue: GuildQueue): void {
     const guildId = queue.guild.id
     clearIdleTimer(guildId)
 
+    const generation = (idleGenerations.get(guildId) ?? 0) + 1
+    idleGenerations.set(guildId, generation)
+
     void (async () => {
         const settings = await guildSettingsService.getGuildSettings(guildId)
+        // A newer call superseded this one while settings were loading —
+        // let that call own the timer instead of arming a second one.
+        if (idleGenerations.get(guildId) !== generation) return
+
         const timeoutMinutes = settings?.idleTimeoutMinutes ?? 0
         if (timeoutMinutes <= 0) return
 

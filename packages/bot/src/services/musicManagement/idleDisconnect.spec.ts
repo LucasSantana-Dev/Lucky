@@ -163,6 +163,35 @@ describe('idleDisconnect', () => {
         expect(() => clearIdleTimer('unknown-guild')).not.toThrow()
     })
 
+    it('two rapid calls before settings resolve leave exactly one timer armed', async () => {
+        const resolvers: Array<
+            (value: { idleTimeoutMinutes: number }) => void
+        > = []
+        mockGetGuildSettings.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolvers.push(resolve)
+                }),
+        )
+        const queue = makeQueue()
+
+        // Both calls run before either settings lookup resolves, reproducing
+        // the race from #2218: the second call's clearIdleTimer used to run
+        // before the first call's idleTimers.set, leaving two timers armed.
+        scheduleIdleDisconnect(queue)
+        scheduleIdleDisconnect(queue)
+
+        resolvers[0]?.({ idleTimeoutMinutes: 5 })
+        resolvers[1]?.({ idleTimeoutMinutes: 5 })
+        await jest.advanceTimersByTimeAsync(0)
+
+        expect(jest.getTimerCount()).toBe(1)
+
+        await jest.advanceTimersByTimeAsync(5 * 60 * 1000)
+
+        expect(queue.delete).toHaveBeenCalledTimes(1)
+    })
+
     it('rescheduling clears any prior timer for the guild', async () => {
         mockGetGuildSettings.mockResolvedValue({ idleTimeoutMinutes: 5 })
         const queue = makeQueue()
