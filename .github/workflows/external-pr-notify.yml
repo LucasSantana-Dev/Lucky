@@ -123,6 +123,10 @@ jobs:
                               body: JSON.stringify(payload),
                               signal: controller.signal,
                           });
+                          if (res.status === 404) {
+                              core.warning('DISCORD_DEPLOY_ALERT_WEBHOOK returned 404; webhook was deleted on the Discord side, skipping digest');
+                              return;
+                          }
                           if (!res.ok) throw new Error(`Discord webhook failed: ${res.status}`);
                       } finally {
                           clearTimeout(timeout);
