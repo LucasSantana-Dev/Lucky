@@ -19,6 +19,14 @@ vi.mock('@/components/Music/QueueList', () => ({
 vi.mock('@/components/Music/AutoplayGenres', () => ({
     default: () => <div data-testid='autoplay-genres'>AutoplayGenres</div>,
 }))
+vi.mock('@/components/Music/AutoplayTelemetry', () => ({
+    default: () => (
+        <div data-testid='autoplay-telemetry'>AutoplayTelemetry</div>
+    ),
+}))
+vi.mock('@/components/Music/ForumThreadCta', () => ({
+    default: () => <div data-testid='forum-thread-cta'>ForumThreadCta</div>,
+}))
 
 const mockGuild = { id: '123', name: 'Test Guild' }
 
@@ -105,6 +113,8 @@ describe('MusicPage', () => {
         expect(screen.getByTestId('import-playlist')).toBeInTheDocument()
         expect(screen.getByTestId('queue-list')).toBeInTheDocument()
         expect(screen.getByTestId('autoplay-genres')).toBeInTheDocument()
+        expect(screen.getByTestId('autoplay-telemetry')).toBeInTheDocument()
+        expect(screen.getByTestId('forum-thread-cta')).toBeInTheDocument()
     })
 
     test('shows not connected message when no voice channel', () => {
