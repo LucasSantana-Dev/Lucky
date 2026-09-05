@@ -138,7 +138,6 @@ export function setupSpotifyRoutes(app: Express): void {
     app.get(
         '/api/spotify/connect',
         optionalAuth,
-        apiLimiter,
         (req: AuthenticatedRequest, res: Response) => {
             try {
                 if (!isSpotifyAuthConfigured()) {

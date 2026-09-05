@@ -3,7 +3,6 @@ import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { validateParams } from '../middleware/validate'
 import { asyncHandler } from '../middleware/asyncHandler'
-import { apiLimiter } from '../middleware/rateLimit'
 import { AppError } from '../errors/AppError'
 import { sessionService } from '../services/SessionService'
 import { guildService } from '../services/GuildService'
@@ -48,7 +47,6 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds',
         requireAuth,
-        apiLimiter,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const sessionData = await getSessionData(req)
             const guilds =
@@ -61,7 +59,6 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:id',
         requireAuth,
-        apiLimiter,
         validateParams(idParam),
         requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -83,7 +80,6 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:id/invite',
         requireAuth,
-        apiLimiter,
         validateParams(idParam),
         requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -97,7 +93,6 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:id/me',
         requireAuth,
-        apiLimiter,
         validateParams(idParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const id = getGuildId(req)
@@ -125,7 +120,6 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/channels',
         requireAuth,
-        apiLimiter,
         validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = getGuildId(req)
@@ -138,7 +132,6 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/roles',
         requireAuth,
-        apiLimiter,
         validateParams(guildIdParam),
         requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -151,7 +144,6 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/emojis',
         requireAuth,
-        apiLimiter,
         validateParams(guildIdParam),
         requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
