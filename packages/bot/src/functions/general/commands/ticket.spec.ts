@@ -15,9 +15,12 @@ jest.mock('@lucky/shared/services', () => ({
     guildSettingsService: guildSettingsServiceMock,
     supportSessionService: supportSessionServiceMock,
 }))
+const logAndWarnMock = jest.fn() as jest.MockedFunction<any>
+
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
     errorLog: jest.fn(),
+    logAndWarn: (...args: unknown[]) => logAndWarnMock(...args),
 }))
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
@@ -154,6 +157,34 @@ describe('/ticket command (smoke)', () => {
                 content: {
                     content: expect.stringContaining('already have an open'),
                 },
+            }),
+        )
+    })
+
+    it('close: warns but still resolves when closing the session fails', async () => {
+        const channel = makeChannel()
+        supportSessionServiceMock.getByChannel.mockResolvedValue({
+            id: 's1',
+            status: 'open',
+            requestorId: 'u1',
+        })
+        supportSessionServiceMock.close.mockRejectedValue(
+            new Error('db unavailable'),
+        )
+
+        await ticketCommand.execute({
+            interaction: makeInteraction('close', channel),
+        } as any)
+
+        expect(logAndWarnMock).toHaveBeenCalledWith(
+            expect.any(Error),
+            'ticket.close',
+            { sessionId: 's1' },
+        )
+        expect(channel.delete).toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: { content: expect.stringContaining('Closing') },
             }),
         )
     })
