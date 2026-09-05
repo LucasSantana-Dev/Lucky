@@ -15,6 +15,11 @@ const calculateRecommendationScoreMock = jest.fn()
 const shouldIncludeCandidateMock = jest.fn()
 const upsertScoredCandidateMock = jest.fn()
 const normalizeTrackKeyMock = jest.fn()
+const warnLogMock = jest.fn()
+
+jest.mock('@lucky/shared/utils', () => ({
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
+}))
 
 jest.mock('discord-player', () => ({
     QueryType: {
@@ -71,7 +76,18 @@ jest.mock('./scoringUtils', () => ({
     normalizeTrackKey: (...args: unknown[]) => normalizeTrackKeyMock(...args),
 }))
 
-import { searchLastFmQuery, collectLastFmCandidates } from './lastFmSeeder'
+import {
+    searchLastFmQuery,
+    collectLastFmCandidates,
+    recordSpotifySearchResult,
+    resetSpotifySearchTracking,
+} from './lastFmSeeder'
+
+// Every test starts with a clean rolling window and warn cooldown so a streak
+// or a warn from one test cannot bleed into another's assertions.
+beforeEach(() => {
+    resetSpotifySearchTracking()
+})
 
 function createTrack(
     title = 'Track',
@@ -174,6 +190,32 @@ describe('searchLastFmQuery', () => {
         expect(result).toContain(goodTrack)
     })
 
+    it('samples the raw spotify count, so over-cap hits are not outage signals', async () => {
+        const longTrack = createTrack()
+        ;(longTrack as unknown as { durationMS: number }).durationMS =
+            15 * 60 * 1000
+        const queue = createQueue({ tracks: [longTrack] })
+        const user = createUser()
+        const t = 1_700_300_000_000
+
+        // 7 empties, then 3 searches whose only hit is filtered out by the
+        // duration cap: 7 of 10 empties if sampled raw (no warn), 10 of 10
+        // if sampled after the filter (warn).
+        for (let i = 0; i < 7; i++) {
+            recordSpotifySearchResult(false, t)
+        }
+        for (let i = 0; i < 3; i++) {
+            await searchLastFmQuery(queue, 'query', user)
+        }
+        expect(warnLogMock).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining(
+                    'Spotify search returned nothing',
+                ),
+            }),
+        )
+    })
+
     it('returns empty array when search returns no tracks', async () => {
         const queue = createQueue({ tracks: [] })
         const user = createUser()
@@ -189,6 +231,95 @@ describe('searchLastFmQuery', () => {
         const user = createUser()
         const result = await searchLastFmQuery(queue, 'query', user)
         expect(result.length).toBeLessThanOrEqual(8)
+    })
+})
+
+describe('recordSpotifySearchResult', () => {
+    // Each test anchors to its own far-apart timestamp so a warn recorded by
+    // one test can never fall inside another test's 5-minute cooldown window.
+    beforeEach(() => {
+        warnLogMock.mockClear()
+    })
+
+    it('warns once after 10 empty results', () => {
+        const t = 1_700_000_000_000
+        for (let i = 0; i < 9; i++) {
+            recordSpotifySearchResult(false, t)
+        }
+        expect(warnLogMock).not.toHaveBeenCalled()
+
+        recordSpotifySearchResult(false, t)
+
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining(
+                    'Spotify search returned nothing for 10 of the last 10 queries',
+                ),
+            }),
+        )
+    })
+
+    it('keeps successes in the window so the empty rate is a real rate', () => {
+        const t = 1_700_100_000_000
+        // 7 empties and 3 hits: 70%, under the 80% threshold.
+        for (let i = 0; i < 7; i++) {
+            recordSpotifySearchResult(false, t)
+        }
+        for (let i = 0; i < 3; i++) {
+            recordSpotifySearchResult(true, t)
+        }
+        expect(warnLogMock).not.toHaveBeenCalled()
+
+        // Four more empties: 11 of 14 is still under 80%.
+        for (let i = 0; i < 4; i++) {
+            recordSpotifySearchResult(false, t)
+        }
+        expect(warnLogMock).not.toHaveBeenCalled()
+
+        // 12 of 15 reaches 80%.
+        recordSpotifySearchResult(false, t)
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining(
+                    'Spotify search returned nothing for 12 of the last 15 queries',
+                ),
+            }),
+        )
+    })
+
+    it('drops old samples once the window is full', () => {
+        const t = 1_700_150_000_000
+        for (let i = 0; i < 10; i++) {
+            recordSpotifySearchResult(false, t)
+        }
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+        warnLogMock.mockClear()
+
+        // 20 hits push every empty out of the 20-sample window; the next
+        // empty (well past the cooldown) is 1 of 20 and must not warn.
+        for (let i = 0; i < 20; i++) {
+            recordSpotifySearchResult(true, t)
+        }
+        recordSpotifySearchResult(false, t + 60 * 60 * 1000)
+        expect(warnLogMock).not.toHaveBeenCalled()
+    })
+
+    it('suppresses a second warn within the cooldown window', () => {
+        const t = 1_700_200_000_000
+        for (let i = 0; i < 10; i++) {
+            recordSpotifySearchResult(false, t)
+        }
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+
+        // Still empty, still within the 5-minute cooldown.
+        recordSpotifySearchResult(false, t + 60_000)
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+
+        // Past the cooldown: allowed to warn again.
+        recordSpotifySearchResult(false, t + 6 * 60 * 1000)
+        expect(warnLogMock).toHaveBeenCalledTimes(2)
     })
 })
 

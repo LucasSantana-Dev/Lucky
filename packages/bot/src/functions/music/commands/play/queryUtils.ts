@@ -20,6 +20,9 @@ import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSaniti
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { withTimeout } from '@lucky/shared/utils/async'
 import { assertDefined } from '@lucky/shared/utils/guards'
+import { isHost } from '../../../../utils/general/urlHost'
+
+export { isHost }
 
 export const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
 
@@ -46,7 +49,7 @@ export function isUrl(query: string): boolean {
  */
 export async function expandSoundCloudShortUrl(url: string): Promise<string> {
     // Fast path: not a short link
-    if (!url.includes('on.soundcloud.com')) {
+    if (!isHost(url, 'on.soundcloud.com')) {
         return url
     }
 

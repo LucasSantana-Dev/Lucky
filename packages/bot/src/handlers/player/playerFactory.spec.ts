@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals'
 import { withTimeout } from './withTimeout'
+import { isHost } from '../../utils/general/urlHost'
 
 describe('playerFactory', () => {
     describe('withTimeout', () => {
@@ -30,7 +31,7 @@ describe('playerFactory', () => {
     describe('createPlayer', () => {
         it('should identify YouTube URLs correctly', () => {
             const isYouTubeUrl = (url: string): boolean =>
-                url.includes('youtube.com') || url.includes('youtu.be')
+                isHost(url, 'youtube.com', 'youtu.be')
 
             expect(isYouTubeUrl('https://www.youtube.com/watch?v=test')).toBe(
                 true,
@@ -43,6 +44,9 @@ describe('playerFactory', () => {
             expect(isYouTubeUrl('https://music.youtube.com/watch?v=test')).toBe(
                 true,
             )
+            expect(
+                isYouTubeUrl('https://evil-youtube.com.attacker.tld/x'),
+            ).toBe(false)
         })
 
         it('should validate player creation parameters', () => {

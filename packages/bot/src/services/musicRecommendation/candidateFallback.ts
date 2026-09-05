@@ -5,7 +5,10 @@ import { assertDefined } from '@lucky/shared/utils/guards'
 import { spotifyLinkService } from '@lucky/shared/services'
 import type { AutoplayContext } from './autoplay/autoplayContext'
 import { getTagTopTracks } from '../../lastfm'
-import { searchLastFmQuery } from './autoplay/lastFmSeeder'
+import {
+    searchLastFmQuery,
+    recordSpotifySearchResult,
+} from './autoplay/lastFmSeeder'
 import {
     shouldIncludeCandidate,
     upsertScoredCandidate,
@@ -124,6 +127,10 @@ export async function collectBroadFallbackCandidates(
                 searchEngine: QueryType.SPOTIFY_SEARCH,
             })
 
+            // Sample the raw API count: a result whose tracks all exceed the
+            // duration cap is a genuine hit, not an outage signal.
+            recordSpotifySearchResult(result.tracks.length > 0)
+
             const tracks = result.tracks
                 .filter(
                     (t: Track) =>
@@ -185,6 +192,7 @@ export async function collectBroadFallbackCandidates(
                 )
             }
         } catch (err: unknown) {
+            recordSpotifySearchResult(false)
             logAndSwallow(err, 'candidateFallback.spotifySearch', { query })
             continue
         }
