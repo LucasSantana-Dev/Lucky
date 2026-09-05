@@ -186,6 +186,155 @@ describe('ServerSettingsPage', () => {
         expect(payload).not.toHaveProperty('commandPrefix')
     })
 
+    test('strips service-only fields from a loaded settings row before saving', async () => {
+        // Regression guard for #2236: the GET response returns the full
+        // GuildSettings row (service-only columns included), and the strict
+        // POST schema 400s if any of them are echoed back.
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: {
+                settings: {
+                    ...mockSettings,
+                    id: 'row-1',
+                    guildId: mockGuild.id,
+                    shuffleEnabled: true,
+                    autoPlayEnabled: true,
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+            },
+        } as any)
+        vi.mocked(api.guilds.updateSettings).mockResolvedValue({} as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Server Settings')).toBeInTheDocument()
+        })
+
+        const saveButton = screen.getAllByRole('button', {
+            name: /Save Changes/,
+        })[0]
+        await user.click(saveButton)
+
+        await waitFor(() => {
+            expect(api.guilds.updateSettings).toHaveBeenCalled()
+        })
+
+        const payload = vi.mocked(api.guilds.updateSettings).mock.calls[0][1]
+        expect(Object.keys(payload as object).sort()).toEqual(
+            [
+                'allowPlaylists',
+                'allowSpotify',
+                'commandCooldown',
+                'defaultVolume',
+                'embedColor',
+                'language',
+                'maxQueueSize',
+                'prefix',
+                'voteSkipThreshold',
+            ].sort(),
+        )
+    })
+
+    test('clamps a cleared maxQueueSize to the field minimum instead of posting 0', async () => {
+        // Regression guard for #2236: Number('') === 0, which fails the
+        // backend's min(1) bound on maxQueueSize and 400s the save.
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+        vi.mocked(api.guilds.updateSettings).mockResolvedValue({} as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Music Defaults')).toBeInTheDocument()
+        })
+
+        const maxQueueSizeInput = screen.getByDisplayValue('100')
+        await user.clear(maxQueueSizeInput)
+
+        const saveButton = screen.getAllByRole('button', {
+            name: /Save Changes/,
+        })[0]
+        await user.click(saveButton)
+
+        await waitFor(() => {
+            expect(api.guilds.updateSettings).toHaveBeenCalledWith(
+                '123',
+                expect.objectContaining({ maxQueueSize: 1 }),
+            )
+        })
+    })
+
+    test('clamps a cleared commandCooldown to its schema minimum on save', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+        vi.mocked(api.guilds.updateSettings).mockResolvedValue({} as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Music Defaults')).toBeInTheDocument()
+        })
+
+        const commandCooldownInput = screen.getByDisplayValue('3')
+        await user.clear(commandCooldownInput)
+
+        const saveButton = screen.getAllByRole('button', {
+            name: /Save Changes/,
+        })[0]
+        await user.click(saveButton)
+
+        await waitFor(() => {
+            expect(api.guilds.updateSettings).toHaveBeenCalledWith(
+                '123',
+                // commandCooldown's schema minimum is 0, so this asserts the
+                // clamp fallback rather than a change from the old behavior.
+                expect.objectContaining({ commandCooldown: 0 }),
+            )
+        })
+    })
+
+    test('coerces an unsupported stored language to the default before rendering and saving', async () => {
+        // Regression guard for #2236: a stored language outside the enum
+        // (e.g. a legacy 'pt' value) must not be re-posted, or the strict
+        // z.enum(['en', 'pt-BR', 'es']) schema 400s the save.
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: { settings: { ...mockSettings, language: 'pt' } },
+        } as any)
+        vi.mocked(api.guilds.updateSettings).mockResolvedValue({} as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Language')).toBeInTheDocument()
+        })
+
+        expect(screen.getByText('en')).toBeInTheDocument()
+        expect(screen.queryByText('pt')).not.toBeInTheDocument()
+
+        const saveButton = screen.getAllByRole('button', {
+            name: /Save Changes/,
+        })[0]
+        await user.click(saveButton)
+
+        await waitFor(() => {
+            expect(api.guilds.updateSettings).toHaveBeenCalledWith(
+                '123',
+                expect.objectContaining({ language: 'en' }),
+            )
+        })
+    })
+
     test('save success shows toast', async () => {
         const user = userEvent.setup()
         const { toast } = await import('sonner')

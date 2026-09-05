@@ -44,7 +44,11 @@ import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
-import { SUPPORTED_BOT_LANGUAGES } from '@lucky/shared/constants'
+import {
+    SUPPORTED_BOT_LANGUAGES,
+    DEFAULT_BOT_LANGUAGE,
+    isBotLanguage,
+} from '@lucky/shared/constants'
 import { RBAC_MODULES, type RoleGrant, type ServerSettings } from '@/types'
 
 type SettingsLoadErrorKind = 'auth' | 'forbidden' | 'network' | 'upstream'
@@ -64,6 +68,77 @@ const DEFAULT_SETTINGS: ServerSettings = {
     maxQueueSize: 100,
     defaultVolume: 50,
     voteSkipThreshold: 50,
+}
+
+type NumberSettingsKey =
+    'commandCooldown' | 'maxQueueSize' | 'defaultVolume' | 'voteSkipThreshold'
+
+// Mirrors the min/max bounds of `settingsBody` in
+// packages/backend/src/routes/guildSettings.ts. Keep these in sync if that
+// schema changes.
+const NUMBER_FIELD_BOUNDS: Record<
+    NumberSettingsKey,
+    { min: number; max: number }
+> = {
+    commandCooldown: { min: 0, max: 300 },
+    maxQueueSize: { min: 1, max: 1000 },
+    defaultVolume: { min: 1, max: 200 },
+    voteSkipThreshold: { min: 1, max: 100 },
+}
+
+/**
+ * Parses a raw number-input string and clamps it to the field's bounds,
+ * falling back to the minimum for an empty or non-numeric value. Without
+ * this, clearing an input sends `Number('') === 0`, which fails the
+ * backend's `min(1)` bounds and 400s the whole save (#2236).
+ */
+function clampNumberField(key: NumberSettingsKey, rawValue: string): number {
+    const { min, max } = NUMBER_FIELD_BOUNDS[key]
+    const parsed = Math.trunc(Number(rawValue))
+    if (rawValue.trim() === '' || Number.isNaN(parsed)) {
+        return min
+    }
+    return Math.min(max, Math.max(min, parsed))
+}
+
+/**
+ * Projects a loaded settings object down to the nine fields the strict
+ * `settingsBody` schema (packages/backend/src/routes/guildSettings.ts)
+ * accepts, and coerces `language` to a supported value. The GET response
+ * returns the full `GuildSettings` row, which carries service-only columns
+ * (id, guildId, shuffleEnabled, autoPlayEnabled, createdAt, ...) that the
+ * strict schema rejects outright, so keeping them in form state would 400
+ * every save for a guild that already has a settings row (#2236).
+ */
+function pickEditableSettings(source: ServerSettings): ServerSettings {
+    return {
+        prefix: source.prefix,
+        embedColor: source.embedColor,
+        language: isBotLanguage(source.language)
+            ? source.language
+            : DEFAULT_BOT_LANGUAGE,
+        allowPlaylists: source.allowPlaylists,
+        allowSpotify: source.allowSpotify,
+        commandCooldown: source.commandCooldown,
+        maxQueueSize: source.maxQueueSize,
+        defaultVolume: source.defaultVolume,
+        voteSkipThreshold: source.voteSkipThreshold,
+    }
+}
+
+/** Applies any in-progress number-input drafts before a settings object is saved. */
+function applyNumberDrafts(
+    current: ServerSettings,
+    drafts: Partial<Record<NumberSettingsKey, string>>,
+): ServerSettings {
+    const result = { ...current }
+    for (const key of Object.keys(drafts) as NumberSettingsKey[]) {
+        const draft = drafts[key]
+        if (draft !== undefined) {
+            result[key] = clampNumberField(key, draft)
+        }
+    }
+    return result
 }
 
 function classifySettingsLoadError(
@@ -116,6 +191,9 @@ export default function ServerSettingsPage() {
     const [settingsLoadError, setSettingsLoadError] =
         useState<SettingsLoadError | null>(null)
     const [saving, setSaving] = useState(false)
+    const [numberDrafts, setNumberDrafts] = useState<
+        Partial<Record<NumberSettingsKey, string>>
+    >({})
     const [rbacLoading, setRbacLoading] = useState(false)
     const [rbacSaving, setRbacSaving] = useState(false)
     const [rbacRolesError, setRbacRolesError] = useState<string | null>(null)
@@ -180,7 +258,12 @@ export default function ServerSettingsPage() {
             if (isStaleRequest()) {
                 return
             }
-            setSettings(response.data.settings ?? DEFAULT_SETTINGS)
+            setSettings(
+                response.data.settings
+                    ? pickEditableSettings(response.data.settings)
+                    : DEFAULT_SETTINGS,
+            )
+            setNumberDrafts({})
         } catch (error) {
             if (isStaleRequest()) {
                 return
@@ -225,7 +308,12 @@ export default function ServerSettingsPage() {
         if (!selectedGuild?.id) return
         setSaving(true)
         try {
-            await api.guilds.updateSettings(selectedGuild.id, settings)
+            const payload = pickEditableSettings(
+                applyNumberDrafts(settings, numberDrafts),
+            )
+            await api.guilds.updateSettings(selectedGuild.id, payload)
+            setSettings(payload)
+            setNumberDrafts({})
             toast.success(t('serverSettings.settingsSaved'))
         } catch {
             toast.error(t('serverSettings.settingsSaveFailed'))
@@ -661,15 +749,32 @@ export default function ServerSettingsPage() {
                             </Label>
                             <Input
                                 type='number'
-                                min={1}
-                                max={200}
-                                value={settings.defaultVolume}
+                                min={NUMBER_FIELD_BOUNDS.defaultVolume.min}
+                                max={NUMBER_FIELD_BOUNDS.defaultVolume.max}
+                                value={
+                                    numberDrafts.defaultVolume ??
+                                    settings.defaultVolume
+                                }
                                 onChange={(e) =>
+                                    setNumberDrafts((prev) => ({
+                                        ...prev,
+                                        defaultVolume: e.target.value,
+                                    }))
+                                }
+                                onBlur={(e) => {
                                     update(
                                         'defaultVolume',
-                                        Number(e.target.value),
+                                        clampNumberField(
+                                            'defaultVolume',
+                                            e.target.value,
+                                        ),
                                     )
-                                }
+                                    setNumberDrafts((prev) => {
+                                        const next = { ...prev }
+                                        delete next.defaultVolume
+                                        return next
+                                    })
+                                }}
                                 className='bg-lucky-bg-tertiary border-lucky-border text-white'
                             />
                         </div>
@@ -680,15 +785,32 @@ export default function ServerSettingsPage() {
                             </Label>
                             <Input
                                 type='number'
-                                min={1}
-                                max={1000}
-                                value={settings.maxQueueSize}
+                                min={NUMBER_FIELD_BOUNDS.maxQueueSize.min}
+                                max={NUMBER_FIELD_BOUNDS.maxQueueSize.max}
+                                value={
+                                    numberDrafts.maxQueueSize ??
+                                    settings.maxQueueSize
+                                }
                                 onChange={(e) =>
+                                    setNumberDrafts((prev) => ({
+                                        ...prev,
+                                        maxQueueSize: e.target.value,
+                                    }))
+                                }
+                                onBlur={(e) => {
                                     update(
                                         'maxQueueSize',
-                                        Number(e.target.value),
+                                        clampNumberField(
+                                            'maxQueueSize',
+                                            e.target.value,
+                                        ),
                                     )
-                                }
+                                    setNumberDrafts((prev) => {
+                                        const next = { ...prev }
+                                        delete next.maxQueueSize
+                                        return next
+                                    })
+                                }}
                                 className='bg-lucky-bg-tertiary border-lucky-border text-white'
                             />
                         </div>
@@ -699,15 +821,32 @@ export default function ServerSettingsPage() {
                             </Label>
                             <Input
                                 type='number'
-                                min={0}
-                                max={300}
-                                value={settings.commandCooldown}
+                                min={NUMBER_FIELD_BOUNDS.commandCooldown.min}
+                                max={NUMBER_FIELD_BOUNDS.commandCooldown.max}
+                                value={
+                                    numberDrafts.commandCooldown ??
+                                    settings.commandCooldown
+                                }
                                 onChange={(e) =>
+                                    setNumberDrafts((prev) => ({
+                                        ...prev,
+                                        commandCooldown: e.target.value,
+                                    }))
+                                }
+                                onBlur={(e) => {
                                     update(
                                         'commandCooldown',
-                                        Number(e.target.value),
+                                        clampNumberField(
+                                            'commandCooldown',
+                                            e.target.value,
+                                        ),
                                     )
-                                }
+                                    setNumberDrafts((prev) => {
+                                        const next = { ...prev }
+                                        delete next.commandCooldown
+                                        return next
+                                    })
+                                }}
                                 className='bg-lucky-bg-tertiary border-lucky-border text-white'
                             />
                         </div>
@@ -718,15 +857,32 @@ export default function ServerSettingsPage() {
                             </Label>
                             <Input
                                 type='number'
-                                min={1}
-                                max={100}
-                                value={settings.voteSkipThreshold}
+                                min={NUMBER_FIELD_BOUNDS.voteSkipThreshold.min}
+                                max={NUMBER_FIELD_BOUNDS.voteSkipThreshold.max}
+                                value={
+                                    numberDrafts.voteSkipThreshold ??
+                                    settings.voteSkipThreshold
+                                }
                                 onChange={(e) =>
+                                    setNumberDrafts((prev) => ({
+                                        ...prev,
+                                        voteSkipThreshold: e.target.value,
+                                    }))
+                                }
+                                onBlur={(e) => {
                                     update(
                                         'voteSkipThreshold',
-                                        Number(e.target.value),
+                                        clampNumberField(
+                                            'voteSkipThreshold',
+                                            e.target.value,
+                                        ),
                                     )
-                                }
+                                    setNumberDrafts((prev) => {
+                                        const next = { ...prev }
+                                        delete next.voteSkipThreshold
+                                        return next
+                                    })
+                                }}
                                 className='bg-lucky-bg-tertiary border-lucky-border text-white'
                             />
                         </div>
