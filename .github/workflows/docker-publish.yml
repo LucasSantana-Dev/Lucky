@@ -165,6 +165,7 @@ jobs:
                 echo "ref=${IMAGE}:${{ steps.meta.outputs.version }}" >> "$GITHUB_OUTPUT"
 
             - name: Trivy image scan (audit-only)
+              id: trivy-scan
               uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
               with:
                   image-ref: ${{ steps.imgref.outputs.ref }}
@@ -182,7 +183,7 @@ jobs:
                   skip-dirs: /opt/ytdlp/**
 
             - name: Upload Trivy SARIF
-              if: always()
+              if: ${{ always() && steps.trivy-scan.outcome == 'success' }}
               uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
               with:
                   sarif_file: trivy-image-${{ matrix.service }}.sarif
