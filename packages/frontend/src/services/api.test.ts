@@ -283,7 +283,7 @@ describe('api service bootstrap', () => {
         await module.api.guilds.getChannels('guild-1')
         await module.api.guilds.getSettings('guild-1')
         await module.api.guilds.updateSettings('guild-1', {
-            commandPrefix: '!',
+            prefix: '!',
         })
         await module.api.guilds.getListing('guild-1')
         await module.api.guilds.updateListing('guild-1', {
@@ -331,7 +331,7 @@ describe('api service bootstrap', () => {
         expect(apiClient.post).toHaveBeenCalledWith(
             '/guilds/guild-1/settings',
             {
-                commandPrefix: '!',
+                prefix: '!',
             },
         )
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/listing')

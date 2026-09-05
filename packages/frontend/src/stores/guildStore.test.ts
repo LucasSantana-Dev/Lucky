@@ -225,22 +225,24 @@ describe('guildStore', () => {
 
             const meA = deferred<MeResponse>()
 
-            vi.mocked(api.guilds.getMe).mockImplementation((guildId: string) => {
-                if (guildId === guildA.id) {
-                    return meA.promise as never
-                }
-                return Promise.resolve({
-                    data: {
-                        guildId,
-                        nickname: 'B Nick',
-                        username: 'user-b',
-                        globalName: null,
-                        roleIds: ['role-b'],
-                        effectiveAccess: MANAGE_ACCESS,
-                        canManageRbac: true,
-                    },
-                } as never)
-            })
+            vi.mocked(api.guilds.getMe).mockImplementation(
+                (guildId: string) => {
+                    if (guildId === guildA.id) {
+                        return meA.promise as never
+                    }
+                    return Promise.resolve({
+                        data: {
+                            guildId,
+                            nickname: 'B Nick',
+                            username: 'user-b',
+                            globalName: null,
+                            roleIds: ['role-b'],
+                            effectiveAccess: MANAGE_ACCESS,
+                            canManageRbac: true,
+                        },
+                    } as never)
+                },
+            )
 
             useGuildStore.getState().selectGuild(guildA)
             useGuildStore.getState().selectGuild(guildB)
@@ -276,28 +278,29 @@ describe('guildStore', () => {
         test('should merge partial settings', () => {
             useGuildStore.setState({
                 serverSettings: {
-                    nickname: 'Bot',
-                    commandPrefix: '!',
-                    managerRoles: [],
-                    updatesChannel: '',
-                    timezone: 'UTC',
-                    disableWarnings: false,
+                    prefix: '!',
+                    embedColor: '0x5865F2',
+                    language: 'en',
+                    allowPlaylists: true,
+                    allowSpotify: true,
+                    commandCooldown: 3,
+                    maxQueueSize: 100,
+                    defaultVolume: 50,
+                    voteSkipThreshold: 50,
                 },
             })
 
-            useGuildStore.getState().updateServerSettings({ nickname: 'New' })
+            useGuildStore.getState().updateServerSettings({ prefix: '?' })
 
-            expect(useGuildStore.getState().serverSettings?.nickname).toBe(
-                'New',
-            )
-            expect(useGuildStore.getState().serverSettings?.commandPrefix).toBe(
-                '!',
+            expect(useGuildStore.getState().serverSettings?.prefix).toBe('?')
+            expect(useGuildStore.getState().serverSettings?.embedColor).toBe(
+                '0x5865F2',
             )
         })
 
         test('should no-op when settings is null', () => {
             useGuildStore.setState({ serverSettings: null })
-            useGuildStore.getState().updateServerSettings({ nickname: 'New' })
+            useGuildStore.getState().updateServerSettings({ prefix: '?' })
             expect(useGuildStore.getState().serverSettings).toBeNull()
         })
     })

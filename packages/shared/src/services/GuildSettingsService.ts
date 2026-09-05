@@ -62,6 +62,34 @@ export interface AutoplayCounter {
 }
 
 /**
+ * Columns `toPrismaData` will copy from a partial write. Shared with the
+ * backend route schema (`routes/guildSettings.ts`) so a dashboard field can
+ * never be exposed without this service knowing how to persist it, and vice
+ * versa — the route's zod schema keys must all appear here.
+ */
+export const GUILD_SETTINGS_EDITABLE_FIELDS = [
+    'defaultVolume',
+    'maxQueueSize',
+    'autoPlayEnabled',
+    'autoplayMode',
+    'autoplayGenres',
+    'blockSertanejo',
+    'repeatMode',
+    'shuffleEnabled',
+    'prefix',
+    'embedColor',
+    'language',
+    'allowPlaylists',
+    'allowSpotify',
+    'commandCooldown',
+    'djRoleId',
+    'supportCategoryId',
+    'supportAgentRoleId',
+    'idleTimeoutMinutes',
+    'voteSkipThreshold',
+] as const satisfies readonly (keyof GuildSettingsPatch)[]
+
+/**
  * Manages guild settings + per-guild music counters, all in Postgres.
  *
  * Settings are the `guild_settings` table (Postgres is the source of truth, read
@@ -160,28 +188,9 @@ export class GuildSettingsService {
         settings: GuildSettingsPatch,
     ): Record<string, unknown> {
         const data: Record<string, unknown> = {}
-        const copy = (k: keyof GuildSettingsPatch) => {
-            if (settings[k] !== undefined) data[k as string] = settings[k]
+        for (const key of GUILD_SETTINGS_EDITABLE_FIELDS) {
+            if (settings[key] !== undefined) data[key] = settings[key]
         }
-        copy('defaultVolume')
-        copy('maxQueueSize')
-        copy('autoPlayEnabled')
-        copy('autoplayMode')
-        copy('autoplayGenres')
-        copy('blockSertanejo')
-        copy('repeatMode')
-        copy('shuffleEnabled')
-        copy('prefix')
-        copy('embedColor')
-        copy('language')
-        copy('allowPlaylists')
-        copy('allowSpotify')
-        copy('commandCooldown')
-        copy('djRoleId')
-        copy('supportCategoryId')
-        copy('supportAgentRoleId')
-        copy('idleTimeoutMinutes')
-        copy('voteSkipThreshold')
         return data
     }
 

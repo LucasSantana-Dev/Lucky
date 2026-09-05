@@ -14,22 +14,23 @@ import {
     Loader2,
     Hash,
     Globe,
-    Clock,
-    UserCog,
-    Bell,
+    Palette,
+    Volume2,
+    ListMusic,
+    Timer,
+    Percent,
+    Music,
     AlertTriangle,
     Plus,
     Trash2,
     Shield,
     RotateCcw,
-    X,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
 import {
     Select,
     SelectContent,
@@ -44,27 +45,11 @@ import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
 import {
-    RBAC_MODULES,
-    type RoleGrant,
-    type ServerSettings,
-    type GuildChannelOption,
-    type GuildRoleOption,
-} from '@/types'
-
-const TIMEZONES = [
-    'UTC',
-    'America/New_York',
-    'America/Chicago',
-    'America/Denver',
-    'America/Los_Angeles',
-    'America/Sao_Paulo',
-    'Europe/London',
-    'Europe/Paris',
-    'Europe/Berlin',
-    'Asia/Tokyo',
-    'Asia/Shanghai',
-    'Australia/Sydney',
-]
+    SUPPORTED_BOT_LANGUAGES,
+    DEFAULT_BOT_LANGUAGE,
+    isBotLanguage,
+} from '@lucky/shared/constants'
+import { RBAC_MODULES, type RoleGrant, type ServerSettings } from '@/types'
 
 type SettingsLoadErrorKind = 'auth' | 'forbidden' | 'network' | 'upstream'
 
@@ -74,12 +59,86 @@ type SettingsLoadError = {
 }
 
 const DEFAULT_SETTINGS: ServerSettings = {
-    nickname: '',
-    commandPrefix: '!',
-    managerRoles: [],
-    updatesChannel: '',
-    timezone: 'UTC',
-    disableWarnings: false,
+    prefix: '/',
+    embedColor: '0x5865F2',
+    language: 'en',
+    allowPlaylists: true,
+    allowSpotify: true,
+    commandCooldown: 3,
+    maxQueueSize: 100,
+    defaultVolume: 50,
+    voteSkipThreshold: 50,
+}
+
+type NumberSettingsKey =
+    'commandCooldown' | 'maxQueueSize' | 'defaultVolume' | 'voteSkipThreshold'
+
+// Mirrors the min/max bounds of `settingsBody` in
+// packages/backend/src/routes/guildSettings.ts. Keep these in sync if that
+// schema changes.
+const NUMBER_FIELD_BOUNDS: Record<
+    NumberSettingsKey,
+    { min: number; max: number }
+> = {
+    commandCooldown: { min: 0, max: 300 },
+    maxQueueSize: { min: 1, max: 1000 },
+    defaultVolume: { min: 1, max: 200 },
+    voteSkipThreshold: { min: 1, max: 100 },
+}
+
+/**
+ * Parses a raw number-input string and clamps it to the field's bounds,
+ * falling back to the minimum for an empty or non-numeric value. Without
+ * this, clearing an input sends `Number('') === 0`, which fails the
+ * backend's `min(1)` bounds and 400s the whole save (#2236).
+ */
+function clampNumberField(key: NumberSettingsKey, rawValue: string): number {
+    const { min, max } = NUMBER_FIELD_BOUNDS[key]
+    const parsed = Math.trunc(Number(rawValue))
+    if (rawValue.trim() === '' || Number.isNaN(parsed)) {
+        return min
+    }
+    return Math.min(max, Math.max(min, parsed))
+}
+
+/**
+ * Projects a loaded settings object down to the nine fields the strict
+ * `settingsBody` schema (packages/backend/src/routes/guildSettings.ts)
+ * accepts, and coerces `language` to a supported value. The GET response
+ * returns the full `GuildSettings` row, which carries service-only columns
+ * (id, guildId, shuffleEnabled, autoPlayEnabled, createdAt, ...) that the
+ * strict schema rejects outright, so keeping them in form state would 400
+ * every save for a guild that already has a settings row (#2236).
+ */
+function pickEditableSettings(source: ServerSettings): ServerSettings {
+    return {
+        prefix: source.prefix,
+        embedColor: source.embedColor,
+        language: isBotLanguage(source.language)
+            ? source.language
+            : DEFAULT_BOT_LANGUAGE,
+        allowPlaylists: source.allowPlaylists,
+        allowSpotify: source.allowSpotify,
+        commandCooldown: source.commandCooldown,
+        maxQueueSize: source.maxQueueSize,
+        defaultVolume: source.defaultVolume,
+        voteSkipThreshold: source.voteSkipThreshold,
+    }
+}
+
+/** Applies any in-progress number-input drafts before a settings object is saved. */
+function applyNumberDrafts(
+    current: ServerSettings,
+    drafts: Partial<Record<NumberSettingsKey, string>>,
+): ServerSettings {
+    const result = { ...current }
+    for (const key of Object.keys(drafts) as NumberSettingsKey[]) {
+        const draft = drafts[key]
+        if (draft !== undefined) {
+            result[key] = clampNumberField(key, draft)
+        }
+    }
+    return result
 }
 
 function classifySettingsLoadError(
@@ -132,6 +191,9 @@ export default function ServerSettingsPage() {
     const [settingsLoadError, setSettingsLoadError] =
         useState<SettingsLoadError | null>(null)
     const [saving, setSaving] = useState(false)
+    const [numberDrafts, setNumberDrafts] = useState<
+        Partial<Record<NumberSettingsKey, string>>
+    >({})
     const [rbacLoading, setRbacLoading] = useState(false)
     const [rbacSaving, setRbacSaving] = useState(false)
     const [rbacRolesError, setRbacRolesError] = useState<string | null>(null)
@@ -139,10 +201,6 @@ export default function ServerSettingsPage() {
         Array<{ id: string; name: string }>
     >([])
     const [rbacGrants, setRbacGrants] = useState<RoleGrant[]>([])
-    const [channels, setChannels] = useState<GuildChannelOption[]>([])
-    const [managerRoleOptions, setManagerRoleOptions] = useState<
-        GuildRoleOption[]
-    >([])
     const rbacRequestIdRef = useRef(0)
     const settingsRequestVersion = useRef(0)
 
@@ -200,7 +258,12 @@ export default function ServerSettingsPage() {
             if (isStaleRequest()) {
                 return
             }
-            setSettings(response.data.settings ?? DEFAULT_SETTINGS)
+            setSettings(
+                response.data.settings
+                    ? pickEditableSettings(response.data.settings)
+                    : DEFAULT_SETTINGS,
+            )
+            setNumberDrafts({})
         } catch (error) {
             if (isStaleRequest()) {
                 return
@@ -234,32 +297,6 @@ export default function ServerSettingsPage() {
         loadRbac(selectedGuild.id)
     }, [selectedGuild?.id, canManageRbac, loadRbac])
 
-    useEffect(() => {
-        if (!selectedGuild?.id) return
-        let mounted = true
-
-        api.guilds
-            .getChannels(selectedGuild.id)
-            .then((res) => {
-                if (mounted) setChannels(res.data.channels)
-            })
-            .catch(() => {
-                if (mounted) setChannels([])
-            })
-        api.guilds
-            .getRbac(selectedGuild.id)
-            .then((res) => {
-                if (mounted) setManagerRoleOptions(res.data.roles)
-            })
-            .catch(() => {
-                if (mounted) setManagerRoleOptions([])
-            })
-
-        return () => {
-            mounted = false
-        }
-    }, [selectedGuild?.id])
-
     const update = <K extends keyof ServerSettings>(
         key: K,
         value: ServerSettings[K],
@@ -271,7 +308,12 @@ export default function ServerSettingsPage() {
         if (!selectedGuild?.id) return
         setSaving(true)
         try {
-            await api.guilds.updateSettings(selectedGuild.id, settings)
+            const payload = pickEditableSettings(
+                applyNumberDrafts(settings, numberDrafts),
+            )
+            await api.guilds.updateSettings(selectedGuild.id, payload)
+            setSettings(payload)
+            setNumberDrafts({})
             toast.success(t('serverSettings.settingsSaved'))
         } catch {
             toast.error(t('serverSettings.settingsSaveFailed'))
@@ -570,12 +612,6 @@ export default function ServerSettingsPage() {
         )
     }
 
-    const availableManagerRoles = managerRoleOptions.filter(
-        (r) => !(settings.managerRoles ?? []).includes(r.id),
-    )
-    const getManagerRoleName = (id: string) =>
-        managerRoleOptions.find((r) => r.id === id)?.name ?? id
-
     return (
         <div className='space-y-6 lg:pb-0 pb-24'>
             <SectionHeader
@@ -617,42 +653,43 @@ export default function ServerSettingsPage() {
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                         <div className='space-y-2'>
                             <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <UserCog className='w-3 h-3' />{' '}
-                                {t('serverSettings.botNickname')}
-                            </Label>
-                            <Input
-                                value={settings.nickname}
-                                onChange={(e) =>
-                                    update('nickname', e.target.value)
-                                }
-                                placeholder={t(
-                                    'serverSettings.botNicknamePlaceholder',
-                                )}
-                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
-                            />
-                        </div>
-                        <div className='space-y-2'>
-                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
                                 <Hash className='w-3 h-3' />{' '}
                                 {t('serverSettings.commandPrefix')}
                             </Label>
                             <Input
-                                value={settings.commandPrefix}
+                                value={settings.prefix}
                                 onChange={(e) =>
-                                    update('commandPrefix', e.target.value)
+                                    update('prefix', e.target.value)
                                 }
                                 placeholder={t(
                                     'serverSettings.commandPrefixPlaceholder',
                                 )}
-                                maxLength={3}
+                                maxLength={5}
                                 className='bg-lucky-bg-tertiary border-lucky-border text-white w-24'
+                            />
+                        </div>
+                        <div className='space-y-2'>
+                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
+                                <Palette className='w-3 h-3' />{' '}
+                                {t('serverSettings.embedColor')}
+                            </Label>
+                            <Input
+                                value={settings.embedColor}
+                                onChange={(e) =>
+                                    update('embedColor', e.target.value)
+                                }
+                                placeholder={t(
+                                    'serverSettings.embedColorPlaceholder',
+                                )}
+                                maxLength={8}
+                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
                             />
                         </div>
                     </div>
                 </Card>
             </motion.div>
 
-            {/* Timezone & Notifications */}
+            {/* Language */}
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -662,204 +699,247 @@ export default function ServerSettingsPage() {
                     <div className='flex items-center gap-2'>
                         <Globe className='w-5 h-5 text-lucky-text-secondary' />
                         <h2 className='type-title text-lucky-text-primary'>
-                            {t('serverSettings.regionNotifications')}
+                            {t('serverSettings.language')}
                         </h2>
                     </div>
 
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                         <div className='space-y-2'>
-                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <Clock className='w-3 h-3' />{' '}
-                                {t('serverSettings.timezone')}
-                            </Label>
                             <Select
-                                value={settings.timezone}
+                                value={settings.language}
                                 onValueChange={(v: string) =>
-                                    update('timezone', v)
+                                    update('language', v)
                                 }
                             >
                                 <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white'>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
-                                    {TIMEZONES.map((tz) => (
-                                        <SelectItem key={tz} value={tz}>
-                                            {tz}
+                                    {SUPPORTED_BOT_LANGUAGES.map((lang) => (
+                                        <SelectItem key={lang} value={lang}>
+                                            {lang}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className='space-y-2'>
-                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <Bell className='w-3 h-3' />{' '}
-                                {t('serverSettings.updatesChannel')}
-                            </Label>
-                            {channels.length > 0 ? (
-                                <Select
-                                    value={
-                                        settings.updatesChannel || '__none__'
-                                    }
-                                    onValueChange={(v: string) =>
-                                        update(
-                                            'updatesChannel',
-                                            v === '__none__' ? '' : v,
-                                        )
-                                    }
-                                >
-                                    <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white'>
-                                        <SelectValue
-                                            placeholder={t(
-                                                'serverSettings.selectChannelPlaceholder',
-                                            )}
-                                        />
-                                    </SelectTrigger>
-                                    <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
-                                        <SelectItem value='__none__'>
-                                            <span className='text-lucky-text-tertiary'>
-                                                {t('serverSettings.none')}
-                                            </span>
-                                        </SelectItem>
-                                        {channels.map((ch) => (
-                                            <SelectItem
-                                                key={ch.id}
-                                                value={ch.id}
-                                            >
-                                                <span className='flex items-center gap-2'>
-                                                    <Hash className='w-3 h-3 text-lucky-text-tertiary' />
-                                                    {ch.name}
-                                                </span>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            ) : (
-                                <Input
-                                    value={settings.updatesChannel}
-                                    onChange={(e) =>
-                                        update('updatesChannel', e.target.value)
-                                    }
-                                    placeholder={t(
-                                        'serverSettings.channelIdPlaceholder',
-                                    )}
-                                    className='bg-lucky-bg-tertiary border-lucky-border text-white'
-                                />
-                            )}
-                        </div>
                     </div>
                 </Card>
             </motion.div>
 
-            {/* Manager Roles */}
+            {/* Music Defaults */}
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.08 }}
             >
-                <Card className='p-5 space-y-4 border border-lucky-border'>
+                <Card className='p-5 space-y-5 border border-lucky-border'>
                     <div className='flex items-center gap-2'>
-                        <Shield className='w-5 h-5 text-lucky-text-secondary' />
-                        <div>
-                            <h2 className='type-title text-lucky-text-primary'>
-                                {t('serverSettings.managerRoles')}
-                            </h2>
-                            <p className='type-meta text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
-                                {t('serverSettings.managerRolesDescription')}
-                            </p>
+                        <Music className='w-5 h-5 text-lucky-text-secondary' />
+                        <h2 className='type-title text-lucky-text-primary'>
+                            {t('serverSettings.musicDefaults')}
+                        </h2>
+                    </div>
+
+                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                        <div className='space-y-2'>
+                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
+                                <Volume2 className='w-3 h-3' />{' '}
+                                {t('serverSettings.defaultVolume')}
+                            </Label>
+                            <Input
+                                type='number'
+                                min={NUMBER_FIELD_BOUNDS.defaultVolume.min}
+                                max={NUMBER_FIELD_BOUNDS.defaultVolume.max}
+                                value={
+                                    numberDrafts.defaultVolume ??
+                                    settings.defaultVolume
+                                }
+                                onChange={(e) =>
+                                    setNumberDrafts((prev) => ({
+                                        ...prev,
+                                        defaultVolume: e.target.value,
+                                    }))
+                                }
+                                onBlur={(e) => {
+                                    update(
+                                        'defaultVolume',
+                                        clampNumberField(
+                                            'defaultVolume',
+                                            e.target.value,
+                                        ),
+                                    )
+                                    setNumberDrafts((prev) => {
+                                        const next = { ...prev }
+                                        delete next.defaultVolume
+                                        return next
+                                    })
+                                }}
+                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
+                            />
+                        </div>
+                        <div className='space-y-2'>
+                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
+                                <ListMusic className='w-3 h-3' />{' '}
+                                {t('serverSettings.maxQueueSize')}
+                            </Label>
+                            <Input
+                                type='number'
+                                min={NUMBER_FIELD_BOUNDS.maxQueueSize.min}
+                                max={NUMBER_FIELD_BOUNDS.maxQueueSize.max}
+                                value={
+                                    numberDrafts.maxQueueSize ??
+                                    settings.maxQueueSize
+                                }
+                                onChange={(e) =>
+                                    setNumberDrafts((prev) => ({
+                                        ...prev,
+                                        maxQueueSize: e.target.value,
+                                    }))
+                                }
+                                onBlur={(e) => {
+                                    update(
+                                        'maxQueueSize',
+                                        clampNumberField(
+                                            'maxQueueSize',
+                                            e.target.value,
+                                        ),
+                                    )
+                                    setNumberDrafts((prev) => {
+                                        const next = { ...prev }
+                                        delete next.maxQueueSize
+                                        return next
+                                    })
+                                }}
+                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
+                            />
+                        </div>
+                        <div className='space-y-2'>
+                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
+                                <Timer className='w-3 h-3' />{' '}
+                                {t('serverSettings.commandCooldown')}
+                            </Label>
+                            <Input
+                                type='number'
+                                min={NUMBER_FIELD_BOUNDS.commandCooldown.min}
+                                max={NUMBER_FIELD_BOUNDS.commandCooldown.max}
+                                value={
+                                    numberDrafts.commandCooldown ??
+                                    settings.commandCooldown
+                                }
+                                onChange={(e) =>
+                                    setNumberDrafts((prev) => ({
+                                        ...prev,
+                                        commandCooldown: e.target.value,
+                                    }))
+                                }
+                                onBlur={(e) => {
+                                    update(
+                                        'commandCooldown',
+                                        clampNumberField(
+                                            'commandCooldown',
+                                            e.target.value,
+                                        ),
+                                    )
+                                    setNumberDrafts((prev) => {
+                                        const next = { ...prev }
+                                        delete next.commandCooldown
+                                        return next
+                                    })
+                                }}
+                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
+                            />
+                        </div>
+                        <div className='space-y-2'>
+                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
+                                <Percent className='w-3 h-3' />{' '}
+                                {t('serverSettings.voteSkipThreshold')}
+                            </Label>
+                            <Input
+                                type='number'
+                                min={NUMBER_FIELD_BOUNDS.voteSkipThreshold.min}
+                                max={NUMBER_FIELD_BOUNDS.voteSkipThreshold.max}
+                                value={
+                                    numberDrafts.voteSkipThreshold ??
+                                    settings.voteSkipThreshold
+                                }
+                                onChange={(e) =>
+                                    setNumberDrafts((prev) => ({
+                                        ...prev,
+                                        voteSkipThreshold: e.target.value,
+                                    }))
+                                }
+                                onBlur={(e) => {
+                                    update(
+                                        'voteSkipThreshold',
+                                        clampNumberField(
+                                            'voteSkipThreshold',
+                                            e.target.value,
+                                        ),
+                                    )
+                                    setNumberDrafts((prev) => {
+                                        const next = { ...prev }
+                                        delete next.voteSkipThreshold
+                                        return next
+                                    })
+                                }}
+                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
+                            />
                         </div>
                     </div>
-                    {managerRoleOptions.length > 0 &&
-                        availableManagerRoles.length > 0 && (
-                            <Select
-                                onValueChange={(id: string) => {
-                                    update('managerRoles', [
-                                        ...(settings.managerRoles ?? []),
-                                        id,
-                                    ])
-                                }}
-                            >
-                                <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white h-9 text-sm'>
-                                    <SelectValue
-                                        placeholder={t(
-                                            'serverSettings.addManagerRolePlaceholder',
-                                        )}
-                                    />
-                                </SelectTrigger>
-                                <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
-                                    {availableManagerRoles.map((role) => (
-                                        <SelectItem
-                                            key={role.id}
-                                            value={role.id}
-                                        >
-                                            {role.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        )}
-                    {(settings.managerRoles ?? []).length > 0 ? (
-                        <div className='flex flex-wrap gap-2'>
-                            {(settings.managerRoles ?? []).map((id) => (
-                                <Badge
-                                    key={id}
-                                    className='bg-lucky-brand/15 border border-lucky-brand/40 text-lucky-text-primary text-xs gap-1.5 px-2.5 py-1.5 hover:bg-lucky-brand/20 transition-colors'
-                                >
-                                    <Shield className='w-3 h-3 text-lucky-brand' />
-                                    <span className='font-medium'>
-                                        {getManagerRoleName(id)}
-                                    </span>
-                                    <button
-                                        onClick={() =>
-                                            update(
-                                                'managerRoles',
-                                                (
-                                                    settings.managerRoles ?? []
-                                                ).filter((r) => r !== id),
-                                            )
-                                        }
-                                        className='ml-0.5 hover:text-lucky-error transition-colors'
-                                        aria-label='Remove role'
-                                    >
-                                        <X className='w-3 h-3' />
-                                    </button>
-                                </Badge>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className='type-body-sm text-lucky-text-tertiary'>
-                            {t('serverSettings.noManagerRoles')}
-                        </p>
-                    )}
                 </Card>
             </motion.div>
 
-            {/* Warnings Toggle */}
+            {/* Permissions */}
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
             >
-                <Card className='p-5 border border-lucky-border'>
+                <Card className='p-5 space-y-4 border border-lucky-border'>
                     <div className='flex items-center justify-between'>
                         <div className='flex items-center gap-3'>
-                            <div className='p-2 rounded-lg bg-yellow-500/15'>
-                                <AlertTriangle className='w-4 h-4 text-yellow-400' />
+                            <div className='p-2 rounded-lg bg-lucky-brand/15'>
+                                <ListMusic className='w-4 h-4 text-lucky-brand' />
                             </div>
                             <div>
                                 <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
-                                    {t('serverSettings.disableCommandWarnings')}
+                                    {t('serverSettings.allowPlaylists')}
                                 </h3>
                                 <p className='type-meta text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
                                     {t(
-                                        'serverSettings.disableWarningsDescription',
+                                        'serverSettings.allowPlaylistsDescription',
                                     )}
                                 </p>
                             </div>
                         </div>
                         <Switch
-                            checked={settings.disableWarnings}
+                            checked={settings.allowPlaylists}
                             onCheckedChange={(v: boolean) =>
-                                update('disableWarnings', v)
+                                update('allowPlaylists', v)
+                            }
+                        />
+                    </div>
+                    <div className='flex items-center justify-between'>
+                        <div className='flex items-center gap-3'>
+                            <div className='p-2 rounded-lg bg-lucky-brand/15'>
+                                <Music className='w-4 h-4 text-lucky-brand' />
+                            </div>
+                            <div>
+                                <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
+                                    {t('serverSettings.allowSpotify')}
+                                </h3>
+                                <p className='type-meta text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
+                                    {t(
+                                        'serverSettings.allowSpotifyDescription',
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+                        <Switch
+                            checked={settings.allowSpotify}
+                            onCheckedChange={(v: boolean) =>
+                                update('allowSpotify', v)
                             }
                         />
                     </div>
