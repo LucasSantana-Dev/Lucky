@@ -12,7 +12,7 @@ import {
     guildSettingsService,
     supportSessionService,
 } from '@lucky/shared/services'
-import { infoLog, errorLog } from '@lucky/shared/utils'
+import { infoLog, errorLog, logAndWarn } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply'
 
 // Tickets auto-close 24h after opening (swept by supportSessionScheduler).
@@ -63,7 +63,11 @@ async function handleOpen(
             return
         }
         // Channel was deleted out-of-band — close the orphan row and continue.
-        await supportSessionService.close(existing.id).catch(() => {})
+        await supportSessionService
+            .close(existing.id)
+            .catch((err) =>
+                logAndWarn(err, 'ticket.close', { sessionId: existing.id }),
+            )
     }
 
     let channel: TextChannel
@@ -239,15 +243,21 @@ async function teardownClosedTicket(
 ): Promise<void> {
     const channel = await guild.channels.fetch(channelId).catch(() => null)
     if (!channel) {
-        await supportSessionService.close(sessionId).catch(() => {})
+        await supportSessionService
+            .close(sessionId)
+            .catch((err) => logAndWarn(err, 'ticket.close', { sessionId }))
         return
     }
     try {
         await channel.delete('Support ticket closed')
-        await supportSessionService.close(sessionId).catch(() => {})
+        await supportSessionService
+            .close(sessionId)
+            .catch((err) => logAndWarn(err, 'ticket.close', { sessionId }))
     } catch (error) {
         if ((error as { code?: number })?.code === UNKNOWN_CHANNEL) {
-            await supportSessionService.close(sessionId).catch(() => {})
+            await supportSessionService
+                .close(sessionId)
+                .catch((err) => logAndWarn(err, 'ticket.close', { sessionId }))
             return
         }
         errorLog({

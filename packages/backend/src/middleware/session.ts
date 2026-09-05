@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import session from 'express-session'
 import sessionFileStoreFactory from 'session-file-store'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import type { Express } from 'express'
 import { PrismaSessionStore } from './prismaSessionStore'
 
@@ -129,7 +129,7 @@ function createPrimaryStore(): session.Store | undefined {
     try {
         return new PrismaSessionStore()
     } catch (error) {
-        debugLog({
+        warnLog({
             message:
                 'Postgres session store initialization failed. Using local session store.',
             error,
@@ -180,6 +180,13 @@ export function setupSessionMiddleware(app: Express): void {
         : fallbackStore
 
     const isMemoryFallback = fallbackStore.constructor.name === 'MemoryStore'
+
+    if (isProduction && !primaryStore && isMemoryFallback) {
+        errorLog({
+            message:
+                'Session store falling back to in-memory storage in production. Sessions will not persist across restarts or scale past one instance.',
+        })
+    }
 
     app.use(
         session({

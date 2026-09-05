@@ -271,6 +271,10 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
     warnLog: jest.fn(),
     captureException: jest.fn(),
+    getPrismaClient: jest.fn(() => ({
+        $connect: jest.fn(),
+        $disconnect: jest.fn(),
+    })),
 }))
 
 global.fetch = jest.fn<typeof fetch>() as jest.MockedFunction<typeof fetch>
