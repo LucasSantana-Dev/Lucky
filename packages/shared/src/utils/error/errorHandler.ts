@@ -1,5 +1,4 @@
 export * from './errorWrapper'
-export * from './retryHandler'
 export * from './logAndRethrow'
 
 // Main error handler implementation
@@ -10,7 +9,6 @@ import {
     wrapError,
     createUserErrorMessage as createUserMsg,
 } from './errorWrapper'
-import { isRetryable as checkRetryable } from './retryHandler'
 
 /**
  * Main error handler function
@@ -46,11 +44,4 @@ export function handleError(
  */
 export function createUserErrorMessage(error: unknown): string {
     return createUserMsg(error)
-}
-
-/**
- * Check if error is retryable
- */
-export function isRetryable(error: unknown): boolean {
-    return checkRetryable(error)
 }

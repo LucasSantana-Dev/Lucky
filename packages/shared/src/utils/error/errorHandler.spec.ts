@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals'
-import { handleError, createUserErrorMessage, isRetryable } from './errorHandler'
+import { handleError, createUserErrorMessage } from './errorHandler'
 import { MusicError } from '../../types/errors/music'
 import { errorLog } from '../general/log'
 import { captureException } from '../monitoring'
@@ -34,7 +34,10 @@ describe('Error Handler', () => {
         })
 
         it('should handle a MusicError', () => {
-            const error = new MusicError('Music error', 'ERR_MUSIC_TRACK_NOT_FOUND')
+            const error = new MusicError(
+                'Music error',
+                'ERR_MUSIC_TRACK_NOT_FOUND',
+            )
             const context = { userId: 'user123' }
 
             const result = handleError(error, context)
@@ -102,93 +105,36 @@ describe('Error Handler', () => {
             const error = new Error('network connection failed')
             const result = createUserErrorMessage(error)
 
-            expect(result).toBe('Network error occurred. Please check your connection.')
+            expect(result).toBe(
+                'Network error occurred. Please check your connection.',
+            )
         })
 
         it('should map permission errors to user-friendly message', () => {
             const error = new Error('permission denied')
             const result = createUserErrorMessage(error)
 
-            expect(result).toBe("You don't have permission to perform this action.")
+            expect(result).toBe(
+                "You don't have permission to perform this action.",
+            )
         })
 
         it('should return generic message for unknown errors', () => {
             const error = new Error('Unknown error')
             const result = createUserErrorMessage(error)
 
-            expect(result).toBe('An unexpected error occurred. Please try again.')
+            expect(result).toBe(
+                'An unexpected error occurred. Please try again.',
+            )
         })
 
         it('should handle non-Error objects', () => {
             const error = 'String error'
             const result = createUserErrorMessage(error)
 
-            expect(result).toBe('An unexpected error occurred. Please try again.')
-        })
-    })
-
-    describe('isRetryable', () => {
-        it('should return true for retryable MusicError', () => {
-            const error = new MusicError('Playback failed', 'ERR_MUSIC_PLAYBACK_FAILED')
-            const result = isRetryable(error)
-
-            expect(result).toBe(true)
-        })
-
-        it('should return true for download failed MusicError', () => {
-            const error = new MusicError('Download failed', 'ERR_MUSIC_DOWNLOAD_FAILED')
-            const result = isRetryable(error)
-
-            expect(result).toBe(true)
-        })
-
-        it('should return false for non-retryable MusicError', () => {
-            const error = new MusicError('Track not found', 'ERR_MUSIC_TRACK_NOT_FOUND')
-            const result = isRetryable(error)
-
-            expect(result).toBe(false)
-        })
-
-        it('should return true for timeout errors', () => {
-            const error = new Error('Request timeout')
-            const result = isRetryable(error)
-
-            expect(result).toBe(true)
-        })
-
-        it('should return true for network errors', () => {
-            const error = new Error('Network connection failed')
-            const result = isRetryable(error)
-
-            expect(result).toBe(true)
-        })
-
-        it('should return true for rate limit errors', () => {
-            const error = new Error('Rate limit exceeded')
-            const result = isRetryable(error)
-
-            expect(result).toBe(true)
-        })
-
-        it('should return true for temporary errors', () => {
-            const error = new Error('Temporary service unavailable')
-            const result = isRetryable(error)
-
-            expect(result).toBe(true)
-        })
-
-        it('should return false for non-retryable errors', () => {
-            const error = new Error('Invalid input')
-            const result = isRetryable(error)
-
-            expect(result).toBe(false)
-        })
-
-        it('should return false for non-Error objects', () => {
-            const error = 'String error'
-            const result = isRetryable(error)
-
-            expect(result).toBe(false)
+            expect(result).toBe(
+                'An unexpected error occurred. Please try again.',
+            )
         })
     })
 
@@ -199,24 +145,23 @@ describe('Error Handler', () => {
 
             const handledError = handleError(error, context)
             const userMessage = createUserErrorMessage(handledError)
-            const retryable = isRetryable(handledError)
 
             expect(handledError).toBeInstanceOf(MusicError)
             expect(userMessage).toBe('network timeout')
-            expect(retryable).toBe(false)
         })
 
         it('should handle MusicError flow', () => {
-            const error = new MusicError('Playback failed', 'ERR_MUSIC_PLAYBACK_FAILED')
+            const error = new MusicError(
+                'Playback failed',
+                'ERR_MUSIC_PLAYBACK_FAILED',
+            )
             const context = { userId: 'user123' }
 
             const handledError = handleError(error, context)
             const userMessage = createUserErrorMessage(handledError)
-            const retryable = isRetryable(handledError)
 
             expect(handledError).toBe(error) // Same error returned
             expect(userMessage).toBe('Playback failed')
-            expect(retryable).toBe(true)
         })
     })
 })
