@@ -12,6 +12,7 @@ jest.mock('@lucky/shared/services', () => ({
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
+    warnLog: jest.fn(),
 }))
 
 import { autoModService } from '@lucky/shared/services'

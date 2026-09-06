@@ -1,6 +1,7 @@
 import type { Message } from 'discord.js'
 import { autoModService } from '@lucky/shared/services'
 import { errorLog } from '@lucky/shared/utils'
+import { deleteMessageSafely } from './messageDeleteSafely'
 import type {
     MessageContext,
     MessageHandler,
@@ -38,7 +39,7 @@ export const spamHandler: MessageHandler = {
                 return { stop: false }
             }
 
-            await message.delete().catch(() => {})
+            await deleteMessageSafely(message)
             return { stop: true }
         } catch (error) {
             errorLog({
