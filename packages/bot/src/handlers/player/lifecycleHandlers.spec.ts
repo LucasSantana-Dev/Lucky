@@ -224,7 +224,7 @@ describe('setupLifecycleHandlers', () => {
         expect(watchdogCheckRecoverMock).not.toHaveBeenCalled()
     })
 
-    it('does NOT call checkAndRecover when disconnect is intentional stop', async () => {
+    it('does NOT save snapshot or call checkAndRecover when disconnect is intentional stop (#2241)', async () => {
         watchdogIsIntentionalStopMock.mockReturnValue(true)
 
         const handlers: Record<string, PlayerEventHandler> = {}
@@ -244,8 +244,58 @@ describe('setupLifecycleHandlers', () => {
 
         await handlers.disconnect(queue)
 
-        expect(saveSnapshotMock).toHaveBeenCalledWith(queue)
+        // Regression: an intentional /stop already deleted the snapshot.
+        // Re-saving it here resurrected it, which the orphan-session monitor
+        // later restored as if it were an accidental disconnect.
+        expect(saveSnapshotMock).not.toHaveBeenCalled()
         expect(watchdogCheckRecoverMock).not.toHaveBeenCalled()
+    })
+
+    it('does NOT save snapshot on connectionDestroyed when it is an intentional stop (#2241)', async () => {
+        watchdogIsIntentionalStopMock.mockReturnValue(true)
+
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+
+        setupLifecycleHandlers(player)
+
+        const queue = {
+            guild: { id: 'guild-3b', name: 'Guild 3b' },
+        } as unknown as GuildQueue
+
+        await handlers.connectionDestroyed(queue)
+
+        expect(saveSnapshotMock).not.toHaveBeenCalled()
+    })
+
+    it('does NOT save snapshot on emptyChannel when it is an intentional stop (#2241)', async () => {
+        watchdogIsIntentionalStopMock.mockReturnValue(true)
+
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+
+        setupLifecycleHandlers(player)
+
+        const queue = {
+            guild: { id: 'guild-empty', name: 'Guild Empty' },
+        } as unknown as GuildQueue
+
+        await handlers.emptyChannel(queue)
+
+        expect(saveSnapshotMock).not.toHaveBeenCalled()
+        expect(watchdogClearMock).toHaveBeenCalledWith('guild-empty')
     })
 
     it('replenishes queue on emptyQueue when autoplay is enabled', async () => {

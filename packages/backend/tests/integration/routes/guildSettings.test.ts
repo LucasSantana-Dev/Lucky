@@ -8,12 +8,20 @@ import {
 } from '../../../src/routes/guildSettings'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
-import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import { guildAccessService } from '../../../src/services/GuildAccessService'
+import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
 import { GUILD_SETTINGS_EDITABLE_FIELDS } from '@lucky/shared/services'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
         getSession: jest.fn(),
+    },
+}))
+
+jest.mock('../../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        resolveGuildContext: jest.fn(),
+        hasAccess: jest.fn(),
     },
 }))
 
@@ -38,6 +46,14 @@ describe('Guild Settings Routes', () => {
         setupGuildSettingsRoutes(app)
         app.use(errorHandler)
         jest.clearAllMocks()
+
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.resolveGuildContext.mockResolvedValue(
+            MOCK_GUILD_CONTEXT,
+        )
+        mockGuildAccessService.hasAccess.mockReturnValue(true)
     })
 
     const GUILD_ID = '111111111111111111'
@@ -97,6 +113,25 @@ describe('Guild Settings Routes', () => {
 
             expect(res.status).toBe(401)
         })
+
+        test('returns 403 for a user with no access to this guild (IDOR regression, #2243)', async () => {
+            const mockSession = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSession.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.resolveGuildContext.mockResolvedValue(null)
+
+            const res = await request(app)
+                .get(`/api/guilds/${GUILD_ID}/settings`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(403)
+            expect(mockGetSettings).not.toHaveBeenCalled()
+        })
     })
 
     describe('POST /api/guilds/:guildId/settings', () => {
@@ -153,6 +188,26 @@ describe('Guild Settings Routes', () => {
 
             expect(res.status).toBe(400)
         })
+
+        test('returns 403 for a user without manage access to this guild (IDOR regression, #2243)', async () => {
+            const mockSession = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSession.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/settings`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ prefix: '!' })
+
+            expect(res.status).toBe(403)
+            expect(mockSetSettings).not.toHaveBeenCalled()
+        })
     })
 
     describe('settingsBody schema / editable field list agreement', () => {
@@ -183,6 +238,41 @@ describe('Guild Settings Routes', () => {
             expect(res.status).toBe(200)
             expect(res.body.settings).toEqual(settings)
         })
+
+        test('checks settings access regardless of slug — the handler reads the whole record, not a per-module projection (IDOR regression, #2243)', async () => {
+            const mockSession = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSession.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            mockGetSettings.mockResolvedValue({})
+
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+
+            await request(app)
+                .get(`/api/guilds/${GUILD_ID}/modules/moderation/settings`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(mockGuildAccessService.hasAccess).toHaveBeenCalledWith(
+                MOCK_GUILD_CONTEXT,
+                'settings',
+                'view',
+            )
+        })
+
+        test('returns 400 for a slug that is not a real module', async () => {
+            const mockSession = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSession.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const res = await request(app)
+                .get(`/api/guilds/${GUILD_ID}/modules/not-a-module/settings`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(400)
+        })
     })
 
     describe('POST /api/guilds/:guildId/modules/:slug/settings', () => {
@@ -200,6 +290,26 @@ describe('Guild Settings Routes', () => {
 
             expect(res.status).toBe(200)
             expect(res.body.success).toBe(true)
+        })
+
+        test('returns 403 for a user without manage access to the requested module (IDOR regression, #2243)', async () => {
+            const mockSession = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSession.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/modules/music/settings`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ defaultVolume: 75 })
+
+            expect(res.status).toBe(403)
+            expect(mockSetSettings).not.toHaveBeenCalled()
         })
     })
 })

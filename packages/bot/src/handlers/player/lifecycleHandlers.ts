@@ -247,14 +247,21 @@ export const setupLifecycleHandlers = (player: {
         })
 
         await voiceStatus.clearStatus(queue)
-        await musicSessionSnapshotService.saveSnapshot(queue)
-        // Queue was explicitly deleted — never attempt recovery here.
+        // Queue was explicitly deleted — never attempt recovery here. An
+        // intentional /stop already deleted the snapshot; re-saving it here
+        // unconditionally resurrected it, which the orphan-session monitor
+        // later restored as if it were an accidental disconnect (#2241).
+        if (!musicWatchdogService.isIntentionalStop(queue.guild.id)) {
+            await musicSessionSnapshotService.saveSnapshot(queue)
+        }
     })
 
     player.events.on('emptyChannel', async (queue: GuildQueue) => {
         infoLog({ message: `Channel is empty in ${queue.guild.name}` })
         await voiceStatus.clearStatus(queue)
-        await musicSessionSnapshotService.saveSnapshot(queue)
+        if (!musicWatchdogService.isIntentionalStop(queue.guild.id)) {
+            await musicSessionSnapshotService.saveSnapshot(queue)
+        }
         musicWatchdogService.clear(queue.guild.id)
     })
 
@@ -283,8 +290,8 @@ export const setupLifecycleHandlers = (player: {
         })
 
         await voiceStatus.clearStatus(queue)
-        await musicSessionSnapshotService.saveSnapshot(queue)
         if (!musicWatchdogService.isIntentionalStop(queue.guild.id)) {
+            await musicSessionSnapshotService.saveSnapshot(queue)
             await musicWatchdogService.checkAndRecover(queue)
         }
     })

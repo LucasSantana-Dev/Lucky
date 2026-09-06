@@ -7,13 +7,21 @@ import express from 'express'
 import { setupStateRoutes } from '../../../src/routes/music/stateRoutes'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
-import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import { guildAccessService } from '../../../src/services/GuildAccessService'
+import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
 import { sseClients } from '../../../src/routes/music/helpers'
 import { createSseTestFinish } from '../../fixtures/test-helpers'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
         getSession: jest.fn(),
+    },
+}))
+
+jest.mock('../../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        resolveGuildContext: jest.fn(),
+        hasAccess: jest.fn(),
     },
 }))
 
@@ -56,6 +64,14 @@ describe('Music State Routes', () => {
     function authed() {
         const mock = sessionService as jest.Mocked<typeof sessionService>
         mock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.resolveGuildContext.mockResolvedValue(
+            MOCK_GUILD_CONTEXT,
+        )
+        mockGuildAccessService.hasAccess.mockReturnValue(true)
     }
 
     describe('GET /api/guilds/:guildId/music/state', () => {
@@ -63,6 +79,21 @@ describe('Music State Routes', () => {
             await request(app)
                 .get(`/api/guilds/${GUILD_ID}/music/state`)
                 .expect(401)
+        })
+
+        test('returns 403 for a user without music access to this guild (IDOR regression, #2243)', async () => {
+            authed()
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/state`)
+                .set('Cookie', SESSION_COOKIE)
+                .expect(403)
+
+            expect(mockGetState).not.toHaveBeenCalled()
         })
 
         test('returns current state', async () => {
@@ -119,6 +150,19 @@ describe('Music State Routes', () => {
             await request(app)
                 .get(`/api/guilds/${GUILD_ID}/music/stream`)
                 .expect(401)
+        })
+
+        test('returns 403 for a user without music access to this guild (IDOR regression, #2243)', async () => {
+            authed()
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/stream`)
+                .set('Cookie', SESSION_COOKIE)
+                .expect(403)
         })
 
         test('returns SSE headers and sends initial state when state exists', (done) => {
@@ -325,10 +369,8 @@ describe('Music State Routes', () => {
                 let heartbeatWrites = 0
 
                 let fallback: NodeJS.Timeout
-                const { finish } = createSseTestFinish(
-                    server,
-                    done,
-                    () => expect(heartbeatWrites).toBe(0),
+                const { finish } = createSseTestFinish(server, done, () =>
+                    expect(heartbeatWrites).toBe(0),
                 )
 
                 const req = http.get(
@@ -765,10 +807,8 @@ describe('Music State Routes', () => {
                 let dataReceived = false
 
                 let fallback: NodeJS.Timeout
-                const { finish } = createSseTestFinish(
-                    server,
-                    done,
-                    () => expect(dataReceived).toBe(true),
+                const { finish } = createSseTestFinish(server, done, () =>
+                    expect(dataReceived).toBe(true),
                 )
 
                 const req = http.get(
@@ -913,10 +953,10 @@ describe('Music State Routes', () => {
                 let fallback: NodeJS.Timeout
                 const { finish } = createSseTestFinish(server, done)
 
-                const globalFallback = fallback = setTimeout(() => {
+                const globalFallback = (fallback = setTimeout(() => {
                     req.destroy()
                     finish(fallback)
-                }, 40000)
+                }, 40000))
 
                 const req = http.get(
                     {
@@ -1057,16 +1097,14 @@ describe('Music State Routes', () => {
                 let heartbeatCount = 0
 
                 let fallback: NodeJS.Timeout
-                const { finish } = createSseTestFinish(
-                    server,
-                    done,
-                    () => expect(heartbeatCount).toBeGreaterThan(0),
+                const { finish } = createSseTestFinish(server, done, () =>
+                    expect(heartbeatCount).toBeGreaterThan(0),
                 )
 
-                const globalFallback = fallback = setTimeout(() => {
+                const globalFallback = (fallback = setTimeout(() => {
                     req.destroy()
                     finish(fallback)
-                }, 32000)
+                }, 32000))
 
                 const req = http.get(
                     {

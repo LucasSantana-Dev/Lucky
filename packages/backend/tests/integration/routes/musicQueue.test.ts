@@ -5,11 +5,19 @@ import express from 'express'
 import { setupQueueRoutes } from '../../../src/routes/music/queueRoutes'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
-import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import { guildAccessService } from '../../../src/services/GuildAccessService'
+import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
         getSession: jest.fn(),
+    },
+}))
+
+jest.mock('../../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        resolveGuildContext: jest.fn(),
+        hasAccess: jest.fn(),
     },
 }))
 
@@ -45,6 +53,14 @@ describe('Music Queue Routes', () => {
     function authed() {
         const mock = sessionService as jest.Mocked<typeof sessionService>
         mock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.resolveGuildContext.mockResolvedValue(
+            MOCK_GUILD_CONTEXT,
+        )
+        mockGuildAccessService.hasAccess.mockReturnValue(true)
     }
 
     describe('GET /api/guilds/:guildId/music/queue', () => {
@@ -52,6 +68,21 @@ describe('Music Queue Routes', () => {
             await request(app)
                 .get(`/api/guilds/${GUILD_ID}/music/queue`)
                 .expect(401)
+        })
+
+        test('returns 403 for a user without music access to this guild (IDOR regression, #2243)', async () => {
+            authed()
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/queue`)
+                .set('Cookie', SESSION_COOKIE)
+                .expect(403)
+
+            expect(mockGetState).not.toHaveBeenCalled()
         })
 
         test('returns queue with tracks', async () => {
@@ -97,6 +128,22 @@ describe('Music Queue Routes', () => {
                 .set('Cookie', SESSION_COOKIE)
                 .send({ from: 0 })
                 .expect(400)
+        })
+
+        test('returns 403 for a user without music access to this guild (IDOR regression, #2243)', async () => {
+            authed()
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/move`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ from: 0, to: 1 })
+                .expect(403)
+
+            expect(mockSendCommand).not.toHaveBeenCalled()
         })
 
         test('returns 400 for float from value', async () => {
@@ -235,6 +282,22 @@ describe('Music Queue Routes', () => {
                 }),
             )
         })
+
+        test('returns 403 for a user without music access to this guild (IDOR regression, #2243)', async () => {
+            authed()
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/remove`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ index: 1 })
+                .expect(403)
+
+            expect(mockSendCommand).not.toHaveBeenCalled()
+        })
     })
 
     describe('POST /api/guilds/:guildId/music/queue/clear', () => {
@@ -251,6 +314,21 @@ describe('Music Queue Routes', () => {
                 expect.objectContaining({ type: 'queue_clear' }),
             )
         })
+
+        test('returns 403 for a user without music access to this guild (IDOR regression, #2243)', async () => {
+            authed()
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/clear`)
+                .set('Cookie', SESSION_COOKIE)
+                .expect(403)
+
+            expect(mockSendCommand).not.toHaveBeenCalled()
+        })
     })
 
     describe('POST /api/guilds/:guildId/music/import', () => {
@@ -261,6 +339,25 @@ describe('Music Queue Routes', () => {
                 .set('Cookie', SESSION_COOKIE)
                 .send({})
                 .expect(400)
+        })
+
+        test('returns 403 for a user without music access to this guild (IDOR regression, #2243)', async () => {
+            authed()
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/import`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({
+                    url: 'https://open.spotify.com/playlist/abc',
+                    voiceChannelId: '555',
+                })
+                .expect(403)
+
+            expect(mockSendCommand).not.toHaveBeenCalled()
         })
 
         test('imports playlist', async () => {
