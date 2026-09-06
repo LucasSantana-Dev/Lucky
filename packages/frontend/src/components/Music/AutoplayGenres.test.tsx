@@ -7,9 +7,11 @@ let mockGet: any
 let mockPut: any
 
 vi.mock('@/services/api', () => ({
-    default: {
-        get: (...args: any[]) => mockGet(...args),
-        put: (...args: any[]) => mockPut(...args),
+    api: {
+        guilds: {
+            getAutoplayGenres: (...args: any[]) => mockGet(...args),
+            updateAutoplayGenres: (...args: any[]) => mockPut(...args),
+        },
     },
 }))
 
