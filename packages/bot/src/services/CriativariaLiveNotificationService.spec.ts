@@ -16,10 +16,12 @@ jest.mock('@lucky/shared/utils', () => ({
     successLog: jest.fn(),
 }))
 
-jest.mock('../twitch/token')
+jest.mock('../twitch', () => ({
+    getTwitchUserAccessToken: jest.fn(),
+}))
 
 import { CriativariaLiveNotificationService } from './CriativariaLiveNotificationService'
-import { getTwitchUserAccessToken } from '../twitch/token'
+import { getTwitchUserAccessToken } from '../twitch'
 
 const mockGetToken = getTwitchUserAccessToken as jest.MockedFunction<
     typeof getTwitchUserAccessToken
