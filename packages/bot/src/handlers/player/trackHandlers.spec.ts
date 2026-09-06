@@ -87,7 +87,7 @@ jest.mock('../../services/musicManagement/replenishSuppressionStore', () => ({
         setReplenishSuppressedMock(...args),
 }))
 
-jest.mock('../../services/VoiceChannelStatusService', () => ({
+jest.mock('./voiceChannelStatusService', () => ({
     clearStatus: (...args: unknown[]) => clearStatusMock(...args),
     setTrackStatus: jest.fn(),
 }))
