@@ -9,7 +9,7 @@ import { interactionReply } from '../../../../../utils/general/interactionReply'
 import { collaborativePlaylistService } from '../../../../../services/musicRecommendation/collaborativePlaylist'
 import { moveUserTrackToPriority } from '../../../../../services/musicManagement/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../../utils/music/nowPlayingEmbed'
-import { registerNowPlayingMessage } from '../../../../../handlers/player/trackNowPlaying'
+import { registerNowPlayingMessage } from '../../../../../handlers/player/nowPlayingDisplay'
 import { resolveGuildQueue } from '../../../../../services/musicManagement/queueResolver'
 import {
     isUnknownInteractionError,

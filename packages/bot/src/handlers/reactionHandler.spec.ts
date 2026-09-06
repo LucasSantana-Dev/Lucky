@@ -29,7 +29,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-jest.mock('./player/trackNowPlaying', () => ({
+jest.mock('./player/nowPlayingDisplay', () => ({
     getSongInfoMessage: mockGetSongInfoMessage,
 }))
 

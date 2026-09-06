@@ -53,9 +53,12 @@ jest.mock('../../utils/music/duplicateDetection', () => ({
     addTrackToHistory: (...args: unknown[]) => addTrackToHistoryMock(...args),
 }))
 
-jest.mock('./trackNowPlaying', () => ({
+jest.mock('./nowPlayingDisplay', () => ({
     sendNowPlayingEmbed: (...args: unknown[]) =>
         sendNowPlayingEmbedMock(...args),
+}))
+
+jest.mock('./lastfmScrobbler', () => ({
     updateLastFmNowPlaying: (...args: unknown[]) =>
         updateLastFmNowPlayingMock(...args),
     scrobbleCurrentTrackIfLastFm: (...args: unknown[]) =>

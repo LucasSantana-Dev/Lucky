@@ -9,7 +9,7 @@ import {
 } from 'discord.js'
 import { starboardService, giveawayService } from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
-import { getSongInfoMessage } from './player/trackNowPlaying'
+import { getSongInfoMessage } from './player/nowPlayingDisplay'
 import { recordRecommendationSkipReason } from '../services/musicRecommendation/recommendationTelemetry'
 import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
 import { SKIP_REASON_EMOJI_MAP } from '../utils/music/skipReasonMap'

@@ -7,11 +7,11 @@ import { replenishQueue } from '../../services/musicManagement/queueOperations'
 import { resetAutoplayCount } from '../../utils/music/autoplayManager'
 import { featureToggleService } from '@lucky/shared/services'
 import { constants } from '@lucky/shared/config'
+import { sendNowPlayingEmbed } from './nowPlayingDisplay'
 import {
-    sendNowPlayingEmbed,
     updateLastFmNowPlaying,
     scrobbleCurrentTrackIfLastFm,
-} from './trackNowPlaying'
+} from './lastfmScrobbler'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
 import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
 import * as voiceStatus from '../../services/VoiceChannelStatusService'
