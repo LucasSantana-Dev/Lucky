@@ -5,11 +5,19 @@ import express from 'express'
 import { setupPlaybackRoutes } from '../../../src/routes/music/playbackRoutes'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
-import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import { guildAccessService } from '../../../src/services/GuildAccessService'
+import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
         getSession: jest.fn(),
+    },
+}))
+
+jest.mock('../../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        resolveGuildContext: jest.fn(),
+        hasAccess: jest.fn(),
     },
 }))
 
@@ -43,6 +51,14 @@ describe('Music Playback Routes', () => {
     function authed() {
         const mock = sessionService as jest.Mocked<typeof sessionService>
         mock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.resolveGuildContext.mockResolvedValue(
+            MOCK_GUILD_CONTEXT,
+        )
+        mockGuildAccessService.hasAccess.mockReturnValue(true)
     }
 
     describe('POST /api/guilds/:guildId/music/play', () => {
@@ -82,6 +98,22 @@ describe('Music Playback Routes', () => {
                     }),
                 }),
             )
+        })
+
+        test('returns 403 for a user without music access to this guild (IDOR regression, #2243)', async () => {
+            authed()
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/play`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ query: 'test' })
+                .expect(403)
+
+            expect(mockSendCommand).not.toHaveBeenCalled()
         })
     })
 

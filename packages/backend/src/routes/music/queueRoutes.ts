@@ -1,6 +1,7 @@
 import type { Express, Response } from 'express'
 import { z } from 'zod'
 import { requireAuth, type AuthenticatedRequest } from '../../middleware/auth'
+import { requireGuildModuleAccess } from '../../middleware/guildAccess'
 import { asyncHandler } from '../../middleware/asyncHandler'
 import { validateParams } from '../../middleware/validate'
 import { guildIdParam } from '../../schemas/common'
@@ -34,6 +35,7 @@ export function setupQueueRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/music/queue',
         requireAuth,
+        requireGuildModuleAccess('music', 'view'),
         validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
@@ -49,6 +51,7 @@ export function setupQueueRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/queue/move',
         requireAuth,
+        requireGuildModuleAccess('music', 'manage'),
         validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
@@ -70,6 +73,7 @@ export function setupQueueRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/queue/remove',
         requireAuth,
+        requireGuildModuleAccess('music', 'manage'),
         validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
@@ -90,6 +94,7 @@ export function setupQueueRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/queue/clear',
         requireAuth,
+        requireGuildModuleAccess('music', 'manage'),
         validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
@@ -105,6 +110,7 @@ export function setupQueueRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/music/import',
         requireAuth,
+        requireGuildModuleAccess('music', 'manage'),
         validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
