@@ -282,6 +282,22 @@ describe('Music Queue Routes', () => {
                 }),
             )
         })
+
+        test('returns 403 for a user without music access to this guild (IDOR regression, #2243)', async () => {
+            authed()
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/remove`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ index: 1 })
+                .expect(403)
+
+            expect(mockSendCommand).not.toHaveBeenCalled()
+        })
     })
 
     describe('POST /api/guilds/:guildId/music/queue/clear', () => {
@@ -298,6 +314,21 @@ describe('Music Queue Routes', () => {
                 expect.objectContaining({ type: 'queue_clear' }),
             )
         })
+
+        test('returns 403 for a user without music access to this guild (IDOR regression, #2243)', async () => {
+            authed()
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/queue/clear`)
+                .set('Cookie', SESSION_COOKIE)
+                .expect(403)
+
+            expect(mockSendCommand).not.toHaveBeenCalled()
+        })
     })
 
     describe('POST /api/guilds/:guildId/music/import', () => {
@@ -308,6 +339,25 @@ describe('Music Queue Routes', () => {
                 .set('Cookie', SESSION_COOKIE)
                 .send({})
                 .expect(400)
+        })
+
+        test('returns 403 for a user without music access to this guild (IDOR regression, #2243)', async () => {
+            authed()
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/import`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({
+                    url: 'https://open.spotify.com/playlist/abc',
+                    voiceChannelId: '555',
+                })
+                .expect(403)
+
+            expect(mockSendCommand).not.toHaveBeenCalled()
         })
 
         test('imports playlist', async () => {

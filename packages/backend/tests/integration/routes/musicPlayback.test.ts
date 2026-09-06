@@ -44,14 +44,10 @@ describe('Music Playback Routes', () => {
         setupPlaybackRoutes(app)
         app.use(errorHandler)
         jest.clearAllMocks()
-    })
 
-    const GUILD_ID = '111111111111111111'
-
-    function authed() {
-        const mock = sessionService as jest.Mocked<typeof sessionService>
-        mock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
+        // Reset to a known-good state on every test, not just when authed()
+        // runs — otherwise a test that forgets to call authed() would still
+        // be granted access via a stale mock left over from a prior test.
         const mockGuildAccessService = guildAccessService as jest.Mocked<
             typeof guildAccessService
         >
@@ -59,6 +55,13 @@ describe('Music Playback Routes', () => {
             MOCK_GUILD_CONTEXT,
         )
         mockGuildAccessService.hasAccess.mockReturnValue(true)
+    })
+
+    const GUILD_ID = '111111111111111111'
+
+    function authed() {
+        const mock = sessionService as jest.Mocked<typeof sessionService>
+        mock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
     }
 
     describe('POST /api/guilds/:guildId/music/play', () => {
