@@ -5,11 +5,7 @@ jest.mock('../../../../utils/music/buttonComponents', () => ({
     createMusicActionButtons: jest.fn().mockReturnValue({}),
 }))
 
-import {
-    createQueueEmbed,
-    createEmptyQueueEmbed,
-    createQueueErrorEmbed,
-} from './queueEmbed'
+import { createQueueEmbed, createQueueErrorEmbed } from './queueEmbed'
 import { translatorFor } from '../../../../i18n'
 
 // The real English translator, not a stub. These assertions then double as a
@@ -305,19 +301,6 @@ describe('queueEmbed', () => {
             )
 
             expect(result).toBe(mockEmbed)
-        })
-    })
-
-    describe('createEmptyQueueEmbed', () => {
-        it('calls createEmbed with empty queue description', () => {
-            createEmptyQueueEmbed()
-
-            expect(createEmbedMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    description:
-                        'The queue is empty. Add some tracks to get started!',
-                }),
-            )
         })
     })
 
