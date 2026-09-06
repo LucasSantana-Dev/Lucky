@@ -1,5 +1,6 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../../middleware/auth'
+import { requireGuildModuleAccess } from '../../middleware/guildAccess'
 import { asyncHandler } from '../../middleware/asyncHandler'
 import { validateParams } from '../../middleware/validate'
 import { guildIdParam } from '../../schemas/common'
@@ -11,6 +12,7 @@ export function setupAutoplayRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/autoplay/genres',
         requireAuth,
+        requireGuildModuleAccess('music', 'view'),
         validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
@@ -25,6 +27,7 @@ export function setupAutoplayRoutes(app: Express): void {
     app.put(
         '/api/guilds/:guildId/autoplay/genres',
         requireAuth,
+        requireGuildModuleAccess('music', 'manage'),
         validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
