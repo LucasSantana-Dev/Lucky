@@ -14,6 +14,7 @@ import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
 import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
 import { channelPurgeScheduler } from '../../utils/general/channelPurgeScheduler'
 import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
+import { restoreSessionsOnStartup } from '../../services/musicManagement/sessionStartupRestore'
 
 let presenceControls: {
     stop: () => void
@@ -122,6 +123,15 @@ export async function startClient({
             } catch (error) {
                 errorLog({
                     message: 'Error in ready handler:',
+                    error,
+                })
+            }
+
+            try {
+                await restoreSessionsOnStartup(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to restore music sessions on startup',
                     error,
                 })
             }
