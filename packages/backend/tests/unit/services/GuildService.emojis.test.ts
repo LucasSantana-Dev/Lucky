@@ -159,6 +159,17 @@ describe('GuildService - getGuildEmojis', () => {
         ).rejects.toThrow('Network error')
     })
 
+    test('should reject a non-snowflake guildId before hitting the Discord API (SSRF guard)', async () => {
+        process.env.DISCORD_TOKEN = 'test-bot-token'
+        setBotClient(null)
+        global.fetch = jest.fn() as unknown as typeof fetch
+
+        await expect(
+            guildService.getGuildEmojis('../../etc/passwd'),
+        ).rejects.toThrow('Invalid Discord guild id')
+        expect(global.fetch).not.toHaveBeenCalled()
+    })
+
     test('should return empty array when no bot client and no token', async () => {
         setBotClient(null)
         // no token set
