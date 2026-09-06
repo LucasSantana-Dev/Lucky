@@ -8,6 +8,7 @@ import type {
 import type { VoiceBasedChannel } from 'discord.js'
 import { warnLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
+import { hasVersionMarker } from '../../../../../utils/music/searchQueryCleaner'
 
 const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
 const ATTACHMENT_EXTRACTOR_ID = 'com.discord-player.attachmentextractor'
@@ -33,6 +34,13 @@ export const TEXT_SEARCH_BLOCKED_EXTRACTORS = [
  * ahead of the artist the query actually names. This promotes a candidate
  * whose title or author exactly matches the query, leaving descriptive
  * queries (where no exact match exists) untouched.
+ *
+ * It also demotes a top candidate carrying an unrequested version marker
+ * (remix, sped up, 8D audio, etc. — see noiseTerms.json) when an earlier or
+ * later candidate in the same result set has none, so a query with no such
+ * marker doesn't default to an edit/remix/repost just because it search-
+ * ranked first (#2133). A query that names the version itself (e.g. "Song
+ * Remix") is left alone — nothing here overrides an explicit request.
  */
 export function preferExactMatch(
     query: string,
@@ -64,14 +72,30 @@ export function preferExactMatch(
 
         if (result.hasPlaylist() || result.tracks.length <= 1) return result
 
-        const bestIndex = result.tracks.findIndex((track) => {
+        let tracks = result.tracks
+        let workingResult = result
+        if (!hasVersionMarker(normalizedQuery)) {
+            const topHasMarker = hasVersionMarker(tracks[0]?.title ?? '')
+            const cleanIndex = tracks.findIndex(
+                (track) => !hasVersionMarker(track.title ?? ''),
+            )
+            if (topHasMarker && cleanIndex > 0) {
+                const demoted = [...tracks]
+                const [cleanTrack] = demoted.splice(cleanIndex, 1)
+                demoted.unshift(cleanTrack)
+                tracks = demoted
+                workingResult = result.setTracks(demoted)
+            }
+        }
+
+        const bestIndex = tracks.findIndex((track) => {
             const author = track.author?.trim().toLowerCase()
             const title = track.title?.trim().toLowerCase()
             return author === normalizedQuery || title === normalizedQuery
         })
-        if (bestIndex <= 0) return result
+        if (bestIndex <= 0) return workingResult
 
-        const reordered = [...result.tracks]
+        const reordered = [...tracks]
         const [bestTrack] = reordered.splice(bestIndex, 1)
         reordered.unshift(bestTrack)
         return result.setTracks(reordered)

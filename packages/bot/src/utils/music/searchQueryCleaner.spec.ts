@@ -5,6 +5,7 @@ import {
     cleanSearchQuery,
     isSpamChannel,
     extractSongCore,
+    hasVersionMarker,
 } from './searchQueryCleaner'
 
 describe('cleanTitle', () => {
@@ -315,4 +316,24 @@ describe('cleanTitle — tribute and duration annotation noise', () => {
     ])('%s', (_, input, expected) => {
         expect(cleanTitle(input)).toBe(expected)
     })
+})
+
+describe('hasVersionMarker', () => {
+    it.each([
+        'Song Title (Remix)',
+        'Song Title (Sped Up)',
+        'Song Title (8D Audio)',
+        'Song Title - Acoustic',
+        'Song Title (Live)',
+        'Song Title (Radio Edit)',
+    ])('detects a version marker in %j', (title) => {
+        expect(hasVersionMarker(title)).toBe(true)
+    })
+
+    it.each(['Song Title', 'Bohemian Rhapsody', 'Purple Rain'])(
+        'returns false for a plain title with no marker: %j',
+        (title) => {
+            expect(hasVersionMarker(title)).toBe(false)
+        },
+    )
 })

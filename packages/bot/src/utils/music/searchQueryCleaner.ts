@@ -321,6 +321,17 @@ export function extractSongCore(title: string, author?: string): string | null {
 }
 
 /**
+ * True if the text contains an unofficial-version marker (remix, sped up,
+ * acoustic, cover, radio edit, etc. — the same `versionVariants` list used to
+ * strip search-query noise). Callers use this to tell a search result apart
+ * from the original release when the query asking for it carries no such
+ * marker itself (#2133).
+ */
+export function hasVersionMarker(text: string): boolean {
+    return VERSION_KEYWORD_RE.test(text)
+}
+
+/**
  * True if the author is a known noise/compilation channel.
  * Callers can use this to invalidate a match and trigger a retry with a
  * cleaner query, or to skip the result entirely.
