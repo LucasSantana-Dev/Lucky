@@ -21,7 +21,7 @@ import {
     scrobble as lastFmScrobble,
 } from '../../lastfm'
 import { getSkipReasonEmojis } from '../../utils/music/skipReasonMap'
-import { getStreamBridgeFallbackLabel } from './streamBridge'
+import { getStreamBridgeFallbackLabel } from './streamFallbackState'
 import { isHost } from '../../utils/general/urlHost'
 
 /**

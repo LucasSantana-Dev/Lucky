@@ -27,8 +27,10 @@ jest.mock('play-dl', () => ({
     setToken: jest.fn(),
 }))
 jest.mock('discord-player', () => ({ Player: class {} }))
-jest.mock('./streamBridge', () => ({
+jest.mock('./resilientStreamBridge', () => ({
     createResilientStream: jest.fn(),
+}))
+jest.mock('./ytdlpProcess', () => ({
     streamViaYtDlp: jest.fn(),
     streamViaYtDlpSearch: jest.fn(),
 }))

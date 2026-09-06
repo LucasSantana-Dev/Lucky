@@ -9,7 +9,7 @@ import {
 import { SpotifyExtractor } from 'discord-player-spotify'
 import type { CustomClient } from '../../types'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
-import { createResilientStream } from './streamBridge'
+import { createResilientStream } from './resilientStreamBridge'
 import { refreshSoundCloudClientId } from './soundcloudMatcher'
 import { setExtractorDegraded } from './extractorHealth'
 
@@ -207,11 +207,8 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
     })
 }
 
-export {
-    streamViaYtDlp,
-    streamViaYtDlpSearch,
-    createResilientStream,
-} from './streamBridge'
+export { streamViaYtDlp, streamViaYtDlpSearch } from './ytdlpProcess'
+export { createResilientStream } from './resilientStreamBridge'
 export {
     streamViaSoundCloud,
     findMatchingSoundCloudResult,
