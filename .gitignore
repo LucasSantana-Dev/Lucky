@@ -21,6 +21,7 @@ packages/*/pnpm-lock.yaml
 .windsurf/
 .data/
 .sisyphus/
+.fallow/
 CLAUDE.md
 AGENTS.md
 opencode.jsonc
