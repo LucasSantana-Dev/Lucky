@@ -16,7 +16,10 @@ function renderPage() {
     )
 }
 
-describe('Changelog', () => {
+// CHANGELOG.md is append-only and keeps growing, so rendering + querying it
+// in full gets slower over time; the default 5000ms timeout has started
+// flaking in CI under load (observed ~9.9s for the full suite).
+describe('Changelog', { timeout: 20000 }, () => {
     test('renders page title', () => {
         renderPage()
         expect(
