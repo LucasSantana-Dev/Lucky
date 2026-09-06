@@ -37,12 +37,6 @@ const TRACK_STATE_TTL_MS = 30 * 60 * 1000
 // playerFinish + playerSkip paths). Tune via Phase C data.
 export const OUTCOME_ACCEPT_PLAY_RATIO = 0.3
 
-export const lastPlayedTracks = new LRUCache<string, Track>({
-    max: MAX_GUILD_ENTRIES,
-    ttl: TRACK_STATE_TTL_MS,
-    updateAgeOnGet: true,
-})
-
 // Keyed per TRACK (guildId + track id), not per guild: autoplay track
 // lifecycles overlap — discord-player can emit the next track's playerStart
 // before the previous track's playerFinish/playerSkip. A single per-guild
@@ -66,20 +60,6 @@ const guildRecentSkipCounts = new LRUCache<string, number>({
 export function getRecentSkipCount(guildId: string): number {
     return guildRecentSkipCounts.get(guildId) ?? 0
 }
-
-export type TrackHistoryEntry = {
-    url: string
-    title: string
-    author: string
-    thumbnail?: string
-    timestamp: number
-}
-
-export const recentlyPlayedTracks = new LRUCache<string, TrackHistoryEntry[]>({
-    max: MAX_GUILD_ENTRIES,
-    ttl: TRACK_STATE_TTL_MS,
-    updateAgeOnGet: true,
-})
 
 function getTrackRequesterId(track: Track): string | undefined {
     const metadata = track.metadata as { requestedById?: string } | undefined
@@ -113,14 +93,6 @@ async function recordImplicitTrackFeedback(
         trackKey,
         type,
     )
-}
-
-function evictOldEntries(): void {
-    for (const [guildId, entries] of recentlyPlayedTracks.entries()) {
-        if (entries.length > MAX_GUILD_ENTRIES) {
-            recentlyPlayedTracks.set(guildId, entries.slice(-MAX_GUILD_ENTRIES))
-        }
-    }
 }
 
 type PlayerEvents = {
@@ -235,7 +207,6 @@ const handlePlayerStart = async (
     client: { user?: { id: string } | null },
 ): Promise<void> => {
     try {
-        evictOldEntries()
         trackStartTimes.set(trackStartKey(queue.guild.id, track.id), Date.now())
         const requestedQuery = (
             track.metadata as { requestedQuery?: string } | null
