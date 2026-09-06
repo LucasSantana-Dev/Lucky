@@ -127,6 +127,15 @@ export class MusicWatchdogService {
         return this.intentionalStops.has(guildId)
     }
 
+    /**
+     * Clears a stale intentional-stop flag once a new session actually
+     * arms and starts playing, so it can't mask snapshot saves for that
+     * new, unrelated session (see #2246).
+     */
+    clearIntentionalStop(guildId: string): void {
+        this.intentionalStops.delete(guildId)
+    }
+
     clear(guildId: string): void {
         const timer = this.timers.get(guildId)
         if (timer) {
