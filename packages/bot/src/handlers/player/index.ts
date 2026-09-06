@@ -1,7 +1,7 @@
 import type { Player } from 'discord-player'
 import type { CustomClient } from '../../types'
 import { createPlayer } from './playerFactory'
-import { setupErrorHandlers } from './errorHandlers'
+import { setupErrorHandlers } from './errorEventHandlers'
 import {
     setupLifecycleHandlers,
     setupStageSpeaker,
