@@ -119,8 +119,8 @@ the listing shipped with until it was corrected. Type the suffix only.
 free invite field. The Lucky support server is not listed there, so it stays
 empty and `Support URL` carries the invite instead.
 
-**Brand asset warning:** do not reach for `assets/lucky-logo.png`. Despite the
-name it contains a NEXUS logo, not Lucky branding (#2094). The real mark is
+**Brand asset:** `assets/lucky-logo.png`/`.webp` were deleted (#2094) - despite
+the name they contained a NEXUS logo, not Lucky branding. The real mark is
 `assets/outline-v4-neon.jpeg` (1024x1024) or `packages/frontend/public/lucky-logo.png`.
 
 ## 6. Vote webhook
