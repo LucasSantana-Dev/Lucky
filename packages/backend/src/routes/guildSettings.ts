@@ -1,10 +1,15 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { validateBody, validateParams } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
-import { guildSettingsService } from '@lucky/shared/services'
+import {
+    guildSettingsService,
+    RBAC_MODULES,
+    type ModuleKey,
+} from '@lucky/shared/services'
 import { SUPPORTED_BOT_LANGUAGES } from '@lucky/shared/constants'
 import { z } from 'zod'
 import { paramToString as p } from '../utils/paramCoerce'
@@ -33,8 +38,12 @@ export const settingsBody = z
     .strict()
 
 const moduleSlugParam = s.guildIdParam.extend({
-    slug: z.string().min(1).max(50),
+    slug: z.enum(RBAC_MODULES),
 })
+
+function slugModule(req: AuthenticatedRequest): ModuleKey {
+    return req.params.slug as ModuleKey
+}
 
 const moduleSettingsBody = z.record(z.string(), z.unknown())
 
@@ -54,6 +63,7 @@ export function setupGuildSettingsRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/settings',
         requireAuth,
+        requireGuildModuleAccess('settings', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -68,6 +78,7 @@ export function setupGuildSettingsRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/settings',
         requireAuth,
+        requireGuildModuleAccess('settings', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(settingsBody),
@@ -81,6 +92,7 @@ export function setupGuildSettingsRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/modules/:slug/settings',
         requireAuth,
+        requireGuildModuleAccess(slugModule, 'view'),
         validateParams(moduleSlugParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -93,6 +105,7 @@ export function setupGuildSettingsRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/modules/:slug/settings',
         requireAuth,
+        requireGuildModuleAccess(slugModule, 'manage'),
         writeLimiter,
         validateParams(moduleSlugParam),
         validateBody(moduleSettingsBody),
