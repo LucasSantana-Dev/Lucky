@@ -1,5 +1,6 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../../middleware/auth'
+import { requireGuildModuleAccess } from '../../middleware/guildAccess'
 import { asyncHandler } from '../../middleware/asyncHandler'
 import { validateParams } from '../../middleware/validate'
 import { guildIdParam } from '../../schemas/common'
@@ -10,6 +11,7 @@ export function setupStateRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/music/stream',
         requireAuth,
+        requireGuildModuleAccess('music', 'view'),
         validateParams(guildIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
@@ -80,6 +82,7 @@ export function setupStateRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/music/state',
         requireAuth,
+        requireGuildModuleAccess('music', 'view'),
         validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
