@@ -19,7 +19,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import Skeleton from '@/components/ui/Skeleton'
 import SectionHeader from '@/components/ui/SectionHeader'
 import { Badge } from '@/components/ui/badge'
-import { AddStyledRoleForm } from '@/components/reactionRoles/AddStyledRoleForm'
+import { AddStyledRoleForm } from '@/components/ReactionRoles/AddStyledRoleForm'
 import {
     Dialog,
     DialogContent,
@@ -48,7 +48,7 @@ import type {
 import type { GuildRoleOption } from '@/types/rbac'
 import type { GuildChannelOption } from '@/types/guild'
 import { serializeReactionRolesToJSON } from '@/utils/reactionRolesExport'
-import { ImportDialog } from '@/components/reactionRoles/ImportDialog'
+import { ImportDialog } from '@/components/ReactionRoles/ImportDialog'
 
 const BUTTON_STYLE_LABELS: Record<string, string> = {
     '1': 'Primary',
@@ -623,7 +623,10 @@ function MessageForm({
                             (() => {
                                 try {
                                     const url = new URL(imageUrl.trim())
-                                    return url.protocol === 'http:' || url.protocol === 'https:'
+                                    return (
+                                        url.protocol === 'http:' ||
+                                        url.protocol === 'https:'
+                                    )
                                 } catch {
                                     return false
                                 }
