@@ -16,7 +16,11 @@ import {
     type NonThreadGuildBasedChannel,
     AuditLogEvent,
 } from 'discord.js'
-import { serverLogService, featureToggleService } from '@lucky/shared/services'
+import {
+    serverLogService,
+    featureToggleService,
+    logSettingsService,
+} from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 import { postToModLog } from '../functions/moderation/helpers/modLogPoster.js'
 
@@ -37,6 +41,13 @@ async function handleMessageDelete(
 ): Promise<void> {
     if (!message.guild || message.author?.bot) return
     if (!(await isServerLogsEnabled(message.guild.id))) return
+    if (
+        await logSettingsService.isIgnored(message.guild.id, {
+            channelId: message.channelId,
+            userId: message.author?.id,
+        })
+    )
+        return
 
     try {
         await serverLogService.createLog(
@@ -95,6 +106,13 @@ async function handleMessageUpdate(
     if (!newMessage.guild || newMessage.author?.bot) return
     if (oldMessage.content === newMessage.content) return
     if (!(await isServerLogsEnabled(newMessage.guild.id))) return
+    if (
+        await logSettingsService.isIgnored(newMessage.guild.id, {
+            channelId: newMessage.channelId,
+            userId: newMessage.author?.id,
+        })
+    )
+        return
 
     try {
         await serverLogService.createLog(
@@ -159,6 +177,12 @@ async function handleGuildBanAdd(ban: {
     guild: Guild
 }): Promise<void> {
     if (!(await isServerLogsEnabled(ban.guild.id))) return
+    if (
+        await logSettingsService.isIgnored(ban.guild.id, {
+            userId: ban.user.id,
+        })
+    )
+        return
     try {
         const guild = ban.guild
         const auditLogs = await guild
@@ -225,6 +249,12 @@ async function handleGuildBanRemove(ban: {
     guild: Guild
 }): Promise<void> {
     if (!(await isServerLogsEnabled(ban.guild.id))) return
+    if (
+        await logSettingsService.isIgnored(ban.guild.id, {
+            userId: ban.user.id,
+        })
+    )
+        return
     try {
         const guild = ban.guild
         const auditLogs = await guild
@@ -290,6 +320,12 @@ async function handleChannelEvent(
     auditLogAction: AuditLogEvent,
 ): Promise<void> {
     if (!(await isServerLogsEnabled(channel.guild.id))) return
+    if (
+        await logSettingsService.isIgnored(channel.guild.id, {
+            channelId: channel.id,
+        })
+    )
+        return
     try {
         const auditLogs = await channel.guild
             .fetchAuditLogs({ type: auditLogAction, limit: 1 })
@@ -350,6 +386,12 @@ async function handleRoleEvent(
     auditLogAction: AuditLogEvent,
 ): Promise<void> {
     if (!(await isServerLogsEnabled(role.guild.id))) return
+    if (
+        await logSettingsService.isIgnored(role.guild.id, {
+            roleIds: [role.id],
+        })
+    )
+        return
     try {
         const auditLogs = await role.guild
             .fetchAuditLogs({ type: auditLogAction, limit: 1 })
@@ -404,6 +446,12 @@ async function handleRoleDelete(role: Role): Promise<void> {
 
 async function handleGuildMemberAdd(member: GuildMember): Promise<void> {
     if (!(await isServerLogsEnabled(member.guild.id))) return
+    if (
+        await logSettingsService.isIgnored(member.guild.id, {
+            userId: member.user.id,
+        })
+    )
+        return
     try {
         await serverLogService.createLog(
             member.guild.id,
@@ -449,10 +497,18 @@ async function handleGuildMemberRemove(
     member: GuildMember | PartialGuildMember,
 ): Promise<void> {
     if (!(await isServerLogsEnabled(member.guild.id))) return
+    const nonEveryoneRoles = member.roles.cache.filter(
+        (role) => role.name !== '@everyone',
+    )
+    if (
+        await logSettingsService.isIgnored(member.guild.id, {
+            userId: member.user.id,
+            roleIds: nonEveryoneRoles.map((role) => role.id),
+        })
+    )
+        return
     try {
-        const roleNames = member.roles.cache
-            .filter((role) => role.name !== '@everyone')
-            .map((role) => role.name)
+        const roleNames = nonEveryoneRoles.map((role) => role.name)
 
         await serverLogService.createLog(
             member.guild.id,

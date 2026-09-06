@@ -875,6 +875,19 @@ model ServerLog {
   @@map("server_logs")
 }
 
+model LogSettings {
+  id                String   @id @default(cuid())
+  guildId           String   @unique
+  ignoredChannelIds String[] @default([])
+  ignoredRoleIds    String[] @default([])
+  ignoredUserIds    String[] @default([])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([guildId])
+  @@map("log_settings")
+}
+
 model StarboardConfig {
   id        String   @id @default(cuid())
   guildId   String   @unique
