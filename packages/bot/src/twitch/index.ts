@@ -7,6 +7,8 @@ import {
 import { isTwitchConfigured, getTwitchEnv } from './token'
 import { twitchEventSubClient } from './eventsubClient'
 
+export { getTwitchUserAccessToken } from './token'
+
 export async function startTwitchService(client: Client): Promise<void> {
     const enabled = await featureToggleService.isEnabled('TWITCH_NOTIFICATIONS')
     if (!enabled) {
