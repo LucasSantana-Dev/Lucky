@@ -111,6 +111,22 @@ describe('Autoplay Routes', () => {
                 mockGuildSettingsService.getGuildSettings,
             ).not.toHaveBeenCalled()
         })
+
+        it('returns 403 for a user without music:view access to this guild (IDOR regression, #2243)', async () => {
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            const res = await request(app)
+                .get('/api/guilds/123456789012345678/autoplay/genres')
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(403)
+            expect(
+                mockGuildSettingsService.getGuildSettings,
+            ).not.toHaveBeenCalled()
+        })
     })
 
     describe('PUT /api/guilds/:guildId/autoplay/genres', () => {

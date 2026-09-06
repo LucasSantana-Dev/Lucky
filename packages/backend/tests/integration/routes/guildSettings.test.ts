@@ -239,7 +239,7 @@ describe('Guild Settings Routes', () => {
             expect(res.body.settings).toEqual(settings)
         })
 
-        test('checks access against the requested slug, not a hardcoded module (IDOR regression, #2243)', async () => {
+        test('checks settings access regardless of slug — the handler reads the whole record, not a per-module projection (IDOR regression, #2243)', async () => {
             const mockSession = sessionService as jest.Mocked<
                 typeof sessionService
             >
@@ -256,7 +256,7 @@ describe('Guild Settings Routes', () => {
 
             expect(mockGuildAccessService.hasAccess).toHaveBeenCalledWith(
                 MOCK_GUILD_CONTEXT,
-                'moderation',
+                'settings',
                 'view',
             )
         })

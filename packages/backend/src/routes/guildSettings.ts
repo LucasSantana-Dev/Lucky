@@ -5,11 +5,7 @@ import { validateBody, validateParams } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
-import {
-    guildSettingsService,
-    RBAC_MODULES,
-    type ModuleKey,
-} from '@lucky/shared/services'
+import { guildSettingsService, RBAC_MODULES } from '@lucky/shared/services'
 import { SUPPORTED_BOT_LANGUAGES } from '@lucky/shared/constants'
 import { z } from 'zod'
 import { paramToString as p } from '../utils/paramCoerce'
@@ -37,13 +33,15 @@ export const settingsBody = z
     })
     .strict()
 
+// `slug` selects which module's settings UI is calling this endpoint, but the
+// handler below reads/writes the whole GuildSettings record regardless of it
+// (guildSettingsService has no per-module field scoping) — so authorization
+// gates on 'settings' access, matching what the endpoint actually exposes,
+// not the requested module. A 'music:manage' grant must not imply write
+// access to unrelated fields like prefix or embedColor.
 const moduleSlugParam = s.guildIdParam.extend({
     slug: z.enum(RBAC_MODULES),
 })
-
-function slugModule(req: AuthenticatedRequest): ModuleKey {
-    return req.params.slug as ModuleKey
-}
 
 const moduleSettingsBody = z.record(z.string(), z.unknown())
 
@@ -92,7 +90,7 @@ export function setupGuildSettingsRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/modules/:slug/settings',
         requireAuth,
-        requireGuildModuleAccess(slugModule, 'view'),
+        requireGuildModuleAccess('settings', 'view'),
         validateParams(moduleSlugParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -105,7 +103,7 @@ export function setupGuildSettingsRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/modules/:slug/settings',
         requireAuth,
-        requireGuildModuleAccess(slugModule, 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         writeLimiter,
         validateParams(moduleSlugParam),
         validateBody(moduleSettingsBody),

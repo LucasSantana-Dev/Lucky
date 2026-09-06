@@ -30,7 +30,7 @@ function resolveRequiredMode(req: Request, mode: RequiredMode): AccessMode {
 }
 
 export function requireGuildModuleAccess(
-    module: ModuleKey | ((req: AuthenticatedRequest) => ModuleKey),
+    module: ModuleKey,
     mode: RequiredMode = 'auto',
 ) {
     return async (
@@ -54,9 +54,6 @@ export function requireGuildModuleAccess(
                 throw AppError.badRequest('Guild id is required')
             }
 
-            const resolvedModule =
-                typeof module === 'function' ? module(req) : module
-
             // Note: resolveGuildContext uses a 30-second TTL cache on the user's
             // Discord guild list. A membership revocation between getSession() and
             // resolveGuildContext() may transiently grant access until the cache
@@ -75,15 +72,9 @@ export function requireGuildModuleAccess(
             }
 
             const requiredMode = resolveRequiredMode(req, mode)
-            if (
-                !guildAccessService.hasAccess(
-                    context,
-                    resolvedModule,
-                    requiredMode,
-                )
-            ) {
+            if (!guildAccessService.hasAccess(context, module, requiredMode)) {
                 throw AppError.forbidden(
-                    `Requires ${requiredMode} access to ${resolvedModule}`,
+                    `Requires ${requiredMode} access to ${module}`,
                 )
             }
 
