@@ -22,7 +22,7 @@ type RemoveRoleOutcome = 'removed' | 'skipped' | 'failed'
  * processed id).
  */
 export class BulkRemoveRoleExecutor implements BatchJobExecutor {
-    jobType: 'bulk_remove_role' = 'bulk_remove_role'
+    jobType = 'bulk_remove_role' as const
 
     estimateMinutes(job: { totalItems: number }): number {
         // ~0.05 min per role removal (one rate-limited REST call each).
