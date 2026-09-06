@@ -38,11 +38,15 @@ module.exports = {
   resolver: '<rootDir>/jest-resolver.cjs',
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 30000,
-  // ponytail: conservative maxWorkers to reduce concurrent database connections during
-  // parallel test execution. ECONNRESET failures observed during full suite runs suggest
-  // connection pool pressure under high parallelism. Reduced from '50%' to '25%' as baseline;
-  // further reduction to specific number (2-4) if flakiness persists.
-  maxWorkers: '25%',
+  // #2041/#2120: integration tests spin up real supertest listening servers: under
+  // parallel workers this causes intermittent "socket hang up" / connection-reset
+  // failures (ephemeral-port/socket contention), a different test failing each run.
+  // NOT database connection-pool pressure - the prior "25%" mitigation's rationale
+  // was wrong: Prisma is fully mocked in this suite (moduleNameMapper below), so
+  // there is no real DB connection to contend over. Forcing maxWorkers to 1
+  // eliminated the flake across repeated local repro runs with negligible runtime
+  // cost on this suite's size (~85s either way).
+  maxWorkers: 1,
   moduleNameMapper: {
     '^@lucky/shared$': '<rootDir>/../shared/src/index',
     '^@lucky/shared/services$': '<rootDir>/../shared/src/services/index',
