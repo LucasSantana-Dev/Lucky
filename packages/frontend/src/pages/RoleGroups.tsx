@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
-import { AddStyledRoleForm } from '@/components/reactionRoles/AddStyledRoleForm'
+import { AddStyledRoleForm } from '@/components/ReactionRoles/AddStyledRoleForm'
 import type { RoleGroup } from '@/services/roleGroupsApi'
 import type { ReactionRoleMessage } from '@/services/reactionRolesApi'
 
