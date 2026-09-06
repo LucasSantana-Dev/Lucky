@@ -151,16 +151,6 @@ export async function createQueueEmbed(
     return { embed, components }
 }
 
-export function createEmptyQueueEmbed() {
-    return createEmbed({
-        title: '\u{1F4C4} Music Queue',
-        description: 'The queue is empty. Add some tracks to get started!',
-        color: EMBED_COLORS.QUEUE as ColorResolvable,
-        emoji: EMOJIS.QUEUE,
-        timestamp: true,
-    })
-}
-
 export function createQueueErrorEmbed(error: string, t: TFunction) {
     return createEmbed({
         title: t('music.queue.errorTitle'),
