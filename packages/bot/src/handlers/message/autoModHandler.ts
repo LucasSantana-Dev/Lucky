@@ -3,6 +3,7 @@ import { PermissionFlagsBits } from 'discord.js'
 import { autoModService } from '@lucky/shared/services'
 import { errorLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
+import { safeDeleteMessage } from './messageDelete'
 import type {
     MessageContext,
     MessageHandler,
@@ -137,7 +138,7 @@ export const autoModHandler: MessageHandler = {
                 })
                 // Don't delete the message, but continue processing actions
             } else {
-                await message.delete().catch(() => {})
+                await safeDeleteMessage(message)
             }
 
             return { stop: true }
