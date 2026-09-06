@@ -5,11 +5,19 @@ import express from 'express'
 import { setupPlaybackRoutes } from '../../../src/routes/music/playbackRoutes'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
-import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import { guildAccessService } from '../../../src/services/GuildAccessService'
+import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
         getSession: jest.fn(),
+    },
+}))
+
+jest.mock('../../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        resolveGuildContext: jest.fn(),
+        hasAccess: jest.fn(),
     },
 }))
 
@@ -36,6 +44,17 @@ describe('Music Playback Routes', () => {
         setupPlaybackRoutes(app)
         app.use(errorHandler)
         jest.clearAllMocks()
+
+        // Reset to a known-good state on every test, not just when authed()
+        // runs — otherwise a test that forgets to call authed() would still
+        // be granted access via a stale mock left over from a prior test.
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.resolveGuildContext.mockResolvedValue(
+            MOCK_GUILD_CONTEXT,
+        )
+        mockGuildAccessService.hasAccess.mockReturnValue(true)
     })
 
     const GUILD_ID = '111111111111111111'
@@ -82,6 +101,22 @@ describe('Music Playback Routes', () => {
                     }),
                 }),
             )
+        })
+
+        test('returns 403 for a user without music access to this guild (IDOR regression, #2243)', async () => {
+            authed()
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/play`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ query: 'test' })
+                .expect(403)
+
+            expect(mockSendCommand).not.toHaveBeenCalled()
         })
     })
 
