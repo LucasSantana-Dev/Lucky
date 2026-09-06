@@ -81,6 +81,13 @@ export const recentlyPlayedTracks = new LRUCache<string, TrackHistoryEntry[]>({
     updateAgeOnGet: true,
 })
 
+export function __resetTrackHandlerCachesForTests(): void {
+    lastPlayedTracks.clear()
+    recentlyPlayedTracks.clear()
+    trackStartTimes.clear()
+    guildRecentSkipCounts.clear()
+}
+
 function getTrackRequesterId(track: Track): string | undefined {
     const metadata = track.metadata as { requestedById?: string } | undefined
     return track.requestedBy?.id ?? metadata?.requestedById
