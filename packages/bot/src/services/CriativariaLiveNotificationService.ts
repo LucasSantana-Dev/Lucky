@@ -3,7 +3,7 @@ import { randomInt } from 'node:crypto'
 import type { Client, TextChannel, Message } from 'discord.js'
 import { EmbedBuilder } from 'discord.js'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
-import { getTwitchUserAccessToken } from '../twitch/token'
+import { getTwitchUserAccessToken } from '../twitch'
 
 const TWITCH_POLL_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes per spec
 // Issue #130 asks 10 min, but search.list costs 100 quota units: 10-min polling
