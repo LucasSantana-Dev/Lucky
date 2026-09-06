@@ -7,7 +7,7 @@ import {
     setupStageSpeaker,
     setupVoiceKickDetection,
 } from './lifecycleHandlers'
-import { setupTrackHandlers } from './trackHandlers'
+import { setupTrackHandlers } from './trackEventHandlers'
 
 type CreatePlayerParams = {
     client: CustomClient
@@ -42,5 +42,5 @@ export const createPlayerWithHandlers = ({
     return player
 }
 
-export { lastPlayedTracks, recentlyPlayedTracks } from './trackHandlers'
-export type { TrackHistoryEntry } from './trackHandlers'
+export { lastPlayedTracks, recentlyPlayedTracks } from './trackHistoryCache'
+export type { TrackHistoryEntry } from './trackHistoryCache'

@@ -1,11 +1,19 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
-import { type GuildQueue, type Track } from 'discord-player'
 import {
-    lastPlayedTracks,
-    recentlyPlayedTracks,
-    setupTrackHandlers,
+    describe,
+    expect,
+    it,
+    jest,
+    beforeEach,
+    afterEach,
+} from '@jest/globals'
+import { type GuildQueue, type Track } from 'discord-player'
+import { setupTrackHandlers } from './trackEventHandlers'
+import { lastPlayedTracks, recentlyPlayedTracks } from './trackHistoryCache'
+import {
+    trackStartTimes,
+    guildRecentSkipCounts,
     getRecentSkipCount,
-} from './trackHandlers'
+} from './autoplayOutcomeTracking'
 
 const QueueRepeatMode = {
     OFF: 0,
@@ -198,6 +206,8 @@ describe('trackHandlers autoplay replenishment', () => {
         jest.clearAllMocks()
         lastPlayedTracks.clear()
         recentlyPlayedTracks.clear()
+        trackStartTimes.clear()
+        guildRecentSkipCounts.clear()
         featureEnabledMock.mockResolvedValue(true)
         replenishQueueMock.mockResolvedValue(undefined)
         addTrackToHistoryMock.mockResolvedValue(undefined)
@@ -211,46 +221,6 @@ describe('trackHandlers autoplay replenishment', () => {
 
     afterEach(() => {
         jest.useRealTimers()
-    })
-
-    it('evicts old track entries when playerStart runs beyond the per-guild cap', async () => {
-        for (let index = 0; index < 501; index += 1) {
-            lastPlayedTracks.set(
-                `guild-${index}`,
-                createTrack(`listener-${index}`),
-            )
-        }
-        for (let index = 0; index < 501; index += 1) {
-            recentlyPlayedTracks.set(`history-guild-${index}`, [
-                {
-                    url: `https://example.com/history/${index}`,
-                    title: `History Song ${index}`,
-                    author: 'Artist',
-                    timestamp: index,
-                },
-            ])
-        }
-        recentlyPlayedTracks.set(
-            'guild-1',
-            Array.from({ length: 501 }, (_, index) => ({
-                url: `https://example.com/${index}`,
-                title: `Song ${index}`,
-                author: 'Artist',
-                timestamp: index,
-            })),
-        )
-
-        const handlers = setupHandlers()
-        const playerStart = handlers.playerStart
-        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
-
-        await playerStart(queue, createTrack('listener-overflow'))
-
-        expect(lastPlayedTracks.size).toBe(500)
-        expect(lastPlayedTracks.has('guild-0')).toBe(false)
-        expect(recentlyPlayedTracks.size).toBe(500)
-        expect(recentlyPlayedTracks.has('history-guild-0')).toBe(false)
-        expect(recentlyPlayedTracks.get('guild-1')).toHaveLength(500)
     })
 
     it('does not record feedback on playerFinish when track played < 80%', async () => {
@@ -291,26 +261,6 @@ describe('trackHandlers autoplay replenishment', () => {
             'testsong::testartist',
             'implicit_dislike',
         )
-    })
-
-    it('clears replenish suppression when an explicit track starts (#1998)', async () => {
-        const handlers = setupHandlers()
-        const queue = createQueue(QueueRepeatMode.OFF)
-        const track = createTrack('listener-1')
-
-        await handlers.playerStart(queue, track)
-
-        expect(setReplenishSuppressedMock).toHaveBeenCalledWith('guild-1', 0)
-    })
-
-    it('does NOT clear replenish suppression when an autoplay track starts (#1998)', async () => {
-        const handlers = setupHandlers()
-        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
-        const autoplayTrack = createAutoplayTrack('listener-1')
-
-        await handlers.playerStart(queue, autoplayTrack)
-
-        expect(setReplenishSuppressedMock).not.toHaveBeenCalled()
     })
 
     it('increments getRecentSkipCount on early skip and resets on track completion', async () => {
@@ -419,6 +369,26 @@ describe('trackHandlers autoplay replenishment', () => {
             'metadatatrack::metadataartist',
             'implicit_like',
         )
+    })
+
+    it('clears replenish suppression when an explicit track starts (#1998)', async () => {
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.OFF)
+        const track = createTrack('listener-1')
+
+        await handlers.playerStart(queue, track)
+
+        expect(setReplenishSuppressedMock).toHaveBeenCalledWith('guild-1', 0)
+    })
+
+    it('does NOT clear replenish suppression when an autoplay track starts (#1998)', async () => {
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const autoplayTrack = createAutoplayTrack('listener-1')
+
+        await handlers.playerStart(queue, autoplayTrack)
+
+        expect(setReplenishSuppressedMock).not.toHaveBeenCalled()
     })
 
     describe('autoplay recommendation outcome recording', () => {
