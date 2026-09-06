@@ -17,7 +17,7 @@ vi.mock('@/services/api', () => ({
 }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/components/ui/EmojiPicker', () => ({ default: () => null }))
-vi.mock('@/components/reactionRoles/AddStyledRoleForm', () => ({
+vi.mock('@/components/ReactionRoles/AddStyledRoleForm', () => ({
     AddStyledRoleForm: () => null,
 }))
 vi.mock('@/lib/sentry', () => ({ reportError: vi.fn() }))
