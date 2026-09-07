@@ -4,8 +4,8 @@ export type {
     MessageHandler,
     MessageHandlerResult,
 } from './types'
-export { autoModHandler } from './autoModHandler'
-export { spamHandler } from './spamHandler'
+export { autoModHandler } from '../../functions/automod/handlers/autoModHandler'
+export { spamHandler } from '../../functions/automod/handlers/spamHandler'
 export { customCommandHandler } from './customCommandHandler'
 export { starboardSeedHandler } from './starboardSeedHandler'
 export { afkHandler } from './afkHandler'

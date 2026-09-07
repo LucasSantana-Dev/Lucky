@@ -7,7 +7,7 @@ import type {
     MessageContext,
     MessageHandler,
     MessageHandlerResult,
-} from './types'
+} from '../../../handlers/message/types'
 
 interface Violation {
     type: string
