@@ -41,6 +41,3 @@ export const createPlayerWithHandlers = ({
 
     return player
 }
-
-export { lastPlayedTracks, recentlyPlayedTracks } from './trackHandlers'
-export type { TrackHistoryEntry } from './trackHandlers'
