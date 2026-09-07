@@ -326,9 +326,25 @@ export function extractSongCore(title: string, author?: string): string | null {
  * strip search-query noise). Callers use this to tell a search result apart
  * from the original release when the query asking for it carries no such
  * marker itself (#2133).
+ *
+ * For title/result detection, detects markers only in structured positions
+ * (parentheses/brackets) to avoid false positives with words like "clean",
+ * "live", or "cover" that commonly appear naturally in song titles.
  */
 export function hasVersionMarker(text: string): boolean {
-    return VERSION_KEYWORD_RE.test(text)
+    // Check for markers in structured positions: parentheses and brackets.
+    // This avoids matching words like "Live Wire", "The Cover of Rolling Stone",
+    // or "Clean" when they're part of the actual song/artist name.
+    for (const term of noiseTerms.versionVariants) {
+        const inner = termInner(term)
+        if (
+            new RegExp(`\(${inner}[^)]*\)`, 'i').test(text) ||
+            new RegExp(`\[${inner}[^\]]*\]`, 'i').test(text)
+        ) {
+            return true
+        }
+    }
+    return false
 }
 
 /**
