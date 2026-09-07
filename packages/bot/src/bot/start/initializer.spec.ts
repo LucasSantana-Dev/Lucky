@@ -48,8 +48,6 @@ jest.mock('../../handlers/clientHandler/service', () => ({
 
 jest.mock('../../handlers/player', () => ({
     createPlayerWithHandlers: (...args: unknown[]) => createPlayerMock(...args),
-    lastPlayedTracks: new Map(),
-    recentlyPlayedTracks: [],
 }))
 
 jest.mock('../../handlers/commandsHandler', () => ({
