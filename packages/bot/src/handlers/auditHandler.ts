@@ -41,13 +41,19 @@ async function handleMessageDelete(
 ): Promise<void> {
     if (!message.guild || message.author?.bot) return
     if (!(await isServerLogsEnabled(message.guild.id))) return
-    if (
-        await logSettingsService.isIgnored(message.guild.id, {
-            channelId: message.channelId,
-            userId: message.author?.id,
-        })
-    )
-        return
+
+    try {
+        if (
+            await logSettingsService.isIgnored(message.guild.id, {
+                channelId: message.channelId,
+                userId: message.author?.id,
+            })
+        )
+            return
+    } catch (error) {
+        // Fail open: log settings errors should not prevent logging
+        errorLog('[LogSettings] Failed to check ignore list', error)
+    }
 
     try {
         await serverLogService.createLog(
@@ -106,13 +112,19 @@ async function handleMessageUpdate(
     if (!newMessage.guild || newMessage.author?.bot) return
     if (oldMessage.content === newMessage.content) return
     if (!(await isServerLogsEnabled(newMessage.guild.id))) return
-    if (
-        await logSettingsService.isIgnored(newMessage.guild.id, {
-            channelId: newMessage.channelId,
-            userId: newMessage.author?.id,
-        })
-    )
-        return
+
+    try {
+        if (
+            await logSettingsService.isIgnored(newMessage.guild.id, {
+                channelId: newMessage.channelId,
+                userId: newMessage.author?.id,
+            })
+        )
+            return
+    } catch (error) {
+        // Fail open: log settings errors should not prevent logging
+        errorLog('[LogSettings] Failed to check ignore list', error)
+    }
 
     try {
         await serverLogService.createLog(

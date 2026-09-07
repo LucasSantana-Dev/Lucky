@@ -73,6 +73,9 @@ export class LogSettingsService {
         if (!existing) {
             return null
         }
+        if (!existing[field].includes(id)) {
+            return existing
+        }
 
         return await prisma.logSettings.update({
             where: { guildId },
