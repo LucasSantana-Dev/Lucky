@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.43.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.42.1...v2.43.0) (2026-09-07)
+
+
+### Features
+
+* **bot:** add server-log ignore-list for channels/roles/users ([#2281](https://github.com/LucasSantana-Dev/Lucky/issues/2281)) ([ea1a596](https://github.com/LucasSantana-Dev/Lucky/commit/ea1a5966dfb978f108d964bb4b0c7b64dfb9bca7))
+
+
+### Bug Fixes
+
+* **bot:** add 429 retry resilience to twitch user lookups ([#2272](https://github.com/LucasSantana-Dev/Lucky/issues/2272)) ([9d3a90a](https://github.com/LucasSantana-Dev/Lucky/commit/9d3a90a33fa3dce656913bc39dfb65abdab18757))
+* **bot:** clear stale intentional-stop flag on new session ([#2284](https://github.com/LucasSantana-Dev/Lucky/issues/2284)) ([7b7245a](https://github.com/LucasSantana-Dev/Lucky/commit/7b7245a1fdcfb13c46c3393f0a7397d5aa2718db))
+* **frontend:** remove raw axios escape hatch from the api service ([#2266](https://github.com/LucasSantana-Dev/Lucky/issues/2266)) ([4571a0a](https://github.com/LucasSantana-Dev/Lucky/commit/4571a0ad87cb14bb73b7f527653a432350b28d49))
+
+## [2.42.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.42.0...v2.42.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **backend:** force jest to run in-band to kill the socket-hang-up flake ([#2274](https://github.com/LucasSantana-Dev/Lucky/issues/2274)) ([85c2e7d](https://github.com/LucasSantana-Dev/Lucky/commit/85c2e7d7eb5cdf4776da97fb896c68ee59e1cb9e))
+* **bot:** route criativaria live notifications through the twitch barrel ([#2271](https://github.com/LucasSantana-Dev/Lucky/issues/2271)) ([36ca173](https://github.com/LucasSantana-Dev/Lucky/commit/36ca17370c3ecf955f5cfc966486d7ae8f56a042))
+* **frontend:** raise Changelog test timeout to fix CI flake ([#2280](https://github.com/LucasSantana-Dev/Lucky/issues/2280)) ([07608ca](https://github.com/LucasSantana-Dev/Lucky/commit/07608ca619789be21a7e9f1f14ee1ec30a9c9b58))
+
 ## [2.42.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.41.1...v2.42.0) (2026-09-06)
 
 

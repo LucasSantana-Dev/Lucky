@@ -11,7 +11,7 @@ import {
     type StageSpeakerOutcome,
 } from '../../services/musicManagement/stageSpeaker'
 import type { CustomClient } from '../../types'
-import * as voiceStatus from '../../services/VoiceChannelStatusService'
+import * as voiceStatus from './voiceChannelStatusService'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
 import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
@@ -194,6 +194,12 @@ export const setupLifecycleHandlers = (player: {
             })
         }
 
+        // Capture the flag state before the restore block so we only clear flags
+        // from the previous session, not ones set during the async restore window.
+        const wasStoppedBeforeRestore = musicWatchdogService.isIntentionalStop(
+            queue.guild.id
+        )
+
         if (
             ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED &&
             !musicWatchdogService.isIntentionalStop(queue.guild.id)
@@ -239,6 +245,14 @@ export const setupLifecycleHandlers = (player: {
         }
 
         musicWatchdogService.arm(queue)
+
+        if (wasStoppedBeforeRestore) {
+            // This connection is a new, distinct session arming now — any
+            // intentional-stop flag from before the restore started belongs to
+            // a previous session and must not mask this session's own
+            // disconnect/snapshot handling.
+            musicWatchdogService.clearIntentionalStop(queue.guild.id)
+        }
     })
 
     player.events.on('connectionDestroyed', async (queue: GuildQueue) => {
