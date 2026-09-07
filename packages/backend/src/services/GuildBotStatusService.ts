@@ -2,7 +2,7 @@ import type { Client } from 'discord.js'
 import { BOT_INVITE_PERMISSIONS } from '@lucky/shared/constants'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import type { DiscordGuild } from './DiscordOAuthService'
-import { getClient as getDiscordClient } from '../utils/discordClientAccessor'
+import { getClient as getDiscordClient, getBotToken } from '../utils/discordClientAccessor'
 import { metricsService } from './MetricsCache'
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
@@ -24,9 +24,11 @@ class GuildBotStatusService {
     private botGuildIdsCache: {
         guildIds: Set<string>
         expiresAt: number
+        invalidationGeneration: number
     } | null = null
 
     private botGuildIdsInFlight: Promise<Set<string> | null> | null = null
+    private invalidationGeneration = 0
 
     private getBotClient(): Client | null {
         return getDiscordClient()
@@ -35,15 +37,14 @@ class GuildBotStatusService {
     clearBotGuildCache(): void {
         this.botGuildIdsCache = null
         this.botGuildIdsInFlight = null
+        this.invalidationGeneration++
         metricsService.clearCache()
     }
 
-    private getBotToken(): string | null {
-        const token = process.env.DISCORD_TOKEN?.trim()
-        return token && token.length > 0 ? token : null
-    }
-
-    private async fetchBotGuildIds(token: string): Promise<Set<string> | null> {
+    private async fetchBotGuildIds(
+        token: string,
+        generation: number,
+    ): Promise<Set<string> | null> {
         try {
             const response = await fetch(
                 `${DISCORD_API_BASE_URL}/users/@me/guilds`,
@@ -86,9 +87,14 @@ class GuildBotStatusService {
                 }
             }
 
-            this.botGuildIdsCache = {
-                guildIds,
-                expiresAt: Date.now() + BOT_GUILD_CACHE_TTL_MS,
+            // Only cache if the generation hasn't changed (no invalidation occurred
+            // while the fetch was in-flight)
+            if (generation === this.invalidationGeneration) {
+                this.botGuildIdsCache = {
+                    guildIds,
+                    expiresAt: Date.now() + BOT_GUILD_CACHE_TTL_MS,
+                    invalidationGeneration: generation,
+                }
             }
 
             debugLog({
@@ -107,14 +113,18 @@ class GuildBotStatusService {
     }
 
     private async getBotGuildIds(): Promise<Set<string> | null> {
-        const token = this.getBotToken()
+        const token = getBotToken()
         if (!token) {
             this.clearBotGuildCache()
             return null
         }
 
         const now = Date.now()
-        if (this.botGuildIdsCache && this.botGuildIdsCache.expiresAt > now) {
+        if (
+            this.botGuildIdsCache &&
+            this.botGuildIdsCache.expiresAt > now &&
+            this.botGuildIdsCache.invalidationGeneration === this.invalidationGeneration
+        ) {
             return this.botGuildIdsCache.guildIds
         }
 
@@ -122,9 +132,12 @@ class GuildBotStatusService {
             return this.botGuildIdsInFlight
         }
 
-        this.botGuildIdsInFlight = this.fetchBotGuildIds(token).finally(() => {
-            this.botGuildIdsInFlight = null
-        })
+        const generation = this.invalidationGeneration
+        this.botGuildIdsInFlight = this.fetchBotGuildIds(token, generation).finally(
+            () => {
+                this.botGuildIdsInFlight = null
+            },
+        )
 
         return this.botGuildIdsInFlight
     }

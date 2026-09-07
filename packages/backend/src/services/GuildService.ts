@@ -3,6 +3,7 @@ import { discordOAuthService, type DiscordGuild } from './DiscordOAuthService'
 import {
     setClient as setDiscordClient,
     getClient as getDiscordClient,
+    getBotToken,
 } from '../utils/discordClientAccessor'
 import {
     roleService,
@@ -47,11 +48,6 @@ class GuildService {
         return getDiscordClient()
     }
 
-    private getBotToken(): string | null {
-        const token = process.env.DISCORD_TOKEN?.trim()
-        return token && token.length > 0 ? token : null
-    }
-
     async hasBotInGuild(guildId: string): Promise<boolean> {
         return guildBotStatusService.hasBotInGuild(guildId)
     }
@@ -89,7 +85,7 @@ class GuildService {
             }
         }
 
-        const token = this.getBotToken()
+        const token = getBotToken()
         if (!token) {
             return fallback
         }

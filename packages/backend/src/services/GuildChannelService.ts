@@ -5,6 +5,7 @@ import type { GuildChannelOption, GuildEmojiOption } from '@lucky/shared/types'
 import {
     getClient as getDiscordClient,
     getServableGuild,
+    getBotToken,
 } from '../utils/discordClientAccessor'
 import { isSnowflakeId } from '../schemas/common'
 
@@ -13,11 +14,6 @@ const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
 class GuildChannelService {
     private getBotClient(): Client | null {
         return getDiscordClient()
-    }
-
-    private getBotToken(): string | null {
-        const token = process.env.DISCORD_TOKEN?.trim()
-        return token && token.length > 0 ? token : null
     }
 
     private validateChannelArray(data: unknown): Array<{
@@ -98,7 +94,7 @@ class GuildChannelService {
             }
         }
 
-        const token = this.getBotToken()
+        const token = getBotToken()
         if (!token) {
             return []
         }
@@ -182,6 +178,11 @@ class GuildChannelService {
     }
 
     async getGuildEmojis(guildId: string): Promise<GuildEmojiOption[]> {
+        // Validate snowflake before attempting to fetch from client or Discord API
+        if (!isSnowflakeId(guildId)) {
+            return []
+        }
+
         const client = this.getBotClient()
 
         if (client) {
@@ -202,7 +203,7 @@ class GuildChannelService {
             }
         }
 
-        const token = this.getBotToken()
+        const token = getBotToken()
         if (!token) {
             return []
         }
