@@ -1,5 +1,7 @@
 import type { EffectiveAccessMap } from './rbac'
 
+export type { GuildChannelOption, GuildEmojiOption } from '@lucky/shared/types'
+
 export interface Guild {
     id: string
     name: string
@@ -41,17 +43,6 @@ export interface ServerListing {
     twitterUrl?: string
     twitchUrl?: string
     redditUrl?: string
-}
-
-export interface GuildChannelOption {
-    id: string
-    name: string
-}
-
-export interface GuildEmojiOption {
-    id: string
-    name: string
-    animated: boolean
 }
 
 export interface ActivityLog {
