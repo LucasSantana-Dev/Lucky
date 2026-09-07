@@ -743,40 +743,51 @@ sequenceDiagram
 
 ### Base API Configuration
 
-The API client is configured in `src/services/api.ts`:
+The API client is configured in `packages/frontend/src/services/api.ts`:
 
-```1:23:src/webapp/frontend/src/services/api.ts
-import axios from 'axios'
-
-const api = axios.create({
-  baseURL: '/api',
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+```typescript
+const apiClient: AxiosInstance = axios.create({
+    baseURL: NORMALIZED_API_BASE,
+    withCredentials: true,
+    timeout: 10000,
+    headers: {
+        'Content-Type': 'application/json',
+    },
 })
 
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      window.location.href = '/api/auth/discord'
-    }
-    const errorMessage = error.response?.data?.error || error.message || 'An error occurred'
-    console.error('API Error:', errorMessage, error)
-    return Promise.reject(error)
-  },
+apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (!error.response) {
+            return Promise.reject(
+                new ApiError(0, 'Unable to connect to the server'),
+            )
+        }
+        // ...maps the error to an ApiError, redirecting to Discord OAuth
+        // on 401 (with a 30s cooldown to break redirect loops)
+    },
 )
 
-export default api
+export const api = {
+    stats: { getPublic: () => apiClient.get(/* ... */) },
+    // ...one namespaced client per domain (guilds, music, moderation, etc.)
+}
+```
+
+Consumers import the namespaced client, not the raw axios instance:
+
+```typescript
+import { api } from '@/services/api'
 ```
 
 **Features**:
 
-- Base URL: `/api` (proxied to backend in development)
+- Base URL: resolved at runtime via `inferApiBase()` (proxied to backend in development)
 - Credentials: Includes cookies for session management
-- Error Interceptor: Automatically redirects to login on 401 errors
-- Error Logging: Logs errors to console for debugging
+- Timeout: 10s
+- Error mapping: every rejection is normalized to an `ApiError` (status, message, details); a network failure with no response maps to status `0`
+- 401 handling: redirects to Discord OAuth, throttled by a 30s `sessionStorage` cooldown to break redirect loops
+- Raw axios instance still exported as the module default (`export default apiClient`); the supported entry point is the named `api` object (see #1979)
 
 ### Authentication Endpoints
 
