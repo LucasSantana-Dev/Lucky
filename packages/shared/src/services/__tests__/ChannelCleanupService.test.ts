@@ -15,7 +15,10 @@ jest.mock('../../utils/database/prismaClient', () => ({
     getPrismaClient: () => mockPrisma,
 }))
 
-import { ChannelCleanupService } from '../ChannelCleanupService'
+import {
+    ChannelCleanupService,
+    MAX_CONSECUTIVE_PURGE_FAILURES,
+} from '../ChannelCleanupService'
 
 describe('ChannelCleanupService', () => {
     let service: ChannelCleanupService
@@ -40,13 +43,22 @@ describe('ChannelCleanupService', () => {
                 updatedAt: new Date(),
             }
 
-            mockPrisma.channelCleanupConfig.findUnique.mockResolvedValue(mockConfig)
+            mockPrisma.channelCleanupConfig.findUnique.mockResolvedValue(
+                mockConfig,
+            )
 
             const result = await service.getConfig('guild1', 'channel1')
 
             expect(result).toEqual(mockConfig)
-            expect(mockPrisma.channelCleanupConfig.findUnique).toHaveBeenCalledWith({
-                where: { guildId_channelId: { guildId: 'guild1', channelId: 'channel1' } },
+            expect(
+                mockPrisma.channelCleanupConfig.findUnique,
+            ).toHaveBeenCalledWith({
+                where: {
+                    guildId_channelId: {
+                        guildId: 'guild1',
+                        channelId: 'channel1',
+                    },
+                },
             })
         })
 
@@ -78,12 +90,16 @@ describe('ChannelCleanupService', () => {
                 },
             ]
 
-            mockPrisma.channelCleanupConfig.findMany.mockResolvedValue(mockConfigs)
+            mockPrisma.channelCleanupConfig.findMany.mockResolvedValue(
+                mockConfigs,
+            )
 
             const result = await service.getGuildConfigs('guild1')
 
             expect(result).toEqual(mockConfigs)
-            expect(mockPrisma.channelCleanupConfig.findMany).toHaveBeenCalledWith({
+            expect(
+                mockPrisma.channelCleanupConfig.findMany,
+            ).toHaveBeenCalledWith({
                 where: { guildId: 'guild1', enabled: true },
             })
         })
@@ -112,19 +128,26 @@ describe('ChannelCleanupService', () => {
             })
 
             expect(result).toEqual(mockConfig)
-            expect(mockPrisma.channelCleanupConfig.upsert).toHaveBeenCalledWith({
-                where: { guildId_channelId: { guildId: 'guild1', channelId: 'channel1' } },
-                create: {
-                    guildId: 'guild1',
-                    channelId: 'channel1',
-                    mode: 'ttl',
-                    ttlSeconds: 60,
+            expect(mockPrisma.channelCleanupConfig.upsert).toHaveBeenCalledWith(
+                {
+                    where: {
+                        guildId_channelId: {
+                            guildId: 'guild1',
+                            channelId: 'channel1',
+                        },
+                    },
+                    create: {
+                        guildId: 'guild1',
+                        channelId: 'channel1',
+                        mode: 'ttl',
+                        ttlSeconds: 60,
+                    },
+                    update: {
+                        mode: 'ttl',
+                        ttlSeconds: 60,
+                    },
                 },
-                update: {
-                    mode: 'ttl',
-                    ttlSeconds: 60,
-                },
-            })
+            )
         })
     })
 
@@ -132,7 +155,9 @@ describe('ChannelCleanupService', () => {
         it('should disable cleanup for a channel', async () => {
             await service.disableCleanup('guild1', 'channel1')
 
-            expect(mockPrisma.channelCleanupConfig.updateMany).toHaveBeenCalledWith({
+            expect(
+                mockPrisma.channelCleanupConfig.updateMany,
+            ).toHaveBeenCalledWith({
                 where: { guildId: 'guild1', channelId: 'channel1' },
                 data: { enabled: false },
             })
@@ -156,12 +181,16 @@ describe('ChannelCleanupService', () => {
                 },
             ]
 
-            mockPrisma.channelCleanupConfig.findMany.mockResolvedValue(mockConfigs)
+            mockPrisma.channelCleanupConfig.findMany.mockResolvedValue(
+                mockConfigs,
+            )
 
             const result = await service.listConfigs('guild1')
 
             expect(result).toEqual(mockConfigs)
-            expect(mockPrisma.channelCleanupConfig.findMany).toHaveBeenCalledWith({
+            expect(
+                mockPrisma.channelCleanupConfig.findMany,
+            ).toHaveBeenCalledWith({
                 where: { guildId: 'guild1' },
                 orderBy: { createdAt: 'desc' },
             })
@@ -225,7 +254,7 @@ describe('ChannelCleanupService', () => {
     })
 
     describe('markPurgeExecuted', () => {
-        it('should update lastRunAt timestamp', async () => {
+        it('should update lastRunAt timestamp and reset the failure streak', async () => {
             const mockConfig = {
                 id: 'config1',
                 lastRunAt: expect.any(Date),
@@ -235,10 +264,75 @@ describe('ChannelCleanupService', () => {
 
             await service.markPurgeExecuted('config1')
 
-            expect(mockPrisma.channelCleanupConfig.update).toHaveBeenCalledWith({
-                where: { id: 'config1' },
-                data: { lastRunAt: expect.any(Date) },
+            expect(mockPrisma.channelCleanupConfig.update).toHaveBeenCalledWith(
+                {
+                    where: { id: 'config1' },
+                    data: {
+                        lastRunAt: expect.any(Date),
+                        consecutiveFailures: 0,
+                        lastError: null,
+                    },
+                },
+            )
+        })
+    })
+
+    describe('recordPurgeFailure', () => {
+        it('increments the failure count and records the error without disabling below the threshold', async () => {
+            mockPrisma.channelCleanupConfig.update.mockResolvedValue({
+                id: 'config1',
+                consecutiveFailures: 3,
+                enabled: true,
             })
+
+            const result = await service.recordPurgeFailure(
+                'config1',
+                'missing ManageMessages',
+            )
+
+            expect(
+                mockPrisma.channelCleanupConfig.update,
+            ).toHaveBeenCalledTimes(1)
+            expect(mockPrisma.channelCleanupConfig.update).toHaveBeenCalledWith(
+                {
+                    where: { id: 'config1' },
+                    data: {
+                        consecutiveFailures: { increment: 1 },
+                        lastError: 'missing ManageMessages',
+                    },
+                },
+            )
+            expect(result.enabled).toBe(true)
+        })
+
+        it('disables the config once MAX_CONSECUTIVE_PURGE_FAILURES is reached', async () => {
+            mockPrisma.channelCleanupConfig.update
+                .mockResolvedValueOnce({
+                    id: 'config1',
+                    consecutiveFailures: MAX_CONSECUTIVE_PURGE_FAILURES,
+                    enabled: true,
+                })
+                .mockResolvedValueOnce({
+                    id: 'config1',
+                    consecutiveFailures: MAX_CONSECUTIVE_PURGE_FAILURES,
+                    enabled: false,
+                })
+
+            const result = await service.recordPurgeFailure(
+                'config1',
+                'missing ManageMessages',
+            )
+
+            expect(
+                mockPrisma.channelCleanupConfig.update,
+            ).toHaveBeenCalledTimes(2)
+            expect(
+                mockPrisma.channelCleanupConfig.update,
+            ).toHaveBeenNthCalledWith(2, {
+                where: { id: 'config1' },
+                data: { enabled: false },
+            })
+            expect(result.enabled).toBe(false)
         })
     })
 })
