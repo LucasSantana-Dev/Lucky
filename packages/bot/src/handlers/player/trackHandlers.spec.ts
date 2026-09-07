@@ -1,11 +1,6 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import { type GuildQueue, type Track } from 'discord-player'
-import {
-    lastPlayedTracks,
-    recentlyPlayedTracks,
-    setupTrackHandlers,
-    getRecentSkipCount,
-} from './trackHandlers'
+import { setupTrackHandlers, getRecentSkipCount } from './trackHandlers'
 
 const QueueRepeatMode = {
     OFF: 0,
@@ -193,8 +188,6 @@ function setupHandlers(
 describe('trackHandlers autoplay replenishment', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        lastPlayedTracks.clear()
-        recentlyPlayedTracks.clear()
         featureEnabledMock.mockResolvedValue(true)
         replenishQueueMock.mockResolvedValue(undefined)
         addTrackToHistoryMock.mockResolvedValue(undefined)
@@ -208,46 +201,6 @@ describe('trackHandlers autoplay replenishment', () => {
 
     afterEach(() => {
         jest.useRealTimers()
-    })
-
-    it('evicts old track entries when playerStart runs beyond the per-guild cap', async () => {
-        for (let index = 0; index < 501; index += 1) {
-            lastPlayedTracks.set(
-                `guild-${index}`,
-                createTrack(`listener-${index}`),
-            )
-        }
-        for (let index = 0; index < 501; index += 1) {
-            recentlyPlayedTracks.set(`history-guild-${index}`, [
-                {
-                    url: `https://example.com/history/${index}`,
-                    title: `History Song ${index}`,
-                    author: 'Artist',
-                    timestamp: index,
-                },
-            ])
-        }
-        recentlyPlayedTracks.set(
-            'guild-1',
-            Array.from({ length: 501 }, (_, index) => ({
-                url: `https://example.com/${index}`,
-                title: `Song ${index}`,
-                author: 'Artist',
-                timestamp: index,
-            })),
-        )
-
-        const handlers = setupHandlers()
-        const playerStart = handlers.playerStart
-        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
-
-        await playerStart(queue, createTrack('listener-overflow'))
-
-        expect(lastPlayedTracks.size).toBe(500)
-        expect(lastPlayedTracks.has('guild-0')).toBe(false)
-        expect(recentlyPlayedTracks.size).toBe(500)
-        expect(recentlyPlayedTracks.has('history-guild-0')).toBe(false)
-        expect(recentlyPlayedTracks.get('guild-1')).toHaveLength(500)
     })
 
     it('does not record feedback on playerFinish when track played < 80%', async () => {

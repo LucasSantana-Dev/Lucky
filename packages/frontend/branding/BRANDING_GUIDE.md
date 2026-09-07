@@ -9,6 +9,10 @@
 
 - Frontend runtime asset: `packages/frontend/public/lucky-logo.png`
 - Favicon: `packages/frontend/public/favicon.png`
+- `packages/frontend/public/` is the authoritative directory for shipped brand
+  assets. Root-level `assets/` is a scratch/staging area for source files and
+  has carried stale or off-brand duplicates before (#2094) - don't reach for a
+  file there just because its name matches.
 
 ## Logo Usage
 
