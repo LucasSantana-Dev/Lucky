@@ -36,6 +36,15 @@ import { createBatchJobsApi } from './batchJobsApi'
 import { createForumApi } from './forumApi'
 import { createRecommendationsApi } from './recommendationsApi'
 
+export interface VoteStatus {
+    hasVoted: boolean
+    streak: number
+    nextVoteInSeconds: number
+    tier: { label: string; threshold: number } | null
+    nextTier: { label: string; threshold: number } | null
+    voteUrl: string
+}
+
 const browserLocation =
     typeof globalThis !== 'undefined' && 'window' in globalThis
         ? globalThis.window.location
@@ -223,6 +232,20 @@ export const api = {
                 `/guilds/${id}/listing`,
                 listing,
             ),
+        getAutoplayGenres: (id: string) =>
+            apiClient.get<{ genres: string[] }>(
+                `/guilds/${id}/autoplay/genres`,
+            ),
+        updateAutoplayGenres: (id: string, genres: string[]) =>
+            apiClient.put<{ genres: string[] }>(
+                `/guilds/${id}/autoplay/genres`,
+                { genres },
+            ),
+    },
+
+    me: {
+        getVoteStatus: () =>
+            apiClient.get<VoteStatus>(API_ROUTES.ME.voteStatus()),
     },
 
     modules: {
@@ -461,4 +484,3 @@ export const api = {
 }
 
 export { ApiError } from './ApiError'
-export default apiClient
