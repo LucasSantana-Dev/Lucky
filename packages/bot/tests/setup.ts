@@ -116,15 +116,6 @@ async function clearAllCaches() {
     }
 
     try {
-        const { lastPlayedTracks, recentlyPlayedTracks } =
-            await import('../src/handlers/player/trackHistoryCache')
-        lastPlayedTracks.clear()
-        recentlyPlayedTracks.clear()
-    } catch {
-        // May not be loaded
-    }
-
-    try {
         const { trackStartTimes, guildRecentSkipCounts } =
             await import('../src/handlers/player/autoplayOutcomeTracking')
         trackStartTimes.clear()

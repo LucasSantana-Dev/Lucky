@@ -27,7 +27,6 @@ import {
 } from '../../services/musicManagement/replenishSuppressionStore'
 import { handleQueueExhaustion } from './queueExhaustion'
 import { recordRecommendationOutcome } from '../../services/musicRecommendation/recommendationTelemetry'
-import { evictOldEntries } from './trackHistoryCache'
 import {
     getRecentSkipCount,
     isAutoplayTrack,
@@ -157,7 +156,6 @@ const handlePlayerStart = async (
     client: { user?: { id: string } | null },
 ): Promise<void> => {
     try {
-        evictOldEntries()
         trackStartTimes.set(trackStartKey(queue.guild.id, track.id), Date.now())
         const requestedQuery = (
             track.metadata as { requestedQuery?: string } | null

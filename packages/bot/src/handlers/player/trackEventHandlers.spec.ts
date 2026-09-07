@@ -8,7 +8,6 @@ import {
 } from '@jest/globals'
 import { type GuildQueue, type Track } from 'discord-player'
 import { setupTrackHandlers } from './trackEventHandlers'
-import { lastPlayedTracks, recentlyPlayedTracks } from './trackHistoryCache'
 import {
     trackStartTimes,
     guildRecentSkipCounts,
@@ -204,8 +203,6 @@ function setupHandlers(
 describe('trackHandlers autoplay replenishment', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        lastPlayedTracks.clear()
-        recentlyPlayedTracks.clear()
         trackStartTimes.clear()
         guildRecentSkipCounts.clear()
         featureEnabledMock.mockResolvedValue(true)
