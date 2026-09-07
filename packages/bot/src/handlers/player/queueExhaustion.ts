@@ -2,7 +2,7 @@ import type { GuildQueue, Track } from 'discord-player'
 import { errorLog } from '@lucky/shared/utils'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
 import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
-import * as voiceStatus from '../../services/VoiceChannelStatusService'
+import * as voiceStatus from './voiceChannelStatusService'
 import { setReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 
 /**
