@@ -12,11 +12,9 @@ jest.mock('@lucky/shared/services', () => ({
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
-    warnLog: jest.fn(),
 }))
 
 import { autoModService } from '@lucky/shared/services'
-import { warnLog } from '@lucky/shared/utils'
 
 describe('spamHandler', () => {
     beforeEach(() => {
@@ -139,63 +137,6 @@ describe('spamHandler', () => {
             const result = await spamHandler.handle(message, context)
             expect(result.stop).toBe(true)
             expect(message.delete).toHaveBeenCalled()
-        })
-
-        it('should stay silent when delete fails with Unknown Message (10008)', async () => {
-            ;(
-                autoModService.trackMessageAndCheckSpam as jest.Mock
-            ).mockResolvedValue(true)
-
-            const message = {
-                author: { id: 'user1', bot: false },
-                channelId: 'channel1',
-                delete: jest.fn().mockRejectedValue(
-                    Object.assign(new Error('gone'), {
-                        code: 10008,
-                    }),
-                ),
-            } as unknown as Message
-
-            const context: MessageContext = {
-                guild: { id: 'guild1' } as any,
-                member: {} as any,
-                featureToggles: { AUTOMOD: true },
-            }
-
-            const result = await spamHandler.handle(message, context)
-            expect(result.stop).toBe(true)
-            expect(warnLog).not.toHaveBeenCalled()
-        })
-
-        it('should log when delete fails with Missing Permissions (50013)', async () => {
-            ;(
-                autoModService.trackMessageAndCheckSpam as jest.Mock
-            ).mockResolvedValue(true)
-
-            const message = {
-                author: { id: 'user1', bot: false },
-                channelId: 'channel1',
-                delete: jest.fn().mockRejectedValue(
-                    Object.assign(new Error('forbidden'), {
-                        code: 50013,
-                    }),
-                ),
-            } as unknown as Message
-
-            const context: MessageContext = {
-                guild: { id: 'guild1' } as any,
-                member: {} as any,
-                featureToggles: { AUTOMOD: true },
-            }
-
-            const result = await spamHandler.handle(message, context)
-            expect(result.stop).toBe(true)
-            expect(warnLog).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: 'Failed to delete message',
-                    data: { channelId: 'channel1' },
-                }),
-            )
         })
 
         it('should return stop: false when no spam', async () => {
