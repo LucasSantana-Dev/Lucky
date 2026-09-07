@@ -695,7 +695,9 @@ describe('ReactionRoles', () => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
         })
 
-        const editButtons = screen.getAllByRole('button', { name: /edit/i })
+        const editButtons = await screen.findAllByRole('button', {
+            name: /edit/i,
+        })
         fireEvent.click(editButtons[0])
 
         expect(
@@ -717,7 +719,9 @@ describe('ReactionRoles', () => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
         })
 
-        const editButtons = screen.getAllByRole('button', { name: /edit/i })
+        const editButtons = await screen.findAllByRole('button', {
+            name: /edit/i,
+        })
         fireEvent.click(editButtons[0])
 
         await waitFor(() => {
@@ -745,7 +749,9 @@ describe('ReactionRoles', () => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
         })
 
-        const editButtons = screen.getAllByRole('button', { name: /edit/i })
+        const editButtons = await screen.findAllByRole('button', {
+            name: /edit/i,
+        })
         fireEvent.click(editButtons[0])
 
         await waitFor(() => {
@@ -1271,7 +1277,9 @@ test('edit form prefills all fields from existing message', async () => {
         expect(api.reactionRoles.list).toHaveBeenCalled()
     })
 
-    const editButtons = screen.getAllByRole('button', { name: /edit/i })
+    const editButtons = await screen.findAllByRole('button', {
+        name: /edit/i,
+    })
     fireEvent.click(editButtons[0])
 
     await waitFor(() => {
@@ -1303,7 +1311,9 @@ test('edit form shows update button (not create button)', async () => {
         expect(api.reactionRoles.list).toHaveBeenCalled()
     })
 
-    const editButtons = screen.getAllByRole('button', { name: /edit/i })
+    const editButtons = await screen.findAllByRole('button', {
+        name: /edit/i,
+    })
     fireEvent.click(editButtons[0])
 
     await waitFor(() => {
@@ -1333,7 +1343,9 @@ test('edit form allows file upload and shows filename', async () => {
         expect(api.reactionRoles.list).toHaveBeenCalled()
     })
 
-    const editButtons = screen.getAllByRole('button', { name: /edit/i })
+    const editButtons = await screen.findAllByRole('button', {
+        name: /edit/i,
+    })
     fireEvent.click(editButtons[0])
 
     await waitFor(() => {
@@ -1634,7 +1646,9 @@ test('form title changes between create and edit mode', async () => {
         expect(api.reactionRoles.list).toHaveBeenCalled()
     })
 
-    const editButtons = screen.getAllByRole('button', { name: /edit/i })
+    const editButtons = await screen.findAllByRole('button', {
+        name: /edit/i,
+    })
     fireEvent.click(editButtons[0])
 
     await waitFor(() => {
