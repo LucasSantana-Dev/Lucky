@@ -1,6 +1,6 @@
 import type { Message } from 'discord.js'
 import { warnLog } from '@lucky/shared/utils'
-import { createGuildWarnThrottle } from '../../utils/misc/guildWarnThrottle'
+import { createGuildWarnThrottle } from '../../../utils/misc/guildWarnThrottle'
 
 const UNKNOWN_MESSAGE = 10008
 const deleteFailWarnThrottle = createGuildWarnThrottle(60_000)
