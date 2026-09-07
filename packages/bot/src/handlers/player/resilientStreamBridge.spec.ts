@@ -68,7 +68,6 @@ jest.mock('./streamFallbackState', () => ({
 }))
 
 import { createResilientStream } from './resilientStreamBridge'
-import { STREAM_BRIDGE_FALLBACK_METADATA_KEY } from './streamFallbackState'
 
 // ---------------------------------------------------------------------------
 // Helpers

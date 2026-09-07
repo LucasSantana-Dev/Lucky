@@ -4,7 +4,6 @@ import { PassThrough } from 'stream'
 
 // --- mocks (declared before imports) ---
 const mockSpawn = jest.fn()
-const mockCleanSearchQuery = jest.fn()
 const mockInfoLog = jest.fn()
 const mockWarnLog = jest.fn()
 

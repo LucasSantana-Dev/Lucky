@@ -19,17 +19,6 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
 }))
 
-function createTrack(requestedById = 'listener-1'): Track {
-    return {
-        id: 'track-1',
-        title: 'Test Song',
-        author: 'Test Artist',
-        url: 'https://example.com/track-1',
-        source: 'youtube',
-        requestedBy: { id: requestedById },
-    } as unknown as Track
-}
-
 describe('autoplayOutcomeTracking pure functions', () => {
     beforeEach(() => {
         jest.clearAllMocks()

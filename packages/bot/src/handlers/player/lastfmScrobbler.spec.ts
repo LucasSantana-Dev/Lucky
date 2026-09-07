@@ -1,3 +1,5 @@
+import { describe, expect, it, beforeEach, jest } from '@jest/globals'
+
 const mockDebugLog = jest.fn()
 const mockErrorLog = jest.fn()
 
@@ -15,8 +17,6 @@ jest.mock('../../lastfm', () => ({
     updateNowPlaying: jest.fn(),
     scrobble: jest.fn(),
 }))
-
-import { describe, expect, it, beforeEach, jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import type { Guild, Client } from 'discord.js'
 import {
@@ -279,7 +279,6 @@ describe('lastfmScrobbler', () => {
         })
 
         it('uses stored track start time if available', async () => {
-            const expectedTimestamp = Math.floor(Date.now() / 1000) - 120 // 2 minutes ago
             clearLastFmTrackTiming('guild-123')
 
             // Would need a way to set start time - this tests the behavior

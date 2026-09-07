@@ -4,7 +4,6 @@ import { setupErrorHandlers } from './errorEventHandlers'
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const captureExceptionMock = jest.fn()
-const handlePlayerErrorMock = jest.fn()
 const notifyChannelStreamFailedMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -70,12 +69,6 @@ type PlayerErrorHandler = (queue: any, error: Error, track?: any) => unknown
 type DebugHandler = (queue: any, message: string) => void
 type TopLevelErrorHandler = (error: Error) => void
 type TopLevelDebugHandler = (message: string) => void
-
-async function flushPromises(): Promise<void> {
-    await new Promise<void>((resolve) => {
-        setImmediate(() => resolve())
-    })
-}
 
 describe('errorEventHandlers', () => {
     beforeEach(() => {
