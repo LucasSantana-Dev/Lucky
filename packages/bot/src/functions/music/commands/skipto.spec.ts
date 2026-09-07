@@ -102,9 +102,8 @@ describe('skipto command', () => {
         expect(resolveGuildQueue).not.toHaveBeenCalled()
     })
 
-    it('stops when there is no active queue', async () => {
+    it('stops when queue validation fails', async () => {
         ;(requireQueue as jest.Mock).mockResolvedValue(false)
-        ;(resolveGuildQueue as jest.Mock).mockReturnValue({ queue: null })
 
         await execute({
             client: {},

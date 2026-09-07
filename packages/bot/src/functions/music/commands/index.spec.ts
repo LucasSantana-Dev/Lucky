@@ -1,19 +1,41 @@
-import { describe, expect, it } from '@jest/globals'
-import fs from 'node:fs'
-import path from 'node:path'
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import getMusicCommands from './index'
+
+const getCommandsFromDirectoryMock = jest.fn()
+
+jest.mock('../../../utils/command/getCommandsFromDirectory', () => ({
+    getCommandsFromDirectory: (...args: unknown[]) =>
+        getCommandsFromDirectoryMock(...args),
+}))
+
+jest.mock('@lucky/shared/utils', () => ({
+    debugLog: jest.fn(),
+    errorLog: jest.fn(),
+}))
 
 describe('music command loader', () => {
-    it('exports a function that loads commands with music category', () => {
-        const sourcePath = path.join(__dirname, 'index.ts')
-        const source = fs.readFileSync(sourcePath, 'utf8')
+    beforeEach(() => {
+        jest.clearAllMocks()
+    })
 
-        // Verify the loader uses getCommandsFromDirectory with music category
-        expect(source).toContain("category: 'music'")
-        // Verify it imports required utilities for dynamic directory loading
-        expect(source).toContain("import path from 'path'")
-        expect(source).toContain("import { fileURLToPath } from 'url'")
-        // Verify error handling is in place
-        expect(source).toContain('catch (error)')
-        expect(source).toContain('return []')
+    it('exports a function that loads commands with music category', async () => {
+        getCommandsFromDirectoryMock.mockResolvedValue([])
+
+        const result = await getMusicCommands()
+
+        expect(getCommandsFromDirectoryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                category: 'music',
+            }),
+        )
+        expect(result).toEqual([])
+    })
+
+    it('returns empty array on error', async () => {
+        getCommandsFromDirectoryMock.mockRejectedValue(new Error('Test error'))
+
+        const result = await getMusicCommands()
+
+        expect(result).toEqual([])
     })
 })
