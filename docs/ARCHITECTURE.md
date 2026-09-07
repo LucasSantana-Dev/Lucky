@@ -69,7 +69,7 @@ Production serves through **three independent layers**, each with its own config
 curl -sD - -o /dev/null https://lucky.lucassantana.tech/ | grep -i content-security-policy
 ```
 
-**`nginx.conf` only proxies `/api`.** Anything else falls through to the SPA - a new public path served by the backend needs its own `location` block.
+**`nginx.conf` only proxies `/api` as a rule** (plus the explicit `/invite`, `/webhook/`, `/webhooks/` location blocks). Anything else falls through to the SPA - a new public path served by the backend needs its own `location` block.
 
 **`_redirects` is evaluated top to bottom**, and the `/* /index.html 200` catch-all swallows any rule placed below it.
 
