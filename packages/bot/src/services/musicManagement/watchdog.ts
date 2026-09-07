@@ -36,6 +36,10 @@ export class MusicWatchdogService {
     private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
     private readonly states = new Map<string, WatchdogGuildState>()
     private readonly intentionalStops = new Set<string>()
+    private readonly intentionalStopAutoClearTimers = new Map<
+        string,
+        ReturnType<typeof setTimeout>
+    >()
     // Value is the acquisition timestamp, not just membership — an entry
     // older than recoveryLockMaxMs is treated as stale (e.g. a hung
     // queue.node.play()/restoreSnapshot() that never settles) so a single
@@ -115,16 +119,39 @@ export class MusicWatchdogService {
     markIntentionalStop(guildId: string): void {
         this.intentionalStops.add(guildId)
         this.clear(guildId)
+        // Cancel any orphaned timer from a previous call so only the latest
+        // timer for this guild can delete the flag.
+        const oldTimer = this.intentionalStopAutoClearTimers.get(guildId)
+        if (oldTimer) {
+            clearTimeout(oldTimer)
+        }
         // Window must outlive the watchdog timeout so the flag is still set
         // when any already-scheduled checkAndRecover fires.
-        setTimeout(
+        const autoClearTimer = setTimeout(
             () => this.intentionalStops.delete(guildId),
             this.timeoutMs + 10_000,
         )
+        this.intentionalStopAutoClearTimers.set(guildId, autoClearTimer)
     }
 
     isIntentionalStop(guildId: string): boolean {
         return this.intentionalStops.has(guildId)
+    }
+
+    /**
+     * Clears a stale intentional-stop flag once a new session actually
+     * arms and starts playing, so it can't mask snapshot saves for that
+     * new, unrelated session (see #2246).
+     */
+    clearIntentionalStop(guildId: string): void {
+        this.intentionalStops.delete(guildId)
+        // Cancel the auto-clear timeout to prevent it from deleting a
+        // newer flag set after this clear operation completes.
+        const timer = this.intentionalStopAutoClearTimers.get(guildId)
+        if (timer) {
+            clearTimeout(timer)
+            this.intentionalStopAutoClearTimers.delete(guildId)
+        }
     }
 
     clear(guildId: string): void {
