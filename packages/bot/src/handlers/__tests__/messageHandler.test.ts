@@ -22,11 +22,11 @@ jest.mock('../message/pipeline', () => ({
     })),
 }))
 
-jest.mock('../message/autoModHandler', () => ({
+jest.mock('../../functions/automod/handlers/autoModHandler', () => ({
     autoModHandler: {},
 }))
 
-jest.mock('../message/spamHandler', () => ({
+jest.mock('../../functions/automod/handlers/spamHandler', () => ({
     spamHandler: {},
 }))
 
