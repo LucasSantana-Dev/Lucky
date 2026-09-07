@@ -120,7 +120,7 @@ export const PAGES: DocsPage[] = [
                         >
                             Add to Discord
                         </a>
-                        , pick the server, accept the permissions. The bot
+                        {''}, pick the server, accept the permissions. The bot
                         joins, you open the dashboard, and you're configuring
                         within a minute. Good fit for small-to-medium servers
                         that don't want to babysit infrastructure.
@@ -206,7 +206,7 @@ export const PAGES: DocsPage[] = [
                     <code>backend</code> (Express + Prisma),{' '}
                     <code>frontend</code> (React 19 + Vite + Tailwind v4),{' '}
                     <code>postgres</code>, <code>redis</code>, and{' '}
-                    <code>nginx</code>. All six are orchestrated with a single
+                    <code>nginx</code>. All six are orchestrated with a single{' '}
                     <code>docker-compose.yml</code>. See{' '}
                     <a href='/docs?page=architecture'>Architecture</a> for the
                     full diagram and rationale.
@@ -242,7 +242,7 @@ export const PAGES: DocsPage[] = [
                         >
                             Add to Discord
                         </a>
-                        .
+                        {''}.
                     </li>
                     <li>
                         Pick the server. You need <code>Manage Server</code> on
@@ -323,8 +323,8 @@ export const PAGES: DocsPage[] = [
                     </li>
                     <li>
                         <strong>Reaction roles.</strong> Dashboard / Reaction
-                        roles / New. Stick one in
-                        <code>#welcome</code> for self-assigned ping roles.
+                        roles / New. Stick one in <code>#welcome</code> for
+                        self-assigned ping roles.
                     </li>
                 </ol>
                 <h2 id='next'>Next steps</h2>
@@ -499,7 +499,7 @@ export const PAGES: DocsPage[] = [
                         >
                             Discord Developer Portal
                         </a>
-                        .
+                        {''}.
                     </li>
                     <li>
                         Click <strong>New Application</strong>, name it (this
@@ -521,7 +521,7 @@ export const PAGES: DocsPage[] = [
                         <code>
                             https://your-domain/api/auth/discord/callback
                         </code>
-                        .
+                        {''}.
                     </li>
                     <li>
                         Under <strong>OAuth2 / URL Generator</strong>, pick{' '}
@@ -588,7 +588,7 @@ docker compose ps`}</code>
                         <code>
                             your-domain {`{ reverse_proxy localhost:8080 }`}
                         </code>
-                        . Caddy handles ACME automatically.
+                        {''}. Caddy handles ACME automatically.
                     </li>
                     <li>
                         <strong>Traefik / nginx-proxy / your own nginx</strong>{' '}
@@ -720,7 +720,7 @@ docker compose up -d`}</code>
                 </p>
                 <ol>
                     <li>
-                        Generate a webhook secret (
+                        Generate a webhook secret ({''}
                         <code>openssl rand -hex 32</code>).
                     </li>
                     <li>
@@ -731,7 +731,7 @@ docker compose up -d`}</code>
                         GitHub.
                     </li>
                     <li>
-                        Point the deploy workflow (
+                        Point the deploy workflow ({''}
                         <code>.github/workflows/deploy.yml</code>) at the
                         webhook URL — whatever the publicly reachable address of
                         the receiver is.
@@ -767,7 +767,7 @@ docker compose up -d <service>`}</code>
                     <code>
                         docker compose exec backend npx prisma migrate status
                     </code>
-                    .
+                    {''}.
                 </p>
             </>
         ),
@@ -879,11 +879,12 @@ docker compose up -d <service>`}</code>
                         <code>
                             docker compose exec bot pip install -U yt-dlp
                         </code>
-                        . Lucky now retries failed extractions with exponential
-                        backoff, but a multi-month-old yt-dlp still hits walls.
+                        {''}. Lucky now retries failed extractions with
+                        exponential backoff, but a multi-month-old yt-dlp still
+                        hits walls.
                     </li>
                     <li>
-                        Check the bot's voice permissions in your channel (
+                        Check the bot's voice permissions in your channel ({''}
                         <code>Connect</code>, <code>Speak</code>).
                     </li>
                 </ul>
@@ -1154,8 +1155,8 @@ docker compose up -d <service>`}</code>
                     Every manual action creates a numbered case. Moderators can
                     run <code>/case view &lt;id&gt;</code> to see a case's
                     detail, or <code>/cases user:@user</code> to see a user's
-                    case history. A case's reason can be updated (
-                    <code>/case update</code>) or the case removed (
+                    case history. A case's reason can be updated ({''}
+                    <code>/case update</code>) or the case removed ({''}
                     <code>/case delete</code>).
                 </p>
                 <h2 id='audit'>Audit log</h2>
@@ -1196,7 +1197,7 @@ docker compose up -d <service>`}</code>
                     <code>{`/customcommand create name:rules response:"Read the rules in #rules-channel." description:"Points to the rules"`}</code>
                 </pre>
                 <p>
-                    <code>name</code> and <code>response</code> are required;
+                    <code>name</code> and <code>response</code> are required;{' '}
                     <code>description</code> is optional and only shows in{' '}
                     <code>/customcommand list</code> and{' '}
                     <code>/customcommand info</code>. Names are lowercased and
@@ -2032,8 +2033,8 @@ docker compose up -d <service>`}</code>
                     >
                         last.fm/api
                     </a>
-                    . No callback URL needed — auth is via username + session
-                    token.
+                    {''}. No callback URL needed — auth is via username +
+                    session token.
                 </p>
                 <h2 id='twitch'>Twitch</h2>
                 <p>
@@ -2047,7 +2048,7 @@ docker compose up -d <service>`}</code>
                     >
                         Twitch Developer Console
                     </a>
-                    .
+                    {''}.
                 </p>
                 <h2 id='genius'>Genius (lyrics)</h2>
                 <p>
@@ -2060,7 +2061,7 @@ docker compose up -d <service>`}</code>
                     >
                         Genius API clients
                     </a>
-                    . No callback or per-user linking — one server-wide key
+                    {''}. No callback or per-user linking — one server-wide key
                     powers the lookups.
                 </p>
             </>
@@ -2120,8 +2121,8 @@ docker compose up -d <service>`}</code>
                     <a href={REPO} rel='noreferrer noopener' target='_blank'>
                         {REPO}
                     </a>
-                    . Read <code>CONTRIBUTING.md</code> for the local dev setup
-                    and code style.
+                    {''}. Read <code>CONTRIBUTING.md</code> for the local dev
+                    setup and code style.
                 </p>
             </>
         ),
