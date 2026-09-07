@@ -7,7 +7,7 @@ export interface SpotifyAlbumMatch {
     url: string
 }
 
-function mapSpotifyAlbum(raw: {
+export function mapSpotifyAlbum(raw: {
     id?: string
     name?: string
     artists?: { name?: string }[]

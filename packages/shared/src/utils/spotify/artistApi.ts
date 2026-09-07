@@ -3,6 +3,7 @@ import {
     sanitizeErrorMessage,
     sanitizeLogInput,
 } from '../general/errorSanitizer'
+import { mapSpotifyAlbum, type SpotifyAlbumMatch } from './albumApi'
 
 export interface SpotifyArtist {
     id: string
@@ -165,4 +166,126 @@ export async function getSpotifyRelatedArtists(
         })
         return []
     }
+}
+
+export interface SpotifyTrackRef {
+    name: string
+    artist: string
+    url: string
+}
+
+function mapSpotifyTrackRef(raw: {
+    name?: string
+    artists?: { name?: string }[]
+    external_urls?: { spotify?: string }
+}): SpotifyTrackRef | null {
+    const url = raw.external_urls?.spotify
+    if (!raw.name || !url) return null
+    return {
+        name: raw.name,
+        artist: raw.artists?.[0]?.name ?? 'Unknown Artist',
+        url,
+    }
+}
+
+/**
+ * Spotify's own top-tracks ranking (already most-popular-first) — the
+ * accurate "most famous" ordering `/artist`'s discography mode needs, unlike
+ * the generic track-search endpoint the plain flow uses.
+ */
+export async function getSpotifyArtistTopTracks(
+    accessToken: string,
+    artistId: string,
+): Promise<SpotifyTrackRef[]> {
+    try {
+        const res = await fetch(
+            `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}/top-tracks?market=US`,
+            {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                signal: AbortSignal.timeout(10_000),
+            },
+        )
+        if (!res.ok) return []
+        const data = (await res.json().catch(() => null)) as {
+            tracks?: unknown[]
+        } | null
+        return (data?.tracks ?? [])
+            .map((t) =>
+                mapSpotifyTrackRef(
+                    t as Parameters<typeof mapSpotifyTrackRef>[0],
+                ),
+            )
+            .filter((t): t is SpotifyTrackRef => t !== null)
+    } catch (error) {
+        errorLog({
+            message: `[Spotify] getSpotifyArtistTopTracks error: ${sanitizeErrorMessage(error)}`,
+            data: { artistId: sanitizeLogInput(artistId) },
+        })
+        return []
+    }
+}
+
+/**
+ * Studio albums + singles for an artist, newest release first, deduped by
+ * album name (deluxe/remaster reissues share a name with the original and
+ * would otherwise double-queue the same tracks). Capped at `maxAlbums` —
+ * a prolific artist's catalog can run into the hundreds of releases, and
+ * each one costs a discord-player search call downstream to resolve tracks,
+ * so an unbounded fetch here would make discography mode slow and heavy.
+ */
+export async function getSpotifyArtistAlbums(
+    accessToken: string,
+    artistId: string,
+    maxAlbums = 25,
+): Promise<SpotifyAlbumMatch[]> {
+    type RawAlbum = {
+        id?: string
+        name?: string
+        release_date?: string
+        artists?: { name?: string }[]
+        external_urls?: { spotify?: string }
+    }
+    const albums: RawAlbum[] = []
+    let url: string | null =
+        `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}/albums?include_groups=album,single&market=US&limit=50`
+    try {
+        // Spotify caps each page at 50; stop once we have enough raw candidates
+        // to dedupe/sort/slice down to maxAlbums, or the artist runs out of pages.
+        while (url && albums.length < maxAlbums * 3) {
+            const res = await fetch(url, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                signal: AbortSignal.timeout(10_000),
+            })
+            if (!res.ok) break
+            const data = (await res.json().catch(() => null)) as {
+                items?: RawAlbum[]
+                next?: string | null
+            } | null
+            if (!data) break
+            albums.push(...(data.items ?? []))
+            url = data.next ?? null
+        }
+    } catch (error) {
+        errorLog({
+            message: `[Spotify] getSpotifyArtistAlbums error: ${sanitizeErrorMessage(error)}`,
+            data: { artistId: sanitizeLogInput(artistId) },
+        })
+        // Fall through with whatever pages were fetched before the failure.
+    }
+
+    const seenNames = new Set<string>()
+    const deduped = albums.filter((a) => {
+        const key = a.name?.toLowerCase().trim()
+        if (!key || seenNames.has(key)) return false
+        seenNames.add(key)
+        return true
+    })
+    deduped.sort((a, b) =>
+        (b.release_date ?? '').localeCompare(a.release_date ?? ''),
+    )
+
+    return deduped
+        .slice(0, maxAlbums)
+        .map((a) => mapSpotifyAlbum(a))
+        .filter((a): a is SpotifyAlbumMatch => a !== null)
 }
