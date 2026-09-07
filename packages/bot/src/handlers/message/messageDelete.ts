@@ -14,7 +14,7 @@ export async function safeDeleteMessage(message: Message): Promise<void> {
         warnLog({
             message: 'Failed to delete message',
             error,
-            data: { channelId: message.channelId },
+            data: { guildId: message.guildId, channelId: message.channelId },
         })
     })
 }
