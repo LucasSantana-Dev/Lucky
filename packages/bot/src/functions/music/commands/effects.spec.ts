@@ -250,6 +250,9 @@ describe('effects command', () => {
                 interaction: createInteraction('nightcore') as any,
             })
 
+            expect(queue.filters.resampler.toggleFilter).toHaveBeenCalledWith(
+                'nightcore',
+            )
             expect(interactionReply).toHaveBeenCalledWith({
                 interaction: expect.anything(),
                 content: {
@@ -272,6 +275,9 @@ describe('effects command', () => {
                 interaction: createInteraction('nightcore') as any,
             })
 
+            expect(queue.filters.resampler.toggleFilter).toHaveBeenCalledWith(
+                'nightcore',
+            )
             expect(interactionReply).toHaveBeenCalledWith({
                 interaction: expect.anything(),
                 content: {
