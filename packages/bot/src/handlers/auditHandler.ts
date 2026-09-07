@@ -52,7 +52,10 @@ async function handleMessageDelete(
             return
     } catch (error) {
         // Fail open: log settings errors should not prevent logging
-        errorLog('[LogSettings] Failed to check ignore list', error)
+        errorLog({
+            message: '[LogSettings] Failed to check ignore list',
+            error,
+        })
     }
 
     try {
@@ -123,7 +126,10 @@ async function handleMessageUpdate(
             return
     } catch (error) {
         // Fail open: log settings errors should not prevent logging
-        errorLog('[LogSettings] Failed to check ignore list', error)
+        errorLog({
+            message: '[LogSettings] Failed to check ignore list',
+            error,
+        })
     }
 
     try {
