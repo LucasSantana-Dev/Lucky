@@ -8,7 +8,7 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
 }))
 
-import { setTrackStatus, clearStatus } from './VoiceChannelStatusService'
+import { setTrackStatus, clearStatus } from './voiceChannelStatusService'
 
 const makeQueue = (overrides: Record<string, unknown> = {}) => ({
     guild: { id: 'guild-1' },
@@ -60,7 +60,8 @@ describe('VoiceChannelStatusService', () => {
             })
             await setTrackStatus(queue as never)
 
-            const call = (queue.channel.setStatus as ReturnType<typeof jest.fn>).mock.calls[0] as string[]
+            const call = (queue.channel.setStatus as ReturnType<typeof jest.fn>)
+                .mock.calls[0] as string[]
             const status = call[0]
             expect(status.length).toBeLessThanOrEqual(500)
             expect(status.endsWith('…')).toBe(true)
@@ -69,7 +70,9 @@ describe('VoiceChannelStatusService', () => {
         it('logs error and does not throw when setStatus rejects', async () => {
             const queue = makeQueue({
                 channel: {
-                    setStatus: jest.fn().mockRejectedValue(new Error('API error') as never),
+                    setStatus: jest
+                        .fn()
+                        .mockRejectedValue(new Error('API error') as never),
                 },
             })
             await expect(setTrackStatus(queue as never)).resolves.not.toThrow()
@@ -93,7 +96,9 @@ describe('VoiceChannelStatusService', () => {
         it('logs error and does not throw when clearStatus rejects', async () => {
             const queue = makeQueue({
                 channel: {
-                    setStatus: jest.fn().mockRejectedValue(new Error('fail') as never),
+                    setStatus: jest
+                        .fn()
+                        .mockRejectedValue(new Error('fail') as never),
                 },
             })
             await expect(clearStatus(queue as never)).resolves.not.toThrow()
