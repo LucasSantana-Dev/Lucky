@@ -884,7 +884,6 @@ model LogSettings {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  @@index([guildId])
   @@map("log_settings")
 }
 

@@ -14,5 +14,5 @@ CREATE TABLE IF NOT EXISTS "log_settings" (
 -- CreateIndex
 CREATE UNIQUE INDEX IF NOT EXISTS "log_settings_guildId_key" ON "log_settings"("guildId");
 
--- CreateIndex
-CREATE INDEX IF NOT EXISTS "log_settings_guildId_idx" ON "log_settings"("guildId");
+-- Enable RLS
+ALTER TABLE "public"."log_settings" ENABLE ROW LEVEL SECURITY;
