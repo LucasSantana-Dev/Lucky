@@ -482,6 +482,29 @@ jobs:
                     if (!frame.length) throw new Error('opus encoded an empty frame');
                     console.log('opus OK — encoded', frame.length, 'bytes');
                   "
+            # ESM load-time bugs (bare JSON imports, a missing file extension
+            # add-js-extensions.js failed to patch, a circular import) pass every
+            # other check and only surface when Node actually loads the built
+            # module — jest transpiles to CJS (where these are legal), tsc emits
+            # the import verbatim, and `npm run build` never runs what it
+            # produced. v2.40.0 shipped exactly this (a bare JSON import) and
+            # crash-looped in production behind 3,203 passing tests (#2113,
+            # #2115). Both modules below are confirmed side-effect-free at
+            # import time (no top-level I/O) — verified by hand, since a
+            # handlers/player candidate was tried and dropped: its import graph
+            # transitively reaches a shared service that throws immediately if
+            # DATABASE_URL isn't set (filed as #2258), which is exactly the
+            # "constraint is picking modules that are safe to import" #2115
+            # itself calls out. Widening this list needs the same care.
+            - name: Verify ESM boot safety — bot
+              if: matrix.service == 'bot'
+              run: |
+                  docker run --rm lucky-bot:ci node -e "
+                    Promise.all([
+                      import('./packages/bot/dist/i18n/index.js'),
+                      import('./packages/bot/dist/utils/music/duplicateDetection/types.js'),
+                    ]).then(() => console.log('ESM boot smoke OK'))
+                  "
             # Include files are the #1908/#1910 rollback class: a missing or
             # http-level-loaded include crashes nginx at boot, which
             # `docker build` never reaches. Gate per
