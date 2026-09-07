@@ -91,6 +91,13 @@ export {
     type EffectiveAccessMap,
     GuildRoleGrantStorageError,
 } from './GuildRoleAccessService'
+export {
+    logSettingsService,
+    LogSettingsService,
+    type LogSettingsConfig,
+    type IgnoreKind,
+    type LogEventTarget,
+} from './LogSettingsService.js'
 export { redisClient } from './redis/index.js'
 export {
     starboardService,
