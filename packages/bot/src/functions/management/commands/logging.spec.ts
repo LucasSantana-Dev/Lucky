@@ -117,6 +117,17 @@ describe('logging command', () => {
         })
 
         expect(logSettingsServiceMock.addIgnored).not.toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    embeds: [
+                        expect.objectContaining({
+                            desc: expect.stringContaining('exactly one'),
+                        }),
+                    ],
+                }),
+            }),
+        )
     })
 
     it('ignore-add adds the channel when only channel is given', async () => {
@@ -197,6 +208,17 @@ describe('logging command', () => {
         })
 
         expect(logSettingsServiceMock.removeIgnored).not.toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    embeds: [
+                        expect.objectContaining({
+                            desc: expect.stringContaining('exactly one'),
+                        }),
+                    ],
+                }),
+            }),
+        )
     })
 
     it('list reports nothing excluded when config is unset', async () => {

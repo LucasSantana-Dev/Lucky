@@ -247,23 +247,53 @@ async function handleList(
     }
 
     const fields = []
+    const FIELD_CHAR_LIMIT = 1024
+
+    // Helper to chunk IDs into fields that respect Discord's 1024-char field limit
+    function createFieldChunks(
+        ids: string[],
+        formatter: (id: string) => string,
+        baseName: string,
+    ) {
+        const chunks = []
+        let currentChunk = ''
+
+        for (const id of ids) {
+            const formatted = formatter(id)
+            const newValue = currentChunk ? `${currentChunk}, ${formatted}` : formatted
+
+            if (newValue.length > FIELD_CHAR_LIMIT) {
+                if (currentChunk) {
+                    chunks.push(currentChunk)
+                    currentChunk = formatted
+                } else {
+                    // Single ID exceeds limit, add it anyway to avoid silent drops
+                    chunks.push(formatted)
+                    currentChunk = ''
+                }
+            } else {
+                currentChunk = newValue
+            }
+        }
+
+        if (currentChunk) {
+            chunks.push(currentChunk)
+        }
+
+        return chunks.map((chunk, index) => ({
+            name: index === 0 ? baseName : `${baseName} (cont.)`,
+            value: chunk,
+        }))
+    }
+
     if (config.ignoredChannelIds.length > 0) {
-        fields.push({
-            name: 'Channels',
-            value: config.ignoredChannelIds.map((id) => `<#${id}>`).join(', '),
-        })
+        fields.push(...createFieldChunks(config.ignoredChannelIds, (id) => `<#${id}>`, 'Channels'))
     }
     if (config.ignoredRoleIds.length > 0) {
-        fields.push({
-            name: 'Roles',
-            value: config.ignoredRoleIds.map((id) => `<@&${id}>`).join(', '),
-        })
+        fields.push(...createFieldChunks(config.ignoredRoleIds, (id) => `<@&${id}>`, 'Roles'))
     }
     if (config.ignoredUserIds.length > 0) {
-        fields.push({
-            name: 'Users',
-            value: config.ignoredUserIds.map((id) => `<@${id}>`).join(', '),
-        })
+        fields.push(...createFieldChunks(config.ignoredUserIds, (id) => `<@${id}>`, 'Users'))
     }
 
     const embed = new EmbedBuilder()
