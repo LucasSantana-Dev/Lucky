@@ -571,6 +571,16 @@ Feature management page for toggling features.
 
 ## State Management
 
+### Choosing where state lives
+
+Three tools are in use side by side (`useState`, Zustand, React Query), with no rule for which to reach for - components pick whichever looks convenient, which drifts per author. The rule:
+
+1. **`useState`** - local, ephemeral UI state that nothing else needs: a form field, a modal's open/closed flag, an expanded/collapsed toggle. If no other component needs to read it and it doesn't need to survive navigation, it's local state.
+2. **React Query** (`@tanstack/react-query`) - anything fetched from the backend. Wrap the fetch in a hook under `src/hooks/` (see the `use*Queries.ts` naming convention, e.g. `useStarboardQueries.ts`, `useLevelQueries.ts`, `useModerationQueries.ts`) rather than calling `useQuery` inline in a component. This is the default for server data - it gives you caching, refetch, and loading/error state for free.
+3. **Zustand** (`src/stores/`) - client state that many unrelated components need to read or write, and that should survive route changes: the selected guild, the authenticated user, feature-toggle state. A store's actions are allowed to call the API themselves (see `guildStore.ts`, `featuresStore.ts`) because they're managing app-wide state, not per-component data - that's different from a component reaching into `@/services/api` directly (see "Calling the API from a component" below).
+
+If unsure whether something is server data (→ React Query) or app-wide client state (→ Zustand): would a `GET` re-fetch of this from the backend ever return a _different_ value than what's cached? If yes, it's server data.
+
 ### State Management Flow
 
 ```mermaid
@@ -715,6 +725,15 @@ const {
 5. **Selective Updates**: Only update relevant state slices to minimize re-renders
 
 ## API Integration
+
+### Calling the API from a component
+
+Components should not import `@/services/api` and call it directly inside an event handler or `useEffect` - several still do (e.g. `MusicConfig.tsx`, `CommandsConfig.tsx`, `ReactionRoles.tsx`), and it's not the convention to follow. Go through one of:
+
+- A React Query hook under `src/hooks/` for reads (and mutations you want cached/invalidated) - see "Choosing where state lives" above.
+- An existing Zustand store's action, if the data already lives in a store (e.g. `useGuildStore().fetchGuilds()`).
+
+This isn't a hard migration requirement for the ~60 existing direct call sites - fix them opportunistically when touching that code. New code should go through a hook or store.
 
 ### Data Flow Diagram
 
