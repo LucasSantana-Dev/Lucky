@@ -275,11 +275,15 @@ describe('api service bootstrap', () => {
 
         apiClient.get.mockResolvedValue({ data: {} })
         apiClient.post.mockResolvedValue({ data: {} })
+        apiClient.put.mockResolvedValue({ data: {} })
         apiClient.delete.mockResolvedValue({ data: {} })
 
         await module.api.auth.checkStatus()
         await module.api.auth.logout()
         await module.api.guilds.getInvite('guild-1')
+        await module.api.guilds.getAutoplayGenres('guild-1')
+        await module.api.guilds.updateAutoplayGenres('guild-1', ['rock'])
+        await module.api.me.getVoteStatus()
         await module.api.guilds.getChannels('guild-1')
         await module.api.guilds.getSettings('guild-1')
         await module.api.guilds.updateSettings('guild-1', {
@@ -326,6 +330,14 @@ describe('api service bootstrap', () => {
         expect(apiClient.get).toHaveBeenCalledWith('/auth/status')
         expect(apiClient.get).toHaveBeenCalledWith('/auth/logout')
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/invite')
+        expect(apiClient.get).toHaveBeenCalledWith(
+            '/guilds/guild-1/autoplay/genres',
+        )
+        expect(apiClient.put).toHaveBeenCalledWith(
+            '/guilds/guild-1/autoplay/genres',
+            { genres: ['rock'] },
+        )
+        expect(apiClient.get).toHaveBeenCalledWith('/me/vote-status')
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/channels')
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/settings')
         expect(apiClient.post).toHaveBeenCalledWith(
@@ -407,5 +419,15 @@ describe('api service bootstrap', () => {
         expect(apiClient.get).toHaveBeenCalledWith(
             '/lyrics?title=Take+On+Me&artist=a-ha',
         )
+    })
+
+    // #1979: the raw axios instance used to be exposed as a default export,
+    // letting components bypass the api.* abstraction entirely (two did).
+    // Removing it is the mechanical prerequisite for #1965's convention to
+    // stick — this guards against it quietly coming back.
+    test('does not expose the raw axios client as a default export', async () => {
+        const { module } = await loadApiModule('/api')
+
+        expect((module as { default?: unknown }).default).toBeUndefined()
     })
 })

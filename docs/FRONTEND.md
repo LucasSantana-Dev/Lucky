@@ -571,6 +571,16 @@ Feature management page for toggling features.
 
 ## State Management
 
+### Choosing where state lives
+
+Three tools are in use side by side (`useState`, Zustand, React Query), with no rule for which to reach for - components pick whichever looks convenient, which drifts per author. The rule:
+
+1. **`useState`** - local, ephemeral UI state that nothing else needs: a form field, a modal's open/closed flag, an expanded/collapsed toggle. If no other component needs to read it and it doesn't need to survive navigation, it's local state.
+2. **React Query** (`@tanstack/react-query`) - anything fetched from the backend. Wrap the fetch in a hook under `src/hooks/` (see the `use*Queries.ts` naming convention, e.g. `useStarboardQueries.ts`, `useLevelQueries.ts`, `useModerationQueries.ts`) rather than calling `useQuery` inline in a component. This is the default for server data - it gives you caching, refetch, and loading/error state for free.
+3. **Zustand** (`src/stores/`) - client state that many unrelated components need to read or write, and that should survive route changes: the selected guild, the authenticated user, feature-toggle state. A store's actions are allowed to call the API themselves (see `guildStore.ts`, `featuresStore.ts`) because they're managing app-wide state, not per-component data - that's different from a component reaching into `@/services/api` directly (see "Calling the API from a component" below).
+
+If unsure whether something is server data (→ React Query) or app-wide client state (→ Zustand): would a `GET` re-fetch of this from the backend ever return a _different_ value than what's cached? If yes, it's server data.
+
 ### State Management Flow
 
 ```mermaid
@@ -716,6 +726,15 @@ const {
 
 ## API Integration
 
+### Calling the API from a component
+
+Components should not import `@/services/api` and call it directly inside an event handler or `useEffect` - several still do (e.g. `MusicConfig.tsx`, `CommandsConfig.tsx`, `ReactionRoles.tsx`), and it's not the convention to follow. Go through one of:
+
+- A React Query hook under `src/hooks/` for reads (and mutations you want cached/invalidated) - see "Choosing where state lives" above.
+- An existing Zustand store's action, if the data already lives in a store (e.g. `useGuildStore().fetchGuilds()`).
+
+This isn't a hard migration requirement for the ~60 existing direct call sites - fix them opportunistically when touching that code. New code should go through a hook or store.
+
 ### Data Flow Diagram
 
 ```mermaid
@@ -743,40 +762,51 @@ sequenceDiagram
 
 ### Base API Configuration
 
-The API client is configured in `src/services/api.ts`:
+The API client is configured in `packages/frontend/src/services/api.ts`:
 
-```1:23:src/webapp/frontend/src/services/api.ts
-import axios from 'axios'
-
-const api = axios.create({
-  baseURL: '/api',
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+```typescript
+const apiClient: AxiosInstance = axios.create({
+    baseURL: NORMALIZED_API_BASE,
+    withCredentials: true,
+    timeout: 10000,
+    headers: {
+        'Content-Type': 'application/json',
+    },
 })
 
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      window.location.href = '/api/auth/discord'
-    }
-    const errorMessage = error.response?.data?.error || error.message || 'An error occurred'
-    console.error('API Error:', errorMessage, error)
-    return Promise.reject(error)
-  },
+apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (!error.response) {
+            return Promise.reject(
+                new ApiError(0, 'Unable to connect to the server'),
+            )
+        }
+        // ...maps the error to an ApiError, redirecting to Discord OAuth
+        // on 401 (with a 30s cooldown to break redirect loops)
+    },
 )
 
-export default api
+export const api = {
+    stats: { getPublic: () => apiClient.get(/* ... */) },
+    // ...one namespaced client per domain (guilds, music, moderation, etc.)
+}
+```
+
+Consumers import the namespaced client, not the raw axios instance:
+
+```typescript
+import { api } from '@/services/api'
 ```
 
 **Features**:
 
-- Base URL: `/api` (proxied to backend in development)
+- Base URL: resolved at runtime via `inferApiBase()` (proxied to backend in development)
 - Credentials: Includes cookies for session management
-- Error Interceptor: Automatically redirects to login on 401 errors
-- Error Logging: Logs errors to console for debugging
+- Timeout: 10s
+- Error mapping: every rejection is normalized to an `ApiError` (status, message, details); a network failure with no response maps to status `0`
+- 401 handling: redirects to Discord OAuth, throttled by a 30s `sessionStorage` cooldown to break redirect loops
+- Raw axios instance still exported as the module default (`export default apiClient`); the supported entry point is the named `api` object (see #1979)
 
 ### Authentication Endpoints
 
