@@ -6,8 +6,8 @@
 ## Accepted (130)
 
 - [2026-09-05 - Skip-reason feedback UX redesign: deferred](2026-09-05-skip-feedback-redesign-deferred.md) - _Accepted (defer)_
-- [2026-09-03 - 2026-09-03: Audit gate takes a second npm audit read before passing](2026-09-03-audit-gate-double-read.md)
-- [2026-09-03 - 2026-09-03: SoundCloud client_id refresh-and-retry, not a timer](2026-09-03-soundcloud-client-id-refresh-and-retry.md)
+- [2026-09-03 - Audit gate takes a second npm audit read before passing](2026-09-03-audit-gate-double-read.md)
+- [2026-09-03 - SoundCloud client_id refresh-and-retry, not a timer](2026-09-03-soundcloud-client-id-refresh-and-retry.md)
 - [2026-08-09 - Remove the `/download` feature for Top.gg compliance](2026-08-09-remove-download-feature-topgg-compliance.md)
 - [2026-08-03 - Autoplay re-measure: coverage gate PASSED, route to reliability + UX; skip-reason needs UX redesign](2026-08-03-autoplay-remeasure-gate-passed.md)
 - [2026-08-03 - Guild Automation: remove the subsystem (D), phased web/backend → bot → schema](2026-08-03-guild-automation-remove.md)
