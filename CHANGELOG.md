@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.42.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.42.0...v2.42.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **backend:** force jest to run in-band to kill the socket-hang-up flake ([#2274](https://github.com/LucasSantana-Dev/Lucky/issues/2274)) ([85c2e7d](https://github.com/LucasSantana-Dev/Lucky/commit/85c2e7d7eb5cdf4776da97fb896c68ee59e1cb9e))
+* **bot:** route criativaria live notifications through the twitch barrel ([#2271](https://github.com/LucasSantana-Dev/Lucky/issues/2271)) ([36ca173](https://github.com/LucasSantana-Dev/Lucky/commit/36ca17370c3ecf955f5cfc966486d7ae8f56a042))
+* **frontend:** raise Changelog test timeout to fix CI flake ([#2280](https://github.com/LucasSantana-Dev/Lucky/issues/2280)) ([07608ca](https://github.com/LucasSantana-Dev/Lucky/commit/07608ca619789be21a7e9f1f14ee1ec30a9c9b58))
+
 ## [2.42.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.41.1...v2.42.0) (2026-09-06)
 
 
