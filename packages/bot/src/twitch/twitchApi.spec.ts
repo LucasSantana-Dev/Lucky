@@ -182,6 +182,51 @@ describe('twitchApi', () => {
             )
         })
 
+        it('should retry once on a 429 then succeed', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+            const rateLimited = new Response(null, {
+                status: 429,
+                headers: { 'Retry-After': '0' },
+            })
+            const success = new Response(
+                JSON.stringify({
+                    data: [
+                        {
+                            id: 'twitch123',
+                            login: 'testuser',
+                            display_name: 'TestUser',
+                        },
+                    ],
+                }),
+                { status: 200 },
+            )
+            fetchSpy
+                .mockResolvedValueOnce(rateLimited)
+                .mockResolvedValueOnce(success)
+
+            const result = await getTwitchUserByLogin('testuser')
+
+            expect(result?.id).toBe('twitch123')
+            expect(fetchSpy).toHaveBeenCalledTimes(2)
+        })
+
+        it('should give up and return null after repeated 429s', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+            fetchSpy.mockImplementation(
+                async () =>
+                    new Response(null, {
+                        status: 429,
+                        headers: { 'Retry-After': '0' },
+                    }),
+            )
+
+            const result = await getTwitchUserByLogin('testuser')
+
+            expect(result).toBeNull()
+            // maxRetries = 2 → 3 total attempts (initial + 2 retries)
+            expect(fetchSpy).toHaveBeenCalledTimes(3)
+        })
+
         it('should extract first user from multiple results', async () => {
             getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
             const mockResponse = {
