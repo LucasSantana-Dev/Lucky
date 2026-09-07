@@ -338,8 +338,8 @@ export function hasVersionMarker(text: string): boolean {
     for (const term of noiseTerms.versionVariants) {
         const inner = termInner(term)
         if (
-            new RegExp(`\(${inner}[^)]*\)`, 'i').test(text) ||
-            new RegExp(`\[${inner}[^\]]*\]`, 'i').test(text)
+            new RegExp(`\(${inner}[^)]*\)`, 'i').test(text) || // NOSONAR: \( and \) escape literal parentheses, not redundant
+            new RegExp(`\[${inner}[^\]]*\]`, 'i').test(text) // NOSONAR: \[ \] escape literal brackets; \] in [^\]] is necessary
         ) {
             return true
         }
