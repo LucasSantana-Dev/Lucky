@@ -11,7 +11,7 @@ import {
     type StageSpeakerOutcome,
 } from '../../services/musicManagement/stageSpeaker'
 import type { CustomClient } from '../../types'
-import * as voiceStatus from '../../services/VoiceChannelStatusService'
+import * as voiceStatus from './voiceChannelStatusService'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
 import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'

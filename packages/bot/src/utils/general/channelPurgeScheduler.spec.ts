@@ -5,10 +5,16 @@ const channelCleanupServiceMock = {
     getPurgeConfigsDue: jest.fn() as jest.MockedFunction<any>,
     getTtlConfigs: jest.fn() as jest.MockedFunction<any>,
     markPurgeExecuted: jest.fn() as jest.MockedFunction<any>,
+    recordPurgeFailure: jest.fn() as jest.MockedFunction<any>,
+}
+
+const serverLogServiceMock = {
+    createLog: jest.fn() as jest.MockedFunction<any>,
 }
 
 jest.mock('@lucky/shared/services', () => ({
     channelCleanupService: channelCleanupServiceMock,
+    serverLogService: serverLogServiceMock,
 }))
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
@@ -99,6 +105,12 @@ describe('ChannelPurgeScheduler.tick — purge', () => {
         jest.clearAllMocks()
         channelCleanupServiceMock.getPurgeConfigsDue.mockResolvedValue([])
         channelCleanupServiceMock.getTtlConfigs.mockResolvedValue([])
+        channelCleanupServiceMock.recordPurgeFailure.mockResolvedValue({
+            enabled: true,
+            consecutiveFailures: 1,
+            lastError: null,
+        })
+        serverLogServiceMock.createLog.mockResolvedValue(undefined)
     })
 
     const purgeConfig = {
@@ -146,6 +158,97 @@ describe('ChannelPurgeScheduler.tick — purge', () => {
             channelCleanupServiceMock.markPurgeExecuted,
         ).not.toHaveBeenCalled()
     })
+
+    it('records a purge failure with the error message on a delete failure', async () => {
+        channelCleanupServiceMock.getPurgeConfigsDue.mockResolvedValue([
+            purgeConfig,
+        ])
+        const bulkDelete = jest
+            .fn()
+            .mockRejectedValue(new Error('missing ManageMessages'))
+        const channel = makeChannel(
+            new Collection([['m1', msg('m1', 1000)]]),
+            bulkDelete,
+        )
+
+        await runTick(makeClient(channel))
+
+        expect(
+            channelCleanupServiceMock.recordPurgeFailure,
+        ).toHaveBeenCalledWith('p1', 'missing ManageMessages')
+    })
+
+    it('does not audit-log when recordPurgeFailure keeps the config enabled', async () => {
+        channelCleanupServiceMock.getPurgeConfigsDue.mockResolvedValue([
+            purgeConfig,
+        ])
+        channelCleanupServiceMock.recordPurgeFailure.mockResolvedValue({
+            enabled: true,
+            consecutiveFailures: 2,
+            lastError: 'missing ManageMessages',
+        })
+        const bulkDelete = jest
+            .fn()
+            .mockRejectedValue(new Error('missing ManageMessages'))
+        const channel = makeChannel(
+            new Collection([['m1', msg('m1', 1000)]]),
+            bulkDelete,
+        )
+
+        await runTick(makeClient(channel))
+
+        expect(serverLogServiceMock.createLog).not.toHaveBeenCalled()
+    })
+
+    it('audit-logs an auto-disable when recordPurgeFailure disables the config', async () => {
+        channelCleanupServiceMock.getPurgeConfigsDue.mockResolvedValue([
+            purgeConfig,
+        ])
+        channelCleanupServiceMock.recordPurgeFailure.mockResolvedValue({
+            enabled: false,
+            consecutiveFailures: 5,
+            lastError: 'missing ManageMessages',
+        })
+        const bulkDelete = jest
+            .fn()
+            .mockRejectedValue(new Error('missing ManageMessages'))
+        const channel = makeChannel(
+            new Collection([['m1', msg('m1', 1000)]]),
+            bulkDelete,
+        )
+
+        await runTick(makeClient(channel))
+
+        expect(serverLogServiceMock.createLog).toHaveBeenCalledWith(
+            GUILD,
+            'mod_action',
+            'Channel purge auto-disabled after repeated failures',
+            expect.objectContaining({
+                consecutiveFailures: 5,
+                lastError: 'missing ManageMessages',
+                configId: 'p1',
+            }),
+            { channelId: CHANNEL },
+        )
+    })
+
+    it('swallows a recordPurgeFailure rejection without breaking the tick', async () => {
+        channelCleanupServiceMock.getPurgeConfigsDue.mockResolvedValue([
+            purgeConfig,
+        ])
+        channelCleanupServiceMock.recordPurgeFailure.mockRejectedValue(
+            new Error('db down'),
+        )
+        const bulkDelete = jest
+            .fn()
+            .mockRejectedValue(new Error('missing ManageMessages'))
+        const channel = makeChannel(
+            new Collection([['m1', msg('m1', 1000)]]),
+            bulkDelete,
+        )
+
+        await expect(runTick(makeClient(channel))).resolves.toBeUndefined()
+    })
 })
 
 describe('ChannelPurgeScheduler.tick — purge branches', () => {
@@ -153,6 +256,12 @@ describe('ChannelPurgeScheduler.tick — purge branches', () => {
         jest.clearAllMocks()
         channelCleanupServiceMock.getPurgeConfigsDue.mockResolvedValue([])
         channelCleanupServiceMock.getTtlConfigs.mockResolvedValue([])
+        channelCleanupServiceMock.recordPurgeFailure.mockResolvedValue({
+            enabled: true,
+            consecutiveFailures: 1,
+            lastError: null,
+        })
+        serverLogServiceMock.createLog.mockResolvedValue(undefined)
     })
 
     const cfg = {
