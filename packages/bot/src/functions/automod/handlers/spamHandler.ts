@@ -6,7 +6,7 @@ import type {
     MessageContext,
     MessageHandler,
     MessageHandlerResult,
-} from './types'
+} from '../../../handlers/message/types'
 
 export const spamHandler: MessageHandler = {
     name: 'Spam',
