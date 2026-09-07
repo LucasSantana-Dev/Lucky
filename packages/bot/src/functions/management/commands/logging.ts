@@ -248,6 +248,9 @@ async function handleList(
 
     const fields = []
     const FIELD_CHAR_LIMIT = 1024
+    const EMBED_FIELD_LIMIT = 25
+    const EMBED_CHAR_LIMIT = 6000
+    const MAX_EMBEDS = 10
 
     // Helper to chunk IDs into fields that respect Discord's 1024-char field limit
     function createFieldChunks(
@@ -296,13 +299,56 @@ async function handleList(
         fields.push(...createFieldChunks(config.ignoredUserIds, (id) => `<@${id}>`, 'Users'))
     }
 
-    const embed = new EmbedBuilder()
-        .setTitle('Server Log Exclusions')
-        .setColor(COLOR.SETUP_PURPLE)
-        .addFields(fields)
+    // Split fields into multiple embeds if they exceed Discord limits (25 fields, 6000 chars)
+    const embeds: EmbedBuilder[] = []
+    let currentEmbed: typeof fields = []
+    let currentEmbedChars = 0
+
+    for (const field of fields) {
+        const fieldChars = field.name.length + field.value.length
+        const wouldExceedFieldLimit = currentEmbed.length >= EMBED_FIELD_LIMIT
+        const wouldExceedCharLimit = currentEmbedChars + fieldChars > EMBED_CHAR_LIMIT
+
+        if ((wouldExceedFieldLimit || wouldExceedCharLimit) && currentEmbed.length > 0) {
+            // Start a new embed
+            const embed = new EmbedBuilder()
+                .setTitle('Server Log Exclusions')
+                .setColor(COLOR.SETUP_PURPLE)
+                .addFields(currentEmbed)
+            embeds.push(embed)
+
+            currentEmbed = []
+            currentEmbedChars = 0
+
+            // Stop if we've hit the max embed limit
+            if (embeds.length >= MAX_EMBEDS) {
+                break
+            }
+        }
+
+        currentEmbed.push(field)
+        currentEmbedChars += fieldChars
+    }
+
+    // Add remaining fields to final embed
+    if (currentEmbed.length > 0 && embeds.length < MAX_EMBEDS) {
+        const embed = new EmbedBuilder()
+            .setTitle('Server Log Exclusions')
+            .setColor(COLOR.SETUP_PURPLE)
+            .addFields(currentEmbed)
+        embeds.push(embed)
+    }
+
+    // If all fields didn't fit, add a truncation notice
+    if (fields.length > currentEmbed.length + (embeds.length - 1) * EMBED_FIELD_LIMIT) {
+        const lastEmbed = embeds[embeds.length - 1]
+        if (lastEmbed) {
+            lastEmbed.setFooter({ text: 'Some exclusions not shown (list too large)' })
+        }
+    }
 
     await interactionReply({
         interaction,
-        content: { embeds: [embed] },
+        content: { embeds },
     })
 }
