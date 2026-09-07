@@ -24,8 +24,13 @@ export async function safeDeleteMessage(message: Message): Promise<void> {
                 error,
                 data: { channelId: message.channelId },
             })
-        } catch {
-            // Logging failure must not change the delete outcome for callers
+        } catch (logError) {
+            console.error(
+                'Failed to delete message and log warning',
+                error,
+                { channelId: message.channelId },
+                logError,
+            )
         }
     })
 }
