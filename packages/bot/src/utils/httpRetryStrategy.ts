@@ -42,7 +42,10 @@ export function parseRetryAfterMs(header: string | null): number | null {
  * wrapped callbacks must signal retry-eligible failures explicitly.
  */
 export function throwIfRetryable(res: Response): void {
-    if (res.status === 429) throw res
+    if (res.status === 429) {
+        void res.body?.cancel().catch(() => undefined)
+        throw res
+    }
 }
 
 /**
