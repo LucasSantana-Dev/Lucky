@@ -13,9 +13,16 @@ export type ChannelCleanupConfig = {
     ttlSeconds: number | null
     enabled: boolean
     lastRunAt: Date | null
+    consecutiveFailures: number
+    lastError: string | null
     createdAt: Date
     updatedAt: Date
 }
+
+/** Consecutive purge failures (e.g. bot lost ManageMessages) before a
+ * config is auto-disabled rather than retrying forever with no operator
+ * signal beyond logs (#1792). */
+export const MAX_CONSECUTIVE_PURGE_FAILURES = 5
 
 /** Data for upserting cleanup configuration. */
 type UpsertConfigData = {
@@ -50,10 +57,20 @@ export class ChannelCleanupService {
         channelId: string,
         data: UpsertConfigData,
     ): Promise<ChannelCleanupConfig> {
+        const updateData = { ...data }
+        // Reset failure streak when re-enabling a config so it gets a fresh
+        // grace period rather than being immediately re-disabled on the next
+        // failure (addresses re-enable case for #1792).
+        if (data.enabled === true) {
+            Object.assign(updateData, {
+                consecutiveFailures: 0,
+                lastError: null,
+            })
+        }
         return await prisma.channelCleanupConfig.upsert({
             where: { guildId_channelId: { guildId, channelId } },
             create: { guildId, channelId, ...data },
-            update: data,
+            update: updateData,
         })
     }
 
@@ -114,11 +131,43 @@ export class ChannelCleanupService {
         )
     }
 
-    /** Marks a purge config as executed. */
+    /** Marks a purge config as executed, resetting any prior failure streak. */
     async markPurgeExecuted(id: string): Promise<ChannelCleanupConfig> {
         return await prisma.channelCleanupConfig.update({
             where: { id },
-            data: { lastRunAt: new Date() },
+            data: {
+                lastRunAt: new Date(),
+                consecutiveFailures: 0,
+                lastError: null,
+            },
+        })
+    }
+
+    /**
+     * Records a failed purge attempt. Auto-disables the config once
+     * MAX_CONSECUTIVE_PURGE_FAILURES is reached so a bot that lost
+     * ManageMessages (or similar) doesn't retry forever with no operator
+     * signal (#1792).
+     */
+    async recordPurgeFailure(
+        id: string,
+        errorMessage: string,
+    ): Promise<ChannelCleanupConfig> {
+        const updated = await prisma.channelCleanupConfig.update({
+            where: { id },
+            data: {
+                consecutiveFailures: { increment: 1 },
+                lastError: errorMessage,
+            },
+        })
+
+        if (updated.consecutiveFailures < MAX_CONSECUTIVE_PURGE_FAILURES) {
+            return updated
+        }
+
+        return await prisma.channelCleanupConfig.update({
+            where: { id },
+            data: { enabled: false },
         })
     }
 }
