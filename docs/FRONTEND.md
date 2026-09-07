@@ -787,7 +787,7 @@ import { api } from '@/services/api'
 - Timeout: 10s
 - Error mapping: every rejection is normalized to an `ApiError` (status, message, details); a network failure with no response maps to status `0`
 - 401 handling: redirects to Discord OAuth, throttled by a 30s `sessionStorage` cooldown to break redirect loops
-- No raw axios export: `api.*` is the only supported entry point (see #1979)
+- Raw axios instance still exported as the module default (`export default apiClient`); the supported entry point is the named `api` object (see #1979)
 
 ### Authentication Endpoints
 
