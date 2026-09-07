@@ -57,10 +57,20 @@ export class ChannelCleanupService {
         channelId: string,
         data: UpsertConfigData,
     ): Promise<ChannelCleanupConfig> {
+        const updateData = { ...data }
+        // Reset failure streak when re-enabling a config so it gets a fresh
+        // grace period rather than being immediately re-disabled on the next
+        // failure (addresses re-enable case for #1792).
+        if (data.enabled === true) {
+            Object.assign(updateData, {
+                consecutiveFailures: 0,
+                lastError: null,
+            })
+        }
         return await prisma.channelCleanupConfig.upsert({
             where: { guildId_channelId: { guildId, channelId } },
             create: { guildId, channelId, ...data },
-            update: data,
+            update: updateData,
         })
     }
 
