@@ -200,6 +200,25 @@ describe('withRetry', () => {
         expect(fn).toHaveBeenCalledTimes(2)
     })
 
+    it('retries a wrapped network error (Node fetch pattern) when retryNetworkErrors is true', async () => {
+        // Node's fetch (undici) wraps connection errors as TypeError with cause
+        const wrappedError = new TypeError('fetch failed')
+        const cause = new Error('connect ECONNREFUSED 127.0.0.1:59999')
+        Object.defineProperty(wrappedError, 'cause', { value: cause })
+
+        const fn = jest
+            .fn()
+            .mockRejectedValueOnce(wrappedError)
+            .mockResolvedValueOnce('ok')
+
+        const result = await withRetry('test', fn, 2, {
+            retryNetworkErrors: true,
+        })
+
+        expect(result).toBe('ok')
+        expect(fn).toHaveBeenCalledTimes(2)
+    })
+
     it('honors Retry-After on any retryable Response, not just 429', async () => {
         const serverErrorWithRetryAfter = new Response(null, {
             status: 503,

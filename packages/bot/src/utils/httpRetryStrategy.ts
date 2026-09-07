@@ -24,17 +24,31 @@ const MAX_RETRY_AFTER_MS = 60 * 1000
  * or connection issues, or errors without a stack (fetch API under certain
  * conditions). If unsure, return false — let the caller explicitly throw if
  * they want retry behavior.
+ *
+ * Note: Node's fetch (undici) wraps connection-level failures as `TypeError`
+ * with message `'fetch failed'` and the real error in `error.cause`. We check
+ * both the error itself and its cause chain recursively.
  */
 function isNetworkError(error: unknown): boolean {
     if (!(error instanceof Error)) return false
     const msg = `${error.name} ${error.message}`.toLowerCase()
-    return (
+    const isNetworkPattern =
         msg.includes('econnrefused') ||
         msg.includes('enotfound') ||
+        msg.includes('econnreset') ||
+        msg.includes('etimedout') ||
         msg.includes('timeout') ||
         msg.includes('network') ||
         msg.includes('dns')
-    )
+
+    if (isNetworkPattern) return true
+
+    // Recursively check error.cause (Node fetch wraps connection errors here)
+    if (error.cause instanceof Error) {
+        return isNetworkError(error.cause)
+    }
+
+    return false
 }
 
 /**
