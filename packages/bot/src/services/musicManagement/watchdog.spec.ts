@@ -85,6 +85,23 @@ describe('MusicWatchdogService', () => {
         expect(rejoin).not.toHaveBeenCalled()
         expect(play).not.toHaveBeenCalled()
     })
+
+    it('clearIntentionalStop clears a flag set by markIntentionalStop (#2246)', () => {
+        const service = new MusicWatchdogService()
+
+        service.markIntentionalStop('guild-3')
+        expect(service.isIntentionalStop('guild-3')).toBe(true)
+
+        service.clearIntentionalStop('guild-3')
+        expect(service.isIntentionalStop('guild-3')).toBe(false)
+    })
+
+    it('clearIntentionalStop is a no-op when no flag is set', () => {
+        const service = new MusicWatchdogService()
+
+        expect(() => service.clearIntentionalStop('guild-4')).not.toThrow()
+        expect(service.isIntentionalStop('guild-4')).toBe(false)
+    })
 })
 
 describe('MusicWatchdogService — orphan session monitor', () => {
