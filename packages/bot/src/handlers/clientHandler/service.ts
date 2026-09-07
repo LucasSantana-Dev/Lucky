@@ -127,14 +127,16 @@ export async function startClient({
                 })
             }
 
-            try {
-                await restoreSessionsOnStartup(client)
-            } catch (error) {
+            // Restore music sessions in the background without blocking
+            // scheduler startup. The restore has its own error handling
+            // and does per-guild work sequentially; failure isolation is
+            // preserved, but the delay should not suppress schedulers.
+            restoreSessionsOnStartup(client).catch((error) => {
                 errorLog({
                     message: 'Failed to restore music sessions on startup',
                     error,
                 })
-            }
+            })
 
             // Run the digest scheduler startup independently so an upstream
             // failure (command registration, twitch service) cannot suppress
