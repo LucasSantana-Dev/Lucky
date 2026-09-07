@@ -29,6 +29,7 @@ import { handleQueueExhaustion } from './queueExhaustion'
 import { recordRecommendationOutcome } from '../../services/musicRecommendation/recommendationTelemetry'
 import {
     getRecentSkipCount,
+    getTrackRequesterId,
     isAutoplayTrack,
     isRecommendationAutoplay,
     recordImplicitTrackFeedback,
@@ -92,11 +93,6 @@ function handleAutoplayCounter(
             message: `Manual track played but autoplay is enabled - keeping autoplay counter for radio experience`,
         })
     }
-}
-
-function getTrackRequesterId(track: Track): string | undefined {
-    const metadata = track.metadata as { requestedById?: string } | undefined
-    return track.requestedBy?.id ?? metadata?.requestedById
 }
 
 async function handleQueueReplenishment(

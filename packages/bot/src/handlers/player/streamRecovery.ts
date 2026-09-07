@@ -88,53 +88,61 @@ export async function recoverFromStreamExtractionError(
 
     // Timeout guard: if YouTube search hangs (no response in 10s), skip the
     // track rather than blocking the player indefinitely.
-    const searchTimeout = new Promise<null>((resolve) =>
-        setTimeout(() => resolve(null), 10_000).unref(),
-    )
-    const searchResult = await Promise.race([
-        queue.player.search(currentTrack.title, {
-            requestedBy: requestedByUser,
-            searchEngine: QueryType.YOUTUBE_SEARCH,
-        }),
-        searchTimeout,
-    ])
+    let timeoutHandle: NodeJS.Timeout | undefined
+    const searchTimeout = new Promise<null>((resolve) => {
+        timeoutHandle = setTimeout(() => resolve(null), 10_000)
+        timeoutHandle.unref()
+    })
+    try {
+        const searchResult = await Promise.race([
+            queue.player.search(currentTrack.title, {
+                requestedBy: requestedByUser,
+                searchEngine: QueryType.YOUTUBE_SEARCH,
+            }),
+            searchTimeout,
+        ])
 
-    if (!searchResult || searchResult.tracks.length === 0) {
-        warnLog({
-            message: 'Stream failed, YouTube recovery found nothing — skipping',
-            data: { title: currentTrack.title, guildId: queue.guild.id },
-        })
-        await notifyChannelStreamFailed(queue, currentTrack.title)
-        queue.node.skip()
-        return
-    }
+        if (!searchResult || searchResult.tracks.length === 0) {
+            warnLog({
+                message: 'Stream failed, YouTube recovery found nothing — skipping',
+                data: { title: currentTrack.title, guildId: queue.guild.id },
+            })
+            await notifyChannelStreamFailed(queue, currentTrack.title)
+            queue.node.skip()
+            return
+        }
 
-    const alternativeTrack = searchResult.tracks.find(
-        (track) => !isSameTrack(currentTrack, track),
-    )
-
-    if (alternativeTrack) {
-        queue.insertTrack(alternativeTrack, 0)
-        queue.node.skip()
-        providerHealthService.recordSuccess(providerFromTrack(currentTrack))
-        debugLog({
-            message: 'Successfully recovered from stream extraction error',
-            data: {
-                title: currentTrack.title,
-                alternativeUrl: alternativeTrack.url,
-            },
-        })
-    } else {
-        const allSameTrack = searchResult.tracks.some((track) =>
-            isSameTrack(currentTrack, track),
+        const alternativeTrack = searchResult.tracks.find(
+            (track) => !isSameTrack(currentTrack, track),
         )
-        warnLog({
-            message: allSameTrack
-                ? 'Stream failed, YouTube returned same track alternative — skipping instead of reinsert'
-                : 'Stream failed, all YouTube alternatives already in queue — skipping',
-            data: { title: currentTrack.title, guildId: queue.guild.id },
-        })
-        await notifyChannelStreamFailed(queue, currentTrack.title)
-        queue.node.skip()
+
+        if (alternativeTrack) {
+            queue.insertTrack(alternativeTrack, 0)
+            queue.node.skip()
+            providerHealthService.recordSuccess('youtube')
+            debugLog({
+                message: 'Successfully recovered from stream extraction error',
+                data: {
+                    title: currentTrack.title,
+                    alternativeUrl: alternativeTrack.url,
+                },
+            })
+        } else {
+            const allSameTrack = searchResult.tracks.some((track) =>
+                isSameTrack(currentTrack, track),
+            )
+            warnLog({
+                message: allSameTrack
+                    ? 'Stream failed, YouTube returned same track alternative — skipping instead of reinsert'
+                    : 'Stream failed, all YouTube alternatives already in queue — skipping',
+                data: { title: currentTrack.title, guildId: queue.guild.id },
+            })
+            await notifyChannelStreamFailed(queue, currentTrack.title)
+            queue.node.skip()
+        }
+    } finally {
+        if (timeoutHandle !== undefined) {
+            clearTimeout(timeoutHandle)
+        }
     }
 }

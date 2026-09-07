@@ -170,7 +170,7 @@ async function appendAcceptanceRate(
         }
 
         const ratePercent = Math.round(sourceRow.acceptanceRate * 100)
-        return `${reason} · ${ratePercent}% accepted`
+        return `${reason} •${ratePercent}% accepted`
     } catch {
         // On any error (cache issue, service issue), omit the rate gracefully
         return reason
@@ -286,16 +286,16 @@ async function buildNowPlayingFooter(
         ? await getAutoplayCount(queue.guild.id)
         : null
     const baseFooter = isAutoplay
-        ? `Autoplay · ${autoplayCount ?? 0}/${constants.MAX_AUTOPLAY_TRACKS ?? 50} songs`
+        ? `Autoplay • ${autoplayCount ?? 0}/${constants.MAX_AUTOPLAY_TRACKS ?? 50} songs`
         : requesterInfo
     let footer =
         baseFooter && !baseFooter.includes('/invite')
-            ? `${baseFooter} · /invite to add Lucky`
+            ? `${baseFooter} • /invite to add Lucky`
             : baseFooter
     // Subtle footnote when the streamBridge resolved via a fallback stage
     // instead of the primary yt-dlp source (#1769).
     const fallbackLabel = getStreamBridgeFallbackLabel(track)
-    if (fallbackLabel) footer = `${footer} · via fallback: ${fallbackLabel}`
+    if (fallbackLabel) footer = `${footer} • via fallback: ${fallbackLabel}`
     return footer
 }
 

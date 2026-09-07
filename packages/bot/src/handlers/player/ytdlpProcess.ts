@@ -31,7 +31,11 @@ function validateYtDlpUrl(url: string): void {
     if (parsed.protocol !== 'https:') {
         throw new Error(`yt-dlp: only https URLs are allowed`)
     }
-    if (!ALLOWED_YTDLP_DOMAINS.has(parsed.hostname.toLowerCase())) {
+    if (
+        !ALLOWED_YTDLP_DOMAINS.has(
+            parsed.hostname.toLowerCase().replace(/\.$/, ''),
+        )
+    ) {
         throw new Error(`yt-dlp: domain not in allowlist: ${parsed.hostname}`)
     }
 }
@@ -166,11 +170,9 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
             if (settled) return
             settled = true
             clearTimeout(timeout)
-            if (code && code !== 0) {
-                const stderr = Buffer.concat(stderrChunks).toString().trim()
-                const reason = stderr ? ` - ${stderr.split('\n')[0]}` : ''
-                reject(new Error(`yt-dlp exited with code ${code}${reason}`))
-            }
+            const stderr = Buffer.concat(stderrChunks).toString().trim()
+            const reason = stderr ? ` - ${stderr.split('\n')[0]}` : ''
+            reject(new Error(`yt-dlp exited without output (code ${code})${reason}`))
         })
     })
 }

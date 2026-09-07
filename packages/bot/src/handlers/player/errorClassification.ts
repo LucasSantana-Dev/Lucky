@@ -22,8 +22,15 @@ export function toErrorDetails(error: unknown): {
         }
     }
 
+    let errorMessage: string
+    try {
+        errorMessage = String(error)
+    } catch {
+        errorMessage = '[unknown error - String() threw]'
+    }
+
     return {
-        errorMessage: String(error),
+        errorMessage,
         errorName: typeof error,
     }
 }
@@ -35,7 +42,8 @@ export function toErrorInstance(error: unknown): Error | undefined {
 export function normalizeText(value?: string): string {
     return (value ?? '')
         .toLowerCase()
-        .replaceAll(/[^a-z0-9]+/g, '')
+        .normalize('NFKC')
+        .replaceAll(/[^\p{L}\p{N}]+/gu, '')
         .trim()
 }
 
