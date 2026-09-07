@@ -17,6 +17,27 @@ function jitterMs(): number {
 const MAX_RETRY_AFTER_MS = 60 * 1000
 
 /**
+ * Heuristic check: is this error likely network-related?
+ *
+ * In Node.js and browsers, network failures don't throw a specific error type,
+ * so we check common patterns: error names/messages suggesting DNS, timeout,
+ * or connection issues, or errors without a stack (fetch API under certain
+ * conditions). If unsure, return false — let the caller explicitly throw if
+ * they want retry behavior.
+ */
+function isNetworkError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false
+    const msg = `${error.name} ${error.message}`.toLowerCase()
+    return (
+        msg.includes('econnrefused') ||
+        msg.includes('enotfound') ||
+        msg.includes('timeout') ||
+        msg.includes('network') ||
+        msg.includes('dns')
+    )
+}
+
+/**
  * Parse a Retry-After header value into a millisecond delay.
  *
  * Per RFC 7231 the header may be either:
@@ -68,16 +89,16 @@ function isRetryable(
     { retryableStatuses = [429], retryNetworkErrors = false }: WithRetryOptions,
 ): boolean {
     if (error instanceof Response)
-        return retryableStatuses.includes(error.status)
-    return retryNetworkErrors
+        return error.status === 429 || retryableStatuses.includes(error.status)
+    return retryNetworkErrors && isNetworkError(error)
 }
 
-// 429 gets its server-specified Retry-After; everything else (opted-in 5xx,
-// network errors) gets exponential backoff with jitter since there's nothing
-// to honor.
+// Any retryable Response with a Retry-After header gets its server-specified
+// delay; everything else (opted-in network errors, responses without the
+// header) gets exponential backoff with jitter.
 function computeDelayMs(error: unknown, attempt: number): number {
     const retryAfterMs =
-        error instanceof Response && error.status === 429
+        error instanceof Response
             ? parseRetryAfterMs(error.headers.get('Retry-After'))
             : null
     return Math.min(

@@ -4,7 +4,10 @@ import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { getTwitchUserAccessToken } from '../twitch'
 import { throwIfRetryable, withRetry } from '../utils/httpRetryStrategy'
 
-const RETRYABLE_STATUSES = [429, 500, 502, 503, 504]
+const RETRYABLE_STATUSES = [
+    429,
+    ...Array.from({ length: 100 }, (_, index) => 500 + index),
+]
 
 const TWITCH_POLL_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes per spec
 // Issue #130 asks 10 min, but search.list costs 100 quota units: 10-min polling

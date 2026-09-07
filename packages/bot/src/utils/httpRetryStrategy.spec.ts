@@ -52,6 +52,22 @@ describe('throwIfRetryable', () => {
         const res = new Response(null, { status: 500 })
         expect(() => throwIfRetryable(res)).not.toThrow()
     })
+
+    it('throws when status matches an extraStatus', () => {
+        const res = new Response(null, { status: 503 })
+        let thrown: unknown
+        try {
+            throwIfRetryable(res, [503])
+        } catch (err) {
+            thrown = err
+        }
+        expect(thrown).toBe(res)
+    })
+
+    it('does not throw when status does not match any extraStatus', () => {
+        const res = new Response(null, { status: 503 })
+        expect(() => throwIfRetryable(res, [500, 502])).not.toThrow()
+    })
 })
 
 describe('withRetry', () => {
@@ -96,5 +112,109 @@ describe('withRetry', () => {
 
         await expect(withRetry('test', fn)).rejects.toBe(err)
         expect(fn).toHaveBeenCalledTimes(1)
+    })
+
+    it('retries a 5xx Response when retryableStatuses includes it', async () => {
+        const serverError = new Response(null, {
+            status: 503,
+            headers: { 'Retry-After': '0' },
+        })
+        const fn = jest
+            .fn()
+            .mockRejectedValueOnce(serverError)
+            .mockResolvedValueOnce('ok')
+
+        const result = await withRetry('test', fn, 2, {
+            retryableStatuses: [503],
+        })
+
+        expect(result).toBe('ok')
+        expect(fn).toHaveBeenCalledTimes(2)
+    })
+
+    it('still retries 429 even when custom retryableStatuses provided', async () => {
+        const rateLimited = new Response(null, {
+            status: 429,
+            headers: { 'Retry-After': '0' },
+        })
+        const fn = jest
+            .fn()
+            .mockRejectedValueOnce(rateLimited)
+            .mockResolvedValueOnce('ok')
+
+        const result = await withRetry('test', fn, 2, {
+            retryableStatuses: [503],
+        })
+
+        expect(result).toBe('ok')
+        expect(fn).toHaveBeenCalledTimes(2)
+    })
+
+    it('retries a network error when retryNetworkErrors is true', async () => {
+        const networkError = new Error('Network timeout')
+        const fn = jest
+            .fn()
+            .mockRejectedValueOnce(networkError)
+            .mockResolvedValueOnce('ok')
+
+        const result = await withRetry('test', fn, 2, {
+            retryNetworkErrors: true,
+        })
+
+        expect(result).toBe('ok')
+        expect(fn).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not retry a network error when retryNetworkErrors is false', async () => {
+        const networkError = new Error('Network timeout')
+        const fn = jest.fn().mockRejectedValue(networkError)
+
+        await expect(
+            withRetry('test', fn, 2, { retryNetworkErrors: false }),
+        ).rejects.toBe(networkError)
+        expect(fn).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not retry a non-network error even when retryNetworkErrors is true', async () => {
+        const logicError = new Error('Invalid input: malformed JSON')
+        const fn = jest.fn().mockRejectedValue(logicError)
+
+        await expect(
+            withRetry('test', fn, 2, { retryNetworkErrors: true }),
+        ).rejects.toBe(logicError)
+        expect(fn).toHaveBeenCalledTimes(1)
+    })
+
+    it('retries an ECONNREFUSED error when retryNetworkErrors is true', async () => {
+        const connRefused = new Error('ECONNREFUSED: connection refused')
+        const fn = jest
+            .fn()
+            .mockRejectedValueOnce(connRefused)
+            .mockResolvedValueOnce('ok')
+
+        const result = await withRetry('test', fn, 2, {
+            retryNetworkErrors: true,
+        })
+
+        expect(result).toBe('ok')
+        expect(fn).toHaveBeenCalledTimes(2)
+    })
+
+    it('honors Retry-After on any retryable Response, not just 429', async () => {
+        const serverErrorWithRetryAfter = new Response(null, {
+            status: 503,
+            headers: { 'Retry-After': '0' },
+        })
+        const fn = jest
+            .fn()
+            .mockRejectedValueOnce(serverErrorWithRetryAfter)
+            .mockResolvedValueOnce('ok')
+
+        const result = await withRetry('test', fn, 2, {
+            retryableStatuses: [503],
+        })
+
+        expect(result).toBe('ok')
+        expect(fn).toHaveBeenCalledTimes(2)
     })
 })
