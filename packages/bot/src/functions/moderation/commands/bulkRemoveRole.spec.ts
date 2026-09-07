@@ -3,6 +3,7 @@ import { Collection } from 'discord.js'
 
 const batchJobServiceMock = {
     create: jest.fn(),
+    markFailed: jest.fn(),
 }
 const checkBatchPermissionsMock = jest.fn()
 const enqueueBatchJobMock = jest.fn()
@@ -59,6 +60,7 @@ function createMockRole(id = 'role-123', name = 'TestRole') {
         id,
         name,
         members: new Collection(),
+        editable: true,
     }
 }
 
