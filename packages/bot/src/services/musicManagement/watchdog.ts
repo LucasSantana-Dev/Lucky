@@ -119,6 +119,12 @@ export class MusicWatchdogService {
     markIntentionalStop(guildId: string): void {
         this.intentionalStops.add(guildId)
         this.clear(guildId)
+        // Cancel any orphaned timer from a previous call so only the latest
+        // timer for this guild can delete the flag.
+        const oldTimer = this.intentionalStopAutoClearTimers.get(guildId)
+        if (oldTimer) {
+            clearTimeout(oldTimer)
+        }
         // Window must outlive the watchdog timeout so the flag is still set
         // when any already-scheduled checkAndRecover fires.
         const autoClearTimer = setTimeout(

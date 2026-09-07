@@ -194,6 +194,12 @@ export const setupLifecycleHandlers = (player: {
             })
         }
 
+        // Capture the flag state before the restore block so we only clear flags
+        // from the previous session, not ones set during the async restore window.
+        const wasStoppedBeforeRestore = musicWatchdogService.isIntentionalStop(
+            queue.guild.id
+        )
+
         if (
             ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED &&
             !musicWatchdogService.isIntentionalStop(queue.guild.id)
@@ -237,12 +243,6 @@ export const setupLifecycleHandlers = (player: {
                 })
             }
         }
-
-        // Preserve whether the flag was stale at connection start so we only
-        // clear flags from the previous session, not ones set during restore.
-        const wasStoppedBeforeRestore = musicWatchdogService.isIntentionalStop(
-            queue.guild.id
-        )
 
         musicWatchdogService.arm(queue)
 
