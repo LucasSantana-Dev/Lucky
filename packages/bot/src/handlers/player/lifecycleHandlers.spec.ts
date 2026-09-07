@@ -10,6 +10,7 @@ const watchdogArmMock = jest.fn()
 const watchdogCheckRecoverMock = jest.fn()
 const watchdogClearMock = jest.fn()
 const watchdogMarkIntentionalStopMock = jest.fn()
+const watchdogClearIntentionalStopMock = jest.fn()
 const watchdogIsIntentionalStopMock = jest.fn(() => false)
 const replenishQueueMock = jest.fn()
 
@@ -34,6 +35,8 @@ jest.mock('../../services/musicManagement/watchdog', () => ({
         clear: (...args: unknown[]) => watchdogClearMock(...args),
         isIntentionalStop: watchdogIsIntentionalStopMock,
         markIntentionalStop: watchdogMarkIntentionalStopMock,
+        clearIntentionalStop: (...args: unknown[]) =>
+            watchdogClearIntentionalStopMock(...args),
     },
 }))
 
@@ -108,6 +111,31 @@ describe('setupLifecycleHandlers', () => {
             expect.objectContaining({ signal: expect.anything() }),
         )
         expect(watchdogArmMock).toHaveBeenCalledWith(queue)
+    })
+
+    it('clears a stale intentional-stop flag once the new session arms (#2246)', async () => {
+        watchdogIsIntentionalStopMock.mockReturnValue(true)
+
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+
+        setupLifecycleHandlers(player)
+
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            metadata: { requestedBy: { id: 'user-1' } },
+            connection: { state: { status: 'ready' }, joinConfig: {} },
+        } as unknown as GuildQueue
+
+        await handlers.connection(queue)
+
+        expect(watchdogClearIntentionalStopMock).toHaveBeenCalledWith('guild-1')
     })
 
     it('aborts the restore and continues with an empty queue when it exceeds the deadline', async () => {
