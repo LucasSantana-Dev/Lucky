@@ -1,3 +1,5 @@
+import { randomInt } from 'node:crypto'
+
 import { debugLog, warnLog } from '@lucky/shared/utils/general/log'
 
 async function sleep(ms: number): Promise<void> {
@@ -6,7 +8,12 @@ async function sleep(ms: number): Promise<void> {
     })
 }
 
-const DEFAULT_RETRY_AFTER_MS = 1000
+// Jitter uses crypto.randomInt purely to satisfy S2245 - backoff spread is not
+// security-sensitive, but the gate treats Math.random as a finding.
+function jitterMs(): number {
+    return randomInt(0, 1000)
+}
+
 const MAX_RETRY_AFTER_MS = 60 * 1000
 
 /**
@@ -40,9 +47,43 @@ export function parseRetryAfterMs(header: string | null): number | null {
  * Throw the Response when its status is retryable so withRetry's catch block
  * can intercept it. fetch() does not throw on HTTP error statuses, so
  * wrapped callbacks must signal retry-eligible failures explicitly.
+ *
+ * 429 is always retryable; pass `extraStatuses` (e.g. 5xx) to opt a
+ * particular caller into retrying additional statuses too.
  */
-export function throwIfRetryable(res: Response): void {
-    if (res.status === 429) throw res
+export function throwIfRetryable(
+    res: Response,
+    extraStatuses: number[] = [],
+): void {
+    if (res.status === 429 || extraStatuses.includes(res.status)) throw res
+}
+
+export type WithRetryOptions = {
+    retryableStatuses?: number[]
+    retryNetworkErrors?: boolean
+}
+
+function isRetryable(
+    error: unknown,
+    { retryableStatuses = [429], retryNetworkErrors = false }: WithRetryOptions,
+): boolean {
+    if (error instanceof Response)
+        return retryableStatuses.includes(error.status)
+    return retryNetworkErrors
+}
+
+// 429 gets its server-specified Retry-After; everything else (opted-in 5xx,
+// network errors) gets exponential backoff with jitter since there's nothing
+// to honor.
+function computeDelayMs(error: unknown, attempt: number): number {
+    const retryAfterMs =
+        error instanceof Response && error.status === 429
+            ? parseRetryAfterMs(error.headers.get('Retry-After'))
+            : null
+    return Math.min(
+        retryAfterMs ?? 1000 * 2 ** attempt + jitterMs(),
+        MAX_RETRY_AFTER_MS,
+    )
 }
 
 /**
@@ -50,51 +91,41 @@ export function throwIfRetryable(res: Response): void {
  * and available to any future integration) so each doesn't reinvent
  * Retry-After parsing and backoff. Mirrors the pattern originally built for
  * Spotify (spotify/spotifyApi.ts's withSpotifyRetry) - #1974.
+ *
+ * By default only a 429 Response (thrown via throwIfRetryable) is retried,
+ * using its Retry-After header. Pass `retryableStatuses` to also retry other
+ * statuses (e.g. 5xx), and `retryNetworkErrors: true` to also retry thrown
+ * non-Response errors (timeouts, DNS failures) - both use exponential
+ * backoff with jitter since there's no Retry-After to honor.
  */
 export async function withRetry<T>(
     label: string,
     fn: () => Promise<T>,
     maxRetries = 2,
+    options: WithRetryOptions = {},
 ): Promise<T> {
     let attempt = 0
     while (true) {
         try {
             return await fn()
         } catch (error) {
-            const isResponse = error instanceof Response
-            const status = isResponse ? error.status : null
+            if (!isRetryable(error, options)) throw error
 
-            if (status === 429 && attempt < maxRetries) {
-                const retryAfterHeader = isResponse
-                    ? error.headers.get('Retry-After')
-                    : null
-                const parsedDelayMs = parseRetryAfterMs(retryAfterHeader)
-                const delayMs = Math.min(
-                    parsedDelayMs ?? DEFAULT_RETRY_AFTER_MS,
-                    MAX_RETRY_AFTER_MS,
-                )
-                debugLog({
-                    message: `${label} 429 rate limit, retrying`,
-                    data: {
-                        attempt,
-                        maxRetries,
-                        delayMs,
-                        retryAfterHeader,
-                    },
-                })
-                await sleep(delayMs)
-                attempt++
-                continue
-            }
-
-            if (status === 429) {
+            if (attempt >= maxRetries) {
                 warnLog({
-                    message: `${label} 429 retry exhausted`,
+                    message: `${label} retry exhausted`,
                     data: { attempt, maxRetries },
                 })
+                throw error
             }
 
-            throw error
+            const delayMs = computeDelayMs(error, attempt)
+            debugLog({
+                message: `${label} retrying`,
+                data: { attempt, maxRetries, delayMs },
+            })
+            await sleep(delayMs)
+            attempt++
         }
     }
 }
