@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.43.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.42.1...v2.43.0) (2026-09-07)
+
+
+### Features
+
+* **bot:** add server-log ignore-list for channels/roles/users ([#2281](https://github.com/LucasSantana-Dev/Lucky/issues/2281)) ([ea1a596](https://github.com/LucasSantana-Dev/Lucky/commit/ea1a5966dfb978f108d964bb4b0c7b64dfb9bca7))
+
+
+### Bug Fixes
+
+* **bot:** add 429 retry resilience to twitch user lookups ([#2272](https://github.com/LucasSantana-Dev/Lucky/issues/2272)) ([9d3a90a](https://github.com/LucasSantana-Dev/Lucky/commit/9d3a90a33fa3dce656913bc39dfb65abdab18757))
+* **bot:** clear stale intentional-stop flag on new session ([#2284](https://github.com/LucasSantana-Dev/Lucky/issues/2284)) ([7b7245a](https://github.com/LucasSantana-Dev/Lucky/commit/7b7245a1fdcfb13c46c3393f0a7397d5aa2718db))
+* **frontend:** remove raw axios escape hatch from the api service ([#2266](https://github.com/LucasSantana-Dev/Lucky/issues/2266)) ([4571a0a](https://github.com/LucasSantana-Dev/Lucky/commit/4571a0ad87cb14bb73b7f527653a432350b28d49))
+
 ## [2.42.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.42.0...v2.42.1) (2026-09-07)
 
 
