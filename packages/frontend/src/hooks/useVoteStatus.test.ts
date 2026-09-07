@@ -1,22 +1,22 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 
-const apiGet = vi.fn()
+const getVoteStatus = vi.fn()
 
 vi.mock('@/services/api', () => ({
-    default: { get: (url: string) => apiGet(url) },
+    api: { me: { getVoteStatus: () => getVoteStatus() } },
 }))
 
 let isAuthenticated = true
 vi.mock('@/stores/authStore', () => ({
-    useAuthStore: <T,>(selector: (s: { isAuthenticated: boolean }) => T) =>
+    useAuthStore: <T>(selector: (s: { isAuthenticated: boolean }) => T) =>
         selector({ isAuthenticated }),
 }))
 
 import { useVoteStatus } from './useVoteStatus'
 
 beforeEach(() => {
-    apiGet.mockReset()
+    getVoteStatus.mockReset()
     isAuthenticated = true
 })
 
@@ -25,11 +25,11 @@ describe('useVoteStatus', () => {
         isAuthenticated = false
         const { result } = renderHook(() => useVoteStatus())
         expect(result.current.status).toBeNull()
-        expect(apiGet).not.toHaveBeenCalled()
+        expect(getVoteStatus).not.toHaveBeenCalled()
     })
 
     test('populates status after successful fetch', async () => {
-        apiGet.mockResolvedValue({
+        getVoteStatus.mockResolvedValue({
             data: {
                 hasVoted: true,
                 streak: 7,
@@ -43,11 +43,11 @@ describe('useVoteStatus', () => {
         await waitFor(() => expect(result.current.status).not.toBeNull())
         expect(result.current.status?.tier?.label).toBe('Lucky Fan')
         expect(result.current.status?.streak).toBe(7)
-        expect(apiGet).toHaveBeenCalledWith('/me/vote-status')
+        expect(getVoteStatus).toHaveBeenCalled()
     })
 
     test('returns null on fetch error (graceful degrade)', async () => {
-        apiGet.mockRejectedValue(new Error('404'))
+        getVoteStatus.mockRejectedValue(new Error('404'))
         const { result } = renderHook(() => useVoteStatus())
         // wait a microtask so the catch handler runs
         await new Promise((r) => setTimeout(r, 10))
