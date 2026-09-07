@@ -256,8 +256,9 @@ describe('logging command', () => {
         // fields, so the notice never fired even though most IDs were
         // silently dropped.
         mockInteraction.options = makeOptions({ subcommand: 'list' }) as any
-        const manyUserIds = Array.from({ length: 3000 }, (_, i) =>
-            String(100000000000000000 + i),
+        const manyUserIds = Array.from(
+            { length: 3000 },
+            (_, i) => `10000000000000${String(i).padStart(4, '0')}`,
         )
         logSettingsServiceMock.getConfig.mockResolvedValue({
             ignoredChannelIds: [],
