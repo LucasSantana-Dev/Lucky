@@ -170,7 +170,7 @@ async function appendAcceptanceRate(
         }
 
         const ratePercent = Math.round(sourceRow.acceptanceRate * 100)
-        return `${reason} •${ratePercent}% accepted`
+        return `${reason} • ${ratePercent}% accepted`
     } catch {
         // On any error (cache issue, service issue), omit the rate gracefully
         return reason

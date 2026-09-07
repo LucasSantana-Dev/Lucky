@@ -172,7 +172,13 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
             clearTimeout(timeout)
             const stderr = Buffer.concat(stderrChunks).toString().trim()
             const reason = stderr ? ` - ${stderr.split('\n')[0]}` : ''
-            reject(new Error(`yt-dlp exited without output (code ${code})${reason}`))
+            if (code && code !== 0) {
+                reject(new Error(`yt-dlp exited with code ${code}${reason}`))
+            } else {
+                reject(
+                    new Error(`yt-dlp exited without output (code ${code})${reason}`),
+                )
+            }
         })
     })
 }
