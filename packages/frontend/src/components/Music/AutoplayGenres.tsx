@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import apiClient from '@/services/api'
+import { api } from '@/services/api'
 
 interface AutoplayGenresProps {
     guildId: string
@@ -44,9 +44,7 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
     const loadGenres = async () => {
         try {
             setError(null)
-            const response = await apiClient.get<{ genres: string[] }>(
-                `/guilds/${guildId}/autoplay/genres`,
-            )
+            const response = await api.guilds.getAutoplayGenres(guildId)
             setGenres(response.data.genres || [])
         } catch (err) {
             reportError('Failed to load genres:', err, {
@@ -89,9 +87,7 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
         setIsLoading(true)
         try {
             setError(null)
-            await apiClient.put(`/guilds/${guildId}/autoplay/genres`, {
-                genres: updatedGenres,
-            })
+            await api.guilds.updateAutoplayGenres(guildId, updatedGenres)
             setGenres(updatedGenres)
             toast.success('Autoplay genres updated')
         } catch (err) {

@@ -1,16 +1,8 @@
 import { useEffect, useState } from 'react'
-import { API_ROUTES } from '@lucky/shared/constants'
-import apiClient from '@/services/api'
+import { api, type VoteStatus } from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
 
-export interface VoteStatus {
-    hasVoted: boolean
-    streak: number
-    nextVoteInSeconds: number
-    tier: { label: string; threshold: number } | null
-    nextTier: { label: string; threshold: number } | null
-    voteUrl: string
-}
+export type { VoteStatus }
 
 /**
  * Reads the authenticated user's top.gg vote streak + tier from the backend.
@@ -28,8 +20,8 @@ export function useVoteStatus() {
             return
         }
         let cancelled = false
-        apiClient
-            .get<VoteStatus>(API_ROUTES.ME.voteStatus())
+        api.me
+            .getVoteStatus()
             .then((resp) => {
                 if (!cancelled) setStatus(resp.data)
             })
