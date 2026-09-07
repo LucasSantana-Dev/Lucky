@@ -8,7 +8,10 @@ import type {
 import type { VoiceBasedChannel } from 'discord.js'
 import { warnLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
-import { hasVersionMarker } from '../../../../../utils/music/searchQueryCleaner'
+import {
+    hasVersionMarker,
+    queryRequestsVersion,
+} from '../../../../../utils/music/searchQueryCleaner'
 
 const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
 const ATTACHMENT_EXTRACTOR_ID = 'com.discord-player.attachmentextractor'
@@ -74,7 +77,7 @@ export function preferExactMatch(
 
         let tracks = result.tracks
         let workingResult = result
-        if (!hasVersionMarker(normalizedQuery)) {
+        if (!queryRequestsVersion(normalizedQuery)) {
             const topHasMarker = hasVersionMarker(tracks[0]?.title ?? '')
             const cleanIndex = tracks.findIndex(
                 (track) => !hasVersionMarker(track.title ?? ''),

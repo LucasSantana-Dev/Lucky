@@ -321,6 +321,17 @@ export function extractSongCore(title: string, author?: string): string | null {
 }
 
 /**
+ * True if a search query asks for a version variant (remix, acoustic, live,
+ * etc.) by name. Unlike `hasVersionMarker`, this matches bare words — a typed
+ * query has no parentheses/brackets to be structured in, and false positives
+ * here (an artist/song name that happens to contain a version word) just
+ * skip an optional demotion rather than wrongly filtering a real result.
+ */
+export function queryRequestsVersion(query: string): boolean {
+    return VERSION_KEYWORD_RE.test(query)
+}
+
+/**
  * True if the text contains an unofficial-version marker (remix, sped up,
  * acoustic, cover, radio edit, etc. — the same `versionVariants` list used to
  * strip search-query noise). Callers use this to tell a search result apart
@@ -328,19 +339,29 @@ export function extractSongCore(title: string, author?: string): string | null {
  * marker itself (#2133).
  *
  * For title/result detection, detects markers only in structured positions
- * (parentheses/brackets) to avoid false positives with words like "clean",
- * "live", or "cover" that commonly appear naturally in song titles.
+ * (parentheses/brackets/hyphenated suffix) to avoid false positives with
+ * words like "clean", "live", or "cover" that commonly appear naturally in
+ * song titles. Callers checking the *query* itself should use
+ * `queryRequestsVersion` instead — a typed query has no structured position
+ * to carry the marker in.
  */
 export function hasVersionMarker(text: string): boolean {
-    // Check for markers in structured positions: parentheses and brackets.
-    // This avoids matching words like "Live Wire", "The Cover of Rolling Stone",
-    // or "Clean" when they're part of the actual song/artist name.
+    // Check for markers in structured positions: parentheses, brackets, and
+    // hyphenated suffixes ("Song - Acoustic"). This avoids matching words
+    // like "Live Wire", "The Cover of Rolling Stone", or "Clean" when
+    // they're part of the actual song/artist name.
     for (const term of noiseTerms.versionVariants) {
         const inner = termInner(term)
         if (
             new RegExp(`\\(${inner}[^)]*\\)`, 'i').test(text) ||
             new RegExp(`\\[${inner}[^\\]]*\\]`, 'i').test(text)
         ) {
+            return true
+        }
+    }
+    for (const sep of [' – ', ' - ', ' — ']) {
+        const idx = text.indexOf(sep)
+        if (idx > 0 && isVersionSuffix(text.slice(idx + sep.length).trim())) {
             return true
         }
     }
