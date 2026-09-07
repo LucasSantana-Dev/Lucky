@@ -238,11 +238,21 @@ export const setupLifecycleHandlers = (player: {
             }
         }
 
+        // Preserve whether the flag was stale at connection start so we only
+        // clear flags from the previous session, not ones set during restore.
+        const wasStoppedBeforeRestore = musicWatchdogService.isIntentionalStop(
+            queue.guild.id
+        )
+
         musicWatchdogService.arm(queue)
-        // This connection is a new, distinct session arming now — any
-        // intentional-stop flag still set belongs to a previous session and
-        // must not mask this session's own disconnect/snapshot handling.
-        musicWatchdogService.clearIntentionalStop(queue.guild.id)
+
+        if (wasStoppedBeforeRestore) {
+            // This connection is a new, distinct session arming now — any
+            // intentional-stop flag from before the restore started belongs to
+            // a previous session and must not mask this session's own
+            // disconnect/snapshot handling.
+            musicWatchdogService.clearIntentionalStop(queue.guild.id)
+        }
     })
 
     player.events.on('connectionDestroyed', async (queue: GuildQueue) => {
