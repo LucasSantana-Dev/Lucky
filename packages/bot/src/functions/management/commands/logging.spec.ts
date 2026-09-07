@@ -246,4 +246,32 @@ describe('logging command', () => {
 
         expect(interactionReplyMock).toHaveBeenCalled()
     })
+
+    it('shows a truncation notice when the char limit binds before the field-count limit', async () => {
+        // Realistic 18-digit snowflakes make each field chunk hit the
+        // 1024-char field limit around ~5 fields/embed, well under the
+        // 25-field cap. A count that overflows all 10 embeds at that real
+        // density used to slip past the old field-count-based inference
+        // (cubic P2 on #2281): it assumed every embed holds a full 25
+        // fields, so the notice never fired even though most IDs were
+        // silently dropped.
+        mockInteraction.options = makeOptions({ subcommand: 'list' }) as any
+        const manyUserIds = Array.from({ length: 3000 }, (_, i) =>
+            String(100000000000000000 + i),
+        )
+        logSettingsServiceMock.getConfig.mockResolvedValue({
+            ignoredChannelIds: [],
+            ignoredRoleIds: [],
+            ignoredUserIds: manyUserIds,
+        })
+
+        await loggingCommand.execute({
+            interaction: mockInteraction as ChatInputCommandInteraction,
+        })
+
+        const { embeds } = interactionReplyMock.mock.calls.at(-1)?.[0].content
+        expect(embeds).toHaveLength(10)
+        const lastFooter = embeds.at(-1).data.footer?.text
+        expect(lastFooter).toBe('Some exclusions not shown (list too large)')
+    })
 })

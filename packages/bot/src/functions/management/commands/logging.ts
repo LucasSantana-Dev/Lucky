@@ -263,7 +263,9 @@ async function handleList(
 
         for (const id of ids) {
             const formatted = formatter(id)
-            const newValue = currentChunk ? `${currentChunk}, ${formatted}` : formatted
+            const newValue = currentChunk
+                ? `${currentChunk}, ${formatted}`
+                : formatted
 
             if (newValue.length > FIELD_CHAR_LIMIT) {
                 if (currentChunk) {
@@ -290,26 +292,49 @@ async function handleList(
     }
 
     if (config.ignoredChannelIds.length > 0) {
-        fields.push(...createFieldChunks(config.ignoredChannelIds, (id) => `<#${id}>`, 'Channels'))
+        fields.push(
+            ...createFieldChunks(
+                config.ignoredChannelIds,
+                (id) => `<#${id}>`,
+                'Channels',
+            ),
+        )
     }
     if (config.ignoredRoleIds.length > 0) {
-        fields.push(...createFieldChunks(config.ignoredRoleIds, (id) => `<@&${id}>`, 'Roles'))
+        fields.push(
+            ...createFieldChunks(
+                config.ignoredRoleIds,
+                (id) => `<@&${id}>`,
+                'Roles',
+            ),
+        )
     }
     if (config.ignoredUserIds.length > 0) {
-        fields.push(...createFieldChunks(config.ignoredUserIds, (id) => `<@${id}>`, 'Users'))
+        fields.push(
+            ...createFieldChunks(
+                config.ignoredUserIds,
+                (id) => `<@${id}>`,
+                'Users',
+            ),
+        )
     }
 
     // Split fields into multiple embeds if they exceed Discord limits (25 fields, 6000 chars)
     const embeds: EmbedBuilder[] = []
     let currentEmbed: typeof fields = []
     let currentEmbedChars = 0
+    let truncated = false
 
     for (const field of fields) {
         const fieldChars = field.name.length + field.value.length
         const wouldExceedFieldLimit = currentEmbed.length >= EMBED_FIELD_LIMIT
-        const wouldExceedCharLimit = currentEmbedChars + fieldChars > EMBED_CHAR_LIMIT
+        const wouldExceedCharLimit =
+            currentEmbedChars + fieldChars > EMBED_CHAR_LIMIT
 
-        if ((wouldExceedFieldLimit || wouldExceedCharLimit) && currentEmbed.length > 0) {
+        if (
+            (wouldExceedFieldLimit || wouldExceedCharLimit) &&
+            currentEmbed.length > 0
+        ) {
             // Start a new embed
             const embed = new EmbedBuilder()
                 .setTitle('Server Log Exclusions')
@@ -322,6 +347,7 @@ async function handleList(
 
             // Stop if we've hit the max embed limit
             if (embeds.length >= MAX_EMBEDS) {
+                truncated = true
                 break
             }
         }
@@ -339,11 +365,16 @@ async function handleList(
         embeds.push(embed)
     }
 
-    // If all fields didn't fit, add a truncation notice
-    if (fields.length > currentEmbed.length + (embeds.length - 1) * EMBED_FIELD_LIMIT) {
+    // If we broke out of the loop at MAX_EMBEDS, fields were dropped —
+    // inferring that from field/char counts assumed every embed holds a
+    // full 25 fields, which is false once FIELD_CHAR_LIMIT chunks are long
+    // enough that EMBED_CHAR_LIMIT binds first (as few as ~6 fields/embed).
+    if (truncated) {
         const lastEmbed = embeds[embeds.length - 1]
         if (lastEmbed) {
-            lastEmbed.setFooter({ text: 'Some exclusions not shown (list too large)' })
+            lastEmbed.setFooter({
+                text: 'Some exclusions not shown (list too large)',
+            })
         }
     }
 
