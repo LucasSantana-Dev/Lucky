@@ -237,7 +237,7 @@ export const api = {
                 `/guilds/${id}/autoplay/genres`,
             ),
         updateAutoplayGenres: (id: string, genres: string[]) =>
-            apiClient.put<{ success: boolean }>(
+            apiClient.put<{ genres: string[] }>(
                 `/guilds/${id}/autoplay/genres`,
                 { genres },
             ),
