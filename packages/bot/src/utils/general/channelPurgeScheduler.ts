@@ -126,6 +126,7 @@ export class ChannelPurgeScheduler {
                 // Bulk delete recent messages up to 5 times (Discord limits bulk delete to 100 messages, and only for messages <14 days old)
                 let deletedTotal = 0
                 let purgeFailed = false
+                let lastErrorMessage = 'Unknown purge failure'
                 for (let i = 0; i < 5; i++) {
                     try {
                         const messages = await textChannel.messages.fetch({
@@ -154,6 +155,10 @@ export class ChannelPurgeScheduler {
                                 attempt: i + 1,
                             },
                         })
+                        lastErrorMessage =
+                            innerError instanceof Error
+                                ? innerError.message
+                                : String(innerError)
                         purgeFailed = true
                         break
                     }
@@ -162,8 +167,63 @@ export class ChannelPurgeScheduler {
                 // On a mid-purge failure (permission revoked, rate limit,
                 // transient API error) leave lastRunAt untouched so the next
                 // tick retries instead of silently dropping the remaining
-                // messages.
+                // messages. Track the failure streak so a permanently broken
+                // config (e.g. ManageMessages revoked) gets auto-disabled
+                // instead of retrying forever with no operator signal (#1792).
                 if (purgeFailed) {
+                    try {
+                        const updated =
+                            await channelCleanupService.recordPurgeFailure(
+                                config.id,
+                                lastErrorMessage,
+                            )
+                        if (!updated.enabled) {
+                            errorLog({
+                                message:
+                                    'Channel purge auto-disabled after repeated failures',
+                                data: {
+                                    channelId: config.channelId,
+                                    guildId: config.guildId,
+                                    consecutiveFailures:
+                                        updated.consecutiveFailures,
+                                    lastError: updated.lastError,
+                                },
+                            })
+                            try {
+                                await serverLogService.createLog(
+                                    config.guildId,
+                                    'mod_action',
+                                    'Channel purge auto-disabled after repeated failures',
+                                    {
+                                        consecutiveFailures:
+                                            updated.consecutiveFailures,
+                                        lastError: updated.lastError,
+                                        configId: config.id,
+                                    },
+                                    { channelId: config.channelId },
+                                )
+                            } catch (logError) {
+                                errorLog({
+                                    message:
+                                        'Failed to log channel purge auto-disable audit entry',
+                                    error: logError,
+                                    data: {
+                                        channelId: config.channelId,
+                                        guildId: config.guildId,
+                                    },
+                                })
+                            }
+                        }
+                    } catch (recordError) {
+                        errorLog({
+                            message: 'Failed to record channel purge failure',
+                            error: recordError,
+                            data: {
+                                channelId: config.channelId,
+                                guildId: config.guildId,
+                            },
+                        })
+                    }
                     continue
                 }
 
@@ -213,7 +273,6 @@ export class ChannelPurgeScheduler {
             }
         }
     }
-
 }
 
 /** Singleton instance of ChannelPurgeScheduler. */
