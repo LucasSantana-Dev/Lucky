@@ -1,9 +1,15 @@
-import { spawn } from 'child_process'
-import { accessSync, constants, statSync } from 'fs'
-import { PassThrough } from 'stream'
-import type { Readable } from 'stream'
+import { spawn } from 'node:child_process'
+import { accessSync, constants, statSync } from 'node:fs'
+import { PassThrough } from 'node:stream'
+import type { Readable } from 'node:stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
+
+// Absolute path, not a bare "yt-dlp" resolved via PATH lookup (CWE-426):
+// the Dockerfile symlinks the venv binary to this fixed location. Override
+// for local dev where it may live elsewhere (e.g. a pyenv/homebrew path).
+const YTDLP_BINARY_PATH =
+    process.env.YTDLP_BINARY_PATH || '/usr/local/bin/yt-dlp'
 
 const ALLOWED_YTDLP_DOMAINS = new Set([
     'youtube.com',
@@ -96,8 +102,7 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
     }
     return new Promise<Readable>((resolve, reject) => {
         const proc = spawn(
-            // NOSONAR: S4036 - command is hardcoded, URL is validated by validateYtDlpUrl before this point
-            'yt-dlp',
+            YTDLP_BINARY_PATH,
             [
                 '--no-playlist',
                 '-f',

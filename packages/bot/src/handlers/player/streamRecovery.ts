@@ -14,6 +14,16 @@ import type { QueueMetadata } from '../../types/QueueMetadata'
 import { isSameTrack } from './errorClassification'
 import { notifyChannelStreamFailed } from './streamFailureNotifier'
 
+function describeYouTubeParserErrorType(
+    youtubeErrorInfo: ReturnType<typeof analyzeYouTubeError>,
+): string {
+    if (youtubeErrorInfo.isCompositeVideoError)
+        return 'CompositeVideoPrimaryInfo'
+    if (youtubeErrorInfo.isHypePointsError) return 'HypePointsFactoid'
+    if (youtubeErrorInfo.isTypeMismatchError) return 'TypeMismatch'
+    return 'Parser'
+}
+
 export function handleYouTubeParserError(
     queue: GuildQueue,
     error: Error,
@@ -32,13 +42,7 @@ export function handleYouTubeParserError(
     debugLog({
         message: 'YouTube parser error detected, skipping current track',
         data: {
-            errorType: youtubeErrorInfo.isCompositeVideoError
-                ? 'CompositeVideoPrimaryInfo'
-                : youtubeErrorInfo.isHypePointsError
-                  ? 'HypePointsFactoid'
-                  : youtubeErrorInfo.isTypeMismatchError
-                    ? 'TypeMismatch'
-                    : 'Parser',
+            errorType: describeYouTubeParserErrorType(youtubeErrorInfo),
         },
     })
 

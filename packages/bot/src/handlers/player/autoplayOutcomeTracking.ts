@@ -23,6 +23,15 @@ export const trackStartTimes = new LRUCache<string, number>({
 export const trackStartKey = (guildId: string, trackId: string): string =>
     `${guildId}::${trackId}`
 
+function classifyOutcome(
+    playedRatio: number | null,
+    path: 'finish' | 'skip',
+): string {
+    if (playedRatio === null) return 'none(no-timing)'
+    if (playedRatio < OUTCOME_ACCEPT_PLAY_RATIO) return 'rejected'
+    return path === 'finish' ? 'accepted' : 'ambiguous(dropped)'
+}
+
 export const guildRecentSkipCounts = new LRUCache<string, number>({
     max: 500,
     ttl: 30 * 60 * 1000,
@@ -84,14 +93,7 @@ export const logAutoplayOutcomeEval = (
         startTime !== undefined && track.durationMS
             ? (Date.now() - startTime) / track.durationMS
             : null
-    const recordedOutcome =
-        playedRatio === null
-            ? 'none(no-timing)'
-            : playedRatio < OUTCOME_ACCEPT_PLAY_RATIO
-              ? 'rejected'
-              : path === 'finish'
-                ? 'accepted'
-                : 'ambiguous(dropped)'
+    const recordedOutcome = classifyOutcome(playedRatio, path)
     infoLog({
         message: 'Autoplay outcome eval',
         data: {

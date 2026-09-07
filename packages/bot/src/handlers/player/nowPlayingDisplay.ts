@@ -22,12 +22,14 @@ import { clearLastFmTrackTiming } from './lastfmScrobbler'
  */
 const prefillFailureLoggedGuilds = new Set<string>()
 
+const DISCORD_API_ERROR_CODE_RE = /\b(\d{5})\b/
+
 /**
  * Manages per-guild now-playing message state with automatic TTL + explicit cleanup
  * on guild lifecycle events (guildDelete, channelDelete).
  */
 class TrackNowPlayingState {
-    private songInfoMessages = new LRUCache<
+    private readonly songInfoMessages = new LRUCache<
         string,
         { messageId: string; channelId: string; trackUrl?: string }
     >({
@@ -93,7 +95,7 @@ function extractErrorCode(error: unknown): number | string | undefined {
         const discordError = error as unknown as { code?: number | string }
         if (discordError.code) return discordError.code
         // Try to extract from error message (e.g., "50013")
-        const match = error.message.match(/\b(\d{5})\b/)
+        const match = DISCORD_API_ERROR_CODE_RE.exec(error.message)
         if (match) return match[1]
     }
     return undefined
@@ -175,23 +177,111 @@ async function appendAcceptanceRate(
     }
 }
 
-export async function sendNowPlayingEmbed(
+async function prefillSkipReasonReactions(
+    message: { react: (emoji: string) => Promise<unknown> },
+    guildId: string,
+    skipReasonEmojis: string[],
+): Promise<{ successCount: number; attemptedCount: number }> {
+    let successCount = 0
+    const attemptedCount = skipReasonEmojis.length
+    for (const emoji of skipReasonEmojis) {
+        try {
+            await message.react(emoji)
+            successCount++
+        } catch (error) {
+            logEmojiPrefillFailure(guildId, error)
+        }
+    }
+    return { successCount, attemptedCount }
+}
+
+function logPartialEmojiPrefill(
+    guildId: string,
+    successCount: number,
+    attemptedCount: number,
+): void {
+    if (successCount === 0 || successCount >= attemptedCount) return
+    debugLog({
+        message: 'Partial emoji prefill: some emojis failed to react',
+        data: { guildId, successCount, attemptedCount },
+    })
+}
+
+/**
+ * Try to edit the previous now-playing message in place instead of sending a
+ * new one. Returns true on success (caller should stop); false means the
+ * cached message is gone/stale and the caller should fall back to sending.
+ */
+async function tryUpdateExistingNowPlayingMessage(
+    queue: GuildQueue,
+    channel: NonNullable<QueueMetadata['channel']>,
+    previousMessage: { messageId: string; channelId: string },
+    opts: {
+        embed: ReturnType<typeof createEmbed>
+        track: Track
+        isAutoplay: boolean
+        skipReasonEmojis: string[]
+    },
+): Promise<boolean> {
+    const { embed, track, isAutoplay, skipReasonEmojis } = opts
+    try {
+        const message = await channel.messages.fetch(previousMessage.messageId)
+        await message.edit({
+            content: null,
+            embeds: [embed],
+            components: [
+                createMusicControlButtons(queue),
+                createMusicActionButtons(queue),
+            ],
+        })
+        const { successCount, attemptedCount } =
+            await prefillSkipReasonReactions(
+                message,
+                queue.guild.id,
+                skipReasonEmojis,
+            )
+        logPartialEmojiPrefill(queue.guild.id, successCount, attemptedCount)
+        // Refresh the cached trackUrl — the message is reused but now points
+        // at a new track, so skip-reason reactions must resolve to it, not
+        // the previous track's recommendation.
+        registerNowPlayingMessage(
+            queue.guild.id,
+            previousMessage.messageId,
+            channel.id,
+            track.url,
+        )
+        debugLog({
+            message: 'Updated now playing message in channel',
+            data: {
+                guildId: queue.guild.id,
+                trackTitle: track.title,
+                isAutoplay,
+            },
+        })
+        return true
+    } catch (error) {
+        debugLog({
+            message: 'Failed to update existing now playing message',
+            error,
+            data: {
+                guildId: queue.guild.id,
+                messageId: previousMessage.messageId,
+            },
+        })
+        deleteSongInfoMessage(queue.guild.id)
+        return false
+    }
+}
+
+async function buildNowPlayingFooter(
     queue: GuildQueue,
     track: Track,
     isAutoplay: boolean,
-): Promise<void> {
-    const metadata = queue.metadata as QueueMetadata | undefined
-    if (!metadata?.channel) return
-
+): Promise<string> {
     const requester = track.requestedBy
     const requesterInfo = requester
         ? `Added by ${requester.username}`
         : 'Added automatically'
-    const requestedByInfo = requester ? requester.username : 'Autoplay'
-    const trackMetadata = (track.metadata ?? {}) as {
-        recommendationReason?: string
-        recommendationSource?: string
-    }
     const autoplayCount = isAutoplay
         ? await getAutoplayCount(queue.guild.id)
         : null
@@ -206,6 +296,21 @@ export async function sendNowPlayingEmbed(
     // instead of the primary yt-dlp source (#1769).
     const fallbackLabel = getStreamBridgeFallbackLabel(track)
     if (fallbackLabel) footer = `${footer} · via fallback: ${fallbackLabel}`
+    return footer
+}
+
+async function buildNowPlayingEmbed(
+    queue: GuildQueue,
+    track: Track,
+    isAutoplay: boolean,
+): Promise<ReturnType<typeof createEmbed>> {
+    const requester = track.requestedBy
+    const requestedByInfo = requester ? requester.username : 'Autoplay'
+    const trackMetadata = (track.metadata ?? {}) as {
+        recommendationReason?: string
+        recommendationSource?: string
+    }
+    const footer = await buildNowPlayingFooter(queue, track, isAutoplay)
 
     const fields = [
         {
@@ -230,7 +335,7 @@ export async function sendNowPlayingEmbed(
         })
     }
 
-    const embed = createEmbed({
+    return createEmbed({
         title: '🎵 Now Playing',
         description: `[**${track.title}**](${track.url}) by **${track.author}**`,
         color: EMBED_COLORS.MUSIC as ColorResolvable,
@@ -239,74 +344,28 @@ export async function sendNowPlayingEmbed(
         fields,
         footer,
     })
+}
 
+export async function sendNowPlayingEmbed(
+    queue: GuildQueue,
+    track: Track,
+    isAutoplay: boolean,
+): Promise<void> {
+    const metadata = queue.metadata as QueueMetadata | undefined
+    if (!metadata?.channel) return
+
+    const embed = await buildNowPlayingEmbed(queue, track, isAutoplay)
     const skipReasonEmojis = getSkipReasonEmojis()
 
     const previousMessage = getSongInfoMessage(queue.guild.id)
     if (previousMessage && previousMessage.channelId === metadata.channel.id) {
-        try {
-            const message = await metadata.channel.messages.fetch(
-                previousMessage.messageId,
-            )
-            await message.edit({
-                content: null,
-                embeds: [embed],
-                components: [
-                    createMusicControlButtons(queue),
-                    createMusicActionButtons(queue),
-                ],
-            })
-            // Add skip-reason emoji reactions
-            let successCount = 0
-            const attemptedCount = skipReasonEmojis.length
-            for (const emoji of skipReasonEmojis) {
-                try {
-                    await message.react(emoji)
-                    successCount++
-                } catch (error) {
-                    logEmojiPrefillFailure(queue.guild.id, error)
-                }
-            }
-            if (successCount > 0 && successCount < attemptedCount) {
-                debugLog({
-                    message:
-                        'Partial emoji prefill: some emojis failed to react',
-                    data: {
-                        guildId: queue.guild.id,
-                        successCount,
-                        attemptedCount,
-                    },
-                })
-            }
-            // Refresh the cached trackUrl — the message is reused but now points
-            // at a new track, so skip-reason reactions must resolve to it, not
-            // the previous track's recommendation.
-            registerNowPlayingMessage(
-                queue.guild.id,
-                previousMessage.messageId,
-                metadata.channel.id,
-                track.url,
-            )
-            debugLog({
-                message: 'Updated now playing message in channel',
-                data: {
-                    guildId: queue.guild.id,
-                    trackTitle: track.title,
-                    isAutoplay,
-                },
-            })
-            return
-        } catch (error) {
-            debugLog({
-                message: 'Failed to update existing now playing message',
-                error,
-                data: {
-                    guildId: queue.guild.id,
-                    messageId: previousMessage.messageId,
-                },
-            })
-            deleteSongInfoMessage(queue.guild.id)
-        }
+        const updated = await tryUpdateExistingNowPlayingMessage(
+            queue,
+            metadata.channel,
+            previousMessage,
+            { embed, track, isAutoplay, skipReasonEmojis },
+        )
+        if (updated) return
     }
 
     const message = await metadata.channel.send({
@@ -317,17 +376,11 @@ export async function sendNowPlayingEmbed(
         ],
     })
 
-    // Add skip-reason emoji reactions
-    let successCount = 0
-    const attemptedCount = skipReasonEmojis.length
-    for (const emoji of skipReasonEmojis) {
-        try {
-            await message.react(emoji)
-            successCount++
-        } catch (error) {
-            logEmojiPrefillFailure(queue.guild.id, error)
-        }
-    }
+    const { successCount, attemptedCount } = await prefillSkipReasonReactions(
+        message,
+        queue.guild.id,
+        skipReasonEmojis,
+    )
 
     registerNowPlayingMessage(
         queue.guild.id,

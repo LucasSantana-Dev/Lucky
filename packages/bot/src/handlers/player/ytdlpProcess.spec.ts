@@ -8,12 +8,12 @@ const mockCleanSearchQuery = jest.fn()
 const mockInfoLog = jest.fn()
 const mockWarnLog = jest.fn()
 
-jest.mock('child_process', () => ({
+jest.mock('node:child_process', () => ({
     spawn: (...args: unknown[]) => mockSpawn(...args),
 }))
 const mockStatSync = jest.fn()
 const mockAccessSync = jest.fn()
-jest.mock('fs', () => ({
+jest.mock('node:fs', () => ({
     statSync: (...args: unknown[]) => mockStatSync(...args),
     accessSync: (...args: unknown[]) => mockAccessSync(...args),
     constants: { R_OK: 4 },
