@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals'
 import type { Message, GuildMember } from 'discord.js'
-import { autoModHandler } from '../autoModHandler'
-import type { MessageContext } from '../types'
+import { autoModHandler } from './autoModHandler'
+import type { MessageContext } from '../../../handlers/message/types'
 
 jest.mock('@lucky/shared/services', () => ({
     autoModService: {
