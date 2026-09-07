@@ -2,7 +2,10 @@ import type { Client } from 'discord.js'
 import { BOT_INVITE_PERMISSIONS } from '@lucky/shared/constants'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import type { DiscordGuild } from './DiscordOAuthService'
-import { getClient as getDiscordClient, getBotToken } from '../utils/discordClientAccessor'
+import {
+    getClient as getDiscordClient,
+    getBotToken,
+} from '../utils/discordClientAccessor'
 import { metricsService } from './MetricsCache'
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
@@ -123,7 +126,8 @@ class GuildBotStatusService {
         if (
             this.botGuildIdsCache &&
             this.botGuildIdsCache.expiresAt > now &&
-            this.botGuildIdsCache.invalidationGeneration === this.invalidationGeneration
+            this.botGuildIdsCache.invalidationGeneration ===
+                this.invalidationGeneration
         ) {
             return this.botGuildIdsCache.guildIds
         }
@@ -133,11 +137,12 @@ class GuildBotStatusService {
         }
 
         const generation = this.invalidationGeneration
-        this.botGuildIdsInFlight = this.fetchBotGuildIds(token, generation).finally(
-            () => {
+        const request = this.fetchBotGuildIds(token, generation).finally(() => {
+            if (this.botGuildIdsInFlight === request) {
                 this.botGuildIdsInFlight = null
-            },
-        )
+            }
+        })
+        this.botGuildIdsInFlight = request
 
         return this.botGuildIdsInFlight
     }

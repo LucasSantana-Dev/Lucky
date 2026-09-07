@@ -180,7 +180,7 @@ class GuildChannelService {
     async getGuildEmojis(guildId: string): Promise<GuildEmojiOption[]> {
         // Validate snowflake before attempting to fetch from client or Discord API
         if (!isSnowflakeId(guildId)) {
-            return []
+            throw new Error('Invalid Discord guild id')
         }
 
         const client = this.getBotClient()
