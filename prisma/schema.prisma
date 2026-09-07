@@ -949,6 +949,8 @@ model ChannelCleanupConfig {
   ttlSeconds      Int?     // for ttl mode, min 5 max 86400
   enabled         Boolean  @default(true)
   lastRunAt       DateTime?
+  consecutiveFailures Int  @default(0)
+  lastError       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
