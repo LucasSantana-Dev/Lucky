@@ -103,6 +103,7 @@ describe('skipto command', () => {
     })
 
     it('stops when queue validation fails', async () => {
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({ queue: undefined })
         ;(requireQueue as jest.Mock).mockResolvedValue(false)
 
         await execute({
