@@ -245,13 +245,17 @@ export async function getSpotifyArtistAlbums(
         artists?: { name?: string }[]
         external_urls?: { spotify?: string }
     }
-    const albums: RawAlbum[] = []
+    const seenNames = new Set<string>()
+    const deduped: RawAlbum[] = []
     let url: string | null =
         `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}/albums?include_groups=album,single&market=US&limit=50`
     try {
-        // Spotify caps each page at 50; stop once we have enough raw candidates
-        // to dedupe/sort/slice down to maxAlbums, or the artist runs out of pages.
-        while (url && albums.length < maxAlbums * 3) {
+        // Spotify caps each page at 50; stop once we have enough distinct
+        // albums, or the artist runs out of pages. Deduping inside the loop
+        // (rather than after) means duplicate-heavy pages (reissues/deluxe
+        // editions sharing a name) don't cut the fetch short before enough
+        // distinct albums have actually been found.
+        while (url && deduped.length < maxAlbums) {
             const res = await fetch(url, {
                 headers: { Authorization: `Bearer ${accessToken}` },
                 signal: AbortSignal.timeout(10_000),
@@ -262,7 +266,12 @@ export async function getSpotifyArtistAlbums(
                 next?: string | null
             } | null
             if (!data) break
-            albums.push(...(data.items ?? []))
+            for (const album of data.items ?? []) {
+                const key = album.name?.toLowerCase().trim()
+                if (!key || seenNames.has(key)) continue
+                seenNames.add(key)
+                deduped.push(album)
+            }
             url = data.next ?? null
         }
     } catch (error) {
@@ -273,13 +282,6 @@ export async function getSpotifyArtistAlbums(
         // Fall through with whatever pages were fetched before the failure.
     }
 
-    const seenNames = new Set<string>()
-    const deduped = albums.filter((a) => {
-        const key = a.name?.toLowerCase().trim()
-        if (!key || seenNames.has(key)) return false
-        seenNames.add(key)
-        return true
-    })
     deduped.sort((a, b) =>
         (b.release_date ?? '').localeCompare(a.release_date ?? ''),
     )

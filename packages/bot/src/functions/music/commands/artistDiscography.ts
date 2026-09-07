@@ -227,7 +227,9 @@ export async function handleArtistDiscography({
             queue.addTrack(track)
         }
 
-        moveUserTrackToPriority(queue, playResult.track)
+        if (playResult.track) {
+            moveUserTrackToPriority(queue, playResult.track)
+        }
 
         await interactionReply({
             interaction,

@@ -81,6 +81,10 @@ describe('handleArtistDiscography', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
+        getSpotifyClientTokenMock.mockReset()
+        searchSpotifyArtistsMock.mockReset()
+        getSpotifyArtistTopTracksMock.mockReset()
+        getSpotifyArtistAlbumsMock.mockReset()
         addTrack = jest.fn()
         ;(resolveGuildQueue as jest.Mock).mockReturnValue({
             queue: { addTrack },
@@ -180,6 +184,9 @@ describe('handleArtistDiscography', () => {
                     createTrack('Death on Two Legs', 'Queen'),
                 ],
             })
+        play.mockResolvedValueOnce({
+            track: createTrack('Bohemian Rhapsody', 'Queen'),
+        })
 
         await handleArtistDiscography({
             client: client as never,
