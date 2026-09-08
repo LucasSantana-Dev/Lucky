@@ -388,5 +388,42 @@ describe('autoModHandler', () => {
 
             expect(message.delete).toHaveBeenCalled()
         })
+
+        it('stays silent when delete fails with Unknown Message (10008)', async () => {
+            ;(autoModService.getSettings as jest.Mock).mockResolvedValue(
+                baseSettings,
+            )
+            ;(autoModService.checkCaps as jest.Mock).mockResolvedValue(true)
+            const message = makeMessage(true)
+            ;(message.delete as jest.Mock).mockRejectedValue(
+                Object.assign(new Error('gone'), { code: 10008 }),
+            )
+            const context = makeContext()
+
+            await autoModHandler.handle(message, context)
+
+            expect(warnLog).not.toHaveBeenCalled()
+        })
+
+        it('logs when delete fails with Missing Permissions (50013)', async () => {
+            ;(autoModService.getSettings as jest.Mock).mockResolvedValue(
+                baseSettings,
+            )
+            ;(autoModService.checkCaps as jest.Mock).mockResolvedValue(true)
+            const message = makeMessage(true)
+            ;(message.delete as jest.Mock).mockRejectedValue(
+                Object.assign(new Error('forbidden'), { code: 50013 }),
+            )
+            const context = makeContext()
+
+            await autoModHandler.handle(message, context)
+
+            expect(warnLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Failed to delete message',
+                    data: { channelId: 'channel1' },
+                }),
+            )
+        })
     })
 })
