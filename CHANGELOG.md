@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.43.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.1...v2.43.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **bot:** wire startup session restore into the ready handler ([#2261](https://github.com/LucasSantana-Dev/Lucky/issues/2261)) ([ec5db14](https://github.com/LucasSantana-Dev/Lucky/commit/ec5db1400a883d6765c5320e61999bf73da02023))
+
 ## [2.43.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.0...v2.43.1) (2026-09-07)
 
 
