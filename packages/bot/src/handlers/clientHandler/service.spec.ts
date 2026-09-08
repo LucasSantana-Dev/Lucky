@@ -55,6 +55,10 @@ jest.mock('../../utils/general/supportSessionScheduler', () => ({
     supportSessionScheduler: { start: jest.fn(), stop: jest.fn() },
 }))
 
+jest.mock('../../services/musicManagement/sessionStartupRestore', () => ({
+    restoreSessionsOnStartup: jest.fn().mockResolvedValue(undefined),
+}))
+
 jest.mock('discord.js', () => {
     const originalModule =
         jest.requireActual<typeof import('discord.js')>('discord.js')
@@ -393,6 +397,68 @@ describe('service', () => {
                 message: 'Error in ready handler:',
                 error: expect.any(Error),
             })
+        })
+
+        // Regression guard for #1983: restoreSessionsOnStartup was fully
+        // implemented and tested but never wired into any ready handler, so
+        // saved voice sessions silently never came back after a redeploy.
+        it('calls restoreSessionsOnStartup in the ready handler', async () => {
+            const { restoreSessionsOnStartup } =
+                await import('../../services/musicManagement/sessionStartupRestore')
+            ;(restoreSessionsOnStartup as jest.Mock).mockClear()
+
+            const mockClient = {
+                login: jest.fn().mockResolvedValue('client'),
+                once: jest.fn((event, handler) => {
+                    if (event === 'ready') {
+                        Promise.resolve().then(() => handler())
+                    }
+                }),
+                user: null,
+                commands: { map: jest.fn().mockReturnValue([]) },
+                guilds: { cache: { values: jest.fn().mockReturnValue([]) } },
+            }
+
+            const startPromise = startClient({ client: mockClient as any })
+            await new Promise((resolve) => setImmediate(resolve))
+            await startPromise
+
+            expect(restoreSessionsOnStartup).toHaveBeenCalledWith(mockClient)
+        })
+
+        it('isolates a restoreSessionsOnStartup failure from other startup steps', async () => {
+            const { restoreSessionsOnStartup } =
+                await import('../../services/musicManagement/sessionStartupRestore')
+            ;(restoreSessionsOnStartup as jest.Mock).mockRejectedValueOnce(
+                new Error('snapshot store unreachable'),
+            )
+            const { modDigestSchedulerService } =
+                await import('../../utils/moderation/modDigestScheduler')
+            ;(modDigestSchedulerService.start as jest.Mock).mockClear()
+
+            const mockClient = {
+                login: jest.fn().mockResolvedValue('client'),
+                once: jest.fn((event, handler) => {
+                    if (event === 'ready') {
+                        Promise.resolve().then(() => handler())
+                    }
+                }),
+                user: null,
+                commands: { map: jest.fn().mockReturnValue([]) },
+                guilds: { cache: { values: jest.fn().mockReturnValue([]) } },
+            }
+
+            const startPromise = startClient({ client: mockClient as any })
+            await new Promise((resolve) => setImmediate(resolve))
+            await startPromise
+
+            expect(errorLog).toHaveBeenCalledWith({
+                message: 'Failed to restore music sessions on startup',
+                error: expect.any(Error),
+            })
+            expect(modDigestSchedulerService.start).toHaveBeenCalledWith(
+                mockClient,
+            )
         })
 
         it('starts the mod digest scheduler in the ready handler', async () => {
