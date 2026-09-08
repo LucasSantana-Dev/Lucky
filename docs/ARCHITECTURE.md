@@ -52,6 +52,27 @@ The nginx container listens on port 80 and proxies to backend and frontend. In d
 
 Config: `nginx/nginx.conf`.
 
+## Deployment & hosting
+
+Production serves through **three independent layers**, each with its own config file. Editing the wrong one is a common mistake (fixing the `/invite` redirect took three PRs - #1889, #1893, #1895 - before landing in the file that actually served that host).
+
+| host                          | served by                                                                                 | config                                            |
+| ----------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `lucky.lucassantana.tech`     | **Cloudflare Pages**, project `lucky-webapp` (`.github/workflows/deploy-frontend-cf.yml`) | `packages/frontend/public/_redirects`, `_headers` |
+| `lucky-api.lucassantana.tech` | Cloudflare Tunnel → homelab nginx                                                         | `nginx/nginx.conf`                                |
+| self-hosted `docker compose`  | the same nginx image, serving frontend + API together                                     | `nginx/nginx.conf`                                |
+| preview deploys               | Vercel (legacy; production migrated off on 2026-06-25)                                    | `vercel.json`                                     |
+
+**How to tell which layer answered a request.** Compare the CSP: `_headers` allows `https://static.cloudflareinsights.com` in `script-src` (Cloudflare injects that beacon); the other two do not.
+
+```bash
+curl -sD - -o /dev/null https://lucky.lucassantana.tech/ | grep -i content-security-policy
+```
+
+**`nginx.conf` only proxies `/api` as a rule** (plus the explicit `/invite`, `/webhook/`, `/webhooks/` location blocks). Anything else falls through to the SPA - a new public path served by the backend needs its own `location` block.
+
+**`_redirects` is evaluated top to bottom**, and the `/* /index.html 200` catch-all swallows any rule placed below it.
+
 ## Docker Services
 
 | Service      | Role                                                 |
@@ -87,12 +108,12 @@ Each package can be developed independently:
 
 ### Package layouts
 
-| Package      | Layout                                                                                                   | Where to add                                                                                                                                                   |
-| ------------ | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **shared**   | `src/config/`, `src/services/`, `src/types/`, `src/utils/`                                               | New config in config/; new services in services/; shared types in types/; composables and helpers in utils/.                                                   |
+| Package      | Layout                                                                                                                                 | Where to add                                                                                                                                                   |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **shared**   | `src/config/`, `src/services/`, `src/types/`, `src/utils/`                                                                             | New config in config/; new services in services/; shared types in types/; composables and helpers in utils/.                                                   |
 | **bot**      | `src/functions/{automod,general,management,moderation,music}/commands/`, `src/handlers/`, `src/utils/`, `src/services/`, `src/events/` | New slash command: add file under `functions/<category>/commands/` or folder + re-export (see command loading below). Handlers, utils, and services by domain. |
-| **backend**  | `src/routes/`, `src/services/`, `src/middleware/`                                                        | New API: route in routes/, logic in services/.                                                                                                                 |
-| **frontend** | `src/components/`, `src/pages/`, `src/hooks/`, `src/stores/`, `src/services/`                            | New page in pages/; shared UI in components/; API client in services/.                                                                                         |
+| **backend**  | `src/routes/`, `src/services/`, `src/middleware/`                                                                                      | New API: route in routes/, logic in services/.                                                                                                                 |
+| **frontend** | `src/components/`, `src/pages/`, `src/hooks/`, `src/stores/`, `src/services/`                                                          | New page in pages/; shared UI in components/; API client in services/.                                                                                         |
 
 ### Command loading (bot)
 
