@@ -336,4 +336,15 @@ describe('hasVersionMarker', () => {
             expect(hasVersionMarker(title)).toBe(false)
         },
     )
+
+    it.each(['Motörhead - Live Wire', 'Artist - Live Wire'])(
+        'does not flag a song title that merely contains a version keyword: %j',
+        (title) => {
+            expect(hasVersionMarker(title)).toBe(false)
+        },
+    )
+
+    it('flags the last hyphenated segment even with an earlier hyphen in the title', () => {
+        expect(hasVersionMarker('Artist - Song Title - Live')).toBe(true)
+    })
 })

@@ -360,8 +360,17 @@ export function hasVersionMarker(text: string): boolean {
         }
     }
     for (const sep of [' – ', ' - ', ' — ']) {
-        const idx = text.indexOf(sep)
-        if (idx > 0 && isVersionSuffix(text.slice(idx + sep.length).trim())) {
+        // lastIndexOf, not indexOf: a version marker is the final segment
+        // ("A - B - Live"), so anchoring on the first separator would slice
+        // off "B - Live" and never match it against an anchored suffix.
+        const idx = text.lastIndexOf(sep)
+        if (idx <= 0) continue
+        const suffix = text.slice(idx + sep.length).trim()
+        // Direct anchored-suffix check, not isVersionSuffix(): that helper's
+        // keyword fallback matches version words anywhere in the suffix
+        // (e.g. "live" inside "Live Wire"), which is exactly the false
+        // positive this function's own docstring promises to avoid.
+        if (HYPHENATED_VERSION_SUFFIXES.some((re) => re.test(suffix))) {
             return true
         }
     }
