@@ -6,6 +6,7 @@ const infoLogMock = jest.fn()
 const warnLogMock = jest.fn()
 const restoreSnapshotMock = jest.fn()
 const saveSnapshotMock = jest.fn()
+const deleteSnapshotMock = jest.fn()
 const watchdogArmMock = jest.fn()
 const watchdogCheckRecoverMock = jest.fn()
 const watchdogClearMock = jest.fn()
@@ -24,6 +25,7 @@ jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
         restoreSnapshot: (...args: unknown[]) => restoreSnapshotMock(...args),
         saveSnapshot: (...args: unknown[]) => saveSnapshotMock(...args),
+        deleteSnapshot: (...args: unknown[]) => deleteSnapshotMock(...args),
     },
 }))
 
@@ -437,18 +439,19 @@ describe('setupLifecycleHandlers', () => {
 describe('setupVoiceKickDetection', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        deleteSnapshotMock.mockResolvedValue(undefined)
     })
 
-    it('marks intentional stop when bot is kicked from voice channel', () => {
+    it('marks intentional stop and deletes the snapshot when bot is kicked from voice channel', async () => {
         const voiceStateUpdateListeners: Array<
-            (oldState: any, newState: any) => void
+            (oldState: any, newState: any) => Promise<void>
         > = []
         const client = {
             user: { id: 'bot-user-id' },
             on: jest.fn(
                 (
                     event: string,
-                    handler: (oldState: any, newState: any) => void,
+                    handler: (oldState: any, newState: any) => Promise<void>,
                 ) => {
                     if (event === 'voiceStateUpdate') {
                         voiceStateUpdateListeners.push(handler)
@@ -471,9 +474,13 @@ describe('setupVoiceKickDetection', () => {
             channelId: null,
         }
 
-        voiceStateUpdateListeners[0](oldState, newState)
+        await voiceStateUpdateListeners[0](oldState, newState)
 
         expect(watchdogMarkIntentionalStopMock).toHaveBeenCalledWith('guild-1')
+        // Without this, the orphan-session monitor rejoins on a stale
+        // snapshot once the intentional-stop flag auto-clears (see the
+        // comment on setupVoiceKickDetection for the full failure mode).
+        expect(deleteSnapshotMock).toHaveBeenCalledWith('guild-1')
         expect(infoLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: expect.stringMatching(/disconnected from voice/i),
