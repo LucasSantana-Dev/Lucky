@@ -60,7 +60,7 @@ global.setInterval = function (
 // gracefully (issue #1553).
 process.on('beforeExit', clearAllCaches)
 
-async function clearAllCaches() {
+export async function clearAllCaches() {
     try {
         const { clearAllSeedsCache } =
             await import('../src/spotify/spotifyUserSeeds')
@@ -85,16 +85,17 @@ async function clearAllCaches() {
     }
 
     try {
-        const { clearLastFmCaches } = await import('../src/lastfm/lastFmApi')
-        clearLastFmCaches()
+        const { __resetMetadataCacheForTests } =
+            await import('../src/lastfm/lastFmApi')
+        __resetMetadataCacheForTests()
     } catch {
         // May not be loaded
     }
 
     try {
-        const { clearSpotifyApiCaches } =
+        const { _resetPopularityCache } =
             await import('../src/spotify/spotifyApi')
-        clearSpotifyApiCaches()
+        _resetPopularityCache()
     } catch {
         // May not be loaded
     }
@@ -116,10 +117,9 @@ async function clearAllCaches() {
     }
 
     try {
-        const { trackStartTimes, guildRecentSkipCounts } =
+        const { __resetTrackHandlerCachesForTests } =
             await import('../src/handlers/player/autoplayOutcomeTracking')
-        trackStartTimes.clear()
-        guildRecentSkipCounts.clear()
+        __resetTrackHandlerCachesForTests()
     } catch {
         // May not be loaded
     }

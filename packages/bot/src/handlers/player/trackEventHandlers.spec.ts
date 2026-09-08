@@ -12,6 +12,7 @@ import {
     trackStartTimes,
     guildRecentSkipCounts,
     getRecentSkipCount,
+    __resetTrackHandlerCachesForTests,
 } from './autoplayOutcomeTracking'
 
 const QueueRepeatMode = {
@@ -300,6 +301,35 @@ describe('trackHandlers autoplay replenishment', () => {
         jest.advanceTimersByTime(50000) // 50% through — late skip
         await handlers.playerSkip(queue, track)
         expect(getRecentSkipCount(queue.guild.id)).toBe(0)
+    })
+
+    it('__resetTrackHandlerCachesForTests clears skip counts and track start times', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = {
+            ...createQueue(QueueRepeatMode.AUTOPLAY),
+            guild: { id: 'guild-reset-test', name: 'Reset Test Guild' },
+        } as unknown as GuildQueue
+        const track = { ...createTrack('reset-user'), durationMS: 100000 }
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(10000) // 10% through — early skip
+        await handlers.playerSkip(queue, track)
+        expect(getRecentSkipCount(queue.guild.id)).toBe(1)
+
+        __resetTrackHandlerCachesForTests()
+
+        expect(getRecentSkipCount(queue.guild.id)).toBe(0)
+
+        // trackStartTimes cleared too: a finish for a track whose start time
+        // was wiped never enters the completionRatio branch, so no implicit
+        // feedback is recorded even though the track "played" for 90s.
+        recordImplicitFeedbackMock.mockClear()
+        await handlers.playerStart(queue, track)
+        __resetTrackHandlerCachesForTests()
+        jest.advanceTimersByTime(90000)
+        await handlers.playerFinish(queue, track)
+        expect(recordImplicitFeedbackMock).not.toHaveBeenCalled()
     })
 
     it('does not record feedback on playerSkip when track < 20 seconds duration', async () => {

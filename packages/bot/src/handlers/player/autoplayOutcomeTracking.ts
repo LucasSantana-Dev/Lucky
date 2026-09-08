@@ -42,6 +42,11 @@ export function getRecentSkipCount(guildId: string): number {
     return guildRecentSkipCounts.get(guildId) ?? 0
 }
 
+export function __resetTrackHandlerCachesForTests(): void {
+    trackStartTimes.clear()
+    guildRecentSkipCounts.clear()
+}
+
 export function getTrackRequesterId(track: Track): string | undefined {
     const metadata = track.metadata as { requestedById?: string } | undefined
     return track.requestedBy?.id ?? metadata?.requestedById
@@ -50,7 +55,8 @@ export function getTrackRequesterId(track: Track): string | undefined {
 export function isAutoplayTrack(track: Track, clientUserId?: string): boolean {
     const metadata = track.metadata as { isAutoplay?: boolean } | undefined
     return (
-        metadata?.isAutoplay === true || (clientUserId !== undefined && track.requestedBy?.id === clientUserId)
+        metadata?.isAutoplay === true ||
+        (clientUserId !== undefined && track.requestedBy?.id === clientUserId)
     )
 }
 
