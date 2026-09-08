@@ -21,3 +21,7 @@ export function isReplenishSuppressed(guildId: string): boolean {
     // lru-cache automatically expires and deletes entries; .has() respects expiry.
     return replenishSuppressedUntil.has(guildId)
 }
+
+export function clearReplenishSuppressionCache(): void {
+    replenishSuppressedUntil.clear()
+}
