@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.43.4](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.3...v2.43.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* **bot:** repair 5 silently-broken teardown blocks in tests/setup.ts ([#2251](https://github.com/LucasSantana-Dev/Lucky/issues/2251)) ([98619a6](https://github.com/LucasSantana-Dev/Lucky/commit/98619a6a71d359c65b9c6835840f928fdd424a72))
+
 ## [2.43.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.2...v2.43.3) (2026-09-08)
 
 
