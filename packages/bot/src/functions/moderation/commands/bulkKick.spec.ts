@@ -227,6 +227,11 @@ describe('bulkKick command', () => {
         )
         // Verify the job was created (but enqueue failed)
         expect(batchJobServiceMock.create).toHaveBeenCalled()
+        // Verify the job is marked failed so it doesn't stay "pending" forever
+        expect(batchJobServiceMock.markFailed).toHaveBeenCalledWith(
+            'job-123',
+            expect.stringContaining('Failed to enqueue'),
+        )
         // Verify no info log about success
         expect(infoLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({

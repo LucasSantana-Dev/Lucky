@@ -123,8 +123,13 @@ export async function runBulkMemberAction(
         return
     }
 
+    // Only job creation itself gets the "creation failed" handling below —
+    // once the job row exists, a failure in enqueue/reply/logging is a
+    // different problem (the job is real and may still run) and must not be
+    // reported as "failed to create", which would invite a duplicate retry.
+    let job: { id: string }
     try {
-        const job = await batchJobService.create({
+        job = (await batchJobService.create({
             guildId: guild.id,
             jobType: config.jobType,
             initiatedBy: interaction.user.id,
@@ -132,38 +137,39 @@ export async function runBulkMemberAction(
             options: { roleId: role.id, reason },
             totalItems: totalEstimate,
             estimatedMinutes,
-        })
-
-        const jobId = (job as { id: string }).id
-
-        const enqueueResult = await enqueueBatchJob(jobId)
-        if (!enqueueResult) {
-            // Job row was already created; without this it stays "pending"
-            // forever since nothing will ever pick it up off the queue.
-            await batchJobService.markFailed(
-                jobId,
-                'Failed to enqueue job for processing (Redis unavailable)',
-            )
-            await interaction.editReply({ content: config.queueFailureMessage })
-            return
-        }
-
-        await interaction.editReply({
-            content: config.queuedMessage(jobId, totalEstimate),
-        })
-
-        infoLog({
-            message: config.createdLogMessage(jobId),
-            data: {
-                guildId: guild.id,
-                roleId: role.id,
-                totalItems: totalEstimate,
-            },
-        })
+        })) as { id: string }
     } catch (error) {
         errorLog({ message: config.createFailureLogMessage, error })
         await interaction.editReply({
             content: config.createFailureReplyMessage,
         })
+        return
     }
+
+    const jobId = job.id
+
+    const enqueueResult = await enqueueBatchJob(jobId)
+    if (!enqueueResult) {
+        // Job row was already created; without this it stays "pending"
+        // forever since nothing will ever pick it up off the queue.
+        await batchJobService.markFailed(
+            jobId,
+            'Failed to enqueue job for processing (Redis unavailable)',
+        )
+        await interaction.editReply({ content: config.queueFailureMessage })
+        return
+    }
+
+    await interaction.editReply({
+        content: config.queuedMessage(jobId, totalEstimate),
+    })
+
+    infoLog({
+        message: config.createdLogMessage(jobId),
+        data: {
+            guildId: guild.id,
+            roleId: role.id,
+            totalItems: totalEstimate,
+        },
+    })
 }
