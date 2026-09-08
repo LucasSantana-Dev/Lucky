@@ -20,12 +20,18 @@ import { isReplenishSuppressed } from '../../services/musicManagement/replenishS
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
 export const setupVoiceKickDetection = (client: Client): void => {
-    client.on('voiceStateUpdate', (oldState, newState) => {
+    client.on('voiceStateUpdate', async (oldState, newState) => {
         if (newState.member?.id !== client.user?.id) return
         const wasInChannel = Boolean(oldState.channelId)
         const nowDisconnected = !newState.channelId
         if (wasInChannel && nowDisconnected && oldState.guild) {
             musicWatchdogService.markIntentionalStop(oldState.guild.id)
+            // Without this, the intentional-stop flag auto-clears after the
+            // watchdog timeout (by design, so it doesn't block a future
+            // session) while the snapshot from the disconnected session
+            // survives — the orphan-session monitor then rejoins and replays
+            // it as if the disconnect never happened.
+            await musicSessionSnapshotService.deleteSnapshot(oldState.guild.id)
             infoLog({
                 message: `Bot was disconnected from voice in ${oldState.guild.name} — marked intentional`,
             })
@@ -197,7 +203,7 @@ export const setupLifecycleHandlers = (player: {
         // Capture the flag state before the restore block so we only clear flags
         // from the previous session, not ones set during the async restore window.
         const wasStoppedBeforeRestore = musicWatchdogService.isIntentionalStop(
-            queue.guild.id
+            queue.guild.id,
         )
 
         if (
