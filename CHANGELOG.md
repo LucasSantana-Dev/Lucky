@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.43.5](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.4...v2.43.5) (2026-09-08)
+
+
+### Bug Fixes
+
+* **bot:** delete session snapshot on voice-kick disconnect ([#2310](https://github.com/LucasSantana-Dev/Lucky/issues/2310)) ([2d2b65e](https://github.com/LucasSantana-Dev/Lucky/commit/2d2b65ef5b2918749477cdd2cb83a8fe6c0d6879))
+
 ## [2.43.4](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.3...v2.43.4) (2026-09-08)
 
 
