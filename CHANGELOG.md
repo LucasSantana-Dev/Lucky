@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.43.4](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.3...v2.43.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* **bot:** repair 5 silently-broken teardown blocks in tests/setup.ts ([#2251](https://github.com/LucasSantana-Dev/Lucky/issues/2251)) ([98619a6](https://github.com/LucasSantana-Dev/Lucky/commit/98619a6a71d359c65b9c6835840f928fdd424a72))
+
+## [2.43.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.2...v2.43.3) (2026-09-08)
+
+
+### Bug Fixes
+
+* **bot:** log missing-permissions failures on automod message delete ([#2248](https://github.com/LucasSantana-Dev/Lucky/issues/2248)) ([7a6690b](https://github.com/LucasSantana-Dev/Lucky/commit/7a6690b68c5b7d7c124bfc673ad5ba0e1677186b))
+
+## [2.43.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.1...v2.43.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **bot:** wire startup session restore into the ready handler ([#2261](https://github.com/LucasSantana-Dev/Lucky/issues/2261)) ([ec5db14](https://github.com/LucasSantana-Dev/Lucky/commit/ec5db1400a883d6765c5320e61999bf73da02023))
+
 ## [2.43.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.0...v2.43.1) (2026-09-07)
 
 
