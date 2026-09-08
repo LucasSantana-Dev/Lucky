@@ -61,6 +61,11 @@ export function getRecentSkipCount(guildId: string): number {
     return guildRecentSkipCounts.get(guildId) ?? 0
 }
 
+export function __resetTrackHandlerCachesForTests(): void {
+    trackStartTimes.clear()
+    guildRecentSkipCounts.clear()
+}
+
 function getTrackRequesterId(track: Track): string | undefined {
     const metadata = track.metadata as { requestedById?: string } | undefined
     return track.requestedBy?.id ?? metadata?.requestedById

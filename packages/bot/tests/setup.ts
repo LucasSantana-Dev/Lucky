@@ -60,7 +60,7 @@ global.setInterval = function (
 // gracefully (issue #1553).
 process.on('beforeExit', clearAllCaches)
 
-async function clearAllCaches() {
+export async function clearAllCaches() {
     try {
         const { clearAllSeedsCache } =
             await import('../src/spotify/spotifyUserSeeds')
@@ -85,16 +85,17 @@ async function clearAllCaches() {
     }
 
     try {
-        const { clearLastFmCaches } = await import('../src/lastfm/lastFmApi')
-        clearLastFmCaches()
+        const { __resetMetadataCacheForTests } =
+            await import('../src/lastfm/lastFmApi')
+        __resetMetadataCacheForTests()
     } catch {
         // May not be loaded
     }
 
     try {
-        const { clearSpotifyApiCaches } =
+        const { _resetPopularityCache } =
             await import('../src/spotify/spotifyApi')
-        clearSpotifyApiCaches()
+        _resetPopularityCache()
     } catch {
         // May not be loaded
     }
@@ -108,24 +109,9 @@ async function clearAllCaches() {
     }
 
     try {
-        const { clearAudioFeaturesCache } =
-            await import('../src/services/musicRecommendation/autoplay/audioFeatures')
-        clearAudioFeaturesCache()
-    } catch {
-        // May not be loaded
-    }
-
-    try {
-        const {
-            lastPlayedTracks,
-            recentlyPlayedTracks,
-            trackStartTimes,
-            guildRecentSkipCounts,
-        } = await import('../src/handlers/player/trackHandlers')
-        lastPlayedTracks.clear()
-        recentlyPlayedTracks.clear()
-        trackStartTimes.clear()
-        guildRecentSkipCounts.clear()
+        const { __resetTrackHandlerCachesForTests } =
+            await import('../src/handlers/player/trackHandlers')
+        __resetTrackHandlerCachesForTests()
     } catch {
         // May not be loaded
     }
