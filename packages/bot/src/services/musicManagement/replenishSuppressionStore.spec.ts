@@ -1,6 +1,7 @@
 import {
     setReplenishSuppressed,
     isReplenishSuppressed,
+    clearReplenishSuppressionCache,
 } from './replenishSuppressionStore'
 
 describe('replenishSuppressionStore', () => {
@@ -72,6 +73,21 @@ describe('replenishSuppressionStore', () => {
             setReplenishSuppressed(guildId, 0)
             expect(isReplenishSuppressed(guildId)).toBe(false)
             expect(isReplenishSuppressed(guildId2)).toBe(true)
+        })
+    })
+
+    describe('clearReplenishSuppressionCache', () => {
+        it('clears suppression state for every guild (test-teardown reset)', () => {
+            const guildId2 = 'test-guild-456'
+            setReplenishSuppressed(guildId, 5000)
+            setReplenishSuppressed(guildId2, 5000)
+            expect(isReplenishSuppressed(guildId)).toBe(true)
+            expect(isReplenishSuppressed(guildId2)).toBe(true)
+
+            clearReplenishSuppressionCache()
+
+            expect(isReplenishSuppressed(guildId)).toBe(false)
+            expect(isReplenishSuppressed(guildId2)).toBe(false)
         })
     })
 })
