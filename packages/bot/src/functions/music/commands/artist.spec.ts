@@ -83,6 +83,7 @@ const createInteraction = () => ({
     options: {
         getString: jest.fn(() => 'Queen'),
         getInteger: jest.fn(() => null),
+        getBoolean: jest.fn(() => null),
     },
     deferReply: jest.fn(async () => undefined),
 })
