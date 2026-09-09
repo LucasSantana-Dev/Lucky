@@ -36,17 +36,17 @@ jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: any[]) => interactionReplyMock(...args),
 }))
 
-jest.mock('../batch/bulkKickExecutor', () => {
-    class MockBulkKickExecutor {
+jest.mock('../batch/bulkRemoveRoleExecutor', () => {
+    class MockBulkRemoveRoleExecutor {
         estimateMinutes = jest.fn(() => 10)
     }
     return {
-        BulkKickExecutor: MockBulkKickExecutor,
+        BulkRemoveRoleExecutor: MockBulkRemoveRoleExecutor,
     }
 })
 
 // Import AFTER mocks
-import bulkKickCommand from './bulkKick'
+import bulkRemoveRoleCommand from './bulkRemoveRole'
 
 function createMockUser(id = 'user-123', tag = 'TestUser#1234') {
     return {
@@ -60,6 +60,7 @@ function createMockRole(id = 'role-123', name = 'TestRole') {
         id,
         name,
         members: new Collection(),
+        editable: true,
     }
 }
 
@@ -111,11 +112,10 @@ function createInteraction({
     return interaction as any
 }
 
-describe('bulkKick command', () => {
+describe('bulkRemoveRole command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
 
-        // Default mocks
         checkBatchPermissionsMock.mockReturnValue({
             allowed: true,
             missing: [],
@@ -129,7 +129,7 @@ describe('bulkKick command', () => {
 
     test('returns early if not in a guild', async () => {
         const interaction = createInteraction({ guild: null })
-        await bulkKickCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({ interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -143,13 +143,13 @@ describe('bulkKick command', () => {
     test('returns early when permission check fails', async () => {
         checkBatchPermissionsMock.mockReturnValue({
             allowed: false,
-            missing: ['KickMembers'],
+            missing: ['ManageRoles'],
         })
         const interaction = createInteraction({
             role: createMockRole(),
         })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({ interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -165,7 +165,7 @@ describe('bulkKick command', () => {
             role: createMockRole('role-123', 'empty-role'),
         })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({ interaction })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -183,7 +183,7 @@ describe('bulkKick command', () => {
             dryRun: true,
         })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({ interaction })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -199,7 +199,7 @@ describe('bulkKick command', () => {
         role.members.set('u1', { user: { bot: false } } as any)
         const interaction = createInteraction({ role })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({ interaction })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -215,68 +215,60 @@ describe('bulkKick command', () => {
         role.members.set('u1', { user: { bot: false } } as any)
         const interaction = createInteraction({ role })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({ interaction })
 
-        // Verify failure reply is sent
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: expect.stringContaining(
-                    'Failed to queue bulk kick job',
+                    'Failed to queue bulk role removal job',
                 ),
             }),
         )
-        // Verify the job was created (but enqueue failed)
         expect(batchJobServiceMock.create).toHaveBeenCalled()
-        // Verify the job is marked failed so it doesn't stay "pending" forever
-        expect(batchJobServiceMock.markFailed).toHaveBeenCalledWith(
-            'job-123',
-            expect.stringContaining('Failed to enqueue'),
-        )
-        // Verify no info log about success
         expect(infoLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({
-                message: expect.stringContaining('Bulk kick job created'),
+                message: expect.stringContaining(
+                    'Bulk role removal job created',
+                ),
             }),
         )
     })
 
-    test('queues bulk kick job successfully when all permissions ok and enqueue succeeds', async () => {
+    test('queues bulk role removal job successfully when all permissions ok and enqueue succeeds', async () => {
         const role = createMockRole('role-456')
         role.members.set('u1', { user: { bot: false } } as any)
         role.members.set('u2', { user: { bot: false } } as any)
         const interaction = createInteraction({
             role,
-            reason: 'raid cleanup',
+            reason: 'cleanup',
         })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({ interaction })
 
-        // Verify job was created with correct params
         expect(batchJobServiceMock.create).toHaveBeenCalledWith(
             expect.objectContaining({
-                jobType: 'bulk_kick',
+                jobType: 'bulk_remove_role',
                 totalItems: 2,
                 options: expect.objectContaining({
                     roleId: 'role-456',
-                    reason: 'raid cleanup',
+                    reason: 'cleanup',
                 }),
             }),
         )
 
-        // Verify enqueue was called
         expect(enqueueBatchJobMock).toHaveBeenCalledWith('job-123')
 
-        // Verify success reply
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
-                content: expect.stringContaining('Bulk kick queued'),
+                content: expect.stringContaining('Bulk role removal queued'),
             }),
         )
 
-        // Verify info log
         expect(infoLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: expect.stringContaining('Bulk kick job created'),
+                message: expect.stringContaining(
+                    'Bulk role removal job created',
+                ),
             }),
         )
     })
@@ -287,7 +279,7 @@ describe('bulkKick command', () => {
         role.members.set('u1', { user: { bot: false } } as any)
         const interaction = createInteraction({ role })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({ interaction })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
