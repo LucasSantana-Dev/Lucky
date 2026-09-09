@@ -535,6 +535,108 @@ describe('preferExactMatch', () => {
             })
         }
     })
+
+    // #2133: a top hit carrying an unrequested version marker (remix, sped
+    // up, etc.) must not win by default over a marker-free candidate.
+    describe('unrequested version marker demotion (#2133)', () => {
+        it('demotes a remix top hit in favor of a later marker-free candidate', async () => {
+            const tracks = [
+                makeMockTrack('Song Title (Remix)', 'Some Uploader'),
+                makeMockTrack('Song Title', 'The Real Artist'),
+            ]
+            const result = {
+                hasPlaylist: () => false,
+                tracks,
+                setTracks: jest.fn(() => result),
+            }
+
+            await preferExactMatch('Song Title')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[1],
+                tracks[0],
+            ])
+        })
+
+        it('leaves an already-clean top hit untouched', async () => {
+            const tracks = [
+                makeMockTrack('Song Title', 'The Real Artist'),
+                makeMockTrack('Song Title (Remix)', 'Some Uploader'),
+            ]
+            const result = {
+                hasPlaylist: () => false,
+                tracks,
+                setTracks: jest.fn(() => result),
+            }
+
+            await preferExactMatch('Song Title')(result as any)
+
+            expect(result.setTracks).not.toHaveBeenCalled()
+        })
+
+        it('does not demote when the query itself asks for that version', async () => {
+            const tracks = [
+                makeMockTrack('Song Title (Remix)', 'Some Uploader'),
+                makeMockTrack('Song Title', 'The Real Artist'),
+            ]
+            const result = {
+                hasPlaylist: () => false,
+                tracks,
+                setTracks: jest.fn(() => result),
+            }
+
+            await preferExactMatch('Song Title Remix')(result as any)
+
+            expect(result.setTracks).not.toHaveBeenCalled()
+        })
+
+        it('leaves the result untouched when every candidate carries a marker', async () => {
+            const tracks = [
+                makeMockTrack('Song Title (Remix)', 'Some Uploader'),
+                makeMockTrack('Song Title (Sped Up)', 'Another Uploader'),
+            ]
+            const result = {
+                hasPlaylist: () => false,
+                tracks,
+                setTracks: jest.fn(() => result),
+            }
+
+            await preferExactMatch('Song Title')(result as any)
+
+            expect(result.setTracks).not.toHaveBeenCalled()
+        })
+
+        it('applies the exact-match reorder on top of the marker demotion', async () => {
+            const tracks = [
+                makeMockTrack('Song Title (Remix)', 'Some Uploader'),
+                makeMockTrack('Some Other Song', 'Someone Else'),
+                makeMockTrack('song title', 'The Real Artist'),
+            ]
+            const result = {
+                hasPlaylist: () => false,
+                tracks,
+                setTracks: jest.fn(() => result),
+            }
+
+            await preferExactMatch('Song Title')(result as any)
+
+            // Marker demotion first promotes tracks[1] (clean) ahead of
+            // tracks[0] (remix): [tracks[1], tracks[0], tracks[2]]. The
+            // exact-title-match pass then finds tracks[2] ("song title")
+            // in that demoted order and promotes it again.
+            expect(result.setTracks).toHaveBeenCalledTimes(2)
+            expect(result.setTracks).toHaveBeenNthCalledWith(1, [
+                tracks[1],
+                tracks[0],
+                tracks[2],
+            ])
+            expect(result.setTracks).toHaveBeenNthCalledWith(2, [
+                tracks[2],
+                tracks[1],
+                tracks[0],
+            ])
+        })
+    })
 })
 
 describe('emitPlayResolutionTelemetry', () => {

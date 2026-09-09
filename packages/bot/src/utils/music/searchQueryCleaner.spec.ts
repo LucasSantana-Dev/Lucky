@@ -5,6 +5,7 @@ import {
     cleanSearchQuery,
     isSpamChannel,
     extractSongCore,
+    hasVersionMarker,
 } from './searchQueryCleaner'
 
 describe('cleanTitle', () => {
@@ -314,5 +315,36 @@ describe('cleanTitle — tribute and duration annotation noise', () => {
         ['leaves MM:SS intact', 'Song Title (03:42)', 'Song Title (03:42)'],
     ])('%s', (_, input, expected) => {
         expect(cleanTitle(input)).toBe(expected)
+    })
+})
+
+describe('hasVersionMarker', () => {
+    it.each([
+        'Song Title (Remix)',
+        'Song Title (Sped Up)',
+        'Song Title (8D Audio)',
+        'Song Title - Acoustic',
+        'Song Title (Live)',
+        'Song Title (Radio Edit)',
+    ])('detects a version marker in %j', (title) => {
+        expect(hasVersionMarker(title)).toBe(true)
+    })
+
+    it.each(['Song Title', 'Bohemian Rhapsody', 'Purple Rain'])(
+        'returns false for a plain title with no marker: %j',
+        (title) => {
+            expect(hasVersionMarker(title)).toBe(false)
+        },
+    )
+
+    it.each(['Motörhead - Live Wire', 'Artist - Live Wire'])(
+        'does not flag a song title that merely contains a version keyword: %j',
+        (title) => {
+            expect(hasVersionMarker(title)).toBe(false)
+        },
+    )
+
+    it('flags the last hyphenated segment even with an earlier hyphen in the title', () => {
+        expect(hasVersionMarker('Artist - Song Title - Live')).toBe(true)
     })
 })
