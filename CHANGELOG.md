@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.43.6](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.5...v2.43.6) (2026-09-09)
+
+
+### Bug Fixes
+
+* **bot:** demote unrequested remix/edit candidates in track resolution ([#2265](https://github.com/LucasSantana-Dev/Lucky/issues/2265)) ([77f4eb0](https://github.com/LucasSantana-Dev/Lucky/commit/77f4eb03c05a88438e913e3649cdf4e045fc97a6))
+
 ## [2.43.5](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.4...v2.43.5) (2026-09-08)
 
 
