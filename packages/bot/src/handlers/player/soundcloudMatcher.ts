@@ -2,6 +2,7 @@ import * as playdl from 'play-dl'
 import type { Readable } from 'stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { withTimeout } from './withTimeout'
+import { hasVersionMarker } from '../../utils/music/searchQueryCleaner'
 
 type SoundCloudSearchResult = {
     name: string
@@ -175,17 +176,30 @@ export function findMatchingSoundCloudResult(
         )
 
     if (candidates.length === 0) return undefined
-    if (trackSec === null) return candidates[0].result
 
     // The 75%-token threshold lets remixes/speedups/extended edits pass
-    // title matching too, and SoundCloud's search order is not a quality
-    // ranking. Prefer the closer title match first — an exact title match
-    // with no duration data is a more trustworthy signal than a near-miss
-    // duration match on a looser title. Only at equal title confidence does
-    // duration closeness break the tie, as the cheapest remaining signal
-    // that a candidate is the original recording rather than an altered one;
+    // title matching too (see comment below), so before ranking by title/
+    // duration, prefer candidates with no unofficial-version marker in their
+    // name — unless the query itself asked for one (#2133). Falls back to
+    // the full candidate set when every candidate carries a marker, so a
+    // genuine remix-only result still resolves instead of being dropped.
+    let pool = candidates
+    if (!hasVersionMarker(query)) {
+        const clean = candidates.filter(
+            (candidate) => !hasVersionMarker(candidate.result.name),
+        )
+        if (clean.length > 0) pool = clean
+    }
+
+    if (trackSec === null) return pool[0].result
+
+    // Prefer the closer title match first — an exact title match with no
+    // duration data is a more trustworthy signal than a near-miss duration
+    // match on a looser title. Only at equal title confidence does duration
+    // closeness break the tie, as the cheapest remaining signal that a
+    // candidate is the original recording rather than an altered one;
     // missing duration data is treated as neutral there, not disqualifying.
-    return candidates.reduce((best, candidate) => {
+    return pool.reduce((best, candidate) => {
         if (candidate.titleScore !== best.titleScore) {
             return candidate.titleScore > best.titleScore ? candidate : best
         }
@@ -196,7 +210,7 @@ export function findMatchingSoundCloudResult(
             candidate.result.durationInSec - trackSec,
         )
         return candidateDiff < bestDiff ? candidate : best
-    }, candidates[0]).result
+    }, pool[0]).result
 }
 
 function normalizeForMatch(value: string): string {

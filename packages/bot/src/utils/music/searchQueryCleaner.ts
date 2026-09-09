@@ -321,6 +321,63 @@ export function extractSongCore(title: string, author?: string): string | null {
 }
 
 /**
+ * True if a search query asks for a version variant (remix, acoustic, live,
+ * etc.) by name. Unlike `hasVersionMarker`, this matches bare words — a typed
+ * query has no parentheses/brackets to be structured in, and false positives
+ * here (an artist/song name that happens to contain a version word) just
+ * skip an optional demotion rather than wrongly filtering a real result.
+ */
+export function queryRequestsVersion(query: string): boolean {
+    return VERSION_KEYWORD_RE.test(query)
+}
+
+/**
+ * True if the text contains an unofficial-version marker (remix, sped up,
+ * acoustic, cover, radio edit, etc. — the same `versionVariants` list used to
+ * strip search-query noise). Callers use this to tell a search result apart
+ * from the original release when the query asking for it carries no such
+ * marker itself (#2133).
+ *
+ * For title/result detection, detects markers only in structured positions
+ * (parentheses/brackets/hyphenated suffix) to avoid false positives with
+ * words like "clean", "live", or "cover" that commonly appear naturally in
+ * song titles. Callers checking the *query* itself should use
+ * `queryRequestsVersion` instead — a typed query has no structured position
+ * to carry the marker in.
+ */
+export function hasVersionMarker(text: string): boolean {
+    // Check for markers in structured positions: parentheses, brackets, and
+    // hyphenated suffixes ("Song - Acoustic"). This avoids matching words
+    // like "Live Wire", "The Cover of Rolling Stone", or "Clean" when
+    // they're part of the actual song/artist name.
+    for (const term of noiseTerms.versionVariants) {
+        const inner = termInner(term)
+        if (
+            new RegExp(`\\(${inner}[^)]*\\)`, 'i').test(text) ||
+            new RegExp(`\\[${inner}[^\\]]*\\]`, 'i').test(text)
+        ) {
+            return true
+        }
+    }
+    for (const sep of [' – ', ' - ', ' — ']) {
+        // lastIndexOf, not indexOf: a version marker is the final segment
+        // ("A - B - Live"), so anchoring on the first separator would slice
+        // off "B - Live" and never match it against an anchored suffix.
+        const idx = text.lastIndexOf(sep)
+        if (idx <= 0) continue
+        const suffix = text.slice(idx + sep.length).trim()
+        // Direct anchored-suffix check, not isVersionSuffix(): that helper's
+        // keyword fallback matches version words anywhere in the suffix
+        // (e.g. "live" inside "Live Wire"), which is exactly the false
+        // positive this function's own docstring promises to avoid.
+        if (HYPHENATED_VERSION_SUFFIXES.some((re) => re.test(suffix))) {
+            return true
+        }
+    }
+    return false
+}
+
+/**
  * True if the author is a known noise/compilation channel.
  * Callers can use this to invalidate a match and trigger a retry with a
  * cleaner query, or to skip the result entirely.

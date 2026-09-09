@@ -248,6 +248,58 @@ describe('findMatchingSoundCloudResult – duration matching', () => {
 })
 
 // ---------------------------------------------------------------------------
+// findMatchingSoundCloudResult — unrequested version marker demotion (#2133)
+// ---------------------------------------------------------------------------
+
+describe('findMatchingSoundCloudResult – version marker demotion', () => {
+    it('prefers a marker-free candidate over a remix that ranked first', () => {
+        const results = [
+            makeResult('Song Name (Remix)'),
+            makeResult('Song Name'),
+        ]
+        const match = findMatchingSoundCloudResult(
+            'song name',
+            undefined,
+            results,
+        )
+        expect(match?.name).toBe('Song Name')
+    })
+
+    it('still applies the duration tiebreak among marker-free candidates', () => {
+        const results = [
+            makeResult('Song Name (Remix)', 210), // marker, exact duration
+            makeResult('Song Name', 195), // clean, 15s off
+            makeResult('Song Name Extra', 215), // clean, 5s off
+        ]
+        const match = findMatchingSoundCloudResult('song name', '3:30', results)
+        expect(match?.name).toBe('Song Name Extra')
+    })
+
+    it('falls back to a marked candidate when nothing else matches', () => {
+        const results = [makeResult('Song Name (Remix)')]
+        const match = findMatchingSoundCloudResult(
+            'song name',
+            undefined,
+            results,
+        )
+        expect(match?.name).toBe('Song Name (Remix)')
+    })
+
+    it('does not demote when the query itself asks for that version', () => {
+        const results = [
+            makeResult('Song Name (Remix)'),
+            makeResult('Song Name'),
+        ]
+        const match = findMatchingSoundCloudResult(
+            'song name remix',
+            undefined,
+            results,
+        )
+        expect(match?.name).toBe('Song Name (Remix)')
+    })
+})
+
+// ---------------------------------------------------------------------------
 // streamViaSoundCloud
 // ---------------------------------------------------------------------------
 
