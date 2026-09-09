@@ -89,6 +89,11 @@ function makeModule(opts: {
         execute: mockExecute,
     }))
 
+    const MockBulkRemoveRoleExecutor = jest.fn().mockImplementation(() => ({
+        jobType: 'bulk_remove_role',
+        execute: mockExecute,
+    }))
+
     let mod: {
         startBatchJobWorker: () => Promise<void>
         stopBatchJobWorker: () => Promise<void>
@@ -140,6 +145,12 @@ function makeModule(opts: {
         jest.doMock('../functions/moderation/batch/bulkKickExecutor', () => ({
             BulkKickExecutor: MockBulkKickExecutor,
         }))
+        jest.doMock(
+            '../functions/moderation/batch/bulkRemoveRoleExecutor',
+            () => ({
+                BulkRemoveRoleExecutor: MockBulkRemoveRoleExecutor,
+            }),
+        )
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         mod = require('./batchJobWorker')
     })
