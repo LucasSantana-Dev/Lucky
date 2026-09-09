@@ -7,11 +7,11 @@ jest.mock('discord-player', () => ({
     },
 }))
 
-jest.mock('../../../utils/general/interactionReply', () => ({
+jest.mock('../../../../utils/general/interactionReply', () => ({
     interactionReply: jest.fn(),
 }))
 
-jest.mock('../../../utils/general/embeds', () => ({
+jest.mock('../../../../utils/general/embeds', () => ({
     createErrorEmbed: jest.fn((title: string, desc?: string) => ({
         title,
         description: desc,
@@ -22,11 +22,11 @@ jest.mock('../../../utils/general/embeds', () => ({
     })),
 }))
 
-jest.mock('../../../services/musicManagement/queueResolver', () => ({
+jest.mock('../../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: jest.fn(),
 }))
 
-jest.mock('../../../services/musicManagement/queueManipulation', () => ({
+jest.mock('../../../../services/musicManagement/queueManipulation', () => ({
     moveUserTrackToPriority: jest.fn(),
 }))
 
@@ -56,14 +56,14 @@ jest.mock('@lucky/shared/utils', () => ({
         getSpotifyArtistAlbumsMock(...args),
 }))
 
-jest.mock('./play/queryUtils', () => ({
+jest.mock('../play/queryUtils', () => ({
     isUnknownInteractionError: jest.fn(() => false),
 }))
 
 import { handleArtistDiscography } from './artistDiscography'
-import { interactionReply } from '../../../utils/general/interactionReply'
-import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
-import { moveUserTrackToPriority } from '../../../services/musicManagement/queueManipulation'
+import { interactionReply } from '../../../../utils/general/interactionReply'
+import { resolveGuildQueue } from '../../../../services/musicManagement/queueResolver'
+import { moveUserTrackToPriority } from '../../../../services/musicManagement/queueManipulation'
 
 const createTrack = (title: string, author: string) => ({
     title,
