@@ -1,9 +1,13 @@
-import { randomInt } from 'node:crypto'
-
 import type { Client, TextChannel, Message } from 'discord.js'
 import { EmbedBuilder } from 'discord.js'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { getTwitchUserAccessToken } from '../twitch'
+import { throwIfRetryable, withRetry } from '../utils/httpRetryStrategy'
+
+const RETRYABLE_STATUSES = [
+    429,
+    ...Array.from({ length: 100 }, (_, index) => 500 + index),
+]
 
 const TWITCH_POLL_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes per spec
 // Issue #130 asks 10 min, but search.list costs 100 quota units: 10-min polling
@@ -34,79 +38,6 @@ type NotificationMessage = {
     platform: 'twitch' | 'youtube'
     streamId: string
     postedAt: number
-}
-
-// Jitter uses crypto.randomInt purely to satisfy S2245 — backoff spread is not
-// security-sensitive, but the gate treats Math.random as a finding.
-function jitterMs(): number {
-    return randomInt(0, 1000)
-}
-
-// Exponential backoff helper: respects Retry-After, with jitter.
-// Usage: backoffFetch(url, options, 3) returns response or throws after 3 attempts.
-async function backoffFetch(
-    url: string,
-    options: Record<string, unknown>,
-    maxAttempts = 3,
-): Promise<Response> {
-    let lastError: Error | null = null
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-            const res = await fetch(url, {
-                ...options,
-                signal: AbortSignal.timeout(10_000),
-            } as RequestInit)
-            // If 429 or 5xx, backoff and retry
-            if (
-                (res.status === 429 || res.status >= 500) &&
-                attempt < maxAttempts - 1
-            ) {
-                const retryAfter = res.headers.get('Retry-After')
-                let delayMs: number
-                if (retryAfter) {
-                    // Try parsing as integer seconds first
-                    const seconds = parseInt(retryAfter, 10)
-                    if (!isNaN(seconds) && seconds > 0) {
-                        delayMs = Math.min(seconds * 1000, 30000)
-                    } else {
-                        // Try parsing as HTTP-date (e.g., "Wed, 21 Oct 2026 07:28:00 GMT")
-                        const dateMs = Date.parse(retryAfter)
-                        const waitMs = dateMs - Date.now()
-                        if (!isNaN(dateMs) && waitMs > 0) {
-                            delayMs = Math.min(waitMs, 30000)
-                        } else {
-                            // Fall back to exponential+jitter
-                            delayMs = Math.min(
-                                1000 * Math.pow(2, attempt) + jitterMs(),
-                                30000,
-                            )
-                        }
-                    }
-                } else {
-                    delayMs = Math.min(
-                        1000 * Math.pow(2, attempt) + jitterMs(),
-                        30000,
-                    )
-                }
-                await new Promise((resolve) => setTimeout(resolve, delayMs))
-                continue
-            }
-            return res
-        } catch (err) {
-            lastError = err instanceof Error ? err : new Error(String(err))
-            if (attempt < maxAttempts - 1) {
-                const delayMs = Math.min(
-                    1000 * Math.pow(2, attempt) + jitterMs(),
-                    30000,
-                )
-                await new Promise((resolve) => setTimeout(resolve, delayMs))
-            }
-        }
-    }
-    throw (
-        lastError ||
-        new Error(`Backoff exhausted after ${maxAttempts} attempts`)
-    )
 }
 
 export class CriativariaLiveNotificationService {
@@ -390,12 +321,25 @@ export class CriativariaLiveNotificationService {
 
         try {
             const url = `https://api.twitch.tv/helix/streams?user_login=${encodeURIComponent(userLogin)}`
-            const res = await backoffFetch(url, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Client-Id': clientId,
+            const res = await withRetry(
+                'criativaria.fetchStream',
+                async () => {
+                    const r = await fetch(url, {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            'Client-Id': clientId,
+                        },
+                        signal: AbortSignal.timeout(10_000),
+                    })
+                    throwIfRetryable(r, RETRYABLE_STATUSES)
+                    return r
                 },
-            })
+                2,
+                {
+                    retryableStatuses: RETRYABLE_STATUSES,
+                    retryNetworkErrors: true,
+                },
+            )
             if (!res.ok) return null
             const json = (await res.json()) as { data: TwitchStream[] }
             return json.data?.[0] ?? null
@@ -416,9 +360,21 @@ export class CriativariaLiveNotificationService {
         apiKey: string,
     ): Promise<YouTubeVideo | null> {
         try {
-            const searchRes = await backoffFetch(
-                `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${encodeURIComponent(channelId)}&type=video&eventType=live&maxResults=1&key=${encodeURIComponent(apiKey)}`,
-                {},
+            const searchRes = await withRetry(
+                'criativaria.fetchYoutubeLiveBroadcast',
+                async () => {
+                    const r = await fetch(
+                        `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${encodeURIComponent(channelId)}&type=video&eventType=live&maxResults=1&key=${encodeURIComponent(apiKey)}`,
+                        { signal: AbortSignal.timeout(10_000) },
+                    )
+                    throwIfRetryable(r, RETRYABLE_STATUSES)
+                    return r
+                },
+                2,
+                {
+                    retryableStatuses: RETRYABLE_STATUSES,
+                    retryNetworkErrors: true,
+                },
             )
             if (!searchRes.ok) return null
 
