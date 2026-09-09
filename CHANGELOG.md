@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.45.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.44.0...v2.45.0) (2026-09-09)
+
+
+### Features
+
+* **bot:** add /bulk-remove-role command ([#2278](https://github.com/LucasSantana-Dev/Lucky/issues/2278)) ([41d379b](https://github.com/LucasSantana-Dev/Lucky/commit/41d379b3c151a29c0b2517f3f76b8c30abb8c037))
+
 ## [2.44.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.43.6...v2.44.0) (2026-09-09)
 
 
