@@ -305,6 +305,25 @@ describe('CriativariaLiveNotificationService', () => {
             jest.restoreAllMocks()
         })
 
+        const liveStreamResponse = () =>
+            new Response(
+                JSON.stringify({
+                    data: [
+                        {
+                            id: 'stream-1',
+                            user_login: 'criativaria',
+                            title: 'Live',
+                            viewer_count: 100,
+                            game_name: 'Creative',
+                            thumbnail_url:
+                                'https://example.com/{width}x{height}.jpg',
+                            started_at: new Date().toISOString(),
+                        },
+                    ],
+                }),
+                { status: 200 },
+            )
+
         test('should retry on 429 (rate limit)', async () => {
             let attempts = 0
             const fetchSpy = jest
@@ -312,25 +331,8 @@ describe('CriativariaLiveNotificationService', () => {
                 .mockImplementation(async () => {
                     attempts++
                     if (attempts === 1)
-                        return { status: 429, headers: { get: () => null } }
-                    return {
-                        status: 200,
-                        ok: true,
-                        json: async () => ({
-                            data: [
-                                {
-                                    id: 'stream-1',
-                                    user_login: 'criativaria',
-                                    title: 'Live',
-                                    viewer_count: 100,
-                                    game_name: 'Creative',
-                                    thumbnail_url:
-                                        'https://example.com/{width}x{height}.jpg',
-                                    started_at: new Date().toISOString(),
-                                },
-                            ],
-                        }),
-                    }
+                        return new Response(null, { status: 429 })
+                    return liveStreamResponse()
                 })
 
             mockGetToken.mockResolvedValue('test-token')
@@ -348,25 +350,8 @@ describe('CriativariaLiveNotificationService', () => {
                 .mockImplementation(async () => {
                     attempts++
                     if (attempts <= 2)
-                        return { status: 503, headers: { get: () => null } }
-                    return {
-                        status: 200,
-                        ok: true,
-                        json: async () => ({
-                            data: [
-                                {
-                                    id: 'stream-1',
-                                    user_login: 'criativaria',
-                                    title: 'Live',
-                                    viewer_count: 100,
-                                    game_name: 'Creative',
-                                    thumbnail_url:
-                                        'https://example.com/{width}x{height}.jpg',
-                                    started_at: new Date().toISOString(),
-                                },
-                            ],
-                        }),
-                    }
+                        return new Response(null, { status: 503 })
+                    return liveStreamResponse()
                 })
 
             mockGetToken.mockResolvedValue('test-token')
@@ -386,29 +371,12 @@ describe('CriativariaLiveNotificationService', () => {
                 .mockImplementation(async () => {
                     attempts++
                     if (attempts === 1) {
-                        return {
+                        return new Response(null, {
                             status: 429,
-                            headers: { get: () => '1' },
-                        }
+                            headers: { 'Retry-After': '1' },
+                        })
                     }
-                    return {
-                        status: 200,
-                        ok: true,
-                        json: async () => ({
-                            data: [
-                                {
-                                    id: 'stream-1',
-                                    user_login: 'criativaria',
-                                    title: 'Live',
-                                    viewer_count: 100,
-                                    game_name: 'Creative',
-                                    thumbnail_url:
-                                        'https://example.com/{width}x{height}.jpg',
-                                    started_at: new Date().toISOString(),
-                                },
-                            ],
-                        }),
-                    }
+                    return liveStreamResponse()
                 })
 
             mockGetToken.mockResolvedValue('test-token')
@@ -433,31 +401,14 @@ describe('CriativariaLiveNotificationService', () => {
                         // toUTCString() truncates milliseconds, so +3000ms
                         // guarantees an effective wait of at least ~2000ms.
                         const futureDate = new Date(Date.now() + 3000)
-                        return {
+                        return new Response(null, {
                             status: 429,
                             headers: {
-                                get: () => futureDate.toUTCString(),
+                                'Retry-After': futureDate.toUTCString(),
                             },
-                        }
+                        })
                     }
-                    return {
-                        status: 200,
-                        ok: true,
-                        json: async () => ({
-                            data: [
-                                {
-                                    id: 'stream-1',
-                                    user_login: 'criativaria',
-                                    title: 'Live',
-                                    viewer_count: 100,
-                                    game_name: 'Creative',
-                                    thumbnail_url:
-                                        'https://example.com/{width}x{height}.jpg',
-                                    started_at: new Date().toISOString(),
-                                },
-                            ],
-                        }),
-                    }
+                    return liveStreamResponse()
                 })
 
             mockGetToken.mockResolvedValue('test-token')
@@ -477,29 +428,12 @@ describe('CriativariaLiveNotificationService', () => {
                 .mockImplementation(async () => {
                     attempts++
                     if (attempts === 1) {
-                        return {
+                        return new Response(null, {
                             status: 429,
-                            headers: { get: () => 'not-a-date-or-number' },
-                        }
+                            headers: { 'Retry-After': 'not-a-date-or-number' },
+                        })
                     }
-                    return {
-                        status: 200,
-                        ok: true,
-                        json: async () => ({
-                            data: [
-                                {
-                                    id: 'stream-1',
-                                    user_login: 'criativaria',
-                                    title: 'Live',
-                                    viewer_count: 100,
-                                    game_name: 'Creative',
-                                    thumbnail_url:
-                                        'https://example.com/{width}x{height}.jpg',
-                                    started_at: new Date().toISOString(),
-                                },
-                            ],
-                        }),
-                    }
+                    return liveStreamResponse()
                 })
 
             mockGetToken.mockResolvedValue('test-token')
@@ -511,14 +445,9 @@ describe('CriativariaLiveNotificationService', () => {
         })
 
         test('fetchYoutubeLiveBroadcast returns null for empty items array', async () => {
-            jest.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
-                ok: true,
-                status: 200,
-                headers: { get: () => null },
-                json: async () => ({
-                    items: [],
-                }),
-            } as unknown as Response)
+            jest.spyOn(globalThis, 'fetch' as any).mockResolvedValue(
+                new Response(JSON.stringify({ items: [] }), { status: 200 }),
+            )
             const video = await service.fetchYoutubeLiveBroadcast(
                 'UCabc',
                 'key',
@@ -675,7 +604,9 @@ describe('CriativariaLiveNotificationService', () => {
             })
 
             test('returns null when fetch returns non-ok status', async () => {
-                global.fetch = jest.fn(async () => ({ ok: false })) as any
+                global.fetch = jest.fn(
+                    async () => new Response(null, { status: 400 }),
+                ) as any
                 const result = await service.fetchStream('criativaria')
                 expect(result).toBeNull()
             })
@@ -689,10 +620,12 @@ describe('CriativariaLiveNotificationService', () => {
             })
 
             test('returns null when data array is empty', async () => {
-                global.fetch = jest.fn(async () => ({
-                    ok: true,
-                    json: async () => ({ data: [] }),
-                })) as any
+                global.fetch = jest.fn(
+                    async () =>
+                        new Response(JSON.stringify({ data: [] }), {
+                            status: 200,
+                        }),
+                ) as any
                 const result = await service.fetchStream('criativaria')
                 expect(result).toBeNull()
             })
@@ -707,10 +640,12 @@ describe('CriativariaLiveNotificationService', () => {
                     thumbnail_url: 'https://example.com/{width}x{height}.jpg',
                     started_at: new Date().toISOString(),
                 }
-                global.fetch = jest.fn(async () => ({
-                    ok: true,
-                    json: async () => ({ data: [stream] }),
-                })) as any
+                global.fetch = jest.fn(
+                    async () =>
+                        new Response(JSON.stringify({ data: [stream] }), {
+                            status: 200,
+                        }),
+                ) as any
                 const result = await service.fetchStream('criativaria')
                 expect(result).toEqual(stream)
             })
@@ -776,25 +711,25 @@ describe('coverage: lifecycle, error paths, youtube mapping', () => {
     test('fetchYoutubeLiveBroadcast maps a live search result', async () => {
         const fetchSpy = jest
             .spyOn(globalThis, 'fetch' as any)
-            .mockResolvedValue({
-                ok: true,
-                status: 200,
-                headers: { get: () => null },
-                json: async () => ({
-                    items: [
-                        {
-                            id: { videoId: 'vid1' },
-                            snippet: {
-                                title: 'Live!',
-                                channelTitle: 'Criativaria',
-                                thumbnails: {
-                                    default: { url: 'http://t/img.jpg' },
+            .mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        items: [
+                            {
+                                id: { videoId: 'vid1' },
+                                snippet: {
+                                    title: 'Live!',
+                                    channelTitle: 'Criativaria',
+                                    thumbnails: {
+                                        default: { url: 'http://t/img.jpg' },
+                                    },
                                 },
                             },
-                        },
-                    ],
-                }),
-            } as unknown as Response)
+                        ],
+                    }),
+                    { status: 200 },
+                ),
+            )
         const video = await service.fetchYoutubeLiveBroadcast('UCabc', 'key')
         expect(video).toEqual({
             id: 'vid1',
@@ -807,12 +742,9 @@ describe('coverage: lifecycle, error paths, youtube mapping', () => {
     })
 
     test('fetchYoutubeLiveBroadcast returns null on non-ok response', async () => {
-        jest.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
-            ok: false,
-            status: 403,
-            headers: { get: () => null },
-            json: async () => ({}),
-        } as unknown as Response)
+        jest.spyOn(globalThis, 'fetch' as any).mockResolvedValue(
+            new Response(JSON.stringify({}), { status: 403 }),
+        )
         const video = await service.fetchYoutubeLiveBroadcast('UCabc', 'key')
         expect(video).toBeNull()
     })
