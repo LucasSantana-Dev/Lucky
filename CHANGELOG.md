@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.45.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.45.0...v2.45.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **bot:** move artist discography helper out of commands scan path ([#2319](https://github.com/LucasSantana-Dev/Lucky/issues/2319)) ([39226be](https://github.com/LucasSantana-Dev/Lucky/commit/39226becb1446af54785cbfba47044f48b700b24))
+
 ## [2.45.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.44.0...v2.45.0) (2026-09-09)
 
 
