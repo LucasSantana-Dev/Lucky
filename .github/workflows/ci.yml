@@ -503,7 +503,10 @@ jobs:
                     Promise.all([
                       import('./packages/bot/dist/i18n/index.js'),
                       import('./packages/bot/dist/utils/music/duplicateDetection/types.js'),
-                    ]).then(() => console.log('ESM boot smoke OK'))
+                    ]).then(() => console.log('ESM boot smoke OK')).catch((err) => {
+                      console.error('ESM boot smoke FAILED:', err);
+                      process.exit(1);
+                    })
                   "
             # Include files are the #1908/#1910 rollback class: a missing or
             # http-level-loaded include crashes nginx at boot, which

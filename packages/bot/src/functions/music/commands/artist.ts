@@ -16,6 +16,7 @@ import {
 } from '../../../utils/general/embeds'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { errorLog, warnLog } from '@lucky/shared/utils'
+import { handleArtistDiscography } from './artistDiscography'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
@@ -56,11 +57,19 @@ export default new Command({
             option
                 .setName('limit')
                 .setDescription(
-                    `Tracks to queue (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`,
+                    `Tracks to queue (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT}). Ignored when discography is true.`,
                 )
                 .setRequired(false)
                 .setMinValue(1)
                 .setMaxValue(MAX_LIMIT),
+        )
+        .addBooleanOption((option) =>
+            option
+                .setName('discography')
+                .setDescription(
+                    'Queue the whole discography, most famous first, instead of a fixed count. Skip/stop when done.',
+                )
+                .setRequired(false),
         ),
     category: 'music',
     execute: async ({
@@ -115,12 +124,24 @@ export default new Command({
         )
         const artistName = interaction.options.getString('name', true)
         const limit = interaction.options.getInteger('limit') ?? DEFAULT_LIMIT
+        const discography =
+            interaction.options.getBoolean('discography') ?? false
 
         try {
             await interaction.deferReply()
         } catch (error) {
             if (isUnknownInteractionError(error)) return
             throw error
+        }
+
+        if (discography) {
+            await handleArtistDiscography({
+                client,
+                interaction,
+                voiceChannel,
+                artistName,
+            })
+            return
         }
 
         try {
