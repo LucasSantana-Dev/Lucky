@@ -1,13 +1,13 @@
 import { QueryType } from 'discord-player'
 import type { VoiceBasedChannel, ChatInputCommandInteraction } from 'discord.js'
-import type { CustomClient } from '../../../types/CustomClient'
-import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
-import { moveUserTrackToPriority } from '../../../services/musicManagement/queueManipulation'
+import type { CustomClient } from '../../../../types/CustomClient'
+import { resolveGuildQueue } from '../../../../services/musicManagement/queueResolver'
+import { moveUserTrackToPriority } from '../../../../services/musicManagement/queueManipulation'
 import {
     createErrorEmbed,
     createSuccessEmbed,
-} from '../../../utils/general/embeds'
-import { interactionReply } from '../../../utils/general/interactionReply'
+} from '../../../../utils/general/embeds'
+import { interactionReply } from '../../../../utils/general/interactionReply'
 import {
     errorLog,
     warnLog,
@@ -18,7 +18,7 @@ import {
 } from '@lucky/shared/utils'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
-import { isUnknownInteractionError } from './play/queryUtils'
+import { isUnknownInteractionError } from '../play/queryUtils'
 
 const MAX_DISCOGRAPHY_ALBUMS = 25
 // A prolific artist's catalog can run into the hundreds of tracks once
