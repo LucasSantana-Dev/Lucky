@@ -232,7 +232,10 @@ export class MusicWatchdogService {
                 }
             }
 
-            if (queue.currentTrack) {
+            if (this.intentionalStops.has(guildId)) {
+                action = 'none'
+                detail = 'intentional_stop'
+            } else if (queue.currentTrack) {
                 await queue.node.play()
                 action = 'requeue_current'
                 detail = didRejoin
@@ -350,8 +353,13 @@ export class MusicWatchdogService {
             const queue = existingQueue ?? player.nodes.create(guild)
             if (!existingQueue) {
                 queue.setRepeatMode(3)
+                // Re-check intentional stop immediately before connect
+                if (this.intentionalStops.has(guildId)) return
                 await queue.connect(voiceChannel)
             }
+
+            // Re-check intentional stop immediately before restore
+            if (this.intentionalStops.has(guildId)) return
 
             const restoreResult =
                 await musicSessionSnapshotService.restoreSnapshot(

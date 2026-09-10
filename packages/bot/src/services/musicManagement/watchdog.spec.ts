@@ -432,6 +432,53 @@ describe('MusicWatchdogService — orphan session monitor', () => {
 
         expect(restoreSnapshotMock).not.toHaveBeenCalled()
     })
+
+    it('recoverOrphanSession aborts if intentional stop is set mid-flight before connect (#2311)', async () => {
+        const guildId = 'guild-orphan-race'
+        listGuildIdsMock.mockResolvedValue([guildId])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-orphan',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        let connectCalled = false
+        const queue = {
+            setRepeatMode: jest.fn(),
+            connect: jest.fn().mockImplementation(async () => {
+                connectCalled = true
+            }),
+        }
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(null),
+            create: jest.fn().mockReturnValue(queue),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        service.markIntentionalStop(guildId)
+
+        await service.scanOrphanSessions(player)
+
+        // With the fix, connect() and restore() should not be called
+        // because we re-check the intentional stop flag before attempting them
+        expect(connectCalled).toBe(false)
+        expect(queue.connect).not.toHaveBeenCalled()
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+    })
 })
 
 describe('MusicWatchdogService — constructor env var parsing', () => {
@@ -664,6 +711,62 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
 
         resolveSecondPlay()
         await secondRecovery
+    })
+
+    it('checkAndRecover aborts if intentional stop is set mid-flight before play (#2311)', async () => {
+        const guildId = 'guild-race-2311'
+        const service = new MusicWatchdogService({
+            timeoutMs: 100,
+            recoveryWaitTimeoutMs: 50,
+            recoveryPollIntervalMs: 10,
+        })
+
+        // The race condition: rejoin needs to happen and connection needs to wait
+        // to become ready, during which we mark intentional stop
+        const connection = {
+            state: { status: 'disconnected' },
+            rejoin: jest.fn(() => {
+                // Schedule connection to become ready after a delay
+                // This gives us a window to mark intentional stop
+                setTimeout(() => {
+                    connection.state.status = 'ready'
+                }, 15)
+            }),
+        }
+
+        const play = jest.fn().mockResolvedValue(undefined)
+        const queue = {
+            guild: { id: guildId },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection,
+            node: { isPlaying: () => false, play },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        // Fire off recovery
+        const recoveryPromise = service.checkAndRecover(queue)
+
+        // The recovery will:
+        // 1. See connection is not ready, call rejoin()
+        // 2. Enter waitForConnectionReady which loops checking every 10ms
+        // At this point we mark the stop while recovery is mid-flight
+
+        // Advance 5ms so rejoin has been called and loop has started
+        await jest.advanceTimersByTimeAsync(5)
+        service.markIntentionalStop(guildId)
+
+        // Advance the rest of the time for recovery to complete
+        await jest.advanceTimersByTimeAsync(100)
+        const action = await recoveryPromise
+
+        // With the fix, play() should never be called because we re-check
+        // the intentional stop flag before attempting play()
+        expect(play).not.toHaveBeenCalled()
+        expect(action).toBe('none')
+        expect(service.getGuildState(guildId)).toMatchObject({
+            lastRecoveryAction: 'none',
+            lastRecoveryDetail: 'intentional_stop',
+        })
     })
 })
 
