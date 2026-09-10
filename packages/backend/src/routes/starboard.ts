@@ -10,7 +10,7 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { z } from 'zod'
 import { starboardService } from '@lucky/shared/services'
-import { guildIdParam } from '../schemas/common'
+import { guildIdParam, snowflakeId } from '../schemas/common'
 import { paramToString as p } from '../utils/paramCoerce'
 
 const upsertConfigBody = z.object({
@@ -19,10 +19,7 @@ const upsertConfigBody = z.object({
     threshold: z.number().int().min(1).max(100).optional(),
     selfStar: z.boolean().optional(),
     seedReaction: z.boolean().optional(),
-    seedChannelIds: z
-        .array(z.string().regex(/^\d{17,20}$/, 'Invalid channel ID'))
-        .max(50)
-        .optional(),
+    seedChannelIds: z.array(snowflakeId).max(50).optional(),
     firstStarDm: z.boolean().optional(),
     firstStarDmMessage: z.string().max(1000).nullish(),
 })
