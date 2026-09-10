@@ -72,7 +72,7 @@ export const validateRange = (
 }
 
 export const validateGuildId = (value: string): Result<string> => {
-    const guildIdRegex = /^\d{17,19}$/
+    const guildIdRegex = /^\d{17,20}$/
     if (!guildIdRegex.test(value)) {
         return createFailure(new Error('Invalid guild ID format'))
     }
@@ -80,7 +80,7 @@ export const validateGuildId = (value: string): Result<string> => {
 }
 
 export const validateUserId = (value: string): Result<string> => {
-    const userIdRegex = /^\d{17,19}$/
+    const userIdRegex = /^\d{17,20}$/
     if (!userIdRegex.test(value)) {
         return createFailure(new Error('Invalid user ID format'))
     }

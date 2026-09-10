@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from 'express'
+import { isSnowflakeId } from '../schemas/common'
 import { timingSafeKeyCompare } from '../utils/timingSafeKeyCompare'
 import {
     verifyTopggSignature,
@@ -103,7 +104,7 @@ export function normalizeTopggPayload(body: unknown): NormalizedVote {
 }
 
 function isDiscordSnowflake(value: string): boolean {
-    return /^\d{17,20}$/.test(value)
+    return isSnowflakeId(value)
 }
 
 /**

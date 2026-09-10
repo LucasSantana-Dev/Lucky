@@ -22,11 +22,15 @@ export const isNonEmptyString = (value: unknown): value is string =>
 export const isNonEmptyArray = <T>(value: unknown): value is [T, ...T[]] =>
     isArray<T>(value) && value.length > 0
 
-export const isGuildId = (value: string): boolean => /^\d{17,19}$/.test(value)
+export const isGuildId = (value: string): boolean => /^\d{17,20}$/.test(value)
 
-export const isUserId = (value: string): boolean => /^\d{17,19}$/.test(value)
+export const isUserId = (value: string): boolean => /^\d{17,20}$/.test(value)
 
-export const isChannelId = (value: string): boolean => /^\d{17,19}$/.test(value)
+export const isChannelId = (value: string): boolean => /^\d{17,20}$/.test(value)
+
+export const isMessageId = (value: string): boolean => /^\d{17,20}$/.test(value)
+
+export const isRoleId = (value: string): boolean => /^\d{17,20}$/.test(value)
 
 export const isYouTubeUrl = (value: string): boolean =>
     /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+/.test(value)
