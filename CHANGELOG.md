@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.45.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.45.2...v2.45.3) (2026-09-10)
+
+
+### Bug Fixes
+
+* **bot:** abort restoreSnapshot when a stop lands mid-restore ([#2348](https://github.com/LucasSantana-Dev/Lucky/issues/2348)) ([670bd61](https://github.com/LucasSantana-Dev/Lucky/commit/670bd612c3bac8fc8594293228b53fa530c94e23))
+* **bot:** prevent track key collision for repeated plays ([#2322](https://github.com/LucasSantana-Dev/Lucky/issues/2322)) ([fa6acd9](https://github.com/LucasSantana-Dev/Lucky/commit/fa6acd94422d53fcf8a48aa769696d32cb825c5a))
+* **bot:** top up capped Spotify artist search past limit=10 ([#2343](https://github.com/LucasSantana-Dev/Lucky/issues/2343)) ([7087f8e](https://github.com/LucasSantana-Dev/Lucky/commit/7087f8ea6a6ac2217479bf5d6702bc308ac37084))
+* re-check intentional-stop before watchdog recovery actions ([#2323](https://github.com/LucasSantana-Dev/Lucky/issues/2323)) ([ac53571](https://github.com/LucasSantana-Dev/Lucky/commit/ac535719ef4f1420e9b9b7dec4243ad628415d86))
+* **shared:** one duration parser, so giveaways accept seconds ([#2338](https://github.com/LucasSantana-Dev/Lucky/issues/2338)) ([9b720b8](https://github.com/LucasSantana-Dev/Lucky/commit/9b720b8226db66956f9cdffd70eb54272c10d169))
+
 ## [2.45.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.45.1...v2.45.2) (2026-09-10)
 
 
