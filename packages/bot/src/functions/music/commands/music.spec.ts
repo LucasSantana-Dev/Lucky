@@ -30,7 +30,7 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...a: unknown[]) => requireGuildMock(...(a as [])),
 }))
 
-jest.mock('../../../utils/music/search/providerHealth', () => ({
+jest.mock('../../../services/musicManagement/search/providerHealth', () => ({
     providerHealthService: { getAllStatuses: () => getAllStatusesMock() },
 }))
 

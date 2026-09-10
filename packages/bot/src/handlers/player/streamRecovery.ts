@@ -4,9 +4,9 @@ import { debugLog, warnLog } from '@lucky/shared/utils'
 import {
     analyzeYouTubeError,
     logYouTubeError,
-} from '../../utils/music/youtubeErrorHandler'
+} from '../../services/musicManagement/youtubeErrorHandler'
 import { youtubeConfig } from '@lucky/shared/config'
-import { providerHealthService } from '../../utils/music/search/providerHealth'
+import { providerHealthService } from '../../services/musicManagement/search/providerHealth'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 import { isSameTrack } from './errorClassification'
 import { notifyChannelStreamFailed } from './streamFailureNotifier'
