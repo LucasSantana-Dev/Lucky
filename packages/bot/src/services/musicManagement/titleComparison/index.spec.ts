@@ -32,19 +32,21 @@ describe('titleComparison barrel', () => {
         // Run against the real TitleComparisonService rather than a double, so
         // these assert the facade wires through to working behaviour instead of
         // just that a mock was called.
-        it('extractArtistTitle falls back to the whole input as the title', () => {
+        it('extractArtistTitle returns the whole input with an unknown artist', () => {
             const result = extractArtistTitle('Daft Punk - Around the World')
 
-            // Not an aspiration about splitting: artistTitlePatterns and
-            // artistPatterns ship as empty arrays, so applyPatterns matches
-            // nothing here and every plain "artist - title" string takes the
-            // fallback branch. Asserting the real behaviour, with the gap
-            // filed separately rather than encoded as a passing expectation.
+            // Not an aspiration about splitting. applyPatterns in
+            // utils/misc/stringUtils.ts is a stub: it takes `_patterns` and
+            // ignores them, always returning { artist: 'Unknown', title: input }.
+            // So this takes the matched branch, not the fallback, and no input
+            // can ever yield a real artist. Asserting what the code does, with
+            // the gap filed as #2356 rather than encoded as a passing
+            // expectation.
             expect(result.artist).toBe('Unknown')
             expect(result.title).toBe('Daft Punk - Around the World')
         })
 
-        it('extractArtistTitle trims surrounding whitespace in the fallback', () => {
+        it('extractArtistTitle trims surrounding whitespace', () => {
             expect(extractArtistTitle('  Around the World  ').title).toBe(
                 'Around the World',
             )
