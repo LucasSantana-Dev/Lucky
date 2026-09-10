@@ -1,4 +1,4 @@
-import { isChannelId } from '@lucky/shared/utils/guards'
+import { isChannelId, isRoleId } from '@lucky/shared/utils/guards'
 import type {
     ReactionRoleMessage,
     CreateReactionRolePayload,
@@ -158,7 +158,7 @@ export function deserializeReactionRolesJSON(
                 rolesValid = false
                 break
             }
-            if (!isChannelId(String(role.roleId))) {
+            if (!isRoleId(String(role.roleId))) {
                 errors.push(
                     `${rolePrefix}roleId must be a valid Discord snowflake`,
                 )
