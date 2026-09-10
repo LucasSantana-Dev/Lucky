@@ -47,6 +47,17 @@ export class MusicWatchdogService {
     private readonly recoveryInProgress = new Map<string, number>()
     private readonly recoveryLockMaxMs = 30_000
     private orphanMonitorInterval: ReturnType<typeof setInterval> | null = null
+    // Every restoreSnapshot() call currently in flight for a guild, across
+    // every caller (both this service's own orphan recovery and the
+    // player's connection-lifecycle restore in lifecycleHandlers.ts register
+    // here through registerRecoveryController()). A Set, not a single
+    // controller, because a restore that outlives the stale-lock window can
+    // overlap with a second one for the same guild — a stop must abort all
+    // of them, not just the most recently registered one (see #2335).
+    private readonly activeRecoveryControllers = new Map<
+        string,
+        Set<AbortController>
+    >()
 
     constructor(options: MusicWatchdogOptions = {}) {
         this.timeoutMs =
@@ -116,9 +127,51 @@ export class MusicWatchdogService {
         state.lastActivityAt = now
     }
 
+    /**
+     * Registers an AbortController for a restoreSnapshot() call about to
+     * start for a guild, so markIntentionalStop() can abort it no matter
+     * which caller started the restore — this service's own orphan recovery
+     * or the player's connection-lifecycle restore in lifecycleHandlers.ts.
+     * The caller must invoke the returned `release()` once its restore
+     * settles (success, failure, or abort), or the controller leaks for the
+     * lifetime of the guild's entry.
+     */
+    registerRecoveryController(guildId: string): {
+        controller: AbortController
+        release: () => void
+    } {
+        const controller = new AbortController()
+        let controllers = this.activeRecoveryControllers.get(guildId)
+        if (!controllers) {
+            controllers = new Set()
+            this.activeRecoveryControllers.set(guildId, controllers)
+        }
+        controllers.add(controller)
+
+        const release = (): void => {
+            const current = this.activeRecoveryControllers.get(guildId)
+            if (!current) return
+            current.delete(controller)
+            if (current.size === 0) {
+                this.activeRecoveryControllers.delete(guildId)
+            }
+        }
+
+        return { controller, release }
+    }
+
     markIntentionalStop(guildId: string): void {
         this.intentionalStops.add(guildId)
         this.clear(guildId)
+        // Abort every restoreSnapshot() call in flight for this guild, across
+        // every registered caller, so a stop landing mid-restore is observed
+        // inside each one's own async work.
+        const controllers = this.activeRecoveryControllers.get(guildId)
+        if (controllers) {
+            for (const controller of controllers) {
+                controller.abort()
+            }
+        }
         // Cancel any orphaned timer from a previous call so only the latest
         // timer for this guild can delete the flag.
         const oldTimer = this.intentionalStopAutoClearTimers.get(guildId)
@@ -374,13 +427,47 @@ export class MusicWatchdogService {
                 return
             }
 
-            const restoreResult =
-                await musicSessionSnapshotService.restoreSnapshot(
-                    queue,
-                    undefined,
-                    { skipCurrentTrack: true },
-                )
+            // restoreSnapshot() does its own async work (searching + enqueuing
+            // each track). A stop landing during that work would slip past both
+            // re-checks above, so give it an abort signal it already knows how
+            // to honor and let markIntentionalStop() trip it mid-flight.
+            const {
+                controller: restoreController,
+                release: releaseRestoreController,
+            } = this.registerRecoveryController(guildId)
+            let restoreResult: Awaited<
+                ReturnType<typeof musicSessionSnapshotService.restoreSnapshot>
+            >
+            try {
+                restoreResult =
+                    await musicSessionSnapshotService.restoreSnapshot(
+                        queue,
+                        undefined,
+                        {
+                            skipCurrentTrack: true,
+                            signal: restoreController.signal,
+                        },
+                    )
+            } finally {
+                releaseRestoreController()
+            }
+
             if (!restoreResult || restoreResult.restoredCount <= 0) {
+                // A stop that landed during restoreSnapshot()'s own async work
+                // aborts it back to an empty result, same as a genuinely empty
+                // snapshot. Tell the two apart: on a stop, tear the queue back
+                // down instead of treating this as a failed recovery. Checking
+                // the controller's own aborted state rather than
+                // intentionalStops directly: the flag auto-clears a fixed
+                // window after markIntentionalStop() regardless of how long
+                // this restore takes, so a slow restore finishing after that
+                // window would otherwise read as a genuinely empty snapshot.
+                // An aborted signal never un-aborts, so it stays reliable.
+                if (restoreController.signal.aborted) {
+                    discardCreatedQueue()
+                    return
+                }
+
                 await musicSessionSnapshotService.deleteSnapshot(guildId)
 
                 const state = this.ensureState(guildId)

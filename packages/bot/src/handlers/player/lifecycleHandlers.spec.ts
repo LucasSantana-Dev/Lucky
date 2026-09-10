@@ -13,6 +13,7 @@ const watchdogClearMock = jest.fn()
 const watchdogMarkIntentionalStopMock = jest.fn()
 const watchdogClearIntentionalStopMock = jest.fn()
 const watchdogIsIntentionalStopMock = jest.fn(() => false)
+const watchdogRegisterRecoveryControllerMock = jest.fn()
 const replenishQueueMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -39,6 +40,8 @@ jest.mock('../../services/musicManagement/watchdog', () => ({
         markIntentionalStop: watchdogMarkIntentionalStopMock,
         clearIntentionalStop: (...args: unknown[]) =>
             watchdogClearIntentionalStopMock(...args),
+        registerRecoveryController: (...args: unknown[]) =>
+            watchdogRegisterRecoveryControllerMock(...args),
     },
 }))
 
@@ -82,6 +85,13 @@ describe('setupLifecycleHandlers', () => {
         saveSnapshotMock.mockResolvedValue(null)
         watchdogCheckRecoverMock.mockResolvedValue('none')
         watchdogIsIntentionalStopMock.mockReturnValue(false)
+        // Mirrors the real MusicWatchdogService.registerRecoveryController():
+        // a fresh AbortController per call plus a release spy the caller
+        // must invoke once its restore settles.
+        watchdogRegisterRecoveryControllerMock.mockImplementation(() => ({
+            controller: new AbortController(),
+            release: jest.fn(),
+        }))
     })
 
     it('restores snapshot and arms watchdog on connection', async () => {
@@ -113,6 +123,49 @@ describe('setupLifecycleHandlers', () => {
             expect.objectContaining({ signal: expect.anything() }),
         )
         expect(watchdogArmMock).toHaveBeenCalledWith(queue)
+    })
+
+    it('registers the restore controller with the watchdog instead of a private one, so a stop can abort it too (#2335 follow-up)', async () => {
+        // Regression: this restore used to create its own private
+        // AbortController that the watchdog's markIntentionalStop() never
+        // saw. A stop landing during THIS restore (started here, off the
+        // player's `connection` event, not off recoverOrphanSession) would
+        // never be observed. Registering through the watchdog's shared
+        // registry closes that gap.
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+
+        setupLifecycleHandlers(player)
+
+        const queue = {
+            guild: { id: 'guild-shared', name: 'Guild Shared' },
+            metadata: { requestedBy: { id: 'user-1' } },
+            connection: { state: { status: 'ready' }, joinConfig: {} },
+        } as unknown as GuildQueue
+
+        await handlers.connection(queue)
+
+        expect(watchdogRegisterRecoveryControllerMock).toHaveBeenCalledWith(
+            'guild-shared',
+        )
+        const { controller, release } = watchdogRegisterRecoveryControllerMock
+            .mock.results[0].value as ReturnType<
+            typeof watchdogRegisterRecoveryControllerMock
+        >
+        expect(restoreSnapshotMock).toHaveBeenCalledWith(
+            queue,
+            expect.objectContaining({ id: 'user-1' }),
+            expect.objectContaining({ signal: controller.signal }),
+        )
+        // The registered controller must be released once the restore
+        // settles, or it leaks in the watchdog's registry for this guild.
+        expect(release).toHaveBeenCalled()
     })
 
     it('clears a stale intentional-stop flag once the new session arms (#2246)', async () => {

@@ -252,6 +252,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         expect(queue.connect).toHaveBeenCalledWith(voiceChannel)
         expect(restoreSnapshotMock).toHaveBeenCalledWith(queue, undefined, {
             skipCurrentTrack: true,
+            signal: expect.any(AbortSignal),
         })
         expect(service.getGuildState('guild-recover')).toEqual(
             expect.objectContaining({ lastRecoveryAction: 'rejoin' }),
@@ -298,7 +299,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         expect(restoreSnapshotMock).toHaveBeenCalledWith(
             existingQueue,
             undefined,
-            { skipCurrentTrack: true },
+            { skipCurrentTrack: true, signal: expect.any(AbortSignal) },
         )
     })
 
@@ -535,6 +536,238 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         expect(queue.connect).not.toHaveBeenCalled()
         expect(restoreSnapshotMock).not.toHaveBeenCalled()
         expect(queue.delete).toHaveBeenCalled()
+    })
+
+    it('aborts the in-flight restoreSnapshot() signal when the stop lands during restoreSnapshot itself (#2335)', async () => {
+        const guildId = 'guild-restore-own-async-race'
+        const service = new MusicWatchdogService()
+
+        listGuildIdsMock.mockResolvedValue([guildId])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-restore-race',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        // restoreSnapshot marks the stop from INSIDE its own mocked async
+        // work, after both watchdog re-checks (before connect, before
+        // restore) already passed. This is the exact gap #2335 reports: the
+        // entry check and both #2311 re-checks all run before restoreSnapshot
+        // is even called, so none of them can observe a stop that lands once
+        // restoreSnapshot's own async work has started.
+        let observedSignal: AbortSignal | undefined
+        restoreSnapshotMock.mockImplementation(
+            async (
+                _queue: unknown,
+                _user: unknown,
+                options: { signal?: AbortSignal },
+            ) => {
+                observedSignal = options.signal
+                service.markIntentionalStop(guildId)
+                return { restoredCount: 0, sessionSnapshotId: null }
+            },
+        )
+
+        const queue = {
+            setRepeatMode: jest.fn(),
+            delete: jest.fn(),
+            connect: jest.fn().mockResolvedValue(undefined),
+        }
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(null),
+            create: jest.fn().mockReturnValue(queue),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        await service.scanOrphanSessions(player)
+
+        // markIntentionalStop() aborted the signal watchdog handed to
+        // restoreSnapshot, so restoreSnapshot's own internal checks (tested
+        // separately in sessionSnapshots.spec.ts) can observe the stop.
+        expect(observedSignal?.aborted).toBe(true)
+        // And watchdog tells the abort apart from a genuinely empty snapshot:
+        // it tears the queue it created back down instead of marking this a
+        // failed recovery.
+        expect(queue.delete).toHaveBeenCalled()
+    })
+
+    it('markIntentionalStop aborts every controller registered for a guild, not just the most recently registered one (stale-lock overwrite regression)', async () => {
+        const guildId = 'guild-controller-overwrite'
+        const service = new MusicWatchdogService()
+
+        listGuildIdsMock.mockResolvedValue([guildId])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-overwrite',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        // A restore that outlives the 30s stale-lock window while still in
+        // flight can overlap with a second one for the same guild — the
+        // first call's restoreSnapshot() hangs forever, the second resolves
+        // immediately once it starts.
+        const observedSignals: AbortSignal[] = []
+        restoreSnapshotMock.mockImplementation(
+            (
+                _queue: unknown,
+                _user: unknown,
+                options: { signal?: AbortSignal },
+            ) => {
+                if (options.signal) observedSignals.push(options.signal)
+                if (observedSignals.length === 1) {
+                    return new Promise(() => {})
+                }
+                return Promise.resolve({
+                    restoredCount: 1,
+                    sessionSnapshotId: 'snap',
+                })
+            },
+        )
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const makeQueue = () => ({
+            setRepeatMode: jest.fn(),
+            delete: jest.fn(),
+            connect: jest.fn().mockResolvedValue(undefined),
+        })
+        const queues = [makeQueue(), makeQueue()]
+        let createCalls = 0
+        const nodes = {
+            get: jest.fn().mockReturnValue(null),
+            create: jest.fn().mockImplementation(() => queues[createCalls++]),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        // First recovery: its restoreSnapshot() call hangs.
+        void service.scanOrphanSessions(player)
+        // Let its stale-lock window fully elapse while still in flight.
+        await jest.advanceTimersByTimeAsync(30_001)
+
+        // Second recovery for the same guild now proceeds (lock went stale)
+        // and registers its own controller for the same guildId.
+        await service.scanOrphanSessions(player)
+
+        expect(observedSignals).toHaveLength(2)
+        // The second recovery already resolved and released its own
+        // controller, so it is no longer registered — that is expected and
+        // fine, it is not the one this test is protecting.
+        expect(observedSignals[1].aborted).toBe(false)
+
+        service.markIntentionalStop(guildId)
+
+        // The FIRST controller — still pending, from the recovery whose lock
+        // went stale — must still abort. With a single-controller-per-guild
+        // map, registering the second controller would have silently
+        // evicted the first one's entry, so this stop would never reach it.
+        expect(observedSignals[0].aborted).toBe(true)
+    })
+
+    it('discards the created queue on an aborted restore even after the intentional-stop flag has auto-cleared (flag-vs-signal regression)', async () => {
+        const guildId = 'guild-flag-autoclear'
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+
+        listGuildIdsMock.mockResolvedValue([guildId])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-autoclear',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        let resolveRestore: (value: unknown) => void = () => {}
+        restoreSnapshotMock.mockImplementation(() => {
+            // Mark the stop from INSIDE restoreSnapshot's own mocked async
+            // work, same as the mid-restore test above — never before entry.
+            service.markIntentionalStop(guildId)
+            return new Promise((resolve) => {
+                resolveRestore = resolve
+            })
+        })
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const queue = {
+            setRepeatMode: jest.fn(),
+            delete: jest.fn(),
+            connect: jest.fn().mockResolvedValue(undefined),
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(null),
+            create: jest.fn().mockReturnValue(queue),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        const scanPromise = service.scanOrphanSessions(player)
+
+        // Let the stop's auto-clear timer (timeoutMs + 10s = 10.1s) fully
+        // elapse while restoreSnapshot is still pending, so the
+        // intentional-stop flag is gone by the time the restore result
+        // comes back.
+        await jest.advanceTimersByTimeAsync(10_101)
+        expect(service.isIntentionalStop(guildId)).toBe(false)
+
+        resolveRestore({ restoredCount: 0, sessionSnapshotId: null })
+        await scanPromise
+
+        // Even with the flag gone, the aborted signal is still the source of
+        // truth: the created queue must still be torn down, not treated as a
+        // normal failed/empty recovery.
+        expect(queue.delete).toHaveBeenCalled()
+    })
+
+    it('registerRecoveryController lets any caller register a controller that markIntentionalStop aborts, not just recoverOrphanSession (shared-registry regression)', async () => {
+        const guildId = 'guild-shared-registry'
+        const service = new MusicWatchdogService()
+
+        // Simulates a caller OTHER than recoverOrphanSession — e.g. the
+        // player's connection-lifecycle restore in lifecycleHandlers.ts —
+        // registering its own restore attempt through the same public
+        // registry recoverOrphanSession uses internally.
+        const { controller, release } =
+            service.registerRecoveryController(guildId)
+        expect(controller.signal.aborted).toBe(false)
+
+        // Mark the stop mid-flight, from inside the caller's own async work,
+        // not before any entry guard.
+        await Promise.resolve().then(() => {
+            service.markIntentionalStop(guildId)
+        })
+
+        expect(controller.signal.aborted).toBe(true)
+        release()
     })
 })
 

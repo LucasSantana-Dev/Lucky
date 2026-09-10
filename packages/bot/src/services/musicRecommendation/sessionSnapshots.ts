@@ -387,13 +387,28 @@ export class MusicSessionSnapshotService {
             }
 
             if (restoredCount > 0) {
-                // Clear the snapshot after a successful restore so it cannot
-                // be applied again on the next connection event.
-                await this.deleteSnapshot(queue.guild.id)
+                // Do not delete the persisted snapshot until the restore can
+                // no longer be cancelled — that point is play() actually
+                // being invoked (or the queue already playing), not
+                // deleteSnapshot() returning. Deleting first and checking
+                // this signal afterward meant a stop landing during
+                // deleteSnapshot()'s own async work still destroyed the only
+                // persisted copy of a session that never actually resumed:
+                // undoRestoredTracks() cannot bring back a row that is
+                // already gone from the database.
+                if (options.signal?.aborted) {
+                    undoRestoredTracks()
+                    return { restoredCount: 0, sessionSnapshotId: null }
+                }
 
                 if (!queue.node.isPlaying()) {
                     await queue.node.play()
                 }
+
+                // Clear the snapshot now that playback has committed (or was
+                // already underway), so it cannot be applied again on the
+                // next connection event.
+                await this.deleteSnapshot(queue.guild.id)
             }
 
             debugLog({
