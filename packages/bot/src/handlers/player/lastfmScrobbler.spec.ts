@@ -23,6 +23,7 @@ import {
     updateLastFmNowPlaying,
     scrobbleCurrentTrackIfLastFm,
     clearLastFmTrackTiming,
+    __setLastFmTrackStartTime,
 } from './lastfmScrobbler'
 import * as lastfm from '../../lastfm'
 
@@ -279,16 +280,15 @@ describe('lastfmScrobbler', () => {
         })
 
         it('uses stored track start time if available', async () => {
-            clearLastFmTrackTiming('guild-123')
+            const storedStartTime = 1000
+            __setLastFmTrackStartTime('guild-123', storedStartTime)
 
-            // Would need a way to set start time - this tests the behavior
-            // when a start time exists (tested via integration)
             await scrobbleCurrentTrackIfLastFm(mockQueue as GuildQueue)
 
             expect(mockLastFm.scrobble).toHaveBeenCalled()
-            // The timestamp passed should be close to current time
+            // The timestamp passed should match the stored start time
             const callArgs = mockLastFm.scrobble.mock.calls[0]
-            expect(callArgs[2]).toBeGreaterThan(0)
+            expect(callArgs[2]).toBe(storedStartTime)
         })
 
         it('uses current time when no start time stored', async () => {
