@@ -281,15 +281,13 @@ jobs:
                   path: packages/frontend/coverage/lcov.info
                   retention-days: 1
 
-    # Hard gate. Blocks merges if cycle count exceeds baseline.
-    # Baseline: COUNT > 1 (permits 1 known residual type-only cycle).
+    # Hard gate. Blocks merges if any circular dependency is found.
+    # Baseline: COUNT > 0 (zero cycles tolerated).
     #
-    # 1 known residual: types/CustomClient.ts > models/Command.ts > types/CommandData.ts
-    # All imports in this cycle are `import type`; breaking it requires structural
-    # refactoring (moving types to shared file) that cascades into command-loader
-    # consumers (help.ts). Deferred pending command-loader contract review.
-    #
-    # See decisions/2026-05-16-next-refactor-target-bot-circular-deps.md.
+    # The last residual cycle (types/CustomClient.ts > models/Command.ts >
+    # types/CommandData.ts) was removed by merging the three mutually
+    # recursive files into types/CommandData.ts. See
+    # decisions/2026-05-16-next-refactor-target-bot-circular-deps.md.
     # The job name must stay exactly "madge / packages/bot": the branch ruleset
     # requires that check context (absorbed from the deleted madge.yml workflow).
     madge:
@@ -322,21 +320,28 @@ jobs:
               run: npm install --no-save madge@^7 --ignore-scripts
             - name: Run madge --circular on packages/bot/src
               run: |
+                  set -o pipefail
                   npx madge --circular --extensions ts packages/bot/src \
                       | tee madge-bot.txt
-                  COUNT=$(grep -cE '^[0-9]+\)' madge-bot.txt || echo 0)
+                  # grep -c always prints a numeric count, including 0 on no
+                  # match; it just exits 1 in that case. The step runs under
+                  # `bash -e`, so that exit status aborts the whole script at
+                  # this assignment, failing the job on a clean tree. `|| true`
+                  # swallows it. Don't use `|| echo 0` instead: that appends a
+                  # second, spurious "0" line and breaks the comparison below.
+                  COUNT=$(grep -cE '^[0-9]+\)' madge-bot.txt || true)
                   echo "bot_cycles=$COUNT" >> "$GITHUB_OUTPUT"
                   {
                       echo "## madge circular deps - packages/bot/src"
                       echo ""
-                      echo "**Cycle count:** $COUNT (max: 1)"
+                      echo "**Cycle count:** $COUNT (max: 0)"
                       echo ""
                       echo '```'
                       cat madge-bot.txt
                       echo '```'
                   } >> "$GITHUB_STEP_SUMMARY"
-                  if [ "$COUNT" -gt 1 ]; then
-                      echo "❌ Cycle count exceeds baseline (> 1)" >&2
+                  if [ "$COUNT" -gt 0 ]; then
+                      echo "❌ Cycle count exceeds baseline (> 0)" >&2
                       exit 1
                   fi
               id: madge

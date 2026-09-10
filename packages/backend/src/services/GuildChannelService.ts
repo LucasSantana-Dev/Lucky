@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isGuildId } from '@lucky/shared/utils/guards'
 import type { Client } from 'discord.js'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import type { GuildChannelOption, GuildEmojiOption } from '@lucky/shared/types'
@@ -102,7 +103,7 @@ class GuildChannelService {
         // Reject anything that is not a Discord snowflake before it reaches the
         // request URL — validated inline at the sink so the ID cannot forge the
         // request (SSRF / path-traversal guard).
-        if (!/^\d{17,20}$/.test(guildId)) {
+        if (!isGuildId(guildId)) {
             throw new Error('Invalid Discord guild id')
         }
 
@@ -211,7 +212,7 @@ class GuildChannelService {
         // Reject anything that is not a Discord snowflake before it reaches the
         // request URL — validated inline at the sink so the ID cannot forge the
         // request (SSRF / path-traversal guard).
-        if (!/^\d{17,20}$/.test(guildId)) {
+        if (!isGuildId(guildId)) {
             throw new Error('Invalid Discord guild id')
         }
 
