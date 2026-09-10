@@ -1,6 +1,6 @@
 import type { Track } from 'discord-player'
 import { getTrackInfo } from '../../../../services/musicManagement/trackUtils'
-import { isSimilarTitle } from '../../../../utils/music/titleComparison'
+import { isSimilarTitle } from '../../../../services/musicManagement/titleComparison'
 import type { TrackDisplayInfo, QueueDisplayOptions } from './types'
 
 export async function formatTrackForDisplay(

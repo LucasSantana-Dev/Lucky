@@ -10,7 +10,7 @@ jest.mock('@lucky/shared/config', () => ({
     artistPatterns: [],
 }))
 
-import { TitleComparisonService } from '../../../src/utils/music/titleComparison/service'
+import { TitleComparisonService } from '../../../src/services/musicManagement/titleComparison/service'
 
 describe('TitleComparisonService', () => {
     let service: TitleComparisonService
