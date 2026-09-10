@@ -25,13 +25,13 @@ jest.mock('@lucky/shared/config', () => ({
     },
 }))
 
-jest.mock('../../utils/music/youtubeErrorHandler', () => ({
+jest.mock('../../services/musicManagement/youtubeErrorHandler', () => ({
     analyzeYouTubeError: (...args: unknown[]) =>
         analyzeYouTubeErrorMock(...args),
     logYouTubeError: (...args: unknown[]) => logYouTubeErrorMock(...args),
 }))
 
-jest.mock('../../utils/music/search/providerHealth', () => ({
+jest.mock('../../services/musicManagement/search/providerHealth', () => ({
     providerFromTrack: (...args: unknown[]) => providerFromTrackMock(...args),
     providerHealthService: {
         recordSuccess: (...args: unknown[]) => recordSuccessMock(...args),

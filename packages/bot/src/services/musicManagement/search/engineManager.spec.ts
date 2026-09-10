@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    jest,
+} from '@jest/globals'
 import { QueryType } from 'discord-player'
 import { SearchEngineManager } from './engineManager'
 
@@ -38,7 +45,9 @@ describe('SearchEngineManager', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         isAvailableMock.mockReturnValue(true)
-        getOrderedProvidersMock.mockImplementation((providers: string[]) => providers)
+        getOrderedProvidersMock.mockImplementation(
+            (providers: string[]) => providers,
+        )
         providerFromQueryTypeMock.mockImplementation((engine: QueryType) => {
             if (engine === QueryType.YOUTUBE_SEARCH) return 'youtube'
             if (engine === QueryType.AUTO) return 'youtube'
@@ -230,7 +239,9 @@ describe('SearchEngineManager', () => {
     it('still tries preferred engine for direct provider queries even during cooldown', async () => {
         isAvailableMock.mockReturnValue(false)
         const player = {
-            search: jest.fn().mockResolvedValue({ tracks: [{ title: 'Direct URL' }] }),
+            search: jest
+                .fn()
+                .mockResolvedValue({ tracks: [{ title: 'Direct URL' }] }),
         }
         const manager = new SearchEngineManager(player as any)
 

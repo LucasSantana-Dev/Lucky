@@ -13,7 +13,7 @@ import { requireGuild } from '../../../utils/command/commandValidations'
 import {
     providerHealthService,
     type ProviderStatus,
-} from '../../../utils/music/search/providerHealth'
+} from '../../../services/musicManagement/search/providerHealth'
 import {
     musicWatchdogService,
     type WatchdogGuildState,
