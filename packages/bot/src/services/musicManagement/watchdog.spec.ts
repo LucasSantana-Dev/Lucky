@@ -487,6 +487,55 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         // registered for the guild, where the next scan would read it as live.
         expect(queue.delete).toHaveBeenCalled()
     })
+
+    it('recoverOrphanSession aborts before connect and deletes the queue it made (#2311)', async () => {
+        const guildId = 'guild-orphan-race-preconnect'
+        const service = new MusicWatchdogService()
+
+        listGuildIdsMock.mockResolvedValue([guildId])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-orphan',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        // setRepeatMode runs immediately after the queue is created and before
+        // the pre-connect re-check, so marking the stop there exercises the
+        // earlier of the two bail-outs — the one the mid-flight test above
+        // never reaches, because that one only fires once connect is underway.
+        const queue = {
+            setRepeatMode: jest.fn().mockImplementation(() => {
+                service.markIntentionalStop(guildId)
+            }),
+            delete: jest.fn(),
+            connect: jest.fn(),
+        }
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(null),
+            create: jest.fn().mockReturnValue(queue),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        await service.scanOrphanSessions(player)
+
+        // Bailed out before connecting, and did not leave the created queue behind.
+        expect(queue.connect).not.toHaveBeenCalled()
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+        expect(queue.delete).toHaveBeenCalled()
+    })
 })
 
 describe('MusicWatchdogService — constructor env var parsing', () => {
