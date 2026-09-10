@@ -189,6 +189,47 @@ function mapSpotifyTrackRef(raw: {
 }
 
 /**
+ * Direct Spotify Web API track search. `/artist`'s plain (non-discography)
+ * flow normally resolves its Spotify arm through discord-player-spotify's
+ * `SpotifyAPI.search()`, which hardcodes `limit=10` in both of its request
+ * branches with no way to pass a higher value through (#2304). This hits
+ * the same `/v1/search` endpoint directly so a real limit (Spotify's own
+ * max is 50) reaches the request, for the narrow case where the capped
+ * result is short of what was asked for.
+ */
+export async function searchSpotifyTracks(
+    accessToken: string,
+    query: string,
+    limit = 10,
+): Promise<SpotifyTrackRef[]> {
+    if (!query.trim()) return []
+    try {
+        const params = new URLSearchParams({
+            q: query,
+            type: 'track',
+            limit: String(Math.min(Math.max(limit, 1), 50)),
+        })
+        const res = await fetch(
+            `https://api.spotify.com/v1/search?${params.toString()}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } },
+        )
+        if (!res.ok) return []
+        const data = (await res.json().catch(() => null)) as {
+            tracks?: { items?: unknown[] }
+        } | null
+        return (data?.tracks?.items ?? [])
+            .map((t) =>
+                mapSpotifyTrackRef(
+                    t as Parameters<typeof mapSpotifyTrackRef>[0],
+                ),
+            )
+            .filter((t): t is SpotifyTrackRef => t !== null)
+    } catch {
+        return []
+    }
+}
+
+/**
  * Spotify's own top-tracks ranking (already most-popular-first) — the
  * accurate "most famous" ordering `/artist`'s discography mode needs, unlike
  * the generic track-search endpoint the plain flow uses.

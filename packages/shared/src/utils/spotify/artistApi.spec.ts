@@ -6,7 +6,84 @@ import {
     it,
     jest,
 } from '@jest/globals'
-import { getSpotifyArtistTopTracks, getSpotifyArtistAlbums } from './artistApi'
+import {
+    getSpotifyArtistTopTracks,
+    getSpotifyArtistAlbums,
+    searchSpotifyTracks,
+} from './artistApi'
+
+describe('searchSpotifyTracks', () => {
+    const originalFetch = global.fetch
+
+    afterEach(() => {
+        global.fetch = originalFetch
+    })
+
+    const trackSearchResponse = (tracks: unknown[]) => ({
+        ok: true,
+        json: async () => ({ tracks: { items: tracks } }),
+    })
+
+    it('puts the requested limit in the request URL, not a hardcoded value', async () => {
+        const fetchMock = jest.fn(async (_url: string) =>
+            trackSearchResponse([]),
+        )
+        global.fetch = fetchMock as unknown as typeof fetch
+
+        await searchSpotifyTracks('token', 'Queen', 25)
+
+        const requestedUrl = fetchMock.mock.calls[0]?.[0] as string
+        expect(new URL(requestedUrl).searchParams.get('limit')).toBe('25')
+    })
+
+    it("clamps a limit above Spotify's own max (50) instead of sending it through", async () => {
+        const fetchMock = jest.fn(async (_url: string) =>
+            trackSearchResponse([]),
+        )
+        global.fetch = fetchMock as unknown as typeof fetch
+
+        await searchSpotifyTracks('token', 'Queen', 200)
+
+        const requestedUrl = fetchMock.mock.calls[0]?.[0] as string
+        expect(new URL(requestedUrl).searchParams.get('limit')).toBe('50')
+    })
+
+    it('maps the track-search response into track refs', async () => {
+        global.fetch = jest.fn(async () =>
+            trackSearchResponse([
+                {
+                    name: 'Bohemian Rhapsody',
+                    artists: [{ name: 'Queen' }],
+                    external_urls: {
+                        spotify: 'https://open.spotify.com/track/1',
+                    },
+                },
+                // Missing url — should be dropped, not throw.
+                { name: 'No URL Track', artists: [{ name: 'Queen' }] },
+            ]),
+        ) as unknown as typeof fetch
+
+        const tracks = await searchSpotifyTracks('token', 'Queen', 20)
+
+        expect(tracks).toEqual([
+            {
+                name: 'Bohemian Rhapsody',
+                artist: 'Queen',
+                url: 'https://open.spotify.com/track/1',
+            },
+        ])
+    })
+
+    it('returns an empty array instead of throwing when fetch rejects', async () => {
+        global.fetch = jest.fn(async () => {
+            throw new Error('network down')
+        }) as unknown as typeof fetch
+
+        await expect(
+            searchSpotifyTracks('token', 'Queen', 20),
+        ).resolves.toEqual([])
+    })
+})
 
 describe('getSpotifyArtistTopTracks', () => {
     const originalFetch = global.fetch

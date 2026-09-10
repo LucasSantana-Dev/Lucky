@@ -49,6 +49,8 @@ jest.mock('../../../utils/command/commandValidations', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
     warnLog: jest.fn(),
+    getSpotifyClientToken: jest.fn(),
+    searchSpotifyTracks: jest.fn(),
 }))
 
 jest.mock('@lucky/shared/utils/guards', () => ({
@@ -66,23 +68,27 @@ jest.mock('@lucky/shared/services', () => ({
 import artistCommand from './artist'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
-import { warnLog } from '@lucky/shared/utils'
+import {
+    warnLog,
+    getSpotifyClientToken,
+    searchSpotifyTracks,
+} from '@lucky/shared/utils'
 
-const createTrack = (title: string, author: string) => ({
+const createTrack = (title: string, author: string, url?: string) => ({
     title,
     author,
-    url: `https://example.com/${encodeURIComponent(title)}`,
+    url: url ?? `https://example.com/${encodeURIComponent(title)}`,
     requestedBy: undefined as unknown,
 })
 
-const createInteraction = () => ({
+const createInteraction = (limit: number | null = null) => ({
     guildId: 'guild-1',
     user: { id: 'user-1', username: 'tester' },
     member: { voice: { channel: { id: 'voice-1' } } },
     channel: { id: 'text-1' },
     options: {
         getString: jest.fn(() => 'Queen'),
-        getInteger: jest.fn(() => null),
+        getInteger: jest.fn(() => limit),
         getBoolean: jest.fn(() => null),
     },
     deferReply: jest.fn(async () => undefined),
@@ -322,5 +328,97 @@ describe('artist command search fallback', () => {
         )
         expect(spotifyLogs).toHaveLength(1)
         expect(spotifyLogs[0].message).toBe('Artist search arm threw')
+    })
+
+    it('tops up a capped Spotify result via the real search API when limit exceeds the arm cap (#2304)', async () => {
+        // The Spotify arm (discord-player-spotify's SpotifyAPI.search())
+        // hardcodes limit=10, so a request for 15 tracks would silently cap
+        // at 10 without the top-up. 5 of the initial 10 URLs are echoed back
+        // by the mocked searchSpotifyTracks response to prove dedup: only
+        // the 3 genuinely new URLs should be resolved into playable tracks.
+        const initialTracks = Array.from({ length: 10 }, (_, i) =>
+            createTrack(
+                `Initial ${i}`,
+                'Queen',
+                `https://open.spotify.com/track/initial-${i}`,
+            ),
+        )
+        const newRefs = Array.from({ length: 3 }, (_, i) => ({
+            name: `Extra ${i}`,
+            artist: 'Queen',
+            url: `https://open.spotify.com/track/extra-${i}`,
+        }))
+        const echoedRefs = initialTracks.slice(0, 5).map((t) => ({
+            name: t.title,
+            artist: t.author,
+            url: t.url,
+        }))
+        ;(searchSpotifyTracks as jest.Mock).mockResolvedValue([
+            ...echoedRefs,
+            ...newRefs,
+        ])
+        ;(getSpotifyClientToken as jest.Mock).mockResolvedValue('spotify-token')
+
+        const search = jest.fn(
+            async (query: string, opts: { searchEngine: string }) => {
+                if (
+                    query === 'Queen' &&
+                    opts.searchEngine === 'SPOTIFY_SEARCH'
+                ) {
+                    return { tracks: initialTracks }
+                }
+                if (opts.searchEngine === 'SPOTIFY_SONG') {
+                    const ref = newRefs.find((r) => r.url === query)
+                    return {
+                        tracks: ref
+                            ? [createTrack(ref.name, ref.artist, ref.url)]
+                            : [],
+                    }
+                }
+                return { tracks: [] }
+            },
+        )
+        const play = jest.fn(async () => ({ track: initialTracks[0] }))
+        const addTrack = jest.fn()
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({
+            queue: { addTrack },
+        })
+
+        await artistCommand.execute({
+            client: { player: { search, play } },
+            interaction: createInteraction(15),
+        } as never)
+
+        expect(searchSpotifyTracks).toHaveBeenCalledWith(
+            'spotify-token',
+            'Queen',
+            15,
+        )
+        // Only the 3 truly-new URLs get resolved — the 5 echoed duplicates
+        // are filtered out before any resolve call is made.
+        const resolveCalls = search.mock.calls.filter(
+            ([, opts]) =>
+                (opts as { searchEngine: string }).searchEngine ===
+                'SPOTIFY_SONG',
+        )
+        expect(resolveCalls).toHaveLength(3)
+
+        const reply = (interactionReply as jest.Mock).mock.calls.at(-1)?.[0]
+        expect(reply.content.embeds[0].description).toContain('**13**')
+    })
+
+    it('does not call the Spotify top-up when the default limit is within the arm cap', async () => {
+        const search = jest.fn(async () => ({
+            tracks: [createTrack('Bohemian Rhapsody', 'Queen')],
+        }))
+        const play = jest.fn(async () => ({ track: null }))
+
+        await artistCommand.execute({
+            client: { player: { search, play } },
+            interaction: createInteraction(),
+        } as never)
+
+        expect(getSpotifyClientToken).not.toHaveBeenCalled()
+        expect(searchSpotifyTracks).not.toHaveBeenCalled()
     })
 })
