@@ -178,11 +178,6 @@ const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
 
 const VERSION_KEYWORD_RE = DYNAMIC_VERSION_KEYWORD_RE
 
-function isVersionSuffix(suffix: string): boolean {
-    if (HYPHENATED_VERSION_SUFFIXES.some((re) => re.test(suffix))) return true
-    return suffix.length <= 40 && VERSION_KEYWORD_RE.test(suffix)
-}
-
 /**
  * Channels whose uploads are almost always mislabeled or compilation garbage.
  * If a resolved YouTube track's author matches one of these exactly, the title
