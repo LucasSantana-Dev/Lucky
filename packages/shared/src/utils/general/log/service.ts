@@ -1,12 +1,6 @@
 import chalk from 'chalk'
-import {
-    addBreadcrumb,
-    captureException,
-    captureMessage,
-    logToSentry,
-} from '../../monitoring'
-import { recordWithCooldown, emitAlert } from '../../alerts'
 import { getLogContext } from './context'
+import { getLogSink } from './sink'
 import { LEVEL_TOKEN } from './types'
 import type { LogLevelType, LogParams, LogConfig } from './types'
 
@@ -301,7 +295,7 @@ export class LogService {
         // coming from a user must not forge a record. SUCCESS (3) maps to info because
         // Sentry has no such level, and inventing one would be worse than mapping to the
         // nearest.
-        logToSentry(
+        getLogSink().logToSentry?.(
             SENTRY_LOG_LEVEL[level] ?? 'info',
             sanitizeForLogging(formattedMessage),
             asLogAttributes(effectiveParams),
@@ -311,19 +305,20 @@ export class LogService {
     error(params: LogParams): void {
         this.log(0, params)
 
+        const sink = getLogSink()
         const extras: Record<string, unknown> = { message: params.message }
         if (params.data) extras.data = params.data
 
         if (params.error) {
-            captureException(toError(params.error), extras)
+            sink.captureException?.(toError(params.error), extras)
         } else {
-            captureMessage(params.message, 'error', extras)
+            sink.captureMessage?.(params.message, 'error', extras)
         }
 
-        addBreadcrumb('error', params.message, 'error')
+        sink.addBreadcrumb?.('error', params.message, 'error')
 
-        if (recordWithCooldown('error-rate', 60_000, 10, 5 * 60_000)) {
-            void emitAlert({
+        if (sink.recordWithCooldown?.('error-rate', 60_000, 10, 5 * 60_000)) {
+            void sink.emitAlert?.({
                 title: '🚨 Error-rate spike',
                 description: '10+ errors in 60 seconds',
                 color: 'danger',
@@ -334,24 +329,24 @@ export class LogService {
     warn(params: LogParams): void {
         this.log(1, params)
 
-        addBreadcrumb('warning', params.message, 'warning')
+        getLogSink().addBreadcrumb?.('warning', params.message, 'warning')
     }
 
     info(params: LogParams): void {
         this.log(2, params)
 
-        addBreadcrumb('info', params.message, 'info')
+        getLogSink().addBreadcrumb?.('info', params.message, 'info')
     }
 
     success(params: LogParams): void {
         this.log(3, params)
 
-        addBreadcrumb('info', params.message, 'info')
+        getLogSink().addBreadcrumb?.('info', params.message, 'info')
     }
 
     debug(params: LogParams): void {
         this.log(4, params)
 
-        addBreadcrumb('debug', params.message, 'debug')
+        getLogSink().addBreadcrumb?.('debug', params.message, 'debug')
     }
 }

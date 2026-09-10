@@ -1,3 +1,5 @@
+import { registerLogSink } from '../general/log/sink'
+
 const windows = new Map<string, number[]>()
 const cooldowns = new Map<string, number>()
 
@@ -45,3 +47,8 @@ export function __resetAlertWindowForTests(): void {
     windows.clear()
     cooldowns.clear()
 }
+
+// Registers this module's cooldown check with the logger instead of the
+// logger importing alerts. Function declarations are hoisted, so this runs
+// with recordWithCooldown already defined.
+registerLogSink({ recordWithCooldown })

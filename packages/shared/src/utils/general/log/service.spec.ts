@@ -1,18 +1,22 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { LogService } from './service'
-import { logToSentry } from '../../monitoring'
+import { __resetLogSinkForTests, registerLogSink } from './sink'
 
-jest.mock('../../monitoring', () => ({
-    captureException: jest.fn(),
-    captureMessage: jest.fn(),
-    addBreadcrumb: jest.fn(),
-    logToSentry: jest.fn(),
-}))
-
-jest.mock('../../alerts', () => ({
-    recordWithCooldown: jest.fn().mockReturnValue(false),
-    emitAlert: jest.fn().mockImplementation(async () => {}),
-}))
+const captureException = jest.fn()
+const captureMessage = jest.fn()
+const addBreadcrumb = jest.fn()
+const logToSentry = jest.fn()
+const recordWithCooldown = jest
+    .fn<
+        (
+            key: string,
+            windowMs: number,
+            threshold: number,
+            cooldownMs: number,
+        ) => boolean
+    >()
+    .mockReturnValue(false)
+const emitAlert = jest.fn().mockImplementation(async () => {})
 
 jest.mock('./context', () => ({
     getLogContext: jest.fn().mockReturnValue(undefined),
@@ -31,6 +35,15 @@ describe('LogService', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
+        __resetLogSinkForTests()
+        registerLogSink({
+            captureException,
+            captureMessage,
+            addBreadcrumb,
+            logToSentry,
+            recordWithCooldown,
+            emitAlert,
+        })
         jest.spyOn(console, 'log').mockImplementation(() => {})
         jest.spyOn(console, 'error').mockImplementation(() => {})
         service = new LogService()
@@ -146,9 +159,6 @@ describe('LogService', () => {
 
     describe('toError non-string path', () => {
         it('converts a number error to an Error via JSON.stringify', () => {
-            const { captureException } = jest.requireMock<{
-                captureException: jest.Mock
-            }>('../../monitoring')
             service.error({ message: 'num err', error: 42 })
             expect(captureException).toHaveBeenCalledWith(
                 expect.objectContaining({ message: '42' }),
