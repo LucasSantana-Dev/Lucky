@@ -9,19 +9,36 @@ import { recommendationFeedbackService } from '../../services/musicRecommendatio
 // playerFinish + playerSkip paths). Tune via Phase C data.
 export const OUTCOME_ACCEPT_PLAY_RATIO = 0.3
 
-// Keyed per TRACK (guildId + track id), not per guild: autoplay track
+// Keyed per TRACK (guildId + track id + play instance), not per guild: autoplay track
 // lifecycles overlap — discord-player can emit the next track's playerStart
 // before the previous track's playerFinish/playerSkip. A single per-guild
 // timestamp gets clobbered by that interleaving, making completionRatio ≈ 0
 // for the wrong track and corrupting the accept/reject classification (#1275).
+// Further, the same track repeated (same guildId + trackId) must have distinct cache
+// entries per play instance, so one play's start time doesn't overwrite another's (#2298).
+// We track the start-time per (guildId, trackId) pair to include it in the key.
 export const trackStartTimes = new LRUCache<string, number>({
     max: 500,
     ttl: 30 * 60 * 1000,
     updateAgeOnGet: true,
 })
 
-export const trackStartKey = (guildId: string, trackId: string): string =>
-    `${guildId}::${trackId}`
+// Map from "guildId::trackId" to the startTime of its current play.
+// Allows handlers to reconstruct the full cache key on lookup/delete.
+export const currentTrackPlayStart = new Map<string, number>()
+
+export const trackStartKey = (guildId: string, trackId: string, playStartTime?: number): string => {
+    if (playStartTime !== undefined) {
+        return `${guildId}::${trackId}::${playStartTime}`
+    }
+    // Fallback for backward compatibility: look up the current play start time
+    const currentPlayStart = currentTrackPlayStart.get(`${guildId}::${trackId}`)
+    if (currentPlayStart !== undefined) {
+        return `${guildId}::${trackId}::${currentPlayStart}`
+    }
+    // Fallback to old format if no play is tracked (should not happen in normal flow)
+    return `${guildId}::${trackId}`
+}
 
 function classifyOutcome(
     playedRatio: number | null,
@@ -45,6 +62,7 @@ export function getRecentSkipCount(guildId: string): number {
 export function __resetTrackHandlerCachesForTests(): void {
     trackStartTimes.clear()
     guildRecentSkipCounts.clear()
+    currentTrackPlayStart.clear()
 }
 
 export function getTrackRequesterId(track: Track): string | undefined {
