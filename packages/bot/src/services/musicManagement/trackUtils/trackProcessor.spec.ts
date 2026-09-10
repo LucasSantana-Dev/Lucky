@@ -5,7 +5,7 @@ jest.mock('@lucky/shared/utils', () => ({
     safeSetInterval: jest.fn(),
 }))
 
-jest.mock('../../../utils/music/titleComparison', () => ({
+jest.mock('../titleComparison', () => ({
     isSimilarTitle: jest.fn(),
 }))
 

@@ -8,7 +8,7 @@ import {
     applyPatterns,
     calculateSimilarity,
     normalizeString,
-} from '../../misc/stringUtils'
+} from '../../../utils/misc/stringUtils'
 import type {
     ArtistTitle,
     TitleComparisonOptions,

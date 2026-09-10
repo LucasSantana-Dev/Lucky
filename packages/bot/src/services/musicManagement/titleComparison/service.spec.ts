@@ -20,7 +20,7 @@ jest.mock('@lucky/shared/config', () => ({
     artistPatterns: [],
 }))
 
-jest.mock('../../misc/stringUtils', () => ({
+jest.mock('../../../utils/misc/stringUtils', () => ({
     applyPatterns: (...args: unknown[]) => applyPatternsMock(...args),
     calculateSimilarity: (...args: unknown[]) =>
         calculateSimilarityMock(...args),

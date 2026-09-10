@@ -19,7 +19,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
 }))
 
-jest.mock('../../../utils/music/titleComparison', () => ({
+jest.mock('../titleComparison', () => ({
     isSimilarTitle: jest.fn(),
 }))
 
@@ -47,9 +47,7 @@ function createMockTrack(
 
 describe('standalone function exports', () => {
     beforeEach(() => {
-        const {
-            isSimilarTitle,
-        } = require('../../../utils/music/titleComparison')
+        const { isSimilarTitle } = require('../titleComparison')
         isSimilarTitle.mockReturnValue(false)
     })
 
@@ -174,9 +172,7 @@ describe('TrackUtils class', () => {
 
     describe('findSimilarTracks', () => {
         test('finds tracks with similar titles', () => {
-            const {
-                isSimilarTitle,
-            } = require('../../../utils/music/titleComparison')
+            const { isSimilarTitle } = require('../titleComparison')
             isSimilarTitle.mockImplementation(
                 (title: string, query: string) => {
                     return title.toLowerCase().includes(query.toLowerCase())
@@ -195,9 +191,7 @@ describe('TrackUtils class', () => {
         })
 
         test('respects limit parameter', () => {
-            const {
-                isSimilarTitle,
-            } = require('../../../utils/music/titleComparison')
+            const { isSimilarTitle } = require('../titleComparison')
             isSimilarTitle.mockReturnValue(true)
 
             const tracks = Array.from({ length: 10 }, (_, i) =>
@@ -210,9 +204,7 @@ describe('TrackUtils class', () => {
         })
 
         test('uses default limit of 5', () => {
-            const {
-                isSimilarTitle,
-            } = require('../../../utils/music/titleComparison')
+            const { isSimilarTitle } = require('../titleComparison')
             isSimilarTitle.mockReturnValue(true)
 
             const tracks = Array.from({ length: 10 }, (_, i) =>
@@ -225,9 +217,7 @@ describe('TrackUtils class', () => {
         })
 
         test('returns empty array if no matches', () => {
-            const {
-                isSimilarTitle,
-            } = require('../../../utils/music/titleComparison')
+            const { isSimilarTitle } = require('../titleComparison')
             isSimilarTitle.mockReturnValue(false)
 
             const tracks = [

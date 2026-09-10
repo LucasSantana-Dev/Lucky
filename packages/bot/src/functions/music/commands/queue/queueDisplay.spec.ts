@@ -14,7 +14,7 @@ jest.mock('../../../../services/musicManagement/trackUtils', () => ({
     getTrackInfo: (...args: unknown[]) => getTrackInfoMock(...args),
 }))
 
-jest.mock('../../../../utils/music/titleComparison', () => ({
+jest.mock('../../../../services/musicManagement/titleComparison', () => ({
     isSimilarTitle: (...args: unknown[]) => isSimilarTitleMock(...args),
 }))
 
