@@ -26,6 +26,9 @@ export function parseDuration(input: string, maxMs?: number): number | null {
     if (unitMs === undefined) return null
 
     const ms = Number.parseInt(match[1], 10) * unitMs
+    // The regex accepts any number of digits, so a long enough value multiplies
+    // past Number.MAX_SAFE_INTEGER and returns an inexact result or Infinity.
+    if (!Number.isSafeInteger(ms)) return null
     if (maxMs !== undefined && ms > maxMs) return null
     return ms
 }

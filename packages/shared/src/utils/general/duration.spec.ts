@@ -33,6 +33,11 @@ describe('parseDuration', () => {
         expect(parseDuration('9999d')).toBe(9999 * 24 * 60 * 60 * 1000)
     })
 
+    it('rejects a value that overflows past a safe integer', () => {
+        expect(parseDuration('99999999999999999999d')).toBeNull()
+        expect(parseDuration('9007199254740992s')).toBeNull()
+    })
+
     it('rejects only values above the cap when one is given', () => {
         const thirtyDays = 30 * 24 * 60 * 60 * 1000
         expect(parseDuration('30d', thirtyDays)).toBe(thirtyDays)
