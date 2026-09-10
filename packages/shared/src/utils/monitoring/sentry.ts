@@ -1,5 +1,16 @@
 import * as Sentry from '@sentry/node'
 import { infoLog } from '../general/log'
+import { registerLogSink } from '../general/log/sink'
+
+// Registers this module's Sentry calls with the logger instead of the logger
+// importing Sentry. Function declarations below are hoisted, so this runs
+// with all four already defined, as soon as this module is loaded.
+registerLogSink({
+    captureException,
+    captureMessage,
+    addBreadcrumb,
+    logToSentry,
+})
 
 export interface InitializeSentryOptions {
     appName?: string
