@@ -215,4 +215,87 @@ describe('BulkRemoveRoleExecutor', () => {
 
         expect(result).toMatchObject({ paused: true })
     })
+
+    test('resumes from cursor when prior run did not process all members', async () => {
+        const removeFirst = jest.fn()
+        const removeSecond = jest.fn().mockResolvedValue(undefined)
+        getClientMock.mockReturnValue(
+            makeClient([
+                member('100', { remove: removeFirst }),
+                member('200', { remove: removeSecond }),
+            ]),
+        )
+
+        batchJobServiceMock.getById.mockResolvedValue({
+            nextCursor: '100',
+            status: 'in_progress',
+        })
+
+        const result = await new BulkRemoveRoleExecutor().execute(
+            JOB({ totalItems: 2 }),
+            jest.fn() as any,
+        )
+
+        expect(removeFirst).not.toHaveBeenCalled()
+        expect(removeSecond).toHaveBeenCalledWith('r1', 'cleanup')
+        expect(result).toMatchObject({ removed: 1, skipped: 0, failed: 0 })
+    })
+
+    test('throws when ManageRoles permission is missing', async () => {
+        getClientMock.mockReturnValue({
+            guilds: {
+                fetch: jest.fn().mockResolvedValue({
+                    members: {
+                        me: { permissions: { has: () => false } },
+                        fetch: jest.fn().mockResolvedValue(undefined),
+                    },
+                    roles: {
+                        fetch: jest
+                            .fn()
+                            .mockResolvedValue({ members: new Collection() }),
+                    },
+                }),
+            },
+        } as never)
+
+        await expect(
+            new BulkRemoveRoleExecutor().execute(JOB(), jest.fn() as any),
+        ).rejects.toThrow('Bot missing Manage Roles permission')
+    })
+
+    test('throws when guild cannot be fetched', async () => {
+        getClientMock.mockReturnValue({
+            guilds: {
+                fetch: jest
+                    .fn()
+                    .mockRejectedValue(new Error('Guild not found: g1')),
+            },
+        } as never)
+
+        await expect(
+            new BulkRemoveRoleExecutor().execute(JOB(), jest.fn() as any),
+        ).rejects.toThrow('Guild not found')
+    })
+
+    test('throws when role cannot be fetched', async () => {
+        getClientMock.mockReturnValue({
+            guilds: {
+                fetch: jest.fn().mockResolvedValue({
+                    members: {
+                        me: { permissions: { has: () => true } },
+                        fetch: jest.fn().mockResolvedValue(undefined),
+                    },
+                    roles: {
+                        fetch: jest
+                            .fn()
+                            .mockRejectedValue(new Error('Role not found: r1')),
+                    },
+                }),
+            },
+        } as never)
+
+        await expect(
+            new BulkRemoveRoleExecutor().execute(JOB(), jest.fn() as any),
+        ).rejects.toThrow('Role not found')
+    })
 })
