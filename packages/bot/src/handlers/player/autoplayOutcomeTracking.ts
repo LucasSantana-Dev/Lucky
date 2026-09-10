@@ -33,10 +33,9 @@ export const OUTCOME_ACCEPT_PLAY_RATIO = 0.3
 // overwrites the first and that finish reads the wrong timestamp. Each track
 // instead gets a small FIFO queue of start times, one per in-flight play,
 // since plays of a given track can only start in the order they are dispatched.
-// getTrackPlayStart peeks the oldest entry; clearTrackPlayStart removes it —
-// together the read-and-clear pairing at each finish/skip site still consumes
-// exactly one play's start time, now without the two plays being able to
-// collide.
+// takeTrackPlayStart removes and returns the oldest entry in one step, so each
+// finish or skip consumes exactly one play's start time and two overlapping
+// plays cannot collide.
 // Not exported directly: it is reassigned by the test reset below, and an
 // exported binding captured by an importer would go on pointing at the old map.
 let trackPlayStartTimes = new WeakMap<Track, number[]>()
@@ -50,15 +49,20 @@ export function setTrackPlayStart(track: Track, startedAt: number): void {
     }
 }
 
-export function getTrackPlayStart(track: Track): number | undefined {
-    return trackPlayStartTimes.get(track)?.[0]
-}
-
-export function clearTrackPlayStart(track: Track): void {
+/**
+ * Removes and returns the oldest start time for this track, in one synchronous
+ * step. Reading and removing has to be atomic from a caller's point of view:
+ * the terminal handlers await scrobble and history work, so a separate read and
+ * a separate clear across that await let two overlapping plays of one track
+ * take the same entry, or take each other's. Call this at handler entry, before
+ * any await, and carry the value through.
+ */
+export function takeTrackPlayStart(track: Track): number | undefined {
     const queue = trackPlayStartTimes.get(track)
-    if (!queue) return
-    queue.shift()
+    if (!queue?.length) return undefined
+    const startedAt = queue.shift()
     if (queue.length === 0) trackPlayStartTimes.delete(track)
+    return startedAt
 }
 
 function classifyOutcome(

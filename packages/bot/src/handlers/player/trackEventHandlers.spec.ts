@@ -852,6 +852,38 @@ describe('trackHandlers autoplay replenishment', () => {
             })
         })
 
+        // The terminal handlers await scrobble and history work before they use
+        // the start time. If they read the queue then removed from it across
+        // that await, two overlapping finishes could take the same entry. Both
+        // handlers here enter before either's awaits resolve.
+        it('gives each of two concurrently running finishes its own start time', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const track = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'concurrent-finish',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await handlers.playerStart(queue, track)
+            jest.advanceTimersByTime(90000)
+            await handlers.playerStart(queue, track)
+            jest.advanceTimersByTime(5000)
+
+            await Promise.all([
+                handlers.playerFinish(queue, track),
+                handlers.playerFinish(queue, track),
+            ])
+
+            const outcomes = recordRecommendationOutcomeMock.mock.calls.map(
+                (call) => (call[0] as { outcome: string }).outcome,
+            )
+            // One play ran 95s of 100s, the other 5s. Taking the same entry
+            // twice would classify both the same way.
+            expect(outcomes.sort()).toEqual(['accepted', 'rejected'])
+        })
+
         // #2298: the mirror case. Two DISTINCT Track objects can carry the same
         // track id, because the same song can be queued twice and be in flight
         // at once. This guards the behaviour, not the key: it fails if the store

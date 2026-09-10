@@ -35,8 +35,7 @@ import {
     recordImplicitTrackFeedback,
     logAutoplayOutcomeEval,
     setTrackPlayStart,
-    getTrackPlayStart,
-    clearTrackPlayStart,
+    takeTrackPlayStart,
     guildRecentSkipCounts,
     OUTCOME_ACCEPT_PLAY_RATIO,
 } from './autoplayOutcomeTracking'
@@ -226,10 +225,13 @@ const handlePlayerFinish = async (
     track?: Track,
 ): Promise<void> => {
     try {
+        // Claimed before the awaits below: this event ends one play, and the
+        // entry has to be taken while nothing else can interleave with it.
+        const startTime = track ? takeTrackPlayStart(track) : undefined
+
         await scrobbleAndRecord(queue, track)
 
         if (track) {
-            const startTime = getTrackPlayStart(track)
             if (isRecommendationAutoplay(track)) {
                 logAutoplayOutcomeEval('finish', queue, track, startTime)
             }
@@ -260,7 +262,6 @@ const handlePlayerFinish = async (
                     })
                 }
             }
-            clearTrackPlayStart(track)
         }
 
         await handleQueueExhaustion(queue, (q, t) =>
@@ -276,6 +277,10 @@ const handlePlayerSkip = async (
     track?: Track,
 ): Promise<void> => {
     try {
+        // Claimed before the awaits below, for the same reason as in
+        // handlePlayerFinish.
+        const startTime = track ? takeTrackPlayStart(track) : undefined
+
         infoLog({
             message: 'Track skipped',
             data: {
@@ -292,7 +297,6 @@ const handlePlayerSkip = async (
         await scrobbleCurrentTrackIfLastFm(queue, track)
 
         if (track) {
-            const startTime = getTrackPlayStart(track)
             if (isRecommendationAutoplay(track)) {
                 logAutoplayOutcomeEval('skip', queue, track, startTime)
             }
@@ -339,7 +343,6 @@ const handlePlayerSkip = async (
                     })
                 }
             }
-            clearTrackPlayStart(track)
         }
 
         await handleQueueExhaustion(queue, (q, t) =>
