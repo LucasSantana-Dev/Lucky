@@ -2,7 +2,6 @@ import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { logAndSwallow } from '@lucky/shared/utils/error'
 import { assertDefined } from '@lucky/shared/utils/guards'
-import { spotifyLinkService } from '@lucky/shared/services'
 import type { AutoplayContext } from './autoplay/autoplayContext'
 import { getTagTopTracks } from '../../lastfm'
 import {
@@ -22,10 +21,7 @@ import {
     cleanSearchQuery,
     cleanAuthor,
 } from '../../utils/music/searchQueryCleaner'
-import {
-    normalizeTrackKey,
-    calculateGenreFamilyPenalty,
-} from '../../utils/music/trackNormalization'
+import { normalizeTrackKey } from '../../utils/music/trackNormalization'
 
 const AUTOPLAY_BUFFER_SIZE = 8
 const SEARCH_RESULTS_LIMIT = 8

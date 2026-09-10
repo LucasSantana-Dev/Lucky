@@ -525,7 +525,7 @@ function MessageForm({
             }
             resetForm()
             onSuccess()
-        } catch (err) {
+        } catch (_err) {
             const msg =
                 mode === 'create'
                     ? t('reactionRoles.createFailedError')

@@ -1,33 +1,13 @@
 import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog, warnLog } from '@lucky/shared/utils'
-import { logAndSwallow } from '@lucky/shared/utils/error'
-import { spotifyLinkService } from '@lucky/shared/services'
-import {
-    searchSpotifyTrack,
-    getArtistGenres,
-} from '../../../spotify/spotifyApi'
-import { getUserSpotifySeeds } from '../../../spotify/spotifyUserSeeds'
 import {
     cleanTitle,
     cleanAuthor,
     extractSongCore,
     cleanSearchQuery,
 } from '../../../utils/music/searchQueryCleaner'
-import type { AutoplayContext } from './autoplayContext'
-import {
-    normalizeTrackKey,
-    normalizeText,
-    extractSpotifyTrackId,
-} from './scoringUtils'
-import {
-    shouldIncludeCandidate,
-    upsertScoredCandidate,
-} from './candidateContracts'
-import { calculateRecommendationScore } from './candidateScorer'
-import { createArtistTagFetcher } from './artistTagCache'
-import type { ScoredTrack } from './diversitySelector'
-import type { AutoplayAuditCollector } from './autoplayAudit'
+import { normalizeText } from './scoringUtils'
 
 const MAX_AUTOPLAY_DURATION_MS = 7 * 60 * 1000
 const SEARCH_RESULTS_LIMIT = 8
