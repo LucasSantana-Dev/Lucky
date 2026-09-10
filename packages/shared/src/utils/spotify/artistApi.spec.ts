@@ -9,8 +9,45 @@ import {
 import {
     getSpotifyArtistTopTracks,
     getSpotifyArtistAlbums,
+    searchSpotifyArtists,
     searchSpotifyTracks,
 } from './artistApi'
+
+// #2346: the artist search was the one Spotify call in this file with no
+// deadline, so a stalled request had no upper bound. Both searches now share
+// one helper, so both carry the signal.
+describe('spotify search deadlines', () => {
+    const originalFetch = global.fetch
+
+    afterEach(() => {
+        global.fetch = originalFetch
+    })
+
+    it.each([
+        [
+            'searchSpotifyArtists',
+            () => searchSpotifyArtists('token', 'Queen'),
+            { artists: { items: [] } },
+        ],
+        [
+            'searchSpotifyTracks',
+            () => searchSpotifyTracks('token', 'Queen'),
+            { tracks: { items: [] } },
+        ],
+    ])('%s aborts rather than hanging', async (_name, call, body) => {
+        const fetchMock = jest.fn(
+            async (_url: string, _init?: RequestInit) => ({
+                ok: true,
+                json: async () => body,
+            }),
+        )
+        global.fetch = fetchMock as unknown as typeof fetch
+
+        await call()
+
+        expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal)
+    })
+})
 
 describe('searchSpotifyTracks', () => {
     const originalFetch = global.fetch
