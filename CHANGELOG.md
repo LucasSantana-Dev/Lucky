@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.45.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.45.1...v2.45.2) (2026-09-10)
+
+
+### Bug Fixes
+
+* **bot:** last.fm timing race when track changes mid-request ([#2321](https://github.com/LucasSantana-Dev/Lucky/issues/2321)) ([870d458](https://github.com/LucasSantana-Dev/Lucky/commit/870d45836f8c2fe91488282447c35758df0577ca))
+
 ## [2.45.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.45.0...v2.45.1) (2026-09-09)
 
 
