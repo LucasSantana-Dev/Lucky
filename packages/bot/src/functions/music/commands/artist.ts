@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { QueryType } from 'discord-player'
-import type { GuildMember } from 'discord.js'
+import type { GuildMember, ChatInputCommandInteraction } from 'discord.js'
 import Command from '../../../models/Command'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import {
@@ -15,7 +15,12 @@ import {
     createWarningEmbed,
 } from '../../../utils/general/embeds'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { errorLog, warnLog } from '@lucky/shared/utils'
+import {
+    errorLog,
+    warnLog,
+    getSpotifyClientToken,
+    searchSpotifyTracks,
+} from '@lucky/shared/utils'
 import { handleArtistDiscography } from './artist/artistDiscography'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { assertDefined } from '@lucky/shared/utils/guards'
@@ -23,9 +28,79 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
 import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from './play/handlers/resolveProvider'
+import type { CustomClient } from '../../../types/CustomClient'
 
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 20
+// discord-player-spotify's SpotifyAPI.search() hardcodes limit=10 in both
+// of its request branches, with no options param to raise it (#2304). Only
+// worth topping up past this when a caller actually asked for more.
+const SPOTIFY_SEARCH_CAP = 10
+
+type ArtistTrack = NonNullable<
+    Awaited<ReturnType<CustomClient['player']['search']>>
+>['tracks'][number]
+
+/**
+ * Tops up a capped Spotify search-arm result by hitting Spotify's real
+ * `/v1/search` endpoint (no hardcoded limit) directly, then resolving each
+ * new track into a playable discord-player Track the same way discography
+ * mode already does. Returns [] (never throws) on any failure — the
+ * existing capped pool is still a valid result, just short of `limit`.
+ */
+async function topUpSpotifyTracks({
+    client,
+    interaction,
+    artistName,
+    limit,
+    existingUrls,
+}: {
+    client: CustomClient
+    interaction: ChatInputCommandInteraction
+    artistName: string
+    limit: number
+    existingUrls: Set<string>
+}): Promise<ArtistTrack[]> {
+    try {
+        const accessToken = await getSpotifyClientToken()
+        if (!accessToken) return []
+
+        const refs = await searchSpotifyTracks(accessToken, artistName, limit)
+        // Resolving costs a player search per reference, so take only the
+        // slots the capped pool left unfilled. Resolving every new reference
+        // would do up to `limit` lookups and then discard most of the results
+        // at the slice further down.
+        const newRefs = refs
+            .filter((ref) => !existingUrls.has(ref.url))
+            .slice(0, Math.max(limit - existingUrls.size, 0))
+        if (!newRefs.length) return []
+
+        const resolved = await Promise.all(
+            newRefs.map(async (ref) => {
+                try {
+                    const result = await client.player.search(ref.url, {
+                        requestedBy: interaction.user,
+                        searchEngine: QueryType.SPOTIFY_SONG,
+                    })
+                    return result?.tracks[0] ?? null
+                } catch (error) {
+                    warnLog({
+                        message: 'Artist search top-up track resolve failed',
+                        data: { url: ref.url, error: String(error) },
+                    })
+                    return null
+                }
+            }),
+        )
+        return resolved.filter((t): t is ArtistTrack => t !== null)
+    } catch (error) {
+        warnLog({
+            message: 'Artist search top-up failed',
+            data: { artistName, error: String(error) },
+        })
+        return []
+    }
+}
 
 // Spotify first (richest artist metadata), then the same text-search fallback
 // arms #play uses. SpotifyAPI.search() swallows every error and returns null,
@@ -200,17 +275,41 @@ export default new Command({
                 return
             }
 
+            let tracksPool: ArtistTrack[] = searchResult.tracks
+
+            // The Spotify arm is capped at SPOTIFY_SEARCH_CAP regardless of
+            // what was asked for (#2304). Only pay for a top-up when it's
+            // actually needed: the winning arm was Spotify, it hit the cap
+            // (a lower count means the artist genuinely has fewer results,
+            // not that more are being withheld), and more were requested.
+            if (
+                resolvedEngine === QueryType.SPOTIFY_SEARCH &&
+                tracksPool.length >= SPOTIFY_SEARCH_CAP &&
+                limit > SPOTIFY_SEARCH_CAP
+            ) {
+                const topUp = await topUpSpotifyTracks({
+                    client,
+                    interaction,
+                    artistName,
+                    limit,
+                    existingUrls: new Set(tracksPool.map((t) => t.url)),
+                })
+                if (topUp.length) {
+                    tracksPool = [...tracksPool, ...topUp]
+                }
+            }
+
             const artistLower = artistName.toLowerCase()
             // Prefer exact match, then word-boundary match, then substring match.
             // This prevents "Prince" from routing to "Prince Royce".
-            const exactMatch = searchResult.tracks.filter(
+            const exactMatch = tracksPool.filter(
                 (t) => t.author.toLowerCase() === artistLower,
             )
-            const wordMatch = searchResult.tracks.filter((t) => {
+            const wordMatch = tracksPool.filter((t) => {
                 const words = t.author.toLowerCase().split(/[\s,&/]+/)
                 return words.some((w) => w === artistLower)
             })
-            const substringMatch = searchResult.tracks.filter((t) =>
+            const substringMatch = tracksPool.filter((t) =>
                 t.author.toLowerCase().includes(artistLower),
             )
             // Take the narrowest tier that matched anything. The thresholds
@@ -244,9 +343,10 @@ export default new Command({
                       : substringMatch.length >= 3
                         ? substringMatch
                         : []
-            const tracks = (
-                byArtist.length > 0 ? byArtist : searchResult.tracks
-            ).slice(0, limit)
+            const tracks = (byArtist.length > 0 ? byArtist : tracksPool).slice(
+                0,
+                limit,
+            )
 
             const firstTrack = tracks[0]
             if (!firstTrack) {

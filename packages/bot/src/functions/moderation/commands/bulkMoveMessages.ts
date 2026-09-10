@@ -1,7 +1,6 @@
 import {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    type ChatInputCommandInteraction,
     type GuildTextBasedChannel,
     type Collection,
     type Message,
@@ -110,11 +109,7 @@ export default new Command({
             true,
         )
         const scopeType = interaction.options.getString('scope', true) as
-            | 'all'
-            | 'count'
-            | 'user'
-            | 'date_range'
-            | 'contains'
+            'all' | 'count' | 'user' | 'date_range' | 'contains'
         const dryRun = interaction.options.getBoolean('dry_run') ?? false
 
         // Type-guard the channels
