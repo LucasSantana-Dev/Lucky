@@ -805,4 +805,51 @@ describe('trackHandlers autoplay replenishment', () => {
             )
         })
     })
+
+    // #2334: discord-player re-dispatches the SAME Track instance under repeat
+    // modes (verified in discord-player's dist — history.push(track) at :5904,
+    // then that identical object comes back out at :5914/:5922). A per-instance
+    // WeakMap<Track, number> only holds one value, so if the next repeat's
+    // playerStart fires (and overwrites the entry) before the previous play's
+    // playerFinish reads it, that finish gets the wrong play's start time.
+    describe('repeat-mode same-instance start time collision (#2334)', () => {
+        it('gives each play of the SAME Track instance its own start time when the next start fires before the previous finish', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            // One Track object played twice — discord-player's repeat dispatch
+            // reuses the identical instance, not a copy.
+            const track = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'repeat-collide',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await handlers.playerStart(queue, track) // play N starts at t=0
+            jest.advanceTimersByTime(90000)
+            // repeat re-dispatches the SAME instance for play N+1 before play
+            // N's playerFinish has been emitted
+            await handlers.playerStart(queue, track) // play N+1 starts at t=90000
+            jest.advanceTimersByTime(5000)
+            await handlers.playerFinish(queue, track) // finish for play N (t=95000)
+            jest.advanceTimersByTime(5000)
+            await handlers.playerFinish(queue, track) // finish for play N+1 (t=100000)
+
+            // Play N: started at 0, finished at 95000 -> 95% played -> accepted.
+            expect(recordRecommendationOutcomeMock).toHaveBeenNthCalledWith(1, {
+                guildId: 'guild-1',
+                trackId: 'repeat-collide',
+                outcome: 'accepted',
+            })
+            // Play N+1: started at 90000, finished at 100000 -> 10% played ->
+            // rejected. A collided start time would either misclassify this as
+            // accepted (using play N's 0) or drop it entirely (already
+            // consumed by play N's finish).
+            expect(recordRecommendationOutcomeMock).toHaveBeenNthCalledWith(2, {
+                guildId: 'guild-1',
+                trackId: 'repeat-collide',
+                outcome: 'rejected',
+            })
+        })
+    })
 })

@@ -26,24 +26,39 @@ export const OUTCOME_ACCEPT_PLAY_RATIO = 0.3
 // unreachable when its track does. It also cannot collide, which a key built
 // from a timestamp can when two plays start inside the same millisecond.
 //
-// KNOWN GAP (#2334): repeat modes re-dispatch the SAME instance from history,
-// so a repeat replay reuses this key. Sequential repeats are fine (finish
-// consumes the entry before play N+1 starts), but interleaved repeat modes can
-// still let finish(N) read start(N+1)'s timestamp.
+// #2334: repeat modes re-dispatch the SAME Track instance from history, so a
+// repeat replay reuses this key. A single stored value per track can't tell
+// two overlapping plays of that instance apart: if the next repeat's start
+// fires before the previous play's finish is read, the second start
+// overwrites the first and that finish reads the wrong timestamp. Each track
+// instead gets a small FIFO queue of start times, one per in-flight play,
+// since plays of a given track can only start in the order they are dispatched.
+// getTrackPlayStart peeks the oldest entry; clearTrackPlayStart removes it —
+// together the read-and-clear pairing at each finish/skip site still consumes
+// exactly one play's start time, now without the two plays being able to
+// collide.
 // Not exported directly: it is reassigned by the test reset below, and an
 // exported binding captured by an importer would go on pointing at the old map.
-let trackPlayStartTime = new WeakMap<Track, number>()
+let trackPlayStartTimes = new WeakMap<Track, number[]>()
 
 export function setTrackPlayStart(track: Track, startedAt: number): void {
-    trackPlayStartTime.set(track, startedAt)
+    const queue = trackPlayStartTimes.get(track)
+    if (queue) {
+        queue.push(startedAt)
+    } else {
+        trackPlayStartTimes.set(track, [startedAt])
+    }
 }
 
 export function getTrackPlayStart(track: Track): number | undefined {
-    return trackPlayStartTime.get(track)
+    return trackPlayStartTimes.get(track)?.[0]
 }
 
 export function clearTrackPlayStart(track: Track): void {
-    trackPlayStartTime.delete(track)
+    const queue = trackPlayStartTimes.get(track)
+    if (!queue) return
+    queue.shift()
+    if (queue.length === 0) trackPlayStartTimes.delete(track)
 }
 
 function classifyOutcome(
@@ -69,7 +84,7 @@ export function __resetTrackHandlerCachesForTests(): void {
     guildRecentSkipCounts.clear()
     // A WeakMap has no clear(), so drop the whole map. Tests rely on this to
     // simulate a start time being lost before its finish event arrives.
-    trackPlayStartTime = new WeakMap<Track, number>()
+    trackPlayStartTimes = new WeakMap<Track, number[]>()
 }
 
 export function getTrackRequesterId(track: Track): string | undefined {
