@@ -1,14 +1,11 @@
 import { describe, expect, it, beforeEach, jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import type { Guild, Client } from 'discord.js'
-import {
-    updateLastFmNowPlaying,
-    scrobbleCurrentTrackIfLastFm,
-    clearLastFmTrackTiming,
-    __setLastFmTrackStartTime,
-} from './lastfmScrobbler'
-import * as lastfm from '../../lastfm'
 
+// jest.mock calls are hoisted above the imports below, so anything their
+// factories reference must be declared here, before those imports run —
+// otherwise importing ./lastfmScrobbler evaluates the factory while these
+// consts are still in the temporal dead zone.
 const mockDebugLog = jest.fn()
 const mockErrorLog = jest.fn()
 
@@ -26,6 +23,14 @@ jest.mock('../../lastfm', () => ({
     updateNowPlaying: jest.fn(),
     scrobble: jest.fn(),
 }))
+
+import {
+    updateLastFmNowPlaying,
+    scrobbleCurrentTrackIfLastFm,
+    clearLastFmTrackTiming,
+    __setLastFmTrackStartTime,
+} from './lastfmScrobbler'
+import * as lastfm from '../../lastfm'
 
 const mockLastFm = lastfm as jest.Mocked<typeof lastfm>
 
@@ -233,16 +238,12 @@ describe('lastfmScrobbler', () => {
                 requestedBy: { id: 'user-123', username: 'User' },
             }
 
-            // Track A call to updateNowPlaying
+            // Track A is current and its now-playing request completes normally.
             mockQueue.currentTrack = trackA as Track
             await updateLastFmNowPlaying(
                 mockQueue as GuildQueue,
                 trackA as Track,
             )
-            // Verify Track A's timing was stored
-            let callArgs = mockLastFm.scrobble.mock.calls[0] ?? undefined
-            await scrobbleCurrentTrackIfLastFm(mockQueue as GuildQueue)
-            const trackATimestamp = mockLastFm.scrobble.mock.calls[0][2]
 
             // Clear mocks and simulate track change
             jest.clearAllMocks()
