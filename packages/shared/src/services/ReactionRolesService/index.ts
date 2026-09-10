@@ -15,7 +15,6 @@ import { errorLog, debugLog } from '../../utils/general/log'
 import {
     isGuildId,
     isChannelId,
-    isUserId,
     isMessageId,
     isRoleId,
 } from '../../utils/guards'
