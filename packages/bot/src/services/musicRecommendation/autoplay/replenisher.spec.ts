@@ -84,9 +84,11 @@ jest.mock('../candidateFallback', () => ({
     interleaveByArtist: jest.fn(),
 }))
 
-jest.mock('../../../services/musicManagement/queueManipulation', () => ({
-    enrichWithAudioFeatures: jest.fn(),
-    getTrackAudioFeatures: jest.fn(),
+// './vcWeights' is where replenisher.ts imports buildVcContributionWeights from.
+// This used to mock '../../../services/musicManagement/queueManipulation', a
+// barrel that re-exports none of these names and that replenisher.ts never
+// imports, so the real implementation ran throughout (#2349).
+jest.mock('./vcWeights', () => ({
     buildVcContributionWeights: jest.fn(),
 }))
 
@@ -200,15 +202,7 @@ describe('replenishQueue', () => {
         collectGenreCandidates.mockResolvedValue(undefined)
         iba.mockImplementation((tracks: any[]) => tracks)
 
-        const {
-            enrichWithAudioFeatures,
-            getTrackAudioFeatures,
-            buildVcContributionWeights,
-        } = require('../../../services/musicManagement/queueManipulation')
-        enrichWithAudioFeatures.mockImplementation((tracks: any[]) =>
-            Promise.resolve(tracks),
-        )
-        getTrackAudioFeatures.mockResolvedValue(null)
+        const { buildVcContributionWeights } = require('./vcWeights')
         buildVcContributionWeights.mockReturnValue(new Map())
 
         const { createArtistTagFetcher } = require('./artistTagCache')
@@ -388,6 +382,35 @@ describe('replenishQueue', () => {
         ).toHaveBeenCalledWith('guildid')
     })
 
+    it('weights contributions when more than one member is in the VC', async () => {
+        // The only test that reaches buildVcContributionWeights: the call is
+        // guarded by `vcMemberIds.length > 1`, and every other fixture leaves
+        // metadata empty. Without this the mock is never invoked, so a wrong
+        // mock path silently runs the real implementation unnoticed (#2349).
+        const queue = createGuildQueue({
+            metadata: { vcMemberIds: ['member1', 'member2'] },
+        } as Partial<GuildQueue>)
+        const { buildVcContributionWeights } = require('./vcWeights')
+
+        await replenishQueue(queue)
+
+        expect(buildVcContributionWeights).toHaveBeenCalledWith(
+            expect.any(Array),
+            ['member1', 'member2'],
+        )
+    })
+
+    it('skips contribution weighting when the VC has one member or none', async () => {
+        const queue = createGuildQueue({
+            metadata: { vcMemberIds: ['member1'] },
+        } as Partial<GuildQueue>)
+        const { buildVcContributionWeights } = require('./vcWeights')
+
+        await replenishQueue(queue)
+
+        expect(buildVcContributionWeights).not.toHaveBeenCalled()
+    })
+
     it('should handle errors gracefully without throwing', async () => {
         const queue = createGuildQueue()
         const {
@@ -439,9 +462,6 @@ describe('replenishQueue', () => {
             collectRecommendationCandidates,
         } = require('./candidateCollector')
         const { interleaveByArtist } = require('../candidateFallback')
-        const {
-            enrichWithAudioFeatures,
-        } = require('../../../services/musicManagement/queueManipulation')
         const { guildSettingsService } = require('@lucky/shared/services')
         const { collectGenreCandidates } = require('../candidateFallback')
 
@@ -459,7 +479,6 @@ describe('replenishQueue', () => {
         ]
         selectDiverseCandidates.mockReturnValue(mockScoredTracks)
         interleaveByArtist.mockReturnValue(mockScoredTracks)
-        enrichWithAudioFeatures.mockResolvedValue(mockScoredTracks)
         guildSettingsService.getGuildSettings.mockResolvedValue({
             autoplayGenres: ['rock', 'pop'],
         })
