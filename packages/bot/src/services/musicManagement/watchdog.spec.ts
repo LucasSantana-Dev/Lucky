@@ -432,6 +432,110 @@ describe('MusicWatchdogService — orphan session monitor', () => {
 
         expect(restoreSnapshotMock).not.toHaveBeenCalled()
     })
+
+    it('recoverOrphanSession aborts if intentional stop is set mid-flight before restore (#2311)', async () => {
+        const guildId = 'guild-orphan-race'
+        const service = new MusicWatchdogService()
+
+        listGuildIdsMock.mockResolvedValue([guildId])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-orphan',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        // queue.connect marks the stop mid-flight, simulating a voice kick or
+        // /stop command happening after the entry check but during connection
+        // setup. That way the flag can only be caught by the re-check just
+        // before restoreSnapshot, never by the entry check at the top of
+        // recoverOrphanSession.
+        const queue = {
+            setRepeatMode: jest.fn(),
+            delete: jest.fn(),
+            connect: jest.fn().mockImplementation(async () => {
+                // Mark the stop DURING connect, after entry check but before restore
+                service.markIntentionalStop(guildId)
+            }),
+        }
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(null),
+            create: jest.fn().mockReturnValue(queue),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        // Start recovery WITHOUT flag set (so entry check passes)
+        await service.scanOrphanSessions(player)
+
+        // With the fix: connect() IS called (flag not set yet), but
+        // restoreSnapshot IS NOT called (caught by the re-check before restore)
+        expect(queue.connect).toHaveBeenCalled()
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+        // And the queue this scan created is torn down rather than left
+        // registered for the guild, where the next scan would read it as live.
+        expect(queue.delete).toHaveBeenCalled()
+    })
+
+    it('recoverOrphanSession aborts before connect and deletes the queue it made (#2311)', async () => {
+        const guildId = 'guild-orphan-race-preconnect'
+        const service = new MusicWatchdogService()
+
+        listGuildIdsMock.mockResolvedValue([guildId])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-orphan',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        // setRepeatMode runs immediately after the queue is created and before
+        // the pre-connect re-check, so marking the stop there exercises the
+        // earlier of the two bail-outs — the one the mid-flight test above
+        // never reaches, because that one only fires once connect is underway.
+        const queue = {
+            setRepeatMode: jest.fn().mockImplementation(() => {
+                service.markIntentionalStop(guildId)
+            }),
+            delete: jest.fn(),
+            connect: jest.fn(),
+        }
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(null),
+            create: jest.fn().mockReturnValue(queue),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        await service.scanOrphanSessions(player)
+
+        // Bailed out before connecting, and did not leave the created queue behind.
+        expect(queue.connect).not.toHaveBeenCalled()
+        expect(restoreSnapshotMock).not.toHaveBeenCalled()
+        expect(queue.delete).toHaveBeenCalled()
+    })
 })
 
 describe('MusicWatchdogService — constructor env var parsing', () => {
@@ -664,6 +768,62 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
 
         resolveSecondPlay()
         await secondRecovery
+    })
+
+    it('checkAndRecover aborts if intentional stop is set mid-flight before play (#2311)', async () => {
+        const guildId = 'guild-race-2311'
+        const service = new MusicWatchdogService({
+            timeoutMs: 100,
+            recoveryWaitTimeoutMs: 50,
+            recoveryPollIntervalMs: 10,
+        })
+
+        // The race condition: rejoin needs to happen and connection needs to wait
+        // to become ready, during which we mark intentional stop
+        const connection = {
+            state: { status: 'disconnected' },
+            rejoin: jest.fn(() => {
+                // Schedule connection to become ready after a delay
+                // This gives us a window to mark intentional stop
+                setTimeout(() => {
+                    connection.state.status = 'ready'
+                }, 15)
+            }),
+        }
+
+        const play = jest.fn().mockResolvedValue(undefined)
+        const queue = {
+            guild: { id: guildId },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection,
+            node: { isPlaying: () => false, play },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        // Fire off recovery
+        const recoveryPromise = service.checkAndRecover(queue)
+
+        // The recovery will:
+        // 1. See connection is not ready, call rejoin()
+        // 2. Enter waitForConnectionReady which loops checking every 10ms
+        // At this point we mark the stop while recovery is mid-flight
+
+        // Advance 5ms so rejoin has been called and loop has started
+        await jest.advanceTimersByTimeAsync(5)
+        service.markIntentionalStop(guildId)
+
+        // Advance the rest of the time for recovery to complete
+        await jest.advanceTimersByTimeAsync(100)
+        const action = await recoveryPromise
+
+        // With the fix, play() should never be called because we re-check
+        // the intentional stop flag before attempting play()
+        expect(play).not.toHaveBeenCalled()
+        expect(action).toBe('none')
+        expect(service.getGuildState(guildId)).toMatchObject({
+            lastRecoveryAction: 'none',
+            lastRecoveryDetail: 'intentional_stop',
+        })
     })
 })
 

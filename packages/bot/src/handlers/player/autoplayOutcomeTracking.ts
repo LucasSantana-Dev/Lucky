@@ -9,19 +9,61 @@ import { recommendationFeedbackService } from '../../services/musicRecommendatio
 // playerFinish + playerSkip paths). Tune via Phase C data.
 export const OUTCOME_ACCEPT_PLAY_RATIO = 0.3
 
-// Keyed per TRACK (guildId + track id), not per guild: autoplay track
-// lifecycles overlap — discord-player can emit the next track's playerStart
-// before the previous track's playerFinish/playerSkip. A single per-guild
-// timestamp gets clobbered by that interleaving, making completionRatio ≈ 0
-// for the wrong track and corrupting the accept/reject classification (#1275).
-export const trackStartTimes = new LRUCache<string, number>({
-    max: 500,
-    ttl: 30 * 60 * 1000,
-    updateAgeOnGet: true,
-})
+// Start time per TRACK INSTANCE — not per guild, and not per track id.
+//
+// Autoplay track lifecycles overlap: discord-player can emit the next track's
+// playerStart before the previous track's playerFinish/playerSkip. A single
+// per-guild timestamp gets clobbered by that interleaving, making
+// completionRatio ≈ 0 for the wrong track and corrupting the accept/reject
+// classification (#1275). Keying by `guildId::trackId` had the same problem one
+// level down, because the same track can be in flight twice (#2298).
+//
+// The track object is the only identifier that is genuinely unique per play:
+// discord-player emits the same Track instance through
+// playerStart/playerFinish/playerSkip (verified in discord-player's dist —
+// GuildQueue #performStart at :5870, finish path at :5904). Keying a WeakMap on
+// it needs no TTL, no size cap and no manual cleanup: an entry becomes
+// unreachable when its track does. It also cannot collide, which a key built
+// from a timestamp can when two plays start inside the same millisecond.
+//
+// #2334: repeat modes re-dispatch the SAME Track instance from history, so a
+// repeat replay reuses this key. A single stored value per track can't tell
+// two overlapping plays of that instance apart: if the next repeat's start
+// fires before the previous play's finish is read, the second start
+// overwrites the first and that finish reads the wrong timestamp. Each track
+// instead gets a small FIFO queue of start times, one per in-flight play,
+// since plays of a given track can only start in the order they are dispatched.
+// takeTrackPlayStart removes and returns the oldest entry in one step, so each
+// finish or skip consumes exactly one play's start time and two overlapping
+// plays cannot collide.
+// Not exported directly: it is reassigned by the test reset below, and an
+// exported binding captured by an importer would go on pointing at the old map.
+let trackPlayStartTimes = new WeakMap<Track, number[]>()
 
-export const trackStartKey = (guildId: string, trackId: string): string =>
-    `${guildId}::${trackId}`
+export function setTrackPlayStart(track: Track, startedAt: number): void {
+    const queue = trackPlayStartTimes.get(track)
+    if (queue) {
+        queue.push(startedAt)
+    } else {
+        trackPlayStartTimes.set(track, [startedAt])
+    }
+}
+
+/**
+ * Removes and returns the oldest start time for this track, in one synchronous
+ * step. Reading and removing has to be atomic from a caller's point of view:
+ * the terminal handlers await scrobble and history work, so a separate read and
+ * a separate clear across that await let two overlapping plays of one track
+ * take the same entry, or take each other's. Call this at handler entry, before
+ * any await, and carry the value through.
+ */
+export function takeTrackPlayStart(track: Track): number | undefined {
+    const queue = trackPlayStartTimes.get(track)
+    if (!queue?.length) return undefined
+    const startedAt = queue.shift()
+    if (queue.length === 0) trackPlayStartTimes.delete(track)
+    return startedAt
+}
 
 function classifyOutcome(
     playedRatio: number | null,
@@ -43,8 +85,10 @@ export function getRecentSkipCount(guildId: string): number {
 }
 
 export function __resetTrackHandlerCachesForTests(): void {
-    trackStartTimes.clear()
     guildRecentSkipCounts.clear()
+    // A WeakMap has no clear(), so drop the whole map. Tests rely on this to
+    // simulate a start time being lost before its finish event arrives.
+    trackPlayStartTimes = new WeakMap<Track, number[]>()
 }
 
 export function getTrackRequesterId(track: Track): string | undefined {

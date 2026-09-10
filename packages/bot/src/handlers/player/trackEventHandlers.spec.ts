@@ -9,7 +9,6 @@ import {
 import { type GuildQueue, type Track } from 'discord-player'
 import { setupTrackHandlers } from './trackEventHandlers'
 import {
-    trackStartTimes,
     guildRecentSkipCounts,
     getRecentSkipCount,
     __resetTrackHandlerCachesForTests,
@@ -204,7 +203,6 @@ function setupHandlers(
 describe('trackHandlers autoplay replenishment', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        trackStartTimes.clear()
         guildRecentSkipCounts.clear()
         featureEnabledMock.mockResolvedValue(true)
         replenishQueueMock.mockResolvedValue(undefined)
@@ -321,7 +319,7 @@ describe('trackHandlers autoplay replenishment', () => {
 
         expect(getRecentSkipCount(queue.guild.id)).toBe(0)
 
-        // trackStartTimes cleared too: a finish for a track whose start time
+        // start times dropped too: a finish for a track whose start time
         // was wiped never enters the completionRatio branch, so no implicit
         // feedback is recorded even though the track "played" for 90s.
         recordImplicitFeedbackMock.mockClear()
@@ -805,6 +803,122 @@ describe('trackHandlers autoplay replenishment', () => {
                     outcome: 'rejected',
                 }),
             )
+        })
+    })
+
+    // #2334: discord-player re-dispatches the SAME Track instance under repeat
+    // modes (verified in discord-player's dist — history.push(track) at :5904,
+    // then that identical object comes back out at :5914/:5922). A per-instance
+    // WeakMap<Track, number> only holds one value, so if the next repeat's
+    // playerStart fires (and overwrites the entry) before the previous play's
+    // playerFinish reads it, that finish gets the wrong play's start time.
+    describe('repeat-mode same-instance start time collision (#2334)', () => {
+        it('gives each play of the SAME Track instance its own start time when the next start fires before the previous finish', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            // One Track object played twice — discord-player's repeat dispatch
+            // reuses the identical instance, not a copy.
+            const track = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'repeat-collide',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await handlers.playerStart(queue, track) // play N starts at t=0
+            jest.advanceTimersByTime(90000)
+            // repeat re-dispatches the SAME instance for play N+1 before play
+            // N's playerFinish has been emitted
+            await handlers.playerStart(queue, track) // play N+1 starts at t=90000
+            jest.advanceTimersByTime(5000)
+            await handlers.playerFinish(queue, track) // finish for play N (t=95000)
+            jest.advanceTimersByTime(5000)
+            await handlers.playerFinish(queue, track) // finish for play N+1 (t=100000)
+
+            // Play N: started at 0, finished at 95000 -> 95% played -> accepted.
+            expect(recordRecommendationOutcomeMock).toHaveBeenNthCalledWith(1, {
+                guildId: 'guild-1',
+                trackId: 'repeat-collide',
+                outcome: 'accepted',
+            })
+            // Play N+1: started at 90000, finished at 100000 -> 10% played ->
+            // rejected. A collided start time would either misclassify this as
+            // accepted (using play N's 0) or drop it entirely (already
+            // consumed by play N's finish).
+            expect(recordRecommendationOutcomeMock).toHaveBeenNthCalledWith(2, {
+                guildId: 'guild-1',
+                trackId: 'repeat-collide',
+                outcome: 'rejected',
+            })
+        })
+
+        // The terminal handlers await scrobble and history work before they use
+        // the start time. If they read the queue then removed from it across
+        // that await, two overlapping finishes could take the same entry. Both
+        // handlers here enter before either's awaits resolve.
+        it('gives each of two concurrently running finishes its own start time', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const track = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'concurrent-finish',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await handlers.playerStart(queue, track)
+            jest.advanceTimersByTime(90000)
+            await handlers.playerStart(queue, track)
+            jest.advanceTimersByTime(5000)
+
+            await Promise.all([
+                handlers.playerFinish(queue, track),
+                handlers.playerFinish(queue, track),
+            ])
+
+            const outcomes = recordRecommendationOutcomeMock.mock.calls.map(
+                (call) => (call[0] as { outcome: string }).outcome,
+            )
+            // One play ran 95s of 100s, the other 5s. Taking the same entry
+            // twice would classify both the same way.
+            expect(outcomes.sort()).toEqual(['accepted', 'rejected'])
+        })
+
+        // #2298: the mirror case. Two DISTINCT Track objects can carry the same
+        // track id, because the same song can be queued twice and be in flight
+        // at once. This guards the behaviour, not the key: it fails if the store
+        // ever goes back to holding a single start time per entry, whichever way
+        // that entry is keyed.
+        it('gives two distinct Track objects sharing one track id their own start times', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const base = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'same-id',
+                durationMS: 100000,
+            }
+            const trackA = { ...base } as unknown as Track
+            const trackB = { ...base } as unknown as Track
+
+            await handlers.playerStart(queue, trackA)
+            jest.advanceTimersByTime(90000)
+            await handlers.playerStart(queue, trackB)
+            jest.advanceTimersByTime(5000)
+            await handlers.playerFinish(queue, trackA) // 95% played
+            jest.advanceTimersByTime(5000)
+            await handlers.playerFinish(queue, trackB) // 10% played
+
+            expect(recordRecommendationOutcomeMock).toHaveBeenNthCalledWith(1, {
+                guildId: 'guild-1',
+                trackId: 'same-id',
+                outcome: 'accepted',
+            })
+            expect(recordRecommendationOutcomeMock).toHaveBeenNthCalledWith(2, {
+                guildId: 'guild-1',
+                trackId: 'same-id',
+                outcome: 'rejected',
+            })
         })
     })
 })
