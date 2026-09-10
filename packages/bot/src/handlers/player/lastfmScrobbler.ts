@@ -29,6 +29,16 @@ export function clearLastFmTrackTiming(guildId: string): void {
 }
 
 /**
+ * Test hook: set the Last.fm track start time for a guild (used by tests only).
+ */
+export function __setLastFmTrackStartTime(
+    guildId: string,
+    timestamp: number,
+): void {
+    lastFmTrackStartTime.set(guildId, timestamp)
+}
+
+/**
  * Get the Last.fm requester ID from track or queue metadata.
  * Falls back through metadata.requestedById, queue.requestedBy, or undefined.
  */
@@ -73,6 +83,10 @@ export async function updateLastFmNowPlaying(
             data: { artist: track.author, title: track.title },
         })
     }
+    // Capture the start time before the async call to avoid timing races if the
+    // track changes during the request. This ensures we record when THIS track
+    // started, not when the request completes.
+    const trackStartTime = Math.floor(Date.now() / 1000)
     try {
         await lastFmUpdateNowPlaying(
             track.author,
@@ -81,7 +95,11 @@ export async function updateLastFmNowPlaying(
             sessionKey,
             meta ?? undefined,
         )
-        lastFmTrackStartTime.set(queue.guild.id, Math.floor(Date.now() / 1000))
+        // Only store the timestamp if this track is still the current track.
+        // Ignore late completions if the track changed while the request was in flight.
+        if (track === queue.currentTrack) {
+            lastFmTrackStartTime.set(queue.guild.id, trackStartTime)
+        }
     } catch (err) {
         if (isLastFmInvalidSessionError(err)) {
             await handleDeadLastFmSession(
