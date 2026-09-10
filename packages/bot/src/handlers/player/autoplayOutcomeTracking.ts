@@ -27,6 +27,16 @@ export const trackStartTimes = new LRUCache<string, number>({
 // WeakMap from track object instance to its start time. Keyed on track object identity
 // (not track id or string), so repeated plays of the same track have separate entries.
 // Track objects are garbage-collectable after play ends, so no manual cleanup needed.
+//
+// Keyed on Track object identity: discord-player emits the same Track instance through
+// playerStart/playerFinish/playerSkip (verified in discord-player dist, GuildQueue
+// #performStart / finish path lines 5870/5904), so each play of a distinct instance
+// gets its own entry.
+//
+// KNOWN GAP (#2334): repeat modes re-dispatch the SAME instance from history, so a
+// repeat replay reuses this key. Sequential repeats are fine (finish consumes the entry
+// before play N+1 starts), but interleaved repeat modes can cause finish(N) to read
+// start(N+1)'s timestamp, reintroducing the #2298 symptom on repeat tracks.
 export const trackPlayStartTime = new WeakMap<Track, number>()
 
 export const trackStartKey = (
