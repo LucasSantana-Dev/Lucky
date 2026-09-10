@@ -351,15 +351,28 @@ export class MusicWatchdogService {
             })
 
             const queue = existingQueue ?? player.nodes.create(guild)
+            // A queue created here is ours to clean up. Returning without
+            // deleting it leaves an unconnected node registered for the guild,
+            // which the next scan then reads as a live session.
+            const discardCreatedQueue = (): void => {
+                if (!existingQueue) queue.delete()
+            }
+
             if (!existingQueue) {
                 queue.setRepeatMode(3)
                 // Re-check intentional stop immediately before connect
-                if (this.intentionalStops.has(guildId)) return
+                if (this.intentionalStops.has(guildId)) {
+                    discardCreatedQueue()
+                    return
+                }
                 await queue.connect(voiceChannel)
             }
 
             // Re-check intentional stop immediately before restore
-            if (this.intentionalStops.has(guildId)) return
+            if (this.intentionalStops.has(guildId)) {
+                discardCreatedQueue()
+                return
+            }
 
             const restoreResult =
                 await musicSessionSnapshotService.restoreSnapshot(

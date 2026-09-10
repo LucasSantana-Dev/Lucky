@@ -445,11 +445,13 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         })
 
         // queue.connect marks the stop mid-flight, simulating a voice kick or
-        // /stop command happening after entry check but during connection setup.
-        // This ensures the flag is caught only by our re-check at line 360,
-        // not by the entry check at line 316.
+        // /stop command happening after the entry check but during connection
+        // setup. That way the flag can only be caught by the re-check just
+        // before restoreSnapshot, never by the entry check at the top of
+        // recoverOrphanSession.
         const queue = {
             setRepeatMode: jest.fn(),
+            delete: jest.fn(),
             connect: jest.fn().mockImplementation(async () => {
                 // Mark the stop DURING connect, after entry check but before restore
                 service.markIntentionalStop(guildId)
@@ -478,9 +480,12 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         await service.scanOrphanSessions(player)
 
         // With the fix: connect() IS called (flag not set yet), but
-        // restoreSnapshot IS NOT called (caught by re-check at line 360)
+        // restoreSnapshot IS NOT called (caught by the re-check before restore)
         expect(queue.connect).toHaveBeenCalled()
         expect(restoreSnapshotMock).not.toHaveBeenCalled()
+        // And the queue this scan created is torn down rather than left
+        // registered for the guild, where the next scan would read it as live.
+        expect(queue.delete).toHaveBeenCalled()
     })
 })
 
