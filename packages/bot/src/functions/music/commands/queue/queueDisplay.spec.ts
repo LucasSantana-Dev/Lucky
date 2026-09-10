@@ -10,7 +10,7 @@ import type { QueueDisplayOptions } from './types'
 const getTrackInfoMock = jest.fn()
 const isSimilarTitleMock = jest.fn()
 
-jest.mock('../../../../utils/music/trackUtils', () => ({
+jest.mock('../../../../services/musicManagement/trackUtils', () => ({
     getTrackInfo: (...args: unknown[]) => getTrackInfoMock(...args),
 }))
 
