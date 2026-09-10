@@ -60,7 +60,14 @@ describe('followerRoleSync', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
-        fetchSpy = jest.spyOn(global, 'fetch')
+        // A default response, so a test that reaches checkTwitchFollow without
+        // setting its own mock cannot make a real request to api.twitch.tv.
+        fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+            ok: true,
+            json: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+                total: 1,
+            }),
+        } as unknown as Response)
 
         // Mock role
         mockRole = {
