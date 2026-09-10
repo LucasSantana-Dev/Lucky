@@ -554,33 +554,22 @@ describe('replenisher seam functions', () => {
         it('fetches artist tags for current track', async () => {
             const queue = createGuildQueue()
             const currentTrack = createTrack()
-            const requestedBy = createUser()
-
-            const { createArtistTagFetcher } = require('./artistTagCache')
-            const mockFetcher = jest.fn().mockResolvedValue(['tag1', 'tag2'])
-            createArtistTagFetcher.mockReturnValue(mockFetcher)
+            const fetcher = jest.fn().mockResolvedValue(['tag1', 'tag2'])
 
             const result = await buildGenreTagContext(
                 queue,
                 currentTrack,
                 [],
                 null,
-                requestedBy,
+                fetcher,
             )
 
-            expect(mockFetcher).toHaveBeenCalledWith(currentTrack.author)
+            expect(fetcher).toHaveBeenCalledWith(currentTrack.author)
             expect(result.currentTrackTags.length).toBeGreaterThanOrEqual(0)
         })
 
         it('detects sertanejo seed with hasGenreTag true', async () => {
-            const {
-                createArtistTagFetcher,
-                hasGenreTag,
-            } = require('./artistTagCache')
-            const mockFetcher = jest
-                .fn()
-                .mockResolvedValue(['sertanejo', 'forró'])
-            createArtistTagFetcher.mockReturnValue(mockFetcher)
+            const { hasGenreTag } = require('./artistTagCache')
             hasGenreTag.mockReturnValue(true)
 
             const result = await buildGenreTagContext(
@@ -588,23 +577,19 @@ describe('replenisher seam functions', () => {
                 createTrack(),
                 [],
                 null,
-                createUser(),
+                jest.fn().mockResolvedValue(['sertanejo', 'forró']),
             )
 
             expect(result.blockSertanejo).toBe(false)
         })
 
         it('sets seedIsSertanejo false when currentTrackTags empty', async () => {
-            const { createArtistTagFetcher } = require('./artistTagCache')
-            const mockFetcher = jest.fn().mockResolvedValue([])
-            createArtistTagFetcher.mockReturnValue(mockFetcher)
-
             const result = await buildGenreTagContext(
                 createGuildQueue(),
                 createTrack(),
                 [],
                 null,
-                createUser(),
+                jest.fn().mockResolvedValue([]),
             )
 
             expect(result.blockSertanejo).toBe(true)
@@ -617,10 +602,33 @@ describe('replenisher seam functions', () => {
                 createTrack(),
                 [],
                 guildSettings,
-                createUser(),
+                jest.fn().mockResolvedValue([]),
             )
 
             expect(result.blockSertanejo).toBe(false)
+        })
+
+        it('reuses one fetcher for the seed and the session families', async () => {
+            const fetcher = jest.fn().mockResolvedValue([])
+            const history = [
+                createTrack({ author: 'A' }),
+                createTrack({ author: 'B' }),
+            ]
+
+            await buildGenreTagContext(
+                createGuildQueue(),
+                createTrack({ author: 'Seed' }),
+                history,
+                null,
+                fetcher,
+            )
+
+            // The caller owns the fetcher, so the memo cache inside it survives
+            // across the seed lookup, session-family detection and the
+            // collectors. Building a second one here would reset that cache.
+            const { createArtistTagFetcher } = require('./artistTagCache')
+            expect(createArtistTagFetcher).not.toHaveBeenCalled()
+            expect(fetcher).toHaveBeenCalledWith('Seed')
         })
 
         it('logs genre context details', async () => {
@@ -632,7 +640,7 @@ describe('replenisher seam functions', () => {
                 createTrack(),
                 [],
                 null,
-                createUser(),
+                jest.fn().mockResolvedValue([]),
             )
 
             expect(debugLog).toHaveBeenCalledWith(
@@ -650,6 +658,7 @@ describe('replenisher seam functions', () => {
             } = require('./candidateCollector')
             const {
                 collectBroadFallbackCandidates,
+                collectGenreCandidates,
             } = require('../candidateFallback')
             const {
                 collectSeedSimilarCandidates,
@@ -690,23 +699,23 @@ describe('replenisher seam functions', () => {
                 recentArtistIndices: new Map(),
             }
 
+            // guildSettings must carry autoplayGenres or the genre collector is
+            // skipped, and every collector mock leaves `candidates` empty, which
+            // is what lets the fallback branch (size === 0) run too.
             const result = await collectAllCandidates(
                 autoplayContext,
                 [createTrack()],
                 createUser(),
-                'guildid',
                 false,
-                null,
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                [],
-                new Set(),
+                { autoplayGenres: ['rock'] },
                 new Map(),
             )
 
             expect(collectRecommendationCandidates).toHaveBeenCalled()
+            expect(collectSeedSimilarCandidates).toHaveBeenCalled()
+            expect(collectLastFmCandidates).toHaveBeenCalled()
+            expect(collectGenreCandidates).toHaveBeenCalled()
+            expect(collectBroadFallbackCandidates).toHaveBeenCalled()
             expect(result.sourcesCounts).toHaveProperty('recommendation')
         })
 
@@ -755,15 +764,8 @@ describe('replenisher seam functions', () => {
                 autoplayContext,
                 [createTrack()],
                 null,
-                'guildid',
                 false,
                 null,
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                [],
-                new Set(),
                 new Map(),
             )
 
@@ -835,7 +837,7 @@ describe('replenisher seam functions', () => {
 
     describe('enqueueAndFinalize', () => {
         it('logs and returns early when enriched is empty', async () => {
-            const { warnLog, debugLog } = require('@lucky/shared/utils')
+            const { warnLog } = require('@lucky/shared/utils')
             warnLog.mockClear()
 
             const queue = createGuildQueue()

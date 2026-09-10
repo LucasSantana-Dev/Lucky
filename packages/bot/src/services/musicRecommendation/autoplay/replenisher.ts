@@ -226,13 +226,16 @@ async function _replenishQueue(
             historyTracks,
             persistentHistory,
         )
+        // Built once and shared with the collectors below, as before the
+        // decomposition: the fetcher carries a per-pass memo cache.
+        const getArtistTags = await buildArtistTagFetcher(requestedBy)
         const { currentTrackTags, sessionGenreFamilies, blockSertanejo } =
             await buildGenreTagContext(
                 queue,
                 currentTrack,
                 historyTracks,
                 guildSettings,
-                requestedBy,
+                getArtistTags,
             )
         const autoplayContext: AutoplayContext = {
             queue,
@@ -250,7 +253,7 @@ async function _replenishQueue(
             implicitLikeKeys,
             sessionMood,
             genreContext: {
-                getArtistTags: await buildArtistTagFetcher(requestedBy),
+                getArtistTags,
                 currentTrackTags,
                 sessionGenreFamilies,
             },
@@ -611,15 +614,15 @@ export async function buildGenreTagContext(
     currentTrack: Track,
     historyTracks: Track[],
     guildSettings: { blockSertanejo?: boolean } | null,
-    requestedBy: User | null,
+    // Takes the fetcher rather than building its own: createArtistTagFetcher
+    // memoizes per instance, so a second one would re-run getValidAccessToken
+    // and hand the collectors a cold cache for artists this pass already looked up.
+    getArtistTags: ArtistTagFetcher,
 ): Promise<{
     currentTrackTags: string[]
     sessionGenreFamilies: Set<string>
     blockSertanejo: boolean
 }> {
-    const getArtistTags: ArtistTagFetcher =
-        await buildArtistTagFetcher(requestedBy)
-
     // Parallelize tag fetching for current track + genre family detection
     const [currentTrackTags, sessionGenreFamilies] = await Promise.all([
         getArtistTags(currentTrack.author),
