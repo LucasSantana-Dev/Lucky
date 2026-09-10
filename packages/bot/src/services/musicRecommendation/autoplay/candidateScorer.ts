@@ -1,11 +1,9 @@
 import type { Track } from 'discord-player'
-import { spotifyLinkService } from '@lucky/shared/services'
 import type { SessionMood } from './sessionMood'
 import type { RecommendationSignal } from './recommendationBasis.js'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
 import { detectSpanishMarkers } from '../../../utils/music/languageHeuristics'
 import { normalizeText, normalizeTrackKey } from './scoringUtils'
-import type { ScoredTrack } from './diversitySelector'
 
 const SCORE_SAME_ARTIST = 0.3
 const SCORE_POPULAR_ARTIST = 0.2
@@ -26,9 +24,6 @@ const SCORE_GENRE_TAG_MAX = 0.2
 const SCORE_GENRE_TAG_PER_MATCH = 0.05
 const SCORE_LIKED_ARTIST_WEIGHT = 0.2
 const SCORE_LIKED_ARTIST_TEMPO = 0.1
-const SCORE_TEMPO_PENALTY_LARGE = -0.15
-const SCORE_TEMPO_PENALTY_SMALL = -0.07
-const TEMPO_DELTA_SMALL = 25
 const DURATION_RATIO_TIGHT_LOW = 0.8
 const DURATION_RATIO_TIGHT_HIGH = 1.2
 const DURATION_RATIO_LOOSE_LOW = 0.7

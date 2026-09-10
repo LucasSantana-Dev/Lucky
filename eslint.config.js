@@ -145,8 +145,12 @@ export default [
             // (line ~52): without these options the root-cwd lint flags
             // intentionally-unused _-prefixed params/vars/caught-errors that
             // the per-package lint already excuses (#1378).
+            // Promoted to error (#2345): unused imports/vars were only
+            // warnings here, so they passed the local gate (lint-staged,
+            // npm run lint, tsc --noEmit) and were caught later by CodeQL
+            // at review time instead of on save.
             "@typescript-eslint/no-unused-vars": [
-                "warn",
+                "error",
                 {
                     argsIgnorePattern: "^_",
                     varsIgnorePattern: "^_",
