@@ -27,7 +27,7 @@ jest.mock('../../utils/music/searchQueryCleaner', () => ({
     cleanSearchQuery: (...args: unknown[]) => mockCleanSearchQuery(...args),
     extractSongCore: (...args: unknown[]) => mockExtractSongCore(...args),
 }))
-jest.mock('../../utils/music/search/providerHealth', () => ({
+jest.mock('../../services/musicManagement/search/providerHealth', () => ({
     providerHealthService: {
         isAvailable: (...args: unknown[]) => mockIsAvailable(...args),
     },

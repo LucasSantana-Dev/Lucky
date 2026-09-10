@@ -73,7 +73,7 @@ jest.mock('../../handlers/eventHandler', () => ({
     default: (...args: unknown[]) => handleEventsMock(...args),
 }))
 
-jest.mock('../../utils/music/search/providerHealth', () => ({
+jest.mock('../../services/musicManagement/search/providerHealth', () => ({
     initProviderHealth: (...args: unknown[]) => initProviderHealthMock(...args),
 }))
 

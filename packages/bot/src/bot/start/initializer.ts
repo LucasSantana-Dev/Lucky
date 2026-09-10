@@ -19,7 +19,7 @@ import {
 import type { CustomClient } from '../../types'
 import { ConfigurationError } from '@lucky/shared/types'
 import { redisClient } from '@lucky/shared/services'
-import { initProviderHealth } from '../../utils/music/search/providerHealth'
+import { initProviderHealth } from '../../services/musicManagement/search/providerHealth'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { reminderScheduler } from '../../utils/general/reminderScheduler'

@@ -42,11 +42,14 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
 }))
 
-jest.mock('../../../src/utils/music/search/providerHealth', () => ({
-    providerHealthService: {
-        isAvailable: jest.fn(() => true),
-    },
-}))
+jest.mock(
+    '../../../src/services/musicManagement/search/providerHealth',
+    () => ({
+        providerHealthService: {
+            isAvailable: jest.fn(() => true),
+        },
+    }),
+)
 
 describe('playerFactory', () => {
     beforeEach(() => {
