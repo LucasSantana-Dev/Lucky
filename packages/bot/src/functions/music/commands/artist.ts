@@ -16,7 +16,7 @@ import {
 } from '../../../utils/general/embeds'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { errorLog, warnLog } from '@lucky/shared/utils'
-import { handleArtistDiscography } from './artistDiscography'
+import { handleArtistDiscography } from './artist/artistDiscography'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
