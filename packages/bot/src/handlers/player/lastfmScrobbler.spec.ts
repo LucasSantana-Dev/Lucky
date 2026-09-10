@@ -1,5 +1,11 @@
 import { describe, expect, it, beforeEach, jest } from '@jest/globals'
+import type { Track, GuildQueue } from 'discord-player'
+import type { Guild, Client } from 'discord.js'
 
+// jest.mock calls are hoisted above the imports below, so anything their
+// factories reference must be declared here, before those imports run —
+// otherwise importing ./lastfmScrobbler evaluates the factory while these
+// consts are still in the temporal dead zone.
 const mockDebugLog = jest.fn()
 const mockErrorLog = jest.fn()
 
@@ -17,12 +23,12 @@ jest.mock('../../lastfm', () => ({
     updateNowPlaying: jest.fn(),
     scrobble: jest.fn(),
 }))
-import type { Track, GuildQueue } from 'discord-player'
-import type { Guild, Client } from 'discord.js'
+
 import {
     updateLastFmNowPlaying,
     scrobbleCurrentTrackIfLastFm,
     clearLastFmTrackTiming,
+    __setLastFmTrackStartTime,
 } from './lastfmScrobbler'
 import * as lastfm from '../../lastfm'
 
@@ -215,6 +221,60 @@ describe('lastfmScrobbler', () => {
                 expect.anything(),
             )
         })
+
+        it('does not store timing if track changed during request (late completion)', async () => {
+            const trackA: Partial<Track> = {
+                title: 'Track A',
+                author: 'Artist A',
+                url: 'https://spotify.com/track/A',
+                durationMS: 180000,
+                requestedBy: { id: 'user-123', username: 'User' },
+            }
+            const trackB: Partial<Track> = {
+                title: 'Track B',
+                author: 'Artist B',
+                url: 'https://spotify.com/track/B',
+                durationMS: 180000,
+                requestedBy: { id: 'user-123', username: 'User' },
+            }
+
+            // Track A is current and its now-playing request completes normally.
+            mockQueue.currentTrack = trackA as Track
+            await updateLastFmNowPlaying(
+                mockQueue as GuildQueue,
+                trackA as Track,
+            )
+
+            // Clear mocks and simulate track change
+            jest.clearAllMocks()
+            mockLastFm.scrobble.mockResolvedValue(undefined)
+            mockLastFm.updateNowPlaying.mockResolvedValue(undefined)
+
+            // Track B is now current
+            mockQueue.currentTrack = trackB as Track
+            // If updateLastFmNowPlaying for Track B is called after A but completed before A,
+            // it should store B's timing. But we're simulating a late completion where
+            // updateNowPlaying for Track A completes AFTER Track B's completes.
+            // Since Track A is no longer current, its timing should NOT be stored.
+
+            // Manually set Track B's timing first (simulating B completed first)
+            const trackBTimestamp = 2000
+            __setLastFmTrackStartTime('guild-123', trackBTimestamp)
+
+            // Now simulate Track A's late completion by calling with A but queue.currentTrack is B
+            mockQueue.currentTrack = trackB as Track
+            await updateLastFmNowPlaying(
+                mockQueue as GuildQueue,
+                trackA as Track, // Track A's request completes now
+            )
+
+            // Verify that Track B's timing is still stored (Track A's late write should be ignored)
+            jest.clearAllMocks()
+            mockLastFm.scrobble.mockResolvedValue(undefined)
+            await scrobbleCurrentTrackIfLastFm(mockQueue as GuildQueue)
+            const finalTimestamp = mockLastFm.scrobble.mock.calls[0][2]
+            expect(finalTimestamp).toBe(trackBTimestamp)
+        })
     })
 
     describe('scrobbleCurrentTrackIfLastFm', () => {
@@ -279,16 +339,15 @@ describe('lastfmScrobbler', () => {
         })
 
         it('uses stored track start time if available', async () => {
-            clearLastFmTrackTiming('guild-123')
+            const storedStartTime = 1000
+            __setLastFmTrackStartTime('guild-123', storedStartTime)
 
-            // Would need a way to set start time - this tests the behavior
-            // when a start time exists (tested via integration)
             await scrobbleCurrentTrackIfLastFm(mockQueue as GuildQueue)
 
             expect(mockLastFm.scrobble).toHaveBeenCalled()
-            // The timestamp passed should be close to current time
+            // The timestamp passed should match the stored start time
             const callArgs = mockLastFm.scrobble.mock.calls[0]
-            expect(callArgs[2]).toBeGreaterThan(0)
+            expect(callArgs[2]).toBe(storedStartTime)
         })
 
         it('uses current time when no start time stored', async () => {
