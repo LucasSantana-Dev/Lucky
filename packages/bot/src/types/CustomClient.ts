@@ -1,25 +1,7 @@
-import type {
-    ChatInputCommandInteraction,
-    Client,
-    Collection,
-} from 'discord.js'
-import type { Player } from 'discord-player'
-import type Command from '../models/Command'
-import type ContextMenuCommand from '../models/ContextMenuCommand'
-
-export type CustomClient = Client & {
-    commands: Collection<string, Command>
-    contextMenus: Collection<string, ContextMenuCommand>
-    player: Player
-    cooldowns: Collection<string, number>
-    redis?: unknown
-    metrics?: unknown
-    tracer?: unknown
-    token?: string
-    clientId?: string
-}
-
-export type CommandType = {
-    data: unknown
-    execute: (_interaction: ChatInputCommandInteraction) => Promise<void>
-}
+// CustomClient and CommandType now live in types/CommandData.ts alongside
+// Command and ContextMenuCommand (they are mutually recursive; see the comment
+// there and decisions/2026-05-16-next-refactor-target-bot-circular-deps.md).
+// This file re-exports them so existing `types/CustomClient` import paths keep
+// working. Declaring them again here would put a second contract behind those
+// paths, free to drift from the canonical one.
+export type { CustomClient, CommandType } from './CommandData'
