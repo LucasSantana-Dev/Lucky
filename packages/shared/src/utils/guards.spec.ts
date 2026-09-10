@@ -10,6 +10,8 @@ import {
     isGuildId,
     isUserId,
     isChannelId,
+    isMessageId,
+    isRoleId,
     isYouTubeUrl,
     isSpotifyUrl,
     isDiscordInvite,
@@ -133,51 +135,104 @@ describe('Type Guards', () => {
     })
 
     describe('isGuildId', () => {
-        it('should return true for valid guild IDs', () => {
-            expect(isGuildId('123456789012345678')).toBe(true)
-            expect(isGuildId('987654321098765432')).toBe(true)
+        it('should return true for valid guild IDs (17-20 digits)', () => {
+            expect(isGuildId('12345678901234567')).toBe(true) // 17 digits
+            expect(isGuildId('123456789012345678')).toBe(true) // 18 digits
+            expect(isGuildId('1234567890123456789')).toBe(true) // 19 digits
+            expect(isGuildId('12345678901234567890')).toBe(true) // 20 digits
         })
 
         it('should return false for invalid guild IDs', () => {
+            expect(isGuildId('1234567890123456')).toBe(false) // 16 digits (too short)
+            expect(isGuildId('123456789012345678901')).toBe(false) // 21 digits (too long)
             expect(isGuildId('123')).toBe(false)
             expect(isGuildId('invalid')).toBe(false)
-            expect(isGuildId('1234567890123456789')).toBe(true) // 19 digits is valid
-            expect(isGuildId('12345678901234567890')).toBe(false) // 20 digits is invalid
+            expect(isGuildId('1234567890123456789a')).toBe(false) // non-numeric
             expect(isGuildId('')).toBe(false)
         })
     })
 
     describe('isUserId', () => {
-        it('should return true for valid user IDs', () => {
-            expect(isUserId('123456789012345678')).toBe(true)
-            expect(isUserId('987654321098765432')).toBe(true)
+        it('should return true for valid user IDs (17-20 digits)', () => {
+            expect(isUserId('12345678901234567')).toBe(true) // 17 digits
+            expect(isUserId('123456789012345678')).toBe(true) // 18 digits
+            expect(isUserId('1234567890123456789')).toBe(true) // 19 digits
+            expect(isUserId('12345678901234567890')).toBe(true) // 20 digits
         })
 
         it('should return false for invalid user IDs', () => {
+            expect(isUserId('1234567890123456')).toBe(false) // 16 digits (too short)
+            expect(isUserId('123456789012345678901')).toBe(false) // 21 digits (too long)
             expect(isUserId('123')).toBe(false)
             expect(isUserId('invalid')).toBe(false)
+            expect(isUserId('1234567890123456789a')).toBe(false) // non-numeric
             expect(isUserId('')).toBe(false)
         })
     })
 
     describe('isChannelId', () => {
-        it('should return true for valid channel IDs', () => {
-            expect(isChannelId('123456789012345678')).toBe(true)
-            expect(isChannelId('987654321098765432')).toBe(true)
+        it('should return true for valid channel IDs (17-20 digits)', () => {
+            expect(isChannelId('12345678901234567')).toBe(true) // 17 digits
+            expect(isChannelId('123456789012345678')).toBe(true) // 18 digits
+            expect(isChannelId('1234567890123456789')).toBe(true) // 19 digits
+            expect(isChannelId('12345678901234567890')).toBe(true) // 20 digits
         })
 
         it('should return false for invalid channel IDs', () => {
+            expect(isChannelId('1234567890123456')).toBe(false) // 16 digits (too short)
+            expect(isChannelId('123456789012345678901')).toBe(false) // 21 digits (too long)
             expect(isChannelId('123')).toBe(false)
             expect(isChannelId('invalid')).toBe(false)
+            expect(isChannelId('1234567890123456789a')).toBe(false) // non-numeric
             expect(isChannelId('')).toBe(false)
+        })
+    })
+
+    describe('isMessageId', () => {
+        it('should return true for valid message IDs (17-20 digits)', () => {
+            expect(isMessageId('12345678901234567')).toBe(true) // 17 digits
+            expect(isMessageId('123456789012345678')).toBe(true) // 18 digits
+            expect(isMessageId('1234567890123456789')).toBe(true) // 19 digits
+            expect(isMessageId('12345678901234567890')).toBe(true) // 20 digits
+        })
+
+        it('should return false for invalid message IDs', () => {
+            expect(isMessageId('1234567890123456')).toBe(false) // 16 digits (too short)
+            expect(isMessageId('123456789012345678901')).toBe(false) // 21 digits (too long)
+            expect(isMessageId('123')).toBe(false)
+            expect(isMessageId('invalid')).toBe(false)
+            expect(isMessageId('1234567890123456789a')).toBe(false) // non-numeric
+            expect(isMessageId('')).toBe(false)
+        })
+    })
+
+    describe('isRoleId', () => {
+        it('should return true for valid role IDs (17-20 digits)', () => {
+            expect(isRoleId('12345678901234567')).toBe(true) // 17 digits
+            expect(isRoleId('123456789012345678')).toBe(true) // 18 digits
+            expect(isRoleId('1234567890123456789')).toBe(true) // 19 digits
+            expect(isRoleId('12345678901234567890')).toBe(true) // 20 digits
+        })
+
+        it('should return false for invalid role IDs', () => {
+            expect(isRoleId('1234567890123456')).toBe(false) // 16 digits (too short)
+            expect(isRoleId('123456789012345678901')).toBe(false) // 21 digits (too long)
+            expect(isRoleId('123')).toBe(false)
+            expect(isRoleId('invalid')).toBe(false)
+            expect(isRoleId('1234567890123456789a')).toBe(false) // non-numeric
+            expect(isRoleId('')).toBe(false)
         })
     })
 
     describe('isYouTubeUrl', () => {
         it('should return true for valid YouTube URLs', () => {
-            expect(isYouTubeUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true)
+            expect(
+                isYouTubeUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
+            ).toBe(true)
             expect(isYouTubeUrl('https://youtu.be/dQw4w9WgXcQ')).toBe(true)
-            expect(isYouTubeUrl('http://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true) // NOSONAR: testing HTTP scheme support intentionally
+            expect(
+                isYouTubeUrl('http://www.youtube.com/watch?v=dQw4w9WgXcQ'),
+            ).toBe(true) // NOSONAR: testing HTTP scheme support intentionally
         })
 
         it('should return false for invalid YouTube URLs', () => {
@@ -190,9 +245,21 @@ describe('Type Guards', () => {
 
     describe('isSpotifyUrl', () => {
         it('should return true for valid Spotify URLs', () => {
-            expect(isSpotifyUrl('https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh')).toBe(true)
-            expect(isSpotifyUrl('https://spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M')).toBe(true)
-            expect(isSpotifyUrl('https://open.spotify.com/album/1A2GTWGtFfWp7KSQTwWOyo')).toBe(true)
+            expect(
+                isSpotifyUrl(
+                    'https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh',
+                ),
+            ).toBe(true)
+            expect(
+                isSpotifyUrl(
+                    'https://spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M',
+                ),
+            ).toBe(true)
+            expect(
+                isSpotifyUrl(
+                    'https://open.spotify.com/album/1A2GTWGtFfWp7KSQTwWOyo',
+                ),
+            ).toBe(true)
         })
 
         it('should return false for invalid Spotify URLs', () => {
@@ -206,11 +273,15 @@ describe('Type Guards', () => {
     describe('isDiscordInvite', () => {
         it('should return true for valid Discord invite URLs', () => {
             expect(isDiscordInvite('https://discord.gg/abc123')).toBe(true)
-            expect(isDiscordInvite('https://discordapp.com/invite/xyz789')).toBe(true)
+            expect(
+                isDiscordInvite('https://discordapp.com/invite/xyz789'),
+            ).toBe(true)
         })
 
         it('should return false for invalid Discord invite URLs', () => {
-            expect(isDiscordInvite('https://youtube.com/watch?v=123')).toBe(false)
+            expect(isDiscordInvite('https://youtube.com/watch?v=123')).toBe(
+                false,
+            )
             expect(isDiscordInvite('https://example.com')).toBe(false)
             expect(isDiscordInvite('not a url')).toBe(false)
             expect(isDiscordInvite('')).toBe(false)
@@ -234,7 +305,7 @@ describe('Type Guards', () => {
     describe('isFunction', () => {
         it('should return true for functions', () => {
             expect(isFunction(() => {})).toBe(true)
-            expect(isFunction(function() {})).toBe(true)
+            expect(isFunction(function () {})).toBe(true)
             expect(isFunction(Math.max)).toBe(true)
         })
 

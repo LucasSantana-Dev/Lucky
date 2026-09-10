@@ -1,4 +1,5 @@
 import type { Express, Response } from 'express'
+import { snowflakeId } from '../schemas/common'
 import { z } from 'zod'
 import {
     GuildRoleGrantStorageError,
@@ -19,7 +20,7 @@ import { paramToString as p } from '../utils/paramCoerce'
 
 const roleGrantSchema = z
     .object({
-        roleId: z.string().regex(/^\d{17,20}$/, 'Invalid role ID'),
+        roleId: snowflakeId,
         module: z.enum(RBAC_MODULES),
         mode: z.enum(['view', 'manage']),
     })

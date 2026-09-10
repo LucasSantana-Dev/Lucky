@@ -45,10 +45,7 @@ const guildAutomationRunBody = z
 // is defined today; "basic" ignores config.
 const jobPostConfig = z
     .object({
-        targetChannelId: z
-            .string()
-            .regex(/^\d{17,20}$/, 'Invalid channel ID')
-            .nullish(),
+        targetChannelId: snowflakeId.nullish(),
         notifyRoleLabel: z.string().max(100).optional(),
     })
     // Reject typo'd keys — a mis-typed targetChannelId would silently change
@@ -119,7 +116,7 @@ const bulkDeleteBody = z
     .strict()
 
 const reactionRoleEntrySchema = z.object({
-    roleId: z.string().regex(/^\d{17,20}$/, 'Invalid role ID'),
+    roleId: snowflakeId,
     label: z.string().min(1).max(80),
     emoji: z.string().max(100).optional(),
     style: z.enum(['Primary', 'Secondary', 'Success', 'Danger']).optional(),
@@ -127,7 +124,7 @@ const reactionRoleEntrySchema = z.object({
 
 const createReactionRoleBody = z
     .object({
-        channelId: z.string().regex(/^\d{17,20}$/, 'Invalid channel ID'),
+        channelId: snowflakeId,
         title: z.string().min(1).max(256),
         description: z.string().min(1).max(4096),
         imageUrl: z.string().url().max(2048).optional(),
@@ -161,7 +158,7 @@ const updateReactionRoleBody = z
     )
 
 const messageIdParam = guildIdParam.extend({
-    messageId: z.string().regex(/^\d{17,20}$/, 'Invalid message ID'),
+    messageId: snowflakeId,
 })
 
 const roleGroupIdParam = guildIdParam.extend({
@@ -169,7 +166,7 @@ const roleGroupIdParam = guildIdParam.extend({
 })
 
 const roleGroupRoleIdParam = roleGroupIdParam.extend({
-    roleId: z.string().regex(/^\d{17,20}$/, 'Invalid role ID'),
+    roleId: snowflakeId,
 })
 
 const colorHex = z

@@ -21,7 +21,7 @@ const updateMessageBody = z
         message: z.string().min(1).max(2000).optional(),
         channelId: z
             .string()
-            .regex(/^\d{17,20}$/)
+
             .optional(),
         trigger: z.string().max(200).optional(),
         exactMatch: z.boolean().optional(),
