@@ -9,34 +9,38 @@ import { recommendationFeedbackService } from '../../services/musicRecommendatio
 // playerFinish + playerSkip paths). Tune via Phase C data.
 export const OUTCOME_ACCEPT_PLAY_RATIO = 0.3
 
-// Keyed per TRACK (guildId + track id + play instance), not per guild: autoplay track
-// lifecycles overlap — discord-player can emit the next track's playerStart
-// before the previous track's playerFinish/playerSkip. A single per-guild
-// timestamp gets clobbered by that interleaving, making completionRatio ≈ 0
-// for the wrong track and corrupting the accept/reject classification (#1275).
-// Further, the same track repeated (same guildId + trackId) must have distinct cache
-// entries per play instance, so one play's start time doesn't overwrite another's (#2298).
-// We track the start-time per (guildId, trackId) pair to include it in the key.
+// Keyed per TRACK INSTANCE (guildId + track id + play-specific identity), not per guild:
+// autoplay track lifecycles overlap — discord-player can emit the next track's playerStart
+// before the previous track's playerFinish/playerSkip. A single per-guild timestamp gets
+// clobbered by that interleaving, making completionRatio ≈ 0 for the wrong track and
+// corrupting the accept/reject classification (#1275).
+// Further, the same track repeated (same guildId + trackId, different play) must have
+// distinct cache entries per play instance, so one play's start time doesn't overwrite
+// another's (#2298). We use a WeakMap keyed on the track object itself, which is unique
+// per play instance in discord-player's event model.
 export const trackStartTimes = new LRUCache<string, number>({
     max: 500,
     ttl: 30 * 60 * 1000,
     updateAgeOnGet: true,
 })
 
-// Map from "guildId::trackId" to the startTime of its current play.
-// Allows handlers to reconstruct the full cache key on lookup/delete.
-export const currentTrackPlayStart = new Map<string, number>()
+// WeakMap from track object instance to its start time. Keyed on track object identity
+// (not track id or string), so repeated plays of the same track have separate entries.
+// Track objects are garbage-collectable after play ends, so no manual cleanup needed.
+export const trackPlayStartTime = new WeakMap<Track, number>()
 
-export const trackStartKey = (guildId: string, trackId: string, playStartTime?: number): string => {
-    if (playStartTime !== undefined) {
-        return `${guildId}::${trackId}::${playStartTime}`
+export const trackStartKey = (
+    guildId: string,
+    trackId: string,
+    track?: Track,
+): string => {
+    if (track !== undefined) {
+        const startTime = trackPlayStartTime.get(track)
+        if (startTime !== undefined) {
+            return `${guildId}::${trackId}::${startTime}`
+        }
     }
-    // Fallback for backward compatibility: look up the current play start time
-    const currentPlayStart = currentTrackPlayStart.get(`${guildId}::${trackId}`)
-    if (currentPlayStart !== undefined) {
-        return `${guildId}::${trackId}::${currentPlayStart}`
-    }
-    // Fallback to old format if no play is tracked (should not happen in normal flow)
+    // Fallback (should not happen in normal flow): return base key
     return `${guildId}::${trackId}`
 }
 
@@ -62,7 +66,7 @@ export function getRecentSkipCount(guildId: string): number {
 export function __resetTrackHandlerCachesForTests(): void {
     trackStartTimes.clear()
     guildRecentSkipCounts.clear()
-    currentTrackPlayStart.clear()
+    // WeakMap has no clear(), so we can't reset it; tests must create fresh track instances
 }
 
 export function getTrackRequesterId(track: Track): string | undefined {
