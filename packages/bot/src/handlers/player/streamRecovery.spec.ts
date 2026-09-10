@@ -261,6 +261,44 @@ describe('streamRecovery', () => {
             expect(queue.node.skip).toHaveBeenCalled()
         })
 
+        it('times out after 10s when YouTube search does not resolve', async () => {
+            jest.useFakeTimers()
+            try {
+                const searchPromise = new Promise((resolve) => {
+                    setTimeout(() => resolve({ tracks: [] }), 20_000)
+                })
+                const queue = {
+                    guild: { id: 'guild-1', name: 'Guild 1' },
+                    metadata: { requestedBy: { id: 'user-1' } },
+                    currentTrack: {
+                        url: 'https://example.com/current',
+                        title: 'Hangs Song',
+                        requestedBy: { id: 'user-1' },
+                    },
+                    player: { search: jest.fn(() => searchPromise) },
+                    insertTrack: jest.fn(),
+                    node: { skip: jest.fn() },
+                }
+
+                const promise = recoverFromStreamExtractionError(
+                    queue as any,
+                    queue.currentTrack as any,
+                )
+
+                jest.advanceTimersByTime(10_000)
+                await promise
+
+                expect(queue.insertTrack).not.toHaveBeenCalled()
+                expect(notifyChannelStreamFailedMock).toHaveBeenCalledWith(
+                    queue,
+                    'Hangs Song',
+                )
+                expect(queue.node.skip).toHaveBeenCalled()
+            } finally {
+                jest.useRealTimers()
+            }
+        })
+
         it('skips without reinserting when all alternatives have same URL', async () => {
             const queue = {
                 guild: { id: 'guild-1', name: 'Guild 1' },
