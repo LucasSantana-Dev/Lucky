@@ -38,9 +38,9 @@ function info(overrides: Partial<YouTubeErrorInfo> = {}): YouTubeErrorInfo {
 }
 
 /**
- * Reaches into the handler's analyzer double. The barrel constructs its own
- * SearchEngineManager-style collaborator in the constructor, so there is no
- * seam to inject one through; the mocked class above is the only handle.
+ * Reaches into the handler's analyzer double. YouTubeErrorHandler news up its
+ * own YouTubeErrorAnalyzer in the constructor, so there is no seam to inject
+ * one through; the mocked class above is the only handle on it.
  */
 function analyzerOf(handler: YouTubeErrorHandler) {
     return (handler as unknown as { analyzer: Record<string, jest.Mock> })
