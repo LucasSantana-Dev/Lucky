@@ -30,34 +30,66 @@ function mapSpotifyArtist(raw: {
     }
 }
 
+/**
+ * One GET against Spotify's `/v1/search`, shared by the artist and track
+ * searches: same endpoint, same auth, same deadline, same "an error is an
+ * empty result" convention. `pick` pulls the item list out of the response
+ * for the requested `type`, since Spotify nests it under a key named after
+ * that type. Returns [] on a non-ok response, a timeout, or unparseable JSON.
+ */
+async function searchSpotify(
+    accessToken: string,
+    query: string,
+    type: 'artist' | 'track',
+    limit: number,
+    pick: (data: Record<string, unknown> | null) => unknown[],
+): Promise<unknown[]> {
+    if (!query.trim()) return []
+    try {
+        const params = new URLSearchParams({
+            q: query,
+            type,
+            limit: String(Math.min(Math.max(limit, 1), 50)),
+        })
+        const res = await fetch(
+            `https://api.spotify.com/v1/search?${params.toString()}`,
+            {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                // Matches the other Spotify requests in this file. Without it
+                // a stalled search has no upper bound, and a deferred command
+                // reply waiting on it can miss Discord's own deadline.
+                signal: AbortSignal.timeout(10_000),
+            },
+        )
+        if (!res.ok) return []
+        const data = (await res.json().catch(() => null)) as Record<
+            string,
+            unknown
+        > | null
+        return pick(data)
+    } catch {
+        return []
+    }
+}
+
 export async function searchSpotifyArtists(
     accessToken: string,
     query: string,
     limit = 12,
 ): Promise<SpotifyArtist[]> {
-    if (!query.trim()) return []
-    try {
-        const params = new URLSearchParams({
-            q: query,
-            type: 'artist',
-            limit: String(Math.min(limit, 50)),
-        })
-        const res = await fetch(
-            `https://api.spotify.com/v1/search?${params.toString()}`,
-            { headers: { Authorization: `Bearer ${accessToken}` } },
+    const items = await searchSpotify(
+        accessToken,
+        query,
+        'artist',
+        limit,
+        (data) =>
+            (data?.artists as { items?: unknown[] } | undefined)?.items ?? [],
+    )
+    return items
+        .map((a) =>
+            mapSpotifyArtist(a as Parameters<typeof mapSpotifyArtist>[0]),
         )
-        if (!res.ok) return []
-        const data = (await res.json().catch(() => null)) as {
-            artists?: { items?: unknown[] }
-        }
-        return (data?.artists?.items ?? [])
-            .map((a) =>
-                mapSpotifyArtist(a as Parameters<typeof mapSpotifyArtist>[0]),
-            )
-            .filter((a): a is SpotifyArtist => a !== null)
-    } catch {
-        return []
-    }
+        .filter((a): a is SpotifyArtist => a !== null)
 }
 
 async function fetchSpotifyArtistName(
@@ -186,6 +218,35 @@ function mapSpotifyTrackRef(raw: {
         artist: raw.artists?.[0]?.name ?? 'Unknown Artist',
         url,
     }
+}
+
+/**
+ * Direct Spotify Web API track search. `/artist`'s plain (non-discography)
+ * flow normally resolves its Spotify arm through discord-player-spotify's
+ * `SpotifyAPI.search()`, which hardcodes `limit=10` in both of its request
+ * branches with no way to pass a higher value through (#2304). This hits
+ * the same `/v1/search` endpoint directly so a real limit (Spotify's own
+ * max is 50) reaches the request, for the narrow case where the capped
+ * result is short of what was asked for.
+ */
+export async function searchSpotifyTracks(
+    accessToken: string,
+    query: string,
+    limit = 10,
+): Promise<SpotifyTrackRef[]> {
+    const items = await searchSpotify(
+        accessToken,
+        query,
+        'track',
+        limit,
+        (data) =>
+            (data?.tracks as { items?: unknown[] } | undefined)?.items ?? [],
+    )
+    return items
+        .map((t) =>
+            mapSpotifyTrackRef(t as Parameters<typeof mapSpotifyTrackRef>[0]),
+        )
+        .filter((t): t is SpotifyTrackRef => t !== null)
 }
 
 /**

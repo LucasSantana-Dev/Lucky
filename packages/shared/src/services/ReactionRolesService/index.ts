@@ -887,7 +887,7 @@ export class ReactionRolesService {
             }
 
             return { status: 'ok' as const, mapping: createdMapping }
-        } catch (discordError) {
+        } catch (_discordError) {
             return {
                 status: 'partial_success' as const,
                 mapping: createdMapping,
