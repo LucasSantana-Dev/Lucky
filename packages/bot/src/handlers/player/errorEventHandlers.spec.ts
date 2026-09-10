@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { setupErrorHandlers } from './errorEventHandlers'
+import { setupErrorHandlers, handlePlayerError } from './errorEventHandlers'
 
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -353,6 +353,64 @@ describe('errorEventHandlers', () => {
         expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: expect.stringContaining('Player debug'),
+            }),
+        )
+    })
+
+    it('logs and captures on a stream extraction error', async () => {
+        const queueHandlers: Record<
+            string,
+            QueueErrorHandler | PlayerErrorHandler | DebugHandler
+        > = {}
+        const player = {
+            events: {
+                on: jest.fn(
+                    (
+                        event: string,
+                        handler:
+                            | QueueErrorHandler
+                            | PlayerErrorHandler
+                            | DebugHandler,
+                    ) => {
+                        queueHandlers[event] = handler
+                    },
+                ),
+            },
+            on: jest.fn(),
+        }
+
+        setupErrorHandlers(player as any)
+
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            currentTrack: {
+                url: 'https://youtube.com/watch?v=123',
+                title: 'Test Track',
+            },
+            node: { skip: jest.fn() },
+        }
+
+        // Call the exported async function, not the registered listener: the
+        // listener is `(queue, error) => { void handlePlayerErrorSafely(...) }`
+        // and returns void, so awaiting it settles nothing. Assertions would
+        // then only pass while these calls happen to run before the first
+        // internal await.
+        await handlePlayerError(
+            queue as any,
+            new Error('Could not extract stream'),
+        )
+
+        expect(captureExceptionMock).toHaveBeenCalledWith(
+            expect.any(Error),
+            expect.objectContaining({
+                context: 'player-error',
+                guildId: 'guild-1',
+            }),
+        )
+
+        expect(debugLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('stream extraction error'),
             }),
         )
     })
