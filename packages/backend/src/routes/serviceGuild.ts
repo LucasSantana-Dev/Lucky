@@ -1,4 +1,5 @@
 import type { Express, Request, Response as ExpressResponse } from 'express'
+import { isGuildId } from '@lucky/shared/utils/guards'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
@@ -21,7 +22,7 @@ function getGuildId(): string {
 }
 
 function validateSnowflake(value: string): boolean {
-    return /^\d{17,20}$/.test(value)
+    return isGuildId(value)
 }
 
 function singleQueryParam(value: unknown): string | undefined {

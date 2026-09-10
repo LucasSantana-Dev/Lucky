@@ -178,11 +178,6 @@ const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
 
 const VERSION_KEYWORD_RE = DYNAMIC_VERSION_KEYWORD_RE
 
-function isVersionSuffix(suffix: string): boolean {
-    if (HYPHENATED_VERSION_SUFFIXES.some((re) => re.test(suffix))) return true
-    return suffix.length <= 40 && VERSION_KEYWORD_RE.test(suffix)
-}
-
 /**
  * Channels whose uploads are almost always mislabeled or compilation garbage.
  * If a resolved YouTube track's author matches one of these exactly, the title
@@ -207,12 +202,16 @@ export function cleanTitle(title: string): string {
         cleaned = cleaned.replaceAll(pattern, ' ')
     }
     // Strip hyphenated version suffixes: "Song – 2011 Remaster", "Song - Live", etc.
-    // indexOf avoids regex quantifier nesting (S5852).
+    // lastIndexOf, not indexOf: a version marker is the final segment ("A - B - Live"),
+    // so anchoring on the first separator would slice off "B - Live" and never match it
+    // against an anchored suffix. Uses HYPHENATED_VERSION_SUFFIXES directly instead of
+    // isVersionSuffix() to avoid matching version words in real song titles (e.g. "Live
+    // Wire"); see issue #2312 and the hasVersionMarker fix in PR #2265.
     for (const sep of [' – ', ' - ', ' — ']) {
-        const idx = cleaned.indexOf(sep)
+        const idx = cleaned.lastIndexOf(sep)
         if (idx > 0) {
             const suffix = cleaned.slice(idx + sep.length).trim()
-            if (isVersionSuffix(suffix)) {
+            if (HYPHENATED_VERSION_SUFFIXES.some((re) => re.test(suffix))) {
                 cleaned = cleaned.slice(0, idx)
                 break
             }

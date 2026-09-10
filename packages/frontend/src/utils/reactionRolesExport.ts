@@ -1,3 +1,4 @@
+import { isChannelId, isRoleId } from '@lucky/shared/utils/guards'
 import type {
     ReactionRoleMessage,
     CreateReactionRolePayload,
@@ -32,10 +33,7 @@ export function serializeReactionRolesToJSON(
                 if (m.emoji) role.emoji = m.emoji
                 if (m.style)
                     role.style = m.style as
-                        | 'Primary'
-                        | 'Secondary'
-                        | 'Success'
-                        | 'Danger'
+                        'Primary' | 'Secondary' | 'Success' | 'Danger'
                 return role
             }),
         }
@@ -53,7 +51,6 @@ export interface DeserializeResult {
 }
 
 const VALID_STYLES = ['Primary', 'Secondary', 'Success', 'Danger']
-const SNOWFLAKE_REGEX = /^\d{17,20}$/
 const MAX_TITLE = 256
 const MAX_DESCRIPTION = 4096
 const MAX_LABEL = 80
@@ -98,7 +95,7 @@ export function deserializeReactionRolesJSON(
             errors.push(`${itemPrefix}channelId is required`)
             return
         }
-        if (!SNOWFLAKE_REGEX.test(String(item.channelId))) {
+        if (!isChannelId(String(item.channelId))) {
             errors.push(
                 `${itemPrefix}channelId must be a valid Discord snowflake (17-20 digits)`,
             )
@@ -161,7 +158,7 @@ export function deserializeReactionRolesJSON(
                 rolesValid = false
                 break
             }
-            if (!SNOWFLAKE_REGEX.test(String(role.roleId))) {
+            if (!isRoleId(String(role.roleId))) {
                 errors.push(
                     `${rolePrefix}roleId must be a valid Discord snowflake`,
                 )

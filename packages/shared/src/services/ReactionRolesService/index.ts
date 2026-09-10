@@ -10,6 +10,14 @@ import {
     type EmbedBuilder,
 } from 'discord.js'
 import { errorLog, debugLog } from '../../utils/general/log'
+// Relative, not '@lucky/shared/...': the self-referencing specifier resolves to
+// the ESM dist build, which stryker's CommonJS sandbox cannot require.
+import {
+    isGuildId,
+    isChannelId,
+    isMessageId,
+    isRoleId,
+} from '../../utils/guards'
 import { featureToggleService } from '../FeatureToggleService'
 import { getPrismaClient } from '../../utils/database/prismaClient'
 import type { ReactionRoleMapping } from '../../generated/prisma/client'
@@ -239,7 +247,7 @@ export class ReactionRolesService {
                 botToken,
             })
 
-            if (!/^\d{17,20}$/.test(channelId)) {
+            if (!isChannelId(channelId)) {
                 throw new Error('Invalid Discord channel id')
             }
             const resp = await fetch(
@@ -437,16 +445,15 @@ export class ReactionRolesService {
         channelId?: string,
         messageId?: string,
     ): void {
-        const SNOWFLAKE = /^\d{17,20}$/
-        if (!SNOWFLAKE.test(guildId)) {
+        if (!isGuildId(guildId)) {
             throw new Error('Invalid guildId: expected a Discord snowflake ID')
         }
-        if (channelId && !SNOWFLAKE.test(channelId)) {
+        if (channelId && !isChannelId(channelId)) {
             throw new Error(
                 'Invalid channelId: expected a Discord snowflake ID',
             )
         }
-        if (messageId && !SNOWFLAKE.test(messageId)) {
+        if (messageId && !isMessageId(messageId)) {
             throw new Error(
                 'Invalid messageId: expected a Discord snowflake ID',
             )
@@ -516,10 +523,7 @@ export class ReactionRolesService {
                 includeAttachments: true,
             })
 
-            if (
-                !/^\d{17,20}$/.test(channelId) ||
-                !/^\d{17,20}$/.test(messageId)
-            ) {
+            if (!isChannelId(channelId) || !isMessageId(messageId)) {
                 throw new Error('Invalid Discord channel or message id')
             }
 
@@ -782,7 +786,7 @@ export class ReactionRolesService {
         status: 'ok' | 'partial_success'
         mapping: ReactionRoleMappingReturn
     }> {
-        if (!/^\d{17,20}$/.test(newMapping.roleId)) {
+        if (!isRoleId(newMapping.roleId)) {
             throw new Error('Invalid roleId: expected a Discord snowflake ID')
         }
 
@@ -850,10 +854,7 @@ export class ReactionRolesService {
                     label: m.label ?? '',
                     emoji: m.emoji ?? undefined,
                     style: (m.style ?? 'Primary') as
-                        | 'Primary'
-                        | 'Secondary'
-                        | 'Success'
-                        | 'Danger',
+                        'Primary' | 'Secondary' | 'Success' | 'Danger',
                 })),
             )
 

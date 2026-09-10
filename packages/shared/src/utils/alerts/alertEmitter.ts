@@ -1,4 +1,5 @@
 import { warnLog } from '../general/log'
+import { registerLogSink } from '../general/log/sink'
 
 const COLOR: Record<string, number> = {
     danger: 0xed4245,
@@ -59,3 +60,8 @@ export async function emitAlert(payload: AlertPayload): Promise<void> {
         }
     }
 }
+
+// Registers this module's alert delivery with the logger instead of the
+// logger importing alerts. Function declarations are hoisted, so this runs
+// with emitAlert already defined.
+registerLogSink({ emitAlert })
