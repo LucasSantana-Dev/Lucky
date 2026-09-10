@@ -433,8 +433,10 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         expect(restoreSnapshotMock).not.toHaveBeenCalled()
     })
 
-    it('recoverOrphanSession aborts if intentional stop is set mid-flight before connect (#2311)', async () => {
+    it('recoverOrphanSession aborts if intentional stop is set mid-flight before restore (#2311)', async () => {
         const guildId = 'guild-orphan-race'
+        const service = new MusicWatchdogService()
+
         listGuildIdsMock.mockResolvedValue([guildId])
         getSnapshotMock.mockResolvedValue({
             savedAt: Date.now() - 60_000,
@@ -442,11 +444,15 @@ describe('MusicWatchdogService — orphan session monitor', () => {
             tracks: [{ title: 'Song', url: 'https://example.com/song' }],
         })
 
-        let connectCalled = false
+        // queue.connect marks the stop mid-flight, simulating a voice kick or
+        // /stop command happening after entry check but during connection setup.
+        // This ensures the flag is caught only by our re-check at line 360,
+        // not by the entry check at line 316.
         const queue = {
             setRepeatMode: jest.fn(),
             connect: jest.fn().mockImplementation(async () => {
-                connectCalled = true
+                // Mark the stop DURING connect, after entry check but before restore
+                service.markIntentionalStop(guildId)
             }),
         }
 
@@ -468,15 +474,12 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         }
         const player = { nodes, client } as unknown as Player
 
-        const service = new MusicWatchdogService()
-        service.markIntentionalStop(guildId)
-
+        // Start recovery WITHOUT flag set (so entry check passes)
         await service.scanOrphanSessions(player)
 
-        // With the fix, connect() and restore() should not be called
-        // because we re-check the intentional stop flag before attempting them
-        expect(connectCalled).toBe(false)
-        expect(queue.connect).not.toHaveBeenCalled()
+        // With the fix: connect() IS called (flag not set yet), but
+        // restoreSnapshot IS NOT called (caught by re-check at line 360)
+        expect(queue.connect).toHaveBeenCalled()
         expect(restoreSnapshotMock).not.toHaveBeenCalled()
     })
 })
