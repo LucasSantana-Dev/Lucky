@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { setupErrorHandlers } from './errorEventHandlers'
+import { setupErrorHandlers, handlePlayerError } from './errorEventHandlers'
 
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -357,7 +357,7 @@ describe('errorEventHandlers', () => {
         )
     })
 
-    it('invokes playerError handler and logs/captures on stream extraction error', async () => {
+    it('logs and captures on a stream extraction error', async () => {
         const queueHandlers: Record<
             string,
             QueueErrorHandler | PlayerErrorHandler | DebugHandler
@@ -390,7 +390,12 @@ describe('errorEventHandlers', () => {
             node: { skip: jest.fn() },
         }
 
-        await (queueHandlers.playerError as PlayerErrorHandler)(
+        // Call the exported async function, not the registered listener: the
+        // listener is `(queue, error) => { void handlePlayerErrorSafely(...) }`
+        // and returns void, so awaiting it settles nothing. Assertions would
+        // then only pass while these calls happen to run before the first
+        // internal await.
+        await handlePlayerError(
             queue as any,
             new Error('Could not extract stream'),
         )

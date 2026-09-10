@@ -268,7 +268,7 @@ describe('BulkRemoveRoleExecutor', () => {
             guilds: {
                 fetch: jest
                     .fn()
-                    .mockRejectedValue(new Error('Guild not found: g1')),
+                    .mockRejectedValue(new Error('network timeout')),
             },
         } as never)
 
@@ -288,7 +288,7 @@ describe('BulkRemoveRoleExecutor', () => {
                     roles: {
                         fetch: jest
                             .fn()
-                            .mockRejectedValue(new Error('Role not found: r1')),
+                            .mockRejectedValue(new Error('network timeout')),
                     },
                 }),
             },
