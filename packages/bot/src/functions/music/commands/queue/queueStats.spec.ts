@@ -4,7 +4,7 @@ import { calculateQueueStats, getQueueStatus } from './queueStats'
 
 const getTrackInfoMock = jest.fn()
 
-jest.mock('../../../../utils/music/trackUtils', () => ({
+jest.mock('../../../../services/musicManagement/trackUtils', () => ({
     getTrackInfo: (...args: unknown[]) => getTrackInfoMock(...args),
 }))
 

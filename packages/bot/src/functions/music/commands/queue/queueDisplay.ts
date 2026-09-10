@@ -1,5 +1,5 @@
 import type { Track } from 'discord-player'
-import { getTrackInfo } from '../../../../utils/music/trackUtils'
+import { getTrackInfo } from '../../../../services/musicManagement/trackUtils'
 import { isSimilarTitle } from '../../../../utils/music/titleComparison'
 import type { TrackDisplayInfo, QueueDisplayOptions } from './types'
 
