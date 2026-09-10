@@ -9,7 +9,6 @@ import {
 import { type GuildQueue, type Track } from 'discord-player'
 import { setupTrackHandlers } from './trackEventHandlers'
 import {
-    trackStartTimes,
     guildRecentSkipCounts,
     getRecentSkipCount,
     __resetTrackHandlerCachesForTests,
@@ -204,7 +203,6 @@ function setupHandlers(
 describe('trackHandlers autoplay replenishment', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        trackStartTimes.clear()
         guildRecentSkipCounts.clear()
         featureEnabledMock.mockResolvedValue(true)
         replenishQueueMock.mockResolvedValue(undefined)
@@ -321,7 +319,7 @@ describe('trackHandlers autoplay replenishment', () => {
 
         expect(getRecentSkipCount(queue.guild.id)).toBe(0)
 
-        // trackStartTimes cleared too: a finish for a track whose start time
+        // start times dropped too: a finish for a track whose start time
         // was wiped never enters the completionRatio branch, so no implicit
         // feedback is recorded even though the track "played" for 90s.
         recordImplicitFeedbackMock.mockClear()

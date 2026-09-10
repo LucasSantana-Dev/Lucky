@@ -9,49 +9,41 @@ import { recommendationFeedbackService } from '../../services/musicRecommendatio
 // playerFinish + playerSkip paths). Tune via Phase C data.
 export const OUTCOME_ACCEPT_PLAY_RATIO = 0.3
 
-// Keyed per TRACK INSTANCE (guildId + track id + play-specific identity), not per guild:
-// autoplay track lifecycles overlap — discord-player can emit the next track's playerStart
-// before the previous track's playerFinish/playerSkip. A single per-guild timestamp gets
-// clobbered by that interleaving, making completionRatio ≈ 0 for the wrong track and
-// corrupting the accept/reject classification (#1275).
-// Further, the same track repeated (same guildId + trackId, different play) must have
-// distinct cache entries per play instance, so one play's start time doesn't overwrite
-// another's (#2298). We use a WeakMap keyed on the track object itself, which is unique
-// per play instance in discord-player's event model.
-export const trackStartTimes = new LRUCache<string, number>({
-    max: 500,
-    ttl: 30 * 60 * 1000,
-    updateAgeOnGet: true,
-})
-
-// WeakMap from track object instance to its start time. Keyed on track object identity
-// (not track id or string), so repeated plays of the same track have separate entries.
-// Track objects are garbage-collectable after play ends, so no manual cleanup needed.
+// Start time per TRACK INSTANCE — not per guild, and not per track id.
 //
-// Keyed on Track object identity: discord-player emits the same Track instance through
-// playerStart/playerFinish/playerSkip (verified in discord-player dist, GuildQueue
-// #performStart / finish path lines 5870/5904), so each play of a distinct instance
-// gets its own entry.
+// Autoplay track lifecycles overlap: discord-player can emit the next track's
+// playerStart before the previous track's playerFinish/playerSkip. A single
+// per-guild timestamp gets clobbered by that interleaving, making
+// completionRatio ≈ 0 for the wrong track and corrupting the accept/reject
+// classification (#1275). Keying by `guildId::trackId` had the same problem one
+// level down, because the same track can be in flight twice (#2298).
 //
-// KNOWN GAP (#2334): repeat modes re-dispatch the SAME instance from history, so a
-// repeat replay reuses this key. Sequential repeats are fine (finish consumes the entry
-// before play N+1 starts), but interleaved repeat modes can cause finish(N) to read
-// start(N+1)'s timestamp, reintroducing the #2298 symptom on repeat tracks.
-export const trackPlayStartTime = new WeakMap<Track, number>()
+// The track object is the only identifier that is genuinely unique per play:
+// discord-player emits the same Track instance through
+// playerStart/playerFinish/playerSkip (verified in discord-player's dist —
+// GuildQueue #performStart at :5870, finish path at :5904). Keying a WeakMap on
+// it needs no TTL, no size cap and no manual cleanup: an entry becomes
+// unreachable when its track does. It also cannot collide, which a key built
+// from a timestamp can when two plays start inside the same millisecond.
+//
+// KNOWN GAP (#2334): repeat modes re-dispatch the SAME instance from history,
+// so a repeat replay reuses this key. Sequential repeats are fine (finish
+// consumes the entry before play N+1 starts), but interleaved repeat modes can
+// still let finish(N) read start(N+1)'s timestamp.
+// Not exported directly: it is reassigned by the test reset below, and an
+// exported binding captured by an importer would go on pointing at the old map.
+let trackPlayStartTime = new WeakMap<Track, number>()
 
-export const trackStartKey = (
-    guildId: string,
-    trackId: string,
-    track?: Track,
-): string => {
-    if (track !== undefined) {
-        const startTime = trackPlayStartTime.get(track)
-        if (startTime !== undefined) {
-            return `${guildId}::${trackId}::${startTime}`
-        }
-    }
-    // Fallback (should not happen in normal flow): return base key
-    return `${guildId}::${trackId}`
+export function setTrackPlayStart(track: Track, startedAt: number): void {
+    trackPlayStartTime.set(track, startedAt)
+}
+
+export function getTrackPlayStart(track: Track): number | undefined {
+    return trackPlayStartTime.get(track)
+}
+
+export function clearTrackPlayStart(track: Track): void {
+    trackPlayStartTime.delete(track)
 }
 
 function classifyOutcome(
@@ -74,9 +66,10 @@ export function getRecentSkipCount(guildId: string): number {
 }
 
 export function __resetTrackHandlerCachesForTests(): void {
-    trackStartTimes.clear()
     guildRecentSkipCounts.clear()
-    // WeakMap has no clear(), so we can't reset it; tests must create fresh track instances
+    // A WeakMap has no clear(), so drop the whole map. Tests rely on this to
+    // simulate a start time being lost before its finish event arrives.
+    trackPlayStartTime = new WeakMap<Track, number>()
 }
 
 export function getTrackRequesterId(track: Track): string | undefined {

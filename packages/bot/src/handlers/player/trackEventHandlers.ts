@@ -34,9 +34,9 @@ import {
     isRecommendationAutoplay,
     recordImplicitTrackFeedback,
     logAutoplayOutcomeEval,
-    trackStartTimes,
-    trackStartKey,
-    trackPlayStartTime,
+    setTrackPlayStart,
+    getTrackPlayStart,
+    clearTrackPlayStart,
     guildRecentSkipCounts,
     OUTCOME_ACCEPT_PLAY_RATIO,
 } from './autoplayOutcomeTracking'
@@ -153,9 +153,7 @@ const handlePlayerStart = async (
     client: { user?: { id: string } | null },
 ): Promise<void> => {
     try {
-        const now = Date.now()
-        trackPlayStartTime.set(track, now)
-        trackStartTimes.set(trackStartKey(queue.guild.id, track.id, track), now)
+        setTrackPlayStart(track, Date.now())
         const requestedQuery = (
             track.metadata as { requestedQuery?: string } | null
         )?.requestedQuery
@@ -231,9 +229,7 @@ const handlePlayerFinish = async (
         await scrobbleAndRecord(queue, track)
 
         if (track) {
-            const startTime = trackStartTimes.get(
-                trackStartKey(queue.guild.id, track.id, track),
-            )
+            const startTime = getTrackPlayStart(track)
             if (isRecommendationAutoplay(track)) {
                 logAutoplayOutcomeEval('finish', queue, track, startTime)
             }
@@ -264,9 +260,7 @@ const handlePlayerFinish = async (
                     })
                 }
             }
-            trackStartTimes.delete(
-                trackStartKey(queue.guild.id, track.id, track),
-            )
+            clearTrackPlayStart(track)
         }
 
         await handleQueueExhaustion(queue, (q, t) =>
@@ -298,9 +292,7 @@ const handlePlayerSkip = async (
         await scrobbleCurrentTrackIfLastFm(queue, track)
 
         if (track) {
-            const startTime = trackStartTimes.get(
-                trackStartKey(queue.guild.id, track.id, track),
-            )
+            const startTime = getTrackPlayStart(track)
             if (isRecommendationAutoplay(track)) {
                 logAutoplayOutcomeEval('skip', queue, track, startTime)
             }
@@ -347,9 +339,7 @@ const handlePlayerSkip = async (
                     })
                 }
             }
-            trackStartTimes.delete(
-                trackStartKey(queue.guild.id, track.id, track),
-            )
+            clearTrackPlayStart(track)
         }
 
         await handleQueueExhaustion(queue, (q, t) =>
