@@ -851,5 +851,42 @@ describe('trackHandlers autoplay replenishment', () => {
                 outcome: 'rejected',
             })
         })
+
+        // #2298: the mirror case. Two DISTINCT Track objects can carry the same
+        // track id, because the same song can be queued twice and be in flight
+        // at once. This guards the behaviour, not the key: it fails if the store
+        // ever goes back to holding a single start time per entry, whichever way
+        // that entry is keyed.
+        it('gives two distinct Track objects sharing one track id their own start times', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const base = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'same-id',
+                durationMS: 100000,
+            }
+            const trackA = { ...base } as unknown as Track
+            const trackB = { ...base } as unknown as Track
+
+            await handlers.playerStart(queue, trackA)
+            jest.advanceTimersByTime(90000)
+            await handlers.playerStart(queue, trackB)
+            jest.advanceTimersByTime(5000)
+            await handlers.playerFinish(queue, trackA) // 95% played
+            jest.advanceTimersByTime(5000)
+            await handlers.playerFinish(queue, trackB) // 10% played
+
+            expect(recordRecommendationOutcomeMock).toHaveBeenNthCalledWith(1, {
+                guildId: 'guild-1',
+                trackId: 'same-id',
+                outcome: 'accepted',
+            })
+            expect(recordRecommendationOutcomeMock).toHaveBeenNthCalledWith(2, {
+                guildId: 'guild-1',
+                trackId: 'same-id',
+                outcome: 'rejected',
+            })
+        })
     })
 })
