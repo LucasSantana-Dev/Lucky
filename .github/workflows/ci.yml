@@ -324,10 +324,12 @@ jobs:
                   npx madge --circular --extensions ts packages/bot/src \
                       | tee madge-bot.txt
                   # grep -c always prints a numeric count, including 0 on no
-                  # match; it just exits 1 in that case. Don't `|| echo 0`
-                  # here: with 0 matches that appends a second, spurious "0"
-                  # line to COUNT and breaks the numeric comparison below.
-                  COUNT=$(grep -cE '^[0-9]+\)' madge-bot.txt)
+                  # match; it just exits 1 in that case. The step runs under
+                  # `bash -e`, so that exit status aborts the whole script at
+                  # this assignment, failing the job on a clean tree. `|| true`
+                  # swallows it. Don't use `|| echo 0` instead: that appends a
+                  # second, spurious "0" line and breaks the comparison below.
+                  COUNT=$(grep -cE '^[0-9]+\)' madge-bot.txt || true)
                   echo "bot_cycles=$COUNT" >> "$GITHUB_OUTPUT"
                   {
                       echo "## madge circular deps - packages/bot/src"
