@@ -1,6 +1,6 @@
 import type { GuildQueue } from 'discord-player'
 import { QueueRepeatMode } from 'discord-player'
-import { getTrackInfo } from '../../../../utils/music/trackUtils'
+import { getTrackInfo } from '../../../../services/musicManagement/trackUtils'
 import { formatDurationClock } from '../../../../utils/general/formatDuration'
 import type { QueueStats } from './types'
 

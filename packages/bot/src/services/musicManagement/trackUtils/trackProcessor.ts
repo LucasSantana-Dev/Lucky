@@ -1,6 +1,6 @@
 import type { Track } from 'discord-player'
 // import { errorLog } from "../../general/log"
-import { isSimilarTitle } from '../titleComparison'
+import { isSimilarTitle } from '../../../utils/music/titleComparison'
 import { safeSetInterval } from '@lucky/shared/utils'
 import { TrackCacheManager } from './cacheManager'
 import type {
