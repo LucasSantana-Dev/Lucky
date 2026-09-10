@@ -109,8 +109,16 @@ export async function clearAllCaches() {
     }
 
     try {
+        const { clearAudioFeaturesCache } =
+            await import('../src/services/musicRecommendation/autoplay/audioFeatures')
+        clearAudioFeaturesCache()
+    } catch {
+        // May not be loaded
+    }
+
+    try {
         const { __resetTrackHandlerCachesForTests } =
-            await import('../src/handlers/player/trackHandlers')
+            await import('../src/handlers/player/autoplayOutcomeTracking')
         __resetTrackHandlerCachesForTests()
     } catch {
         // May not be loaded

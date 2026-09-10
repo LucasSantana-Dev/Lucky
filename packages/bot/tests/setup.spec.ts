@@ -26,7 +26,7 @@ jest.mock('../src/services/musicManagement/replenishSuppressionStore', () => ({
 }))
 
 const __resetTrackHandlerCachesForTests = jest.fn()
-jest.mock('../src/handlers/player/trackHandlers', () => ({
+jest.mock('../src/handlers/player/autoplayOutcomeTracking', () => ({
     __resetTrackHandlerCachesForTests,
 }))
 

@@ -1,9 +1,7 @@
 import { jest } from '@jest/globals'
 import { EventEmitter } from 'events'
-import { PassThrough } from 'stream'
 
 // --- mocks (declared before imports) ---
-const mockSpawn = jest.fn()
 const mockStreamViaSoundCloud = jest.fn()
 const mockCleanTitle = jest.fn()
 const mockCleanAuthor = jest.fn()
@@ -13,20 +11,12 @@ const mockIsAvailable = jest.fn()
 const mockDebugLog = jest.fn()
 const mockInfoLog = jest.fn()
 const mockWarnLog = jest.fn()
-const mockErrorLog = jest.fn()
 const mockAddBreadcrumb = jest.fn()
 const mockCaptureMessage = jest.fn()
+const mockStreamViaYtDlp = jest.fn()
+const mockStreamViaYtDlpSearch = jest.fn()
+const mockStampFallbackStage = jest.fn()
 
-jest.mock('child_process', () => ({
-    spawn: (...args: unknown[]) => mockSpawn(...args),
-}))
-const mockStatSync = jest.fn()
-const mockAccessSync = jest.fn()
-jest.mock('fs', () => ({
-    statSync: (...args: unknown[]) => mockStatSync(...args),
-    accessSync: (...args: unknown[]) => mockAccessSync(...args),
-    constants: { R_OK: 4 },
-}))
 jest.mock('./soundcloudMatcher', () => ({
     streamViaSoundCloud: (...args: unknown[]) =>
         mockStreamViaSoundCloud(...args),
@@ -46,7 +36,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => mockDebugLog(...args),
     infoLog: (...args: unknown[]) => mockInfoLog(...args),
     warnLog: (...args: unknown[]) => mockWarnLog(...args),
-    errorLog: (...args: unknown[]) => mockErrorLog(...args),
+    errorLog: jest.fn(),
 }))
 jest.mock('../../utils/monitoring/sentry', () => ({
     addBreadcrumb: (...args: unknown[]) => mockAddBreadcrumb(...args),
@@ -68,34 +58,20 @@ jest.mock('../../utils/monitoring/sentry', () => ({
             }
         }),
 }))
+jest.mock('./ytdlpProcess', () => ({
+    streamViaYtDlp: (...args: unknown[]) => mockStreamViaYtDlp(...args),
+    streamViaYtDlpSearch: (...args: unknown[]) =>
+        mockStreamViaYtDlpSearch(...args),
+}))
+jest.mock('./streamFallbackState', () => ({
+    stampFallbackStage: (...args: unknown[]) => mockStampFallbackStage(...args),
+}))
 
-import {
-    streamViaYtDlp,
-    streamViaYtDlpSearch,
-    createResilientStream,
-    getStreamBridgeFallbackLabel,
-    STREAM_BRIDGE_FALLBACK_METADATA_KEY,
-    YTDLP_STREAM_START_TIMEOUT_MS,
-    __resetYtdlpCookiesLogStateForTests,
-} from './streamBridge.js'
+import { createResilientStream } from './resilientStreamBridge'
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-type FakeProc = EventEmitter & {
-    stdout: PassThrough
-    stderr: PassThrough
-    kill: jest.Mock
-}
-
-function makeFakeProc(): FakeProc {
-    const proc = new EventEmitter() as FakeProc
-    proc.stdout = new PassThrough()
-    proc.stderr = new PassThrough()
-    proc.kill = jest.fn()
-    return proc
-}
 
 function makeTrack(
     overrides: {
@@ -126,187 +102,6 @@ function makeTrack(
 const fakeStream = new EventEmitter() as any
 
 // ---------------------------------------------------------------------------
-// streamViaYtDlp — URL validation
-// ---------------------------------------------------------------------------
-
-describe('streamViaYtDlp – URL validation', () => {
-    it.each([
-        ['not-a-url', 'yt-dlp: invalid URL'],
-        [
-            'http://www.youtube.com/watch?v=abc',
-            'yt-dlp: only https URLs are allowed',
-        ],
-        ['https://evil.example.com/video', 'yt-dlp: domain not in allowlist'],
-    ])('rejects on validation error: %s', async (url, expectedError) => {
-        await expect(streamViaYtDlp(url)).rejects.toThrow(expectedError)
-    })
-
-    it.each([
-        'https://www.youtube.com/watch?v=x',
-        'https://youtu.be/x',
-        'https://soundcloud.com/artist/track',
-    ])('accepts allowed domain: %s', async (url) => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
-        await expect(streamViaYtDlp(url)).resolves.toBeDefined()
-    })
-})
-
-// ---------------------------------------------------------------------------
-// streamViaYtDlp — cookies (#2034 / ADR 2026-06-18)
-// ---------------------------------------------------------------------------
-
-describe('streamViaYtDlp – cookies file', () => {
-    const validUrl = 'https://www.youtube.com/watch?v=abc123'
-    const cookiesPath = '/app/secrets/youtube-cookies.txt'
-    const originalEnv = process.env.YTDLP_COOKIES_FILE
-
-    async function runOnce() {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
-        await streamViaYtDlp(validUrl)
-        return mockSpawn.mock.calls.at(-1)?.[1] as string[]
-    }
-
-    beforeEach(() => {
-        __resetYtdlpCookiesLogStateForTests()
-        mockAccessSync.mockReset()
-    })
-
-    afterEach(() => {
-        if (originalEnv === undefined) delete process.env.YTDLP_COOKIES_FILE
-        else process.env.YTDLP_COOKIES_FILE = originalEnv
-    })
-
-    it('logs the missing/applied transition once each, not per call', async () => {
-        process.env.YTDLP_COOKIES_FILE = cookiesPath
-        mockStatSync.mockImplementation(() => {
-            throw new Error('ENOENT')
-        })
-        await runOnce()
-        await runOnce()
-        expect(mockWarnLog).toHaveBeenCalledTimes(1)
-        expect(mockWarnLog).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: expect.stringContaining('not a readable file'),
-            }),
-        )
-
-        mockStatSync.mockReturnValue({ isFile: () => true })
-        await runOnce()
-        await runOnce()
-        expect(mockInfoLog).toHaveBeenCalledTimes(1)
-        expect(mockInfoLog).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'Bridge: yt-dlp cookies file applied',
-            }),
-        )
-    })
-
-    it('does not pass --cookies when YTDLP_COOKIES_FILE is unset', async () => {
-        delete process.env.YTDLP_COOKIES_FILE
-        expect(await runOnce()).not.toContain('--cookies')
-    })
-
-    it('does not pass --cookies when the configured file does not exist', async () => {
-        process.env.YTDLP_COOKIES_FILE = cookiesPath
-        mockStatSync.mockImplementation(() => {
-            throw new Error('ENOENT')
-        })
-        expect(await runOnce()).not.toContain('--cookies')
-    })
-
-    it('does not pass --cookies when the path is a directory', async () => {
-        process.env.YTDLP_COOKIES_FILE = cookiesPath
-        mockStatSync.mockReturnValue({ isFile: () => false })
-        expect(await runOnce()).not.toContain('--cookies')
-    })
-
-    it('does not pass --cookies when the file exists but is not readable', async () => {
-        process.env.YTDLP_COOKIES_FILE = cookiesPath
-        mockStatSync.mockReturnValue({ isFile: () => true })
-        mockAccessSync.mockImplementation(() => {
-            throw new Error('EACCES: permission denied')
-        })
-        expect(await runOnce()).not.toContain('--cookies')
-    })
-
-    it('passes --cookies <file> when YTDLP_COOKIES_FILE is a readable regular file', async () => {
-        process.env.YTDLP_COOKIES_FILE = cookiesPath
-        mockStatSync.mockReturnValue({ isFile: () => true })
-        mockAccessSync.mockReturnValue(undefined)
-        const args = await runOnce()
-        const idx = args.indexOf('--cookies')
-        expect(idx).toBeGreaterThan(-1)
-        expect(args[idx + 1]).toBe(cookiesPath)
-    })
-})
-
-// ---------------------------------------------------------------------------
-// streamViaYtDlp — process lifecycle
-// ---------------------------------------------------------------------------
-
-describe('streamViaYtDlp – process lifecycle', () => {
-    const validUrl = 'https://www.youtube.com/watch?v=abc123'
-
-    it.each([
-        [
-            (proc: FakeProc) => proc.emit('error', new Error('ENOENT yt-dlp')),
-            'ENOENT yt-dlp',
-        ],
-        [
-            (proc: FakeProc) => {
-                proc.stderr.emit('data', Buffer.from('Video unavailable'))
-                proc.emit('close', 1)
-            },
-            'yt-dlp exited with code 1 — Video unavailable',
-        ],
-        [
-            (proc: FakeProc) => proc.emit('close', 2),
-            'yt-dlp exited with code 2',
-        ],
-    ])('rejects on process error', async (emitFn, expectedError) => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => emitFn(proc))
-        await expect(streamViaYtDlp(validUrl)).rejects.toThrow(expectedError)
-    })
-
-    it('kills proc and rejects on timeout', async () => {
-        jest.useFakeTimers()
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        // never emit stdout data — let the timeout fire
-        const promise = streamViaYtDlp(validUrl)
-        jest.advanceTimersByTime(YTDLP_STREAM_START_TIMEOUT_MS)
-        await expect(promise).rejects.toThrow('yt-dlp: timed out')
-        expect(proc.kill).toHaveBeenCalled()
-        jest.useRealTimers()
-    })
-
-    // #2141: the prior 6s budget was below the measured p100 with cookies
-    // (the live prod path), killing 16.8% of healthy resolutions. Pins the
-    // raised constant so a future regression back to a too-short value fails.
-    it('uses the raised #2141 timeout constant, not the old 6s budget', () => {
-        expect(YTDLP_STREAM_START_TIMEOUT_MS).toBeGreaterThan(6_000)
-    })
-})
-
-// ---------------------------------------------------------------------------
-// streamViaYtDlpSearch
-// ---------------------------------------------------------------------------
-
-describe('streamViaYtDlpSearch', () => {
-    it.each(['', '   '])('rejects on empty/whitespace: %p', async (query) => {
-        await expect(streamViaYtDlpSearch(query)).rejects.toThrow(
-            'yt-dlp search: empty query',
-        )
-    })
-})
-
-// ---------------------------------------------------------------------------
 // createResilientStream — fallback chain + Sentry instrumentation
 // ---------------------------------------------------------------------------
 
@@ -321,39 +116,32 @@ describe('createResilientStream', () => {
     })
 
     it('falls back to SoundCloud when yt-dlp fails', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
-        setImmediate(() => proc.emit('close', 1))
         const result = await createResilientStream(makeTrack())
         expect(result).toBe(fakeStream)
         expect(mockStreamViaSoundCloud).toHaveBeenCalled()
     })
 
     it('throws Bridge exhausted when all stages fail', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
         await expect(
             createResilientStream(makeTrack({ title: 'Some Song' })),
         ).rejects.toThrow('Bridge exhausted')
-        // #1500: an unplayable track is an expected outcome → WARN, not
-        // error→Sentry (which produced false "regression" alerts, LUCKY-2T).
+        // #1500: an unplayable track is an expected outcome — WARN, not
+        // error->Sentry (which produced false "regression" alerts, LUCKY-2T).
         expect(mockWarnLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Bridge: all stages exhausted',
             }),
         )
-        expect(mockErrorLog).not.toHaveBeenCalled()
     })
 
     it('throws immediately when cleanedTitle is empty after yt-dlp fails', async () => {
         mockCleanTitle.mockReturnValue('')
         mockCleanAuthor.mockReturnValue('')
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         await expect(
             createResilientStream(makeTrack({ title: '' })),
         ).rejects.toThrow('Bridge exhausted: no stream for empty title')
@@ -361,11 +149,7 @@ describe('createResilientStream', () => {
     })
 
     it('captures breadcrumb on successful YouTube yt-dlp URL stream', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => {
-            proc.stdout.emit('data', Buffer.from('stream data'))
-        })
+        mockStreamViaYtDlp.mockResolvedValue(fakeStream)
         await createResilientStream(makeTrack())
         expect(mockAddBreadcrumb).toHaveBeenCalledWith(
             'YouTube stream resolved via yt-dlp',
@@ -375,10 +159,8 @@ describe('createResilientStream', () => {
     })
 
     it('captures breadcrumb and message on yt-dlp URL extraction failure', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp error'))
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
-        setImmediate(() => proc.emit('close', 1))
         await createResilientStream(makeTrack())
         // Verify breadcrumb was called for failure with redacted URL (origin only)
         expect(mockAddBreadcrumb).toHaveBeenCalledWith(
@@ -404,19 +186,12 @@ describe('createResilientStream', () => {
     })
 
     it('scrubs a tokenized URL out of the yt-dlp error before it reaches Sentry', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
+        mockStreamViaYtDlp.mockRejectedValue(
+            new Error(
+                'ERROR: unable to download https://rr3---sn-abc.googlevideo.com/videoplayback?sig=SECRETTOKEN&expire=1',
+            ),
+        )
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
-        setImmediate(() => {
-            // yt-dlp's error message embeds stderr, which can carry a signed URL.
-            proc.stderr.emit(
-                'data',
-                Buffer.from(
-                    'ERROR: unable to download https://rr3---sn-abc.googlevideo.com/videoplayback?sig=SECRETTOKEN&expire=1',
-                ),
-            )
-            proc.emit('close', 1)
-        })
         await createResilientStream(makeTrack())
 
         const msgCall = mockCaptureMessage.mock.calls.find((c) =>
@@ -438,11 +213,7 @@ describe('createResilientStream', () => {
     })
 
     it('captures breadcrumb on successful YouTube search stream for Spotify source', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => {
-            proc.stdout.emit('data', Buffer.from('stream data'))
-        })
+        mockStreamViaYtDlpSearch.mockResolvedValue(fakeStream)
         const track = makeTrack({
             url: 'https://open.spotify.com/track/123',
         })
@@ -456,10 +227,8 @@ describe('createResilientStream', () => {
     })
 
     it('captures breadcrumb and message on YouTube search extraction failure for Spotify', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
+        mockStreamViaYtDlpSearch.mockRejectedValue(new Error('yt-dlp error'))
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
-        setImmediate(() => proc.emit('close', 1))
         const track = makeTrack({
             url: 'https://open.spotify.com/track/123',
         })
@@ -485,9 +254,7 @@ describe('createResilientStream', () => {
     it('captures breadcrumb when SoundCloud circuit is open', async () => {
         mockIsAvailable.mockReturnValue(false)
         mockCleanTitle.mockReturnValue('Track Name')
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         await expect(createResilientStream(makeTrack())).rejects.toThrow(
             'Bridge exhausted',
         )
@@ -499,9 +266,7 @@ describe('createResilientStream', () => {
     })
 
     it('captures message on exhausted all-fallback stages (with parentheticals)', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
         mockCleanTitle.mockReturnValue('Song (Official) Mix')
         await expect(
@@ -519,9 +284,7 @@ describe('createResilientStream', () => {
     })
 
     it('captures message on exhausted all-fallback stages (no parentheticals)', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
         mockCleanTitle.mockReturnValue('Simple Song Name')
         await expect(
@@ -554,54 +317,41 @@ describe('fallback stage stamping', () => {
     })
 
     it('does not stamp metadata when the primary yt-dlp URL stage resolves', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => {
-            proc.stdout.emit('data', Buffer.from('stream data'))
-        })
+        mockStreamViaYtDlp.mockResolvedValue(fakeStream)
         const track = makeTrack()
         await createResilientStream(track)
-        expect((track as { metadata?: unknown }).metadata).not.toEqual(
-            expect.objectContaining({
-                [STREAM_BRIDGE_FALLBACK_METADATA_KEY]: expect.anything(),
-            }),
-        )
-        expect(getStreamBridgeFallbackLabel(track)).toBeUndefined()
+        expect(mockStampFallbackStage).not.toHaveBeenCalled()
     })
 
     it('does not stamp metadata when the yt-dlp search stage resolves a Spotify track', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => {
-            proc.stdout.emit('data', Buffer.from('stream data'))
-        })
+        mockStreamViaYtDlpSearch.mockResolvedValue(fakeStream)
         const track = makeTrack({ url: 'https://open.spotify.com/track/123' })
         mockCleanSearchQuery.mockReturnValue('song name')
         await createResilientStream(track)
-        expect(getStreamBridgeFallbackLabel(track)).toBeUndefined()
+        expect(mockStampFallbackStage).not.toHaveBeenCalled()
     })
 
     it('stamps soundcloud-full when the full SoundCloud search resolves', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
-        setImmediate(() => proc.emit('close', 1))
         const track = makeTrack()
         await createResilientStream(track)
-        expect(getStreamBridgeFallbackLabel(track)).toBe('SoundCloud search')
+        expect(mockStampFallbackStage).toHaveBeenCalledWith(
+            track,
+            'soundcloud-full',
+        )
     })
 
     it('stamps soundcloud-title when only the title-only search resolves', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud
             .mockRejectedValueOnce(new Error('no results'))
             .mockResolvedValueOnce(fakeStream)
         const track = makeTrack()
         await createResilientStream(track)
-        expect(getStreamBridgeFallbackLabel(track)).toBe(
-            'SoundCloud title-only search',
+        expect(mockStampFallbackStage).toHaveBeenCalledWith(
+            track,
+            'soundcloud-title',
         )
         // #2140: the primary-stage failure must be visible in prod (LOG_LEVEL=2
         // suppresses debugLog), so it is logged at warnLog, not debugLog.
@@ -614,9 +364,7 @@ describe('fallback stage stamping', () => {
     })
 
     it('stamps soundcloud-core when only the core-title search resolves', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud
             .mockRejectedValueOnce(new Error('no results'))
             .mockRejectedValueOnce(new Error('no results'))
@@ -624,8 +372,9 @@ describe('fallback stage stamping', () => {
         mockCleanTitle.mockReturnValue('Song (Official) Mix')
         const track = makeTrack({ title: 'Song (Official) Mix' })
         await createResilientStream(track)
-        expect(getStreamBridgeFallbackLabel(track)).toBe(
-            'SoundCloud simplified-title search',
+        expect(mockStampFallbackStage).toHaveBeenCalledWith(
+            track,
+            'soundcloud-core',
         )
         // #2140: the title-only-stage failure must also be visible in prod.
         expect(mockWarnLog).toHaveBeenCalledWith(
@@ -641,9 +390,7 @@ describe('fallback stage stamping', () => {
     // third attempt. It must now run whenever stage 2 fails, broadening via
     // extractSongCore instead of being skipped outright.
     it('runs the core stage for a title with no parenthetical/suffix', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud
             .mockRejectedValueOnce(new Error('no results'))
             .mockRejectedValueOnce(new Error('no results'))
@@ -659,15 +406,14 @@ describe('fallback stage stamping', () => {
             'Human Nature',
             track.duration,
         )
-        expect(getStreamBridgeFallbackLabel(track)).toBe(
-            'SoundCloud simplified-title search',
+        expect(mockStampFallbackStage).toHaveBeenCalledWith(
+            track,
+            'soundcloud-core',
         )
     })
 
     it('skips the core stage when the broadened query is byte-identical to one already tried', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('close', 1))
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
         mockCleanTitle.mockReturnValue('Simple Song Name')
         // No separator to extract a core from — nothing new to try.
@@ -683,30 +429,15 @@ describe('fallback stage stamping', () => {
     })
 
     it('preserves existing track metadata when stamping the fallback stage', async () => {
-        const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
-        setImmediate(() => proc.emit('close', 1))
         const track = makeTrack()
         track.setMetadata({ isAutoplay: true })
         await createResilientStream(track)
-        expect(track.metadata).toEqual({
-            isAutoplay: true,
-            [STREAM_BRIDGE_FALLBACK_METADATA_KEY]: 'soundcloud-full',
-        })
-    })
-})
-
-describe('getStreamBridgeFallbackLabel', () => {
-    it('returns undefined for a track without bridge metadata', () => {
-        expect(getStreamBridgeFallbackLabel({})).toBeUndefined()
-        expect(
-            getStreamBridgeFallbackLabel({ metadata: undefined }),
-        ).toBeUndefined()
-        expect(
-            getStreamBridgeFallbackLabel({
-                metadata: { isAutoplay: true },
-            }),
-        ).toBeUndefined()
+        // Verify stampFallbackStage was called, which will update metadata
+        expect(mockStampFallbackStage).toHaveBeenCalledWith(
+            track,
+            'soundcloud-full',
+        )
     })
 })

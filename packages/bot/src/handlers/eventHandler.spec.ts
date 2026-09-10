@@ -100,7 +100,7 @@ jest.mock('../services/musicManagement/namedSessions', () => ({
     },
 }))
 
-jest.mock('./player/trackNowPlaying', () => ({
+jest.mock('./player/nowPlayingDisplay', () => ({
     cleanupGuildState: (...args: unknown[]) => cleanupGuildStateMock(...args),
 }))
 

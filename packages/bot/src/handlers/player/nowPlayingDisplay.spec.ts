@@ -52,13 +52,17 @@ jest.mock('../../utils/music/skipReasonMap', () => ({
     getSkipReasonEmojis: () => ['👎', '😴', '🎸', '🔁'],
 }))
 
+jest.mock('./lastfmScrobbler', () => ({
+    clearLastFmTrackTiming: jest.fn(),
+}))
+
 // NOW import types and the module under test after mocks are set up
 import { describe, expect, it, beforeEach } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import type { TextChannel, Guild, Message } from 'discord.js'
-import { sendNowPlayingEmbed } from './trackNowPlaying'
+import { sendNowPlayingEmbed } from './nowPlayingDisplay'
 
-describe('trackNowPlaying - emoji prefill logging', () => {
+describe('nowPlayingDisplay - emoji prefill logging', () => {
     let mockQueue: Partial<GuildQueue>
     let mockTrack: Partial<Track>
     let mockGuild: Partial<Guild>

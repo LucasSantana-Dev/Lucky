@@ -62,7 +62,7 @@ const createMusicControlButtonsMock = jest.fn<(queue: unknown) => unknown>()
 const registerNowPlayingMessageMock =
     jest.fn<(guildId: string, messageId: string, channelId: string) => void>()
 
-jest.mock('../../../../handlers/player/trackNowPlaying', () => ({
+jest.mock('../../../../handlers/player/nowPlayingDisplay', () => ({
     registerNowPlayingMessage: (
         guildId: string,
         messageId: string,

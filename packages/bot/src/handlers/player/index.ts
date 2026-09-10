@@ -1,13 +1,13 @@
 import type { Player } from 'discord-player'
 import type { CustomClient } from '../../types'
 import { createPlayer } from './playerFactory'
-import { setupErrorHandlers } from './errorHandlers'
+import { setupErrorHandlers } from './errorEventHandlers'
 import {
     setupLifecycleHandlers,
     setupStageSpeaker,
     setupVoiceKickDetection,
 } from './lifecycleHandlers'
-import { setupTrackHandlers } from './trackHandlers'
+import { setupTrackHandlers } from './trackEventHandlers'
 
 type CreatePlayerParams = {
     client: CustomClient
