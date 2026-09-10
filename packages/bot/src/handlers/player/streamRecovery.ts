@@ -6,10 +6,7 @@ import {
     logYouTubeError,
 } from '../../utils/music/youtubeErrorHandler'
 import { youtubeConfig } from '@lucky/shared/config'
-import {
-    providerFromTrack,
-    providerHealthService,
-} from '../../utils/music/search/providerHealth'
+import { providerHealthService } from '../../utils/music/search/providerHealth'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 import { isSameTrack } from './errorClassification'
 import { notifyChannelStreamFailed } from './streamFailureNotifier'
@@ -104,7 +101,8 @@ export async function recoverFromStreamExtractionError(
 
         if (!searchResult || searchResult.tracks.length === 0) {
             warnLog({
-                message: 'Stream failed, YouTube recovery found nothing — skipping',
+                message:
+                    'Stream failed, YouTube recovery found nothing — skipping',
                 data: { title: currentTrack.title, guildId: queue.guild.id },
             })
             await notifyChannelStreamFailed(queue, currentTrack.title)
