@@ -174,4 +174,36 @@ export default [
             "no-case-declarations": "warn",
         },
     },
+    {
+        // Same unused-vars guard for backend and frontend when eslint runs from
+        // the repo root, which is how lint-staged invokes it (#2345). The block
+        // above covers bot and shared but is a ratchet that also downgrades
+        // type-safety, complexity and import rules, so widening its glob would
+        // weaken these two packages instead of guarding them. This adds only
+        // the one rule. Their per-package configs already set it to error; that
+        // block's `src/**/*.ts` glob just does not match from the root.
+        basePath: __dirname,
+        files: ["packages/{backend,frontend}/src/**/*.{ts,tsx}"],
+        languageOptions: {
+            parser: parserTs,
+            parserOptions: { ecmaVersion: "latest", sourceType: "module" },
+        },
+        plugins: { "@typescript-eslint": pluginTs },
+        rules: {
+            "no-unused-vars": "off",
+            // Off for the same reason the block above turns it off: the base
+            // rule does not know TS types or DOM globals, so it reports every
+            // one of them as undefined. tsc already covers this.
+            "no-undef": "off",
+            "@typescript-eslint/no-unused-vars": [
+                "error",
+                {
+                    argsIgnorePattern: "^_",
+                    varsIgnorePattern: "^_",
+                    caughtErrorsIgnorePattern: "^_",
+                    ignoreRestSiblings: true,
+                },
+            ],
+        },
+    },
 ]
