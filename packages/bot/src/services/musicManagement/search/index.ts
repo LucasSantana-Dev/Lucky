@@ -36,7 +36,8 @@ export async function enhancedSearch(
     return service.search({
         query,
         requestedBy,
-        preferredEngine: preferredEngine as EnhancedSearchOptions['preferredEngine'],
+        preferredEngine:
+            preferredEngine as EnhancedSearchOptions['preferredEngine'],
     })
 }
 

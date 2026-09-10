@@ -3,7 +3,7 @@ import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
 import {
     providerFromTrack,
     providerHealthService,
-} from '../../utils/music/search/providerHealth'
+} from '../../services/musicManagement/search/providerHealth'
 import {
     toErrorDetails,
     toErrorInstance,
@@ -15,7 +15,7 @@ import {
     handleYouTubeParserError,
     recoverFromStreamExtractionError,
 } from './streamRecovery'
-import { analyzeYouTubeError } from '../../utils/music/youtubeErrorHandler'
+import { analyzeYouTubeError } from '../../services/musicManagement/youtubeErrorHandler'
 
 export type PlayerEvents = {
     events: {

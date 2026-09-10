@@ -7,7 +7,7 @@ import {
     cleanSearchQuery,
     extractSongCore,
 } from '../../utils/music/searchQueryCleaner'
-import { providerHealthService } from '../../utils/music/search/providerHealth'
+import { providerHealthService } from '../../services/musicManagement/search/providerHealth'
 import { streamViaSoundCloud } from './soundcloudMatcher'
 import {
     addBreadcrumb,

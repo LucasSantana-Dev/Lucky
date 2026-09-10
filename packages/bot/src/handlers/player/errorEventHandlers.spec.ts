@@ -12,7 +12,7 @@ jest.mock('@lucky/shared/utils', () => ({
     captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }))
 
-jest.mock('../../utils/music/search/providerHealth', () => ({
+jest.mock('../../services/musicManagement/search/providerHealth', () => ({
     providerFromTrack: jest.fn(() => 'youtube'),
     providerHealthService: {
         recordFailure: jest.fn(),
@@ -55,7 +55,7 @@ jest.mock('./streamRecovery', () => ({
     recoverFromStreamExtractionError: jest.fn(),
 }))
 
-jest.mock('../../utils/music/youtubeErrorHandler', () => ({
+jest.mock('../../services/musicManagement/youtubeErrorHandler', () => ({
     analyzeYouTubeError: () => ({
         isParserError: false,
         isCompositeVideoError: false,
