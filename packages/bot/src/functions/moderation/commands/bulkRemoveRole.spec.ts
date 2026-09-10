@@ -288,4 +288,36 @@ describe('bulkRemoveRole command', () => {
         )
         expect(errorLogMock).toHaveBeenCalled()
     })
+
+    test('excludes bot members from count and job creation', async () => {
+        const role = createMockRole('role-789')
+        role.members.set('human-1', { user: { bot: false } } as any)
+        role.members.set('bot-member', { user: { bot: true } } as any)
+        role.members.set('human-2', { user: { bot: false } } as any)
+        const interaction = createInteraction({
+            role,
+            reason: 'cleanup',
+        })
+
+        await bulkRemoveRoleCommand.execute({ interaction })
+
+        expect(batchJobServiceMock.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                jobType: 'bulk_remove_role',
+                totalItems: 2,
+                options: expect.objectContaining({
+                    roleId: 'role-789',
+                    reason: 'cleanup',
+                }),
+            }),
+        )
+
+        expect(enqueueBatchJobMock).toHaveBeenCalledWith('job-123')
+
+        expect(interaction.editReply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.stringContaining('Bulk role removal queued'),
+            }),
+        )
+    })
 })
