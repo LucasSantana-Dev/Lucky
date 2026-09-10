@@ -211,7 +211,13 @@ export async function searchSpotifyTracks(
         })
         const res = await fetch(
             `https://api.spotify.com/v1/search?${params.toString()}`,
-            { headers: { Authorization: `Bearer ${accessToken}` } },
+            {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                // Same deadline as the top-tracks and albums requests below.
+                // Without it a stalled search holds the deferred /artist reply
+                // open instead of falling back to the capped pool.
+                signal: AbortSignal.timeout(10_000),
+            },
         )
         if (!res.ok) return []
         const data = (await res.json().catch(() => null)) as {

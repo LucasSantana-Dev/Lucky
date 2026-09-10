@@ -66,7 +66,13 @@ async function topUpSpotifyTracks({
         if (!accessToken) return []
 
         const refs = await searchSpotifyTracks(accessToken, artistName, limit)
-        const newRefs = refs.filter((ref) => !existingUrls.has(ref.url))
+        // Resolving costs a player search per reference, so take only the
+        // slots the capped pool left unfilled. Resolving every new reference
+        // would do up to `limit` lookups and then discard most of the results
+        // at the slice further down.
+        const newRefs = refs
+            .filter((ref) => !existingUrls.has(ref.url))
+            .slice(0, Math.max(limit - existingUrls.size, 0))
         if (!newRefs.length) return []
 
         const resolved = await Promise.all(

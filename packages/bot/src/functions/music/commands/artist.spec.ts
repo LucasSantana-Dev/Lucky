@@ -408,8 +408,14 @@ describe('artist command search fallback', () => {
     })
 
     it('does not call the Spotify top-up when the default limit is within the arm cap', async () => {
+        // Ten tracks, so the pool DOES reach SPOTIFY_SEARCH_CAP. That leaves
+        // `limit > cap` as the only condition holding the top-up back, which
+        // is the thing this test exists to cover. With a shorter pool the
+        // assertions below would still pass with the limit guard deleted.
         const search = jest.fn(async () => ({
-            tracks: [createTrack('Bohemian Rhapsody', 'Queen')],
+            tracks: Array.from({ length: 10 }, (_, i) =>
+                createTrack(`Queen Song ${i + 1}`, 'Queen'),
+            ),
         }))
         const play = jest.fn(async () => ({ track: null }))
 
