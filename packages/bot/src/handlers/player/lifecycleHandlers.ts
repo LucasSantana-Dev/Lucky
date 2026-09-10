@@ -212,8 +212,17 @@ export const setupLifecycleHandlers = (player: {
         ) {
             const metadata = queue.metadata as QueueMetadata | undefined
             // Abort the restore if the deadline wins the race, so a slow restore
-            // can't keep enqueueing tracks after we've moved on with an empty queue.
-            const restoreController = new AbortController()
+            // can't keep enqueueing tracks after we've moved on with an empty
+            // queue. Registered with the watchdog (not a private
+            // AbortController) so a stop landing during THIS restore is also
+            // observed here, the same way it is for the watchdog's own
+            // orphan-session restore — otherwise a stop could abort that one
+            // while this one, unregistered, keeps going and resumes
+            // playback (see #2335).
+            const {
+                controller: restoreController,
+                release: releaseRestoreController,
+            } = musicWatchdogService.registerRecoveryController(queue.guild.id)
             const restoreDeadline = new Promise<never>((_, reject) =>
                 setTimeout(
                     () =>
@@ -247,6 +256,8 @@ export const setupLifecycleHandlers = (player: {
                                 : String(error),
                     },
                 })
+            } finally {
+                releaseRestoreController()
             }
         }
 

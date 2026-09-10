@@ -357,20 +357,68 @@ describe('MusicSessionSnapshotService', () => {
             expect(queue.clear).not.toHaveBeenCalled()
         })
 
-        it('does not resume playback when the stop lands during deleteSnapshot() (#2335)', async () => {
-            // Regression for #2335: restoreSnapshot()'s own async work (here,
-            // the deleteSnapshot() call after the restore loop finishes) is a
-            // window the per-track loop checks never cover, since it runs
-            // after the loop has already exited.
+        it('deletes the snapshot only after play() commits, not before (#2335)', async () => {
+            // Regression for #2335: deleteSnapshot() must not run until the
+            // restore can no longer be cancelled, i.e. after play() has been
+            // invoked. Deleting first and checking the signal afterward meant
+            // a stop landing during deleteSnapshot()'s own async work could
+            // destroy the only persisted copy of a session that never
+            // actually resumed — undoRestoredTracks() cannot undo a database
+            // row that is already gone.
             mockFindUnique.mockResolvedValueOnce(snapshotRow())
             const service = new MusicSessionSnapshotService()
-            const queue = restoringQueue('guild-delete-abort')
+            const queue = restoringQueue('guild-play-before-delete')
+
+            const result = await service.restoreSnapshot(queue)
+
+            expect(result.restoredCount).toBe(1)
+            const playOrder = (queue.node.play as jest.Mock).mock
+                .invocationCallOrder[0]
+            const deleteOrder = mockDeleteMany.mock.invocationCallOrder[0]
+            expect(playOrder).toBeLessThan(deleteOrder)
+        })
+
+        it('does not delete the snapshot when play() commits after an abort mid-restore (#2335)', async () => {
+            // If the abort lands before the commit point (still covered by the
+            // loop's own checks for a multi-track restore), the snapshot must
+            // survive so a later attempt can retry it.
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({
+                    upcomingTracks: [
+                        {
+                            title: 'T1',
+                            author: 'A1',
+                            url: 'u1',
+                            duration: '1',
+                            source: 'youtube',
+                        },
+                        {
+                            title: 'T2',
+                            author: 'A2',
+                            url: 'u2',
+                            duration: '1',
+                            source: 'youtube',
+                        },
+                    ],
+                }),
+            )
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-no-delete-on-abort')
             const controller = new AbortController()
-            mockDeleteMany.mockImplementationOnce(async () => {
-                // Stop lands while the snapshot delete is in flight, after the
-                // restore loop already passed its own abort checks.
-                controller.abort()
-                return { count: 1 }
+            let searchCalls = 0
+            ;(queue.player.search as jest.Mock).mockImplementation(async () => {
+                searchCalls += 1
+                if (searchCalls === 2) controller.abort()
+                return {
+                    tracks: [
+                        {
+                            title: 'x',
+                            author: 'y',
+                            url: 'z',
+                            setMetadata: jest.fn(),
+                        },
+                    ],
+                }
             })
 
             const result = await service.restoreSnapshot(queue, undefined, {
@@ -379,9 +427,7 @@ describe('MusicSessionSnapshotService', () => {
 
             expect(result.restoredCount).toBe(0)
             expect(queue.node.play).not.toHaveBeenCalled()
-            // The track this restore added is undone rather than left silently
-            // queued with nothing playing.
-            expect(queue.node.remove).toHaveBeenCalledTimes(1)
+            expect(mockDeleteMany).not.toHaveBeenCalled()
         })
 
         it('prepends the current track to the restore list', async () => {
