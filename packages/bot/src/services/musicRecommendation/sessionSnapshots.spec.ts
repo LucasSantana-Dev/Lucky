@@ -357,6 +357,33 @@ describe('MusicSessionSnapshotService', () => {
             expect(queue.clear).not.toHaveBeenCalled()
         })
 
+        it('does not resume playback when the stop lands during deleteSnapshot() (#2335)', async () => {
+            // Regression for #2335: restoreSnapshot()'s own async work (here,
+            // the deleteSnapshot() call after the restore loop finishes) is a
+            // window the per-track loop checks never cover, since it runs
+            // after the loop has already exited.
+            mockFindUnique.mockResolvedValueOnce(snapshotRow())
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-delete-abort')
+            const controller = new AbortController()
+            mockDeleteMany.mockImplementationOnce(async () => {
+                // Stop lands while the snapshot delete is in flight, after the
+                // restore loop already passed its own abort checks.
+                controller.abort()
+                return { count: 1 }
+            })
+
+            const result = await service.restoreSnapshot(queue, undefined, {
+                signal: controller.signal,
+            })
+
+            expect(result.restoredCount).toBe(0)
+            expect(queue.node.play).not.toHaveBeenCalled()
+            // The track this restore added is undone rather than left silently
+            // queued with nothing playing.
+            expect(queue.node.remove).toHaveBeenCalledTimes(1)
+        })
+
         it('prepends the current track to the restore list', async () => {
             mockFindUnique.mockResolvedValueOnce(
                 snapshotRow({

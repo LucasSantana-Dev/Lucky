@@ -252,6 +252,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         expect(queue.connect).toHaveBeenCalledWith(voiceChannel)
         expect(restoreSnapshotMock).toHaveBeenCalledWith(queue, undefined, {
             skipCurrentTrack: true,
+            signal: expect.any(AbortSignal),
         })
         expect(service.getGuildState('guild-recover')).toEqual(
             expect.objectContaining({ lastRecoveryAction: 'rejoin' }),
@@ -298,7 +299,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         expect(restoreSnapshotMock).toHaveBeenCalledWith(
             existingQueue,
             undefined,
-            { skipCurrentTrack: true },
+            { skipCurrentTrack: true, signal: expect.any(AbortSignal) },
         )
     })
 
@@ -534,6 +535,72 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         // Bailed out before connecting, and did not leave the created queue behind.
         expect(queue.connect).not.toHaveBeenCalled()
         expect(restoreSnapshotMock).not.toHaveBeenCalled()
+        expect(queue.delete).toHaveBeenCalled()
+    })
+
+    it('aborts the in-flight restoreSnapshot() signal when the stop lands during restoreSnapshot itself (#2335)', async () => {
+        const guildId = 'guild-restore-own-async-race'
+        const service = new MusicWatchdogService()
+
+        listGuildIdsMock.mockResolvedValue([guildId])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-restore-race',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+
+        // restoreSnapshot marks the stop from INSIDE its own mocked async
+        // work, after both watchdog re-checks (before connect, before
+        // restore) already passed. This is the exact gap #2335 reports: the
+        // entry check and both #2311 re-checks all run before restoreSnapshot
+        // is even called, so none of them can observe a stop that lands once
+        // restoreSnapshot's own async work has started.
+        let observedSignal: AbortSignal | undefined
+        restoreSnapshotMock.mockImplementation(
+            async (
+                _queue: unknown,
+                _user: unknown,
+                options: { signal?: AbortSignal },
+            ) => {
+                observedSignal = options.signal
+                service.markIntentionalStop(guildId)
+                return { restoredCount: 0, sessionSnapshotId: null }
+            },
+        )
+
+        const queue = {
+            setRepeatMode: jest.fn(),
+            delete: jest.fn(),
+            connect: jest.fn().mockResolvedValue(undefined),
+        }
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const guild = {
+            channels: {
+                cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+            },
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(null),
+            create: jest.fn().mockReturnValue(queue),
+        }
+        const client = {
+            guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+        }
+        const player = { nodes, client } as unknown as Player
+
+        await service.scanOrphanSessions(player)
+
+        // markIntentionalStop() aborted the signal watchdog handed to
+        // restoreSnapshot, so restoreSnapshot's own internal checks (tested
+        // separately in sessionSnapshots.spec.ts) can observe the stop.
+        expect(observedSignal?.aborted).toBe(true)
+        // And watchdog tells the abort apart from a genuinely empty snapshot:
+        // it tears the queue it created back down instead of marking this a
+        // failed recovery.
         expect(queue.delete).toHaveBeenCalled()
     })
 })

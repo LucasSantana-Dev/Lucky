@@ -391,6 +391,15 @@ export class MusicSessionSnapshotService {
                 // be applied again on the next connection event.
                 await this.deleteSnapshot(queue.guild.id)
 
+                // Re-check after the await — deleteSnapshot() is itself async,
+                // so a stop can still land during it. Catch it here, before the
+                // one call that actually resumes audio, rather than committing
+                // to play() after the caller has moved on.
+                if (options.signal?.aborted) {
+                    undoRestoredTracks()
+                    return { restoredCount: 0, sessionSnapshotId: null }
+                }
+
                 if (!queue.node.isPlaying()) {
                     await queue.node.play()
                 }

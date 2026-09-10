@@ -47,6 +47,13 @@ export class MusicWatchdogService {
     private readonly recoveryInProgress = new Map<string, number>()
     private readonly recoveryLockMaxMs = 30_000
     private orphanMonitorInterval: ReturnType<typeof setInterval> | null = null
+    // Lets markIntentionalStop() abort a restoreSnapshot() call that is
+    // already mid-flight for a guild, so a stop landing during its own async
+    // work (not just before it starts) is observed (see #2335).
+    private readonly activeRecoveryControllers = new Map<
+        string,
+        AbortController
+    >()
 
     constructor(options: MusicWatchdogOptions = {}) {
         this.timeoutMs =
@@ -119,6 +126,9 @@ export class MusicWatchdogService {
     markIntentionalStop(guildId: string): void {
         this.intentionalStops.add(guildId)
         this.clear(guildId)
+        // Abort a restoreSnapshot() call already in flight for this guild so
+        // a stop landing mid-restore is observed inside its own async work.
+        this.activeRecoveryControllers.get(guildId)?.abort()
         // Cancel any orphaned timer from a previous call so only the latest
         // timer for this guild can delete the flag.
         const oldTimer = this.intentionalStopAutoClearTimers.get(guildId)
@@ -374,13 +384,44 @@ export class MusicWatchdogService {
                 return
             }
 
-            const restoreResult =
-                await musicSessionSnapshotService.restoreSnapshot(
-                    queue,
-                    undefined,
-                    { skipCurrentTrack: true },
-                )
+            // restoreSnapshot() does its own async work (searching + enqueuing
+            // each track). A stop landing during that work would slip past both
+            // re-checks above, so give it an abort signal it already knows how
+            // to honor and let markIntentionalStop() trip it mid-flight.
+            const restoreController = new AbortController()
+            this.activeRecoveryControllers.set(guildId, restoreController)
+            let restoreResult: Awaited<
+                ReturnType<typeof musicSessionSnapshotService.restoreSnapshot>
+            >
+            try {
+                restoreResult =
+                    await musicSessionSnapshotService.restoreSnapshot(
+                        queue,
+                        undefined,
+                        {
+                            skipCurrentTrack: true,
+                            signal: restoreController.signal,
+                        },
+                    )
+            } finally {
+                if (
+                    this.activeRecoveryControllers.get(guildId) ===
+                    restoreController
+                ) {
+                    this.activeRecoveryControllers.delete(guildId)
+                }
+            }
+
             if (!restoreResult || restoreResult.restoredCount <= 0) {
+                // A stop that landed during restoreSnapshot()'s own async work
+                // aborts it back to an empty result, same as a genuinely empty
+                // snapshot. Tell the two apart: on a stop, tear the queue back
+                // down instead of treating this as a failed recovery.
+                if (this.intentionalStops.has(guildId)) {
+                    discardCreatedQueue()
+                    return
+                }
+
                 await musicSessionSnapshotService.deleteSnapshot(guildId)
 
                 const state = this.ensureState(guildId)
