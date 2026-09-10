@@ -264,9 +264,14 @@ describe('cleanTitle — hyphenated version suffixes', () => {
         ],
         ['strips " - Forró"', 'Shape of You - Forró', 'Shape of You'],
         [
-            'leaves artist-prefixed with multi-suffix',
+            'strips final version suffix even with earlier hyphen',
             'Beyoncé - Halo - Versão Forró',
-            'Beyoncé - Halo - Versão Forró',
+            'Beyoncé - Halo',
+        ],
+        [
+            'does not strip real song title containing version keyword',
+            'Motörhead - Live Wire',
+            'Motörhead - Live Wire',
         ],
     ])('%s', (_, input, expected) => {
         expect(cleanTitle(input)).toBe(expected)
