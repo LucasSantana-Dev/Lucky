@@ -12,40 +12,22 @@ import {
     errorLog,
     type RecurrencePattern,
 } from '@lucky/shared/utils'
+import { parseDuration as sharedParseDuration } from '@lucky/shared/utils/general/duration'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 
-/** Parse duration strings like "10m", "2h", "1d", "30s". Returns milliseconds or null if invalid. */
+/**
+ * Parse a reminder duration ("30s", "10m", "2h", "1d"), capped at 30 days.
+ * Returns milliseconds, or null if unparseable or over the cap.
+ *
+ * Thin wrapper over the shared parser: the 30-day limit is a reminder policy,
+ * not a parsing rule, so it stays here. Kept exported because the spec and both
+ * call sites below import it from this module.
+ */
+export const REMIND_MAX_MS = 30 * 24 * 60 * 60 * 1000
+
 export function parseDuration(input: string): number | null {
-    const match = input.match(/^(\d+)([mhds])$/)
-    if (!match) return null
-
-    const value = parseInt(match[1], 10)
-    const unit = match[2]
-
-    // Cap at 30 days
-    const maxMs = 30 * 24 * 60 * 60 * 1000
-
-    let ms = 0
-    switch (unit) {
-        case 's':
-            ms = value * 1000
-            break
-        case 'm':
-            ms = value * 60 * 1000
-            break
-        case 'h':
-            ms = value * 60 * 60 * 1000
-            break
-        case 'd':
-            ms = value * 24 * 60 * 60 * 1000
-            break
-        default:
-            return null
-    }
-
-    if (ms > maxMs) return null
-    return ms
+    return sharedParseDuration(input, REMIND_MAX_MS)
 }
 
 /**

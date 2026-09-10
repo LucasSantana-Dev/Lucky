@@ -1,22 +1,10 @@
 import { randomInt } from 'node:crypto'
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 
-/** Duration parser for human-readable durations (e.g., "10m", "2h", "1d"). */
-export function parseDuration(input: string): number | null {
-    const match = input.match(/^(\d+)([mhd])$/)
-    if (!match) return null
-
-    const amount = Number.parseInt(match[1], 10)
-    const unit = match[2]
-
-    const ms = {
-        m: amount * 60 * 1000,
-        h: amount * 60 * 60 * 1000,
-        d: amount * 24 * 60 * 60 * 1000,
-    }[unit]
-
-    return ms ?? null
-}
+// Re-exported so existing importers of '@lucky/shared/services' keep working.
+// The implementation lives in utils/general/duration; this copy had drifted and
+// did not accept seconds (#2328).
+export { parseDuration } from '../utils/general/duration.js'
 
 export type GiveawayData = {
     id: string
