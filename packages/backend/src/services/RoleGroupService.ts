@@ -8,17 +8,17 @@ import { infoLog, errorLog } from '@lucky/shared/utils/general/log'
 import { AppError } from '../errors/AppError'
 
 export interface StyleTemplate {
-    color?: string | null
+    color?: string | null // hex '0x5865F2'
     hoist?: boolean
     mentionable?: boolean
-    buttonStyle?: string | null
+    buttonStyle?: string | null // 'Primary' | 'Secondary' | 'Success' | 'Danger'
 }
 
 export interface AddRoleToGroupRequest {
     name: string
     label?: string
     emoji?: string
-    colorOverride?: string
+    colorOverride?: string // hex '0xRRGGBB'
     dryRun?: boolean
 }
 
@@ -84,11 +84,14 @@ export class RoleGroupService {
             where: { messageId },
         })
 
+        // Get all roles for the guild
         const allRoles = await guildService.getFullGuildRoles(message.guildId)
 
+        // Filter to only the roles mapped in this message
         const mappedRoleIds = new Set(mappings.map((m) => m.roleId))
         const siblingRoles = allRoles.filter((r) => mappedRoleIds.has(r.id))
 
+        // Modal (most common) color
         const colorCounts = new Map<number, number>()
         for (const role of siblingRoles) {
             const count = colorCounts.get(role.color) ?? 0
@@ -105,6 +108,7 @@ export class RoleGroupService {
         const colorHex =
             modalColor !== undefined ? this.intToHex(modalColor) : null
 
+        // Modal hoist and mentionable
         const hoistCounts = new Map<boolean, number>()
         const mentionableCounts = new Map<boolean, number>()
         for (const role of siblingRoles) {
@@ -119,16 +123,19 @@ export class RoleGroupService {
             (mentionableCounts.get(true) ?? 0) >
             (mentionableCounts.get(false) ?? 0)
 
+        // Mode (most common) buttonStyle; tie -> Primary
         const styleCounts = new Map<string, number>()
         for (const mapping of mappings) {
             const style = mapping.style ?? 'Primary'
             const count = styleCounts.get(style) ?? 0
             styleCounts.set(style, count + 1)
         }
+        // Find the maximum count
         let maxCount = 0
         for (const count of styleCounts.values()) {
             if (count > maxCount) maxCount = count
         }
+        // Count how many styles have the max count
         let maxCountStyles = 0
         let maxNonPrimaryStyle = ''
         const primaryCount = styleCounts.get('Primary') ?? 0
@@ -140,11 +147,13 @@ export class RoleGroupService {
                 }
             }
         }
+        // Decision: if Primary is at max OR there's a tie OR no mappings, use Primary
         const modeStyle =
             primaryCount === maxCount || maxCountStyles > 1 || maxCount === 0
                 ? 'Primary'
                 : maxNonPrimaryStyle
 
+        // Divergence: colors differ OR hoist differs OR mentionable differs
         const divergence =
             colorCounts.size > 1 ||
             hoistCounts.size > 1 ||
@@ -174,6 +183,7 @@ export class RoleGroupService {
         let style: StyleTemplate
 
         if (req.fromMessageId) {
+            // Check if the message already has a groupId (1:1 constraint)
             const message = await this.prisma.reactionRoleMessage.findUnique({
                 where: { id: req.fromMessageId },
             })
@@ -182,6 +192,7 @@ export class RoleGroupService {
                     `Message ${req.fromMessageId} not found`,
                 )
             }
+            // Verify message belongs to the guild (IDOR protection)
             if (message.guildId !== req.guildId) {
                 throw AppError.notFound(
                     `Message ${req.fromMessageId} not found`,
@@ -198,6 +209,7 @@ export class RoleGroupService {
             style = req.style ?? {}
         }
 
+        // If seeded from message, wrap in transaction to link atomically
         if (req.fromMessageId) {
             const result = await this.prisma.$transaction(async (tx) => {
                 const newGroup = await tx.roleGroup.create({
@@ -211,6 +223,7 @@ export class RoleGroupService {
                     },
                 })
 
+                // Conditional update: only link if message still has groupId = null
                 const linked = await tx.reactionRoleMessage.updateMany({
                     where: {
                         id: req.fromMessageId,
@@ -258,6 +271,7 @@ export class RoleGroupService {
         role?: GuildRoleManage
         mapping?: ReactionRoleMappingReturn
     }> {
+        // Load group and verify it belongs to the guild (IDOR protection)
         const group = await this.prisma.roleGroup.findFirst({
             where: { id: groupId, guildId },
         })
@@ -265,6 +279,7 @@ export class RoleGroupService {
             throw AppError.notFound(`Group ${groupId} not found`)
         }
 
+        // Load the linked message
         const message = await this.prisma.reactionRoleMessage.findUnique({
             where: { groupId },
         })
@@ -272,16 +287,20 @@ export class RoleGroupService {
             throw AppError.notFound(`No message linked to group ${groupId}`)
         }
 
+        // Load current mappings for this message
         const currentMappings = await this.prisma.reactionRoleMapping.findMany({
             where: { messageId: message.id },
         })
 
+        // Preflight checks (no mutations)
+        // 1. Message button count < 25
         if (currentMappings.length >= 25) {
             throw AppError.conflict(
                 `Cannot add role: message has 25 buttons (Discord limit reached)`,
             )
         }
 
+        // 2. Guild role count < 250
         const allGuildRoles = await guildService.getFullGuildRoles(
             group.guildId,
         )
@@ -291,6 +310,7 @@ export class RoleGroupService {
             )
         }
 
+        // 3. Label length <= 80
         const label = req.label ?? req.name
         if (label.length > 80) {
             throw AppError.badRequest(
@@ -298,6 +318,7 @@ export class RoleGroupService {
             )
         }
 
+        // 4. Role name not already mapped in this message
         const mappedRoleIds = new Set(currentMappings.map((m) => m.roleId))
         const existingRolesInMessage = allGuildRoles.filter((r) =>
             mappedRoleIds.has(r.id),
@@ -312,11 +333,13 @@ export class RoleGroupService {
             )
         }
 
+        // Resolve style
         const resolvedColorHex = req.colorOverride ?? group.color
         const resolvedColorInt = this.hexToInt(resolvedColorHex)
         const resolvedButtonStyle = (group.buttonStyle ?? 'Primary') as
             'Primary' | 'Secondary' | 'Success' | 'Danger'
 
+        // Build plan
         const plan: AddRoleToGroupPlan = {
             roleName: req.name,
             resolvedColorHex: resolvedColorHex ?? null,
@@ -330,6 +353,7 @@ export class RoleGroupService {
             return { plan }
         }
 
+        // Apply: create role + add button
         let createdRole: GuildRoleManage
         try {
             createdRole = await guildService.createGuildRole(group.guildId, {
@@ -337,7 +361,7 @@ export class RoleGroupService {
                 color: resolvedColorInt,
                 hoist: group.hoist,
                 mentionable: group.mentionable,
-                permissions: '0',
+                permissions: '0', // no permissions
             })
         } catch (error) {
             errorLog({
@@ -347,6 +371,7 @@ export class RoleGroupService {
             throw error
         }
 
+        // Add to message (DB-first)
         let addResult: {
             status: 'ok' | 'partial_success'
             mapping: ReactionRoleMappingReturn
@@ -363,6 +388,7 @@ export class RoleGroupService {
                 botToken,
             )
         } catch (error) {
+            // Compensation: delete the created role (404-tolerant)
             errorLog({
                 message: `Failed to add role to message; compensating by deleting role ${createdRole.id}`,
                 error,
@@ -381,6 +407,7 @@ export class RoleGroupService {
             throw error
         }
 
+        // Handle partial_success
         if (addResult.status === 'partial_success') {
             infoLog({
                 message: `Added role to group ${groupId} but Discord PATCH failed; data is consistent, visuals will re-sync (roleId: ${createdRole.id}, messageId: ${message.id})`,
@@ -452,14 +479,17 @@ export class RoleGroupService {
         roleId: string,
         guildId: string,
     ): Promise<boolean> {
+        // Verify group exists and belongs to guild
         const group = await this.getRoleGroup(groupId, guildId)
         if (!group) return false
 
+        // Load the linked message
         const message = await this.prisma.reactionRoleMessage.findUnique({
             where: { groupId },
         })
         if (!message) return false
 
+        // Delete the mapping
         const deleted = await this.prisma.reactionRoleMapping.deleteMany({
             where: {
                 messageId: message.id,
@@ -467,6 +497,7 @@ export class RoleGroupService {
             },
         })
 
+        // Return true if at least one mapping was deleted
         return deleted.count > 0
     }
 }

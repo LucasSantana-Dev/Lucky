@@ -18,7 +18,7 @@ export interface LyricsError {
  * Uses free APIs without authentication requirements
  */
 export class LyricsService {
-    private static readonly TIMEOUT = 10000
+    private static readonly TIMEOUT = 10000 // 10 seconds
 
     /**
      * Search for lyrics using song title and optional artist
@@ -28,9 +28,11 @@ export class LyricsService {
         title: string,
         artist?: string,
     ): Promise<LyricsResult | LyricsError> {
+        // Clean up the title and artist
         const cleanTitle = this.cleanSearchQuery(title)
         const cleanArtist = artist ? this.cleanSearchQuery(artist) : undefined
 
+        // Try primary source first (lyrics.ovh)
         try {
             const result = await this.fetchFromLyricsOvh(
                 cleanTitle,
@@ -41,6 +43,7 @@ export class LyricsService {
             errorLog({ message: 'LyricsOVH failed', error })
         }
 
+        // Fallback: Try extracting from title if it contains artist
         if (!cleanArtist && cleanTitle.includes('-')) {
             const [extractedArtist, extractedTitle] = cleanTitle
                 .split('-')
@@ -97,7 +100,7 @@ export class LyricsService {
             return null
         } catch (error) {
             if (axios.isAxiosError(error) && error.response?.status === 404) {
-                return null
+                return null // Not found, try next source
             }
             throw error
         }
@@ -107,15 +110,19 @@ export class LyricsService {
      * Clean search query by removing common suffixes and special characters
      */
     private cleanSearchQuery(query: string): string {
-        return query
-            .replace(/\s*\([^)]*\)\s*/g, '')
-            .replace(/\s*\[[^\]]*\]\s*/g, '')
-            .replace(
-                /\s*-\s*(official|audio|video|lyric|music|mv|hd|4k).*$/i,
-                '',
-            )
-            .replace(/[^\w\s-]/g, '')
-            .trim()
+        return (
+            query
+                // Remove common suffixes
+                .replace(/\s*\([^)]*\)\s*/g, '') // Remove parentheses content
+                .replace(/\s*\[[^\]]*\]\s*/g, '') // Remove brackets content
+                .replace(
+                    /\s*-\s*(official|audio|video|lyric|music|mv|hd|4k).*$/i,
+                    '',
+                )
+                // Remove special characters but keep spaces and hyphens
+                .replace(/[^\w\s-]/g, '')
+                .trim()
+        )
     }
 
     /**
@@ -132,6 +139,7 @@ export class LyricsService {
         let currentChunk = ''
 
         for (const paragraph of paragraphs) {
+            // If single paragraph is too long, split by lines
             if (paragraph.length > maxLength) {
                 if (currentChunk) {
                     chunks.push(currentChunk.trim())
@@ -150,6 +158,7 @@ export class LyricsService {
                     }
                 }
             } else {
+                // Try to add paragraph to current chunk
                 if ((currentChunk + '\n\n' + paragraph).length > maxLength) {
                     chunks.push(currentChunk.trim())
                     currentChunk = paragraph

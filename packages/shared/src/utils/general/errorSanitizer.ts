@@ -24,14 +24,17 @@ export function sanitizeErrorMessage(error: unknown): string {
 export function sanitizeMessage(message: string): string {
     if (!message) return 'An unknown error occurred'
 
+    // Strip URLs first so the path regex below doesn't treat URL slashes as system paths
     let sanitized = message.replace(/https?:\/\/[^\s"]*/g, '[URL]')
 
+    // Remove system paths (Windows and Unix style)
     sanitized = sanitized
         .replace(/[A-Z]:\\[^"]*\\/gi, '[SYSTEM_PATH]\\')
         .replace(/\/[^"]*\//g, '[SYSTEM_PATH]/')
         .replace(/C:\\[^"]*\\/gi, '[SYSTEM_PATH]\\')
         .replace(/\/c\/[^"]*\//gi, '[SYSTEM_PATH]/')
 
+    // Remove specific error patterns that expose system information
     sanitized = sanitized
         .replace(/Cannot find module '[^']*'/g, 'Required dependency not found')
         .replace(/Cannot read properties of undefined/g, 'Configuration error')
@@ -39,12 +42,15 @@ export function sanitizeMessage(message: string): string {
         .replace(/require\([^)]*\)/g, 'Module loading')
         .replace(/Require stack:[^\n]*/g, '')
 
+    // Remove any remaining file paths
     sanitized = sanitized
         .replace(/at [^(]*\([^)]*\)/g, 'at [INTERNAL_FUNCTION]')
         .replace(/at [^(]*\.[^:]*:[0-9]+:[0-9]+/g, 'at [INTERNAL_LOCATION]')
 
+    // Clean up multiple spaces and newlines
     sanitized = sanitized.replace(/\s+/g, ' ').replace(/\n+/g, ' ').trim()
 
+    // If the message is too technical, provide a generic one
     if (
         sanitized.includes('[SYSTEM_PATH]') ||
         sanitized.includes('Cannot find module') ||
@@ -69,6 +75,10 @@ export function sanitizeStack(error: unknown): string | undefined {
         .map((line) =>
             line
                 .replace(/https?:\/\/\S+/g, '[url]')
+                // Redact an absolute path (Unix `/…` or Windows `C:\…`) to its
+                // basename. Uses a linear, delimiter-anchored pattern (no overlapping
+                // quantifiers) to stay ReDoS-safe; assumes no spaces in path segments,
+                // which holds for this Linux/Docker deployment.
                 .replace(
                     /(?:file:\/\/)?(?:[A-Za-z]:\\|\/)(?:[^\s():\\/]+[\\/])+([^\s():\\/]+)/g,
                     '[path]/$1',
