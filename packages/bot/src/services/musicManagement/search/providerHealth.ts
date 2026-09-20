@@ -144,7 +144,9 @@ export const providerHealthService = new ProviderHealthService({
  * persisting). Kept so `initializer.ts` needn't change and to give a seam if a
  * persistence layer is ever wanted again.
  */
-export async function initProviderHealth(): Promise<void> {}
+export async function initProviderHealth(): Promise<void> {
+    // Intentionally empty — in-memory state starts fresh each process.
+}
 
 export function providerFromQueryType(queryType?: QueryType): MusicProvider {
     const typeValue = String(queryType ?? '').toLowerCase()

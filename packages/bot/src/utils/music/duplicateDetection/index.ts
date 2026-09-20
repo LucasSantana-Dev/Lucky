@@ -18,9 +18,13 @@ export const isDuplicateTrack = async (
     return false
 }
 
-export const clearHistory = async (_guildId: string): Promise<void> => {}
+export const clearHistory = async (_guildId: string): Promise<void> => {
+    void _guildId
+}
 
-export const clearAllGuildCaches = async (_guildId: string): Promise<void> => {}
+export const clearAllGuildCaches = async (_guildId: string): Promise<void> => {
+    void _guildId
+}
 
 export {
     recentlyPlayedTracks,

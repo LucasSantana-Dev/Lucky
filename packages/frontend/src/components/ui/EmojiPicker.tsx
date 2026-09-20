@@ -8,6 +8,7 @@ interface EmojiPickerProps {
     guildId: string
 }
 
+// Common emoji categories for quick selection
 const EMOJI_CATEGORIES = {
     Popular: [
         '😀',
@@ -163,7 +164,7 @@ function EmojiPicker({ value, onChange, guildId }: EmojiPickerProps) {
             const data = await response.json()
             setCustomEmojis(data.emojis || [])
         } catch {
-            // best-effort; custom emoji list just stays empty on failure
+            // Failed to load server emojis - silently fail, emoji picker still works
         } finally {
             setLoadingEmojis(false)
         }
@@ -212,7 +213,7 @@ function EmojiPicker({ value, onChange, guildId }: EmojiPickerProps) {
 
             {open && (
                 <div className='absolute right-0 top-full z-50 mt-1 w-80 rounded-lg border border-lucky-border bg-lucky-bg-secondary shadow-lg'>
-                    {}
+                    {/* Tabs */}
                     <div className='flex border-b border-lucky-border'>
                         <button
                             type='button'
@@ -238,7 +239,7 @@ function EmojiPicker({ value, onChange, guildId }: EmojiPickerProps) {
                         </button>
                     </div>
 
-                    {}
+                    {/* Content */}
                     <div className='max-h-96 overflow-y-auto'>
                         {activeTab === 'emoji' ? (
                             <div className='space-y-3 p-3'>

@@ -32,6 +32,7 @@ jest.mock('@lucky/shared/services', () => ({
     hexToDecimal: (hex: string) => parseInt(hex.replace('#', ''), 16),
 }))
 
+// Import after mocks are set up
 import embedCommand from './embed.js'
 
 function createChatInputInteraction(
@@ -60,6 +61,7 @@ function createChatInputInteraction(
             }),
             getChannel: jest.fn((key: string) => {
                 const val = options[key]
+                // Return null unless it's explicitly a channel-like object
                 if (val && typeof val === 'object' && 'send' in val) {
                     return val
                 }
@@ -187,6 +189,7 @@ describe('embed command', () => {
 
             await embedCommand.execute({ interaction })
 
+            // Check that getTemplate was called with lowercase name
             expect(embedBuilderServiceMock.getTemplate).toHaveBeenCalledWith(
                 'guild-123',
                 'mytemplate',
@@ -305,6 +308,7 @@ describe('embed command', () => {
                 updatedAt: new Date(),
             })
 
+            // Create interaction that returns an object without send method from getChannel
             const interaction = {
                 guild: {
                     id: 'guild-123',
@@ -325,7 +329,8 @@ describe('embed command', () => {
                         return null
                     }),
                     getChannel: jest.fn((key: string) => {
-                        if (key === 'channel') return { id: 'channel-456' }
+                        // Explicitly return a channel-like object without send
+                        if (key === 'channel') return { id: 'channel-456' } // no send
                         return null
                     }),
                 },
@@ -362,6 +367,7 @@ describe('embed command', () => {
                 updatedAt: new Date(),
             })
 
+            // Channel with a send method but not text-based (isTextBased() false)
             const nonTextChannel = {
                 id: 'channel-456',
                 send: jest.fn(),
@@ -560,7 +566,7 @@ describe('embed command', () => {
 
     describe('edge cases', () => {
         it('handles oversized embed fields gracefully', async () => {
-            const largeDescription = 'x'.repeat(5000)
+            const largeDescription = 'x'.repeat(5000) // exceeds 4096 char limit
 
             embedBuilderServiceMock.getTemplate.mockResolvedValue({
                 id: 'template-1',
@@ -583,9 +589,12 @@ describe('embed command', () => {
                 template: 'huge',
             })
 
+            // Discord.js EmbedBuilder validates field lengths and throws on oversized content
             await embedCommand.execute({ interaction })
 
+            // Should not send to channel due to validation error
             expect(interaction.channel.send).not.toHaveBeenCalled()
+            // But should handle the error gracefully
             expect(errorLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: 'Failed to manage embed template',

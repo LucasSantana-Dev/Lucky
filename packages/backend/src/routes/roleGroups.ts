@@ -139,7 +139,6 @@ export function setupRoleGroupsRoutes(app: Express): void {
                     error instanceof Error ? error : new Error(String(error))
                 const message = err.message || 'Failed to add role to group'
 
-                // Check for specific error patterns (from tests and RoleGroupService)
                 if (
                     message.includes('not found') ||
                     message.includes('not-found')

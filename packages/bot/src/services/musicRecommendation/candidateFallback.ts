@@ -123,6 +123,8 @@ export async function collectBroadFallbackCandidates(
                 searchEngine: QueryType.SPOTIFY_SEARCH,
             })
 
+            // Sample the raw API count: a result whose tracks all exceed the
+            // duration cap is a genuine hit, not an outage signal.
             recordSpotifySearchResult(result.tracks.length > 0)
 
             const tracks = result.tracks

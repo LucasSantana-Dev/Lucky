@@ -147,6 +147,10 @@ async function handleSchedule(
     const channelId = (channel as TextChannel).id
 
     try {
+        // Send the sample digest BEFORE persisting the schedule. This guarantees
+        // that the scheduler tick can never see the guild as enabled+due-now
+        // until we've already accounted for the sample post by writing
+        // lastSentAt atomically with enable() below.
         const sent = await modDigestSchedulerService.sendDigestForGuild(
             guildId,
             channelId,

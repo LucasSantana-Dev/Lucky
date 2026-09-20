@@ -8,6 +8,7 @@ import { PermissionFlagsBits, type GuildMember } from 'discord.js'
 import type { CustomClient } from '../../../types'
 import { getStoredClient } from '../../../bot/clientStore'
 
+// Discord REST error codes we treat as "already gone" rather than a failure.
 const UNKNOWN_MEMBER = 10007
 const MISSING_PERMISSIONS = 50013
 
@@ -23,6 +24,7 @@ export class BulkKickExecutor implements BatchJobExecutor {
     jobType: 'bulk_kick' = 'bulk_kick'
 
     estimateMinutes(job: { totalItems: number }): number {
+        // ~0.05 min per kick (one rate-limited REST call each).
         return Math.min(Math.max(Math.ceil(job.totalItems * 0.05), 1), 5000)
     }
 
@@ -57,6 +59,7 @@ export class BulkKickExecutor implements BatchJobExecutor {
             (dbJob as { nextCursor?: string })?.nextCursor || undefined,
         )
 
+        // Initialize tally with prior counts from resume, if any
         const tally: Record<KickOutcome, number> = {
             kicked: (dbJob as { processedItems?: number })?.processedItems ?? 0,
             skipped: (dbJob as { skippedItems?: number })?.skippedItems ?? 0,
@@ -64,6 +67,7 @@ export class BulkKickExecutor implements BatchJobExecutor {
         }
 
         for (const member of queue) {
+            // Stop cleanly if the job was cancelled or the bot disconnected.
             const refreshed = await batchJobService.getById(jobId)
             if (refreshed?.status === 'cancelled') {
                 return { ...this.summary(tally), cancelled: true }
@@ -72,6 +76,9 @@ export class BulkKickExecutor implements BatchJobExecutor {
                 return { ...this.summary(tally), paused: true }
             }
 
+            // Checkpoint BEFORE the destructive step to ensure crash-safety:
+            // if a crash occurs between checkpoint and kick, resume skips this
+            // member rather than double-kicking.
             const done = tally.kicked + tally.skipped + tally.failed + 1
             await onProgress({
                 processed: tally.kicked + 1,
@@ -120,6 +127,7 @@ export class BulkKickExecutor implements BatchJobExecutor {
             throw new Error('Bot missing Kick Members permission')
         }
 
+        // Fetching members populates the cache so role.members is complete.
         await guild.members.fetch()
         const role = await guild.roles.fetch(roleId).catch(() => null)
         if (!role) {
@@ -152,6 +160,7 @@ export class BulkKickExecutor implements BatchJobExecutor {
         member: GuildMember,
         reason: string | undefined,
     ): Promise<KickOutcome> {
+        // Owner, higher role, or bot lacks perms for this specific member.
         if (!member.kickable) {
             return 'skipped'
         }

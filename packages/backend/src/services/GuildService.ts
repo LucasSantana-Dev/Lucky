@@ -27,9 +27,11 @@ export interface GuildMemberContext {
     roleIds: string[]
 }
 
+// Re-exported for backward compatibility with existing consumers.
 export type { GuildChannelOption, GuildEmojiOption } from '@lucky/shared/types'
 export type { GuildWithBotStatus } from './GuildBotStatusService'
 
+// Re-export role interfaces from RoleService for backward compatibility
 export type {
     GuildRoleOption,
     GuildRoleManage,

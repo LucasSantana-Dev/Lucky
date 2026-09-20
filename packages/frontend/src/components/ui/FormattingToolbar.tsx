@@ -38,6 +38,7 @@ function FormattingToolbar({ textareaRef }: FormattingToolbarProps) {
         let cursorPos: number
 
         if (selectedText) {
+            // Wrap selection
             newText =
                 text.substring(0, start) +
                 startMark +
@@ -46,6 +47,7 @@ function FormattingToolbar({ textareaRef }: FormattingToolbarProps) {
                 text.substring(end)
             cursorPos = end + startMark.length + endMark.length
         } else {
+            // Insert at cursor
             newText =
                 text.substring(0, start) +
                 startMark +
@@ -54,10 +56,12 @@ function FormattingToolbar({ textareaRef }: FormattingToolbarProps) {
             cursorPos = start + startMark.length
         }
 
+        // Update textarea value and cursor position
         textarea.value = newText
         textarea.focus()
         textarea.setSelectionRange(cursorPos, cursorPos)
 
+        // Dispatch input event to trigger onChange
         const event = new Event('input', { bubbles: true })
         textarea.dispatchEvent(event)
     }

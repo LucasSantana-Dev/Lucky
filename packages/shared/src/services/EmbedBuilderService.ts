@@ -140,6 +140,9 @@ export class EmbedBuilderService {
         const { fields, ...rest } = updates
 
         try {
+            // Single atomic update on the compound unique key: returns the
+            // updated row without a separate read-back that could observe a
+            // concurrent write or deletion.
             return await prisma.embedTemplate.update({
                 where: { guildId_name: { guildId, name: normalizedName } },
                 data: {
@@ -158,6 +161,7 @@ export class EmbedBuilderService {
                     ? (error as { code: string }).code
                     : null
 
+            // Prisma P2025 = record not found
             if (code === 'P2025') {
                 throw new Error(
                     `Template "${name}" not found in guild ${guildId}`,

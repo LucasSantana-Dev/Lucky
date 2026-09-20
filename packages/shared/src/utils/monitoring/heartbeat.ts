@@ -36,6 +36,7 @@ async function ping(url: string, body: string): Promise<void> {
     try {
         await fetch(url, { method: 'POST', body, signal: controller.signal })
     } catch (error) {
+        // A missed ping is itself the alert signal on the monitor side; never throw.
         debugLog({ message: 'Heartbeat ping failed', error })
     } finally {
         clearTimeout(timeout)

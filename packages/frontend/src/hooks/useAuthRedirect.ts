@@ -49,5 +49,9 @@ export function useAuthRedirect() {
                     toast.error('Failed to verify authentication')
                 })
         }
+        // No bare checkAuth() here: App already verifies the session on boot,
+        // and /login sits behind its loading gate, so re-checking from this
+        // page flips isLoading, unmounts the page, and re-runs this effect on
+        // remount: an unbounded request loop that never renders the button.
     }, [searchParams, checkAuth, navigate])
 }

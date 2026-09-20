@@ -3,8 +3,10 @@ import { getAutoplaySkipRateForGuild } from '@lucky/shared/services/recommendati
 import { debugLog, warnLog } from '@lucky/shared/utils'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 
+// Default threshold: 60% skip rate pauses autoplay
 const AUTOPLAY_SKIP_BREAKER_THRESHOLD = 0.6
 
+// In-memory pause state: maps guildId -> { isPaused: boolean; notified: boolean }
 const autoplayPauseState = new Map<
     string,
     { isPaused: boolean; notified: boolean }
@@ -42,21 +44,25 @@ export async function evaluateSkipRateBreaker(
     const metadata = queue.metadata as QueueMetadata | undefined
     const musicChannel = metadata?.channel
 
+    // Check current pause state
     const currentState = autoplayPauseState.get(guildId)
     if (currentState?.isPaused) {
-        return false
+        return false // Stay paused
     }
 
     try {
         const skipRateData = await getAutoplaySkipRateForGuild(guildId)
 
+        // Only trip if sample is sufficient and skip rate exceeds threshold
         if (
             skipRateData.canTrip &&
             skipRateData.skipRate !== null &&
             skipRateData.skipRate > AUTOPLAY_SKIP_BREAKER_THRESHOLD
         ) {
+            // Trip the breaker
             autoplayPauseState.set(guildId, { isPaused: true, notified: false })
 
+            // Post notice to music channel (once per pause)
             if (musicChannel) {
                 try {
                     await musicChannel.send({
@@ -80,28 +86,31 @@ export async function evaluateSkipRateBreaker(
                         error: noticeError,
                         data: { guildId },
                     })
+                    // Still pause even if notice fails
                     autoplayPauseState.set(guildId, {
                         isPaused: true,
                         notified: false,
                     })
                 }
             } else {
+                // No channel, but still pause
                 autoplayPauseState.set(guildId, {
                     isPaused: true,
                     notified: false,
                 })
             }
 
-            return false
+            return false // Don't replenish
         }
 
-        return true
+        return true // Proceed with replenishment
     } catch (error) {
         warnLog({
             message: 'Error evaluating skip-rate breaker',
             error,
             data: { guildId },
         })
+        // Fail open: allow replenishment on error
         return true
     }
 }

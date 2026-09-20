@@ -11,7 +11,7 @@ export function matchesScope(
         authorId?: string
         content?: string
         createdAt?: Date
-        index?: number
+        index?: number // 0-based position for 'count' scope
     },
     scope: ScopeConfig,
 ): boolean {
@@ -39,6 +39,8 @@ export function matchesScope(
 
             if (!msgDate) return false
 
+            // Normalize: after JSON roundtrip through Prisma's JSON column,
+            // Date fields arrive as ISO strings — coerce before comparing.
             const startDate = start ? new Date(start) : null
             const endDate = end ? new Date(end) : null
 
@@ -55,6 +57,7 @@ export function matchesScope(
         }
 
         default:
+            // Exhaustive check — TypeScript will error if new cases are added
             const _exhaustive: never = scope.type
             return _exhaustive
     }

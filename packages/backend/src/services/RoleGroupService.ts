@@ -66,7 +66,6 @@ export class RoleGroupService {
      * Seed style from an existing reaction-role message's sibling roles.
      * Returns modal color, mode buttonStyle (tie -> Primary), and divergence flag.
      */
-
     async seedStyleFromMessage(messageId: string): Promise<
         StyleTemplate & {
             buttonStyle: string
@@ -259,7 +258,6 @@ export class RoleGroupService {
      * Add a role to a group with preflight checks, dry-run support, DB-first apply,
      * and role-only compensation on failure.
      */
-
     async addRoleToGroup(
         guildId: string,
         groupId: string,

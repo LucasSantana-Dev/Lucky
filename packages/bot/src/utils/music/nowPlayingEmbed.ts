@@ -11,7 +11,7 @@ export type PlayResponseContext = {
     track: Pick<Track, 'title' | 'author' | 'url' | 'thumbnail' | 'duration'> &
         Partial<Pick<Track, 'source'>>
     requestedBy: Pick<User, 'tag' | 'displayAvatarURL'>
-    queuePosition?: number
+    queuePosition?: number // 0-based; 0 = playing right now, n > 0 = added at position n
     playlist?: {
         title: string
         trackCount: number
@@ -130,6 +130,8 @@ export function buildPlayResponseEmbed(
     if (kind === 'playlistQueued' && playlist) {
         embed.setTitle(playlist.title)
         embed.setDescription(`**${playlist.trackCount}** tracks queued`)
+        // Link the title to the playlist itself — never the first track's
+        // URL, which would mislead the user about where the click lands.
         if (playlist.url) embed.setURL(playlist.url)
         return embed
     }

@@ -33,6 +33,9 @@ describe('resolvePlayErrorMessage', () => {
     })
 
     it('does not claim an outage for a text search that found nothing (#2000)', () => {
+        // A text search falls through to Spotify and SoundCloud. If it still
+        // finds nothing, the healthy engines answered correctly — saying
+        // "unreachable" reported an outage that did not happen.
         isExtractorDegradedMock.mockReturnValue(true)
         const error = new Error(
             'No results found for "asdkjhasd" (Extractor: com.discord-player.soundcloudextractor)',

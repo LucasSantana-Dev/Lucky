@@ -21,6 +21,8 @@ export type ReminderRecord = {
     timezone: string | null
 }
 
+// Give up after ~1h of 5-minute backoff so an undeliverable reminder
+// (user left the guild, DMs closed) can't retry forever.
 export const MAX_DELIVERY_ATTEMPTS = 12
 
 export class ReminderService {

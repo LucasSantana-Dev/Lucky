@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
+// Transitively pulled in via playHandler -> skipCircuitBreaker; real module loads
+// prismaClient (import.meta). Factory-mock to keep this suite loadable.
 jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
     getAutoplaySkipRateForGuild: jest.fn(),
 }))
@@ -324,6 +326,10 @@ describe('play command', () => {
             }),
         )
         expect(interaction.editReply).not.toHaveBeenCalled()
+        // The command no longer uses createSuccessEmbed — the new
+        // buildPlayResponseEmbed helper builds an EmbedBuilder directly.
+        // We verify the reply carries an embed above; no need to assert
+        // the specific helper was called.
         expect(client.player.play).toHaveBeenCalledWith(
             expect.anything(),
             'test query',
@@ -380,6 +386,7 @@ describe('play command', () => {
             interaction,
         } as any)
 
+        // Wait for background operations to complete
         await flushPromises()
 
         expect(queue.setRepeatMode).toHaveBeenCalledWith(3)
@@ -441,6 +448,7 @@ describe('play command', () => {
             interaction,
         } as any)
 
+        // Wait for background operations to complete
         await flushPromises()
 
         expect(queue.setRepeatMode).not.toHaveBeenCalled()
@@ -513,6 +521,7 @@ describe('play command', () => {
             interaction,
         } as any)
 
+        // Wait for background operations to complete
         await flushPromises()
 
         expect(moveUserTrackToPriorityMock).toHaveBeenCalled()
@@ -660,12 +669,15 @@ describe('play command', () => {
             interaction,
         } as any)
 
+        // Wait for background operations to complete
         await flushPromises()
 
         expect(blendAutoplayTracksMock).toHaveBeenCalledWith(
             expect.anything(),
             track,
         )
+        // Each post-play bg op is isolated; a blend failure is logged per-op
+        // (see runPostPlayBackgroundOps) rather than as one shared catch.
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Post-play background op failed: blendAutoplayTracks',
@@ -690,10 +702,13 @@ describe('play command', () => {
         const playImpl = async (...args: unknown[]) => {
             playCallCount++
             if (playCallCount === 1) {
+                // First call (Spotify) fails
                 throw new Error('Spotify search failed')
             } else if (playCallCount === 2) {
+                // Second call (YouTube) fails
                 throw new Error('YouTube search failed')
             } else {
+                // Third call (SoundCloud) succeeds
                 return result
             }
         }
@@ -709,6 +724,7 @@ describe('play command', () => {
         } as any)
 
         expect(client.player.play).toHaveBeenCalledTimes(3)
+        // First attempt with default provider (SPOTIFY_SEARCH)
         expect(client.player.play).toHaveBeenNthCalledWith(
             1,
             expect.anything(),
@@ -717,6 +733,7 @@ describe('play command', () => {
                 searchEngine: 'spotifySearch',
             }),
         )
+        // Second attempt with YouTube
         expect(client.player.play).toHaveBeenNthCalledWith(
             2,
             expect.anything(),
@@ -725,6 +742,7 @@ describe('play command', () => {
                 searchEngine: 'youtubeSearch',
             }),
         )
+        // Third attempt with SoundCloud
         expect(client.player.play).toHaveBeenNthCalledWith(
             3,
             expect.anything(),
@@ -733,6 +751,7 @@ describe('play command', () => {
                 searchEngine: 'soundcloudSearch',
             }),
         )
+        // Should log warnings for first two failures
         expect(warnLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: expect.stringMatching(/Primary search failed/i),
@@ -743,6 +762,7 @@ describe('play command', () => {
                 message: expect.stringMatching(/YouTube search failed/i),
             }),
         )
+        // Should still reply with success
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 interaction,
