@@ -1,10 +1,10 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import ErrorBoundary from './ErrorBoundary'
-import { captureFrontendException } from '@/lib/sentry'
+import { reportError } from '@/lib/sentry'
 
 vi.mock('@/lib/sentry', () => ({
-    captureFrontendException: vi.fn(),
+    reportError: vi.fn(),
 }))
 
 function Boom(): never {
@@ -52,8 +52,9 @@ describe('ErrorBoundary', () => {
         expect(cid).toBeTruthy()
         expect(screen.getByText(cid as string)).toBeInTheDocument()
 
-        expect(captureFrontendException).toHaveBeenCalledTimes(1)
-        expect(captureFrontendException).toHaveBeenCalledWith(
+        expect(reportError).toHaveBeenCalledTimes(1)
+        expect(reportError).toHaveBeenCalledWith(
+            'ErrorBoundary caught an error',
             expect.any(Error),
             expect.objectContaining({ correlationId: cid }),
         )
