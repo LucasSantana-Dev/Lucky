@@ -32,6 +32,9 @@ const BASE_RECONNECT_DELAY = 1_000
 export function useMusicPlayer(guildId: string | undefined) {
     const [state, setState] = useState<QueueState>(EMPTY_STATE)
     const [isLoading, setIsLoading] = useState(false)
+    // Global lockout key while any command is in flight (spinner is per-action;
+    // disabling is intentionally all-or-nothing so concurrent mutations cannot
+    // race on the same queue).
     const [pendingAction, setPendingAction] = useState<MusicActionKey | null>(
         null,
     )
@@ -42,6 +45,9 @@ export function useMusicPlayer(guildId: string | undefined) {
     const sseRef = useRef<EventSource | null>(null)
     const retryRef = useRef(0)
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Tracks the selected guild for UI resets. Command validity uses the
+    // activeCommands map (cleared on every guild change), not guild id alone,
+    // so a navigate-away-and-back cannot revive a stale in-flight command.
     const guildRef = useRef(guildId)
     const commandIdRef = useRef(0)
     const activeCommandsRef = useRef(
@@ -93,13 +99,14 @@ export function useMusicPlayer(guildId: string | undefined) {
                     const payload = JSON.parse(event.data) as {
                         type?: string
                     } & QueueState
+                    // Heartbeat is liveness only; do not clobber queue state.
                     if (payload?.type === 'heartbeat') {
                         setLastStateUpdate(Date.now())
                         return
                     }
                     applyState(payload)
                 } catch {
-                    // best-effort; a malformed SSE payload is skipped, not fatal
+                    /* malformed data */
                 }
             }
 
@@ -147,6 +154,9 @@ export function useMusicPlayer(guildId: string | undefined) {
             if (!commandGuildId || guildRef.current !== commandGuildId) return
 
             const commandId = ++commandIdRef.current
+            // Membership in activeCommands means "issued during the current visit".
+            // The map is cleared on every guildId change, so A→B→A cannot revive a
+            // command from the first visit to A (guild-id equality alone would).
             const isLiveCommand = () => activeCommandsRef.current.has(commandId)
 
             activeCommandsRef.current.set(commandId, {
@@ -174,6 +184,8 @@ export function useMusicPlayer(guildId: string | undefined) {
                     try {
                         const response =
                             await api.music.getState(commandGuildId)
+                        // applyState (not setState) so the rollback refresh
+                        // also stamps liveness for the stale-progress logic.
                         if (isLiveCommand()) applyState(response.data)
                     } catch (refreshError) {
                         if (!isLiveCommand()) return
@@ -196,6 +208,7 @@ export function useMusicPlayer(guildId: string | undefined) {
                     const activeCommands = Array.from(
                         activeCommandsRef.current.values(),
                     )
+                    // FIFO: show spinner on the oldest in-flight actionKey.
                     const pendingCommand = activeCommands.find(
                         (command) => command.actionKey,
                     )

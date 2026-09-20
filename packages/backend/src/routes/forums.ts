@@ -17,6 +17,9 @@ const threadResponseSchema = z.object({
 export type ForumThreadResponse = z.infer<typeof threadResponseSchema>
 
 export function setupForumsRoutes(app: Express): void {
+    // Public: resolve a forum-content slug to its Discord thread for a guild.
+    // Returns 404 when no thread is mapped (guia has no Discord thread yet).
+    // Used by the web app to render per-guia "Ver discussão no Discord" CTAs.
     app.get(
         '/api/guilds/:guildId/threads/:slug',
         apiLimiter,

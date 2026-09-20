@@ -68,6 +68,9 @@ export default new Command({
             const category = interaction.options.getChannel('category', true)
             const role = interaction.options.getRole('role', true)
 
+            // @everyone's id equals the guild id. Using it as the agent role
+            // collides with the channel deny overwrite and makes every ticket
+            // world-readable (ViewChannel + SendMessages for everyone).
             if (role.id === guildId) {
                 await interactionReply({
                     interaction,
@@ -173,6 +176,8 @@ export default new Command({
         }
 
         if (sub === 'clear') {
+            // null (not undefined) so GuildSettingsService writes SQL NULL and
+            // actually disables tickets. undefined is stripped as "omit field".
             const persisted = await guildSettingsService.setGuildSettings(
                 guildId,
                 {
