@@ -13,6 +13,9 @@ import {
     searchSpotifyTracks,
 } from './artistApi'
 
+// #2346: the artist search was the one Spotify call in this file with no
+// deadline, so a stalled request had no upper bound. Both searches now share
+// one helper, so both carry the signal.
 describe('spotify search deadlines', () => {
     const originalFetch = global.fetch
 
@@ -92,6 +95,7 @@ describe('searchSpotifyTracks', () => {
                         spotify: 'https://open.spotify.com/track/1',
                     },
                 },
+                // Missing url — should be dropped, not throw.
                 { name: 'No URL Track', artists: [{ name: 'Queen' }] },
             ]),
         ) as unknown as typeof fetch
@@ -137,6 +141,7 @@ describe('getSpotifyArtistTopTracks', () => {
                             spotify: 'https://open.spotify.com/track/1',
                         },
                     },
+                    // Missing url — should be dropped, not throw.
                     { name: 'No URL Track', artists: [{ name: 'Queen' }] },
                 ],
             }),
@@ -204,6 +209,7 @@ describe('getSpotifyArtistAlbums', () => {
                 items: [
                     album('A Night at the Opera', '1975-11-21'),
                     album('Jazz', '1978-11-10'),
+                    // Reissue sharing a name with an earlier item — dropped.
                     album('Jazz', '2011-01-01', 'jazz-deluxe'),
                 ],
                 next: null,

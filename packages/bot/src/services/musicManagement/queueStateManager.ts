@@ -3,6 +3,8 @@ import type { QueueState } from '../../utils/music/types'
 import { warnLog } from '@lucky/shared/utils'
 import { createGuildWarnThrottle } from '../../utils/misc/guildWarnThrottle'
 
+// #2160: these getters can be polled often (e.g. by the 30s webMusic publish
+// tick), so cap the warn to once per minute per guild instead of every call.
 const { shouldWarn } = createGuildWarnThrottle(60_000)
 
 /**
@@ -96,6 +98,7 @@ export function getQueueStats(queue: GuildQueue): {
             if (track.author) {
                 artists.add(track.author)
             }
+            // Genre extraction would need to be implemented
         }
 
         return {

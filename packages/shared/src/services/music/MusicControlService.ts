@@ -72,6 +72,8 @@ export class MusicControlService {
         timeoutMs = 10000,
     ): Promise<MusicCommandResult> {
         if (!this.isHealthy()) {
+            // Fail fast instead of letting the command sit in ioredis's
+            // offline queue until the response timeout fires (#1280).
             return this.failResult(cmd, 'Music service unavailable')
         }
         return new Promise((resolve) => {

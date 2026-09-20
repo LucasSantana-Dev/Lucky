@@ -2,6 +2,7 @@ import type { Client, TextChannel } from 'discord.js'
 import { channelCleanupService, serverLogService } from '@lucky/shared/services'
 import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
 
+// Tick every 5 minutes by default to check for channels due for purge
 const DEFAULT_TICK_INTERVAL_MS = 5 * 60 * 1000
 
 type ChannelPurgeSchedulerOptions = {
@@ -47,6 +48,7 @@ export class ChannelPurgeScheduler {
         infoLog({
             message: `Channel purge scheduler started (interval: ${this.tickIntervalMs}ms)`,
         })
+        // Run once immediately on startup
         void this.tick()
         this.timer = setInterval(() => void this.tick(), this.tickIntervalMs)
     }
@@ -78,6 +80,7 @@ export class ChannelPurgeScheduler {
     }
 
     private async processPurgeConfigs(client: Client): Promise<void> {
+        // Purge configs due for execution (never run, or last run >= intervalMinutes ago)
         const dueConfigs = await channelCleanupService.getPurgeConfigsDue()
 
         debugLog({
@@ -99,6 +102,7 @@ export class ChannelPurgeScheduler {
                     continue
                 }
 
+                // Verify channel belongs to the configured guild
                 if (
                     !('guild' in channel) ||
                     channel.guild?.id !== config.guildId
@@ -119,6 +123,7 @@ export class ChannelPurgeScheduler {
 
                 const textChannel = channel as TextChannel
 
+                // Bulk delete recent messages up to 5 times (Discord limits bulk delete to 100 messages, and only for messages <14 days old)
                 let deletedTotal = 0
                 let purgeFailed = false
                 let lastErrorMessage = 'Unknown purge failure'
@@ -138,6 +143,7 @@ export class ChannelPurgeScheduler {
 
                         if (deleted.size < 100) break
                     } catch (innerError) {
+                        // Log at ERROR level for permission or other failures
                         // so they're visible for debugging, not just DEBUG
                         errorLog({
                             message:
@@ -158,6 +164,12 @@ export class ChannelPurgeScheduler {
                     }
                 }
 
+                // On a mid-purge failure (permission revoked, rate limit,
+                // transient API error) leave lastRunAt untouched so the next
+                // tick retries instead of silently dropping the remaining
+                // messages. Track the failure streak so a permanently broken
+                // config (e.g. ManageMessages revoked) gets auto-disabled
+                // instead of retrying forever with no operator signal (#1792).
                 if (purgeFailed) {
                     try {
                         const updated =
@@ -215,8 +227,10 @@ export class ChannelPurgeScheduler {
                     continue
                 }
 
+                // Mark as executed
                 await channelCleanupService.markPurgeExecuted(config.id)
 
+                // Audit log: record the purge summary
                 try {
                     await serverLogService.createLog(
                         config.guildId,

@@ -38,6 +38,7 @@ const SPOTIFY_SEARCH_MIN_SAMPLES = 10
 const SPOTIFY_SEARCH_EMPTY_RATE_THRESHOLD = 0.8
 const SPOTIFY_SEARCH_WARN_COOLDOWN_MS = 5 * 60 * 1000
 
+// Rolling window of recent SPOTIFY_SEARCH outcomes (true = had results).
 let spotifySearchResults: boolean[] = []
 let spotifySearchWarnedAt = 0
 
@@ -261,6 +262,8 @@ export async function collectLastFmCandidates(
         }
     }
 
+    // Sparse-artist fallback: if similar tracks yielded < 3 candidates,
+    // use the current track's dominant genre tag to find tracks in-genre.
     if (candidates.size < 3 && seedSlice.length > 0) {
         const dominantTags = await getArtistTags(ctx.currentTrack.author)
         const dominantTag = dominantTags[0]
@@ -351,6 +354,8 @@ export async function searchLastFmQuery(
                 searchEngine: engine,
             })
             if (engine === QueryType.SPOTIFY_SEARCH) {
+                // Raw API count, same meaning as in candidateFallback: a hit
+                // whose tracks all exceed the duration cap is not an outage.
                 recordSpotifySearchResult(result.tracks.length > 0)
             }
             const tracks = result.tracks
@@ -365,6 +370,8 @@ export async function searchLastFmQuery(
             if (engine === QueryType.SPOTIFY_SEARCH) {
                 recordSpotifySearchResult(false)
             }
+            // Debug per engine — a single engine failing while another
+            // succeeds is normal fallback, not worth alerting on.
             hadError = true
             logAndSwallow(err, 'lastFmSeeder.searchLastFmQuery', {
                 query,
@@ -373,6 +380,11 @@ export async function searchLastFmQuery(
         }
     }
     if (hadError) {
+        // Warn once engines are exhausted with no result AND at least one
+        // engine actually threw (not just "no match") — an empty result
+        // with zero errors is a genuine "no match", not a failure worth
+        // surfacing (#2134). This can fire when only *some* engines threw
+        // and the rest simply found nothing, hence "at least one", not "all".
         logAndWarn(
             new Error('No engine produced results; at least one threw'),
             'lastFmSeeder.searchLastFmQuery.exhausted',

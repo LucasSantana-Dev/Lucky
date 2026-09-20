@@ -7,6 +7,7 @@ export type ChannelCleanupConfig = {
     id: string
     guildId: string
     channelId: string
+    // "purge_interval" | "ttl" — kept as string to match the Prisma column.
     mode: string
     intervalMinutes: number | null
     ttlSeconds: number | null
@@ -57,6 +58,9 @@ export class ChannelCleanupService {
         data: UpsertConfigData,
     ): Promise<ChannelCleanupConfig> {
         const updateData = { ...data }
+        // Reset failure streak when re-enabling a config so it gets a fresh
+        // grace period rather than being immediately re-disabled on the next
+        // failure (addresses re-enable case for #1792).
         if (data.enabled === true) {
             Object.assign(updateData, {
                 consecutiveFailures: 0,
@@ -117,6 +121,8 @@ export class ChannelCleanupService {
         const configs = await prisma.channelCleanupConfig.findMany({
             where: { enabled: true, mode: 'ttl' },
         })
+        // Drop rows with an out-of-range/null ttlSeconds so the sweep never
+        // acts on a malformed config (mirrors getPurgeConfigsDue's guard).
         return configs.filter(
             (config) =>
                 config.ttlSeconds != null &&

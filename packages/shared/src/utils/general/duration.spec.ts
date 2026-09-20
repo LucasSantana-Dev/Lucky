@@ -9,6 +9,8 @@ describe('parseDuration', () => {
         expect(parseDuration('1d')).toBe(24 * 60 * 60 * 1000)
     })
 
+    // The regression this function exists for: the giveaway copy omitted `s`,
+    // so "30s" parsed for a reminder and returned null for a giveaway (#2328).
     it('accepts seconds, which the giveaway copy used to reject', () => {
         expect(parseDuration('45s')).toBe(45 * 1000)
     })

@@ -421,6 +421,10 @@ describe('api service bootstrap', () => {
         )
     })
 
+    // #1979: the raw axios instance used to be exposed as a default export,
+    // letting components bypass the api.* abstraction entirely (two did).
+    // Removing it is the mechanical prerequisite for #1965's convention to
+    // stick — this guards against it quietly coming back.
     test('does not expose the raw axios client as a default export', async () => {
         const { module } = await loadApiModule('/api')
 

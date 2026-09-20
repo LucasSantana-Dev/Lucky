@@ -317,6 +317,8 @@ describe('caseHandlers', () => {
 
             await handleCaseUpdate(interaction, 42)
 
+            // Asserts the service call, not a direct prisma write: routing
+            // through the service layer is the point of #1972.
             expect(updateCaseReasonMock).toHaveBeenCalledWith(
                 'case-123',
                 'Updated reason',

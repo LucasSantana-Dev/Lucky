@@ -45,6 +45,8 @@ async function main(): Promise<void> {
     initializeSentry({
         appName: 'lucky',
         serviceName: 'bot',
+        // || not ??: compose sets SENTRY_RELEASE to "" when unset, which is
+        // not nullish and would block the COMMIT_SHA fallback (#release-empty)
         release: process.env.SENTRY_RELEASE || process.env.COMMIT_SHA,
         serverName: process.env.SENTRY_SERVER_NAME ?? process.env.HOSTNAME,
         environment: process.env.SENTRY_ENVIRONMENT,
@@ -66,6 +68,8 @@ async function main(): Promise<void> {
 
     const result = await initializeBot()
     if (!result.success) {
+        // Throw into main().catch (Sentry flush + exit(1)) — returning here
+        // leaves a zombie process the restart policy can never revive (#1649)
         throw new Error(result.error ?? 'Bot initialization failed')
     }
 }

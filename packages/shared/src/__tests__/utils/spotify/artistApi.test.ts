@@ -253,6 +253,8 @@ describe('Spotify Artist API', () => {
             )
 
             expect(result).toEqual([])
+            // Whichever logger fires (warn here, or the structured errorLog catch),
+            // the raw filesystem path from the error must never be logged (#1208).
             const structured = (fn: typeof errorLog) =>
                 jest
                     .mocked(fn)

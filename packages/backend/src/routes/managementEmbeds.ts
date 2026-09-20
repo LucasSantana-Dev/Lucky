@@ -69,6 +69,11 @@ export function setupEmbedRoutes(app: Express): void {
                 if (!isUniqueViolation(error)) {
                     throw error
                 }
+                // P2002 on the (guildId, name) natural key is idempotent
+                // success, not a failure: return the existing template
+                // (#1320). Divergent payloads also land here — edit via
+                // PATCH. createTemplate stores the name lowercased;
+                // getTemplate matches the stored value verbatim.
                 const existing = await embedBuilderService.getTemplate(
                     guildId,
                     name.toLowerCase(),

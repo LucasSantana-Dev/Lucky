@@ -120,6 +120,8 @@ describe('serversetup command', () => {
         expect(interaction.editReply).toHaveBeenCalledWith('summary output')
         expect(interactionReply).not.toHaveBeenCalled()
 
+        // Guards the demand-measurement telemetry (#1288): if the instrumentation
+        // is removed, these assertions fail rather than passing silently.
         expect(guildAutomationUsageTotal.inc).toHaveBeenCalledWith({
             operation: 'criativaria',
         })

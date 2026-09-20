@@ -59,6 +59,7 @@ describe('registerSpotifyExtractor health signal', () => {
         await registerSpotifyExtractor(playerWith(async () => null))
 
         expect(setExtractorDegradedMock).toHaveBeenCalledWith('spotify', true)
+        // errorLog, not warnLog: only errorLog reaches Sentry (#2051).
         expect(errorLogMock).toHaveBeenCalled()
     })
 

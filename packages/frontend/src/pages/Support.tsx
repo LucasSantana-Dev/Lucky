@@ -14,6 +14,9 @@ export default function SupportPage() {
     const { t } = useTranslation()
     const [searchParams] = useSearchParams()
 
+    // Prefilled, read-only correlation/context carried from an error surface.
+    // (The bot's link may also carry `command`; the intake only persists the
+    // fields below, so we don't read it here.)
     const cid = searchParams.get('cid') ?? ''
     const guildId = searchParams.get('guildId') ?? ''
     const category = searchParams.get('category') ?? ''
@@ -23,6 +26,9 @@ export default function SupportPage() {
     const [fileError, setFileError] = useState<string | null>(null)
     const [state, setState] = useState<SubmitState>('idle')
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
+    // One dedup key per form instance: a retry after a flaky response maps
+    // to the same server-side report instead of a duplicate + second staff
+    // ping (#1319). A fresh mount is a new submission.
     const [submissionId] = useState(() => crypto.randomUUID())
 
     const canSubmit = useMemo(

@@ -175,6 +175,9 @@ describe('idleDisconnect', () => {
         )
         const queue = makeQueue()
 
+        // Both calls run before either settings lookup resolves, reproducing
+        // the race from #2218: the second call's clearIdleTimer used to run
+        // before the first call's idleTimers.set, leaving two timers armed.
         scheduleIdleDisconnect(queue)
         scheduleIdleDisconnect(queue)
 
@@ -201,6 +204,9 @@ describe('idleDisconnect', () => {
         )
         const queue = makeQueue()
 
+        // playerStart calls clearIdleTimer on playback resume; if the
+        // in-flight settings fetch is not invalidated, its callback can
+        // arm a timer that later kills the now-active playback (#2218 P1).
         scheduleIdleDisconnect(queue)
         clearIdleTimer('guild-1')
         resolveSettings({ idleTimeoutMinutes: 5 })
@@ -226,6 +232,10 @@ describe('idleDisconnect', () => {
         const queueA = makeQueue()
         const queueB = makeQueue()
 
+        // Regression for a fix that deleted the generation entry on clear:
+        // the next schedule then restarted at generation 1 and collided with
+        // A's still-pending captured generation, letting A's callback arm a
+        // second timer once its settings fetch resolved.
         scheduleIdleDisconnect(queueA)
         clearIdleTimer('guild-1')
         scheduleIdleDisconnect(queueB)

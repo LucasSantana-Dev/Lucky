@@ -107,6 +107,8 @@ describe('spotifyRecommender', () => {
             )
 
             expect(result).toEqual([])
+            // #2160: a seed search failure must be visible in prod
+            // (LOG_LEVEL=2 suppresses debugLog).
             expect(warnLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: 'Autoplay: seed search failed',

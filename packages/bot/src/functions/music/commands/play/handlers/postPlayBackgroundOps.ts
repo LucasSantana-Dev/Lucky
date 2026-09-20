@@ -37,7 +37,7 @@ async function runIsolated(
                 guildId,
             })
         } catch {
-            // best-effort; a breadcrumb failure must not block error logging
+            // Observability must never break the handler.
         }
         errorLog({
             message: `Post-play background op failed: ${op}`,
@@ -72,6 +72,9 @@ export async function runPostPlayBackgroundOps(
 ): Promise<void> {
     const { queue, guildId, track, hadQueueBeforePlay, isPlaylist } = input
 
+    // These two touch independent caches, so they can run concurrently. The
+    // ops below depend on `queue.repeatMode`, possibly mutated by
+    // applyStoredAutoplayPreference, so they must stay sequential.
     await Promise.all([
         runIsolated('clearAutoplayPause', guildId, () =>
             clearAutoplayPause(guildId),

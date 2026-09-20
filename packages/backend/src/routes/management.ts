@@ -165,6 +165,9 @@ export function setupManagementRoutes(app: Express): void {
                 if (!isUniqueViolation(error)) {
                     throw error
                 }
+                // P2002 on the (guildId, name) natural key is idempotent
+                // success, not a failure: return the existing command (#1320).
+                // Divergent payloads also land here — edit via PATCH.
                 const existing = await customCommandService.getCommand(
                     guildId,
                     name,

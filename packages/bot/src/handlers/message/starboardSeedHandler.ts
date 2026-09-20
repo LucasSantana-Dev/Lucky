@@ -29,6 +29,8 @@ export const starboardSeedHandler: MessageHandler = {
             if (!config?.seedReaction) {
                 return { stop: false }
             }
+            // Never seed the starboard channel itself — the highlight posts
+            // there would recursively collect seeds.
             if (message.channelId === config.channelId) {
                 return { stop: false }
             }
@@ -38,6 +40,8 @@ export const starboardSeedHandler: MessageHandler = {
             ) {
                 return { stop: false }
             }
+            // Let failures (bad emoji, missing perms) reach the outer catch
+            // so misconfiguration is visible in logs (cubic P2).
             await message.react(config.emoji)
         } catch (error) {
             errorLog({ message: 'Error seeding starboard reaction:', error })

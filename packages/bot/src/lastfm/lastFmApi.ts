@@ -23,6 +23,9 @@ export class LastFmSessionExpiredError extends Error {
     }
 }
 
+// #2160: production runs LOG_LEVEL=2 (debugLog is suppressed), so an HTTP
+// error from Last.fm was invisible. One helper for all 5 call sites so the
+// promotion to warnLog lives in a single place.
 function warnLastFmHttpError(context: string, response: Response): void {
     warnLog({
         message: `lastFmApi: ${context} HTTP error`,
@@ -138,6 +141,9 @@ export type LastFmTrackMetadata = {
     duration: number
 }
 
+// Whitespace bounds use bounded repetition (S5852) so the matcher remains
+// strictly linear regardless of input. Last.fm artist strings rarely contain
+// runs of internal whitespace, so {0,4}/{1,4} comfortably covers real input.
 const FEAT_ARTIST_SEPARATORS =
     /\s{0,4}(?:feat\.?|ft\.?|&|×|\bx\b|\bvs\.?|\bwith\b)\s{1,4}/i
 
@@ -168,6 +174,8 @@ export async function getTrackMetadata(
 ): Promise<LastFmTrackMetadata | null> {
     const config = getApiConfig()
     if (!config) return null
+    // Bail before allocating cache / in-flight slots so blank inputs don't
+    // pollute the maps or burn a Last.fm request.
     const trimmedArtist = artist?.trim()
     const trimmedTitle = title?.trim()
     if (!trimmedArtist || !trimmedTitle) return null
@@ -175,9 +183,13 @@ export async function getTrackMetadata(
     const cached = TRACK_METADATA_CACHE.get(key)
     if (cached) return cached
 
+    // Deduplicate concurrent fetches
     const inFlight = TRACK_METADATA_IN_FLIGHT.get(key)
     if (inFlight) return inFlight
 
+    // Last.fm's track.getInfo does not handle collaboration strings —
+    // "Drake feat. Rihanna" returns error 6 (Track not found). Use the
+    // primary artist so multi-artist inputs still resolve metadata + art.
     const lookupArtist = parseArtists(trimmedArtist).primary
     const promise = (async () => {
         try {
@@ -299,6 +311,9 @@ export async function updateNowPlaying(
     if (!sessionKey || !getApiConfig()) return
     if (!artist?.trim() || !track?.trim()) return
     const params: Record<string, string> = {
+        // Prefer Last.fm's canonical (autocorrected) artist/title when a
+        // resolved metadata payload is supplied; only fall back to local
+        // parsing when the caller had no metadata to thread through.
         artist: metadata?.artist?.trim() || parseArtists(artist).primary,
         track: metadata?.title?.trim() || normalizeLastFmTitle(track),
     }
@@ -322,6 +337,9 @@ export async function scrobble(
     if (!sessionKey || !getApiConfig()) return
     if (!artist?.trim() || !track?.trim()) return
     const params: Record<string, string> = {
+        // Prefer Last.fm's canonical (autocorrected) artist/title when a
+        // resolved metadata payload is supplied; only fall back to local
+        // parsing when the caller had no metadata to thread through.
         artist: metadata?.artist?.trim() || parseArtists(artist).primary,
         track: metadata?.title?.trim() || normalizeLastFmTitle(track),
         timestamp: String(Math.floor(timestamp)),
@@ -410,6 +428,7 @@ export async function getArtistTopTags(
         return cached
     }
 
+    // Deduplicate concurrent fetches
     const inFlight = ARTIST_TAG_IN_FLIGHT.get(cacheKey)
     if (inFlight) return inFlight
 
@@ -440,6 +459,8 @@ export async function getArtistTopTags(
 
             return tags
         } catch (err) {
+            // Surface tag-fetch failures so autoplay tag-based recommendations
+            // remain debuggable when Last.fm is rate-limiting or DNS-flaky.
             logAndWarn(err, 'lastfm.getArtistTopTags', { artist: trimmed })
             return []
         }

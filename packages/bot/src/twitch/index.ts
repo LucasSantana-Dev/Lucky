@@ -29,6 +29,9 @@ export async function startTwitchService(client: Client): Promise<void> {
     try {
         await twitchEventSubClient.start(client)
         infoLog({ message: 'Twitch EventSub service started' })
+        // Re-subscribe when the web dashboard adds/removes a channel: the
+        // backend writes Postgres then publishes a refresh signal, so the
+        // running session reflects the change without a restart (#870).
         await twitchControlService.connect()
         if (twitchControlService.isHealthy()) {
             await twitchControlService.subscribeToRefresh(

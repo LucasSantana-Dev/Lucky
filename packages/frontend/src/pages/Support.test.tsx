@@ -59,6 +59,7 @@ describe('SupportPage', () => {
         expect(fd.get('cid')).toBe('ABC12345')
         expect(fd.get('category')).toBe('web-error')
         expect(fd.get('guildId')).toBe('123')
+        // dedup key (#1319): present and uuid-shaped
         expect(String(fd.get('sid'))).toMatch(/^[0-9a-f-]{36}$/)
     })
 
