@@ -293,7 +293,6 @@ export class NamedSessionService {
 
             if (!row) return null
 
-            // Lazy TTL expiry: treat stale rows as absent and prune them.
             if (row.savedAt.getTime() < this.cutoff().getTime()) {
                 await prisma.namedQueue
                     .deleteMany({ where: { guildId, name } })

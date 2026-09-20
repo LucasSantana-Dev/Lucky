@@ -7,7 +7,6 @@ import {
     DEFAULT_TIMEZONE,
 } from './recurrence.js'
 
-// Helper: assert the next occurrence equals a wall-clock in a zone.
 function expectLocal(
     next: Date | null,
     zone: string,
@@ -28,10 +27,8 @@ function expectLocal(
     ]).toEqual([y, mo, d, h, mi])
 }
 
-const SP = DEFAULT_TIMEZONE // America/Sao_Paulo
+const SP = DEFAULT_TIMEZONE
 
-// Build a JS Date from a wall-clock in a zone (collapses the repeated
-// DateTime.fromObject(...).toJSDate() setup across cases).
 function at(
     zone: string,
     y: number,
@@ -71,7 +68,7 @@ describe('computeNextOccurrence — every weekday at 20:00 SP', () => {
     const rule = buildRecurrenceRule('weekdays', 20, 0)
 
     it('same day when before the time (Mon 12:00 -> Mon 20:00)', () => {
-        const after = at(SP, 2026, 7, 13, 12) // 2026-07-13 is a Monday
+        const after = at(SP, 2026, 7, 13, 12)
         expectLocal(
             computeNextOccurrence(rule, SP, after),
             SP,
@@ -97,7 +94,7 @@ describe('computeNextOccurrence — every weekday at 20:00 SP', () => {
     })
 
     it('skips the weekend (Fri 21:00 -> Mon 20:00)', () => {
-        const after = at(SP, 2026, 7, 17, 21) // 2026-07-17 is a Friday
+        const after = at(SP, 2026, 7, 17, 21)
         expectLocal(
             computeNextOccurrence(rule, SP, after),
             SP,
@@ -111,8 +108,6 @@ describe('computeNextOccurrence — every weekday at 20:00 SP', () => {
 })
 
 describe('computeNextOccurrence — bounded rules are unsupported', () => {
-    // A fixed year-2000 dtstart makes every COUNT/UNTIL occurrence historical,
-    // so the function returns null (stop) rather than silently mis-scheduling.
     const after = at(SP, 2026, 7, 13, 12)
     it('returns null for a COUNT-bounded rule', () => {
         expect(
@@ -151,14 +146,11 @@ describe('computeNextOccurrence — every Friday at 19:00 SP', () => {
 })
 
 describe('computeNextOccurrence — DST correctness (America/New_York)', () => {
-    // US spring-forward 2026: 02:00 -> 03:00 on Sun 2026-03-08. A daily 08:00
-    // reminder must stay at local 08:00 on both sides of the transition.
     const rule = buildRecurrenceRule('daily', 8, 0)
     const NY = 'America/New_York'
 
     it('holds local 08:00 across spring-forward', () => {
-        const beforeDst = at(NY, 2026, 3, 7, 9) // Sat before the change
-        // next = Sun 2026-03-08 08:00 local (a DST-transition day)
+        const beforeDst = at(NY, 2026, 3, 7, 9)
         expectLocal(
             computeNextOccurrence(rule, NY, beforeDst),
             NY,
@@ -170,7 +162,6 @@ describe('computeNextOccurrence — DST correctness (America/New_York)', () => {
         )
 
         const onDst = at(NY, 2026, 3, 8, 9)
-        // next = Mon 2026-03-09 08:00 local
         expectLocal(
             computeNextOccurrence(rule, NY, onDst),
             NY,

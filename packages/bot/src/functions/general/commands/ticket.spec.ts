@@ -118,8 +118,6 @@ describe('/ticket command (smoke)', () => {
     })
 
     it('open: never grants the agent overwrite when agent role is @everyone', async () => {
-        // Stale configs (settings API before the setup guard) can store everyone.
-        // buildTicketOverwrites must keep the deny and skip the allow entry.
         guildSettingsServiceMock.getGuildSettings.mockResolvedValue({
             supportCategoryId: 'cat-1',
             supportAgentRoleId: 'everyone',
@@ -219,7 +217,6 @@ describe('/ticket command (smoke)', () => {
         supportSessionServiceMock.open.mockResolvedValue({ id: 's2' })
 
         const interaction = makeInteraction('open', channel)
-        // Orphan check: fetching the old channel throws 10003 (confirmed gone).
         interaction.guild.channels.fetch = jest
             .fn()
             .mockRejectedValue({ code: 10003 })
@@ -239,7 +236,6 @@ describe('/ticket command (smoke)', () => {
         })
 
         const interaction = makeInteraction('open', channel)
-        // Transient error (not 10003) — must treat the ticket as still open.
         interaction.guild.channels.fetch = jest
             .fn()
             .mockRejectedValue(new Error('gateway 503'))

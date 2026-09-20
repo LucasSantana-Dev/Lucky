@@ -55,9 +55,6 @@ async function searchSpotify(
             `https://api.spotify.com/v1/search?${params.toString()}`,
             {
                 headers: { Authorization: `Bearer ${accessToken}` },
-                // Matches the other Spotify requests in this file. Without it
-                // a stalled search has no upper bound, and a deferred command
-                // reply waiting on it can miss Discord's own deadline.
                 signal: AbortSignal.timeout(10_000),
             },
         )
@@ -147,10 +144,6 @@ export async function getSpotifyRelatedArtists(
     artistId: string,
     limit = 30,
 ): Promise<SpotifyArtist[]> {
-    // Spotify deprecated /v1/recommendations and /v1/artists/{id}/related-artists
-    // for new apps in 2024 (404/403). Use Last.fm artist.getSimilar to find
-    // similar artist NAMES, then look each up via Spotify search to get full
-    // artist data (image, popularity, genres).
     try {
         const seedName = await fetchSpotifyArtistName(accessToken, artistId)
         if (!seedName) {
@@ -311,11 +304,6 @@ export async function getSpotifyArtistAlbums(
     let url: string | null =
         `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}/albums?include_groups=album,single&market=US&limit=50`
     try {
-        // Spotify caps each page at 50; stop once we have enough distinct
-        // albums, or the artist runs out of pages. Deduping inside the loop
-        // (rather than after) means duplicate-heavy pages (reissues/deluxe
-        // editions sharing a name) don't cut the fetch short before enough
-        // distinct albums have actually been found.
         while (url && deduped.length < maxAlbums) {
             const res = await fetch(url, {
                 headers: { Authorization: `Bearer ${accessToken}` },
@@ -340,7 +328,6 @@ export async function getSpotifyArtistAlbums(
             message: `[Spotify] getSpotifyArtistAlbums error: ${sanitizeErrorMessage(error)}`,
             data: { artistId: sanitizeLogInput(artistId) },
         })
-        // Fall through with whatever pages were fetched before the failure.
     }
 
     deduped.sort((a, b) =>

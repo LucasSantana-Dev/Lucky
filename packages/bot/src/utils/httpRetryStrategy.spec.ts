@@ -201,7 +201,6 @@ describe('withRetry', () => {
     })
 
     it('retries a wrapped network error (Node fetch pattern) when retryNetworkErrors is true', async () => {
-        // Node's fetch (undici) wraps connection errors as TypeError with cause
         const wrappedError = new TypeError('fetch failed')
         const cause = new Error('connect ECONNREFUSED 127.0.0.1:59999')
         Object.defineProperty(wrappedError, 'cause', { value: cause })

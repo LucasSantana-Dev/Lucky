@@ -1,18 +1,14 @@
-// Removed unused import
-
-// Color constants for different types of messages
 export const EMBED_COLORS = {
-    SUCCESS: '#4CAF50', // Green
-    ERROR: '#F44336', // Red
-    INFO: '#2196F3', // Blue
-    WARNING: '#FFC107', // Amber
-    NEUTRAL: '#9E9E9E', // Grey
-    MUSIC: '#9C27B0', // Purple
-    QUEUE: '#3F51B5', // Indigo
-    AUTOPLAY: '#009688', // Teal
+    SUCCESS: '#4CAF50',
+    ERROR: '#F44336',
+    INFO: '#2196F3',
+    WARNING: '#FFC107',
+    NEUTRAL: '#9E9E9E',
+    MUSIC: '#9C27B0',
+    QUEUE: '#3F51B5',
+    AUTOPLAY: '#009688',
 } as const
 
-// Emoji constants for different types of messages
 export const EMOJIS = {
     SUCCESS: '✅',
     ERROR: '❌',

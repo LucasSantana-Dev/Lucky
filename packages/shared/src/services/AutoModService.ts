@@ -1,7 +1,7 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 
 const prisma = getPrismaClient()
-const CACHE_TTL = 300 // seconds
+const CACHE_TTL = 300
 
 /** Auto-moderation settings configuration for a guild. */
 export interface AutoModSettings {
@@ -25,13 +25,11 @@ export interface AutoModSettings {
     updatedAt: Date
 }
 
-// In-memory settings cache: key = guildId, value = { data, expiresAt (timestamp) }
 const settingsCache = new Map<
     string,
     { data: AutoModSettings; expiresAt: number }
 >()
 
-// In-memory spam tracking: key = `${guildId}:${userId}`, value = sorted timestamp array
 const spamWindows = new Map<string, number[]>()
 
 /** Mutable subset of AutoModSettings excluding metadata fields. */
@@ -212,23 +210,19 @@ const extractHostname = (rawUrl: string): string | null => {
 export class AutoModService {
     /** Retrieves auto-mod settings for a guild with caching. */
     async getSettings(guildId: string): Promise<AutoModSettings | null> {
-        // Check in-memory cache
         const cached = settingsCache.get(guildId)
         if (cached && cached.expiresAt > Date.now()) {
             return cached.data
         }
 
-        // Cache miss or expired; remove stale entry
         if (cached) {
             settingsCache.delete(guildId)
         }
 
-        // Fetch from database
         const settings = await prisma.autoModSettings.findUnique({
             where: { guildId },
         })
 
-        // Cache the result if found
         if (settings) {
             settingsCache.set(guildId, {
                 data: settings,
@@ -284,7 +278,6 @@ export class AutoModService {
             throw new AutoModTemplateNotFoundError(templateId)
         }
 
-        // Get or create settings atomically via upsert
         const current = await this.updateSettings(guildId, {})
         const mergedAllowedDomains = [
             ...new Set([
@@ -322,16 +315,12 @@ export class AutoModService {
         const windowMs = settings.spamTimeWindow * 1000
         const key = `${guildId}:${userId}`
 
-        // Get existing timestamps or initialize empty array
         let timestamps = spamWindows.get(key) || []
 
-        // Add current timestamp
         timestamps.push(now)
 
-        // Filter out timestamps older than the window duration
         timestamps = timestamps.filter((ts) => now - ts <= windowMs)
 
-        // Write back to map (only keep up to threshold + 1 for efficiency)
         spamWindows.set(key, timestamps.slice(-settings.spamThreshold - 1))
 
         return timestamps.length >= settings.spamThreshold

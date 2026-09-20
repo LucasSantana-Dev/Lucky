@@ -160,7 +160,6 @@ describe('GiveawayService', () => {
 
             expect(result).toHaveLength(1)
             const updateCall = mockUpdate.mock.calls[0]?.[0]
-            // Should NOT have endedAt in data
             // @ts-ignore
             expect(updateCall?.data?.endedAt).toBeUndefined()
         })

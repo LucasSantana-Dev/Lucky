@@ -24,7 +24,6 @@ describe('EmojiPicker', () => {
 
     it('shows the current value when set', () => {
         render(<EmojiPicker value='🎮' onChange={vi.fn()} guildId='g1' />)
-        // value is rendered twice (glyph + label)
         expect(screen.getAllByText('🎮').length).toBeGreaterThanOrEqual(1)
     })
 
@@ -33,7 +32,6 @@ describe('EmojiPicker', () => {
         const trigger = screen.getByText('Pick emoji')
         fireEvent.click(trigger)
         expect(screen.getByText('Popular')).toBeInTheDocument()
-        // clicking the trigger again toggles it closed
         fireEvent.click(trigger)
         expect(screen.queryByText('Popular')).not.toBeInTheDocument()
     })
@@ -42,7 +40,6 @@ describe('EmojiPicker', () => {
         const onChange = vi.fn()
         render(<EmojiPicker value='' onChange={onChange} guildId='g1' />)
         fireEvent.click(screen.getByText('Pick emoji'))
-        // 🎉 appears in the Popular category grid
         fireEvent.click(screen.getAllByText('🎉')[0])
         expect(onChange).toHaveBeenCalledWith('🎉')
         expect(screen.queryByText('Popular')).not.toBeInTheDocument()
@@ -55,7 +52,7 @@ describe('EmojiPicker', () => {
         vi.stubGlobal('fetch', fetchMock)
         render(<EmojiPicker value='' onChange={vi.fn()} guildId='g42' />)
         fireEvent.click(screen.getByText('Pick emoji'))
-        expect(fetchMock).not.toHaveBeenCalled() // not fetched on the emoji tab
+        expect(fetchMock).not.toHaveBeenCalled()
         fireEvent.click(screen.getByText('Server'))
         await waitFor(() =>
             expect(fetchMock).toHaveBeenCalledWith('/api/guilds/g42/emojis'),

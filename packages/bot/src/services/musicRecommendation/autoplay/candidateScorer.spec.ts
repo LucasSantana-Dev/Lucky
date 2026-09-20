@@ -251,8 +251,6 @@ describe('candidateScorer', () => {
             })
 
             it('halves (not drops) the boost when the candidate genre is unknown', () => {
-                // Non-strong session so the untagged candidate isn't also hit
-                // by the strong-family fail-closed guard — isolates the boost.
                 const softSession = new Set(['rnb_soul', 'pop'])
                 const onGenre = calculateRecommendationScore({
                     candidate: createTrack({
@@ -280,8 +278,6 @@ describe('candidateScorer', () => {
                         sessionGenreFamilies: softSession,
                     },
                 })
-                // Same author/title, so only the spotify-boost term differs:
-                // full (0.4) vs half (0.2) → a 0.2 gap, and the signal stays.
                 expect(unknown.signals).toContain('spotify preferred')
                 expect(onGenre.score - unknown.score).toBeCloseTo(0.2, 5)
             })
@@ -337,7 +333,6 @@ describe('candidateScorer', () => {
                         sessionGenreFamilies: new Set(['rap_hiphop']),
                     },
                 })
-                // vetted-related → allowed into the radius, demoted not vetoed
                 expect(result.score).toBeGreaterThan(-Infinity)
                 expect(result.signals).toContain('genre family drift')
             })
@@ -350,7 +345,6 @@ describe('candidateScorer', () => {
                     }),
                     currentTrack: createTrack({ author: 'Rapper' }),
                     recentArtists: new Set(),
-                    // seedDerived omitted → un-vetted
                     genreContext: {
                         candidateTags: ['soul'],
                         currentTrackTags: ['hip hop'],
@@ -388,7 +382,6 @@ describe('candidateScorer', () => {
                         sessionGenreFamilies: new Set(['rap_hiphop']),
                     },
                 })
-                // seed-derived: -0.1 (GENRE_PENALTY_UNKNOWN); un-vetted: -0.6 → 0.5 gap
                 expect(seed.score - unvetted.score).toBeCloseTo(0.5, 5)
             })
         })
@@ -455,7 +448,6 @@ describe('candidateScorer', () => {
         })
 
         it('bounds replay boost so it cannot flip genre-family veto (-Infinity)', () => {
-            // Cross-genre jump with strong family mismatch = -Infinity veto
             const result = calculateRecommendationScore({
                 candidate: createTrack({
                     author: 'Frequently Replayed Artist',
@@ -477,12 +469,10 @@ describe('candidateScorer', () => {
                     sessionGenreFamilies: new Set(['latin']),
                 },
             })
-            // Score should remain -Infinity; boost is additive and cannot override hard vetoes
             expect(result.score).toBe(-Infinity)
         })
 
         it('bounds replay boost so it cannot flip blocked-artist rejection', () => {
-            // Blocked artist = -Infinity veto regardless of replay frequency
             const result = calculateRecommendationScore({
                 candidate: createTrack({ author: 'Blocked Artist' }),
                 currentTrack: createTrack(),
@@ -494,7 +484,6 @@ describe('candidateScorer', () => {
         })
 
         it('bounds replay boost so it cannot flip dislike-weight rejection', () => {
-            // High dislike weight (> 0.5) = -Infinity veto
             const result = calculateRecommendationScore({
                 candidate: createTrack({
                     title: 'Disliked Song',
@@ -512,8 +501,6 @@ describe('candidateScorer', () => {
         })
 
         it('applies replay boost additively below hard vetoes and respects diversity caps', () => {
-            // Verify that replay boost stacks with other positive signals
-            // but remains bounded by hard rejection thresholds
             const candidate = createTrack({
                 title: 'Great Song',
                 author: 'Favorite Artist',
@@ -539,7 +526,6 @@ describe('candidateScorer', () => {
         })
 
         it('gracefully handles missing replay frequency data (empty sets)', () => {
-            // Fail-open: if history query returns empty sets, scoring continues normally
             const result = calculateRecommendationScore({
                 candidate: createTrack(),
                 currentTrack: createTrack(),
@@ -650,8 +636,6 @@ describe('candidateScorer', () => {
         it('applies a smaller penalty the further back the artist appeared', () => {
             const recent = score(new Map([[candidateKey, 0]]))
             const older = score(new Map([[candidateKey, 8]]))
-            // Older appearance => smaller decay factor => less-negative penalty
-            // => higher score than the most-recent case.
             expect(older.score).toBeGreaterThan(recent.score)
             expect(older.signals).toContain('recency decay')
         })

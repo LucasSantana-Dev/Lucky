@@ -17,7 +17,6 @@ import EmptyState from './components/ui/EmptyState'
 import { hasModuleAccess } from './lib/rbac'
 import type { AccessMode, ModuleKey } from './types'
 
-// ponytail: inlined from PageLoader component for single-use
 function PageLoader() {
     return (
         <div className='min-h-screen bg-lucky-bg-primary flex items-center justify-center'>
@@ -303,7 +302,6 @@ function App() {
         )
     }
 
-    // Show loader while initializing
     if (!isReady || isLoading) {
         return (
             <div className='dark'>

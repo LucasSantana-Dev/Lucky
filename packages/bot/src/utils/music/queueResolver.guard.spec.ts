@@ -12,7 +12,6 @@ const FORBIDDEN_PATTERNS = [/\.player\.nodes\.get\(/, /\.player\.queues\.get\(/]
 function readTsFiles(directory: string): string[] {
     const absolute = path.resolve(ROOT, directory)
 
-    // Check if directory exists
     if (!fs.existsSync(absolute)) {
         return []
     }

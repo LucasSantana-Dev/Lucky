@@ -9,7 +9,6 @@ import { validateBody, validateParams } from '../middleware/validate'
 import { togglesSchemas as s } from '../schemas/toggles'
 
 export function setupToggleRoutes(app: Express): void {
-    // All /api/toggles/global routes are pre-guarded by requireAdmin in index.ts
     app.get(
         '/api/toggles/global',
         asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
@@ -18,7 +17,8 @@ export function setupToggleRoutes(app: Express): void {
             const sources: Record<string, string> = {}
 
             for (const [name] of toggles) {
-                const state = await featureToggleService.getGlobalToggleStatus(name)
+                const state =
+                    await featureToggleService.getGlobalToggleStatus(name)
                 result[name] = state.enabled
                 sources[name] = state.provider
             }
@@ -65,7 +65,6 @@ export function setupToggleRoutes(app: Express): void {
         validateBody(s.toggleEnabledBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const toggleName = req.params.name
-            // validateBody(s.toggleEnabledBody) already parsed req.body
             const { enabled } = req.body as { enabled: boolean }
 
             if (

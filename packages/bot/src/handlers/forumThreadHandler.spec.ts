@@ -1,4 +1,3 @@
-// Mocks FIRST — before any imports
 const mockUpsert = jest.fn()
 const mockGetPrismaClient = jest.fn(() => ({
     guildForumThread: { upsert: mockUpsert },
@@ -6,8 +5,6 @@ const mockGetPrismaClient = jest.fn(() => ({
 const mockErrorLog = jest.fn()
 const mockInfoLog = jest.fn()
 
-// The bot jest config maps @lucky/shared/utils/database/prismaClient to a manual
-// mock. Override that with our own factory so getPrismaClient returns a stub client.
 jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
     getPrismaClient: mockGetPrismaClient,
     disconnectPrisma: jest.fn(),
@@ -27,8 +24,6 @@ import {
     processForumThread,
     handleForumThreadCreate,
 } from './forumThreadHandler'
-
-// ---------- extractOfficialSlug unit tests ----------
 
 describe('extractOfficialSlug', () => {
     it('extracts slug from a well-formed marker', () => {
@@ -57,8 +52,6 @@ describe('extractOfficialSlug', () => {
         expect(extractOfficialSlug('')).toBeNull()
     })
 })
-
-// ---------- processForumThread tests ----------
 
 describe('processForumThread', () => {
     const BOT_ID = 'BOT_111'
@@ -179,8 +172,6 @@ describe('processForumThread', () => {
         )
     })
 })
-
-// ---------- handleForumThreadCreate wiring test ----------
 
 describe('handleForumThreadCreate', () => {
     it('registers a ThreadCreate listener on the client', () => {

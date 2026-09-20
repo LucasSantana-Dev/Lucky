@@ -92,7 +92,6 @@ describe('AutoModService', () => {
 
             expect(first).toEqual(mockSettings)
             expect(second).toEqual(mockSettings)
-            // Database should only be called once due to caching
             expect(mockFindUnique).toHaveBeenCalledTimes(1)
         })
 
@@ -112,7 +111,6 @@ describe('AutoModService', () => {
             expect(first).toEqual(mockSettings)
             expect(mockFindUnique).toHaveBeenCalledTimes(1)
 
-            // Advance time past TTL (300 seconds = 300000ms)
             jest.advanceTimersByTime(301000)
 
             const second = await service.getSettings('guild-1')
@@ -127,12 +125,10 @@ describe('AutoModService', () => {
             expect(first).toBeNull()
             expect(mockFindUnique).toHaveBeenCalledTimes(1)
 
-            // Advance time but not past TTL
             jest.advanceTimersByTime(100000)
 
             const second = await service.getSettings('guild-999')
             expect(second).toBeNull()
-            // Should refetch since null wasn't cached
             expect(mockFindUnique).toHaveBeenCalledTimes(2)
         })
     })
@@ -146,11 +142,9 @@ describe('AutoModService', () => {
             mockCreate.mockResolvedValue(created)
             mockFindUnique.mockResolvedValue(created)
 
-            // Prime cache
             await service.getSettings('guild-2')
             expect(mockFindUnique).toHaveBeenCalledTimes(1)
 
-            // Create settings (which should invalidate cache)
             const result = await service.createSettings('guild-2')
 
             expect(result).toEqual(created)
@@ -158,7 +152,6 @@ describe('AutoModService', () => {
                 data: { guildId: 'guild-2' },
             })
 
-            // Getting settings again should refetch
             mockFindUnique.mockResolvedValue(created)
             await service.getSettings('guild-2')
             expect(mockFindUnique).toHaveBeenCalledTimes(2)
@@ -173,12 +166,10 @@ describe('AutoModService', () => {
             }
             mockUpsert.mockResolvedValue(updated)
 
-            // Prime cache
             mockFindUnique.mockResolvedValue(mockSettings)
             await service.getSettings('guild-1')
             expect(mockFindUnique).toHaveBeenCalledTimes(1)
 
-            // Update settings (should invalidate)
             const result = await service.updateSettings('guild-1', {
                 capsEnabled: false,
             })
@@ -190,7 +181,6 @@ describe('AutoModService', () => {
                 update: { capsEnabled: false },
             })
 
-            // Getting settings again should refetch
             mockFindUnique.mockResolvedValue(updated)
             await service.getSettings('guild-1')
             expect(mockFindUnique).toHaveBeenCalledTimes(2)
@@ -213,7 +203,6 @@ describe('AutoModService', () => {
         test('trackMessageAndCheckSpam returns false below threshold', async () => {
             mockFindUnique.mockResolvedValue(mockSettings)
 
-            // Track 3 messages (threshold is 5)
             for (let i = 0; i < 3; i++) {
                 const result = await service.trackMessageAndCheckSpam(
                     'guild-1',
@@ -226,7 +215,6 @@ describe('AutoModService', () => {
         test('trackMessageAndCheckSpam returns true at threshold', async () => {
             mockFindUnique.mockResolvedValue(mockSettings)
 
-            // Track 5 messages (threshold is 5)
             for (let i = 0; i < 4; i++) {
                 await service.trackMessageAndCheckSpam('guild-1', 'user-1')
             }
@@ -253,7 +241,7 @@ describe('AutoModService', () => {
             mockFindUnique.mockResolvedValue(mockSettings)
 
             const now = Date.now()
-            const oldTimestamp = now - 20 * 1000 // 20 seconds ago (window is 10s)
+            const oldTimestamp = now - 20 * 1000
 
             const result = await service.checkSpam('guild-1', 'user-1', [
                 oldTimestamp,
@@ -268,7 +256,7 @@ describe('AutoModService', () => {
             const now = Date.now()
             const timestamps = Array(5)
                 .fill(0)
-                .map(() => now - 1000) // All within window
+                .map(() => now - 1000)
 
             const result = await service.checkSpam(
                 'guild-1',

@@ -4,11 +4,6 @@ import { mintCorrelationId } from '@lucky/shared/utils/support'
 const REQUEST_ID_HEADER = 'x-request-id'
 const RESPONSE_HEADER = 'X-Request-Id'
 
-// An inbound id is attacker-controllable and gets logged, so it is only
-// honoured when it matches the same safe, bounded charset `mintCorrelationId`
-// produces ([A-Za-z0-9_-], 1-64 chars). Anything else (newlines for log
-// injection, oversized values) is dropped and a fresh id is minted. The
-// pattern is anchored with a single bounded quantifier — no ReDoS surface.
 const SAFE_INBOUND_ID = /^[A-Za-z0-9_-]{1,64}$/
 
 /**

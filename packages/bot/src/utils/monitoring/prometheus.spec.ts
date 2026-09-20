@@ -41,14 +41,12 @@ describe('prometheus registry', () => {
         expect(text).toMatch(
             /lucky_bot_guilds_total\{[^}]*state="left"[^}]*\}\s+3/,
         )
-        // service default label is applied to all series
         expect(text).toMatch(/service="lucky-bot"/)
     })
 
     it('logs but does not throw when Prisma fails', async () => {
         countMock.mockRejectedValue(new Error('db down'))
         const text = await renderMetrics()
-        // Should still render (just without fresh values for the failing gauge).
         expect(text).toContain('lucky_bot_guilds_total')
         expect(errorLogMock).toHaveBeenCalled()
     })

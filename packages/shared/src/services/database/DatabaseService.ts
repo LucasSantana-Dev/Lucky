@@ -266,7 +266,6 @@ export class DatabaseService {
         }, 'database_health_check')
     }
 
-    // User operations
     /** Creates or updates a user record by Discord ID. */
     async createUser(
         discordId: string,
@@ -322,7 +321,6 @@ export class DatabaseService {
         }, 'get_user')
     }
 
-    // Guild operations
     /** Creates or updates a guild record by Discord ID. */
     async createGuild(
         discordId: string,
@@ -381,7 +379,6 @@ export class DatabaseService {
         }, 'get_guild')
     }
 
-    // Track history operations
     /** Records a played track in the guild's history. */
     async addTrackToHistory(data: {
         guildId: string
@@ -492,7 +489,6 @@ export class DatabaseService {
         }, 'get_track_history')
     }
 
-    // Rate limiting
     /** Checks whether the given key is within the allowed rate limit window. */
     async checkRateLimit(
         key: string,
@@ -531,7 +527,6 @@ export class DatabaseService {
                 return false
             }
 
-            // Increment count
             await this.prisma.rateLimit.update({
                 where: { key },
                 data: { count: count + 1 },
@@ -541,7 +536,6 @@ export class DatabaseService {
         }, 'check_rate_limit')
     }
 
-    // Analytics queries
     /** Returns the most-played tracks for a guild by play count. */
     async getTopTracks(
         guildId: string,
@@ -628,7 +622,6 @@ export class DatabaseService {
         }, 'get_top_artists')
     }
 
-    // Cleanup operations
     /** Deletes track history and expired rate limit records older than 30 days. */
     async cleanupOldData(): Promise<Result<number>> {
         return this.executeWithFallback(async () => {
@@ -649,7 +642,6 @@ export class DatabaseService {
         }, 'cleanup_old_data')
     }
 
-    // Get Prisma client for direct access
     /** Returns the underlying Prisma client for direct database access. */
     getClient(): PrismaClient {
         return this.prisma

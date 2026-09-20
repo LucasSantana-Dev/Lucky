@@ -25,8 +25,6 @@ async function playPreviousTrack(
     queue: GuildQueue,
     guildId: string,
 ): Promise<boolean> {
-    // discord-player's history.previous() throws NoResultError when history is empty
-    // Per #1239: when no previous track, restart current track from beginning
     const historyWasEmpty = queue.history.isEmpty()
     if (historyWasEmpty) {
         const currentTrack = queue.currentTrack

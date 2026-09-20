@@ -23,7 +23,6 @@ describe('tagExtractor', () => {
 
             const tags = extractTags(track)
 
-            // Should contain genre keywords and filter short words
             expect(tags).toContain('rock')
             expect(tags).not.toContain('the')
         })
@@ -147,7 +146,6 @@ describe('tagExtractor', () => {
 
             const genre = extractGenre(track)
 
-            // Should return one of the genres present
             expect(['rock', 'jazz', 'classical']).toContain(genre)
             expect(genre).toBeDefined()
         })
@@ -161,7 +159,6 @@ describe('tagExtractor', () => {
 
             const genre = extractGenre(track)
 
-            // Rock appears first (in title), so it should be returned
             expect(genre).toBe('rock')
         })
 

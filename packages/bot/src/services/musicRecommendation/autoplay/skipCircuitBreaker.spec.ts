@@ -27,7 +27,6 @@ describe('skipCircuitBreaker', () => {
 
     describe('clearAutoplayPause', () => {
         it('clears pause state for a guild', async () => {
-            // Set up paused state
             const mockQueue = {
                 guild: { id: mockGuildId },
                 metadata: { channel: null },
@@ -43,11 +42,9 @@ describe('skipCircuitBreaker', () => {
                 canTrip: true,
             })
 
-            // Trigger breaker
             await evaluateSkipRateBreaker(mockQueue)
             expect(isAutoplayPaused(mockGuildId)).toBe(true)
 
-            // Clear it
             clearAutoplayPause(mockGuildId)
             expect(isAutoplayPaused(mockGuildId)).toBe(false)
         })
@@ -67,7 +64,7 @@ describe('skipCircuitBreaker', () => {
             ;(
                 telemetryReadService.getAutoplaySkipRateForGuild as jest.Mock
             ).mockResolvedValueOnce({
-                skipRate: 0.4, // 40% < 60% threshold
+                skipRate: 0.4,
                 sampleSize: 10,
                 acceptedCount: 6,
                 rejectedCount: 4,
@@ -91,7 +88,7 @@ describe('skipCircuitBreaker', () => {
             ;(
                 telemetryReadService.getAutoplaySkipRateForGuild as jest.Mock
             ).mockResolvedValueOnce({
-                skipRate: 0.7, // 70% > 60% threshold
+                skipRate: 0.7,
                 sampleSize: 10,
                 acceptedCount: 3,
                 rejectedCount: 7,
@@ -115,11 +112,11 @@ describe('skipCircuitBreaker', () => {
             ;(
                 telemetryReadService.getAutoplaySkipRateForGuild as jest.Mock
             ).mockResolvedValueOnce({
-                skipRate: 0.8, // 80%, but not enough samples
-                sampleSize: 3, // < 5
+                skipRate: 0.8,
+                sampleSize: 3,
                 acceptedCount: 1,
                 rejectedCount: 2,
-                canTrip: false, // Can't trip with low sample
+                canTrip: false,
             })
 
             const result = await evaluateSkipRateBreaker(mockQueue)
@@ -147,16 +144,13 @@ describe('skipCircuitBreaker', () => {
                 canTrip: true,
             })
 
-            // First call: trips breaker and posts notice
             const result1 = await evaluateSkipRateBreaker(mockQueue)
             expect(result1).toBe(false)
             expect(mockChannel.send).toHaveBeenCalledTimes(1)
             expect(isAutoplayPaused(guildId)).toBe(true)
 
-            // Clear the mock to verify it won't be called again
             mockChannel.send.mockClear()
 
-            // Second call: already paused, doesn't post again
             const result2 = await evaluateSkipRateBreaker(mockQueue)
             expect(result2).toBe(false)
             expect(mockChannel.send).not.toHaveBeenCalled()
@@ -171,7 +165,7 @@ describe('skipCircuitBreaker', () => {
             ;(
                 telemetryReadService.getAutoplaySkipRateForGuild as jest.Mock
             ).mockResolvedValueOnce({
-                skipRate: null, // No resolved outcomes
+                skipRate: null,
                 sampleSize: 0,
                 acceptedCount: 0,
                 rejectedCount: 0,

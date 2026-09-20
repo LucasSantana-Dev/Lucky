@@ -2,10 +2,7 @@ import { createServer, type Server } from 'node:http'
 import type { Client } from 'discord.js'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { parseIntEnv } from '@lucky/shared/utils/env'
-import {
-    metricsContentType,
-    renderMetrics,
-} from './prometheus'
+import { metricsContentType, renderMetrics } from './prometheus'
 
 const DEFAULT_PORT = 9091
 
@@ -87,9 +84,6 @@ export async function stopMetricsServer(): Promise<void> {
     if (!server) return
     const closing = server
     server = null
-    // Close any in-flight keep-alive connections so the server can shut down
-    // promptly even if a client (e.g. a Prometheus scrape) is holding the
-    // socket open.
     if (typeof closing.closeAllConnections === 'function') {
         closing.closeAllConnections()
     }

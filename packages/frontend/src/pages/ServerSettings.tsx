@@ -73,9 +73,6 @@ const DEFAULT_SETTINGS: ServerSettings = {
 type NumberSettingsKey =
     'commandCooldown' | 'maxQueueSize' | 'defaultVolume' | 'voteSkipThreshold'
 
-// Mirrors the min/max bounds of `settingsBody` in
-// packages/backend/src/routes/guildSettings.ts. Keep these in sync if that
-// schema changes.
 const NUMBER_FIELD_BOUNDS: Record<
     NumberSettingsKey,
     { min: number; max: number }
@@ -636,7 +633,7 @@ export default function ServerSettingsPage() {
                 }
             />
 
-            {/* General Settings */}
+            {}
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -689,7 +686,7 @@ export default function ServerSettingsPage() {
                 </Card>
             </motion.div>
 
-            {/* Language */}
+            {}
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -727,7 +724,7 @@ export default function ServerSettingsPage() {
                 </Card>
             </motion.div>
 
-            {/* Music Defaults */}
+            {}
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -890,7 +887,7 @@ export default function ServerSettingsPage() {
                 </Card>
             </motion.div>
 
-            {/* Permissions */}
+            {}
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -946,7 +943,7 @@ export default function ServerSettingsPage() {
                 </Card>
             </motion.div>
 
-            {/* Mobile Save Bar */}
+            {}
             <div className='lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-lucky-bg-primary/95 backdrop-blur-sm border-t border-lucky-border z-30'>
                 <Button
                     onClick={handleSave}

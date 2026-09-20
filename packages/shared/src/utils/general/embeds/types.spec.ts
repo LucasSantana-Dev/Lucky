@@ -3,7 +3,7 @@ import type {
     CreateEmbedOptions,
     EmbedField,
     TrackInfo,
-    QueueInfo
+    QueueInfo,
 } from './types'
 import { EMBED_COLORS, EMOJIS } from './constants'
 
@@ -20,14 +20,14 @@ describe('Embed Types', () => {
                 author: {
                     name: 'Test Author',
                     iconURL: 'https://example.com/icon.png',
-                    url: 'https://example.com/author'
+                    url: 'https://example.com/author',
                 },
                 fields: [
                     { name: 'Field 1', value: 'Value 1', inline: true },
-                    { name: 'Field 2', value: 'Value 2', inline: false }
+                    { name: 'Field 2', value: 'Value 2', inline: false },
                 ],
                 footer: 'Test Footer',
-                timestamp: true
+                timestamp: true,
             }
 
             expect(options.title).toBe('Test Title')
@@ -44,7 +44,7 @@ describe('Embed Types', () => {
 
         it('should accept minimal properties', () => {
             const options: CreateEmbedOptions = {
-                title: 'Minimal Title'
+                title: 'Minimal Title',
             }
 
             expect(options.title).toBe('Minimal Title')
@@ -63,7 +63,7 @@ describe('Embed Types', () => {
         it('should accept required properties', () => {
             const field: EmbedField = {
                 name: 'Field Name',
-                value: 'Field Value'
+                value: 'Field Value',
             }
 
             expect(field.name).toBe('Field Name')
@@ -75,7 +75,7 @@ describe('Embed Types', () => {
             const field: EmbedField = {
                 name: 'Field Name',
                 value: 'Field Value',
-                inline: true
+                inline: true,
             }
 
             expect(field.inline).toBe(true)
@@ -85,7 +85,7 @@ describe('Embed Types', () => {
             const field: EmbedField = {
                 name: 'Field Name',
                 value: 'Field Value',
-                inline: false
+                inline: false,
             }
 
             expect(field.inline).toBe(false)
@@ -101,7 +101,7 @@ describe('Embed Types', () => {
                 thumbnail: 'https://example.com/thumb.jpg',
                 duration: '3:30',
                 requestedBy: 'user123',
-                source: 'youtube'
+                source: 'youtube',
             }
 
             expect(track.title).toBe('Test Track')
@@ -117,7 +117,7 @@ describe('Embed Types', () => {
             const track: TrackInfo = {
                 title: 'Test Track',
                 author: 'Test Artist',
-                url: 'https://example.com/track'
+                url: 'https://example.com/track',
             }
 
             expect(track.title).toBe('Test Track')
@@ -132,24 +132,24 @@ describe('Embed Types', () => {
                 currentTrack: {
                     title: 'Current Track',
                     author: 'Current Artist',
-                    url: 'https://example.com/current'
+                    url: 'https://example.com/current',
                 },
                 tracks: [
                     {
                         title: 'Track 1',
                         author: 'Artist 1',
-                        url: 'https://example.com/track1'
+                        url: 'https://example.com/track1',
                     },
                     {
                         title: 'Track 2',
                         author: 'Artist 2',
-                        url: 'https://example.com/track2'
-                    }
+                        url: 'https://example.com/track2',
+                    },
                 ],
                 totalDuration: '10:30',
                 isLooping: true,
                 isShuffled: false,
-                autoplayEnabled: true
+                autoplayEnabled: true,
             }
 
             expect(queue.currentTrack).toBeDefined()
@@ -162,7 +162,7 @@ describe('Embed Types', () => {
 
         it('should accept minimal queue properties', () => {
             const queue: QueueInfo = {
-                tracks: []
+                tracks: [],
             }
 
             expect(queue.tracks).toHaveLength(0)
@@ -176,12 +176,9 @@ describe('Embed Types', () => {
                 title: 'Test',
                 description: 'Test Description',
                 color: EMBED_COLORS.SUCCESS,
-                fields: [
-                    { name: 'Field', value: 'Value' }
-                ]
+                fields: [{ name: 'Field', value: 'Value' }],
             }
 
-            // This should compile without errors
             expect(options).toBeDefined()
         })
 
@@ -196,7 +193,7 @@ describe('Embed Types', () => {
                 author: undefined,
                 fields: undefined,
                 footer: undefined,
-                timestamp: undefined
+                timestamp: undefined,
             }
 
             expect(options.title).toBeUndefined()
@@ -217,7 +214,7 @@ describe('Embed Types', () => {
             const fields: EmbedField[] = [
                 { name: 'Field 1', value: 'Value 1' },
                 { name: 'Field 2', value: 'Value 2', inline: true },
-                { name: 'Field 3', value: 'Value 3', inline: false }
+                { name: 'Field 3', value: 'Value 3', inline: false },
             ]
 
             expect(fields).toHaveLength(3)

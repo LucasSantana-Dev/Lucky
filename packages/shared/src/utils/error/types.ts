@@ -1,5 +1,3 @@
-// Removed unused import
-
 /** Error handler configuration. */
 export type ErrorHandlerConfig = {
     logErrors: boolean

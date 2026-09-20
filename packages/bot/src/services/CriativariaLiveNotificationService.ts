@@ -9,11 +9,9 @@ const RETRYABLE_STATUSES = [
     ...Array.from({ length: 100 }, (_, index) => 500 + index),
 ]
 
-const TWITCH_POLL_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes per spec
-// Issue #130 asks 10 min, but search.list costs 100 quota units: 10-min polling
-// burns 14.4k units/day against the 10k/day free quota. 30 min = 4.8k/day, safe.
+const TWITCH_POLL_INTERVAL_MS = 5 * 60 * 1000
 const YOUTUBE_POLL_INTERVAL_MS = 30 * 60 * 1000
-const MESSAGE_TTL_MS = 4 * 60 * 60 * 1000 // 4 hours
+const MESSAGE_TTL_MS = 4 * 60 * 60 * 1000
 
 type TwitchStream = {
     id: string
@@ -32,8 +30,6 @@ type YouTubeVideo = {
     channelTitle: string
 }
 
-// Track posted notification messages: { msgId -> { platform, streamId, postedAt } }
-// TTL cleanup on offline or 4h elapsed. Survives process restart if using Prisma (future).
 type NotificationMessage = {
     platform: 'twitch' | 'youtube'
     streamId: string
@@ -46,7 +42,6 @@ export class CriativariaLiveNotificationService {
     private readonly youtubePollIntervalMs: number
     private lastNotifiedStreamId: string | null = null
     private lastNotifiedYoutubeBroadcastId: string | null = null
-    // In-memory tracking of posted messages. Future: migrate to Prisma LiveNotificationMessage.
     private postedMessages: Map<string, NotificationMessage> = new Map()
     private twitchIntervalHandle: ReturnType<typeof setInterval> | null = null
     private youtubeIntervalHandle: ReturnType<typeof setInterval> | null = null
@@ -69,7 +64,6 @@ export class CriativariaLiveNotificationService {
         const youtubeApiKey = process.env.YOUTUBE_API_KEY
         const youtubeChannelId = process.env.YOUTUBE_CHANNEL_ID
 
-        // Check if we can post anywhere: need Discord channel for both
         if (!channelId) {
             infoLog({
                 message:
@@ -78,7 +72,6 @@ export class CriativariaLiveNotificationService {
             return
         }
 
-        // Start Twitch polling if Twitch login is configured
         if (userLogin) {
             void this.twitchTick(client)
             this.twitchIntervalHandle = setInterval(
@@ -92,7 +85,6 @@ export class CriativariaLiveNotificationService {
             })
         }
 
-        // Start YouTube polling if YouTube credentials are configured
         if (youtubeApiKey && youtubeChannelId) {
             void this.youtubeTick(client)
             this.youtubeIntervalHandle = setInterval(
@@ -204,7 +196,6 @@ export class CriativariaLiveNotificationService {
                     : undefined,
             })) as Message
 
-            // Track posted message for TTL cleanup
             this.postedMessages.set(message.id, {
                 platform: 'twitch',
                 streamId: stream.id,
@@ -243,7 +234,7 @@ export class CriativariaLiveNotificationService {
             if (!channel || !('send' in channel)) return
 
             const embed = new EmbedBuilder()
-                .setColor(0xff0000) // YouTube red
+                .setColor(0xff0000)
                 .setTitle('🔴 Criativaria está ao vivo no YouTube!')
                 .setURL(`https://youtube.com/watch?v=${broadcast.id}`)
                 .setDescription(broadcast.title || 'Sem título')
@@ -261,7 +252,6 @@ export class CriativariaLiveNotificationService {
                     : undefined,
             })) as Message
 
-            // Track posted message for TTL cleanup
             this.postedMessages.set(message.id, {
                 platform: 'youtube',
                 streamId: broadcast.id,
@@ -286,17 +276,15 @@ export class CriativariaLiveNotificationService {
         const messagesToDelete: string[] = []
 
         for (const [msgId, msg] of this.postedMessages.entries()) {
-            // Delete if TTL (4h) elapsed
             if (now - msg.postedAt > MESSAGE_TTL_MS) {
                 messagesToDelete.push(msgId)
                 try {
                     await (channel as TextChannel).messages.delete(msgId)
                 } catch (err) {
-                    // Fail soft: already deleted or permission issue
                     const errMsg =
                         err instanceof Error ? err.message : String(err)
                     if (errMsg.includes('Unknown Message')) {
-                        // Already deleted, just remove from tracking
+                        // already gone; not a real failure
                     } else {
                         warnLog({
                             message: `CriativariaLiveNotification: failed to delete message ${msgId}`,
@@ -308,7 +296,6 @@ export class CriativariaLiveNotificationService {
             }
         }
 
-        // Cleanup map
         for (const msgId of messagesToDelete) {
             this.postedMessages.delete(msgId)
         }

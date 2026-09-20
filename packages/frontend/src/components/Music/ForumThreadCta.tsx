@@ -9,9 +9,6 @@ interface ForumThreadCtaProps {
     slug: string
 }
 
-// Renders a link to the guide's official Discord discussion thread, when one
-// is mapped for this guild. Hidden when no thread is mapped (404) or on any
-// other lookup failure.
 export default function ForumThreadCta({ guildId, slug }: ForumThreadCtaProps) {
     const { t } = useTranslation()
     const [url, setUrl] = useState<string | null>(null)

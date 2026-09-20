@@ -255,9 +255,6 @@ export async function blendAutoplayTracks(
     const keepCount = Math.ceil(autoplayTracks.length * blendRatio)
     const toRemove = autoplayTracks.slice(keepCount)
 
-    // Record removed autoplay recommendations as rejected before eviction.
-    // These tracks never get a chance to emit playerStart/playerSkip/playerFinish,
-    // so we must explicitly mark them to improve telemetry coverage (#1585).
     const cancellationWrites = toRemove.map((track) =>
         recordRecommendationOutcome({
             guildId: queue.guild.id,
@@ -275,7 +272,7 @@ export async function blendAutoplayTracks(
         try {
             queue.node.remove(track)
         } catch {
-            // Track may already be removed
+            // best-effort; track may already be gone from the queue
         }
     }
 
@@ -287,7 +284,6 @@ export async function blendAutoplayTracks(
         },
     })
 
-    // Wait for telemetry to settle before replenishing queue
     await Promise.all(cancellationWrites)
     await replenishQueue(queue)
 }

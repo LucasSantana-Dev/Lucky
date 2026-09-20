@@ -85,7 +85,6 @@ describe('markAndRecordAutoplayTrack', () => {
         await markAndRecordAutoplayTrack(track, basis, 'guild-123', 'user-456')
 
         expect(track.metadata?.isAutoplay).toBe(true)
-        // serializeBasis produces "spotify rec • preferred artist"
         expect(track.metadata?.recommendationReason).toBe(
             'spotify rec • preferred artist',
         )
@@ -190,12 +189,10 @@ describe('markAndRecordAutoplayTrack', () => {
             signals: [],
         }
 
-        // Mock success case
         ;(recordRecommendationPick as jest.Mock).mockResolvedValueOnce(
             undefined,
         )
 
-        // Should resolve normally
         await expect(
             markAndRecordAutoplayTrack(track, basis, 'guild-123'),
         ).resolves.toBeUndefined()

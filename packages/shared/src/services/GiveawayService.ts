@@ -1,9 +1,6 @@
 import { randomInt } from 'node:crypto'
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 
-// Re-exported so existing importers of '@lucky/shared/services' keep working.
-// The implementation lives in utils/general/duration; this copy had drifted and
-// did not accept seconds (#2328).
 export { parseDuration } from '../utils/general/duration.js'
 
 export type GiveawayData = {
@@ -62,7 +59,6 @@ export class GiveawayService {
                 data: { giveawayId, userId },
             })
         } catch (err) {
-            // Unique constraint violation: user already entered
             if ((err as Error & { code?: string }).code === 'P2002') {
                 return
             }
@@ -86,7 +82,6 @@ export class GiveawayService {
     ): Promise<string[]> {
         const entries = await this.getEntries(giveawayId)
 
-        // Draw up to winnersCount distinct winners
         const winners: string[] = []
         const copied = [...entries]
         for (let i = 0; i < Math.min(winnersCount, copied.length); i++) {
@@ -95,7 +90,6 @@ export class GiveawayService {
             copied.splice(idx, 1)
         }
 
-        // Update the giveaway
         await this.getPrisma().giveaway.update({
             where: { id: giveawayId },
             data: {
@@ -121,7 +115,6 @@ export class GiveawayService {
             where: { id: giveawayId, guildId },
         })
         if (!giveaway) return null
-        // If already ended, return the existing record (no redraw).
         if (giveaway.endedAt !== null) {
             return { giveaway, wasAlreadyEnded: true }
         }
@@ -142,7 +135,6 @@ export class GiveawayService {
             where: { id: giveawayId, guildId },
         })
         if (!giveaway) return null
-        // Reroll must only operate on already-ended giveaways
         if (giveaway.endedAt === null) return null
 
         return await this.rerollWinners(giveawayId)
@@ -166,7 +158,6 @@ export class GiveawayService {
             copied.splice(idx, 1)
         }
 
-        // Update ONLY winnerIds, leave endedAt alone
         await this.getPrisma().giveaway.update({
             where: { id: giveawayId },
             data: { winnerIds: winners },

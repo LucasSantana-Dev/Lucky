@@ -110,8 +110,6 @@ export function setupRoutes(app: Express): void {
     setupServiceGuildRoutes(app)
     setupServiceAnnounceRoutes(app)
     setupWebhookPublicRoutes(app)
-    // Public, unauthenticated CSP report sink — registered before the shared
-    // /api limiter/guards so it uses its own strict limiter (#1283).
     setupSecurityRoutes(app)
     app.use('/api/', apiLimiter)
     app.use('/api/admin', requireAuth, requireAdmin)

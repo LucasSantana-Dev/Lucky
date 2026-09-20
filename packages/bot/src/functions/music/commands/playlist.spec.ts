@@ -407,7 +407,6 @@ describe('playlist command', () => {
             expect(
                 collaborativePlaylistServiceMock.setMode,
             ).toHaveBeenCalledWith('guild-123', false)
-            // Does not pass the limit
         })
 
         it('ignores limit with status action', async () => {

@@ -25,7 +25,6 @@ import { RecommendationFeedbackService } from './feedbackService'
 
 describe('RecommendationFeedbackService', () => {
     beforeEach(() => {
-        // Clear only call history; preserve implementations and queued return values
         mockUserTrackFeedback.upsert.mockClear()
         mockUserTrackFeedback.deleteMany.mockClear()
         mockUserTrackFeedback.findMany.mockClear()
@@ -45,16 +44,13 @@ describe('RecommendationFeedbackService', () => {
             const now = 10_000
             const key = service.buildTrackKey('Song', 'Artist')
 
-            // upsert: setFeedback's upsert (no prune in setFeedback)
             mockUserTrackFeedback.upsert.mockResolvedValueOnce({
                 trackKey: key,
                 feedback,
             })
-            // deleteMany: getter's lazy prune
             mockUserTrackFeedback.deleteMany.mockResolvedValueOnce({
                 count: 0,
             })
-            // findMany: getter's find
             mockUserTrackFeedback.findMany.mockResolvedValueOnce([
                 { trackKey: key, updatedAt: new Date(now) },
             ])
@@ -74,13 +70,11 @@ describe('RecommendationFeedbackService', () => {
     it('getFeedbackCounts returns correct liked/disliked counts', async () => {
         const service = new RecommendationFeedbackService(30)
 
-        // deleteMany: lazy prune before counting
         mockUserTrackFeedback.deleteMany.mockResolvedValueOnce({
             count: 0,
         })
-        // Two count calls in Promise.all for [liked, disliked]
-        mockUserTrackFeedback.count.mockResolvedValueOnce(2) // liked count
-        mockUserTrackFeedback.count.mockResolvedValueOnce(1) // disliked count
+        mockUserTrackFeedback.count.mockResolvedValueOnce(2)
+        mockUserTrackFeedback.count.mockResolvedValueOnce(1)
 
         const counts = await service.getFeedbackCounts('user-1', Date.now())
 
@@ -205,7 +199,10 @@ describe('RecommendationFeedbackService', () => {
             { artistKey: 'badartist', preference: 'block' },
         ])
 
-        const summary = await service.getArtistFeedbackSummary('guild-1', 'user-1')
+        const summary = await service.getArtistFeedbackSummary(
+            'guild-1',
+            'user-1',
+        )
 
         expect(summary.preferred).toContain('artistone')
         expect(summary.preferred).toContain('artisttwo')
@@ -217,7 +214,10 @@ describe('RecommendationFeedbackService', () => {
     it('getArtistFeedbackSummary returns empty lists for undefined userId', async () => {
         const service = new RecommendationFeedbackService(30)
 
-        const summary = await service.getArtistFeedbackSummary('guild-1', undefined)
+        const summary = await service.getArtistFeedbackSummary(
+            'guild-1',
+            undefined,
+        )
 
         expect(summary.preferred).toEqual([])
         expect(summary.blocked).toEqual([])
@@ -287,7 +287,11 @@ describe('RecommendationFeedbackService', () => {
             },
         ])
 
-        const weights = await service.getLikedTrackWeights('guild-1', 'user-1', baseTime)
+        const weights = await service.getLikedTrackWeights(
+            'guild-1',
+            'user-1',
+            baseTime,
+        )
 
         const weight = weights.get(key)
         expect(weight).toBeCloseTo(0.15, 1)
@@ -312,7 +316,6 @@ describe('RecommendationFeedbackService', () => {
 
 describe('implicit feedback', () => {
     beforeEach(() => {
-        // Reset mock call history without clearing implementations
         mockUserTrackFeedback.upsert.mockClear()
         mockUserTrackFeedback.deleteMany.mockClear()
         mockUserTrackFeedback.findMany.mockClear()
@@ -325,7 +328,6 @@ describe('implicit feedback', () => {
     it('recordImplicitFeedback trims to 200 entries when exceeded', async () => {
         const service = new RecommendationFeedbackService(30)
 
-        // Record 201 entries
         for (let i = 0; i < 201; i++) {
             await service.recordImplicitFeedback(
                 'user-1',
@@ -334,10 +336,8 @@ describe('implicit feedback', () => {
             )
         }
 
-        // Get all like keys to verify trimming happened
         const keys = await service.getImplicitLikeKeys('user-1')
 
-        // Should keep only 200 most recent
         expect(keys.size).toBeLessThanOrEqual(200)
     })
 
@@ -359,7 +359,6 @@ describe('implicit feedback', () => {
         async ({ type, getter, included, excluded }) => {
             const service = new RecommendationFeedbackService(30)
 
-            // Record both types
             await service.recordImplicitFeedback(
                 'user-1',
                 'song1::artist',
@@ -383,7 +382,6 @@ describe('implicit feedback', () => {
     it('recordImplicitFeedback handles errors gracefully', async () => {
         const service = new RecommendationFeedbackService(30)
 
-        // Should not throw
         await expect(
             service.recordImplicitFeedback('user-1', 'key', 'implicit_like'),
         ).resolves.toBeUndefined()
@@ -392,22 +390,18 @@ describe('implicit feedback', () => {
     it('reading implicit feedback for unknown user does not grow the map', async () => {
         const service = new RecommendationFeedbackService(30)
 
-        // Read for unknown user
         const keys1 = await service.getImplicitLikeKeys('unknown-user-1')
         expect(keys1.size).toBe(0)
 
-        // Read again for a different unknown user
         const keys2 = await service.getImplicitLikeKeys('unknown-user-2')
         expect(keys2.size).toBe(0)
 
-        // Record feedback for a real user to ensure writes still work
         await service.recordImplicitFeedback(
             'real-user',
             'track1::artist',
             'implicit_like',
         )
 
-        // Verify the real user's data is present
         const realKeys = await service.getImplicitLikeKeys('real-user')
         expect(realKeys.has('track1::artist')).toBe(true)
     })
@@ -415,20 +409,16 @@ describe('implicit feedback', () => {
     it('getImplicitDislikeKeys filters by TTL (14 days)', async () => {
         const service = new RecommendationFeedbackService(30)
 
-        // Record feedback
         await service.recordImplicitFeedback(
             'user-1',
             'recenttrack::artist',
             'implicit_dislike',
         )
 
-        // Verify recent entry is included
         const recentKeys = await service.getImplicitDislikeKeys('user-1')
         expect(recentKeys.size).toBe(1)
         expect(recentKeys.has('recenttrack::artist')).toBe(true)
 
-        // Manually age an entry beyond TTL by modifying the cache directly
-        // This simulates an entry that was recorded 15+ days ago
         const cache = service['implicitFeedbackCache']
         if (cache.has('user-1')) {
             const userMap = cache.get('user-1')!
@@ -438,7 +428,6 @@ describe('implicit feedback', () => {
             }
         }
 
-        // Add an aged entry directly to cache
         const userMap = cache.get('user-1') || {}
         userMap['oldtrack::artist'] = {
             type: 'implicit_dislike',
@@ -446,20 +435,17 @@ describe('implicit feedback', () => {
         }
         cache.set('user-1', userMap)
 
-        // Read keys again; aged entry should be pruned from cache
         const expiredKeys = await service.getImplicitDislikeKeys('user-1')
         expect(expiredKeys.size).toBe(1)
         expect(expiredKeys.has('recenttrack::artist')).toBe(true)
         expect(expiredKeys.has('oldtrack::artist')).toBe(false)
 
-        // Verify aged entry was deleted from cache
         const cacheAfterPrune = cache.get('user-1')
         expect(cacheAfterPrune?.['oldtrack::artist']).toBeUndefined()
     })
 
     describe('Artist feedback Postgres integration', () => {
         beforeEach(() => {
-            // Reset mock call history without clearing implementations
             mockUserArtistPreference.upsert.mockClear()
             mockUserArtistPreference.deleteMany.mockClear()
             mockUserArtistPreference.findMany.mockClear()
@@ -580,7 +566,8 @@ describe('implicit feedback', () => {
         it('getGuildImplicitDislikeKeys returns empty set for unknown guild', () => {
             const service = new RecommendationFeedbackService(30)
 
-            const result = service.getGuildImplicitDislikeKeys('nonexistent-guild')
+            const result =
+                service.getGuildImplicitDislikeKeys('nonexistent-guild')
 
             expect(result.size).toBe(0)
         })
@@ -588,12 +575,10 @@ describe('implicit feedback', () => {
         it('expired entries are not returned', () => {
             const service = new RecommendationFeedbackService(30)
             const now = 1000
-            const oldTime = now - 15 * 24 * 60 * 60 * 1000 // 15 days ago (past 14-day TTL)
+            const oldTime = now - 15 * 24 * 60 * 60 * 1000
 
-            // Record with old timestamp
             service.recordGuildImplicitDislike('guild1', 'trackkey1', oldTime)
 
-            // Fetch with current time (15 days later)
             const result = service.getGuildImplicitDislikeKeys('guild1', now)
 
             expect(result.size).toBe(0)
@@ -605,11 +590,12 @@ describe('implicit feedback', () => {
             const oldTime = now - 15 * 24 * 60 * 60 * 1000
 
             service.recordGuildImplicitDislike('guild1', 'trackkey1', oldTime)
-            service.getGuildImplicitDislikeKeys('guild1', now) // triggers prune
+            service.getGuildImplicitDislikeKeys('guild1', now)
 
-            // Verify outer map no longer holds an empty bucket for this guild
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            expect((service as any).guildImplicitDislikeCache.has('guild1')).toBe(false)
+            expect(
+                (service as any).guildImplicitDislikeCache.has('guild1'),
+            ).toBe(false)
         })
 
         it('two guilds do not cross-contaminate', () => {

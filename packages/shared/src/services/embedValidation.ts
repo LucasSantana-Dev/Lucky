@@ -16,7 +16,6 @@ export interface EmbedData {
     fields?: EmbedField[]
 }
 
-// Zod schema for validating EmbedData shape and constraints (Discord API limits)
 export const embedDataSchema = z
     .object({
         title: z.string().max(256).optional(),
@@ -41,7 +40,6 @@ export const embedDataSchema = z
     })
     .refine(
         (data) => {
-            // Embed must have at least one of title, description, or fields
             return (
                 data.title ||
                 data.description ||
@@ -69,7 +67,6 @@ export function validateEmbedData(embedData: Partial<EmbedData>): {
     }
 
     const errors = result.error.issues.map((issue) => {
-        // Convert Zod error messages to human-readable format
         const rawField = issue.path.length > 0 ? issue.path.join('.') : 'root'
         const label =
             rawField === 'root'

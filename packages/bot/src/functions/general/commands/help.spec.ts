@@ -80,7 +80,6 @@ describe('/help', () => {
 
         await helpCommand.execute({ client: client as never, interaction })
 
-        // A single command fits on one page: exactly one reply, no pagination.
         expect(interactionReply.mock.calls.length).toBeGreaterThanOrEqual(1)
         expect(interactionReply).toHaveBeenCalledTimes(1)
     })
@@ -95,8 +94,6 @@ describe('/help', () => {
     })
 
     test('handles many commands with pagination', async () => {
-        // Enough long command lines to exceed the per-page character budget
-        // in help.ts (PAGE_CHAR_BUDGET), forcing more than one embed page.
         const commands = Array.from({ length: 250 }, (_, i) =>
             makeCommand(
                 `cmd${i}`,
@@ -125,7 +122,6 @@ describe('/help', () => {
 
         const calls = interactionReply.mock.calls
         expect(calls.length).toBeGreaterThan(1)
-        // The first page title carries the "1/N" page counter when paginated.
         const firstCall = calls[0][0] as {
             content: { embeds: Array<{ data: { title?: string } }> }
         }
@@ -136,8 +132,6 @@ describe('/help', () => {
 
     test('catches errors and replies with error message', async () => {
         const client = makeClient([makeCommand('ping', 'Check latency')])
-        // Force a real exception inside help.ts: the footer builder calls
-        // interaction.user.displayAvatarURL() while rendering the first page.
         const interaction = {
             ...makeInteraction(),
             user: {
@@ -151,7 +145,6 @@ describe('/help', () => {
 
         await helpCommand.execute({ client: client as never, interaction })
 
-        // The catch block sends exactly one reply: the error message.
         expect(interactionReply).toHaveBeenCalledTimes(1)
         const call = interactionReply.mock.calls[0][0] as {
             content: { content?: string }

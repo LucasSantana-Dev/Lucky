@@ -99,7 +99,7 @@ function emitTelemetry(source: QueueResolutionSource, cacheSize: number): void {
             cacheSize,
         })
     } catch {
-        // Telemetry failures must never break queue resolution
+        // best-effort; a telemetry failure must not affect queue resolution
     }
 }
 
@@ -143,9 +143,6 @@ export function resolveGuildQueue(
         return resolveWithSource(fromQueuesGet, 'queues.get', diagnostics)
     }
 
-    // discord-player v7.x: nodes.resolve performs lazy initialization of a GuildQueue
-    // if missing; it's redundant with nodes.get when the queue already exists but
-    // returns a fresh instance if the backing store has the queue but nodes.get misses.
     const fromNodesResolve = toGuildQueue(nodes?.resolve?.(guildId))
     if (fromNodesResolve) {
         return resolveWithSource(fromNodesResolve, 'nodes.resolve', diagnostics)
@@ -157,7 +154,6 @@ export function resolveGuildQueue(
     }
 
     if (cache) {
-        // Guild ID is more authoritative: check it first (path 5)
         const fromCacheGuild = resolveByCacheScan(
             cache,
             (queue) =>
@@ -169,7 +165,6 @@ export function resolveGuildQueue(
             return resolveWithSource(fromCacheGuild, 'cache.guild', diagnostics)
         }
 
-        // Queue ID scan is less authoritative (path 6)
         const fromCacheId = resolveByCacheScan(
             cache,
             (queue) => queue.id === guildId,

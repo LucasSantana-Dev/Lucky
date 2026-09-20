@@ -17,8 +17,6 @@ function mintCorrelationId(): string {
     try {
         return crypto.randomUUID().replace(/-/g, '').slice(0, 8)
     } catch {
-        // Fallback for environments without randomUUID — still use the Web
-        // Crypto RNG (not Math.random) so it isn't a weak-randomness concern.
         const bytes = new Uint8Array(4)
         crypto.getRandomValues(bytes)
         return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join(
@@ -38,7 +36,6 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        // eslint-disable-next-line no-console -- keep errorInfo visible locally; Sentry capture follows
         console.error('ErrorBoundary caught an error:', error, errorInfo)
         captureFrontendException(error, {
             correlationId: this.state.correlationId,

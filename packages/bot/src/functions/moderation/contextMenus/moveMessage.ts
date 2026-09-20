@@ -27,8 +27,6 @@ const DESTINATION_CHANNEL_TYPES = [
 ] as const
 
 const execute: TContextMenuExecute = async ({ interaction }) => {
-    // setDefaultMemberPermissions hides the entry in the UI but is not
-    // enforcement (admins can re-grant), so re-check at execution time.
     if (
         !interaction.memberPermissions?.has(PermissionFlagsBits.ManageMessages)
     ) {

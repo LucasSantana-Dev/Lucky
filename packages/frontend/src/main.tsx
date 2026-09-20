@@ -9,15 +9,13 @@ import { Toaster } from './components/ui/sonner'
 import './lib/i18n'
 import './index.css'
 
-// Initialize Sentry before React mounts so early errors are captured.
-// No-op when VITE_SENTRY_DSN is missing (dev / preview without DSN).
 initSentry()
 
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            staleTime: 1000 * 60 * 5, // 5 minutes
-            gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
+            staleTime: 1000 * 60 * 5,
+            gcTime: 1000 * 60 * 10,
             retry: 1,
         },
     },

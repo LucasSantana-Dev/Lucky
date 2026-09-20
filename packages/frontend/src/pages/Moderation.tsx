@@ -267,7 +267,6 @@ function CaseDetailPanel({
     )
 }
 
-// Alias for consistency with usage
 const CaseDetailModal = CaseDetailPanel
 
 export default function ModerationPage() {
@@ -431,7 +430,7 @@ export default function ModerationPage() {
                 </div>
             ) : null}
 
-            {/* Filters */}
+            {}
             <Card className='p-4 border border-lucky-border'>
                 <div className='flex flex-col sm:flex-row gap-3'>
                     <div className='relative flex-1'>
@@ -486,9 +485,9 @@ export default function ModerationPage() {
                 </div>
             </Card>
 
-            {/* Cases Table */}
+            {}
             <Card className='overflow-hidden p-0 border border-lucky-border'>
-                {/* Header */}
+                {}
                 <div className='hidden md:grid grid-cols-[40px_1fr_1fr_80px_80px_120px] gap-4 px-6 py-3 border-b border-lucky-border bg-lucky-bg-tertiary/20'>
                     {[
                         t('tableHeaderCase'),
@@ -507,7 +506,7 @@ export default function ModerationPage() {
                     ))}
                 </div>
 
-                {/* Rows */}
+                {}
                 <div className='divide-y divide-lucky-border/40'>
                     {loading ? (
                         Array.from({ length: 8 }).map((_, i) => (
@@ -617,7 +616,7 @@ export default function ModerationPage() {
                     )}
                 </div>
 
-                {/* Pagination */}
+                {}
                 {total > limit && (
                     <div className='flex items-center justify-between px-5 py-3 border-t border-lucky-border'>
                         <span className='type-body-sm text-lucky-text-tertiary'>
@@ -654,7 +653,7 @@ export default function ModerationPage() {
                 )}
             </Card>
 
-            {/* Case Detail Modal */}
+            {}
             <CaseDetailModal
                 caseData={selectedCase}
                 open={!!selectedCase}

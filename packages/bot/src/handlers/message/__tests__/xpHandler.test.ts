@@ -121,7 +121,7 @@ describe('xpHandler', () => {
                 xpPerMessage: 10,
             })
             ;(levelService.getMemberXP as jest.Mock).mockResolvedValue({
-                lastXpAt: new Date(now - 30000), // 30 seconds ago
+                lastXpAt: new Date(now - 30000),
             })
 
             const message = {
@@ -149,7 +149,7 @@ describe('xpHandler', () => {
                 xpPerMessage: 10,
             })
             ;(levelService.getMemberXP as jest.Mock).mockResolvedValue({
-                lastXpAt: new Date(now - 61000), // 61 seconds ago, past cooldown
+                lastXpAt: new Date(now - 61000),
             })
             ;(levelService.addXP as jest.Mock).mockResolvedValue({
                 leveledUp: false,

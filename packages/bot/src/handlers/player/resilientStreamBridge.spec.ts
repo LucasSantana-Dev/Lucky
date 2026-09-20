@@ -69,10 +69,6 @@ jest.mock('./streamFallbackState', () => ({
 
 import { createResilientStream } from './resilientStreamBridge'
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function makeTrack(
     overrides: {
         title?: string
@@ -87,9 +83,6 @@ function makeTrack(
         author: overrides.author ?? 'Test Artist',
         duration: overrides.duration ?? '3:30',
         url: overrides.url ?? 'https://www.youtube.com/watch?v=abc123',
-        // Mirrors discord-player's Track: metadata is a getter-only property
-        // backed by private state, mutated only via setMetadata(). A direct
-        // `track.metadata = x` assignment throws in real usage.
         get metadata() {
             return metadata
         },
@@ -100,10 +93,6 @@ function makeTrack(
 }
 
 const fakeStream = new EventEmitter() as any
-
-// ---------------------------------------------------------------------------
-// createResilientStream — fallback chain + Sentry instrumentation
-// ---------------------------------------------------------------------------
 
 describe('createResilientStream', () => {
     beforeEach(() => {
@@ -129,8 +118,6 @@ describe('createResilientStream', () => {
         await expect(
             createResilientStream(makeTrack({ title: 'Some Song' })),
         ).rejects.toThrow('Bridge exhausted')
-        // #1500: an unplayable track is an expected outcome — WARN, not
-        // error->Sentry (which produced false "regression" alerts, LUCKY-2T).
         expect(mockWarnLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Bridge: all stages exhausted',
@@ -162,21 +149,19 @@ describe('createResilientStream', () => {
         mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp error'))
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
         await createResilientStream(makeTrack())
-        // Verify breadcrumb was called for failure with redacted URL (origin only)
         expect(mockAddBreadcrumb).toHaveBeenCalledWith(
             'YouTube extraction failed via yt-dlp URL',
             'music.youtube-extraction',
             'warning',
             expect.objectContaining({
-                url: 'https://www.youtube.com', // redacted to origin
+                url: 'https://www.youtube.com',
             }),
         )
-        // Verify captureMessage was called with correct stage as tag and redacted URL
         expect(mockCaptureMessage).toHaveBeenCalledWith(
             expect.stringContaining('YouTube extraction failed'),
             'warning',
             expect.objectContaining({
-                url: 'https://www.youtube.com', // redacted to origin
+                url: 'https://www.youtube.com',
             }),
             expect.objectContaining({
                 category: 'music.youtube-extraction',
@@ -302,10 +287,6 @@ describe('createResilientStream', () => {
     })
 })
 
-// ---------------------------------------------------------------------------
-// fallback stage stamping — surfaces the resolved stage to the user (#1769)
-// ---------------------------------------------------------------------------
-
 describe('fallback stage stamping', () => {
     beforeEach(() => {
         jest.clearAllMocks()
@@ -353,8 +334,6 @@ describe('fallback stage stamping', () => {
             track,
             'soundcloud-title',
         )
-        // #2140: the primary-stage failure must be visible in prod (LOG_LEVEL=2
-        // suppresses debugLog), so it is logged at warnLog, not debugLog.
         expect(mockWarnLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message:
@@ -376,7 +355,6 @@ describe('fallback stage stamping', () => {
             track,
             'soundcloud-core',
         )
-        // #2140: the title-only-stage failure must also be visible in prod.
         expect(mockWarnLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message:
@@ -385,10 +363,6 @@ describe('fallback stage stamping', () => {
         )
     })
 
-    // #2142: the stage used to be gated on "title has a parenthetical to
-    // strip", so titles like "Michael Jackson - Human Nature" never got a
-    // third attempt. It must now run whenever stage 2 fails, broadening via
-    // extractSongCore instead of being skipped outright.
     it('runs the core stage for a title with no parenthetical/suffix', async () => {
         mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud
@@ -416,7 +390,6 @@ describe('fallback stage stamping', () => {
         mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
         mockCleanTitle.mockReturnValue('Simple Song Name')
-        // No separator to extract a core from — nothing new to try.
         mockExtractSongCore.mockReturnValue(null)
         const track = makeTrack({ title: 'Simple Song Name' })
 
@@ -424,7 +397,6 @@ describe('fallback stage stamping', () => {
             'Bridge exhausted',
         )
 
-        // Only the two prior stages (full + title-only) were attempted.
         expect(mockStreamViaSoundCloud).toHaveBeenCalledTimes(2)
     })
 
@@ -434,7 +406,6 @@ describe('fallback stage stamping', () => {
         const track = makeTrack()
         track.setMetadata({ isAutoplay: true })
         await createResilientStream(track)
-        // Verify stampFallbackStage was called, which will update metadata
         expect(mockStampFallbackStage).toHaveBeenCalledWith(
             track,
             'soundcloud-full',

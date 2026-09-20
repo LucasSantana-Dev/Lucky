@@ -39,7 +39,6 @@ vi.mock('react-i18next', () => ({
             t: (key: string, options?: { [key: string]: any }) => {
                 let result = keyMap[key] || key
 
-                // Handle interpolation for {{name}}
                 if (options && options.name) {
                     result = result.replace('{{name}}', options.name)
                 }

@@ -59,17 +59,14 @@ function setEmbedFooter(embed: EmbedBuilder, footer?: string): void {
 export function createEmbed(options: CreateEmbedOptions): EmbedBuilder {
     const embed = new EmbedBuilder()
 
-    // Set basic properties
     setEmbedTitle(embed, options.title, options.emoji)
 
     if (options.description) {
         embed.setDescription(options.description)
     }
 
-    // Set color (default to neutral if not specified)
     embed.setColor(options.color ?? EMBED_COLORS.NEUTRAL)
 
-    // Set optional properties
     if (options.thumbnail) {
         embed.setThumbnail(options.thumbnail)
     }
@@ -82,7 +79,6 @@ export function createEmbed(options: CreateEmbedOptions): EmbedBuilder {
     setEmbedFields(embed, options.fields)
     setEmbedFooter(embed, options.footer)
 
-    // Set timestamp
     if (options.timestamp) {
         embed.setTimestamp()
     }

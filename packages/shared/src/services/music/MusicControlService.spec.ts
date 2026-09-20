@@ -342,10 +342,8 @@ describe('MusicControlService', () => {
 
                 expect(mockPublish).toHaveBeenCalled()
 
-                // Advance timers by the default timeout
                 jest.advanceTimersByTime(10000)
 
-                // Result should be a timeout error
                 const result = await promise
                 expect(result.success).toBe(false)
                 expect(result.error).toBe('Command timed out')
@@ -598,7 +596,6 @@ describe('MusicControlService', () => {
             const cmd = buildCommand()
             const resultPromise = service.sendCommand(cmd, 5000)
 
-            // Simulate result message
             const result: MusicCommandResult = {
                 id: cmd.id,
                 guildId: cmd.guildId,

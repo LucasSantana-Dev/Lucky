@@ -1,8 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
-// Mocks use variadic `unknown[]` signatures so the forwarding wrappers
-// in vi.mock below can spread args without TS2556 narrowing them to a
-// concrete tuple shape.
 const initMock = vi.fn<(...args: unknown[]) => unknown>()
 const captureExceptionMock = vi.fn<(...args: unknown[]) => unknown>()
 const captureMessageMock = vi.fn<(...args: unknown[]) => unknown>()
@@ -42,7 +39,6 @@ describe('initSentry', () => {
     })
 
     afterEach(() => {
-        // Restore env values that the test may have touched.
         for (const key of [
             'VITE_SENTRY_DSN',
             'VITE_SENTRY_ENVIRONMENT',

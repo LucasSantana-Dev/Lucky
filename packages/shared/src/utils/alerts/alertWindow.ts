@@ -3,7 +3,6 @@ import { registerLogSink } from '../general/log/sink'
 const windows = new Map<string, number[]>()
 const cooldowns = new Map<string, number>()
 
-// Conservative max window — longer than any caller's windowMs (max is 1h in this codebase).
 const MAX_WINDOW_TTL_MS = 2 * 60 * 60_000
 
 function evictExpired(now: number): void {
@@ -48,7 +47,4 @@ export function __resetAlertWindowForTests(): void {
     cooldowns.clear()
 }
 
-// Registers this module's cooldown check with the logger instead of the
-// logger importing alerts. Function declarations are hoisted, so this runs
-// with recordWithCooldown already defined.
 registerLogSink({ recordWithCooldown })

@@ -83,7 +83,6 @@ export function extractTags(track: Track): string[] {
 export function extractGenre(track: Track): string | undefined {
     const tags = extractTags(track)
 
-    // Return the first genre tag found
     return tags.find((tag) =>
         [
             'rock',

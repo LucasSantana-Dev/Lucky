@@ -352,7 +352,6 @@ function MessageForm({
 
     useEffect(() => {
         if (mode === 'edit' && initialMessage) {
-            // Prefill edit form
             setChannelId(initialMessage.channelId)
             setTitle(initialMessage.title || '')
             setDescription(initialMessage.description || '')
@@ -384,7 +383,6 @@ function MessageForm({
                     : [{ ...DEFAULT_ROLE_ENTRY }],
             )
         } else {
-            // Reset for create mode
             setChannelId('')
             setTitle('')
             setDescription('')

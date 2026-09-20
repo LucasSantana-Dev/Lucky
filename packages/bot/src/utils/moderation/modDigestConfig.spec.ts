@@ -101,7 +101,9 @@ describe('ModDigestConfigService.disable', () => {
 
     it('returns false when no config exists (P2025)', async () => {
         const service = createService()
-        const p2025Error = new Error('An operation failed because it depends on one or more records that were required but not found. Record to delete does not exist.')
+        const p2025Error = new Error(
+            'An operation failed because it depends on one or more records that were required but not found. Record to delete does not exist.',
+        )
         ;(p2025Error as any).code = 'P2025'
         mockPrisma.modDigestConfig.delete.mockRejectedValue(p2025Error)
 
@@ -235,7 +237,6 @@ describe('ModDigestConfigService.markSent', () => {
         ;(err as any).code = 'P2025'
         mockPrisma.modDigestConfig.update.mockRejectedValue(err)
 
-        // Should not throw
         await service.markSent('g', 999)
     })
 
@@ -244,6 +245,8 @@ describe('ModDigestConfigService.markSent', () => {
         const err = new Error('other db error')
         mockPrisma.modDigestConfig.update.mockRejectedValue(err)
 
-        await expect(service.markSent('g', 999)).rejects.toThrow('other db error')
+        await expect(service.markSent('g', 999)).rejects.toThrow(
+            'other db error',
+        )
     })
 })

@@ -2,8 +2,6 @@ import { describe, expect, it } from '@jest/globals'
 import type { Track } from 'discord-player'
 import { trackSource, trackAlbumName } from './trackFields'
 
-// discord-player's `Track` is large and built by extractors at runtime; these
-// helpers only read two loosely-typed fields, so a minimal cast is enough.
 const asTrack = (partial: Partial<Track>): Track => partial as Track
 
 describe('trackSource', () => {

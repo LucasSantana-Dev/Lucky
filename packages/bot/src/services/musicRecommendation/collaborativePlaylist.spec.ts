@@ -8,7 +8,6 @@ describe('collaborativePlaylistService', () => {
     let testCounter = 0
 
     beforeEach(() => {
-        // Increment counter to create unique guild IDs per test
         testCounter++
     })
 
@@ -24,7 +23,7 @@ describe('collaborativePlaylistService', () => {
             )
 
             expect(state.enabled).toBe(true)
-            expect(state.perUserLimit).toBe(3) // DEFAULT_LIMIT
+            expect(state.perUserLimit).toBe(3)
             expect(state.contributions).toEqual({})
         })
 
@@ -45,7 +44,7 @@ describe('collaborativePlaylistService', () => {
             const state = collaborativePlaylistService.setMode(id, false)
 
             expect(state.enabled).toBe(false)
-            expect(state.perUserLimit).toBe(5) // Limit unchanged
+            expect(state.perUserLimit).toBe(5)
         })
 
         it('floors fractional limits', () => {

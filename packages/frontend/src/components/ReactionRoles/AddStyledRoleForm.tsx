@@ -69,7 +69,6 @@ export function AddStyledRoleForm({
                 dryRun: false,
             })
             setPreview(result)
-            // Don't reset form if partial_success; let user see the outcome
             if ('status' in result && result.status === 'ok') {
                 setName('')
                 setLabel('')

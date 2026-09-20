@@ -118,16 +118,14 @@ function JobDetailPanel({
                 )
                 setProgress(res.data.progress)
             } catch {
-                // silently fail on progress poll
+                // best-effort; progress just stays stale on failure
             } finally {
                 setLoadingProgress(false)
             }
         }
 
-        // Fetch immediately
         fetchProgress()
 
-        // Poll every 2s if in progress
         if (jobData.status === 'in_progress') {
             pollIntervalRef.current = setInterval(fetchProgress, 2000)
         }
@@ -453,7 +451,7 @@ export default function BatchJobsPage() {
                 </p>
             </header>
 
-            {/* Filters */}
+            {}
             <Card className='p-4 border border-lucky-border'>
                 <div className='flex flex-col sm:flex-row gap-3'>
                     <div className='relative flex-1'>
@@ -501,9 +499,9 @@ export default function BatchJobsPage() {
                 </div>
             </Card>
 
-            {/* Jobs Table */}
+            {}
             <Card className='overflow-hidden p-0 border border-lucky-border'>
-                {/* Header */}
+                {}
                 <div className='hidden md:grid grid-cols-[1fr_100px_80px_100px_80px] gap-4 px-6 py-3 border-b border-lucky-border bg-lucky-bg-tertiary/20'>
                     {[
                         t('tableHeaderJob'),
@@ -521,7 +519,7 @@ export default function BatchJobsPage() {
                     ))}
                 </div>
 
-                {/* Rows */}
+                {}
                 <div className='divide-y divide-lucky-border/40'>
                     {loading ? (
                         Array.from({ length: 8 }).map((_, i) => (
@@ -633,7 +631,7 @@ export default function BatchJobsPage() {
                     )}
                 </div>
 
-                {/* Pagination */}
+                {}
                 {total > limit && (
                     <div className='flex items-center justify-between px-5 py-3 border-t border-lucky-border'>
                         <span className='type-body-sm text-lucky-text-tertiary'>
@@ -670,7 +668,7 @@ export default function BatchJobsPage() {
                 )}
             </Card>
 
-            {/* Job Detail Modal */}
+            {}
             <JobDetailPanel
                 jobData={selectedJob}
                 open={!!selectedJob}

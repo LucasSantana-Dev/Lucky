@@ -5,7 +5,7 @@ describe('supportImageValidation', () => {
     describe('validateSupportImage', () => {
         it('accepts a valid PNG image', () => {
             const result = validateSupportImage({
-                size: 1024 * 1024, // 1 MB
+                size: 1024 * 1024,
                 mimetype: 'image/png',
             })
 
@@ -15,7 +15,7 @@ describe('supportImageValidation', () => {
 
         it('accepts a valid JPEG image', () => {
             const result = validateSupportImage({
-                size: 2 * 1024 * 1024, // 2 MB
+                size: 2 * 1024 * 1024,
                 mimetype: 'image/jpeg',
             })
 
@@ -25,7 +25,7 @@ describe('supportImageValidation', () => {
 
         it('accepts a valid WebP image', () => {
             const result = validateSupportImage({
-                size: 512 * 1024, // 512 KB
+                size: 512 * 1024,
                 mimetype: 'image/webp',
             })
 

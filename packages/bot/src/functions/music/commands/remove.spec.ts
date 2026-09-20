@@ -150,10 +150,9 @@ describe('remove command', () => {
         } as any)
 
         expect(queue.tracks.remove).toHaveBeenCalledWith(expect.any(Function))
-        // Verify the removal function was called with correct index
         const removeCallback = queue.tracks.remove.mock.calls[0][0]
-        expect(removeCallback(null, 1)).toBe(true) // position 2 (1-based) = index 1 (0-based)
-        expect(removeCallback(null, 0)).toBe(false) // position 1 (1-based) should not match index 0
+        expect(removeCallback(null, 1)).toBe(true)
+        expect(removeCallback(null, 0)).toBe(false)
     })
 
     it('rejects position 0', async () => {

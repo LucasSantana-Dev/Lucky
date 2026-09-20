@@ -13,7 +13,6 @@
  */
 export function isHost(url: string, ...hosts: string[]): boolean {
     try {
-        // A fully-qualified host keeps its trailing root dot in URL.hostname.
         const hostname = new URL(url).hostname.toLowerCase().replace(/\.$/, '')
         return hosts.some((h) => hostname === h || hostname.endsWith(`.${h}`))
     } catch {

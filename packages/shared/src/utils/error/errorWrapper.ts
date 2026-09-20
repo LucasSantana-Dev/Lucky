@@ -45,7 +45,6 @@ export function createUserErrorMessage(error: unknown): string {
     }
 
     if (error instanceof Error) {
-        // Map common error messages to user-friendly versions
         if (error.message.includes('timeout')) {
             return 'The request timed out. Please try again.'
         }
@@ -72,7 +71,6 @@ export function logError(error: unknown, context?: ErrorContext): void {
         correlationId: wrappedError.metadata.correlationId,
     })
 
-    // Capture in monitoring system
     captureException(wrappedError, {
         correlationId: wrappedError.metadata.correlationId,
         context,

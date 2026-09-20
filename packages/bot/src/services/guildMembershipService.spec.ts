@@ -3,12 +3,10 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 const upsertMock = jest.fn(async () => ({}))
 const updateManyMock = jest.fn(async () => ({ count: 1 }))
 const createMock = jest.fn(async () => ({}))
-const findUniqueMock = jest.fn<
-    () => Promise<{ joinedAt: Date | null } | null>
->(async () => null)
+const findUniqueMock = jest.fn<() => Promise<{ joinedAt: Date | null } | null>>(
+    async () => null,
+)
 const transactionMock = jest.fn(async (ops: unknown) => {
-    // Prisma's $transaction([...]) accepts an array of pending queries;
-    // resolve them so call assertions on the inner mocks run.
     if (Array.isArray(ops)) {
         return Promise.all(ops)
     }
@@ -156,7 +154,6 @@ describe('guildMembershipService', () => {
             await syncGuildsOnReady(client)
 
             expect(findUniqueMock).toHaveBeenCalledTimes(2)
-            // Only guildB should be upserted (guildA already has joinedAt).
             expect(upsertMock).toHaveBeenCalledTimes(1)
             const call = upsertMock.mock.calls[0]?.[0] as Record<
                 string,

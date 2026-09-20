@@ -125,7 +125,6 @@ describe('BulkKickExecutor', () => {
         getClientMock.mockReturnValue(
             makeClient([member('100'), member('200')]),
         )
-        // First getById (initial cursor read) ok; next call reports cancelled.
         batchJobServiceMock.getById
             .mockResolvedValueOnce({ nextCursor: null, status: 'in_progress' })
             .mockResolvedValue({ status: 'cancelled' })
@@ -143,7 +142,6 @@ describe('BulkKickExecutor', () => {
         getClientMock.mockReturnValue(
             makeClient([member('100', { kick: kickMember })]),
         )
-        // Resume: already processed 3 kicked, 2 skipped, 1 failed
         batchJobServiceMock.getById.mockResolvedValue({
             nextCursor: null,
             status: 'in_progress',
@@ -158,9 +156,7 @@ describe('BulkKickExecutor', () => {
             onProgressMock,
         )
 
-        // New kick increments processedItems from 3 to 4 (kicked goes from 3 to 4)
         expect(result).toMatchObject({ kicked: 4, skipped: 2, failed: 1 })
-        // Progress updates should include the resumed counts in message
         expect(onProgressMock).toHaveBeenCalled()
     })
 
@@ -184,10 +180,8 @@ describe('BulkKickExecutor', () => {
             onProgressMock,
         )
 
-        // Verify that progress is called before the kick happens in the loop
         expect(onProgressMock).toHaveBeenCalled()
         expect(kickMember).toHaveBeenCalled()
-        // The order should be: progress checkpoint is called, then kick is attempted
         const progressIndex = callOrder.indexOf('progress')
         const kickIndex = callOrder.indexOf('kick')
         expect(progressIndex).toBeGreaterThanOrEqual(0)
@@ -202,11 +196,9 @@ describe('BulkKickExecutor', () => {
         )
         getClientMock.mockImplementation(clientMockImpl)
 
-        // First call returns the client; second onwards the client becomes null
         batchJobServiceMock.getById
             .mockResolvedValueOnce({ nextCursor: null, status: 'in_progress' })
             .mockImplementation(async () => {
-                // After first iteration, client unavailable
                 if (clientMockImpl.mock.calls.length > 1) {
                     clientAvailable = false
                 }

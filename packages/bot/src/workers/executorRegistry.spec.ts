@@ -15,7 +15,6 @@ function fakeExecutor(jobType: BatchJobType): BatchJobExecutor {
 
 describe('executorRegistry', () => {
     it('returns null and hasExecutor=false for an unregistered type', () => {
-        // 'purge_batch' is never registered in this file.
         expect(getExecutor('purge_batch')).toBeNull()
         expect(hasExecutor('purge_batch')).toBe(false)
     })

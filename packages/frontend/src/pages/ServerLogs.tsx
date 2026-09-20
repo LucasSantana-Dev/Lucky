@@ -270,7 +270,7 @@ export default function ServerLogsPage() {
                 </div>
             </div>
 
-            {/* Filters: Linear-density layout */}
+            {}
             <Card className='p-4 space-y-3 border border-lucky-border'>
                 <div className='flex items-center gap-2 text-xs font-semibold text-lucky-text-tertiary uppercase tracking-wider'>
                     <Filter className='w-4 h-4' />
@@ -321,7 +321,7 @@ export default function ServerLogsPage() {
                 </div>
             </Card>
 
-            {/* Log Level Summary: Asymmetric Linear-style KPI grid */}
+            {}
             <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3'>
                 {(
                     Object.entries(LEVEL_CONFIG) as [
@@ -372,7 +372,7 @@ export default function ServerLogsPage() {
                 })}
             </div>
 
-            {/* Logs List */}
+            {}
             <Card className='p-0 overflow-hidden border border-lucky-border'>
                 <div className='divide-y divide-lucky-border/30'>
                     {loading ? (
@@ -410,7 +410,7 @@ export default function ServerLogsPage() {
                     )}
                 </div>
 
-                {/* Pagination */}
+                {}
                 {total > limit && (
                     <div className='flex items-center justify-between px-4 py-3 border-t border-lucky-border'>
                         <span className='text-xs text-lucky-text-tertiary'>

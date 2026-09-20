@@ -54,7 +54,6 @@ export async function shouldEnableAutoplay(guildId: string): Promise<boolean> {
     try {
         const stats = await getAutoplayStats(guildId)
 
-        // Enable autoplay if there's been recent activity
         return stats.thisWeek > 0 || stats.total > 5
     } catch (error) {
         errorLog({ message: 'Error checking autoplay eligibility:', error })

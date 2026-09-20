@@ -29,10 +29,6 @@ import {
     __resetYtdlpCookiesLogStateForTests,
 } from './ytdlpProcess'
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 type FakeProc = EventEmitter & {
     stdout: PassThrough
     stderr: PassThrough
@@ -46,10 +42,6 @@ function makeFakeProc(): FakeProc {
     proc.kill = jest.fn()
     return proc
 }
-
-// ---------------------------------------------------------------------------
-// streamViaYtDlp — URL validation
-// ---------------------------------------------------------------------------
 
 describe('streamViaYtDlp – URL validation', () => {
     it.each([
@@ -74,10 +66,6 @@ describe('streamViaYtDlp – URL validation', () => {
         await expect(streamViaYtDlp(url)).resolves.toBeDefined()
     })
 })
-
-// ---------------------------------------------------------------------------
-// streamViaYtDlp — cookies (#2034 / ADR 2026-06-18)
-// ---------------------------------------------------------------------------
 
 describe('streamViaYtDlp – cookies file', () => {
     const validUrl = 'https://www.youtube.com/watch?v=abc123'
@@ -166,10 +154,6 @@ describe('streamViaYtDlp – cookies file', () => {
     })
 })
 
-// ---------------------------------------------------------------------------
-// streamViaYtDlp — process lifecycle
-// ---------------------------------------------------------------------------
-
 describe('streamViaYtDlp – process lifecycle', () => {
     const validUrl = 'https://www.youtube.com/watch?v=abc123'
 
@@ -200,7 +184,6 @@ describe('streamViaYtDlp – process lifecycle', () => {
         jest.useFakeTimers()
         const proc = makeFakeProc()
         mockSpawn.mockReturnValue(proc)
-        // never emit stdout data — let the timeout fire
         const promise = streamViaYtDlp(validUrl)
         jest.advanceTimersByTime(YTDLP_STREAM_START_TIMEOUT_MS)
         await expect(promise).rejects.toThrow('yt-dlp: timed out')
@@ -208,17 +191,10 @@ describe('streamViaYtDlp – process lifecycle', () => {
         jest.useRealTimers()
     })
 
-    // #2141: the prior 6s budget was below the measured p100 with cookies
-    // (the live prod path), killing 16.8% of healthy resolutions. Pins the
-    // raised constant so a future regression back to a too-short value fails.
     it('uses the raised #2141 timeout constant, not the old 6s budget', () => {
         expect(YTDLP_STREAM_START_TIMEOUT_MS).toBeGreaterThan(6_000)
     })
 })
-
-// ---------------------------------------------------------------------------
-// streamViaYtDlpSearch
-// ---------------------------------------------------------------------------
 
 describe('streamViaYtDlpSearch', () => {
     it.each(['', '   '])('rejects on empty/whitespace: %p', async (query) => {

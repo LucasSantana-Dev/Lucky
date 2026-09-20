@@ -251,10 +251,6 @@ export class MetricsCache {
                 ? this.validateChannelArray(await channelsResponse.json())
                 : []
 
-            // Only the array length is used here (not individual role
-            // fields), so a shape check is enough — validateRoleArray's full
-            // per-item schema would silently drop roles missing optional
-            // fields this endpoint never reads, undercounting them.
             const rawRolesPayload = rolesResponse.ok
                 ? await rolesResponse.json()
                 : []

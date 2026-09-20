@@ -26,19 +26,13 @@ function formatBirthday(month: number, day: number): string {
     return `${MONTHS[month - 1]} ${day}`
 }
 
-// Days from `from` to the next occurrence of (month, day). 0 = today, 1 =
-// tomorrow, ..., 365/366 on the same date next year.
 export function daysUntilBirthday(
     from: Date,
     month: number,
     day: number,
 ): number {
     const year = from.getUTCFullYear()
-    const todayUtc = Date.UTC(
-        year,
-        from.getUTCMonth(),
-        from.getUTCDate(),
-    )
+    const todayUtc = Date.UTC(year, from.getUTCMonth(), from.getUTCDate())
     let target = Date.UTC(year, month - 1, day)
     if (target < todayUtc) {
         target = Date.UTC(year + 1, month - 1, day)
@@ -356,10 +350,15 @@ export default new Command({
                 content: { content: `❌ Unknown subcommand: ${subcommand}` },
             })
         } catch (error) {
-            errorLog({ message: 'birthday command failed', error: error as Error })
+            errorLog({
+                message: 'birthday command failed',
+                error: error as Error,
+            })
             await interactionReply({
                 interaction,
-                content: { content: '❌ Failed to update birthday. Try again.' },
+                content: {
+                    content: '❌ Failed to update birthday. Try again.',
+                },
             })
         }
     },

@@ -8,7 +8,6 @@ import { guildSettingsService } from '@lucky/shared/services'
 import { param } from './helpers'
 
 export function setupAutoplayRoutes(app: Express): void {
-    // GET /api/guilds/:guildId/autoplay/genres
     app.get(
         '/api/guilds/:guildId/autoplay/genres',
         requireAuth,
@@ -23,7 +22,6 @@ export function setupAutoplayRoutes(app: Express): void {
         }),
     )
 
-    // PUT /api/guilds/:guildId/autoplay/genres
     app.put(
         '/api/guilds/:guildId/autoplay/genres',
         requireAuth,
@@ -41,7 +39,6 @@ export function setupAutoplayRoutes(app: Express): void {
                 return
             }
 
-            // Validate genres array length
             if (genres.length > 5) {
                 res.status(400).json({
                     error: 'Limit exceeded',
@@ -50,7 +47,6 @@ export function setupAutoplayRoutes(app: Express): void {
                 return
             }
 
-            // Normalize and deduplicate
             const normalized = [
                 ...new Set(genres.map((g) => String(g).toLowerCase().trim())),
             ].filter(Boolean)

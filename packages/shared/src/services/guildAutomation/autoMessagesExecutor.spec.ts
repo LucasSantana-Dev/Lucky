@@ -129,7 +129,7 @@ describe('autoMessagesExecutor', () => {
 
         const live = await executor.capture(ctx)
         const diff = executor.diff(live, {
-            welcome: { channelId: '1' }, // no message — should be noop
+            welcome: { channelId: '1' },
             leave: {},
         })
         const result = await executor.apply(diff, ctx)
@@ -228,12 +228,10 @@ describe('autoMessagesExecutor', () => {
 
         const live = await executor.capture(ctx)
         const diff = executor.diff(live, {
-            // No messages — should produce noop ops
             welcome: { channelId: '1' },
             leave: {},
         })
 
-        // Verify diff contains noop ops
         expect(diff.ops).toHaveLength(2)
         expect(diff.ops[0].kind).toBe('noop')
         expect(diff.ops[1].kind).toBe('noop')
@@ -264,7 +262,6 @@ describe('autoMessagesExecutor', () => {
 
         expect(result.status).toBe('failed')
         if (result.status === 'failed') {
-            // Verify semicolon separator is present between errors
             expect(result.error).toContain('; ')
             expect(result.error).toContain('Error 1')
             expect(result.error).toContain('Error 2')

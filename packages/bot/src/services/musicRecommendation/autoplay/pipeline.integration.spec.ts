@@ -129,7 +129,6 @@ function makeAutoplayContext(
 describe('autoplay pipeline integration', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        // resetMocks: true wipes mockResolvedValue — re-set each test
         ;(getArtistTopTags as jest.Mock).mockResolvedValue([])
         ;(getSimilarTracks as jest.Mock).mockResolvedValue([])
         ;(getTagTopTracks as jest.Mock).mockResolvedValue([])
@@ -172,13 +171,11 @@ describe('autoplay pipeline integration', () => {
             })
             const queue = makeQueue(currentTrack)
 
-            // All search calls return Spanish gospel tracks
             ;(queue.player.search as jest.Mock).mockResolvedValue({
                 tracks: spanishGospelTracks,
                 playlist: null,
             })
 
-            // dominantLocale: null → English session → veto fires on Spanish content
             const englishSession: SessionMood = {
                 deepDiveArtist: null,
                 preferLong: false,
@@ -199,8 +196,6 @@ describe('autoplay pipeline integration', () => {
                 null,
             )
 
-            // candidateScorer returns -Infinity for Spanish gospel when no Spanish session history.
-            // upsertScoredCandidate drops non-finite scores, so the map must stay empty.
             expect(candidates.size).toBe(0)
         })
 
@@ -254,7 +249,6 @@ describe('autoplay pipeline integration', () => {
                 null,
             )
 
-            // English tracks pass the locale veto — at least one should be accepted
             expect(candidates.size).toBeGreaterThan(0)
         })
     })

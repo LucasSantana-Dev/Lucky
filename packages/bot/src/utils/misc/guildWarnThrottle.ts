@@ -17,9 +17,6 @@ export function createGuildWarnThrottle(windowMs: number): {
             const now = Date.now()
             const last = lastWarnAt.get(guildId)
             if (last !== undefined && now - last < windowMs) return false
-            // Evict stale entries on this write instead of on a timer, so the
-            // map can't grow unbounded across guilds that warned once and
-            // never again.
             for (const [id, at] of lastWarnAt) {
                 if (now - at >= windowMs) lastWarnAt.delete(id)
             }

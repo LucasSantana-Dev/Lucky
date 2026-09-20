@@ -39,10 +39,8 @@ export class CustomCommandService {
             config?: Prisma.InputJsonValue | null
         },
     ) {
-        // Validate embedData if provided
         let validatedEmbedData: EmbedData | null = null
         if (options?.embedData !== undefined && options?.embedData !== null) {
-            // Reject primitive embedData
             if (typeof options.embedData !== 'object') {
                 throw new ValidationError('Invalid embed data', [
                     {
@@ -89,10 +87,8 @@ export class CustomCommandService {
             createdBy?: string
         },
     ): Promise<'created' | 'updated'> {
-        // Validate embedData if provided
         let validatedEmbedData: EmbedData | null = null
         if (options?.embedData !== undefined && options?.embedData !== null) {
-            // Reject primitive embedData
             if (typeof options.embedData !== 'object') {
                 throw new ValidationError('Invalid embed data', [
                     {
@@ -108,7 +104,6 @@ export class CustomCommandService {
         const lockKey = `custom-command:${guildId}:${normalizedName}`
 
         const state = await prisma.$transaction(async (tx) => {
-            // Transaction lock for consistent read-modify-write semantics, not cache coherence
             await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
 
             const existing = await tx.customCommand.findUnique({
@@ -205,16 +200,13 @@ export class CustomCommandService {
         name: string,
         data: Prisma.CustomCommandUpdateInput,
     ) {
-        // Validate embedData if provided in the update (and not explicitly clearing it)
         if (
             data.embedData !== undefined &&
             data.embedData !== null &&
             data.embedData !== Prisma.JsonNull &&
             data.embedData !== Prisma.DbNull
         ) {
-            // embedData is being set to a new value
             if (typeof data.embedData === 'object') {
-                // Object embedData: validate and stringify
                 const validatedEmbedData = this.validateEmbedData(
                     data.embedData,
                 )
@@ -223,7 +215,6 @@ export class CustomCommandService {
                     embedData: JSON.stringify(validatedEmbedData),
                 }
             } else {
-                // Primitive embedData (string, number, etc.) is not allowed
                 throw new ValidationError('Invalid embed data', [
                     {
                         field: 'embedData',
@@ -232,7 +223,6 @@ export class CustomCommandService {
                 ])
             }
         }
-        // If embedData is null or Prisma.JsonNull, leave it as-is (clearing the embed)
 
         const result = await prisma.customCommand.update({
             where: {
@@ -286,7 +276,6 @@ export class CustomCommandService {
         userRoles: string[],
         channelId: string,
     ): boolean {
-        // If no restrictions, anyone can use
         if (
             command.allowedRoles.length === 0 &&
             command.allowedChannels.length === 0
@@ -294,7 +283,6 @@ export class CustomCommandService {
             return true
         }
 
-        // Check channel restriction
         if (
             command.allowedChannels.length > 0 &&
             !command.allowedChannels.includes(channelId)
@@ -302,7 +290,6 @@ export class CustomCommandService {
             return false
         }
 
-        // Check role restriction
         if (command.allowedRoles.length > 0) {
             const hasRole = userRoles.some((roleId) =>
                 command.allowedRoles.includes(roleId),

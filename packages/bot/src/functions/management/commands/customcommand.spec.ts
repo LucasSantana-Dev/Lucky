@@ -25,7 +25,6 @@ jest.mock('@lucky/shared/services', () => ({
     customCommandService: customCommandServiceMock,
 }))
 
-// Import after mocks are set up
 import customcommandCommand from './customcommand.js'
 
 function createChatInputInteraction(

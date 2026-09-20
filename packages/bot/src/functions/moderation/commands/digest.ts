@@ -32,7 +32,9 @@ export default new Command({
                 .addStringOption((option) =>
                     option
                         .setName('period')
-                        .setDescription('Time period to summarise (default: 7d)')
+                        .setDescription(
+                            'Time period to summarise (default: 7d)',
+                        )
                         .setRequired(false)
                         .addChoices(
                             { name: 'Last 7 days', value: '7d' },
@@ -50,7 +52,9 @@ export default new Command({
                 .addChannelOption((option) =>
                     option
                         .setName('channel')
-                        .setDescription('Text channel that will receive the digest')
+                        .setDescription(
+                            'Text channel that will receive the digest',
+                        )
                         .addChannelTypes(ChannelType.GuildText)
                         .setRequired(true),
                 ),
@@ -65,7 +69,9 @@ export default new Command({
         if (!interaction.guild) {
             await interactionReply({
                 interaction,
-                content: { content: '❌ This command can only be used in a server.' },
+                content: {
+                    content: '❌ This command can only be used in a server.',
+                },
             })
             return
         }
@@ -93,7 +99,10 @@ async function handleView(
     const days = resolveDigestPeriodDays(period)
 
     try {
-        const guildId = assertDefined(interaction.guild, 'Guild checked in execute').id
+        const guildId = assertDefined(
+            interaction.guild,
+            'Guild checked in execute',
+        ).id
         const since = new Date(Date.now() - days * MS_PER_DAY)
         const [stats, periodCases] = await Promise.all([
             moderationService.getStats(guildId),
@@ -108,7 +117,10 @@ async function handleView(
             message: `Mod digest viewed by ${interaction.user.tag} in ${assertDefined(interaction.guild, 'Guild checked in execute').name} (period: ${period})`,
         })
     } catch (error) {
-        errorLog({ message: 'Failed to generate mod digest', error: error as Error })
+        errorLog({
+            message: 'Failed to generate mod digest',
+            error: error as Error,
+        })
         await interactionReply({
             interaction,
             content: { content: createUserFriendlyError(error) },
@@ -128,14 +140,13 @@ async function handleSchedule(
         return
     }
 
-    const guildId = assertDefined(interaction.guild, 'Guild checked in execute').id
+    const guildId = assertDefined(
+        interaction.guild,
+        'Guild checked in execute',
+    ).id
     const channelId = (channel as TextChannel).id
 
     try {
-        // Send the sample digest BEFORE persisting the schedule. This guarantees
-        // that the scheduler tick can never see the guild as enabled+due-now
-        // until we've already accounted for the sample post by writing
-        // lastSentAt atomically with enable() below.
         const sent = await modDigestSchedulerService.sendDigestForGuild(
             guildId,
             channelId,
@@ -161,7 +172,10 @@ async function handleSchedule(
             message: `Mod digest scheduled by ${interaction.user.tag} in ${assertDefined(interaction.guild, 'Guild checked in execute').name} → channel ${channelId}`,
         })
     } catch (error) {
-        errorLog({ message: 'Failed to schedule mod digest', error: error as Error })
+        errorLog({
+            message: 'Failed to schedule mod digest',
+            error: error as Error,
+        })
         await interactionReply({
             interaction,
             content: { content: createUserFriendlyError(error) },
@@ -173,7 +187,9 @@ async function handleUnschedule(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     try {
-        const removed = await modDigestConfigService.disable(assertDefined(interaction.guild, 'Guild checked in execute').id)
+        const removed = await modDigestConfigService.disable(
+            assertDefined(interaction.guild, 'Guild checked in execute').id,
+        )
 
         await interactionReply({
             interaction,
@@ -190,7 +206,10 @@ async function handleUnschedule(
             })
         }
     } catch (error) {
-        errorLog({ message: 'Failed to unschedule mod digest', error: error as Error })
+        errorLog({
+            message: 'Failed to unschedule mod digest',
+            error: error as Error,
+        })
         await interactionReply({
             interaction,
             content: { content: createUserFriendlyError(error) },

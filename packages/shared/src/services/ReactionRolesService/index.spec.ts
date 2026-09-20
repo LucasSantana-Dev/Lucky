@@ -58,10 +58,8 @@ describe('ReactionRolesService', () => {
                 if (typeof fnOrArray === 'function') {
                     return await fnOrArray(mockPrisma)
                 }
-                // Handle array pattern: execute each operation
                 const results = []
                 for (const op of fnOrArray) {
-                    // Each op is a Prisma operation (like deleteMany result)
                     results.push(op)
                 }
                 return results
@@ -181,7 +179,6 @@ describe('ReactionRolesService', () => {
 
             const callArgs = mockChannel.send.mock.calls[0][0]
             const button = callArgs.components[0].components[0]
-            // discord.js internally converts unicode emoji to an object
             expect(button.data.emoji).toEqual(
                 expect.objectContaining({
                     name: '😀',
@@ -1387,9 +1384,6 @@ describe('ReactionRolesService', () => {
         })
 
         it('deletes old mappings by message cuid, not Discord snowflake (#1675)', async () => {
-            // ReactionRoleMapping.messageId is a FK to ReactionRoleMessage.id
-            // (a cuid). Using the Discord snowflake matched zero rows, so the
-            // nested create collided on @@unique([messageId, roleId]) -> 400.
             mockPrisma.reactionRoleMessage.findUnique.mockResolvedValueOnce({
                 id: 'cuid-internal-1',
                 messageId: '98765432109876543',
@@ -1426,8 +1420,6 @@ describe('ReactionRolesService', () => {
                 imageUrl: null,
                 mappings: [],
             })
-            // First $transaction (the update) succeeds; the Discord PATCH then
-            // fails, triggering the rollback $transaction.
             mockPrisma.$transaction.mockResolvedValueOnce({})
             mockPrisma.$transaction.mockResolvedValueOnce({})
             ;(global as any).fetch.mockResolvedValueOnce({
@@ -1440,8 +1432,6 @@ describe('ReactionRolesService', () => {
                 service.updateReactionRoleMessage(baseOptions),
             ).rejects.toThrow('Discord API error 500')
 
-            // Every deleteMany (update + rollback) must target the cuid, never
-            // the Discord snowflake.
             for (const call of mockPrisma.reactionRoleMapping.deleteMany.mock
                 .calls) {
                 expect(call[0]).toEqual({
@@ -1480,7 +1470,6 @@ describe('ReactionRolesService', () => {
             expect(callBody.embeds[0].image).toEqual({
                 url: 'https://example.com/image.png',
             })
-            // persists the embed content so the edit form can prefill it later
             expect(mockPrisma.reactionRoleMessage.update).toHaveBeenCalledWith(
                 expect.objectContaining({
                     data: expect.objectContaining({
@@ -1739,10 +1728,8 @@ describe('ReactionRolesService', () => {
             const fetchCall = (global.fetch as any).mock.calls[0]
             const headers = fetchCall[1].headers
 
-            // Multipart request should NOT have Content-Type: application/json
             expect(headers['Content-Type']).toBeUndefined()
 
-            // Body should be FormData, not a string
             const body = fetchCall[1].body
             expect(body).toBeInstanceOf(FormData)
         })
@@ -1775,7 +1762,6 @@ describe('ReactionRolesService', () => {
             const body = fetchCall[1].body as FormData
             const entries = Array.from(body.entries())
 
-            // Verify payload_json contains attachment:// reference
             const payloadEntry = entries.find((e) => e[0] === 'payload_json')
             expect(payloadEntry).toBeDefined()
             const payload = JSON.parse(payloadEntry![1] as string)
@@ -1783,7 +1769,6 @@ describe('ReactionRolesService', () => {
                 'attachment://test-image.png',
             )
 
-            // Verify files part exists (FormData converts it to File/Blob)
             const fileEntry = entries.find((e) => e[0] === 'files[0]')
             expect(fileEntry).toBeDefined()
             const uploadedFile = fileEntry![1] as any
@@ -1815,7 +1800,6 @@ describe('ReactionRolesService', () => {
                 optionsWithFile as any,
             )
 
-            // Prisma create should be called with imageUrl: null (no URL to store)
             expect(mockPrisma.reactionRoleMessage.create).toHaveBeenCalledWith(
                 expect.objectContaining({
                     data: expect.objectContaining({
@@ -2484,14 +2468,12 @@ describe('ReactionRolesService', () => {
                 description: 'New Desc',
             })
 
-            // Discord API fails
             ;(global as any).fetch = (jest.fn() as any).mockResolvedValueOnce({
                 ok: false,
                 status: 500,
                 text: async () => 'Internal Server Error',
             })
 
-            // Second transaction for rollback
             mockPrisma.$transaction.mockImplementationOnce(
                 async (callback: any) => {
                     transactionCalls++
@@ -2523,7 +2505,6 @@ describe('ReactionRolesService', () => {
                 service.updateReactionRoleMessage(options),
             ).rejects.toThrow('Discord API error')
 
-            // Verify rollback transaction was called
             expect(transactionCalls).toBe(2)
         })
     })

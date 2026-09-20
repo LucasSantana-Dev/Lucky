@@ -82,8 +82,6 @@ export function buildTrackEmbed(
     fields.push({ name: 'Source', value: badge.label, inline: true })
 
     if (track.recommendationReason) {
-        // Discord embed field values cap at 1024; open-ended autoplay signals
-        // from Last.fm/Spotify can theoretically exceed that and drop the embed.
         const reason =
             track.recommendationReason.length > 1024
                 ? `${track.recommendationReason.slice(0, 1021)}...`

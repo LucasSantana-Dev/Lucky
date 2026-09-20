@@ -291,7 +291,6 @@ export default new Command({
     botPermissions: [
         PermissionFlagsBits.ManageRoles,
         PermissionFlagsBits.ManageChannels,
-        // Posts a welcome embed via channel.send() (not interaction reply).
         PermissionFlagsBits.SendMessages,
         PermissionFlagsBits.EmbedLinks,
     ],
@@ -310,7 +309,6 @@ export default new Command({
         const mode = resolveSetupMode(interaction.options.getString('mode'))
 
         if (template === 'criativaria') {
-            // Telemetry: track invocation of criativaria command for demand measurement
             infoLog({
                 message: 'serversetup: criativaria invoked',
                 data: {
@@ -327,7 +325,6 @@ export default new Command({
                     interaction.guild,
                     mode,
                 )
-                // Raw editReply: plain-string streaming response, not an embed — interactionReply() does not apply here
                 await interaction.editReply(
                     formatCriativariaSummary(result, mode),
                 )
@@ -340,7 +337,6 @@ export default new Command({
                         'serversetup: Failed to execute Criativaria template',
                     error,
                 })
-                // Raw editReply: streaming error string
                 await interaction.editReply(
                     '❌ Failed to run Criativaria setup. Check logs and try again.',
                 )
@@ -377,7 +373,6 @@ export default new Command({
 
         try {
             progress.push('Creating roles...')
-            // Raw editReply: streaming progress updates with plain-string content — interactionReply() is not applicable here
             await interaction.editReply(progress.join('\n'))
             const roles = await createRoles(guild)
             progress.push(

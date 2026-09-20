@@ -6,11 +6,11 @@
 export interface ScopeConfig {
     type: 'all' | 'count' | 'user' | 'date_range' | 'contains'
     config: {
-        count?: number // For 'count' scope
-        userId?: string // For 'user' scope
-        dateRangeStart?: Date | string // For 'date_range' scope; stored as ISO string after JSON roundtrip
-        dateRangeEnd?: Date | string // For 'date_range' scope; stored as ISO string after JSON roundtrip
-        searchText?: string // For 'contains' scope
+        count?: number
+        userId?: string
+        dateRangeStart?: Date | string
+        dateRangeEnd?: Date | string
+        searchText?: string
     }
 }
 
@@ -26,12 +26,7 @@ export type BatchJobType =
 
 /** Union of all valid batch job statuses. */
 export type BatchJobStatus =
-    | 'pending'
-    | 'in_progress'
-    | 'paused'
-    | 'completed'
-    | 'failed'
-    | 'cancelled'
+    'pending' | 'in_progress' | 'paused' | 'completed' | 'failed' | 'cancelled'
 
 /** Represents the progress state of a batch job. */
 export interface BatchProgress {
@@ -40,8 +35,8 @@ export interface BatchProgress {
     skipped: number
     total: number
     percentComplete: number
-    eta?: string // Human-readable ETA, e.g., "5 minutes 30 seconds"
-    message: string // Formatted progress message
+    eta?: string
+    message: string
     /**
      * Resumability checkpoint: the cursor (last successfully processed target id)
      * to persist. Executors MUST report this via `onProgress` BEFORE the destructive

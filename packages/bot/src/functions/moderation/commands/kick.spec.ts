@@ -324,7 +324,6 @@ describe('kick command', () => {
                 message: expect.stringContaining('Failed to send DM'),
             }),
         )
-        // Kick should still proceed
         expect(targetMember.kick).toHaveBeenCalled()
     })
 

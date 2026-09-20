@@ -11,8 +11,6 @@ export interface ForumThread {
 
 export function createForumApi(client: AxiosInstance) {
     return {
-        // Resolves a forum-content slug to its Discord thread for a guild.
-        // Returns null when no thread is mapped (guide has no thread yet).
         getThread: async (
             guildId: string,
             slug: string,

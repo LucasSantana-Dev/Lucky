@@ -1,7 +1,6 @@
 import { MUSIC_ERROR_CODES } from '../../types/errors/music'
 import { describe, it, expect, jest, beforeEach } from '@jest/globals'
 
-// Mock dependencies
 jest.mock('../general/log', () => ({
     errorLog: jest.fn(),
 }))
@@ -240,7 +239,7 @@ describe('Error Wrapper', () => {
             const wrappedError = wrapError(error, undefined, context)
             const userMessage = createUserErrorMessage(wrappedError)
 
-            expect(wrappedError).toBe(error) // Same error
+            expect(wrappedError).toBe(error)
             expect(userMessage).toBe('Music error')
         })
     })

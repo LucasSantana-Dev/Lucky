@@ -93,8 +93,6 @@ describe('autoplayEval', () => {
                 title: 'Comfortably Numb',
                 author: 'Pink Floyd',
             })
-            // Negatives share artist with seed so each gets the same-artist boost;
-            // the positive's dislike penalty outweighs its own boost, pushing it below all negatives.
             const negative1 = createTrack({
                 title: 'Song A',
                 author: 'Pink Floyd',
@@ -127,7 +125,6 @@ describe('autoplayEval', () => {
                 implicitDislikeKeys: new Set([positiveKey]),
             }
 
-            // k=4 excludes the penalized positive, which ranks last among 5 candidates
             const result = computeHitAtK([sample], 4)
             expect(result).toBe(0.0)
         })
@@ -192,8 +189,6 @@ describe('autoplayEval', () => {
                 author: 'Artist 5',
             })
 
-            // Positive is disliked — negatives share seed artist so they rank above it.
-            // k=2 means only those 2 negatives are in top-k; positive misses.
             const positive2Key = 'hiddensong::artist5'
 
             const sample2: EvalSample = {
@@ -214,13 +209,6 @@ describe('autoplayEval', () => {
 
     describe('fixture gate — CI baseline', () => {
         it('Hit@5 >= 0.8 when decoys carry recent-artist and dislike penalties', () => {
-            // Discrimination design: the positive is a fresh artist (gets the
-            // session-novelty boost), while all 14 decoys are recent artists
-            // (novelty denied) and half are implicitly disliked (-0.35). A
-            // correct scorer ranks the positive #1 of 15; a broken/inverted
-            // scorer turns the penalties into boosts and drops the positive
-            // to the bottom, so Hit@5 collapses to 0 instead of passing
-            // tautologically (the old fixture had pool size == k).
             const samples: EvalSample[] = []
 
             for (let i = 0; i < 5; i++) {
@@ -241,8 +229,6 @@ describe('autoplayEval', () => {
                     createTrack({ title: `Stale Song ${i} ${d}`, author }),
                 )
 
-                // Every decoy artist is "recent" (denies the novelty boost);
-                // the first 7 decoys are additionally implicitly disliked.
                 const recentArtists = new Set(
                     decoyArtists.map((a) => a.toLowerCase()),
                 )
@@ -276,8 +262,6 @@ describe('autoplayEval', () => {
                 title: 'Disliked Track',
                 author: 'Artist A',
             })
-            // Make 4 negatives from SAME artist so they score higher than disliked positive
-            // Then add 10 decoys of various types to expand the candidate pool
             const sameArtistNegatives = [
                 createTrack({ title: 'Other 1', author: 'Artist A' }),
                 createTrack({ title: 'Other 2', author: 'Artist A' }),
@@ -286,13 +270,11 @@ describe('autoplayEval', () => {
             ]
 
             const decoys = [
-                // Different artists
                 createTrack({ title: 'Decoy X1', author: 'Artist X' }),
                 createTrack({ title: 'Decoy X2', author: 'Artist X' }),
                 createTrack({ title: 'Decoy Y1', author: 'Artist Y' }),
                 createTrack({ title: 'Decoy Y2', author: 'Artist Y' }),
                 createTrack({ title: 'Decoy Z1', author: 'Artist Z' }),
-                // Long-duration decoys
                 createTrack({
                     title: 'Long Decoy 1',
                     author: 'Long Artist',
@@ -336,10 +318,6 @@ describe('autoplayEval', () => {
                 implicitDislikeKeys: new Set([positiveKey]),
             }
 
-            // With implicit dislike penalty (-0.35), the positive ranks below all
-            // the same-artist negatives which get implicit-dislike penalty but the
-            // positive is explicitly disliked, making it rank much lower.
-            // k=4 excludes the penalized positive from top-4 (4 same-artist tracks beat it)
             const result = computeHitAtK([sample], 4)
             expect(result).toBe(0)
         })

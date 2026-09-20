@@ -53,7 +53,6 @@ function stripFeaturing(author: string): string {
         if (idx >= 0 && idx < cut) cut = idx
     }
     let result = author.slice(0, cut)
-    // Remove parenthetical groups containing "feat" or "ft"
     let i = 0
     while (i < result.length) {
         const open = result.indexOf('(', i)
@@ -110,7 +109,6 @@ function stripVariantSuffix(title: string): string {
     const lower = title.toLowerCase()
     const trimmedLower = lower.trimEnd()
 
-    // Strip parenthetical variant suffix at end: (Remastered) or [2015 Live]
     for (const [openChar, closeChar] of [
         ['(', ')'],
         ['[', ']'],
@@ -131,7 +129,6 @@ function stripVariantSuffix(title: string): string {
         }
     }
 
-    // Strip dash-prefixed variant suffix at end: - Remastered or – 2015 Live
     for (const sep of [' - ', ' – ']) {
         const idx = lower.lastIndexOf(sep)
         if (idx < 0) continue
@@ -327,7 +324,6 @@ export async function addSelectedTracks(
             ),
         )
         queue.addTrack(candidate.track)
-        // Update local exclusion sets for this replenish call
         excludedUrls.add(candidate.track.url)
         const vid = extractYouTubeVideoId(candidate.track.url)
         if (vid) excludedUrls.add(vid)
@@ -340,8 +336,6 @@ export async function addSelectedTracks(
             candidate.track.author,
         )
         if (core) excludedKeys.add(normalizeText(core))
-        // Write to Redis immediately so the NEXT replenish call (from the
-        // subsequent event) also excludes this track — not just the local set.
         historyWrites.push(
             trackHistoryService.addTrackToHistory(
                 {

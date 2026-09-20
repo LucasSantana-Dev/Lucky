@@ -3,7 +3,7 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { musicSessionSnapshotService } from '../musicRecommendation/sessionSnapshots'
 
-const STARTUP_MAX_AGE_MS = 30 * 60 * 1_000 // 30 minutes
+const STARTUP_MAX_AGE_MS = 30 * 60 * 1_000
 
 /**
  * Restores guild session snapshots (now stored in Postgres) on startup by
@@ -70,9 +70,6 @@ export async function restoreSessionsOnStartup(
                 continue
             }
 
-            // Do not rejoin + auto-play into an empty channel. Mirrors the
-            // orphan-session watchdog's presence guard (watchdog.ts) so the bot
-            // never surprises an empty room after a restart/redeploy.
             const humansPresent = channel.members.filter(
                 (member) => !member.user.bot,
             ).size

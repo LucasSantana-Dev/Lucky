@@ -196,11 +196,9 @@ describe('queueResolver', () => {
         const cacheMap = new Map<string, QueueLike>([['different-key', queue]])
         const client = createClient({ cacheMap })
 
-        // Request by the guild ID (which is same as queue id)
         const result = resolveGuildQueue(client, 'same-id')
 
         expect(result.queue).toBe(queue)
-        // Should resolve via guild first (authoritative)
         expect(result.source).toBe('cache.guild')
     })
 

@@ -49,10 +49,6 @@ function buildVagaMessage(
     return parts.join('\n\n')
 }
 
-// Discord's plain string options are single-line inputs — pasting a bulleted
-// requirements list into one collapses it onto one line (browsers flatten
-// <li> newlines into spaces on copy). A modal's paragraph text input is the
-// only way to actually accept real line breaks here.
 function buildDescricaoModal(customId: string): ModalBuilder {
     return new ModalBuilder()
         .setCustomId(customId)
@@ -70,10 +66,6 @@ function buildDescricaoModal(customId: string): ModalBuilder {
 }
 
 async function collectDescricao(chat: ChatInputCommandInteraction) {
-    // Scoped to this invocation's own interaction id — without it, a second
-    // /vaga run by the same user before the first one's modal is submitted
-    // could resolve THIS awaitModalSubmit with the OTHER invocation's
-    // descrição, mixing it with this call's título/url/modalidade.
     const customId = `vaga_descricao_${chat.id}`
     await chat.showModal(buildDescricaoModal(customId))
     try {
@@ -83,8 +75,6 @@ async function collectDescricao(chat: ChatInputCommandInteraction) {
             time: 5 * 60 * 1000,
         })
     } catch {
-        // No follow-up possible — the original interaction was only
-        // acknowledged by showModal(), which leaves nothing to edit.
         return null
     }
 }
@@ -189,8 +179,6 @@ export default new Command({
         )
         const preview = `${body}\n\n${pings}`
 
-        // Discord rejects message content over 2000 chars — fail early with a
-        // clear message instead of a runtime API error at publish time.
         if (preview.length > 2000) {
             await modalSubmit.reply({
                 content: `⚠️ A vaga ficou muito longa (${preview.length}/2000 caracteres). Encurte a descrição.`,
@@ -244,9 +232,6 @@ export default new Command({
                 (c.type === ChannelType.GuildText ||
                     c.type === ChannelType.GuildAnnouncement),
         )
-        // Prefer an exact "vagas" match; only fall back to the first
-        // substring match so we never post to an unrelated "vagas-*" channel
-        // when the canonical one exists.
         const channel =
             vagasChannels.find(
                 (c: GuildBasedChannel) => c.name.toLowerCase() === 'vagas',

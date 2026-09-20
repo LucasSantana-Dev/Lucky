@@ -122,7 +122,7 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
                 </div>
             )}
 
-            {/* Current genres */}
+            {}
             {genres.length > 0 && (
                 <div className='mb-6'>
                     <Label className='text-sm font-medium text-lucky-text-primary'>
@@ -145,7 +145,7 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
                 </div>
             )}
 
-            {/* Add new genre */}
+            {}
             <div className='space-y-3'>
                 <Label className='text-sm font-medium text-lucky-text-primary'>
                     Add Genre
@@ -179,7 +179,7 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
                 </div>
             </div>
 
-            {/* Suggested genres */}
+            {}
             {genres.length < MAX_GENRES && (
                 <div className='mt-6 pt-6 border-t border-lucky-border'>
                     <Label className='text-sm font-medium text-lucky-text-primary'>

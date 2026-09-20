@@ -45,11 +45,6 @@ async function probeTrackResolvable(
         ])
         return result !== null && result.tracks.length > 0
     } catch (error) {
-        // The timeout race resolves to `null` above rather than throwing, so
-        // reaching here means the probe itself errored (network blip,
-        // extractor crash) — not a confirmed "track is gone." Debug, not
-        // warn/error: one probe failing is expected occasionally and the
-        // rescue flow already errorLogs if it fails overall (#2134).
         debugLog({
             message: 'Track resolvability probe failed',
             data: { query, error: String(error) },

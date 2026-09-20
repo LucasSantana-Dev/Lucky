@@ -43,7 +43,7 @@ describe('errorSupportContext', () => {
 
             expect(result.supportLink).toContain('cid=abc123xy')
             expect(result.supportLink).toContain('guildId=guild-456')
-            expect(result.supportLink).toContain('command=%2Fplay') // URL-encoded /
+            expect(result.supportLink).toContain('command=%2Fplay')
             expect(result.supportLink).toContain('category=playback-error')
         })
 
@@ -51,7 +51,6 @@ describe('errorSupportContext', () => {
             process.env.SUPPORT_URL = 'https://example.com/support'
             const result = buildErrorSupportContext('abc123xy', {
                 guildId: 'guild-456',
-                // command and errorCategory are undefined
             })
 
             expect(result.supportLink).toContain('cid=abc123xy')

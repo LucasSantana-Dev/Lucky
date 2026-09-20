@@ -49,7 +49,6 @@ describe('useVoteStatus', () => {
     test('returns null on fetch error (graceful degrade)', async () => {
         getVoteStatus.mockRejectedValue(new Error('404'))
         const { result } = renderHook(() => useVoteStatus())
-        // wait a microtask so the catch handler runs
         await new Promise((r) => setTimeout(r, 10))
         expect(result.current.status).toBeNull()
     })

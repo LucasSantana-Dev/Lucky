@@ -54,17 +54,12 @@ jest.mock('@lucky/shared/utils', () => ({
     warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
-// Global fetch mock before any imports
 const fetchMock = jest.fn() as jest.Mock
 
-// Mock global.fetch before importing modules that use it
 Object.defineProperty(global, 'fetch', {
     writable: true,
     value: fetchMock,
 })
-
-// Don't mock withTimeout - let it work with the real implementation
-// which will properly await and resolve promises
 
 import {
     normalizeYouTubeUrl,
@@ -77,8 +72,6 @@ import {
 
 describe('host matching', () => {
     it('leaves a foreign URL that merely mentions youtube alone', () => {
-        // The old guard tested the raw string, so any link carrying
-        // "youtube.com" anywhere had its list/start_radio params stripped.
         const url =
             'https://example.com/watch?ref=youtube.com&list=RD123&start_radio=1'
         expect(normalizeYouTubeUrl(url)).toBe(url)
@@ -147,7 +140,6 @@ describe('normalizeSoundCloudUrl', () => {
     })
 
     it('handles malformed soundcloud URLs (no protocol) gracefully', () => {
-        // new URL('soundcloud.com/...') throws — catch block must return input
         const bad = 'soundcloud.com/artist/track-no-protocol'
         expect(normalizeSoundCloudUrl(bad)).toBe(bad)
     })
@@ -201,10 +193,6 @@ describe('expandSoundCloudShortUrl', () => {
     })
 
     it('logs an expansion failure at warn, not debug', async () => {
-        // debug is filtered out in production, so this failure used to leave
-        // no trace: the user saw a generic "No results found" from the
-        // resolver with nothing indicating expansion was the failing step
-        // (#1994).
         fetchMock.mockRejectedValueOnce(new Error('network down'))
 
         const shortUrl = 'https://on.soundcloud.com/abc123'
@@ -266,7 +254,7 @@ describe('expandSoundCloudShortUrl', () => {
     })
 
     it('handles malformed on.soundcloud.com URLs gracefully', async () => {
-        const malformed = 'on.soundcloud.com/abc123' // No protocol
+        const malformed = 'on.soundcloud.com/abc123'
 
         const result = await expandSoundCloudShortUrl(malformed)
 
@@ -389,7 +377,6 @@ describe('executePlayAtTop — fallback chain', () => {
 
 describe('normalizeYouTubeUrl', () => {
     it('strips the Mix context that broke the production request', () => {
-        // The exact URL from the 2026-08-26 16:09:07 NoResultError.
         expect(
             normalizeYouTubeUrl(
                 'https://www.youtube.com/watch?v=Gx9xqXlU9gE&list=RDGx9xqXlU9gE&start_radio=1',
@@ -466,8 +453,6 @@ describe('normalization logging behavior', () => {
         })
 
         it('still warns for malformed http URLs', () => {
-            // soundcloud.com/... without protocol looks like a URL (could be
-            // user pasting), so attempting to parse it should warn when it fails
             normalizeSoundCloudUrl('http://invalid[url')
             expect(warnLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({

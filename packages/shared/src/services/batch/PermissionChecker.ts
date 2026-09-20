@@ -61,7 +61,6 @@ export function checkBatchPermissions(
 
     const missing: string[] = []
 
-    // Check source permissions
     if (requirements.source) {
         for (const perm of requirements.source) {
             if (!permissions[perm]) {
@@ -70,7 +69,6 @@ export function checkBatchPermissions(
         }
     }
 
-    // Check target permissions
     if (requirements.target) {
         for (const perm of requirements.target) {
             if (!permissions[perm]) {

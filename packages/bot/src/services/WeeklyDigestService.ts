@@ -17,7 +17,7 @@ import {
     parseIntEnv,
 } from '@lucky/shared/utils'
 
-const DEFAULT_TICK_INTERVAL_MS = 60 * 60 * 1000 // Check every hour
+const DEFAULT_TICK_INTERVAL_MS = 60 * 60 * 1000
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const MS_PER_WEEK = 7 * MS_PER_DAY
 
@@ -56,7 +56,6 @@ export class WeeklyDigestService {
     start(client: Client): void {
         if (this.timer) return
 
-        // Check if the service is configured via env vars
         const digestChannelId = process.env.DIGEST_CHANNEL_ID
         const forumChannelId = process.env.FORUM_CHANNEL_ID
 
@@ -73,7 +72,6 @@ export class WeeklyDigestService {
             message: `Weekly digest service started (interval: ${this.tickIntervalMs}ms)`,
         })
 
-        // Run once immediately to check if a digest is due, then set interval
         void this.tick()
         this.timer = setInterval(() => {
             void this.tick()
@@ -105,7 +103,6 @@ export class WeeklyDigestService {
             const now = this.clock()
             const utcDate = new Date(now)
 
-            // Only send on Sundays between 12:00 and 12:59 UTC
             const dayOfWeek = utcDate.getUTCDay()
             const hour = utcDate.getUTCHours()
 
@@ -117,7 +114,6 @@ export class WeeklyDigestService {
                 return
             }
 
-            // Single-send per hour: don't send again if we sent in the last 30 mins
             if (now - this.lastDigestTime < 30 * 60 * 1000) return
 
             this.lastDigestTime = now
@@ -160,7 +156,6 @@ export class WeeklyDigestService {
         if (!this.client) return false
 
         try {
-            // Resolve digest channel
             const digestChannel = (await this.client.channels
                 .fetch(digestChannelId)
                 .catch(() => null)) as TextChannel | null
@@ -178,7 +173,6 @@ export class WeeklyDigestService {
             const guildId = digestChannel.guildId
             const guild = digestChannel.guild
 
-            // Resolve forum channel
             const forumChannel = (await guild.channels
                 .fetch(forumChannelId)
                 .catch(() => null)) as TextChannel | ForumChannel | null
@@ -194,10 +188,8 @@ export class WeeklyDigestService {
                 return false
             }
 
-            // Get member count
             const currentMemberCount = guild.memberCount ?? 0
 
-            // Get previous snapshot for delta
             const prisma = getPrismaClient()
             const previousSnapshot =
                 await prisma.weeklyDigestSnapshot.findFirst({
@@ -206,12 +198,10 @@ export class WeeklyDigestService {
                     take: 1,
                 })
 
-            // Idempotency check: don't send if we already sent this week
             if (previousSnapshot) {
                 const lastPosted = new Date(previousSnapshot.postedAt)
                 const now = new Date(this.clock())
                 const startOfThisWeek = new Date(now)
-                // Sunday-anchored: day - getUTCDay() (0 for Sunday = no offset, 1 for Monday = -1, etc.)
                 startOfThisWeek.setUTCDate(now.getUTCDate() - now.getUTCDay())
                 startOfThisWeek.setUTCHours(0, 0, 0, 0)
 
@@ -228,16 +218,12 @@ export class WeeklyDigestService {
                 ? currentMemberCount - previousMemberCount
                 : 0
 
-            // Fetch top-reacted messages from last 7 days
             const topMessages = await this.getTopReactedMessages(forumChannel)
 
-            // Fetch upcoming events in next 7 days
             const upcomingEvents = await this.getUpcomingEvents(guild)
 
-            // Fetch new guides from RSS feed this week
             const newGuides = await this.getNewGuidesThisWeek()
 
-            // Build embed
             const embed = this.buildDigestEmbed(
                 currentMemberCount,
                 memberDelta,
@@ -246,9 +232,6 @@ export class WeeklyDigestService {
                 newGuides,
             )
 
-            // Send embed first — persisting the snapshot only after a
-            // successful send keeps a failed send from advancing the weekly
-            // baseline (which would suppress retry and lose the digest)
             await digestChannel.send({ embeds: [embed] })
 
             await prisma.weeklyDigestSnapshot.create({
@@ -278,9 +261,6 @@ export class WeeklyDigestService {
         forumChannel: TextChannel | ForumChannel,
     ): Promise<ReactionCount[]> {
         try {
-            // Forum posts live in threads — the forum container itself has no
-            // .messages, so collect each active thread's starter message.
-            // Text channels keep the plain last-100-messages fetch.
             const messages: Message[] = []
             if (forumChannel.type === ChannelType.GuildForum) {
                 const active = await forumChannel.threads.fetchActive()
@@ -301,7 +281,6 @@ export class WeeklyDigestService {
             const reactionCounts: ReactionCount[] = []
 
             for (const message of messages) {
-                // Filter by last 7 days
                 if (message.createdTimestamp < oneWeekAgo) continue
 
                 let totalReactions = 0
@@ -320,7 +299,6 @@ export class WeeklyDigestService {
                 }
             }
 
-            // Sort by reaction count descending and take top 3
             return reactionCounts
                 .sort((a, b) => b.totalReactions - a.totalReactions)
                 .slice(0, 3)
@@ -388,26 +366,19 @@ export class WeeklyDigestService {
             for (const item of feed.items) {
                 if (!item.title || !item.link) continue
 
-                // Filter by this week (pubDate must be valid, within last 7 days, not future)
-
                 if (item.pubDate) {
                     const parsed = Date.parse(item.pubDate as string)
                     if (Number.isNaN(parsed)) {
-                        // Unparsable date — skip
                         continue
                     }
                     const itemTime = parsed
-                    // Skip if older than one week ago
                     if (itemTime < oneWeekAgo) {
-                        // Feeds may not be sorted; use continue to check remaining items
                         continue
                     }
-                    // Skip if in the future
                     if (itemTime > now) {
                         continue
                     }
                 } else {
-                    // No pubDate — skip undated items
                     continue
                 }
 
@@ -426,7 +397,6 @@ export class WeeklyDigestService {
                 message: 'Failed to fetch RSS feed for guides',
                 error: error as Error,
             })
-            // Fail soft: return empty array, digest will send without this section
             return []
         }
     }
@@ -444,7 +414,6 @@ export class WeeklyDigestService {
             .setFooter({ text: process.env.DIGEST_FOOTER ?? 'lucky.bot' })
             .setTimestamp()
 
-        // Member count field
         const memberText =
             memberDelta > 0
                 ? `${memberCount} membros (+${memberDelta} esta semana)`
@@ -457,7 +426,6 @@ export class WeeklyDigestService {
             inline: false,
         })
 
-        // Top reacted messages field
         if (topMessages.length > 0) {
             const topMessagesList = topMessages
                 .map(
@@ -478,7 +446,6 @@ export class WeeklyDigestService {
             })
         }
 
-        // Upcoming events field
         if (upcomingEvents.length > 0) {
             embed.addFields({
                 name: '🗓️ Esta semana',
@@ -493,7 +460,6 @@ export class WeeklyDigestService {
             })
         }
 
-        // New guides field — only if there are items
         if (newGuides.length > 0) {
             const MAX_FIELD_VALUE = 1024
             const MAX_TITLE_LENGTH = 80
@@ -505,12 +471,10 @@ export class WeeklyDigestService {
                 return `[📚 ${title}](${guide.link})`
             })
 
-            // Assemble guide list and enforce field value cap
             let guidesList = ''
             for (const guide of truncatedGuides) {
                 const line = `${guidesList ? '\n' : ''}${guide}`
                 if ((guidesList + line).length > MAX_FIELD_VALUE) {
-                    // Skip only this over-long entry; later (shorter) guides still fit
                     continue
                 }
                 guidesList = guidesList + line

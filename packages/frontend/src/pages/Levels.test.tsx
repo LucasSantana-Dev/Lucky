@@ -181,7 +181,6 @@ describe('Levels', () => {
         )
         render(<Levels />)
 
-        // The failure is surfaced inline rather than masked as empty roles.
         expect(
             await screen.findByText(/load this server.s roles/i),
         ).toBeInTheDocument()

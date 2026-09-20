@@ -212,6 +212,6 @@ export async function getTrackMetadata(track: Track, _guildId: string) {
         artist: track.author,
         genre,
         tags,
-        views: 1, // Default view count
+        views: 1,
     }
 }

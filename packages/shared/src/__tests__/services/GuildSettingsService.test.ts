@@ -1,6 +1,5 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 
-// Service captures getPrismaClient() lazily per call; mock returns a stable client.
 const mockUpsert = jest.fn() as jest.MockedFunction<
     (...args: any[]) => Promise<any>
 >
@@ -44,7 +43,6 @@ describe('GuildSettingsService settings (Postgres source of truth)', () => {
         expect(mockUpsert).toHaveBeenCalledTimes(1)
         const arg = mockUpsert.mock.calls[0][0] as any
         expect(arg.where).toEqual({ guildId: 'guild-1' })
-        // Only the provided field is in the data — no birthday columns clobbered.
         expect(arg.update).toEqual({ autoplayGenres: ['rock', 'jazz'] })
         expect(arg.create).toEqual({
             guildId: 'guild-1',
@@ -79,15 +77,15 @@ describe('GuildSettingsService settings (Postgres source of truth)', () => {
             autoplayGenres: ['rock'],
             repeatMode: 0,
             shuffleEnabled: false,
-            prefix: null, // -> default '/'
-            embedColor: null, // -> default
+            prefix: null,
+            embedColor: null,
             language: 'en',
             allowPlaylists: true,
             allowSpotify: true,
             commandCooldown: 3,
-            djRoleId: null, // -> undefined
-            idleTimeoutMinutes: null, // -> 0
-            voteSkipThreshold: null, // -> 50
+            djRoleId: null,
+            idleTimeoutMinutes: null,
+            voteSkipThreshold: null,
             createdAt: new Date(),
             updatedAt: new Date(),
         })

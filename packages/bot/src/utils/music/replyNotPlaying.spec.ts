@@ -29,8 +29,6 @@ describe('replyNotPlaying', () => {
         }
         expect(call.interaction).toBe(interaction)
         expect(call.content.embeds[0].title).toBe('Error')
-        // Sourced from messages.ts rather than a hardcoded literal, so the two
-        // call sites cannot drift apart again (#1970).
         expect(call.content.embeds[0].description).toBe(
             messages.error.notPlaying,
         )

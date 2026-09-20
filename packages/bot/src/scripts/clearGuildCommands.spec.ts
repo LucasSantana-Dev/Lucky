@@ -66,9 +66,6 @@ describe('clearGuildCommands', () => {
         }
     })
 
-    // Without a per-guild catch, one rejected call aborts the loop and every
-    // guild after it silently keeps its stale commands, which then shadow the
-    // global set. Raised by CodeRabbit and cubic on #1887.
     it('does nothing for an empty guild list', async () => {
         const put = jest.fn<any>().mockResolvedValue(undefined)
 
@@ -132,9 +129,6 @@ describe('fetchAllGuilds', () => {
         expect(get).toHaveBeenCalledTimes(1)
     })
 
-    // Discord caps this endpoint at 200 per page. Stopping after the first page
-    // would silently skip every guild beyond it, leaving them shadowing the
-    // global commands with no error at all.
     it('follows pagination until a short page arrives', async () => {
         const get = jest
             .fn<any>()
@@ -147,8 +141,6 @@ describe('fetchAllGuilds', () => {
         expect(guilds).toHaveLength(407)
         expect(get).toHaveBeenCalledTimes(3)
 
-        // Each follow-up page must start after the last id of the previous one,
-        // or the same 200 come back forever.
         const secondCallQuery = get.mock.calls[1][1].query as URLSearchParams
         expect(secondCallQuery.get('after')).toBe('g199')
         const thirdCallQuery = get.mock.calls[2][1].query as URLSearchParams

@@ -259,7 +259,6 @@ describe('createAutomationPlan', () => {
 
         const plan = createAutomationPlan({ desired, actual })
 
-        // moderation is not protected, roles deletes are protected
         const protectedCount = plan.protectedOperations.length
         const safeCount = plan.operations.length - protectedCount
         expect(plan.summary.safe).toBe(safeCount)
@@ -283,9 +282,7 @@ describe('createAutomationPlan', () => {
 
         const plan = createAutomationPlan({ desired, actual })
 
-        // onboarding delete is protected, reactionroles delete is protected
         expect(plan.protectedOperations.length).toBeGreaterThan(0)
-        // All operations here should be deletes, so all protected
         expect(plan.operations.length).toBe(plan.protectedOperations.length)
     })
 
@@ -605,7 +602,6 @@ describe('createAutomationPlan', () => {
         const moderationDelete = plan.operations.find(
             (op) => op.module === 'moderation' && op.action === 'delete',
         )
-        // Since protectedDelete is not specified, it defaults to true
         expect(moderationDelete?.protected).toBe(true)
     })
 
@@ -623,7 +619,6 @@ describe('createAutomationPlan', () => {
         const automessagesDelete = plan.operations.find(
             (op) => op.module === 'automessages' && op.action === 'delete',
         )
-        // Since protectedDelete is not specified, it defaults to true
         expect(automessagesDelete?.protected).toBe(true)
     })
 
@@ -647,7 +642,6 @@ describe('createAutomationPlan', () => {
         const commandaccessDelete = plan.operations.find(
             (op) => op.module === 'commandaccess' && op.action === 'delete',
         )
-        // Since protectedDelete is not specified, it defaults to true
         expect(commandaccessDelete?.protected).toBe(true)
     })
 
@@ -919,11 +913,9 @@ describe('createAutomationPlan', () => {
 
         const plan = createAutomationPlan({ desired, actual })
 
-        // All protected operations should have protected=true
         plan.protectedOperations.forEach((op) => {
             expect(op.protected).toBe(true)
         })
-        // Verify filter works correctly
         expect(plan.protectedOperations).toEqual(
             plan.operations.filter((op) => op.protected),
         )
@@ -973,7 +965,6 @@ describe('createAutomationPlan', () => {
 
         const plan = createAutomationPlan({ desired, actual })
 
-        // Should have protected (onboarding, old roles) and safe (new role)
         expect(plan.summary.total).toBe(plan.operations.length)
         expect(plan.summary.protected).toBeGreaterThan(0)
         expect(plan.summary.safe).toBeGreaterThan(0)
@@ -1067,7 +1058,6 @@ describe('createAutomationPlan', () => {
     })
 
     it('sorts object keys for stable comparison', () => {
-        // Test with object keys in different orders
         const desired = {
             ...baseManifest(),
             onboarding: {

@@ -8,7 +8,6 @@ import { PermissionFlagsBits, type GuildMember } from 'discord.js'
 import type { CustomClient } from '../../../types'
 import { getStoredClient } from '../../../bot/clientStore'
 
-// Discord REST error codes we treat as "already gone" rather than a failure.
 const UNKNOWN_MEMBER = 10007
 const MISSING_PERMISSIONS = 50013
 
@@ -25,7 +24,6 @@ export class BulkRemoveRoleExecutor implements BatchJobExecutor {
     jobType = 'bulk_remove_role' as const
 
     estimateMinutes(job: { totalItems: number }): number {
-        // ~0.05 min per role removal (one rate-limited REST call each).
         return Math.min(Math.max(Math.ceil(job.totalItems * 0.05), 1), 5000)
     }
 
@@ -60,7 +58,6 @@ export class BulkRemoveRoleExecutor implements BatchJobExecutor {
             (dbJob as { nextCursor?: string })?.nextCursor || undefined,
         )
 
-        // Initialize tally with prior counts from resume, if any
         const tally: Record<RemoveRoleOutcome, number> = {
             removed:
                 (dbJob as { processedItems?: number })?.processedItems ?? 0,
@@ -69,7 +66,6 @@ export class BulkRemoveRoleExecutor implements BatchJobExecutor {
         }
 
         for (const member of queue) {
-            // Stop cleanly if the job was cancelled or the bot disconnected.
             const refreshed = await batchJobService.getById(jobId)
             if (refreshed?.status === 'cancelled') {
                 return { ...this.summary(tally), cancelled: true }
@@ -78,9 +74,6 @@ export class BulkRemoveRoleExecutor implements BatchJobExecutor {
                 return { ...this.summary(tally), paused: true }
             }
 
-            // Checkpoint BEFORE the destructive step to ensure crash-safety:
-            // if a crash occurs between checkpoint and removal, resume skips
-            // this member rather than double-processing.
             const done = tally.removed + tally.skipped + tally.failed + 1
             await onProgress({
                 processed: tally.removed + 1,
@@ -130,7 +123,6 @@ export class BulkRemoveRoleExecutor implements BatchJobExecutor {
             throw new Error('Bot missing Manage Roles permission')
         }
 
-        // Fetching members populates the cache so role.members is complete.
         await guild.members.fetch()
         const role = await guild.roles.fetch(roleId).catch(() => null)
         if (!role) {
@@ -164,7 +156,6 @@ export class BulkRemoveRoleExecutor implements BatchJobExecutor {
         roleId: string,
         reason: string | undefined,
     ): Promise<RemoveRoleOutcome> {
-        // Owner, higher role, or bot lacks perms for this specific member's roles.
         if (!member.manageable) {
             return 'skipped'
         }

@@ -127,7 +127,6 @@ describe('createModerationExecutor', () => {
 
         const live = executor.capture()
 
-        // Verify capture returns an object, not undefined
         expect(live).toBeDefined()
         expect(typeof live).toBe('object')
         expect(live).toEqual({})
@@ -140,7 +139,6 @@ describe('createModerationExecutor', () => {
         const live = executor.capture()
         const diff = executor.diff(live, {})
 
-        // Verify noop op has kind property set to 'noop'
         expect(diff.ops).toHaveLength(1)
         expect(diff.ops[0]).toHaveProperty('kind')
         expect(diff.ops[0].kind).toBe('noop')
@@ -161,7 +159,6 @@ describe('createModerationExecutor', () => {
 
         expect(result.status).toBe('failed')
         if (result.status === 'failed') {
-            // Verify errors are joined with semicolon
             expect(result.error).toContain('; ')
             expect(result.error).toContain('error1')
             expect(result.error).toContain('error2')

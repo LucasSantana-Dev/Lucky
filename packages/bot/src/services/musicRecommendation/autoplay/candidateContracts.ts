@@ -89,7 +89,6 @@ export function upsertScoredCandidate(
             source: scored.source,
             signals: scored.signals,
         }
-        // Track hard-rejects for telemetry
         const counts = getRejectionCounts(candidates)
         counts.hardReject++
         auditCollector?.recordEvaluated(

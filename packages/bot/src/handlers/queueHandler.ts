@@ -39,8 +39,7 @@ export const createQueue = async ({
 
     const queue = client.player.nodes.create(interaction.guild)
 
-    // Enable autoplay by default
-    queue.setRepeatMode(3) // QueueRepeatMode.AUTOPLAY
+    queue.setRepeatMode(3)
 
     return queue
 }

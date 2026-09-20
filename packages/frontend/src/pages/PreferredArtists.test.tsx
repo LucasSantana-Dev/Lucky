@@ -81,7 +81,6 @@ vi.mock('@/components/ui/EmptyState', () => ({
 vi.mock('react-i18next', () => ({
     useTranslation: () => ({
         t: (key: string, options?: Record<string, any>) => {
-            // Map keys to English values for testing
             const translations: Record<string, string> = {
                 noServerSelected: 'No Server Selected',
                 selectServerToManageArtists:
@@ -108,7 +107,6 @@ vi.mock('react-i18next', () => ({
                 saving: 'Saving...',
             }
 
-            // Handle interpolation
             if (options) {
                 if (key === 'noArtistsFound' && options.query) {
                     return `No artists found for "${options.query}"`
@@ -223,11 +221,9 @@ describe('PreferredArtistsPage', () => {
         vi.mocked(useGuildSelection).mockReturnValue({
             selectedGuild: mockGuild,
         } as any)
-        // The Beatles is already a saved preference.
         mockGetPreferences.mockResolvedValue({
             data: { preferences: [mockPreference] },
         })
-        // Suggestions include the already-preferred Beatles plus a fresh artist.
         mockGetSuggestions.mockResolvedValue({
             data: {
                 artists: [
@@ -244,11 +240,9 @@ describe('PreferredArtistsPage', () => {
         })
         renderPage()
 
-        // The not-yet-preferred artist surfaces in discover...
         await waitFor(() => {
             expect(screen.getByText('Pink Floyd')).toBeInTheDocument()
         })
-        // ...while the already-preferred one is filtered out of the feed.
         expect(screen.queryByText('The Beatles')).not.toBeInTheDocument()
     })
 
@@ -268,7 +262,6 @@ describe('PreferredArtistsPage', () => {
         })
         renderPage()
 
-        // Click Blocked tab
         await waitFor(() => {
             const blockedTabBtn = screen
                 .getAllByRole('button')
@@ -459,7 +452,6 @@ describe('PreferredArtistsPage', () => {
         await waitFor(() => {
             expect(mockGetRelated).toHaveBeenCalledWith('artist-1')
         })
-        // Verify related artist appears in flat grid AFTER clicked tile
         await waitFor(() => {
             expect(screen.getByText('Led Zeppelin')).toBeInTheDocument()
             const buttons = screen.getAllByRole('button')
@@ -534,7 +526,6 @@ describe('PreferredArtistsPage', () => {
             expect(screen.getByText('The Beatles')).toBeInTheDocument()
         })
 
-        // Click Beatles to expand
         let artistButtons = screen.getAllByRole('button')
         let beatlesBtn = artistButtons.find((b) =>
             b.textContent?.includes('The Beatles'),
@@ -543,12 +534,10 @@ describe('PreferredArtistsPage', () => {
             fireEvent.click(beatlesBtn!)
         })
 
-        // Verify Led Zeppelin appears
         await waitFor(() => {
             expect(screen.getByText('Led Zeppelin')).toBeInTheDocument()
         })
 
-        // Click Beatles again to collapse
         artistButtons = screen.getAllByRole('button')
         beatlesBtn = artistButtons.find((b) =>
             b.textContent?.includes('The Beatles'),
@@ -557,7 +546,6 @@ describe('PreferredArtistsPage', () => {
             fireEvent.click(beatlesBtn!)
         })
 
-        // Verify Led Zeppelin is removed
         await waitFor(() => {
             expect(screen.queryByText('Led Zeppelin')).not.toBeInTheDocument()
         })
@@ -576,7 +564,6 @@ describe('PreferredArtistsPage', () => {
             expect(screen.getByText('The Beatles')).toBeInTheDocument()
         })
 
-        // Find Beatles tile and hover to show action buttons
         const beatlesTileButton = screen
             .getAllByRole('button')
             .find((b) => b.textContent?.includes('The Beatles'))!
@@ -584,7 +571,6 @@ describe('PreferredArtistsPage', () => {
             fireEvent.mouseEnter(beatlesTileButton)
         })
 
-        // Click the Prefer button on the tile
         const preferButtons = screen.getAllByLabelText('Prefer')
         const beatlesPreferBtn = preferButtons[0]
         await act(async () => {
@@ -624,7 +610,6 @@ describe('PreferredArtistsPage', () => {
             expect(screen.getByText('The Beatles')).toBeInTheDocument()
         })
 
-        // Find Beatles tile and hover to show action buttons
         const beatlesTileButton = screen
             .getAllByRole('button')
             .find((b) => b.textContent?.includes('The Beatles'))!
@@ -632,7 +617,6 @@ describe('PreferredArtistsPage', () => {
             fireEvent.mouseEnter(beatlesTileButton)
         })
 
-        // Click the Prefer button on the tile
         const preferButtons = screen.getAllByLabelText('Prefer')
         const beatlesPreferBtn = preferButtons[0]
         await act(async () => {
@@ -698,7 +682,6 @@ describe('PreferredArtistsPage', () => {
             expect(screen.getByText('Musical Taste')).toBeInTheDocument()
         })
 
-        // Click Preferred tab
         const preferredTabBtn = screen
             .getAllByRole('button')
             .find((b) => b.textContent?.match(/Preferred/))!
@@ -762,7 +745,6 @@ describe('PreferredArtistsPage', () => {
             expect(screen.getByText('The Beatles')).toBeInTheDocument()
         })
 
-        // Click Beatles to expand (adds Led Zeppelin)
         let buttons = screen.getAllByRole('button')
         let beatlesBtn = buttons.find((b) =>
             b.textContent?.includes('The Beatles'),
@@ -775,7 +757,6 @@ describe('PreferredArtistsPage', () => {
             expect(screen.getByText('Led Zeppelin')).toBeInTheDocument()
         })
 
-        // Click Led Zeppelin to expand (adds Pink Floyd)
         buttons = screen.getAllByRole('button')
         let ledZeppBtn = buttons.find((b) =>
             b.textContent?.includes('Led Zeppelin'),
@@ -802,7 +783,6 @@ describe('PreferredArtistsPage', () => {
             expect(screen.getByText('The Beatles')).toBeInTheDocument()
         })
 
-        // Find Beatles tile and hover to show action buttons
         const beatlesTileButton = screen
             .getAllByRole('button')
             .find((b) => b.textContent?.includes('The Beatles'))!
@@ -810,20 +790,17 @@ describe('PreferredArtistsPage', () => {
             fireEvent.mouseEnter(beatlesTileButton)
         })
 
-        // Click Block button
         const blockButtons = screen.getAllByLabelText('Block')
         const beatlesBlockBtn = blockButtons[0]
         await act(async () => {
             fireEvent.click(beatlesBlockBtn)
         })
 
-        // Verify Save Preferences shows count 1
         await waitFor(() => {
             const saveBtn = screen.getByText(/Save Preferences \(1\)/)
             expect(saveBtn).toBeInTheDocument()
         })
 
-        // Find tile again and hover to show action buttons
         const beatlesTileButton2 = screen
             .getAllByRole('button')
             .find((b) => b.textContent?.includes('The Beatles'))!
@@ -831,14 +808,12 @@ describe('PreferredArtistsPage', () => {
             fireEvent.mouseEnter(beatlesTileButton2)
         })
 
-        // Click Prefer button on same tile
         const preferButtons = screen.getAllByLabelText('Prefer')
         const beatlesPreferBtn = preferButtons[0]
         await act(async () => {
             fireEvent.click(beatlesPreferBtn)
         })
 
-        // Verify Save Preferences still shows count 1 (overwrite, not add)
         await waitFor(() => {
             const saveBtn = screen.getByText(/Save Preferences \(1\)/)
             expect(saveBtn).toBeInTheDocument()

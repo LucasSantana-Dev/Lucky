@@ -22,7 +22,6 @@ interface Violation {
 function botCanManageMessages(message: Message): boolean {
     const botMember = message.guild?.members.me
     if (!botMember) return false
-    // Message deletion is channel-scoped; check the bot's perms in the channel.
     if (!('permissionsFor' in message.channel)) return false
     return (
         (message.channel as GuildChannel)
@@ -126,7 +125,6 @@ export const autoModHandler: MessageHandler = {
                 return { stop: false }
             }
 
-            // Check permission for message deletion before attempting
             if (!botCanManageMessages(message)) {
                 warnLog({
                     message: `[AutoMod] Skipped message delete: bot missing ManageMessages permission`,
@@ -136,7 +134,6 @@ export const autoModHandler: MessageHandler = {
                         violations: violations.map((v) => v.type),
                     },
                 })
-                // Don't delete the message, but continue processing actions
             } else {
                 await safeDeleteMessage(message)
             }

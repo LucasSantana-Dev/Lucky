@@ -221,7 +221,7 @@ async function handleAutoplayStatus(
                 })
             }
         } catch {
-            // Blend field omitted if Last.fm lookup fails; status still shown
+            // best-effort; Blend field is cosmetic, skip it on failure
         }
     }
 

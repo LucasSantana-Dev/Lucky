@@ -94,7 +94,7 @@ describe('handleAutoplayStatus', () => {
         const queue = makeQueue(
             [makeTrack(true), makeTrack(false), makeTrack(true)],
             { vcMemberIds: [] },
-            2, // repeatMode 2 = autoplay enabled
+            2,
         )
         mockCreateEmbed.mockReturnValueOnce({ title: 'status-embed' })
 
@@ -283,7 +283,6 @@ describe('handleClearAutoplayTracks', () => {
 
         await handleClearAutoplayTracks(interaction, queue)
 
-        // Removed in reverse: index 2 first, then index 0
         expect((queue as any).removeTrack).toHaveBeenNthCalledWith(1, 2)
         expect((queue as any).removeTrack).toHaveBeenNthCalledWith(2, 0)
         expect(mockReplenishQueue).toHaveBeenCalledWith(queue)

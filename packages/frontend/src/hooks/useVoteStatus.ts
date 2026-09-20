@@ -26,7 +26,6 @@ export function useVoteStatus() {
                 if (!cancelled) setStatus(resp.data)
             })
             .catch(() => {
-                // Silent degrade — the badge simply won't render.
                 if (!cancelled) setStatus(null)
             })
         return () => {

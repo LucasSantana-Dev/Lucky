@@ -89,10 +89,6 @@ export const useAuthStore = create<AuthState>()(
                         })
                         return false
                     } finally {
-                        // Clear synchronously on settle: concurrent callers
-                        // share the in-flight promise, and the next call after
-                        // settle performs a fresh check — no timer window that
-                        // serves a stale result (#1186).
                         authCheckPromise = null
                     }
                 })()

@@ -562,12 +562,10 @@ describe('GuildAutomation', () => {
             </MemoryRouter>,
         )
 
-        // Wait for the run card to render
         await waitFor(() => {
             expect(screen.getByText('plan')).toBeInTheDocument()
         })
 
-        // Expand the run card to show the error message
         const runCard = screen.getByText('plan').closest('button')
         await user.click(runCard!)
 

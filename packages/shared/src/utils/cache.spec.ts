@@ -31,7 +31,7 @@ describe('TtlCache', () => {
         const cache = new TtlCache<number>({ ttlMs: 10_000, maxEntries: 2 })
         cache.set('a', 1)
         cache.set('b', 2)
-        cache.set('c', 3) // exceeds maxEntries → evict 'a'
+        cache.set('c', 3)
 
         expect(cache.get('a')).toBeUndefined()
         expect(cache.get('b')).toBe(2)
@@ -43,8 +43,8 @@ describe('TtlCache', () => {
         const cache = new TtlCache<number>({ ttlMs: 10_000, maxEntries: 2 })
         cache.set('a', 1)
         cache.set('b', 2)
-        cache.set('a', 11) // 'a' moves to newest
-        cache.set('c', 3) // evicts oldest = 'b'
+        cache.set('a', 11)
+        cache.set('c', 3)
 
         expect(cache.get('a')).toBe(11)
         expect(cache.get('b')).toBeUndefined()

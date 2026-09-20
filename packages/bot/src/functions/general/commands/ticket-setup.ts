@@ -1,9 +1,5 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import {
-    ChannelType,
-    MessageFlags,
-    PermissionFlagsBits,
-} from 'discord.js'
+import { ChannelType, MessageFlags, PermissionFlagsBits } from 'discord.js'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import {
@@ -48,7 +44,9 @@ export default new Command({
         .addSubcommand((sub) =>
             sub
                 .setName('clear')
-                .setDescription('Disable tickets by clearing category and role'),
+                .setDescription(
+                    'Disable tickets by clearing category and role',
+                ),
         )
         .addSubcommand((sub) =>
             sub
@@ -70,9 +68,6 @@ export default new Command({
             const category = interaction.options.getChannel('category', true)
             const role = interaction.options.getRole('role', true)
 
-            // @everyone's id equals the guild id. Using it as the agent role
-            // collides with the channel deny overwrite and makes every ticket
-            // world-readable (ViewChannel + SendMessages for everyone).
             if (role.id === guildId) {
                 await interactionReply({
                     interaction,
@@ -119,9 +114,9 @@ export default new Command({
                 return
             }
             if (
-                !me.permissionsIn(category.id).has(
-                    PermissionFlagsBits.ManageChannels,
-                )
+                !me
+                    .permissionsIn(category.id)
+                    .has(PermissionFlagsBits.ManageChannels)
             ) {
                 await interactionReply({
                     interaction,
@@ -178,8 +173,6 @@ export default new Command({
         }
 
         if (sub === 'clear') {
-            // null (not undefined) so GuildSettingsService writes SQL NULL and
-            // actually disables tickets. undefined is stripped as "omit field".
             const persisted = await guildSettingsService.setGuildSettings(
                 guildId,
                 {

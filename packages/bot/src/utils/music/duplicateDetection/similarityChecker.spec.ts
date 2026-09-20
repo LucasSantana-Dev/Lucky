@@ -95,10 +95,8 @@ describe('findSimilarTracks', () => {
     it('filters history entries based on similarity thresholds', () => {
         const track = makeTrack('Halo', 'Beyoncé')
 
-        // Empty history
         expect(findSimilarTracks(track, [], cfg)).toEqual([])
 
-        // Mixed history: 2 matches (identical) + 1 mismatch (different title)
         const mixedHistory: TrackHistoryEntry[] = [
             makeHistory('Halo', 'Beyoncé'),
             makeHistory('Crazy in Love', 'Beyoncé'),
@@ -106,7 +104,6 @@ describe('findSimilarTracks', () => {
         ]
         expect(findSimilarTracks(track, mixedHistory, cfg)).toHaveLength(2)
 
-        // No matches history
         const nomatchHistory: TrackHistoryEntry[] = [
             makeHistory('Shape of You', 'Ed Sheeran'),
             makeHistory('Blinding Lights', 'The Weeknd'),
@@ -123,7 +120,6 @@ describe('calculateSimilarityScore', () => {
             1.0,
         )
 
-        // title sim = 0 (completely different), artist sim = 1 → 0*0.7 + 1*0.3 = 0.3
         const t1Diff = makeTrack('aaaa', 'same')
         const t2Diff = makeHistory('bbbb', 'same')
         expect(calculateSimilarityScore(t1Diff, t2Diff, cfg)).toBeCloseTo(

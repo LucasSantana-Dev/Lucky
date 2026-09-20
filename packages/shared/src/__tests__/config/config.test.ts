@@ -28,7 +28,6 @@ describe('config.ts', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         clearConfigCache()
-        // Minimal fixture env, never a copy of the real one (#1262 pattern).
         process.env = { NODE_ENV: 'test' } as NodeJS.ProcessEnv
     })
 

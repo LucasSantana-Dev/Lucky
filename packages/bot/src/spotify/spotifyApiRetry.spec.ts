@@ -95,9 +95,6 @@ describe('Spotify API 429 Retry Logic', () => {
         })
     })
 
-    // Regression: real fetch() RESOLVES with a 429 Response (it does not throw
-    // on HTTP error statuses). Verify retry fires when fetch resolves rather
-    // than rejects — Greptile feedback on PR #808.
     describe('429 retry when fetch resolves (not throws) the Response', () => {
         it('retries on resolved 429 then succeeds', async () => {
             let attemptCount = 0
@@ -107,9 +104,6 @@ describe('Spotify API 429 Retry Logic', () => {
                     return new Response(null, { status: 429 })
                 }
                 return new Response(
-                    // Vehicle only: exercises the shared 429 retry in
-                    // spotifyFetch. Was getAudioFeatures until that endpoint
-                    // was removed; the shape is now a search response.
                     JSON.stringify({
                         tracks: { items: [{ id: 't1' }] },
                     }),

@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { createEmbed, formatTime, createProgressBar } from './core'
 import { EMBED_COLORS } from './constants'
 
-// Mock Discord.js EmbedBuilder
 jest.mock('discord', () => ({
     EmbedBuilder: jest.fn().mockImplementation(() => ({
         setTitle: jest.fn().mockReturnThis(),
@@ -14,8 +13,8 @@ jest.mock('discord', () => ({
         addFields: jest.fn().mockReturnThis(),
         setFooter: jest.fn().mockReturnThis(),
         setTimestamp: jest.fn().mockReturnThis(),
-        data: {}
-    }))
+        data: {},
+    })),
 }))
 
 describe('Embed Utilities', () => {
@@ -32,7 +31,7 @@ describe('Embed Utilities', () => {
             addFields: jest.fn().mockReturnThis(),
             setFooter: jest.fn().mockReturnThis(),
             setTimestamp: jest.fn().mockReturnThis(),
-            data: {}
+            data: {},
         }
         const { EmbedBuilder } = require('discord')
         EmbedBuilder.mockImplementation(() => mockEmbed)
@@ -46,8 +45,12 @@ describe('Embed Utilities', () => {
             })
 
             expect(mockEmbed.setTitle).toHaveBeenCalledWith('Test Title')
-            expect(mockEmbed.setDescription).toHaveBeenCalledWith('Test Description')
-            expect(mockEmbed.setColor).toHaveBeenCalledWith(EMBED_COLORS.NEUTRAL)
+            expect(mockEmbed.setDescription).toHaveBeenCalledWith(
+                'Test Description',
+            )
+            expect(mockEmbed.setColor).toHaveBeenCalledWith(
+                EMBED_COLORS.NEUTRAL,
+            )
         })
 
         it('should create an embed with emoji', () => {
@@ -65,7 +68,9 @@ describe('Embed Utilities', () => {
                 color: EMBED_COLORS.SUCCESS,
             })
 
-            expect(mockEmbed.setColor).toHaveBeenCalledWith(EMBED_COLORS.SUCCESS)
+            expect(mockEmbed.setColor).toHaveBeenCalledWith(
+                EMBED_COLORS.SUCCESS,
+            )
         })
 
         it('should create an embed with author', () => {
@@ -105,7 +110,9 @@ describe('Embed Utilities', () => {
                 footer: 'Test Footer',
             })
 
-            expect(mockEmbed.setFooter).toHaveBeenCalledWith({ text: 'Test Footer' })
+            expect(mockEmbed.setFooter).toHaveBeenCalledWith({
+                text: 'Test Footer',
+            })
         })
 
         it('should create an embed with timestamp', () => {
@@ -123,7 +130,9 @@ describe('Embed Utilities', () => {
                 thumbnail: 'https://example.com/thumb.png',
             })
 
-            expect(mockEmbed.setThumbnail).toHaveBeenCalledWith('https://example.com/thumb.png')
+            expect(mockEmbed.setThumbnail).toHaveBeenCalledWith(
+                'https://example.com/thumb.png',
+            )
         })
 
         it('should create an embed with URL', () => {

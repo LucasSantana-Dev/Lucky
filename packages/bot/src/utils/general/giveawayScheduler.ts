@@ -5,7 +5,7 @@ import { errorLog, debugLog, infoLog } from '@lucky/shared/utils'
 
 import { IntervalScheduler } from './IntervalScheduler'
 
-const DEFAULT_TICK_INTERVAL_MS = 60 * 1000 // Every 60 seconds
+const DEFAULT_TICK_INTERVAL_MS = 60 * 1000
 
 export class GiveawayScheduler extends IntervalScheduler {
     private readonly clock: () => Date
@@ -41,10 +41,6 @@ export class GiveawayScheduler extends IntervalScheduler {
         winnerIds?: string[]
     }): Promise<void> {
         try {
-            // FIRST: Draw and persist winners up front so giveaway is finalized
-            // regardless of whether announcement succeeds. This ensures:
-            // 1. giveaway.endedAt is set immediately → won't re-process forever
-            // 2. We have the actual winners to announce, not an empty list
             const winners =
                 giveaway.winnerIds ??
                 (await giveawayService.endAndDraw(
@@ -52,7 +48,6 @@ export class GiveawayScheduler extends IntervalScheduler {
                     giveaway.winnersCount,
                 ))
 
-            // THEN: Best-effort announce
             if (!this.client || !giveaway.messageId) {
                 debugLog({
                     message: 'Giveaway finalized without announcement',
@@ -61,9 +56,6 @@ export class GiveawayScheduler extends IntervalScheduler {
                 return
             }
 
-            // Fetch the channel (may not be in cache). Normalize to
-            // `Channel | null` so the fetch result (also `| null`) assigns
-            // cleanly and the guard below narrows it.
             let channel =
                 this.client.channels.cache.get(giveaway.channelId) ?? null
             if (!channel) {
@@ -72,8 +64,6 @@ export class GiveawayScheduler extends IntervalScheduler {
                         giveaway.channelId,
                     )
                 } catch (err) {
-                    // Channel deleted or inaccessible; log and return
-                    // (giveaway is already finalized above)
                     errorLog({
                         message:
                             'Channel not found when processing giveaway; finalized without announcement:',

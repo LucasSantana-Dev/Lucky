@@ -354,7 +354,6 @@ export class TrackHistoryService {
     markTrackAsPlayed(guildId: string, trackUrl: string): Promise<void> {
         const now = Date.now()
         this.recentlyPlayed.set(`${guildId}:${trackUrl}`, now + 300_000)
-        // Opportunistically prune expired markers to bound the map.
         for (const [key, expiry] of this.recentlyPlayed) {
             if (expiry <= now) this.recentlyPlayed.delete(key)
         }
@@ -406,7 +405,6 @@ export class TrackHistoryService {
                 select: { trackId: true, author: true },
             })
 
-            // Count occurrences and filter to replayCount > 2.
             const trackCounts = new Map<string, number>()
             const artistCounts = new Map<string, number>()
 
@@ -439,7 +437,6 @@ export class TrackHistoryService {
                 message: 'Failed to get replay-frequent tracks',
                 error,
             })
-            // Fail open: return empty sets so autoplay continues without boost.
             return { trackIds: new Set(), artists: new Set() }
         }
     }

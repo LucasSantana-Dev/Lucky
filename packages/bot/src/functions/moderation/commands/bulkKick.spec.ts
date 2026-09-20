@@ -45,7 +45,6 @@ jest.mock('../batch/bulkKickExecutor', () => {
     }
 })
 
-// Import AFTER mocks
 import bulkKickCommand from './bulkKick'
 
 function createMockUser(id = 'user-123', tag = 'TestUser#1234') {
@@ -115,7 +114,6 @@ describe('bulkKick command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
 
-        // Default mocks
         checkBatchPermissionsMock.mockReturnValue({
             allowed: true,
             missing: [],
@@ -217,7 +215,6 @@ describe('bulkKick command', () => {
 
         await bulkKickCommand.execute({ interaction })
 
-        // Verify failure reply is sent
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: expect.stringContaining(
@@ -225,14 +222,11 @@ describe('bulkKick command', () => {
                 ),
             }),
         )
-        // Verify the job was created (but enqueue failed)
         expect(batchJobServiceMock.create).toHaveBeenCalled()
-        // Verify the job is marked failed so it doesn't stay "pending" forever
         expect(batchJobServiceMock.markFailed).toHaveBeenCalledWith(
             'job-123',
             expect.stringContaining('Failed to enqueue'),
         )
-        // Verify no info log about success
         expect(infoLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 message: expect.stringContaining('Bulk kick job created'),
@@ -251,7 +245,6 @@ describe('bulkKick command', () => {
 
         await bulkKickCommand.execute({ interaction })
 
-        // Verify job was created with correct params
         expect(batchJobServiceMock.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 jobType: 'bulk_kick',
@@ -263,17 +256,14 @@ describe('bulkKick command', () => {
             }),
         )
 
-        // Verify enqueue was called
         expect(enqueueBatchJobMock).toHaveBeenCalledWith('job-123')
 
-        // Verify success reply
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: expect.stringContaining('Bulk kick queued'),
             }),
         )
 
-        // Verify info log
         expect(infoLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: expect.stringContaining('Bulk kick job created'),

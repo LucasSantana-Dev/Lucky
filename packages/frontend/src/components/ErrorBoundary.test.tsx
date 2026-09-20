@@ -15,7 +15,6 @@ let consoleErr: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
     vi.clearAllMocks()
-    // ErrorBoundary logs the caught error; keep test output clean.
     consoleErr = vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
@@ -49,7 +48,6 @@ describe('ErrorBoundary', () => {
         const href = report.getAttribute('href') ?? ''
         expect(href).toMatch(/^\/support\?category=web-error&cid=[A-Za-z0-9]+$/)
 
-        // The Error ID shown matches the cid carried in the report link.
         const cid = new URL(href, 'http://x').searchParams.get('cid')
         expect(cid).toBeTruthy()
         expect(screen.getByText(cid as string)).toBeInTheDocument()

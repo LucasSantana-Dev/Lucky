@@ -2,7 +2,6 @@ import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 
 const mockGetPrismaClient = jest.fn()
 
-// Mock Prisma error class for testing
 class MockPrismaError extends Error {
     constructor(
         public message: string,
@@ -226,14 +225,12 @@ describe('ModerationService', () => {
             const mockTransaction = jest.fn(async (txFn: any) => {
                 callCount++
                 if (callCount === 1) {
-                    // First call: throw P2002
                     const error = new MockPrismaError(
                         'Unique constraint failed on the fields: (`guildId`,`caseNumber`)',
                         'P2002',
                     )
                     throw error
                 }
-                // Second call: succeed
                 return txFn({
                     moderationCase: {
                         // @ts-ignore
@@ -287,7 +284,6 @@ describe('ModerationService', () => {
                 }),
             ).rejects.toThrow('Database connection lost')
 
-            // Should only be called once (no retry on non-P2002 error)
             expect(mockTransaction).toHaveBeenCalledTimes(1)
         })
 
@@ -316,15 +312,10 @@ describe('ModerationService', () => {
                 }),
             ).rejects.toThrow()
 
-            // Should be called MAX_RETRIES (5) times
             expect(mockTransaction).toHaveBeenCalledTimes(5)
         })
     })
 
-    // #1433: the query + delegation methods below had ZERO test coverage
-    // (mutation score 17.76%, 70 no-coverage mutants). These assert the exact
-    // prisma query clauses, conditional spreads, and return values, plus that
-    // the settings-delegating methods forward to moderationSettings.
     describe('query methods', () => {
         function setupCaseMock() {
             const caseMock = {

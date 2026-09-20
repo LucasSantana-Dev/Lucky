@@ -13,7 +13,6 @@ export function timingSafeKeyCompare(
     providedKey: string | undefined,
     expectedKey: string | undefined,
 ): boolean {
-    // If either is missing, they don't match
     if (!providedKey || !expectedKey) {
         return false
     }

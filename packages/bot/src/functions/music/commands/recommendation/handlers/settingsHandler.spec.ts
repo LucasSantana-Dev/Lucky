@@ -26,7 +26,6 @@ jest.mock('../../../../../utils/music/autoplayManager', () => ({
     getAutoplayStats: mockGetAutoplayStats,
 }))
 
-// Import after mocks are set up
 import { handleShowSettings } from './settingsHandler'
 
 function createMockInteraction(

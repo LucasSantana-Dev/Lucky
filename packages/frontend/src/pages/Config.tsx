@@ -82,7 +82,7 @@ export default function ConfigPage() {
 
     return (
         <main className='bg-lucky-bg-primary min-h-screen'>
-            {/* Header */}
+            {}
             <header className='border-b border-lucky-border bg-lucky-surface-sidebar px-4 md:px-6 py-4'>
                 <div className='space-y-1'>
                     <h1
@@ -103,10 +103,9 @@ export default function ConfigPage() {
                 </div>
             </header>
 
-            {/* Content */}
+            {}
             <div className='px-4 md:px-6 py-6'>
                 {!selectedModule ? (
-                    /* Module selection grid — Polaris resource-list density */
                     <section aria-labelledby='modules-heading'>
                         <h2 id='modules-heading' className='sr-only'>
                             {t('config.availableConfigurationModules')}
@@ -174,7 +173,6 @@ export default function ConfigPage() {
                         </div>
                     </section>
                 ) : (
-                    /* Module config view */
                     <section aria-labelledby='module-config-heading'>
                         <div className='mb-6 flex items-center gap-2'>
                             <Button

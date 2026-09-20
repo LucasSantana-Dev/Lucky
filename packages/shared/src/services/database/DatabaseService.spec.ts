@@ -811,10 +811,6 @@ describe('DatabaseService', () => {
         })
     })
 
-    // Mutation-hardening (#1426): the tests above assert outcomes; these assert
-    // the exact query clauses, default values, validation guards, and error
-    // labels so mutants that blank a `where`/`data`/`orderBy`, flip a default,
-    // or weaken a type guard are KILLED rather than surviving silently.
     describe('query-clause assertions (kill ObjectLiteral mutants)', () => {
         const userRow = {
             id: 'u1',
@@ -929,7 +925,6 @@ describe('DatabaseService', () => {
 
             const result = await service.cleanupOldData()
 
-            // 3 + 2 = 5 (kills the + -> - arithmetic mutant)
             expect(result.getData()).toBe(5)
             expect(mockTrackHistoryDeleteMany).toHaveBeenCalledWith({
                 where: { playedAt: { lt: expect.any(Date) } },
@@ -1167,7 +1162,7 @@ describe('DatabaseService', () => {
                     author: 'A',
                     _count: { trackId: 5 },
                 },
-                { trackId: 't2' }, // malformed: missing title/author/_count
+                { trackId: 't2' },
             ])
 
             const result = await service.getTopTracks('777')
@@ -1373,7 +1368,7 @@ describe('DatabaseService', () => {
         it('getTopArtists filters out malformed group rows', async () => {
             mockTrackHistoryGroupBy.mockResolvedValue([
                 { author: 'A', _count: { author: 3 } },
-                { author: 'B' }, // malformed: missing _count
+                { author: 'B' },
             ])
 
             const result = await service.getTopArtists('777')

@@ -28,8 +28,6 @@ import {
     CHANNEL_TWITCH_REFRESH,
 } from './TwitchControlService.js'
 
-// The internal ioredis clients are hand-built mocks; cast to a loose record so
-// the jest.fn() signatures don't have to satisfy ioredis's typed overloads.
 type WithClients = {
     publisher: Record<string, any> | null
     subscriber: Record<string, any> | null
@@ -200,7 +198,6 @@ describe('TwitchControlService', () => {
 
             expect(mockSubscriber.unsubscribe).toHaveBeenCalled()
             expect(mockSubscriber.disconnect).toHaveBeenCalledTimes(1)
-            // Verify no error was logged (would happen if we tried to call disconnect on null)
             expect(mockErrorLog).not.toHaveBeenCalled()
         })
 
@@ -231,18 +228,15 @@ describe('TwitchControlService', () => {
                 disconnect: jest.fn(async () => {}),
             } as any
 
-            // Service 1: publisher is null
             internals1.subscriber = null
             internals1.publisher = null
 
-            // Service 2: publisher is not null
             internals2.subscriber = null
             internals2.publisher = mockPublisher
 
             await service1.disconnect()
             await service2.disconnect()
 
-            // Service 2 should have called disconnect, service 1 should not
             expect(mockPublisher.disconnect).toHaveBeenCalledTimes(1)
         })
 

@@ -17,7 +17,6 @@
 export function levenshteinDistance(str1: string, str2: string): number {
     if (str1 === str2) return 0
 
-    // Iterate columns over the shorter string so the buffers stay O(min(n, m)).
     let a = str1
     let b = str2
     if (a.length > b.length) {
@@ -37,11 +36,7 @@ export function levenshteinDistance(str1: string, str2: string): number {
         curr[0] = j
         for (let i = 1; i <= m; i++) {
             const cost = a[i - 1] === b[j - 1] ? 0 : 1
-            curr[i] = Math.min(
-                curr[i - 1] + 1, // insertion
-                prev[i] + 1, // deletion
-                prev[i - 1] + cost, // substitution
-            )
+            curr[i] = Math.min(curr[i - 1] + 1, prev[i] + 1, prev[i - 1] + cost)
         }
         const tmp = prev
         prev = curr

@@ -14,16 +14,13 @@ import { guildService } from '../services/GuildService'
 import multer from 'multer'
 import { paramToString as p } from '../utils/paramCoerce'
 
-// File upload middleware for reaction roles images
 const imageUpload = multer({
     storage: multer.memoryStorage(),
-    // Bound every multipart dimension, not just the file, so a malformed/hostile
-    // request can't exhaust memory (DoS): one 8MB image + the small JSON payload.
     limits: {
-        fileSize: 8 * 1024 * 1024, // 8MB per file
+        fileSize: 8 * 1024 * 1024,
         files: 1,
         fields: 20,
-        fieldSize: 256 * 1024, // the `payload` JSON field
+        fieldSize: 256 * 1024,
         parts: 25,
     },
     fileFilter: (req, file, cb) => {
@@ -45,7 +42,6 @@ const imageUpload = multer({
     },
 })
 
-// Wrapper to handle multer errors
 const handleImageUpload = imageUpload.single('image')
 const imageUploadHandler = (
     req: AuthenticatedRequest,
@@ -71,8 +67,6 @@ const imageUploadHandler = (
     })
 }
 
-// Parse the reaction-role payload from either a JSON body or the `payload`
-// field of a multipart (file-upload) request.
 function parseReactionRolePayload(req: AuthenticatedRequest): unknown {
     if (req.is('multipart/form-data')) {
         const raw = (req.body as Record<string, unknown>).payload
@@ -119,7 +113,6 @@ export function setupRolesRoutes(app: Express): void {
 
             const payload = parseReactionRolePayload(req)
 
-            // Validate parsed payload with schema
             const validationResult = s.createReactionRoleBody.safeParse(payload)
             if (!validationResult.success) {
                 const errors = validationResult.error.flatten()
@@ -173,7 +166,6 @@ export function setupRolesRoutes(app: Express): void {
 
             const payload = parseReactionRolePayload(req)
 
-            // Validate parsed payload with schema
             const validationResult = s.updateReactionRoleBody.safeParse(payload)
             if (!validationResult.success) {
                 const errors = validationResult.error.flatten()

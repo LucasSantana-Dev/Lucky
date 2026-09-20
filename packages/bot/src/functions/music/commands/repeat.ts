@@ -70,7 +70,6 @@ function getRepeatModeConfig(
     }
 }
 
-// Store repeat counts for each guild
 const guildRepeatCounts = new Map<
     string,
     { count: number; originalMode: QueueRepeatMode }
@@ -115,7 +114,6 @@ export default new Command({
 
         const guildId = interaction.guildId ?? ''
 
-        // Clear any existing repeat count
         guildRepeatCounts.delete(guildId)
 
         const { mode: repeatMode, description } = getRepeatModeConfig(

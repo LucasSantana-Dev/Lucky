@@ -21,8 +21,6 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { isUnknownInteractionError } from '../play/queryUtils'
 
 const MAX_DISCOGRAPHY_ALBUMS = 25
-// A prolific artist's catalog can run into the hundreds of tracks once
-// albums are added; this bounds queue size and worst-case resolve time.
 const MAX_DISCOGRAPHY_TRACKS = 300
 
 type ResolvedTrack = NonNullable<
@@ -150,10 +148,6 @@ export async function handleArtistDiscography({
             ),
         ])
 
-        // Top tracks first (Spotify's real popularity ranking — genuinely
-        // "most famous"), then the rest of the catalog. Dedupe by
-        // title+artist since the same song can surface both as a top track
-        // and inside its parent album.
         const seen = new Set<string>()
         const tracks: ResolvedTrack[] = []
         const candidates = [
@@ -263,7 +257,7 @@ export async function handleArtistDiscography({
                 },
             })
         } catch {
-            // interaction already replied
+            // best-effort error reply; interaction may already be expired
         }
     }
 }

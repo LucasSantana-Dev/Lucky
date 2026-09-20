@@ -180,7 +180,6 @@ export async function handlePrevious(
     const queue = getQueue(client, cmd.guildId)
     if (!queue) return fail(cmd.id, cmd.guildId, 'No active queue')
 
-    // Per #1239: when no previous track, restart current track from beginning
     if (queue.history.isEmpty()) {
         const currentTrack = queue.currentTrack
         if (currentTrack) {

@@ -26,15 +26,12 @@ const AutoGrowTextarea = forwardRef<HTMLTextAreaElement, AutoGrowTextareaProps>(
                     : textareaRef.current
             if (!textarea) return
 
-            // Reset height to calculate scrollHeight
             textarea.style.height = 'auto'
 
-            // Get line-height from computed styles
             const lineHeight = parseFloat(
                 window.getComputedStyle(textarea).lineHeight,
             )
 
-            // Calculate ideal height based on scrollHeight
             const scrollHeight = textarea.scrollHeight
             const minHeight = lineHeight * minRows
             const maxHeight = lineHeight * maxRows

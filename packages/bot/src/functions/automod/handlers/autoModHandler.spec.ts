@@ -178,7 +178,6 @@ describe('autoModHandler', () => {
                 featureToggles: { AUTOMOD: true },
             }
 
-            // Verify checkCaps was called
             await autoModHandler.handle(message, context)
             expect(autoModService.checkCaps).toHaveBeenCalledWith(
                 'guild1',
@@ -212,7 +211,6 @@ describe('autoModHandler', () => {
                 featureToggles: { AUTOMOD: true },
             }
 
-            // Verify checkLinks was called
             await autoModHandler.handle(message, context)
             expect(autoModService.checkLinks).toHaveBeenCalledWith(
                 'guild1',
@@ -247,7 +245,6 @@ describe('autoModHandler', () => {
                 featureToggles: { AUTOMOD: true },
             }
 
-            // Verify checkInvites was called
             await autoModHandler.handle(message, context)
             expect(autoModService.checkInvites).toHaveBeenCalledWith(
                 'guild1',
@@ -281,7 +278,6 @@ describe('autoModHandler', () => {
                 featureToggles: { AUTOMOD: true },
             }
 
-            // Verify checkWords was called
             await autoModHandler.handle(message, context)
             expect(autoModService.checkWords).toHaveBeenCalledWith(
                 'guild1',
@@ -331,8 +327,6 @@ describe('autoModHandler', () => {
             invitesEnabled: false,
             wordsEnabled: false,
         }
-        // Build per-test (after beforeEach's clearAllMocks) so the roles mock
-        // keeps its return value.
         function makeContext(): MessageContext {
             return {
                 guild: { id: 'guild1' } as any,

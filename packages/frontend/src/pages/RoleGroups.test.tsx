@@ -22,8 +22,6 @@ vi.mock('@/components/ReactionRoles/AddStyledRoleForm', () => ({
 }))
 vi.mock('@/lib/sentry', () => ({ reportError: vi.fn() }))
 
-// Stable references — react-i18next returns a stable `t` per language, so the
-// mock must too, or hooks depending on `t` re-fire every render.
 const stableT = (key: string) => key
 const stableI18n = { language: 'en' }
 vi.mock('react-i18next', () => ({
@@ -216,11 +214,9 @@ describe('RoleGroups', () => {
             groupFixture as never,
         )
         render(<RoleGroups />)
-        // toggle add-role open then closed
         fireEvent.click(await screen.findByText('addRole'))
         expect(screen.getByText('cancelAddRole')).toBeInTheDocument()
         fireEvent.click(screen.getByText('cancelAddRole'))
-        // change color, button style and switches, then save
         fireEvent.change(
             document.getElementById('color-grp-1') as HTMLInputElement,
             { target: { value: '#123abc' } },

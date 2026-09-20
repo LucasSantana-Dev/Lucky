@@ -134,7 +134,6 @@ export class RedisClient implements IRedisClient {
         return this.operations?.keys(pattern) ?? []
     }
 
-    // Additional Redis methods
     async setex(key: string, seconds: number, value: string): Promise<boolean> {
         return this.operations?.setex(key, seconds, value) ?? false
     }

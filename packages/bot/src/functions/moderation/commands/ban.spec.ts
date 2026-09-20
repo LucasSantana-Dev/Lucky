@@ -272,7 +272,6 @@ describe('ban command', () => {
                 message: expect.stringContaining('Failed to send DM'),
             }),
         )
-        // Ban should still proceed
         expect(guild.members.ban).toHaveBeenCalled()
     })
 

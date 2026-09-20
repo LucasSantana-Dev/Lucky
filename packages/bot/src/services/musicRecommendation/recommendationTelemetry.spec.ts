@@ -1,7 +1,6 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import { RecommendationSource as PrismaRecommendationSource } from '@lucky/shared/types'
 
-// Mock functions defined first (before jest.mock calls)
 const mockCreate = jest.fn()
 const mockFindFirst = jest.fn()
 const mockUpdate = jest.fn()
@@ -24,7 +23,6 @@ jest.mock('@lucky/shared/utils/general/log', () => ({
     setLogLevel: jest.fn(),
 }))
 
-// Now import the module under test
 import {
     recordRecommendationPick,
     recordRecommendationOutcome,
@@ -37,7 +35,6 @@ import {
 describe('recommendationTelemetry', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        // Set up the default mock implementation
         mockGetPrismaClient.mockReturnValue({
             recommendation: {
                 create: mockCreate,
@@ -165,7 +162,6 @@ describe('recommendationTelemetry', () => {
             await recordRecommendationPick(input)
 
             const callArgs = mockCreate.mock.calls[0][0]
-            // serializeBasis should produce: "artist fallback • liked artist • album match"
             expect(callArgs.data.reason).toMatch(/artist fallback/)
             expect(callArgs.data.reason).toMatch(/liked artist/)
             expect(callArgs.data.reason).toMatch(/album match/)
@@ -209,7 +205,6 @@ describe('recommendationTelemetry', () => {
             const testError = new Error('DB connection failed')
             mockCreate.mockRejectedValue(testError)
 
-            // Should not throw
             await expect(
                 recordRecommendationPick(input),
             ).resolves.toBeUndefined()
@@ -308,7 +303,6 @@ describe('recommendationTelemetry', () => {
             const testError = new Error('DB connection failed')
             mockFindFirst.mockRejectedValue(testError)
 
-            // Should not throw
             await expect(
                 recordRecommendationOutcome(args),
             ).resolves.toBeUndefined()
@@ -402,7 +396,6 @@ describe('recommendationTelemetry', () => {
             const testError = new Error('DB connection failed')
             mockUpdate.mockRejectedValue(testError)
 
-            // Should not throw
             await expect(
                 recordRecommendationSkipReason(args),
             ).resolves.toBeUndefined()
@@ -437,11 +430,8 @@ describe('recommendationTelemetry', () => {
 
             const result = await recordRecommendationSkipReason(args)
 
-            // Verify the function returns undefined (void) even on error
             expect(result).toBeUndefined()
-            // Verify error was logged but not thrown
             expect(mockErrorLog).toHaveBeenCalled()
-            // Function should complete without throwing
         })
     })
 })

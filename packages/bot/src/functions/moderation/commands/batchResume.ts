@@ -45,7 +45,6 @@ export default new Command({
                 return
             }
 
-            // Verify the job belongs to this guild
             if (job.guildId !== guild.id) {
                 await interactionReply({
                     interaction,
@@ -57,7 +56,6 @@ export default new Command({
                 return
             }
 
-            // Verify the invoker is the initiator or has ManageGuild
             const isInitiator = job.initiatedBy === interaction.user.id
             const hasManageGuild = interaction.memberPermissions?.has(
                 PermissionFlagsBits.ManageGuild,
@@ -74,7 +72,6 @@ export default new Command({
                 return
             }
 
-            // Check job status
             if (!['paused', 'failed'].includes(job.status)) {
                 await interactionReply({
                     interaction,
@@ -85,12 +82,9 @@ export default new Command({
                 return
             }
 
-            // Mark as in-progress and enqueue
             await batchJobService.markInProgress(jobId)
             const queued = await enqueueBatchJob(jobId)
             if (queued === null) {
-                // Enqueue failed (Redis unavailable); roll back to failed so the job
-                // is not stuck as in_progress without ever being processed.
                 await batchJobService.markFailed(
                     jobId,
                     'Failed to enqueue job for processing (Redis unavailable)',

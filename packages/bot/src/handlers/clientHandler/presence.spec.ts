@@ -414,23 +414,19 @@ describe('presence', () => {
 
             const controls = startPresenceRotation(client)
 
-            // Verify presence is set on start
             expect(setPresence).toHaveBeenCalled()
             const initialCallCount = setPresence.mock.calls.length
 
-            // Verify rotation occurs on interval
             jest.advanceTimersByTime(45_000)
             expect(setPresence.mock.calls.length).toBeGreaterThan(
                 initialCallCount,
             )
             const afterRotateCount = setPresence.mock.calls.length
 
-            // Verify pause stops rotation
             controls.pause()
             jest.advanceTimersByTime(45_000)
             expect(setPresence.mock.calls.length).toBe(afterRotateCount)
 
-            // Verify resume restarts rotation
             controls.resume()
             expect(setPresence.mock.calls.length).toBeGreaterThan(
                 afterRotateCount,

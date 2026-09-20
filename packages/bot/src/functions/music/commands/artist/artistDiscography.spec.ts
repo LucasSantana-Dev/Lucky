@@ -172,14 +172,12 @@ describe('handleArtistDiscography', () => {
             },
         ])
 
-        // Top track resolve call, then album resolve call.
         search
             .mockResolvedValueOnce({
                 tracks: [createTrack('Bohemian Rhapsody', 'Queen')],
             })
             .mockResolvedValueOnce({
                 tracks: [
-                    // Same song as the top track — must be deduped.
                     createTrack('Bohemian Rhapsody', 'Queen'),
                     createTrack('Death on Two Legs', 'Queen'),
                 ],

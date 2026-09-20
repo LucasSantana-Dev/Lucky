@@ -130,7 +130,6 @@ describe('featuresStore', () => {
         })
 
         test('should rollback toggle on API failure', async () => {
-            // Set initial state
             useFeaturesStore.setState({
                 globalToggles: { AUTOPLAY: true } as never,
             })
@@ -145,7 +144,6 @@ describe('featuresStore', () => {
                     .updateGlobalToggle('AUTOPLAY', false),
             ).rejects.toThrow()
 
-            // Should be rolled back to original value
             expect(useFeaturesStore.getState().globalToggles.AUTOPLAY).toBe(
                 true,
             )

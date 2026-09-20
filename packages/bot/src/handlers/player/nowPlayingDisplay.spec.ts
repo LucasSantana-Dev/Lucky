@@ -1,4 +1,3 @@
-// Mock the dependencies FIRST - before any imports
 const mockWarnLog = jest.fn()
 const mockDebugLog = jest.fn()
 
@@ -48,7 +47,6 @@ jest.mock('../../lastfm', () => ({
 }))
 
 jest.mock('../../utils/music/skipReasonMap', () => ({
-    // Plain function: resetMocks wipes jest.fn factory impls between tests
     getSkipReasonEmojis: () => ['👎', '😴', '🎸', '🔁'],
 }))
 
@@ -56,7 +54,6 @@ jest.mock('./lastfmScrobbler', () => ({
     clearLastFmTrackTiming: jest.fn(),
 }))
 
-// NOW import types and the module under test after mocks are set up
 import { describe, expect, it, beforeEach } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import type { TextChannel, Guild, Message } from 'discord.js'
@@ -72,25 +69,21 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
     beforeEach(() => {
         jest.clearAllMocks()
 
-        // Set up default mock guild
         mockGuild = {
             id: 'guild-123',
         }
 
-        // Set up default mock channel
         mockChannel = {
             id: 'channel-456',
             send: jest.fn(),
         }
 
-        // Set up default mock message
         mockMessage = {
             id: 'message-789',
             react: jest.fn().mockResolvedValue(undefined),
             edit: jest.fn().mockResolvedValue(undefined),
         }
 
-        // Set up default mock track
         mockTrack = {
             title: 'Test Track',
             author: 'Test Artist',
@@ -101,7 +94,6 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
             requestedBy: null,
         }
 
-        // Set up default mock queue
         mockQueue = {
             guild: mockGuild as Guild,
             metadata: {
@@ -110,7 +102,6 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
             currentTrack: mockTrack as Track,
         }
 
-        // Default: all emoji reactions succeed
         ;(mockChannel.send as jest.Mock).mockResolvedValue(mockMessage)
     })
 
@@ -119,7 +110,6 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
         ;(reactError as any).code = 50013
         ;(mockMessage.react as jest.Mock).mockRejectedValue(reactError)
 
-        // First call for guild-123
         await sendNowPlayingEmbed(
             mockQueue as GuildQueue,
             mockTrack as Track,
@@ -144,7 +134,6 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
         ;(reactError as any).code = 50013
         ;(mockMessage.react as jest.Mock).mockRejectedValue(reactError)
 
-        // First call for guild-123
         await sendNowPlayingEmbed(
             mockQueue as GuildQueue,
             mockTrack as Track,
@@ -152,7 +141,6 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
         )
         mockWarnLog.mockClear()
 
-        // Second call for guild-123 should NOT log again
         await sendNowPlayingEmbed(
             mockQueue as GuildQueue,
             mockTrack as Track,
@@ -166,7 +154,6 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
         let callCount = 0
         ;(mockMessage.react as jest.Mock).mockImplementation(() => {
             callCount++
-            // Fail on first emoji (👎), succeed on others
             if (callCount === 1) {
                 return Promise.reject(new Error('Missing Permissions'))
             }
@@ -179,7 +166,6 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
             false,
         )
 
-        // Partial prefill stats surface in the sent-message debug entry
         expect(mockDebugLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: expect.stringContaining('Sent now playing message'),
@@ -221,7 +207,6 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
             new Error('Missing Permissions'),
         )
 
-        // Should not throw even if all emoji reactions fail
         await expect(
             sendNowPlayingEmbed(
                 mockQueue as GuildQueue,
@@ -232,7 +217,6 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
     })
 
     it('extracts error code from discord error object', async () => {
-        // Unique guild: the once-per-guild warn gate is module-level state
         mockGuild.id = 'guild-code-obj'
         const reactError = new Error('Missing Permissions')
         ;(reactError as any).code = 50013
@@ -254,7 +238,6 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
     })
 
     it('extracts error code from error message when not in code property', async () => {
-        // Unique guild: the once-per-guild warn gate is module-level state
         mockGuild.id = 'guild-code-msg'
         const reactError = new Error('Discord API error 50013')
         ;(mockMessage.react as jest.Mock).mockRejectedValue(reactError)
@@ -275,7 +258,6 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
     })
 
     it('updates existing message with emoji reactions and logs stats', async () => {
-        // Mock existing message scenario
         const mockExistingMessage = {
             id: 'existing-message-id',
             edit: jest.fn().mockResolvedValue(undefined),
@@ -291,7 +273,6 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
             false,
         )
 
-        // Should have logged updated message
         expect(mockDebugLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Updated now playing message in channel',

@@ -1,6 +1,5 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 
-// Mock functions defined first (before jest.mock calls).
 const mockCreate = jest.fn() as jest.MockedFunction<
     (...args: any[]) => Promise<any>
 >
@@ -23,7 +22,6 @@ jest.mock('../utils/database/prismaClient', () => ({
     disconnectPrisma: jest.fn(),
 }))
 
-// Now import the module under test.
 import {
     TrackHistoryService,
     type TrackHistoryInput,
@@ -74,7 +72,7 @@ describe('TrackHistoryService', () => {
     describe('addTrackToHistory', () => {
         it('inserts a row with mapped fields + inferred source and returns true', async () => {
             mockCreate.mockResolvedValue(row())
-            mockFindMany.mockResolvedValue([]) // no overflow to trim
+            mockFindMany.mockResolvedValue([])
 
             const service = new TrackHistoryService()
             const ok = await service.addTrackToHistory(
@@ -232,9 +230,6 @@ describe('TrackHistoryService', () => {
         })
     })
 
-    // #1426 widening: these aggregation/analytics methods had ZERO coverage
-    // (~144 no-coverage mutants). They aggregate in-memory over getTrackHistory
-    // (mock findMany) or query directly, so assert the observable outputs.
     describe('getTopTracks', () => {
         it('counts plays per track and returns them sorted desc, sliced to limit', async () => {
             mockFindMany.mockResolvedValue([
@@ -288,9 +283,9 @@ describe('TrackHistoryService', () => {
 
         it('sums parsed durations and counts (MM:SS parsed, non-MM:SS = 0)', async () => {
             mockFindMany.mockResolvedValue([
-                row({ trackId: 't1', author: 'A', duration: '3:30' }), // 210
-                row({ trackId: 't2', author: 'B', duration: '1:00' }), // 60
-                row({ trackId: 't3', author: 'A', duration: 'LIVE' }), // 0
+                row({ trackId: 't1', author: 'A', duration: '3:30' }),
+                row({ trackId: 't2', author: 'B', duration: '1:00' }),
+                row({ trackId: 't3', author: 'A', duration: 'LIVE' }),
             ])
 
             const result = await new TrackHistoryService().generateStats(GUILD)
@@ -372,7 +367,7 @@ describe('TrackHistoryService', () => {
 
             expect(result.total).toBe(3)
             expect(result.autoplayCount).toBe(2)
-            expect(result.autoplayPercent).toBe(67) // round(2/3*100)
+            expect(result.autoplayPercent).toBe(67)
             expect(result.topAutoplayArtists).toEqual([
                 { artist: 'a', count: 2 },
             ])
@@ -397,8 +392,6 @@ describe('TrackHistoryService', () => {
         })
     })
 
-    // #1426 widening: call-argument + branch hardening to kill survivors and
-    // cover the remaining query-only methods.
     describe('query-arg + branch hardening', () => {
         it('getReplayFrequentTracks queries the right window/shape and excludes count==2', async () => {
             mockFindMany.mockResolvedValue([
@@ -412,7 +405,6 @@ describe('TrackHistoryService', () => {
             const result =
                 await new TrackHistoryService().getReplayFrequentTracks(GUILD)
 
-            // count==2 must be EXCLUDED (kills the `> 2` boundary mutant)
             expect(result.trackIds.has('t3')).toBe(true)
             expect(result.trackIds.has('t2')).toBe(false)
             expect(mockFindMany).toHaveBeenCalledWith({
@@ -561,7 +553,6 @@ describe('TrackHistoryService', () => {
             const result =
                 await new TrackHistoryService().getReplayFrequentTracks(GUILD)
 
-            // three spellings normalize to one artist with count 3 (> 2)
             expect(result.artists.has('the band')).toBe(true)
         })
 
@@ -593,14 +584,14 @@ describe('TrackHistoryService', () => {
             mockFindMany.mockResolvedValue([
                 row({
                     url: 'https://old/x',
-                    playedAt: new Date(Date.now() - 10 * 60 * 1000), // 10 min ago
+                    playedAt: new Date(Date.now() - 10 * 60 * 1000),
                 }),
             ])
             expect(
                 await new TrackHistoryService().isDuplicateTrack(
                     GUILD,
                     'https://old/x',
-                    60_000, // 1-minute window
+                    60_000,
                 ),
             ).toBe(false)
         })

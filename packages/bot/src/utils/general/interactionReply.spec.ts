@@ -312,7 +312,6 @@ describe('interactionReply', () => {
             })
 
             expect(mockCaptureException).toHaveBeenCalled()
-            // handleOtherInteraction re-throws raw → captured directly.
             expect(mockCaptureException.mock.calls[0][0]).toBe(editError)
         })
 
@@ -670,8 +669,6 @@ describe('interactionReply', () => {
             })
 
             expect(mockCaptureException).toHaveBeenCalled()
-            // The editReply path re-throws the raw error (no descriptive wrap),
-            // so the original error is captured directly rather than as a cause.
             const capturedError = mockCaptureException.mock.calls[0][0]
             expect(capturedError).toBe(editError)
         })

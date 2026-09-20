@@ -60,7 +60,6 @@ describe('ReminderService', () => {
                     channelId: 'channel-1',
                     message: 'Test reminder',
                     remindAt,
-                    // Defaults to a personal reminder when no options passed.
                     targetType: 'user',
                     roleId: null,
                     recurrenceRule: null,

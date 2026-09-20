@@ -49,7 +49,7 @@ describe('Type Guards', () => {
 
         it('should return false for invalid numbers', () => {
             expect(isNumber(NaN)).toBe(false)
-            expect(isNumber(Infinity)).toBe(true) // Infinity is a valid number
+            expect(isNumber(Infinity)).toBe(true)
             expect(isNumber('123')).toBe(false)
             expect(isNumber(true)).toBe(false)
             expect(isNumber(null)).toBe(false)
@@ -136,90 +136,90 @@ describe('Type Guards', () => {
 
     describe('isGuildId', () => {
         it('should return true for valid guild IDs (17-20 digits)', () => {
-            expect(isGuildId('12345678901234567')).toBe(true) // 17 digits
-            expect(isGuildId('123456789012345678')).toBe(true) // 18 digits
-            expect(isGuildId('1234567890123456789')).toBe(true) // 19 digits
-            expect(isGuildId('12345678901234567890')).toBe(true) // 20 digits
+            expect(isGuildId('12345678901234567')).toBe(true)
+            expect(isGuildId('123456789012345678')).toBe(true)
+            expect(isGuildId('1234567890123456789')).toBe(true)
+            expect(isGuildId('12345678901234567890')).toBe(true)
         })
 
         it('should return false for invalid guild IDs', () => {
-            expect(isGuildId('1234567890123456')).toBe(false) // 16 digits (too short)
-            expect(isGuildId('123456789012345678901')).toBe(false) // 21 digits (too long)
+            expect(isGuildId('1234567890123456')).toBe(false)
+            expect(isGuildId('123456789012345678901')).toBe(false)
             expect(isGuildId('123')).toBe(false)
             expect(isGuildId('invalid')).toBe(false)
-            expect(isGuildId('1234567890123456789a')).toBe(false) // non-numeric
+            expect(isGuildId('1234567890123456789a')).toBe(false)
             expect(isGuildId('')).toBe(false)
         })
     })
 
     describe('isUserId', () => {
         it('should return true for valid user IDs (17-20 digits)', () => {
-            expect(isUserId('12345678901234567')).toBe(true) // 17 digits
-            expect(isUserId('123456789012345678')).toBe(true) // 18 digits
-            expect(isUserId('1234567890123456789')).toBe(true) // 19 digits
-            expect(isUserId('12345678901234567890')).toBe(true) // 20 digits
+            expect(isUserId('12345678901234567')).toBe(true)
+            expect(isUserId('123456789012345678')).toBe(true)
+            expect(isUserId('1234567890123456789')).toBe(true)
+            expect(isUserId('12345678901234567890')).toBe(true)
         })
 
         it('should return false for invalid user IDs', () => {
-            expect(isUserId('1234567890123456')).toBe(false) // 16 digits (too short)
-            expect(isUserId('123456789012345678901')).toBe(false) // 21 digits (too long)
+            expect(isUserId('1234567890123456')).toBe(false)
+            expect(isUserId('123456789012345678901')).toBe(false)
             expect(isUserId('123')).toBe(false)
             expect(isUserId('invalid')).toBe(false)
-            expect(isUserId('1234567890123456789a')).toBe(false) // non-numeric
+            expect(isUserId('1234567890123456789a')).toBe(false)
             expect(isUserId('')).toBe(false)
         })
     })
 
     describe('isChannelId', () => {
         it('should return true for valid channel IDs (17-20 digits)', () => {
-            expect(isChannelId('12345678901234567')).toBe(true) // 17 digits
-            expect(isChannelId('123456789012345678')).toBe(true) // 18 digits
-            expect(isChannelId('1234567890123456789')).toBe(true) // 19 digits
-            expect(isChannelId('12345678901234567890')).toBe(true) // 20 digits
+            expect(isChannelId('12345678901234567')).toBe(true)
+            expect(isChannelId('123456789012345678')).toBe(true)
+            expect(isChannelId('1234567890123456789')).toBe(true)
+            expect(isChannelId('12345678901234567890')).toBe(true)
         })
 
         it('should return false for invalid channel IDs', () => {
-            expect(isChannelId('1234567890123456')).toBe(false) // 16 digits (too short)
-            expect(isChannelId('123456789012345678901')).toBe(false) // 21 digits (too long)
+            expect(isChannelId('1234567890123456')).toBe(false)
+            expect(isChannelId('123456789012345678901')).toBe(false)
             expect(isChannelId('123')).toBe(false)
             expect(isChannelId('invalid')).toBe(false)
-            expect(isChannelId('1234567890123456789a')).toBe(false) // non-numeric
+            expect(isChannelId('1234567890123456789a')).toBe(false)
             expect(isChannelId('')).toBe(false)
         })
     })
 
     describe('isMessageId', () => {
         it('should return true for valid message IDs (17-20 digits)', () => {
-            expect(isMessageId('12345678901234567')).toBe(true) // 17 digits
-            expect(isMessageId('123456789012345678')).toBe(true) // 18 digits
-            expect(isMessageId('1234567890123456789')).toBe(true) // 19 digits
-            expect(isMessageId('12345678901234567890')).toBe(true) // 20 digits
+            expect(isMessageId('12345678901234567')).toBe(true)
+            expect(isMessageId('123456789012345678')).toBe(true)
+            expect(isMessageId('1234567890123456789')).toBe(true)
+            expect(isMessageId('12345678901234567890')).toBe(true)
         })
 
         it('should return false for invalid message IDs', () => {
-            expect(isMessageId('1234567890123456')).toBe(false) // 16 digits (too short)
-            expect(isMessageId('123456789012345678901')).toBe(false) // 21 digits (too long)
+            expect(isMessageId('1234567890123456')).toBe(false)
+            expect(isMessageId('123456789012345678901')).toBe(false)
             expect(isMessageId('123')).toBe(false)
             expect(isMessageId('invalid')).toBe(false)
-            expect(isMessageId('1234567890123456789a')).toBe(false) // non-numeric
+            expect(isMessageId('1234567890123456789a')).toBe(false)
             expect(isMessageId('')).toBe(false)
         })
     })
 
     describe('isRoleId', () => {
         it('should return true for valid role IDs (17-20 digits)', () => {
-            expect(isRoleId('12345678901234567')).toBe(true) // 17 digits
-            expect(isRoleId('123456789012345678')).toBe(true) // 18 digits
-            expect(isRoleId('1234567890123456789')).toBe(true) // 19 digits
-            expect(isRoleId('12345678901234567890')).toBe(true) // 20 digits
+            expect(isRoleId('12345678901234567')).toBe(true)
+            expect(isRoleId('123456789012345678')).toBe(true)
+            expect(isRoleId('1234567890123456789')).toBe(true)
+            expect(isRoleId('12345678901234567890')).toBe(true)
         })
 
         it('should return false for invalid role IDs', () => {
-            expect(isRoleId('1234567890123456')).toBe(false) // 16 digits (too short)
-            expect(isRoleId('123456789012345678901')).toBe(false) // 21 digits (too long)
+            expect(isRoleId('1234567890123456')).toBe(false)
+            expect(isRoleId('123456789012345678901')).toBe(false)
             expect(isRoleId('123')).toBe(false)
             expect(isRoleId('invalid')).toBe(false)
-            expect(isRoleId('1234567890123456789a')).toBe(false) // non-numeric
+            expect(isRoleId('1234567890123456789a')).toBe(false)
             expect(isRoleId('')).toBe(false)
         })
     })

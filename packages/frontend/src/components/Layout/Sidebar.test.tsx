@@ -184,11 +184,9 @@ describe('Sidebar', () => {
 
         await user.click(openButton)
 
-        // Check that mobile sidebar appears
         const mobileSidebar = document.getElementById('mobile-sidebar')
         expect(mobileSidebar).toBeTruthy()
 
-        // Find and click overlay to close
         const overlay = document.querySelector('div[aria-hidden="true"].fixed')
         if (overlay) {
             await user.click(overlay as HTMLElement)

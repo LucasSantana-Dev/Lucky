@@ -50,9 +50,6 @@ describe('authStore', () => {
     })
 
     afterEach(async () => {
-        // Let any in-flight checkAuth promise settle so state doesn't leak
-        // across tests. (The former 120ms sleep existed only to outwait the
-        // timer-based promise clearing removed in #1186.)
         await Promise.resolve()
     })
 
@@ -160,9 +157,6 @@ describe('authStore', () => {
     })
 
     test('performs a fresh check immediately after the previous one settles', async () => {
-        // Regression for #1186: the old timer-based clearing held the settled
-        // promise for 100ms, serving a stale result to callers in that window
-        // (e.g. checkAuth right after login returned the pre-login state).
         vi.mocked(api.auth.checkStatus).mockResolvedValueOnce({
             data: { authenticated: false, user: null },
         } as never)

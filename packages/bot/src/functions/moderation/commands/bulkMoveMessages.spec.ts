@@ -1,6 +1,5 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 
-// Mock declarations BEFORE jest.mock calls
 const batchJobServiceMock = {
     create: jest.fn(),
 }
@@ -46,7 +45,6 @@ jest.mock('../batch/channelMoveExecutor', () => {
     }
 })
 
-// Import AFTER mocks
 import bulkMoveMessagesCommand from './bulkMoveMessages'
 
 function createMockUser(id = 'user-123', tag = 'TestUser#1234') {
@@ -142,7 +140,6 @@ describe('bulkMoveMessages command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
 
-        // Default mocks
         checkBatchPermissionsMock.mockReturnValue({
             allowed: true,
             missing: [],
@@ -520,12 +517,10 @@ describe('bulkMoveMessages command', () => {
 
             const sourceChannel = createMockChannel()
 
-            // Mock pagination: return 5 pages of 100 messages each, then empty
             let callCount = 0
             sourceChannel.messages.fetch = jest.fn().mockImplementation(() => {
                 callCount++
                 if (callCount <= 5) {
-                    // Return 100 messages per page
                     return Promise.resolve(
                         new Map(
                             Array.from({ length: 100 }, (_, i) => {
@@ -543,7 +538,6 @@ describe('bulkMoveMessages command', () => {
                         ),
                     )
                 }
-                // Return empty map (end of messages)
                 return Promise.resolve(new Map())
             })
 
@@ -557,23 +551,18 @@ describe('bulkMoveMessages command', () => {
 
             await bulkMoveMessagesCommand.execute({ interaction } as any)
 
-            // Should fetch with limit ≤ 100 (the Discord API limit)
             const fetchCalls = (sourceChannel.messages.fetch as jest.Mock).mock
                 .calls
             expect(fetchCalls.length).toBeGreaterThan(0)
 
-            // Each call should respect the Discord limit of 100
             for (const [callArgs] of fetchCalls) {
                 expect(callArgs.limit).toBeLessThanOrEqual(100)
             }
 
-            // Should have paginated through multiple calls
             expect(fetchCalls.length).toBeGreaterThan(1)
 
-            // First call should not have a cursor
             expect(fetchCalls[0][0].before).toBeUndefined()
 
-            // Subsequent calls should have a cursor for pagination
             if (fetchCalls.length > 1) {
                 expect(fetchCalls[1][0].before).toBeDefined()
             }
@@ -608,7 +597,6 @@ describe('bulkMoveMessages command', () => {
 
             await bulkMoveMessagesCommand.execute({ interaction } as any)
 
-            // For count scope, should use the provided count exactly (not sample)
             expect(
                 (batchJobServiceMock.create as jest.Mock).mock.calls.length,
             ).toBeGreaterThanOrEqual(0)

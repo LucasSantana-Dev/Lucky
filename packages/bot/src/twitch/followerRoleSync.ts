@@ -6,9 +6,6 @@ import {
 } from '@lucky/shared/services'
 import { getTwitchEnv } from './token'
 
-// #2160 follow-up: an HTTP failure here used to warnLog per link, which
-// bursts once per user on an outage. checkTwitchFollow now only debugLogs
-// per link; the caller aggregates failures into one warnLog per sync run.
 async function checkTwitchFollow(
     twitchUserId: string,
     broadcasterId: string,
@@ -111,7 +108,6 @@ export async function syncGuildFollowerRoles(
                 }
             }
 
-            // Subscriber role (from stored status — checked at auth time, no Twitch API call)
             if (subscriberConfig) {
                 const member = await guild.members
                     .fetch(link.discordUserId)

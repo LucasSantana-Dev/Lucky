@@ -1,9 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 
-// Zod 4 dropped the second `Def` type parameter; the equivalent surface is
-// `z.ZodType<TOutput, unknown>`. Keeping the function-level TOutput generic
-// preserves caller-side inference exactly.
 type Schema<TOutput> = z.ZodType<TOutput, unknown>
 
 function stripUnknownFields(data: object, allowedKeys: Set<string>): void {
@@ -41,7 +38,6 @@ export function validateQuery<TOutput>(schema: Schema<TOutput>) {
             return res.status(400).json({ error: 'Validation failed', errors })
         }
 
-        // Strip unknown fields and assign validated data back (which includes transformations like coercion)
         stripUnknownFields(
             req.query,
             new Set(Object.keys(result.data as object)),
@@ -62,7 +58,6 @@ export function validateParams<TOutput>(schema: Schema<TOutput>) {
             return res.status(400).json({ error: 'Validation failed', errors })
         }
 
-        // Strip unknown fields and assign validated data back (which includes transformations like coercion)
         stripUnknownFields(
             req.params,
             new Set(Object.keys(result.data as object)),

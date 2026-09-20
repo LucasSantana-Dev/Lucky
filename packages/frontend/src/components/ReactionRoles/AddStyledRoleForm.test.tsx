@@ -166,7 +166,6 @@ describe('AddStyledRoleForm', () => {
             await waitFor(() => {
                 const swatch = screen.getByTestId('color-swatch')
                 expect(swatch).toBeInTheDocument()
-                // Check that it has a style attribute (background color will be inlined)
                 const style = window.getComputedStyle(swatch)
                 expect(style.backgroundColor).toBeTruthy()
             })
@@ -190,14 +189,11 @@ describe('AddStyledRoleForm', () => {
                 name: /preview/i,
             })
 
-            // Initially disabled
             expect(previewButton).toBeDisabled()
 
-            // After typing, enabled
             await user.type(nameInput, 'Moderator')
             expect(previewButton).not.toBeDisabled()
 
-            // Clearing makes it disabled again
             await user.clear(nameInput)
             expect(previewButton).toBeDisabled()
         })

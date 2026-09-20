@@ -230,7 +230,6 @@ describe('twitch command', () => {
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
-        // Should not call any handler for unknown subcommand
         expect(handleTwitchAddMock).not.toHaveBeenCalled()
         expect(handleTwitchRemoveMock).not.toHaveBeenCalled()
         expect(handleTwitchListMock).not.toHaveBeenCalled()

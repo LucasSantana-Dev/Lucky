@@ -10,7 +10,6 @@ import { metricsService } from './MetricsCache'
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
 const BOT_GUILD_CACHE_TTL_MS = 60_000
-// Discord permission bitfield literal representing zero permissions granted
 const NO_PERMISSIONS = '0'
 
 export interface GuildWithBotStatus extends DiscordGuild {
@@ -90,8 +89,6 @@ class GuildBotStatusService {
                 }
             }
 
-            // Only cache if the generation hasn't changed (no invalidation occurred
-            // while the fetch was in-flight)
             if (generation === this.invalidationGeneration) {
                 this.botGuildIdsCache = {
                     guildIds,
@@ -172,10 +169,6 @@ class GuildBotStatusService {
         }
 
         const scopes = ['bot', 'applications.commands']
-        // Was a hardcoded '8' — Administrator. The dashboard's "add Lucky to
-        // this server" flow asked every owner for full admin, contradicting
-        // both the ADR and the public listings (#1923). Shares the curated set
-        // with the landing page and the /invite redirect.
         const permissions = BOT_INVITE_PERMISSIONS
         const redirectUri = process.env.WEBAPP_REDIRECT_URI
 

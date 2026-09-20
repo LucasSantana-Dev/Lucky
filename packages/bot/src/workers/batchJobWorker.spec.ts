@@ -56,7 +56,6 @@ function makeModule(opts: {
     const mockWorkerOn = jest.fn()
     const mockWorkerClose = jest.fn().mockResolvedValue(undefined)
 
-    // BullMQ redis instance mock (with disconnect method)
     const mockBullmqRedisDisconnect = jest.fn().mockResolvedValue(undefined)
     const mockBullmqRedis = bullmqRedisFails
         ? null
@@ -505,7 +504,6 @@ describe('batchJobWorker', () => {
         const processor = capturedProcessor()!
         await processor(makeJob())
         expect(mockMarkCompleted).toHaveBeenCalledWith('job-abc')
-        // Verify alternative branches are not taken
         expect(mockMarkCancelled).not.toHaveBeenCalled()
         expect(mockMarkPaused).not.toHaveBeenCalled()
     })

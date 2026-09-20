@@ -71,7 +71,6 @@ export class TitleComparisonService {
 
     private performExtraction(input: string): ArtistTitle {
         try {
-            // Apply patterns to extract artist and title
             const patterns = [
                 ...artistTitlePatterns,
                 ...youtubePatterns,
@@ -87,7 +86,6 @@ export class TitleComparisonService {
                 }
             }
 
-            // Fallback: treat entire input as title
             return {
                 artist: 'Unknown',
                 title: input.trim(),
@@ -126,7 +124,6 @@ export class TitleComparisonService {
     }
 
     private startCacheCleanup(): void {
-        // Clean up cache every 10 minutes
         safeSetInterval(() => {
             this.cache.clear()
             debugLog({ message: 'Title comparison cache cleared' })

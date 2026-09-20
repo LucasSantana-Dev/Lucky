@@ -35,7 +35,6 @@ export class PrismaSessionStore extends session.Store {
         this.pruneTimer = setInterval(() => {
             void this.prune()
         }, PRUNE_INTERVAL_MS)
-        // Don't keep the event loop alive just for session pruning.
         this.pruneTimer.unref?.()
     }
 
@@ -61,7 +60,6 @@ export class PrismaSessionStore extends session.Store {
                     return
                 }
                 if (row.expiresAt.getTime() <= Date.now()) {
-                    // Lazily evict the expired row; absence is reported as no session.
                     void this.db.session
                         .delete({ where: { sid } })
                         .catch(() => undefined)
@@ -71,7 +69,6 @@ export class PrismaSessionStore extends session.Store {
                 try {
                     callback(null, JSON.parse(row.data) as session.SessionData)
                 } catch {
-                    // Corrupt payload: treat as no session rather than wedging auth.
                     callback(null, null)
                 }
             })
@@ -113,9 +110,6 @@ export class PrismaSessionStore extends session.Store {
         this.db.session
             .update({ where: { sid }, data: { expiresAt } })
             .then(() => callback())
-            // A missing row (touch before set / after destroy) is a benign
-            // no-op, but real DB errors must propagate so ResilientSessionStore
-            // can fail over instead of silently masking an outage.
             .catch((error) =>
                 isRecordNotFound(error) ? callback() : callback(error),
             )

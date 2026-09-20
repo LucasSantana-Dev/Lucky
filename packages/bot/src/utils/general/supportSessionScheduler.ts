@@ -2,10 +2,8 @@ import { supportSessionService } from '@lucky/shared/services'
 import { errorLog, infoLog } from '@lucky/shared/utils'
 import { IntervalScheduler } from './IntervalScheduler'
 
-// Sweep for expired tickets every 5 minutes.
 const DEFAULT_TICK_INTERVAL_MS = 5 * 60 * 1000
 
-// Discord REST error code: the channel truly no longer exists.
 const UNKNOWN_CHANNEL = 10003
 
 /**
@@ -60,9 +58,8 @@ export class SupportSessionScheduler extends IntervalScheduler {
             channel = await this.client.channels.fetch(channelId)
         } catch (err) {
             if (errorCode(err) === UNKNOWN_CHANNEL) {
-                return this.closeSession(sessionId) // already gone
+                return this.closeSession(sessionId)
             }
-            // Transient/permissions fetch error — leave open, retry next sweep.
             errorLog({
                 message: `Ticket sweep: could not fetch channel ${channelId}`,
                 error: err,
@@ -71,7 +68,7 @@ export class SupportSessionScheduler extends IntervalScheduler {
         }
 
         if (!channel || channel.isDMBased()) {
-            return this.closeSession(sessionId) // not a live guild channel
+            return this.closeSession(sessionId)
         }
 
         try {
@@ -79,10 +76,8 @@ export class SupportSessionScheduler extends IntervalScheduler {
             return this.closeSession(sessionId)
         } catch (err) {
             if (errorCode(err) === UNKNOWN_CHANNEL) {
-                return this.closeSession(sessionId) // raced, already gone
+                return this.closeSession(sessionId)
             }
-            // 50013 (missing perms) or transient — the channel still exists, so
-            // keep the session OPEN and retry on a later sweep.
             errorLog({
                 message: `Ticket sweep: could not delete channel ${channelId}, will retry`,
                 error: err,

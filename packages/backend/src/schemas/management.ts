@@ -41,15 +41,11 @@ const guildAutomationRunBody = z
     })
     .strict()
 
-// Smart-command config, validated per kind (ADR 2026-07-03). Only "job_post"
-// is defined today; "basic" ignores config.
 const jobPostConfig = z
     .object({
         targetChannelId: snowflakeId.nullish(),
         notifyRoleLabel: z.string().max(100).optional(),
     })
-    // Reject typo'd keys — a mis-typed targetChannelId would silently change
-    // where job posts land (cubic P2).
     .strict()
 
 const smartTagFields = {

@@ -235,7 +235,6 @@ describe('buildVcContributionWeights', () => {
         const weights = buildVcContributionWeights(tracks, ['user1', 'user2'])
         expect(weights.has('user1')).toBe(true)
         expect(weights.has('user2')).toBe(true)
-        // user1 contributed 2, user2 contributed 1
         const w1 = weights.get('user1')!
         const w2 = weights.get('user2')!
         expect(w1).toBeGreaterThan(w2)
@@ -244,7 +243,6 @@ describe('buildVcContributionWeights', () => {
     it('gives weight 1 to members with no contributions', () => {
         const tracks = [createTrack({ requestedBy: { id: 'user1' } })]
         const weights = buildVcContributionWeights(tracks, ['user1', 'user2'])
-        // user2 has 0 contributions → gets base count of 1
         expect(weights.has('user2')).toBe(true)
         expect(weights.get('user2')).toBeGreaterThan(0)
     })

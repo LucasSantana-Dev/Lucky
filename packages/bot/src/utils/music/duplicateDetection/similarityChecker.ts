@@ -65,6 +65,5 @@ export function calculateSimilarityScore(
         track2.author.toLowerCase(),
     )
 
-    // Weighted average (title is more important)
     return titleSimilarity * 0.7 + artistSimilarity * 0.3
 }

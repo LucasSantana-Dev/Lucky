@@ -42,7 +42,6 @@ interface TokenResponse {
     scope: string
 }
 
-// Zod validation schemas for Discord API responses
 const tokenResponseSchema = z.object({
     access_token: z.string().min(1),
     token_type: z.string().min(1),
@@ -291,8 +290,6 @@ class DiscordOAuthService {
 
         try {
             for (let attempt = 0; ; attempt++) {
-                // Bound the fetch so a hung Discord connection surfaces as a
-                // logged timeout instead of an invisible pending request.
                 const response = await withTimeout(
                     fetch(`${this.apiBaseUrl}${endpoint}`, {
                         headers: { Authorization: `Bearer ${accessToken}` },
@@ -302,10 +299,7 @@ class DiscordOAuthService {
                     `discord ${endpoint}`,
                 )
 
-                // Honour Discord's Retry-After on 429 with a bounded backoff
-                // before falling through to the error path.
                 if (response.status === 429) {
-                    // Count every 429 regardless of whether retries remain.
                     if (
                         recordWithCooldown('discord-429', 60_000, 5, 5 * 60_000)
                     ) {

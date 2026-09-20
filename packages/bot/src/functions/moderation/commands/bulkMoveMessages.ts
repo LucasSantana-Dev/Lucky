@@ -112,7 +112,6 @@ export default new Command({
             'all' | 'count' | 'user' | 'date_range' | 'contains'
         const dryRun = interaction.options.getBoolean('dry_run') ?? false
 
-        // Type-guard the channels
         const sourceChannel = sourceChannelInput as GuildTextBasedChannel | null
         const destChannel = destChannelInput as GuildTextBasedChannel | null
 
@@ -126,7 +125,6 @@ export default new Command({
             return
         }
 
-        // Validate scope options
         let scopeConfig: Record<string, unknown> = {}
 
         if (scopeType === 'count') {
@@ -193,7 +191,6 @@ export default new Command({
             scopeConfig = { searchText }
         }
 
-        // Validate channels
         if (sourceChannel.id === destChannel.id) {
             await interactionReply({
                 interaction,
@@ -205,7 +202,6 @@ export default new Command({
             return
         }
 
-        // Check permissions
         const botMember = guild.members.me
         if (!botMember) {
             await interactionReply({
@@ -243,7 +239,6 @@ export default new Command({
             return
         }
 
-        // Estimate total by sampling (cap at 500 messages for performance)
         await interaction.deferReply({ ephemeral: true })
 
         let totalEstimate = 0
@@ -255,8 +250,6 @@ export default new Command({
             let cursor: string | undefined
             const allSampleMessages: Message<true>[] = []
 
-            // Paginate through messages in pages of ≤100 (Discord API limit)
-            // until we collect SAMPLE_SIZE messages or reach the end
             while (allSampleMessages.length < SAMPLE_SIZE) {
                 const pageMessages = (await sourceChannel.messages.fetch({
                     limit: PAGE_SIZE,
@@ -267,21 +260,17 @@ export default new Command({
                     break
                 }
 
-                // Convert to array and add to collection
                 const messageArray = Array.from(pageMessages.values())
                 allSampleMessages.push(...messageArray)
 
-                // Update cursor for next page
                 cursor = messageArray[messageArray.length - 1]?.id
 
-                // Stop if we've collected enough samples
                 if (allSampleMessages.length >= SAMPLE_SIZE) {
                     allSampleMessages.splice(SAMPLE_SIZE)
                     break
                 }
             }
 
-            // Count matches in the sample
             for (const msg of allSampleMessages) {
                 const matches = matchesScope(
                     {
@@ -300,7 +289,6 @@ export default new Command({
                 messageIndex++
             }
 
-            // Estimate based on sample ratio (conservatively assume all match)
             totalEstimate =
                 scopeType === 'count'
                     ? ((scopeConfig.count as number) ?? 0)
@@ -330,7 +318,6 @@ export default new Command({
             return
         }
 
-        // Show confirmation dialog
         const { ChannelMoveBatchExecutor } =
             await import('../batch/channelMoveExecutor')
         const executor = new ChannelMoveBatchExecutor()
@@ -355,7 +342,6 @@ export default new Command({
             return
         }
 
-        // Create batch job
         try {
             const job = await batchJobService.create({
                 guildId: guild.id,

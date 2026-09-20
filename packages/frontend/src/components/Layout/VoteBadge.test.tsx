@@ -103,7 +103,6 @@ describe('VoteBadge', () => {
         render(<VoteBadge />)
 
         const link = screen.getByRole('link')
-        // Should use 'Lucky Supporter' fallback styling
         expect(link).toHaveClass('bg-lucky-bg-secondary')
         expect(screen.getByText('Unknown Tier')).toBeInTheDocument()
     })
@@ -124,7 +123,6 @@ describe('VoteBadge', () => {
 
         const link = screen.getByRole('link')
         expect(link).toHaveClass('lucky-focus-visible')
-        // The leading icon should be decorative (aria-hidden)
         expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     })
 

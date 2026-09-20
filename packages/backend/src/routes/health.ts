@@ -112,15 +112,6 @@ export function setupHealthRoutes(app: Express): void {
                 expectedClientId,
             })
 
-            // This endpoint is unauthenticated (it's used to verify OAuth config
-            // before a session can exist). clientId/redirectUri are already
-            // public — they're embedded in the OAuth login URL every visitor
-            // sees. But operational details (session/redis state, config
-            // validation warnings) aren't needed by anonymous callers and only
-            // help an attacker fingerprint the deployment, so they're redacted
-            // outside development. NODE_ENV=production covers staging too
-            // (docker-compose.staging.yml sets it), which is correct — staging
-            // is internet-facing and shouldn't leak diagnostics either.
             if (process.env.NODE_ENV === 'production') {
                 res.json({
                     auth: {

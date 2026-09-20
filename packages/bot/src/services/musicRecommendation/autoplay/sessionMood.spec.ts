@@ -154,7 +154,6 @@ describe('sessionMood', () => {
         })
 
         it('filters 0/undefined durations and handles edge cases', () => {
-            // Ignores 0 and undefined
             const mixed = [
                 { author: 'A', durationMS: 400000, isAutoplay: false },
                 { author: 'B', durationMS: 0, isAutoplay: false },
@@ -164,7 +163,6 @@ describe('sessionMood', () => {
             ]
             expect(detectSessionMood(mixed).preferLong).toBe(true)
 
-            // No valid durations
             const empty = [{ author: 'A', durationMS: 0, isAutoplay: false }]
             const mood = detectSessionMood(empty)
             expect(mood.preferLong).toBe(false)
@@ -208,7 +206,6 @@ describe('sessionMood', () => {
         })
 
         it('requires 5+ tracks and checks last 10', () => {
-            // <5 tracks = false
             const short = [
                 { author: 'A', durationMS: 200000, isAutoplay: false },
                 { author: 'B', durationMS: 200000, isAutoplay: true },
@@ -216,7 +213,6 @@ describe('sessionMood', () => {
             ]
             expect(detectSessionMood(short).restless).toBe(false)
 
-            // Window test: ignore old, check last 10
             const old = [
                 { author: 'X', durationMS: 200000, isAutoplay: false },
                 { author: 'X', durationMS: 200000, isAutoplay: false },
@@ -255,7 +251,6 @@ describe('sessionMood', () => {
         })
 
         it('handles missing fields and combines signals', () => {
-            // No author field
             const noAuthor = [
                 { durationMS: 200000, isAutoplay: false },
                 { durationMS: 200000, isAutoplay: false },
@@ -263,7 +258,6 @@ describe('sessionMood', () => {
             ]
             expect(detectSessionMood(noAuthor).deepDiveArtist).toBeNull()
 
-            // Combined signals: deepDive + long + restless
             const combo = [
                 { author: 'Artist A', duration: '6:00', isAutoplay: false },
                 { author: 'Artist A', duration: '6:30', isAutoplay: true },
@@ -278,7 +272,6 @@ describe('sessionMood', () => {
         })
 
         it('handles malformed durations and case-insensitive artists', () => {
-            // Malformed durations: 'invalid' and ''
             const malformed = [
                 { author: 'A', duration: 'invalid', isAutoplay: false },
                 { author: 'B', duration: '6:00', isAutoplay: false },
@@ -288,7 +281,6 @@ describe('sessionMood', () => {
             ]
             expect(detectSessionMood(malformed).preferLong).toBe(true)
 
-            // Case-insensitive artist dedup for restless
             const caseTest = [
                 { author: 'artist A', durationMS: 200000, isAutoplay: false },
                 { author: 'ARTIST A', durationMS: 200000, isAutoplay: true },
@@ -346,13 +338,11 @@ describe('sessionMood', () => {
         })
 
         it('detects from author field and respects 15-track window', () => {
-            // Banda MS in author field
             const author = [
                 { author: 'Banda MS', title: 'Mi razón', durationMS: 200000 },
             ]
             expect(detectSessionMood(author).dominantLocale).toBe('spanish')
 
-            // Outside 15-track window
             const old = Array.from({ length: 5 }, () => ({
                 author: 'Bad Bunny',
                 title: 'Reggaeton hit',
@@ -380,7 +370,6 @@ describe('sessionMood', () => {
             expect(detectSessionMood(history, 5).restless).toBe(true)
             expect(detectSessionMood(history, 2).restless).toBe(false)
 
-            // skipCount overrides: same artist but high skip count
             const same = Array.from({ length: 5 }, () => ({
                 author: 'Same Artist',
                 durationMS: 200000,

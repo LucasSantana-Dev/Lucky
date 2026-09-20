@@ -114,7 +114,6 @@ describe('createReactionRolesExecutor', () => {
         const executor = createReactionRolesExecutor({ port })
 
         const live = await executor.capture({ guildId: 'g1' })
-        // live has r1:r2; manifest has r3:r4 → removes r1:r2 + sets r3:r4 (fails)
         const diff = executor.diff(live, {
             exclusiveRoles: [{ roleId: 'r3', excludedRoleId: 'r4' }],
         })
@@ -136,7 +135,6 @@ describe('createReactionRolesExecutor', () => {
         const executor = createReactionRolesExecutor({ port })
 
         const live = await executor.capture({ guildId: 'g1' })
-        // live has r1:r2 (triggers remove); manifest has r3:r4 (triggers set) — both fail
         const diff = executor.diff(live, {
             exclusiveRoles: [{ roleId: 'r3', excludedRoleId: 'r4' }],
         })
@@ -155,7 +153,6 @@ describe('createReactionRolesExecutor', () => {
         const live = await executor.capture({ guildId: 'g1' })
         const diff = executor.diff(live, {})
 
-        // Verify noop op has kind property set to 'noop'
         expect(diff.ops).toHaveLength(1)
         expect(diff.ops[0]).toHaveProperty('kind')
         expect(diff.ops[0].kind).toBe('noop')
@@ -170,7 +167,6 @@ describe('createReactionRolesExecutor', () => {
             exclusiveRoles: [{ roleId: 'r1', excludedRoleId: 'r2' }],
         })
 
-        // Verify set-exclusive op has correct kind
         expect(diff.ops).toHaveLength(1)
         expect(diff.ops[0]).toHaveProperty('kind')
         expect(diff.ops[0].kind).toBe('set-exclusive')
@@ -186,7 +182,6 @@ describe('createReactionRolesExecutor', () => {
         })
         const result = await executor.apply(diff, { guildId: 'g1' })
 
-        // Verify applied contains 'set-exclusive' string
         expect(result.status).toBe('success')
         if (result.status === 'success') {
             expect(result.applied).toContain('set-exclusive')
@@ -201,7 +196,6 @@ describe('createReactionRolesExecutor', () => {
         const diff = executor.diff(live, {})
         const result = await executor.apply(diff, { guildId: 'g1' })
 
-        // Verify applied contains 'noop' string
         expect(result.status).toBe('success')
         if (result.status === 'success') {
             expect(result.applied).toEqual(['noop'])
@@ -219,7 +213,6 @@ describe('createReactionRolesExecutor', () => {
         })
         const result = await executor.apply(diff, { guildId: 'g1' })
 
-        // Verify error object has opKind property
         expect(result.status).toBe('failed')
         if (result.status === 'failed') {
             expect(result.error).toContain('set-error')
@@ -236,7 +229,6 @@ describe('createReactionRolesExecutor', () => {
         const executor = createReactionRolesExecutor({ port })
 
         const live = await executor.capture({ guildId: 'g1' })
-        // live has r1:r2 (triggers remove); manifest has r3:r4 (triggers set)
         const diff = executor.diff(live, {
             exclusiveRoles: [{ roleId: 'r3', excludedRoleId: 'r4' }],
         })
@@ -244,7 +236,6 @@ describe('createReactionRolesExecutor', () => {
 
         expect(result.status).toBe('failed')
         if (result.status === 'failed') {
-            // Verify semicolon separator is present between errors
             expect(result.error).toContain('; ')
             expect(result.error).toContain('error1')
             expect(result.error).toContain('error2')

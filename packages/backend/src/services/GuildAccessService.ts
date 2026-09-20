@@ -36,12 +36,6 @@ export interface AuthorizedGuild extends GuildWithBotStatus {
 
 class GuildAccessService {
     private readonly userGuildCacheTtlSeconds = 30
-    // In-memory cache of the user's Discord guild list. Replaces the former
-    // Redis read-through cache (Redis is being decommissioned; when it was
-    // unhealthy this cache silently no-op'd, so every request hit Discord and
-    // triggered 429 storms that degraded /moderation/cases, /logs, etc.). The
-    // source of truth is the Discord API, not Postgres, so an in-memory TTL
-    // cache is the right home (single-instance; revisit if Lucky scales out).
     private readonly userGuildCache = new TtlCache<DiscordGuild[]>({
         ttlMs: this.userGuildCacheTtlSeconds * 1000,
         maxEntries: 1000,
@@ -127,10 +121,6 @@ class GuildAccessService {
                     (statusCode === 429 ||
                         (statusCode !== null && statusCode >= 500))
                 ) {
-                    // Graceful degradation — serve the cached guild list when
-                    // Discord 429/5xx hits. Logged at WARN (not INFO) so a
-                    // sustained rate-limit window is visible in Sentry as the
-                    // signal it is, rather than being silently absorbed.
                     warnLog({
                         message:
                             'Using cached guild list after Discord guild fetch failure',

@@ -51,7 +51,7 @@ export class AfkService {
         return await prisma.afkStatus.findMany({
             where: {
                 guildId,
-                userId: { in: userIds.slice(0, 10) }, // limit to 10
+                userId: { in: userIds.slice(0, 10) },
             },
         })
     }

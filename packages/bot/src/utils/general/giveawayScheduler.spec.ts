@@ -10,8 +10,6 @@ jest.mock('@lucky/shared/services', () => ({
         getEndedDue: mockGetEndedDue,
     },
 }))
-// @lucky/shared/utils' barrel reaches prismaClient's import.meta, which bot
-// jest can't compile — mock the log fns the scheduler uses.
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
     debugLog: jest.fn(),
@@ -34,7 +32,6 @@ describe('GiveawayScheduler.processEndedGiveaway', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         scheduler = new GiveawayScheduler({ tickIntervalMs: 1000 })
-        // Set client via property access
         scheduler['client'] = mockClient as any
     })
 
@@ -247,7 +244,6 @@ describe('GiveawayScheduler.processEndedGiveaway', () => {
             ])
             mockEndAndDraw.mockResolvedValue(['u1'])
 
-            // client with no messageId -> finalize up front, no announce
             scheduler['client'] = {
                 channels: { cache: { get: jest.fn() }, fetch: jest.fn() },
             } as any
@@ -270,7 +266,6 @@ describe('GiveawayScheduler.processEndedGiveaway', () => {
             } as any
             scheduler.start(client)
             expect(scheduler['timer']).not.toBeNull()
-            // second start is a no-op (already started)
             scheduler.start(client)
             scheduler.stop()
             expect(scheduler['timer']).toBeNull()

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
-// Mock dependencies
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const safeSetIntervalMock = jest.fn()
@@ -35,7 +34,6 @@ describe('TitleComparisonService', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         service = new TitleComparisonService()
-        // Reset mock implementations
         normalizeStringMock.mockImplementation((str: string) =>
             str.replace(/\s+/g, ' ').trim(),
         )
@@ -45,10 +43,9 @@ describe('TitleComparisonService', () => {
         it('should merge custom options and use custom threshold', () => {
             const customOptions = { threshold: 0.7 }
             const svc = new TitleComparisonService(customOptions)
-            // The service should use threshold 0.7
             calculateSimilarityMock.mockReturnValue(0.75)
             const result = svc.isSimilarTitle('test1', 'test2')
-            expect(result).toBe(true) // 0.75 >= 0.7
+            expect(result).toBe(true)
         })
     })
 
@@ -152,15 +149,15 @@ describe('TitleComparisonService', () => {
         it('should calculate and cap confidence at 1.0', () => {
             calculateSimilarityMock.mockReturnValue(0.8)
             const result1 = service.calculateSimilarity('Title 1', 'Title 2')
-            expect(result1.confidence).toBe(1.0) // 0.8 / 0.8 = 1.0
+            expect(result1.confidence).toBe(1.0)
 
             calculateSimilarityMock.mockReturnValue(0.9)
             const result2 = service.calculateSimilarity('Title 1', 'Title 2')
-            expect(result2.confidence).toBe(1.0) // 0.9 / 0.8 = 1.125, capped to 1.0
+            expect(result2.confidence).toBe(1.0)
 
             calculateSimilarityMock.mockReturnValue(0.4)
             const result3 = service.calculateSimilarity('Title A', 'Title B')
-            expect(result3.confidence).toBe(0.5) // 0.4 / 0.8 = 0.5
+            expect(result3.confidence).toBe(0.5)
         })
     })
 
@@ -273,8 +270,8 @@ describe('TitleComparisonService', () => {
             const result1 = svc1.isSimilarTitle('A', 'B')
             const result2 = svc2.isSimilarTitle('A', 'B')
 
-            expect(result1).toBe(true) // 0.75 >= 0.7
-            expect(result2).toBe(false) // 0.75 < 0.9
+            expect(result1).toBe(true)
+            expect(result2).toBe(false)
         })
     })
 

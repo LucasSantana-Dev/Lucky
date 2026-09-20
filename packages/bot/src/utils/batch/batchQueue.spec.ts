@@ -1,6 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals'
 
-// Use isolateModules per test group to reset the module-level `queue` singleton.
 function makeModule(redis: Record<string, unknown> | null) {
     const warnLog = jest.fn()
     const errorLog = jest.fn()

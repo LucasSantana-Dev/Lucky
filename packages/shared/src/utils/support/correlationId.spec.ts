@@ -23,7 +23,6 @@ describe('mintCorrelationId', () => {
     })
 
     it('mints only URL-safe characters', () => {
-        // URL-safe alphabet: A-Z a-z 0-9 - _ (no padding, no slashes).
         for (let i = 0; i < 50; i++) {
             expect(mintCorrelationId()).toMatch(/^[A-Za-z0-9_-]{8}$/)
         }
@@ -34,8 +33,6 @@ describe('mintCorrelationId', () => {
         for (let i = 0; i < 1000; i++) {
             ids.add(mintCorrelationId())
         }
-        // Collisions across 1000 draws from a 64^8 space should be vanishingly
-        // rare; allow a tiny margin rather than asserting perfect uniqueness.
         expect(ids.size).toBeGreaterThanOrEqual(998)
     })
 })

@@ -125,10 +125,7 @@ function createHelpEmbeds(
 
 const MAX_FIELD_VALUE = 1024
 const MAX_EMBED_FIELDS = 25
-// Leave headroom for the zero-width-space + newline prefix on each field value.
 const FIELD_VALUE_BUDGET = MAX_FIELD_VALUE - 8
-// Discord caps a message at 6000 chars across all embeds; keep headroom for
-// the first page's title, description and footer.
 const PAGE_CHAR_BUDGET = 5500
 
 /**
@@ -191,9 +188,6 @@ export default new Command({
             )
 
             debugLog({ message: 'Help command: Sending embed response' })
-            // interactionReply edits the deferred reply on the first call and
-            // routes subsequent calls to followUp (interaction.replied), so
-            // each page lands as its own message within Discord's 6000 cap.
             for (const embed of embeds) {
                 await interactionReply({
                     interaction,

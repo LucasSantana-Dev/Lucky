@@ -5,9 +5,6 @@ import { infoLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 
-// Curated GIF pool per action. Sourced from Tenor's public CDN URLs so no
-// runtime API call is needed. Rotates deterministically by (sender, action,
-// day) so the same pair doesn't see the same GIF twice in a row.
 const ACTION_GIFS: Record<string, string[]> = {
     hug: [
         'https://media.tenor.com/kCZjTqCKiggAAAAC/anime-hug.gif',
@@ -40,7 +37,10 @@ const ACTION_GIFS: Record<string, string[]> = {
     ],
 }
 
-const ACTION_PHRASES: Record<string, (sender: string, target: string) => string> = {
+const ACTION_PHRASES: Record<
+    string,
+    (sender: string, target: string) => string
+> = {
     hug: (s, t) => `${s} hugs ${t} 🤗`,
     pat: (s, t) => `${s} pats ${t} on the head 🫳`,
     kiss: (s, t) => `${s} kisses ${t} 💋`,
@@ -76,7 +76,7 @@ function buildEmbed(
     target: User | null,
 ): EmbedBuilder {
     const senderName = sender.displayName ?? sender.username
-    const targetName = target ? target.displayName ?? target.username : ''
+    const targetName = target ? (target.displayName ?? target.username) : ''
     const isSelf = target !== null && target.id === sender.id
 
     const phrase = isSelf
