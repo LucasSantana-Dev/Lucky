@@ -19,14 +19,12 @@ describe('recordWithCooldown', () => {
 
     it('returns false during cooldown after trigger', () => {
         recordWithCooldown('k', 1000, 1, 60_000)
-        // Just triggered — cooldown is active
         expect(recordWithCooldown('k', 1000, 1, 60_000)).toBe(false)
     })
 
     it('isolates different keys', () => {
         recordWithCooldown('a', 1000, 2, 5000)
         expect(recordWithCooldown('a', 1000, 2, 5000)).toBe(true)
-        // 'b' window is clean
         expect(recordWithCooldown('b', 1000, 2, 5000)).toBe(false)
     })
 })

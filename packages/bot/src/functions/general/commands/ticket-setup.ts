@@ -1,9 +1,5 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import {
-    ChannelType,
-    MessageFlags,
-    PermissionFlagsBits,
-} from 'discord.js'
+import { ChannelType, MessageFlags, PermissionFlagsBits } from 'discord.js'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import {
@@ -48,7 +44,9 @@ export default new Command({
         .addSubcommand((sub) =>
             sub
                 .setName('clear')
-                .setDescription('Disable tickets by clearing category and role'),
+                .setDescription(
+                    'Disable tickets by clearing category and role',
+                ),
         )
         .addSubcommand((sub) =>
             sub
@@ -119,9 +117,9 @@ export default new Command({
                 return
             }
             if (
-                !me.permissionsIn(category.id).has(
-                    PermissionFlagsBits.ManageChannels,
-                )
+                !me
+                    .permissionsIn(category.id)
+                    .has(PermissionFlagsBits.ManageChannels)
             ) {
                 await interactionReply({
                     interaction,

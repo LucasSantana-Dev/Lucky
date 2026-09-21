@@ -33,7 +33,6 @@ function singleQueryParam(value: unknown): string | undefined {
 }
 
 function sanitizeQuery(query: string): string {
-    // Remove control characters
     // eslint-disable-next-line no-control-regex
     return query.replace(/[\x00-\x1F\x7F]/g, '').trim()
 }
@@ -135,7 +134,6 @@ export function setupServiceGuildRoutes(app: Express): void {
 
             const guildId = getGuildId()
 
-            // Parse and validate query parameters
             const limitParam = singleQueryParam(req.query.limit)
             const afterParam = singleQueryParam(req.query.after)
             const queryParam = singleQueryParam(req.query.query)
@@ -167,16 +165,13 @@ export function setupServiceGuildRoutes(app: Express): void {
                 }
             }
 
-            // Build Discord API URL
             let url: string
             if (sanitizedQuery) {
-                // Use search endpoint
                 const searchParams = new URLSearchParams()
                 searchParams.append('query', sanitizedQuery)
                 searchParams.append('limit', limit.toString())
                 url = `https://discord.com/api/v10/guilds/${guildId}/members/search?${searchParams.toString()}`
             } else {
-                // Use list endpoint
                 const listParams = new URLSearchParams()
                 listParams.append('limit', limit.toString())
                 if (afterParam) {

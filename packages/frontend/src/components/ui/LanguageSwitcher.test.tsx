@@ -7,7 +7,6 @@ import LanguageSwitcher from './LanguageSwitcher'
 import * as en from '@/locales/en.json'
 import * as ptBR from '@/locales/pt-BR.json'
 
-// Mock i18n initialization
 i18n.init({
     lng: 'en',
     fallbackLng: 'en',
@@ -21,7 +20,6 @@ i18n.init({
 
 describe('LanguageSwitcher', () => {
     beforeEach(() => {
-        // Reset to English before each test
         void i18n.changeLanguage('en')
     })
 
@@ -46,9 +44,8 @@ describe('LanguageSwitcher', () => {
         const trigger = screen.getByTitle('Language')
         await user.click(trigger)
 
-        // Both language options should be visible
         const languageOptions = screen.getAllByText('English')
-        expect(languageOptions.length).toBeGreaterThan(1) // trigger + dropdown item
+        expect(languageOptions.length).toBeGreaterThan(1)
         expect(screen.getByText('Português (Brasil)')).toBeInTheDocument()
     })
 
@@ -66,7 +63,6 @@ describe('LanguageSwitcher', () => {
         const ptBrOption = screen.getByText('Português (Brasil)')
         await user.click(ptBrOption)
 
-        // Wait for i18n to update and re-render
         await new Promise((resolve) => setTimeout(resolve, 100))
         rerender(
             <I18nextProvider i18n={i18n}>
@@ -74,14 +70,12 @@ describe('LanguageSwitcher', () => {
             </I18nextProvider>,
         )
 
-        // The language should have changed to Portuguese
         expect(i18n.language).toBe('pt-BR')
     })
 
     it('changes language when selecting English from Portuguese', async () => {
         const user = userEvent.setup()
 
-        // Start with Portuguese
         await i18n.changeLanguage('pt-BR')
 
         const { rerender } = render(
@@ -94,10 +88,8 @@ describe('LanguageSwitcher', () => {
         await user.click(trigger)
 
         const enOptions = screen.getAllByText('English')
-        // Click the dropdown item (not the trigger)
         await user.click(enOptions[enOptions.length - 1])
 
-        // Wait for i18n to update
         await new Promise((resolve) => setTimeout(resolve, 100))
         rerender(
             <I18nextProvider i18n={i18n}>
@@ -105,7 +97,6 @@ describe('LanguageSwitcher', () => {
             </I18nextProvider>,
         )
 
-        // The language should have changed to English
         expect(i18n.language).toBe('en')
     })
 })

@@ -11,7 +11,6 @@ import { useGuildStore } from '@/stores/guildStore'
 vi.mock('@/services/api')
 vi.mock('@/stores/guildStore')
 
-// Initialize i18n for testing
 i18n.init({
     lng: 'en',
     fallbackLng: 'en',
@@ -414,7 +413,6 @@ describe('BatchJobsPage', () => {
             expect(screen.getAllByText('bulk_ban').length).toBeGreaterThan(0)
         })
 
-        // Should display processed/total items
         expect(screen.getByText('45 / 100')).toBeInTheDocument()
     })
 

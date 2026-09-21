@@ -56,8 +56,6 @@ describe('YouTubeErrorHandler', () => {
     })
 
     describe('createYouTubeErrorMessage', () => {
-        // One case per branch, in the order the method tests them, so a
-        // reordering that lets an earlier flag shadow a later one shows up.
         it.each([
             ['isParserError', 'YouTube parser error, please try again'],
             ['isCompositeVideoError', 'Video format not supported'],
@@ -178,9 +176,6 @@ describe('YouTubeErrorHandler', () => {
 })
 
 describe('module-level helpers', () => {
-    // These delegate to `youtubeErrorHandler`, a singleton built at import
-    // time, so they run against a different analyzer instance than the tests
-    // above and need it stubbed separately.
     beforeEach(() => {
         jest.clearAllMocks()
         analyzerOf(youtubeErrorHandler).getErrorResponse.mockReturnValue({

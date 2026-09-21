@@ -1,5 +1,3 @@
-// Removed unused imports
-
 export type QueueDisplayOptions = {
     showCurrentTrack: boolean
     showUpcomingTracks: boolean

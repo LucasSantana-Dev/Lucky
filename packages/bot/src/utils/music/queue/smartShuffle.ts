@@ -38,9 +38,12 @@ export function smartShuffle<T extends SmartShuffleTrack>(
 
     const streakLimit = options?.streakLimit ?? 2
 
-    const scored = tracks.map((t, i) => ({ track: t, score: energyScore(t), idx: i }))
+    const scored = tracks.map((t, i) => ({
+        track: t,
+        score: energyScore(t),
+        idx: i,
+    }))
 
-    // Fisher-Yates shuffle within scored to randomize same-score ties
     for (let i = scored.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1)) // NOSONAR - non-cryptographic shuffle is intentional
         const tmp = scored[i]
@@ -48,10 +51,8 @@ export function smartShuffle<T extends SmartShuffleTrack>(
         scored[j] = tmp
     }
 
-    // Sort by energy descending
     scored.sort((a, b) => b.score - a.score)
 
-    // Interleave high (>=0.6) and low (<0.6) energy buckets
     const high = scored.filter((s) => s.score >= 0.6)
     const low = scored.filter((s) => s.score < 0.6)
     const interleaved: typeof scored = []
@@ -61,7 +62,6 @@ export function smartShuffle<T extends SmartShuffleTrack>(
         if (i < low.length) interleaved.push(low[i])
     }
 
-    // Apply requester streak constraint: greedily pick from remaining pool
     const requesterId = (t: T): string => t.requestedBy?.id ?? '__none__'
     const pool = interleaved.map((s) => s.track)
     const result: T[] = []
@@ -72,13 +72,13 @@ export function smartShuffle<T extends SmartShuffleTrack>(
                 ? result.slice(-streakLimit).map(requesterId)
                 : []
         const streakId =
-            lastIds.length === streakLimit && lastIds.every((id) => id === lastIds[0])
+            lastIds.length === streakLimit &&
+            lastIds.every((id) => id === lastIds[0])
                 ? lastIds[0]
                 : null
 
         let picked = -1
         if (streakId !== null) {
-            // Must pick a different requester to break the streak
             picked = pool.findIndex((t) => requesterId(t) !== streakId)
         }
         if (picked === -1) picked = 0

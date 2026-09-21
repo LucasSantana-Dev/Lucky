@@ -3,7 +3,6 @@ import { Events, ChannelType } from 'discord.js'
 import type { Client, GuildMember, PartialGuildMember } from 'discord.js'
 import { handleMemberEvents } from './memberHandler'
 
-// Mock dependencies
 jest.mock('@lucky/shared/services', () => ({
     autoMessageService: {
         getWelcomeMessage: jest.fn(),
@@ -33,7 +32,6 @@ import {
 } from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 
-// Create mock client
 function createMockClient(): Client & {
     eventHandlers: Map<string, Function[]>
 } {
@@ -53,7 +51,6 @@ function createMockClient(): Client & {
     return client
 }
 
-// Helper to trigger events
 async function triggerEvent(
     client: ReturnType<typeof createMockClient>,
     event: string,
@@ -404,10 +401,8 @@ describe('memberHandler', () => {
             handleMemberEvents(client as any)
             await triggerEvent(client, Events.GuildMemberAdd, member)
 
-            // Advance time by 2 minutes
             jest.advanceTimersByTime(2 * 60 * 1000)
 
-            // Wait for async operations
             await jest.runAllTimersAsync()
 
             expect(rolesAddMock).toHaveBeenCalledWith(role)
@@ -459,10 +454,8 @@ describe('memberHandler', () => {
             handleMemberEvents(client as any)
             await triggerEvent(client, Events.GuildMemberAdd, member)
 
-            // Advance time by 1 minute
             jest.advanceTimersByTime(1 * 60 * 1000)
 
-            // Wait for async operations
             await jest.runAllTimersAsync()
 
             expect(rolesAddMock).toHaveBeenCalledWith(role)

@@ -99,7 +99,6 @@ async function handleStart(
 
     const endsAt = new Date(Date.now() + durationMs)
 
-    // Verify channel is text-based and bot has SendMessages permission
     const channel = interaction.client.channels.cache.get(
         interaction.channelId,
     ) as TextChannel
@@ -139,7 +138,6 @@ async function handleStart(
         return
     }
 
-    // Create giveaway record
     const giveaway = await giveawayService.create({
         guildId: interaction.guildId,
         channelId: interaction.channelId,
@@ -170,10 +168,8 @@ async function handleStart(
     try {
         msg = await channel.send({ embeds: [embed.toJSON()] })
         await msg.react('🎉')
-        // Save message ID only after successful post
         await giveawayService.updateMessageId(giveaway.id, msg.id)
     } catch (err) {
-        // Clean up the orphan record if post fails
         await prisma.giveaway.delete({ where: { id: giveaway.id } })
         errorLog({
             message: 'Failed to post giveaway message:',
@@ -264,7 +260,6 @@ async function handleEnd(
 
     const { giveaway, wasAlreadyEnded } = result
 
-    // If it was already ended before this call, don't re-announce.
     if (wasAlreadyEnded) {
         const mention = formatWinners(giveaway.winnerIds)
         await interactionReply({

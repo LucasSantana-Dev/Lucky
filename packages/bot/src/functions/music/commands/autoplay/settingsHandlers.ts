@@ -5,7 +5,10 @@ import {
     EMBED_COLORS,
     EMOJIS,
 } from '../../../../utils/general/embeds'
-import { guildSettingsService, trackHistoryService } from '@lucky/shared/services'
+import {
+    guildSettingsService,
+    trackHistoryService,
+} from '@lucky/shared/services'
 import { errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../../utils/general/interactionReply'
 
@@ -32,7 +35,6 @@ async function handleAutoplayMode(
     const mode = interaction.options.getString('mode')
 
     if (!mode) {
-        // Get current mode
         const settings = await guildSettingsService.getGuildSettings(guildId)
         const currentMode = settings?.autoplayMode ?? 'similar'
 
@@ -60,7 +62,6 @@ async function handleAutoplayMode(
         return
     }
 
-    // Set new mode
     const success = await guildSettingsService.updateGuildSettings(guildId, {
         autoplayMode: mode as 'similar' | 'discover' | 'popular',
     })
@@ -112,7 +113,12 @@ async function handleAutoplayGenreAdd(
         await interactionReply({
             interaction,
             content: {
-                embeds: [createErrorEmbed('Guild Not Found', 'Unable to retrieve guild information.')],
+                embeds: [
+                    createErrorEmbed(
+                        'Guild Not Found',
+                        'Unable to retrieve guild information.',
+                    ),
+                ],
                 ephemeral: true,
             },
         })
@@ -124,7 +130,12 @@ async function handleAutoplayGenreAdd(
         await interactionReply({
             interaction,
             content: {
-                embeds: [createErrorEmbed('Missing Tag', 'Please provide a genre tag.')],
+                embeds: [
+                    createErrorEmbed(
+                        'Missing Tag',
+                        'Please provide a genre tag.',
+                    ),
+                ],
                 ephemeral: true,
             },
         })
@@ -207,7 +218,12 @@ async function handleAutoplayGenreRemove(
         await interactionReply({
             interaction,
             content: {
-                embeds: [createErrorEmbed('Guild Not Found', 'Unable to retrieve guild information.')],
+                embeds: [
+                    createErrorEmbed(
+                        'Guild Not Found',
+                        'Unable to retrieve guild information.',
+                    ),
+                ],
                 ephemeral: true,
             },
         })
@@ -219,7 +235,12 @@ async function handleAutoplayGenreRemove(
         await interactionReply({
             interaction,
             content: {
-                embeds: [createErrorEmbed('Missing Tag', 'Please provide a genre tag.')],
+                embeds: [
+                    createErrorEmbed(
+                        'Missing Tag',
+                        'Please provide a genre tag.',
+                    ),
+                ],
                 ephemeral: true,
             },
         })
@@ -286,7 +307,12 @@ async function handleAutoplayGenreList(
         await interactionReply({
             interaction,
             content: {
-                embeds: [createErrorEmbed('Guild Not Found', 'Unable to retrieve guild information.')],
+                embeds: [
+                    createErrorEmbed(
+                        'Guild Not Found',
+                        'Unable to retrieve guild information.',
+                    ),
+                ],
                 ephemeral: true,
             },
         })
@@ -326,7 +352,12 @@ async function handleAutoplayGenreClear(
         await interactionReply({
             interaction,
             content: {
-                embeds: [createErrorEmbed('Guild Not Found', 'Unable to retrieve guild information.')],
+                embeds: [
+                    createErrorEmbed(
+                        'Guild Not Found',
+                        'Unable to retrieve guild information.',
+                    ),
+                ],
                 ephemeral: true,
             },
         })
@@ -483,7 +514,12 @@ async function handleAutoplayGenre(
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [createErrorEmbed('Unknown Subcommand', 'That genre subcommand is not recognized.')],
+                    embeds: [
+                        createErrorEmbed(
+                            'Unknown Subcommand',
+                            'That genre subcommand is not recognized.',
+                        ),
+                    ],
                     ephemeral: true,
                 },
             })
@@ -513,7 +549,6 @@ async function handleAutoplaySertanejo(
     const block = interaction.options.getBoolean('block')
 
     if (block === null) {
-        // Get current setting
         const settings = await guildSettingsService.getGuildSettings(guildId)
         const currentBlock = settings?.blockSertanejo ?? true
 
@@ -539,7 +574,6 @@ async function handleAutoplaySertanejo(
         return
     }
 
-    // Set new setting
     const success = await guildSettingsService.updateGuildSettings(guildId, {
         blockSertanejo: block,
     })

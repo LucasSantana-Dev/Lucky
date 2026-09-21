@@ -72,7 +72,6 @@ describe('stop command', () => {
         interactionReplyMock.mockResolvedValue(undefined)
         createSuccessEmbedMock.mockReturnValue({ title: 'Playback stopped' })
         deleteSnapshotMock.mockResolvedValue(undefined)
-        // Set default mock for resolveGuildQueue
         const queue = createQueue('guild-1')
         resolveGuildQueueMock.mockReturnValue({ queue })
     })

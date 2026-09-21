@@ -100,8 +100,6 @@ describe('searchContentOnYoutube', () => {
         )
     })
 
-    // success:false and a success with no result are distinct shapes that must
-    // both fall through, not just the obvious one.
     it.each([
         ['an unsuccessful search', { success: false }],
         ['a success carrying no result', { success: true, result: undefined }],

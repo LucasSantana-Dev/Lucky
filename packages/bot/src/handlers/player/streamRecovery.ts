@@ -83,8 +83,6 @@ export async function recoverFromStreamExtractionError(
         return
     }
 
-    // Timeout guard: if YouTube search hangs (no response in 10s), skip the
-    // track rather than blocking the player indefinitely.
     let timeoutHandle: NodeJS.Timeout | undefined
     const searchTimeout = new Promise<null>((resolve) => {
         timeoutHandle = setTimeout(() => resolve(null), 10_000)

@@ -13,12 +13,10 @@ export async function calculateQueueStats(
     const tracks = queue.tracks.toArray()
     const totalTracks = tracks.length
 
-    // Calculate total duration
     let totalDurationMs = 0
     for (const track of tracks) {
         const trackInfo = await getTrackInfo(track)
         if (trackInfo.duration) {
-            // Convert duration string to milliseconds if needed
             const durationMs = parseDurationToMs(trackInfo.duration)
             if (durationMs !== null && durationMs > 0) {
                 totalDurationMs += durationMs

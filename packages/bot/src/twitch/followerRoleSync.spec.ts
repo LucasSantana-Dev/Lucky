@@ -8,7 +8,6 @@ import {
 } from '@jest/globals'
 import type { Client, Guild, GuildMember, Role } from 'discord.js'
 
-// Define all mocks before jest.mock calls
 const debugLogMock = jest.fn()
 const infoLogMock = jest.fn()
 const warnLogMock = jest.fn()
@@ -60,8 +59,6 @@ describe('followerRoleSync', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
-        // A default response, so a test that reaches checkTwitchFollow without
-        // setting its own mock cannot make a real request to api.twitch.tv.
         fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
             ok: true,
             json: jest.fn<() => Promise<unknown>>().mockResolvedValue({
@@ -69,12 +66,10 @@ describe('followerRoleSync', () => {
             }),
         } as unknown as Response)
 
-        // Mock role
         mockRole = {
             id: 'role-123',
         }
 
-        // Mock member
         mockMember = {
             id: 'user-123',
             roles: {
@@ -84,7 +79,6 @@ describe('followerRoleSync', () => {
             } as any,
         }
 
-        // Mock guild
         mockGuild = {
             id: 'guild-123',
             members: {
@@ -95,7 +89,6 @@ describe('followerRoleSync', () => {
             } as any,
         }
 
-        // Mock client
         mockClient = {
             guilds: {
                 cache: new Map([['guild-123', mockGuild]]),
@@ -202,7 +195,7 @@ describe('followerRoleSync', () => {
                 },
             ])
 
-            mockMember!.roles!.cache = new Map() // No role initially
+            mockMember!.roles!.cache = new Map()
 
             fetchSpy.mockResolvedValueOnce({
                 ok: true,
@@ -240,7 +233,7 @@ describe('followerRoleSync', () => {
                 },
             ])
 
-            mockMember!.roles!.cache = new Map([['role-123', mockRole]]) // Already has role
+            mockMember!.roles!.cache = new Map([['role-123', mockRole]])
 
             fetchSpy.mockResolvedValueOnce({
                 ok: true,
@@ -271,7 +264,7 @@ describe('followerRoleSync', () => {
                 },
             ])
 
-            mockMember!.roles!.cache = new Map([['role-123', mockRole]]) // Has role
+            mockMember!.roles!.cache = new Map([['role-123', mockRole]])
 
             fetchSpy.mockResolvedValueOnce({
                 ok: true,
@@ -342,7 +335,7 @@ describe('followerRoleSync', () => {
                 },
             ])
 
-            mockGuild!.roles!.cache = new Map() // Role not in guild
+            mockGuild!.roles!.cache = new Map()
 
             fetchSpy.mockResolvedValueOnce({
                 ok: true,
@@ -393,13 +386,11 @@ describe('followerRoleSync', () => {
                 .mockResolvedValueOnce(mockMember)
                 .mockResolvedValueOnce(user2Member)
 
-            // First request returns 500 error
             fetchSpy
                 .mockResolvedValueOnce({
                     ok: false,
                     status: 500,
                 } as any)
-                // Second request succeeds
                 .mockResolvedValueOnce({
                     ok: true,
                     json: jest.fn().mockResolvedValue({ total: 1 }),

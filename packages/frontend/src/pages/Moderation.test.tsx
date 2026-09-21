@@ -11,7 +11,6 @@ import { useGuildStore } from '@/stores/guildStore'
 vi.mock('@/services/api')
 vi.mock('@/stores/guildStore')
 
-// Initialize i18n for testing
 i18n.init({
     lng: 'en',
     fallbackLng: 'en',

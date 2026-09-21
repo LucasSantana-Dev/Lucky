@@ -51,12 +51,10 @@ function parseRetryAfterMs(header: string | null): number | null {
     if (!header) return null
     const trimmed = header.trim()
     if (!trimmed) return null
-    // delta-seconds form first — bare integer
     if (/^\d+$/.test(trimmed)) {
         const seconds = Number.parseInt(trimmed, 10)
         return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : null
     }
-    // HTTP-date form
     const targetMs = Date.parse(trimmed)
     if (!Number.isFinite(targetMs)) return null
     const delta = targetMs - Date.now()

@@ -59,7 +59,6 @@ export interface RecommendationBasis {
  * @returns Formatted string suitable for Discord display
  */
 export function serializeBasis(basis: RecommendationBasis): string {
-    // Map sources to human-readable labels
     const sourceLabels: Record<RecommendationSource, string> = {
         'spotify-rec': 'spotify rec',
         'spotify-taste': 'spotify taste',
@@ -73,15 +72,12 @@ export function serializeBasis(basis: RecommendationBasis): string {
 
     const sourceLabel = sourceLabels[basis.source]
 
-    // Remove duplicate signals while preserving order
     const uniqueSignals = Array.from(new Set(basis.signals))
 
-    // Combine source with all unique signals
     if (uniqueSignals.length === 0) {
         return sourceLabel
     }
 
-    // Join signals with " • " separator
     const signalsFormatted = uniqueSignals.join(' • ')
     return `${sourceLabel} • ${signalsFormatted}`
 }

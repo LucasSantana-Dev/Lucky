@@ -6,7 +6,7 @@ export interface ImageValidationResult {
     error?: string
 }
 
-const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024 // 5 MB
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 const ALLOWED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
 /**

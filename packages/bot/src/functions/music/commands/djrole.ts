@@ -22,28 +22,41 @@ export default new Command({
                 .setName('set')
                 .setDescription('Restrict music commands to a specific role')
                 .addRoleOption((opt) =>
-                    opt.setName('role').setDescription('The DJ role').setRequired(true),
+                    opt
+                        .setName('role')
+                        .setDescription('The DJ role')
+                        .setRequired(true),
                 ),
         )
         .addSubcommand((sub) =>
-            sub.setName('clear').setDescription('Remove the DJ role restriction'),
+            sub
+                .setName('clear')
+                .setDescription('Remove the DJ role restriction'),
         )
         .addSubcommand((sub) =>
-            sub.setName('show').setDescription('Show the current DJ role setting'),
+            sub
+                .setName('show')
+                .setDescription('Show the current DJ role setting'),
         ),
     category: 'music',
     execute: async ({ interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        const guildId = assertDefined(interaction.guildId, 'Guild ID required after requireGuild check')
+        const guildId = assertDefined(
+            interaction.guildId,
+            'Guild ID required after requireGuild check',
+        )
         const sub = interaction.options.getSubcommand()
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
         if (sub === 'set') {
             const role = interaction.options.getRole('role', true)
-            const persisted = await guildSettingsService.setGuildSettings(guildId, {
-                djRoleId: role.id,
-            })
+            const persisted = await guildSettingsService.setGuildSettings(
+                guildId,
+                {
+                    djRoleId: role.id,
+                },
+            )
             if (!persisted) {
                 await interactionReply({
                     interaction,
@@ -71,9 +84,12 @@ export default new Command({
             })
         } else if (sub === 'clear') {
             // null clears the column; undefined would be omitted and leave the old role.
-            const persisted = await guildSettingsService.setGuildSettings(guildId, {
-                djRoleId: null,
-            })
+            const persisted = await guildSettingsService.setGuildSettings(
+                guildId,
+                {
+                    djRoleId: null,
+                },
+            )
             if (!persisted) {
                 await interactionReply({
                     interaction,
@@ -100,7 +116,8 @@ export default new Command({
                 },
             })
         } else {
-            const settings = await guildSettingsService.getGuildSettings(guildId)
+            const settings =
+                await guildSettingsService.getGuildSettings(guildId)
             const djRoleId = settings?.djRoleId
             await interactionReply({
                 interaction,

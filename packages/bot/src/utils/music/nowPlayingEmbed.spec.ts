@@ -108,8 +108,6 @@ describe('buildPlayResponseEmbed', () => {
         expect(embed.data.author?.name).toContain('Playlist Queued')
         expect(embed.data.title).toBe('Road Trip Vibes')
         expect(embed.data.description).toContain('42')
-        // Playlist responses don't carry per-track fields — those belong to
-        // individual track notifications, not the playlist summary.
         const fields = embed.data.fields ?? []
         expect(fields.find((f) => f.name === 'Duration')).toBeUndefined()
     })

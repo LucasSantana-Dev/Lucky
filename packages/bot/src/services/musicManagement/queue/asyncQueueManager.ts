@@ -18,17 +18,15 @@ export class AsyncQueueManager {
             let tracksAdded = 0
             let success = false
 
-            // Add tracks to queue directly without complex task queue management
             for (const track of tracks) {
                 if (playNext) {
-                    queue.insertTrack(track, 0) // Insert at beginning
+                    queue.insertTrack(track, 0)
                 } else {
-                    queue.addTrack(track) // Add to end
+                    queue.addTrack(track)
                 }
                 tracksAdded++
             }
 
-            // If player node was not previously playing, start playback
             if (!queue.isPlaying()) {
                 await queue.node.play()
             }
@@ -58,7 +56,6 @@ export class AsyncQueueManager {
         track: Track,
     ): Promise<{ success: boolean; error?: string }> {
         try {
-            // Add track and start playback
             queue.addTrack(track)
 
             if (!queue.isPlaying()) {

@@ -59,7 +59,6 @@ export function detectSessionMood(
         }
     }
 
-    // Artist deep-dive: same artist 3+ times in last 8 tracks
     let deepDiveArtist: string | null = null
     const recentForDeepDive = historyTracks.slice(-8)
     const artistCounts = new Map<string, number>()
@@ -76,7 +75,6 @@ export function detectSessionMood(
         }
     }
 
-    // Duration preference: last 5 tracks
     let preferLong = false
     let preferShort = false
     const recentForDuration = historyTracks.slice(-5)
@@ -96,7 +94,6 @@ export function detectSessionMood(
         }
     }
 
-    // Restless mode: >40% autoplay AND multiple different artists in recent
     let restless = false
     const recentForRestless = historyTracks.slice(-10)
     if (recentForRestless.length >= 5) {
@@ -114,15 +111,10 @@ export function detectSessionMood(
         }
     }
 
-    // Skip storm: relax mood when user is skipping aggressively
     if (recentSkipCount >= 3) {
         restless = true
     }
 
-    // Spanish/Latin locale: use the shared language heuristic so we pick up
-    // Spanish-distinct accents (ñ ¿ ¡ ü), Spanish-distinct stopwords, and
-    // Latin/Spanish/gospel genre tags — and so a Brazilian-Portuguese session
-    // (which previously slipped through) doesn't get falsely tagged as Spanish.
     const recentForLocale = historyTracks.slice(-15)
     const sessionLanguage = detectSessionLanguageMarkers(
         recentForLocale.map((t) => ({

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
-// Mock discord-player
 jest.mock('discord-player', () => ({
     QueryType: {
         AUTO: 'AUTO',
@@ -9,7 +8,6 @@ jest.mock('discord-player', () => ({
     },
 }))
 
-// Mock dependencies before importing the command
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: jest.fn(),
 }))

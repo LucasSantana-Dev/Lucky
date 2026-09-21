@@ -119,9 +119,6 @@ describe('TrackHistoryPage', () => {
 
         renderPage()
 
-        // Stats (getStats) and history (getHistory) resolve from separate
-        // promises; wait for the async-loaded content, not just the title, or
-        // the stats card can render a tick after the title under CI pressure.
         await waitFor(() => {
             expect(screen.getByText('Track History')).toBeInTheDocument()
             expect(screen.getByText('42')).toBeInTheDocument()

@@ -13,7 +13,7 @@ interface CacheEntry {
  */
 const acceptanceRateCache = new Map<string, CacheEntry>()
 
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000
 
 /**
  * Get per-source acceptance rates for a guild, with 5-minute caching.
@@ -30,12 +30,10 @@ export async function getPerSourceAcceptanceRateCached(
     const cached = acceptanceRateCache.get(guildId)
     const now = Date.now()
 
-    // Check if cached value is still fresh
     if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
         return cached.rows
     }
 
-    // Cache miss or stale; fetch from service
     try {
         const rows = await getPerSourceAcceptance(guildId)
         acceptanceRateCache.set(guildId, { rows, fetchedAt: now })

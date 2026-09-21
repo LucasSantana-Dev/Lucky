@@ -2,7 +2,6 @@ import { describe, it, expect, jest, afterEach } from '@jest/globals'
 import { toManifestDocument } from './guildAutomationHelpers'
 import * as log from '../../utils/general/log'
 
-// Mock the errorLog function
 jest.mock('../../utils/general/log', () => ({
     errorLog: jest.fn(),
 }))
@@ -77,7 +76,7 @@ describe('guildAutomationHelpers', () => {
             const malformedManifest = {
                 version: 1,
                 guild: {
-                    id: '999', // Too short for snowflake
+                    id: '999',
                     name: 'Test Guild',
                 },
             }
@@ -91,7 +90,8 @@ describe('guildAutomationHelpers', () => {
                 }),
             )
 
-            const errorCall = (log.errorLog as jest.Mock).mock.calls[0]?.[0] as {
+            const errorCall = (log.errorLog as jest.Mock).mock
+                .calls[0]?.[0] as {
                 error: Array<{ path: string; message: string; code: string }>
             }
             expect(errorCall.error).toBeInstanceOf(Array)

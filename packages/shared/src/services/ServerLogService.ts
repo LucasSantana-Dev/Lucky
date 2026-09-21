@@ -40,12 +40,7 @@ export interface LogDetails {
 
 /** Presentation severity/category bucket for a log, derived from its type. */
 export type ServerLogLevel =
-    | 'info'
-    | 'warn'
-    | 'error'
-    | 'moderation'
-    | 'automod'
-    | 'system'
+    'info' | 'warn' | 'error' | 'moderation' | 'automod' | 'system'
 
 /** Maps a raw log `type` to the level bucket the dashboard groups/filters by. */
 export const LOG_LEVEL_BY_TYPE: Record<string, ServerLogLevel> = {
@@ -118,8 +113,6 @@ export function serializeServerLog(log: {
     createdAt: Date | string
 }): SerializedServerLog {
     const metadata = parseLogDetails(log.details)
-    // Treat empty strings as absent so the id fallback below still fires
-    // (keeps the actor/channel from rendering blank).
     const userName =
         typeof metadata.username === 'string' && metadata.username
             ? metadata.username

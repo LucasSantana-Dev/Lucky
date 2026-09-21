@@ -45,7 +45,6 @@ jest.mock('../batch/bulkRemoveRoleExecutor', () => {
     }
 })
 
-// Import AFTER mocks
 import bulkRemoveRoleCommand from './bulkRemoveRole'
 
 function createMockUser(id = 'user-123', tag = 'TestUser#1234') {

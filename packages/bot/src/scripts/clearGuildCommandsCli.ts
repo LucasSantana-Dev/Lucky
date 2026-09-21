@@ -3,8 +3,6 @@ import { runClearGuildCommands } from './clearGuildCommands'
 
 void runClearGuildCommands()
     .then((result) => {
-        // Exit non-zero on partial success so a half-finished migration is not
-        // mistaken for a completed one.
         process.exitCode = result.failed.length > 0 ? 1 : 0
     })
     .catch((error) => {

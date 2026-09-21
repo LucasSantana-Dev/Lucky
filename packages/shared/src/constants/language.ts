@@ -37,9 +37,6 @@ export function coerceBotLanguage(value: unknown): BotLanguage {
     if (typeof value !== 'string') return DEFAULT_BOT_LANGUAGE
     const tag = value.trim().toLowerCase()
     if (!tag) return DEFAULT_BOT_LANGUAGE
-    // The primary subtag only. Matching a bare prefix would let a corrupt
-    // settings row like `entirely-broken` read as English and override the
-    // Guild's Discord locale.
     const primary = tag.split('-')[0]
     if (primary === 'pt') return 'pt-BR'
     if (primary === 'es') return 'es'

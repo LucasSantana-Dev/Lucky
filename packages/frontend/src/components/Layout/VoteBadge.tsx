@@ -15,9 +15,6 @@ const TIER_STYLES: Record<string, string> = {
 export function VoteBadge() {
     const { status } = useVoteStatus()
 
-    // Hide until we have a loaded status. If the backend endpoint 404s
-    // (not yet deployed) or the user has zero streak, render a subtle
-    // "Vote" CTA instead of nothing.
     if (!status) return null
 
     if (!status.tier) {

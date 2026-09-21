@@ -2,9 +2,6 @@ import { z } from 'zod'
 
 export const snowflakeId = z.string().regex(/^\d{17,20}$/)
 
-// Plain boolean check for call sites that need to validate a Discord
-// snowflake before it reaches an outbound request (e.g. an ID interpolated
-// into a Discord API URL), without going through the full zod parse error path.
 export const isSnowflakeId = (value: string): boolean =>
     snowflakeId.safeParse(value).success
 

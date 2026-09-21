@@ -64,7 +64,6 @@ describe('routeMeta', () => {
             (r) => r.canonical ?? r.path,
         )
         for (const c of canonicals) {
-            // '/' is allowed; no disallow rule should equal a canonical public path
             expect(DISALLOWED_PATHS).not.toContain(c)
         }
     })

@@ -10,7 +10,6 @@ import { ApiError } from '@/services/ApiError'
 import * as en from '@/locales/en.json'
 import * as ptBR from '@/locales/pt-BR.json'
 
-// Create a test i18n instance
 const testI18n = i18next.createInstance()
 testI18n.init({
     lng: 'en',

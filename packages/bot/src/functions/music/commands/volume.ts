@@ -22,7 +22,7 @@ import { resolveGuildQueue } from '../../../services/musicManagement/queueResolv
  */
 function validateVolume(value: number | null): string | null {
     if (value === null) {
-        return null // Valid - show current volume
+        return null
     }
 
     if (value < 1 || value > 200) {

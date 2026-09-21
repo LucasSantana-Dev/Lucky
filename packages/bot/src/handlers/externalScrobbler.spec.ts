@@ -132,7 +132,6 @@ describe('externalScrobbler', () => {
         getTrackMetadataMock.mockResolvedValue(testMeta)
         const { guild, handler } = createHarness('guild-1')
 
-        // Test standard separator (–)
         await handler(
             createMessage('**Now playing: My Artist – My Song**', guild),
         )
@@ -145,7 +144,6 @@ describe('externalScrobbler', () => {
             testMeta,
         )
 
-        // Test em dash separator (—)
         updateNowPlayingMock.mockClear()
         getSessionKeyForUserMock.mockClear()
         getTrackMetadataMock.mockResolvedValue(null)
@@ -171,7 +169,6 @@ describe('externalScrobbler', () => {
 
         const { guild, handler } = createHarness('guild-2')
 
-        // First track triggers registration
         await handler(
             createMessage('Now playing: First Artist — First Song', guild),
         )
@@ -180,7 +177,6 @@ describe('externalScrobbler', () => {
         expect(updateNowPlayingMock.mock.calls[0][0]).toBe('First Artist')
         expect(updateNowPlayingMock.mock.calls[0][1]).toBe('First Song')
 
-        // Second track (after 40 seconds elapsed) triggers scrobble of first and update of second
         updateNowPlayingMock.mockClear()
         scrobbleMock.mockClear()
 
@@ -188,7 +184,6 @@ describe('externalScrobbler', () => {
             createMessage('Now playing: Second Artist - Second Song', guild),
         )
 
-        // Should have scrobbled the previous track with correct elapsed time (40 seconds)
         expect(scrobbleMock).toHaveBeenCalledWith(
             'First Artist',
             'First Song',
@@ -198,7 +193,6 @@ describe('externalScrobbler', () => {
             undefined,
         )
 
-        // Should have updated now playing for the new track
         expect(updateNowPlayingMock).toHaveBeenCalledWith(
             'Second Artist',
             'Second Song',

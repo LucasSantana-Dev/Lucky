@@ -19,13 +19,19 @@ vi.mock('@/hooks/useStarboardQueries')
 
 const useReducedMotionMock = vi.hoisted(() => vi.fn(() => false))
 vi.mock('framer-motion', async () => {
-    const actual = await vi.importActual<typeof import('framer-motion')>('framer-motion')
+    const actual =
+        await vi.importActual<typeof import('framer-motion')>('framer-motion')
     return { ...actual, useReducedMotion: useReducedMotionMock }
 })
 
 type AccessValue = 'none' | 'view' | 'manage'
 type AccessMap = Record<
-    'overview' | 'settings' | 'moderation' | 'automation' | 'music' | 'integrations',
+    | 'overview'
+    | 'settings'
+    | 'moderation'
+    | 'automation'
+    | 'music'
+    | 'integrations',
     AccessValue
 >
 
@@ -248,7 +254,12 @@ describe('DashboardOverview', () => {
     test('renders KPI compact stats with icons for each tone', () => {
         mockGuildStoreFn(mockGuild)
         setupQueryHookMocks(
-            { ...mockStats, activeCases: 7, totalCases: 142, casesByType: { ...mockStats.casesByType, warn: 64 } },
+            {
+                ...mockStats,
+                activeCases: 7,
+                totalCases: 142,
+                casesByType: { ...mockStats.casesByType, warn: 64 },
+            },
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
@@ -257,7 +268,6 @@ describe('DashboardOverview', () => {
         renderPage()
         expect(screen.getByText('7')).toBeInTheDocument()
         expect(screen.getByText('142')).toBeInTheDocument()
-        // 64 appears both in the Auto-Mod CompactStat and the Cases-by-Type tile grid.
         expect(screen.getAllByText('64').length).toBeGreaterThanOrEqual(1)
     })
 
@@ -384,7 +394,6 @@ describe('DashboardOverview', () => {
             mockStarboardEntries,
         )
         renderPage()
-        // The dashboard still renders its key labels when reduced-motion is set.
         expect(screen.getByText('Dashboard')).toBeInTheDocument()
         expect(screen.getByText('Recent Cases')).toBeInTheDocument()
     })
@@ -415,11 +424,36 @@ describe('DashboardOverview', () => {
     test('formats case timestamps across timeAgo() ranges', () => {
         const now = Date.now()
         const casesAcrossRanges = [
-            { ...mockCases[0], id: 'c-just', caseNumber: 9001, createdAt: new Date(now).toISOString() },
-            { ...mockCases[0], id: 'c-min', caseNumber: 9002, createdAt: new Date(now - 5 * 60_000).toISOString() },
-            { ...mockCases[0], id: 'c-hour', caseNumber: 9003, createdAt: new Date(now - 2 * 3_600_000).toISOString() },
-            { ...mockCases[0], id: 'c-day', caseNumber: 9004, createdAt: new Date(now - 3 * 86_400_000).toISOString() },
-            { ...mockCases[0], id: 'c-week', caseNumber: 9005, createdAt: new Date(now - 14 * 86_400_000).toISOString() },
+            {
+                ...mockCases[0],
+                id: 'c-just',
+                caseNumber: 9001,
+                createdAt: new Date(now).toISOString(),
+            },
+            {
+                ...mockCases[0],
+                id: 'c-min',
+                caseNumber: 9002,
+                createdAt: new Date(now - 5 * 60_000).toISOString(),
+            },
+            {
+                ...mockCases[0],
+                id: 'c-hour',
+                caseNumber: 9003,
+                createdAt: new Date(now - 2 * 3_600_000).toISOString(),
+            },
+            {
+                ...mockCases[0],
+                id: 'c-day',
+                caseNumber: 9004,
+                createdAt: new Date(now - 3 * 86_400_000).toISOString(),
+            },
+            {
+                ...mockCases[0],
+                id: 'c-week',
+                caseNumber: 9005,
+                createdAt: new Date(now - 14 * 86_400_000).toISOString(),
+            },
         ]
         mockGuildStoreFn(mockGuild)
         setupQueryHookMocks(
@@ -434,7 +468,6 @@ describe('DashboardOverview', () => {
         expect(screen.getByText('5m ago')).toBeInTheDocument()
         expect(screen.getByText('2h ago')).toBeInTheDocument()
         expect(screen.getByText('3d ago')).toBeInTheDocument()
-        // Week+ falls back to localized date — verify the rendered case row exists.
         expect(screen.getByText('#9005')).toBeInTheDocument()
     })
 
@@ -579,9 +612,7 @@ describe('DashboardOverview', () => {
                 [],
             )
             renderPage()
-            expect(
-                screen.getByText('No starred messages'),
-            ).toBeInTheDocument()
+            expect(screen.getByText('No starred messages')).toBeInTheDocument()
         })
 
         test('renders loading skeletons for leaderboard while loading', () => {

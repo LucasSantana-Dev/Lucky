@@ -93,7 +93,7 @@ export default function CustomCommandsPage() {
 
     return (
         <div className='space-y-6'>
-            {/* Header */}
+            {}
             <header>
                 <h1 className='type-h1 text-lucky-text-primary'>
                     {t('customCommands.title')}
@@ -103,7 +103,7 @@ export default function CustomCommandsPage() {
                 </p>
             </header>
 
-            {/* Search + Filters */}
+            {}
             <div className='surface-panel rounded-lg p-4 space-y-3 border border-lucky-border'>
                 <div className='relative'>
                     <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lucky-text-tertiary' />
@@ -125,7 +125,7 @@ export default function CustomCommandsPage() {
                     )}
                 </div>
 
-                {/* Category chips */}
+                {}
                 {categories.length > 0 && (
                     <div className='flex flex-wrap gap-2'>
                         <button
@@ -167,7 +167,7 @@ export default function CustomCommandsPage() {
                 )}
             </div>
 
-            {/* Commands List */}
+            {}
             <div className='space-y-1'>
                 {loading ? (
                     Array.from({ length: 6 }).map((_, i) => (
@@ -192,7 +192,7 @@ export default function CustomCommandsPage() {
                                 !cmd.enabled && 'opacity-60',
                             )}
                         >
-                            {/* Row header */}
+                            {}
                             <button
                                 onClick={() =>
                                     setExpandedCommand(
@@ -242,7 +242,7 @@ export default function CustomCommandsPage() {
                                 </div>
                             </button>
 
-                            {/* Expanded details */}
+                            {}
                             {expandedCommand === cmd.id && (
                                 <div className='border-t border-lucky-border px-4 py-3 bg-lucky-bg-tertiary/30 text-xs text-lucky-text-secondary space-y-2'>
                                     <div>

@@ -235,8 +235,6 @@ export default function GuildAutomation() {
                 setManifest(m)
                 setManifestJson(m ? JSON.stringify(m, null, 2) : '')
             }
-            // Both rejected = API down: surface it instead of a blank page.
-            // Partial success still renders whatever did load.
             if (
                 statusRes.status === 'rejected' &&
                 manifestRes.status === 'rejected'
@@ -360,7 +358,7 @@ export default function GuildAutomation() {
                 </div>
             )}
 
-            {/* Status + Action Bar (Polaris structured actions) */}
+            {}
             <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-4'>
                 <div className='flex items-center justify-between'>
                     <div className='flex items-center gap-3'>
@@ -436,7 +434,7 @@ export default function GuildAutomation() {
                 </div>
             </div>
 
-            {/* Plan / Plan Records (surface-panel groups) */}
+            {}
             {planResult && (
                 <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-3'>
                     <div className='flex items-center gap-2'>
@@ -462,7 +460,7 @@ export default function GuildAutomation() {
                 </div>
             )}
 
-            {/* Manifest Editor (collapsible surface-panel) */}
+            {}
             <div className='surface-panel rounded-lg border border-lucky-border overflow-hidden'>
                 <button
                     onClick={() => setManifestExpanded(!manifestExpanded)}
@@ -538,7 +536,7 @@ export default function GuildAutomation() {
                 )}
             </div>
 
-            {/* Run History */}
+            {}
             <div className='space-y-3'>
                 <SectionHeader title={t('runHistory')} />
                 {loading ? (

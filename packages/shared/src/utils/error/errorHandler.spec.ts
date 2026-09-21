@@ -4,7 +4,6 @@ import { MusicError } from '../../types/errors/music'
 import { errorLog } from '../general/log'
 import { captureException } from '../monitoring'
 
-// Mock dependencies
 jest.mock('../general/log', () => ({
     errorLog: jest.fn(),
 }))
@@ -42,7 +41,7 @@ describe('Error Handler', () => {
 
             const result = handleError(error, context)
 
-            expect(result).toBe(error) // Should return the same error
+            expect(result).toBe(error)
             expect(errorLog).toHaveBeenCalled()
             expect(captureException).toHaveBeenCalled()
         })
@@ -160,7 +159,7 @@ describe('Error Handler', () => {
             const handledError = handleError(error, context)
             const userMessage = createUserErrorMessage(handledError)
 
-            expect(handledError).toBe(error) // Same error returned
+            expect(handledError).toBe(error)
             expect(userMessage).toBe('Playback failed')
         })
     })

@@ -12,7 +12,6 @@ vi.mock('@/components/Dashboard/ServerGrid', () => ({
     default: () => <div data-testid='server-grid'>ServerGrid</div>,
 }))
 
-// Translation key to English value mapping
 const translations: Record<string, string> = {
     discordAccount: 'Discord Account',
     totalServers: 'Total Servers',
@@ -34,7 +33,6 @@ vi.mock('react-i18next', () => ({
     useTranslation: () => ({
         t: (key: string, options?: Record<string, any>) => {
             if (options) {
-                // Handle interpolation like {{count}} and {{count2}}
                 let result = translations[key] || key
                 Object.entries(options).forEach(([k, v]) => {
                     result = result.replace(`{{${k}}}`, String(v))

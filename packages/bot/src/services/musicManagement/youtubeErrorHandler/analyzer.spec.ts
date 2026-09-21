@@ -2,9 +2,6 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { YouTubeErrorInfo, YouTubeErrorContext } from './types'
 import { YouTubeErrorAnalyzer } from './analyzer'
 
-// Build a fresh YouTubeErrorInfo with all flags false except the requested one.
-// Used by the getErrorResponse describes so each scenario is one bool flip
-// rather than a full literal repeat.
 function infoWith(overrides: Partial<YouTubeErrorInfo> = {}): YouTubeErrorInfo {
     return {
         isParserError: false,

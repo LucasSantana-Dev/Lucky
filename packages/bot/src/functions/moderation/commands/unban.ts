@@ -50,7 +50,7 @@ export default new Command({
                 const user = await interaction.client.users.fetch(userId)
                 username = user.tag
             } catch {
-                // User not found, use ID as username
+                // best-effort; fall back to the ID already assigned above
             }
 
             const moderationCase = await moderationService.createCase({

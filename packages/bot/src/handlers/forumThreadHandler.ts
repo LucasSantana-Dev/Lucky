@@ -6,8 +6,6 @@ import {
 } from 'discord.js'
 import { getPrismaClient, errorLog, infoLog } from '@lucky/shared/utils'
 
-// Extracts the canonical slug from an "official" forum thread marker.
-// Format: <!-- official:v1:<slug> --> where slug matches web forum-content keys.
 const OFFICIAL_MARKER_RE = /<!--\s*official:v1:([\w-]+)\s*-->/
 
 export function extractOfficialSlug(content: string): string | null {

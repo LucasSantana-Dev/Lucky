@@ -33,8 +33,6 @@ export default new Command({
                 'track present after requireCurrentTrack guard',
             ),
         )
-        // Snapshot the current playback position as a progress bar with
-        // elapsed/total timecodes. Null for livestreams / no-duration tracks.
         const progressBar =
             queue?.node.createProgressBar({ length: 18, timecodes: true }) ??
             null

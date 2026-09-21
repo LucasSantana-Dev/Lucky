@@ -33,13 +33,15 @@ export class ModDigestConfigService {
                 where: { guildId: input.guildId },
                 update: {
                     channelId: input.channelId,
-                    lastSentAt: lastSentAtMs !== null ? BigInt(lastSentAtMs) : null,
+                    lastSentAt:
+                        lastSentAtMs !== null ? BigInt(lastSentAtMs) : null,
                     updatedAt: new Date(),
                 },
                 create: {
                     guildId: input.guildId,
                     channelId: input.channelId,
-                    lastSentAt: lastSentAtMs !== null ? BigInt(lastSentAtMs) : null,
+                    lastSentAt:
+                        lastSentAtMs !== null ? BigInt(lastSentAtMs) : null,
                     createdAt: BigInt(createdAtMs),
                 },
             })
@@ -48,7 +50,8 @@ export class ModDigestConfigService {
                 guildId: row.guildId,
                 channelId: row.channelId,
                 enabled: true,
-                lastSentAt: row.lastSentAt !== null ? Number(row.lastSentAt) : null,
+                lastSentAt:
+                    row.lastSentAt !== null ? Number(row.lastSentAt) : null,
                 createdAt: Number(row.createdAt),
             }
         } catch (error) {
@@ -101,7 +104,8 @@ export class ModDigestConfigService {
                 guildId: row.guildId,
                 channelId: row.channelId,
                 enabled: true,
-                lastSentAt: row.lastSentAt !== null ? Number(row.lastSentAt) : null,
+                lastSentAt:
+                    row.lastSentAt !== null ? Number(row.lastSentAt) : null,
                 createdAt: Number(row.createdAt),
             }
         } catch (error) {
@@ -131,7 +135,10 @@ export class ModDigestConfigService {
         }
     }
 
-    async markSent(guildId: string, sentAt: number = Date.now()): Promise<void> {
+    async markSent(
+        guildId: string,
+        sentAt: number = Date.now(),
+    ): Promise<void> {
         const prisma = getPrismaClient()
 
         try {
@@ -149,7 +156,6 @@ export class ModDigestConfigService {
                 error.code === 'P2025'
 
             if (isP2025) {
-                // Guild no longer has digest enabled; silently succeed
                 return
             }
             errorLog({

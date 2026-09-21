@@ -69,7 +69,6 @@ export function setupBatchJobRoutes(app: Express): void {
                 throw AppError.notFound('Batch job not found')
             }
 
-            // Verify the job belongs to this guild
             if (job.guildId !== guildId) {
                 throw AppError.notFound('Batch job not found')
             }
@@ -93,7 +92,6 @@ export function setupBatchJobRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const jobId = p(req.params.jobId)
 
-            // Verify the job exists and belongs to this guild
             const job = await batchJobService.getById(jobId)
             if (!job) {
                 throw AppError.notFound('Batch job not found')
@@ -103,15 +101,12 @@ export function setupBatchJobRoutes(app: Express): void {
                 throw AppError.notFound('Batch job not found')
             }
 
-            // Read progress from Redis key: job:<jobId>:progress
             const progressKey = `job:${jobId}:progress`
             const progressJson = await redisClient.get(progressKey)
 
             let progress = null
             if (progressJson) {
                 try {
-                    // Redis stores shared BatchProgress (processed/failed/skipped/total).
-                    // Map to the frontend BatchProgress shape (processedItems/failedItems/etc).
                     const raw = JSON.parse(progressJson) as {
                         processed?: number
                         total?: number
@@ -127,7 +122,6 @@ export function setupBatchJobRoutes(app: Express): void {
                         lastUpdated: new Date().toISOString(),
                     }
                 } catch {
-                    // If parsing fails, return null (corrupted data)
                     progress = null
                 }
             }
@@ -151,7 +145,6 @@ export function setupBatchJobRoutes(app: Express): void {
             const jobId = p(req.params.jobId)
             const userId = requireUserId(req)
 
-            // Verify the job exists and belongs to this guild
             const job = await batchJobService.getById(jobId)
             if (!job) {
                 throw AppError.notFound('Batch job not found')
@@ -161,7 +154,6 @@ export function setupBatchJobRoutes(app: Express): void {
                 throw AppError.notFound('Batch job not found')
             }
 
-            // Cannot cancel already-completed jobs
             if (
                 job.status === 'completed' ||
                 job.status === 'failed' ||
@@ -172,7 +164,6 @@ export function setupBatchJobRoutes(app: Express): void {
                 )
             }
 
-            // Mark as cancelled and log the audit event
             const updated = await batchJobService.markCancelled(jobId)
             await serverLogService.createLog(
                 guildId,

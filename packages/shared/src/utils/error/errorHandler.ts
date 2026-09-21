@@ -1,7 +1,6 @@
 export * from './errorWrapper'
 export * from './logAndRethrow'
 
-// Main error handler implementation
 import type { MusicError } from '../../types/errors/music'
 import { errorLog } from '../general/log'
 import { captureException } from '../monitoring'

@@ -35,7 +35,6 @@ export function toManifestDocument(
 }
 
 export function toJsonValue(value: unknown): Prisma.InputJsonValue {
-    // Round-trip through JSON to verify serializability at runtime
     const serialized = JSON.stringify(value)
     if (serialized === undefined) {
         throw new Error('Value is not JSON-serializable')

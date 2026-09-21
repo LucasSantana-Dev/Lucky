@@ -1,7 +1,6 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import { PermissionFlagsBits } from 'discord.js'
 
-// Mock declarations BEFORE jest.mock calls
 const batchJobServiceMock = {
     getById: jest.fn(),
     markInProgress: jest.fn(),
@@ -28,7 +27,6 @@ jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: any[]) => interactionReplyMock(...args),
 }))
 
-// Import AFTER mocks
 import batchResumeCommand from './batchResume'
 
 function createMockJob(overrides: Record<string, unknown> = {}) {
@@ -78,7 +76,6 @@ describe('batchResume command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
 
-        // Default mocks
         batchJobServiceMock.getById.mockResolvedValue(null)
         batchJobServiceMock.markInProgress.mockResolvedValue(undefined)
         enqueueBatchJobMock.mockResolvedValue(undefined)
@@ -173,10 +170,10 @@ describe('batchResume command', () => {
             )
 
             const interaction = createInteraction({
-                userId: 'user-456', // Different user (not initiator)
+                userId: 'user-456',
                 guildId: 'guild-123',
                 jobId: 'job-123',
-                hasManageGuild: false, // No ManageGuild permission
+                hasManageGuild: false,
             })
 
             await batchResumeCommand.execute({ interaction } as any)
@@ -199,7 +196,7 @@ describe('batchResume command', () => {
             )
 
             const interaction = createInteraction({
-                userId: 'user-123', // Initiator
+                userId: 'user-123',
                 guildId: 'guild-123',
                 jobId: 'job-123',
             })
@@ -228,10 +225,10 @@ describe('batchResume command', () => {
             )
 
             const interaction = createInteraction({
-                userId: 'user-456', // Different user
+                userId: 'user-456',
                 guildId: 'guild-123',
                 jobId: 'job-123',
-                hasManageGuild: true, // Has ManageGuild permission
+                hasManageGuild: true,
             })
 
             await batchResumeCommand.execute({ interaction } as any)

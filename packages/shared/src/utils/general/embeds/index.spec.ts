@@ -9,11 +9,10 @@ import {
     warningEmbed,
     musicEmbed,
     queueEmbed,
-    autoplayEmbed
+    autoplayEmbed,
 } from './index'
 import { EMBED_COLORS } from './constants'
 
-// Mock Discord.js EmbedBuilder
 jest.mock('discord', () => ({
     EmbedBuilder: jest.fn().mockImplementation(() => ({
         setTitle: jest.fn().mockReturnThis(),
@@ -25,8 +24,8 @@ jest.mock('discord', () => ({
         addFields: jest.fn().mockReturnThis(),
         setFooter: jest.fn().mockReturnThis(),
         setTimestamp: jest.fn().mockReturnThis(),
-        data: {}
-    }))
+        data: {},
+    })),
 }))
 
 describe('Embed Index', () => {
@@ -43,7 +42,7 @@ describe('Embed Index', () => {
             addFields: jest.fn().mockReturnThis(),
             setFooter: jest.fn().mockReturnThis(),
             setTimestamp: jest.fn().mockReturnThis(),
-            data: {}
+            data: {},
         }
         const { EmbedBuilder } = require('discord')
         EmbedBuilder.mockImplementation(() => mockEmbed)
@@ -57,8 +56,12 @@ describe('Embed Index', () => {
             })
 
             expect(mockEmbed.setTitle).toHaveBeenCalledWith('Test Title')
-            expect(mockEmbed.setDescription).toHaveBeenCalledWith('Test Description')
-            expect(mockEmbed.setColor).toHaveBeenCalledWith(EMBED_COLORS.NEUTRAL)
+            expect(mockEmbed.setDescription).toHaveBeenCalledWith(
+                'Test Description',
+            )
+            expect(mockEmbed.setColor).toHaveBeenCalledWith(
+                EMBED_COLORS.NEUTRAL,
+            )
         })
 
         it('should create an embed with emoji', () => {
@@ -76,7 +79,9 @@ describe('Embed Index', () => {
                 color: EMBED_COLORS.SUCCESS,
             })
 
-            expect(mockEmbed.setColor).toHaveBeenCalledWith(EMBED_COLORS.SUCCESS)
+            expect(mockEmbed.setColor).toHaveBeenCalledWith(
+                EMBED_COLORS.SUCCESS,
+            )
         })
     })
 
@@ -123,8 +128,12 @@ describe('Embed Index', () => {
             successEmbed('Success Title', 'Success message')
 
             expect(mockEmbed.setTitle).toHaveBeenCalledWith('✅ Success Title')
-            expect(mockEmbed.setDescription).toHaveBeenCalledWith('Success message')
-            expect(mockEmbed.setColor).toHaveBeenCalledWith(EMBED_COLORS.SUCCESS)
+            expect(mockEmbed.setDescription).toHaveBeenCalledWith(
+                'Success message',
+            )
+            expect(mockEmbed.setColor).toHaveBeenCalledWith(
+                EMBED_COLORS.SUCCESS,
+            )
         })
 
         it('should create a success embed with default emoji', () => {
@@ -139,7 +148,9 @@ describe('Embed Index', () => {
             errorEmbed('Error Title', 'Error message')
 
             expect(mockEmbed.setTitle).toHaveBeenCalledWith('❌ Error Title')
-            expect(mockEmbed.setDescription).toHaveBeenCalledWith('Error message')
+            expect(mockEmbed.setDescription).toHaveBeenCalledWith(
+                'Error message',
+            )
             expect(mockEmbed.setColor).toHaveBeenCalledWith(EMBED_COLORS.ERROR)
         })
 
@@ -155,7 +166,9 @@ describe('Embed Index', () => {
             infoEmbed('Info Title', 'Info message')
 
             expect(mockEmbed.setTitle).toHaveBeenCalledWith('ℹ️ Info Title')
-            expect(mockEmbed.setDescription).toHaveBeenCalledWith('Info message')
+            expect(mockEmbed.setDescription).toHaveBeenCalledWith(
+                'Info message',
+            )
             expect(mockEmbed.setColor).toHaveBeenCalledWith(EMBED_COLORS.INFO)
         })
 
@@ -171,8 +184,12 @@ describe('Embed Index', () => {
             warningEmbed('Warning Title', 'Warning message')
 
             expect(mockEmbed.setTitle).toHaveBeenCalledWith('⚠️ Warning Title')
-            expect(mockEmbed.setDescription).toHaveBeenCalledWith('Warning message')
-            expect(mockEmbed.setColor).toHaveBeenCalledWith(EMBED_COLORS.WARNING)
+            expect(mockEmbed.setDescription).toHaveBeenCalledWith(
+                'Warning message',
+            )
+            expect(mockEmbed.setColor).toHaveBeenCalledWith(
+                EMBED_COLORS.WARNING,
+            )
         })
 
         it('should create a warning embed with default emoji', () => {
@@ -187,7 +204,9 @@ describe('Embed Index', () => {
             musicEmbed('Music Title', 'Music message')
 
             expect(mockEmbed.setTitle).toHaveBeenCalledWith('🎵 Music Title')
-            expect(mockEmbed.setDescription).toHaveBeenCalledWith('Music message')
+            expect(mockEmbed.setDescription).toHaveBeenCalledWith(
+                'Music message',
+            )
             expect(mockEmbed.setColor).toHaveBeenCalledWith(EMBED_COLORS.MUSIC)
         })
 
@@ -203,7 +222,9 @@ describe('Embed Index', () => {
             queueEmbed('Queue Title', 'Queue message')
 
             expect(mockEmbed.setTitle).toHaveBeenCalledWith('📋 Queue Title')
-            expect(mockEmbed.setDescription).toHaveBeenCalledWith('Queue message')
+            expect(mockEmbed.setDescription).toHaveBeenCalledWith(
+                'Queue message',
+            )
             expect(mockEmbed.setColor).toHaveBeenCalledWith(EMBED_COLORS.QUEUE)
         })
 
@@ -219,8 +240,12 @@ describe('Embed Index', () => {
             autoplayEmbed('Autoplay Title', 'Autoplay message')
 
             expect(mockEmbed.setTitle).toHaveBeenCalledWith('🔄 Autoplay Title')
-            expect(mockEmbed.setDescription).toHaveBeenCalledWith('Autoplay message')
-            expect(mockEmbed.setColor).toHaveBeenCalledWith(EMBED_COLORS.AUTOPLAY)
+            expect(mockEmbed.setDescription).toHaveBeenCalledWith(
+                'Autoplay message',
+            )
+            expect(mockEmbed.setColor).toHaveBeenCalledWith(
+                EMBED_COLORS.AUTOPLAY,
+            )
         })
 
         it('should create an autoplay embed with default emoji', () => {
@@ -239,11 +264,11 @@ describe('Embed Index', () => {
                 warningEmbed('Warning', 'Message'),
                 musicEmbed('Music', 'Message'),
                 queueEmbed('Queue', 'Message'),
-                autoplayEmbed('Autoplay', 'Message')
+                autoplayEmbed('Autoplay', 'Message'),
             ]
 
             expect(embeds).toHaveLength(7)
-            embeds.forEach(embed => {
+            embeds.forEach((embed) => {
                 expect(embed).toBeDefined()
             })
         })

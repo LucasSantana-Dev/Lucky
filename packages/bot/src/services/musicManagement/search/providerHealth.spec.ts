@@ -109,10 +109,8 @@ describe('ProviderHealthService cooldown boundary conditions', () => {
 
         service.recordFailure('youtube', now, 'fail')
         expect(service.isAvailable('youtube', now + 500)).toBe(false)
-        // Cooldown still set before expiry
         expect(service.getStatus('youtube').cooldownUntil).not.toBeNull()
 
-        // At expiry boundary, isAvailable clears cooldownUntil in-place
         expect(service.isAvailable('youtube', now + 1_000)).toBe(true)
         expect(service.getStatus('youtube').cooldownUntil).toBeNull()
     })
@@ -125,9 +123,7 @@ describe('ProviderHealthService cooldown boundary conditions', () => {
         })
         const now = 1_000
 
-        // Degrade spotify (score: 0.7) but not yet in cooldown
         service.recordFailure('spotify', now, 'partial fail')
-        // youtube untouched (score: 1.0)
 
         const ordered = service.getOrderedProviders(
             ['spotify', 'youtube'],
@@ -145,12 +141,9 @@ describe('ProviderHealthService cooldown boundary conditions', () => {
         })
         const now = 1_000
 
-        // soundcloud goes into cooldown
         service.recordFailure('soundcloud', now, 'fail')
-        // spotify degraded but available
         service.recordFailure('spotify', now, 'degraded')
         service.recordSuccess('spotify', now)
-        // youtube healthy
         service.recordSuccess('youtube', now)
 
         const ordered = service.getOrderedProviders(

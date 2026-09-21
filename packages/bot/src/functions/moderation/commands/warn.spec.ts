@@ -250,7 +250,6 @@ describe('warn command', () => {
                 message: expect.stringContaining('Failed to send DM'),
             }),
         )
-        // Warning should still be created
         expect(moderationServiceMock.createCase).toHaveBeenCalled()
     })
 
@@ -295,7 +294,6 @@ describe('warn command', () => {
 
         await warnCommand.execute({ interaction })
 
-        // Check that both main embed and DM were sent
         expect(interactionReplyMock).toHaveBeenCalled()
         expect(targetUser.send).toHaveBeenCalled()
     })
@@ -327,7 +325,6 @@ describe('warn command', () => {
 
         await warnCommand.execute({ interaction })
 
-        // Case should be created before DM is sent
         expect(callOrder.indexOf('createCase')).toBeLessThan(
             callOrder.indexOf('sendDM'),
         )

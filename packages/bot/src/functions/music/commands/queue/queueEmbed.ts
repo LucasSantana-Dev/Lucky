@@ -144,7 +144,6 @@ export async function createQueueEmbed(
     components.push(createMusicControlButtons(queue))
     components.push(createMusicActionButtons(queue))
 
-    // Add pagination buttons if needed
     const paginationRow = createQueuePaginationButtons(page, totalPages)
     if (paginationRow) components.push(paginationRow)
 

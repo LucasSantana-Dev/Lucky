@@ -56,7 +56,6 @@ export default new Command({
 
         await interaction.deferReply()
 
-        // Resolved once per invocation; the resolver caches per Guild.
         const t = await translatorForInteraction(interaction)
 
         try {

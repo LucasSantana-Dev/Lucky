@@ -340,7 +340,6 @@ describe('mute command', () => {
                 message: expect.stringContaining('Failed to send DM'),
             }),
         )
-        // Mute should still proceed
         expect(targetMember.timeout).toHaveBeenCalled()
     })
 

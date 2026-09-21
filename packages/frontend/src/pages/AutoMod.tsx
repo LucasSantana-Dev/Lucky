@@ -707,7 +707,7 @@ export default function AutoModPage() {
             </div>
 
             <div className='space-y-6'>
-                {/* Templates Section */}
+                {}
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -728,7 +728,7 @@ export default function AutoModPage() {
                     </Card>
                 </motion.div>
 
-                {/* Content Filters */}
+                {}
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -856,7 +856,7 @@ export default function AutoModPage() {
                 </motion.div>
             </div>
 
-            {/* Exempt Channels & Roles */}
+            {}
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -976,7 +976,7 @@ export default function AutoModPage() {
                 </Card>
             </motion.div>
 
-            {/* Sticky Save Bar (mobile) */}
+            {}
             <div className='lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-lucky-bg-primary/95 backdrop-blur-sm border-t border-lucky-border z-30'>
                 <Button
                     onClick={handleSave}

@@ -53,7 +53,6 @@ async function sendSkipSuccess(
     const nextTrack = queue.currentTrack
 
     if (!nextTrack) {
-        // No track after skip, just send simple success
         await interactionReply({
             interaction,
             content: {

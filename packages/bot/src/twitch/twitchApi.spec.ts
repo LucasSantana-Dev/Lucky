@@ -223,7 +223,6 @@ describe('twitchApi', () => {
             const result = await getTwitchUserByLogin('testuser')
 
             expect(result).toBeNull()
-            // maxRetries = 2 → 3 total attempts (initial + 2 retries)
             expect(fetchSpy).toHaveBeenCalledTimes(3)
         })
 

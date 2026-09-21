@@ -43,7 +43,6 @@ function resolveRoute(req: Request): string {
     if (route?.path && typeof route.path === 'string') {
         return route.path
     }
-    // baseUrl is set when middleware is mounted under a prefix (e.g. /api).
     if (req.baseUrl) return `${req.baseUrl}/unmatched`
     return 'unmatched'
 }

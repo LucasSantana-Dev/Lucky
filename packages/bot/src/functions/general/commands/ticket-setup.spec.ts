@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 const requireGuildMock = jest.fn()
 const interactionReplyMock = jest.fn()
-const createSuccessEmbedMock = jest.fn(
-    (title: string, desc?: string) => ({ title, description: desc }),
-)
-const createErrorEmbedMock = jest.fn(
-    (title: string, desc?: string) => ({ title, description: desc }),
-)
+const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
+    title,
+    description: desc,
+}))
+const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
+    title,
+    description: desc,
+}))
 const createEmbedMock = jest.fn((opts: Record<string, unknown>) => opts)
 const setGuildSettingsMock = jest.fn()
 const getGuildSettingsMock = jest.fn()
@@ -35,7 +37,10 @@ jest.mock('@lucky/shared/services', () => ({
 
 import ticketSetupCommand from './ticket-setup'
 
-function createInteraction(sub: string, overrides: Record<string, unknown> = {}) {
+function createInteraction(
+    sub: string,
+    overrides: Record<string, unknown> = {},
+) {
     return {
         guildId: 'guild-1',
         user: { id: 'user-1' },
@@ -51,7 +56,9 @@ function createInteraction(sub: string, overrides: Record<string, unknown> = {})
         },
         options: {
             getSubcommand: jest.fn().mockReturnValue(sub),
-            getChannel: jest.fn().mockReturnValue({ id: 'cat-1', name: 'Support' }),
+            getChannel: jest
+                .fn()
+                .mockReturnValue({ id: 'cat-1', name: 'Support' }),
             getRole: jest.fn().mockReturnValue({ id: 'role-1', name: 'Agent' }),
         },
         ...overrides,
@@ -99,7 +106,6 @@ describe('ticket-setup command', () => {
                     getChannel: jest
                         .fn()
                         .mockReturnValue({ id: 'cat-1', name: 'Support' }),
-                    // role id === guildId is Discord's @everyone
                     getRole: jest
                         .fn()
                         .mockReturnValue({ id: 'guild-1', name: '@everyone' }),

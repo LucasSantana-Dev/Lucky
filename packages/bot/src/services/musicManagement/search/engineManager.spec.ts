@@ -168,13 +168,12 @@ describe('SearchEngineManager', () => {
     })
 
     it('sorts fallback providers by health score via getOrderedProviders', async () => {
-        // spotify degraded so getOrderedProviders puts soundcloud first
         getOrderedProvidersMock.mockReturnValue(['soundcloud', 'spotify'])
         const player = {
             search: jest
                 .fn()
-                .mockResolvedValueOnce({ tracks: [] }) // youtube (preferred) fails
-                .mockResolvedValueOnce({ tracks: [{ title: 'SC track' }] }), // soundcloud succeeds
+                .mockResolvedValueOnce({ tracks: [] })
+                .mockResolvedValueOnce({ tracks: [{ title: 'SC track' }] }),
         }
         const manager = new SearchEngineManager(player as any)
 
@@ -192,13 +191,12 @@ describe('SearchEngineManager', () => {
     })
 
     it('skips on-cooldown fallback providers and uses remaining healthy ones', async () => {
-        // getOrderedProviders returns only soundcloud (spotify on cooldown)
         getOrderedProvidersMock.mockReturnValue(['soundcloud'])
         const player = {
             search: jest
                 .fn()
-                .mockResolvedValueOnce({ tracks: [] }) // youtube fails
-                .mockResolvedValueOnce({ tracks: [{ title: 'SC' }] }), // soundcloud ok
+                .mockResolvedValueOnce({ tracks: [] })
+                .mockResolvedValueOnce({ tracks: [{ title: 'SC' }] }),
         }
         const manager = new SearchEngineManager(player as any)
 

@@ -71,7 +71,6 @@ describe('automessage command', () => {
                 content: '❌ This command can only be used in a server.',
             },
         })
-        // Verify no service calls were made
         expect(autoMessageServiceMock.createMessage).not.toHaveBeenCalled()
         expect(autoMessageServiceMock.getMessagesByType).not.toHaveBeenCalled()
     })
@@ -100,14 +99,12 @@ describe('automessage command', () => {
 
         await automessageCommand.execute({ interaction })
 
-        // Verify the service was called to create the message
         expect(autoMessageServiceMock.createMessage).toHaveBeenCalledWith(
             'guild-123',
             'welcome',
             expect.any(Object),
             { channelId: 'channel-123' },
         )
-        // Verify user got success response
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 interaction,
@@ -134,7 +131,6 @@ describe('automessage command', () => {
 
         await automessageCommand.execute({ interaction })
 
-        // Verify the service was queried for both types
         expect(autoMessageServiceMock.getMessagesByType).toHaveBeenCalledWith(
             'guild-123',
             'welcome',
@@ -143,7 +139,6 @@ describe('automessage command', () => {
             'guild-123',
             'leave',
         )
-        // Verify user got response with embedded message
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 interaction,

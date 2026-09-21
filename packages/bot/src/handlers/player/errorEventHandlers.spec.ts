@@ -149,7 +149,6 @@ describe('errorEventHandlers', () => {
                 }),
             }),
         )
-        // Both top-level and queue player errors must reach Sentry.
         expect(captureExceptionMock).toHaveBeenCalledWith(
             expect.any(Error),
             expect.objectContaining({ context: 'player-unhandled-error' }),
@@ -390,11 +389,6 @@ describe('errorEventHandlers', () => {
             node: { skip: jest.fn() },
         }
 
-        // Call the exported async function, not the registered listener: the
-        // listener is `(queue, error) => { void handlePlayerErrorSafely(...) }`
-        // and returns void, so awaiting it settles nothing. Assertions would
-        // then only pass while these calls happen to run before the first
-        // internal await.
         await handlePlayerError(
             queue as any,
             new Error('Could not extract stream'),

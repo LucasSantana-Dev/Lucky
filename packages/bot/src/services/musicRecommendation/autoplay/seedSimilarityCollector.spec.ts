@@ -165,7 +165,6 @@ describe('collectSeedSimilarCandidates', () => {
         const score = (
             upsertScoredCandidateMock.mock.calls[0]?.[2] as { score: number }
         )?.score
-        // (rec 0.5 + SEED_SIMILAR_BOOST 0.25) * (0.5 + 0.5*1) = 0.75
         expect(score).toBeCloseTo(0.75, 5)
     })
 
@@ -182,7 +181,6 @@ describe('collectSeedSimilarCandidates', () => {
         const score = (
             upsertScoredCandidateMock.mock.calls[0]?.[2] as { score: number }
         )?.score
-        // (0.5 + 0.25) * (0.5 + 0.5*0) = 0.375 — never crushed to ~0
         expect(score).toBeCloseTo(0.375, 5)
     })
 

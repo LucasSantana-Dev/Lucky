@@ -15,7 +15,6 @@ import type {
 import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
 import { errorEmbed, infoEmbed } from './embeds'
 
-// Type for interactions that support reply methods
 export type ReplyableInteraction =
     | ChatInputCommandInteraction
     | ButtonInteraction
@@ -52,7 +51,6 @@ function convertTextToEmbed(content: {
         content.content !== '' &&
         (content.embeds === undefined || content.embeds.length === 0)
     ) {
-        // Create appropriate embed based on content
         const embed = content.content.toLowerCase().includes('error')
             ? errorEmbed('Error', content.content)
             : infoEmbed('Info', content.content)
@@ -60,7 +58,7 @@ function convertTextToEmbed(content: {
         return {
             ...content,
             embeds: [embed.toJSON()],
-            content: '', // Clear the content since we're using an embed
+            content: '',
         }
     }
     return {
@@ -94,8 +92,6 @@ async function handleReplyableInteraction(
                 flags: processedContent.ephemeral ? 64 : undefined,
             })
         } catch (error) {
-            // Defer failure is typically transient (interaction expired);
-            // allow it to propagate to outer handler for Sentry capture
             throw new Error('Failed to defer interaction reply', {
                 cause: error,
             })
@@ -108,7 +104,6 @@ async function handleReplyableInteraction(
             await interaction.editReply(stripFlags(processedContent))
         }
     } catch (error) {
-        // Reply failure (expired interaction) should propagate for Sentry capture
         throw error
     }
 }
@@ -123,19 +118,16 @@ export const interactionReply = async ({
             return
         }
 
-        // Convert plain text content to embed if needed
         const processedContent = convertTextToEmbed(content)
 
         await handleReplyableInteraction(interaction, processedContent)
     } catch (error) {
         errorLog({ message: 'Error sending interaction reply:', error })
 
-        // Capture reply failure to Sentry with interaction context
         const extras: Record<string, unknown> = {
             context: 'interaction-reply-failure',
         }
 
-        // Add context from ChatInputCommandInteraction if available
         if ('commandName' in interaction) {
             extras.command = interaction.commandName
         }
@@ -146,7 +138,6 @@ export const interactionReply = async ({
             extras.userId = interaction.user.id
         }
 
-        // Normalize error for Sentry (ensure it's an Error instance)
         const sentryError =
             error instanceof Error
                 ? error

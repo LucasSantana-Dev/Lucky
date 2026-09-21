@@ -179,7 +179,7 @@ describe('automod command', () => {
             )
             const reply = interactionReplyMock.mock.calls[0][0] as any
             expect(reply.content.embeds).toHaveLength(1)
-            expect(reply.content.embeds[0].data.color).toBeGreaterThan(0) // enabled (green)
+            expect(reply.content.embeds[0].data.color).toBeGreaterThan(0)
         })
 
         it('toggles caps module off and replies with red embed', async () => {

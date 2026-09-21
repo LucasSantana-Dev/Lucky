@@ -11,8 +11,6 @@ export interface PerSourceRow {
 }
 
 export interface PerModeRow {
-    // Loose typing intentional: read aggregation may encounter pre-migration
-    // null rows or unexpected values; the strict union is enforced at write time.
     mode: string | null
     count: number
     acceptedCount: number
@@ -248,7 +246,7 @@ export async function getAutoplaySkipRateForGuild(
     guildId: string,
 ): Promise<AutoplaySkipRateResult> {
     const prisma = getPrismaClient()
-    const createdAtGte = new Date(Date.now() - 24 * 60 * 60 * 1000) // 24 hours
+    const createdAtGte = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
     const getCountValue = (result: number | { count: number }): number =>
         typeof result === 'number' ? result : result.count

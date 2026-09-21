@@ -58,7 +58,6 @@ function ArtistTile({
 
     const initial = artist.name.charAt(0).toUpperCase()
 
-    // Determine ring color based on hover state and preference
     const getRingColor = () => {
         if (active) return 'ring-lucky-brand'
         if (preference === 'prefer') return 'ring-lucky-success'
@@ -106,7 +105,7 @@ function ArtistTile({
                         </span>
                     </div>
                 )}
-                {/* Already-preferred indicator overlay */}
+                {}
                 {preference === 'prefer' && (
                     <>
                         <div className='absolute inset-0 bg-white/20 flex items-center justify-center'>
@@ -121,7 +120,7 @@ function ArtistTile({
                         </div>
                     </>
                 )}
-                {/* Hover action buttons */}
+                {}
                 {(onPrefer || onBlock) && isHovered && (
                     <>
                         {onPrefer && (
@@ -176,9 +175,7 @@ export default function PreferredArtistsPage() {
     const prefersReducedMotion = useReducedMotion()
     const [searchParams, setSearchParams] = useSearchParams()
     const currentTab = (searchParams.get('tab') || 'discover') as
-        | 'discover'
-        | 'preferred'
-        | 'blocked'
+        'discover' | 'preferred' | 'blocked'
 
     const [query, setQuery] = useState('')
     const [searchResults, setSearchResults] = useState<SpotifyArtist[]>([])
@@ -194,7 +191,6 @@ export default function PreferredArtistsPage() {
         Map<string, ArtistPreference>
     >(new Map())
 
-    // Flat feed model: feedArtists contains all artists (suggestions + expanded children)
     const [feedArtists, setFeedArtists] = useState<SpotifyArtist[]>([])
     const [feedChildren, setFeedChildren] = useState<Map<string, string[]>>(
         new Map(),
@@ -219,7 +215,7 @@ export default function PreferredArtistsPage() {
             }
             setSavedPreferences(map)
         } catch {
-            // non-critical
+            // best-effort; saved preferences just stay empty on failure
         }
     }, [guildId])
 
@@ -272,7 +268,6 @@ export default function PreferredArtistsPage() {
         }
     }, [query])
 
-    // Recursively collapse an expanded artist and its descendants
     const collapse = useCallback(
         (parentId: string) => {
             const toRemove = new Set<string>([parentId])
@@ -304,18 +299,15 @@ export default function PreferredArtistsPage() {
 
     const expandArtist = useCallback(
         async (artist: SpotifyArtist) => {
-            // If already expanded, collapse it
             if (expanded.has(artist.id)) {
                 collapse(artist.id)
                 return
             }
 
-            // Load and insert related artists
             setLoadingId(artist.id)
             try {
                 const res = await api.artists.getRelated(artist.id)
 
-                // Build set of existing artist keys
                 const existingKeys = new Set<string>()
                 for (const a of feedArtists) {
                     existingKeys.add(normalizeArtistKey(a.name))
@@ -327,7 +319,6 @@ export default function PreferredArtistsPage() {
                     existingKeys.add(key)
                 }
 
-                // Filter related artists
                 const filteredArtists = res.data.artists.filter(
                     (relatedArtist) => {
                         const k = normalizeArtistKey(relatedArtist.name)
@@ -335,7 +326,6 @@ export default function PreferredArtistsPage() {
                     },
                 )
 
-                // Find artist index in feedArtists and splice in children
                 const artistIndex = feedArtists.findIndex(
                     (a) => a.id === artist.id,
                 )
@@ -358,7 +348,7 @@ export default function PreferredArtistsPage() {
 
                 setExpanded((prev) => new Set(prev).add(artist.id))
             } catch {
-                // silently fail - user can try again
+                // best-effort; expansion state just doesn't update on failure
             } finally {
                 setLoadingId(null)
             }
@@ -373,10 +363,8 @@ export default function PreferredArtistsPage() {
                 const next = new Map(prev)
                 const current = next.get(key)?.preference
                 if (current === preference) {
-                    // Remove if same preference already pending
                     next.delete(key)
                 } else {
-                    // Set new preference (overwrites opposite)
                     next.set(key, { preference, artist })
                 }
                 return next
@@ -405,7 +393,7 @@ export default function PreferredArtistsPage() {
             await loadPreferences()
             setUnsavedChanges(new Map())
         } catch {
-            // error handling could be improved with a toast
+            // best-effort; unsaved changes stay pending on failure
         } finally {
             setIsSaving(false)
         }
@@ -419,10 +407,6 @@ export default function PreferredArtistsPage() {
         (p) => p.preference === 'prefer',
     )
 
-    // Already-preferred artists are hidden from the discover/search feed —
-    // there's no value in re-surfacing artists the user has already added.
-    // Match on both the Spotify id and the normalized name key, since a saved
-    // preference may have been created without a spotifyId.
     const preferredSpotifyIds = new Set(
         preferredArtists
             .map((p) => p.spotifyId)
@@ -455,7 +439,7 @@ export default function PreferredArtistsPage() {
                 actions={<Heart className='h-5 w-5 text-lucky-accent' />}
             />
 
-            {/* Tab Buttons */}
+            {}
             <div className='surface-panel p-4 border border-lucky-border'>
                 <div className='flex gap-2'>
                     {(['discover', 'preferred', 'blocked'] as const).map(
@@ -501,7 +485,7 @@ export default function PreferredArtistsPage() {
             </div>
 
             <div className='space-y-4'>
-                {/* Discover Tab */}
+                {}
                 {currentTab === 'discover' && (
                     <div className='surface-panel p-4 border border-lucky-border'>
                         <div className='relative'>
@@ -676,7 +660,7 @@ export default function PreferredArtistsPage() {
                     </div>
                 )}
 
-                {/* Preferred Tab */}
+                {}
                 {currentTab === 'preferred' && (
                     <div className='surface-panel p-4 border border-lucky-border'>
                         {preferredArtists.length === 0 ? (
@@ -724,7 +708,7 @@ export default function PreferredArtistsPage() {
                     </div>
                 )}
 
-                {/* Blocked Tab */}
+                {}
                 {currentTab === 'blocked' && (
                     <div className='surface-panel p-4 border border-lucky-border'>
                         {blockedArtists.length === 0 ? (

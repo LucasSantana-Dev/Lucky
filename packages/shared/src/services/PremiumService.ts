@@ -2,8 +2,6 @@ import type { GuildSubscriptionModel as GuildSubscription } from '../generated/p
 import { getPrismaClient } from '../utils/database/prismaClient'
 import { errorLog } from '../utils/general/log'
 
-// Statuses Stripe reports that indicate a live subscription. canceled,
-// past_due, incomplete, and incomplete_expired all fail the gate.
 const ACTIVE_STATUSES: ReadonlySet<string> = new Set(['active', 'trialing'])
 
 /** Service for checking guild premium subscription status via Stripe. */

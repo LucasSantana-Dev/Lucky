@@ -169,10 +169,8 @@ export const useFeaturesStore = create<FeaturesState>((set) => ({
     },
 
     updateGlobalToggle: async (name, enabled) => {
-        // Store original value for rollback
         const previousValue = useFeaturesStore.getState().globalToggles[name]
 
-        // Optimistic update
         set((state) => ({
             globalToggles: { ...state.globalToggles, [name]: enabled },
         }))
@@ -180,7 +178,6 @@ export const useFeaturesStore = create<FeaturesState>((set) => ({
         try {
             await api.features.updateGlobalToggle(name, enabled)
         } catch (error) {
-            // Rollback on failure
             set((state) => ({
                 globalToggles: {
                     ...state.globalToggles,

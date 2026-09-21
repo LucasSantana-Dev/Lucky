@@ -113,62 +113,54 @@ export function setupRoleGroupsRoutes(app: Express): void {
         writeLimiter,
         validateParams(s.roleGroupIdParam),
         validateBody(s.addRoleToGroupBody),
-        asyncHandler(
-            // eslint-disable-next-line complexity
-            async (req: AuthenticatedRequest, res: Response) => {
-                const guildId = p(req.params.guildId)
-                const id = p(req.params.id)
-                const botToken = process.env.DISCORD_TOKEN?.trim()
-                if (!botToken) {
-                    throw AppError.serviceUnavailable(
-                        'Bot token not configured',
-                    )
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const guildId = p(req.params.guildId)
+            const id = p(req.params.id)
+            const botToken = process.env.DISCORD_TOKEN?.trim()
+            if (!botToken) {
+                throw AppError.serviceUnavailable('Bot token not configured')
+            }
+
+            const data = s.addRoleToGroupBody.parse(req.body)
+
+            try {
+                const result = await roleGroupService.addRoleToGroup(
+                    guildId,
+                    id,
+                    data,
+                    botToken,
+                )
+                res.json(result)
+            } catch (error: unknown) {
+                if (error instanceof AppError) {
+                    throw error as AppError
                 }
+                const err =
+                    error instanceof Error ? error : new Error(String(error))
+                const message = err.message || 'Failed to add role to group'
 
-                const data = s.addRoleToGroupBody.parse(req.body)
-
-                try {
-                    const result = await roleGroupService.addRoleToGroup(
-                        guildId,
-                        id,
-                        data,
-                        botToken,
-                    )
-                    res.json(result)
-                } catch (error: unknown) {
-                    if (error instanceof AppError) {
-                        throw error as AppError
-                    }
-                    const err =
-                        error instanceof Error
-                            ? error
-                            : new Error(String(error))
-                    const message = err.message || 'Failed to add role to group'
-
-                    // Check for specific error patterns (from tests and RoleGroupService)
-                    if (
-                        message.includes('not found') ||
-                        message.includes('not-found')
-                    ) {
-                        throw AppError.notFound(message)
-                    }
-                    if (
-                        message.includes('25 buttons') ||
-                        message.includes('25-buttons') ||
-                        message.includes('250 roles') ||
-                        message.includes('250-roles') ||
-                        message.includes('already mapped') ||
-                        message.includes('duplicate-name')
-                    ) {
-                        throw AppError.conflict(message)
-                    }
-                    if (message.includes('Label too long')) {
-                        throw AppError.badRequest(message)
-                    }
+                if (
+                    message.includes('not found') ||
+                    message.includes('not-found')
+                ) {
+                    throw AppError.notFound(message)
+                }
+                if (
+                    message.includes('25 buttons') ||
+                    message.includes('25-buttons') ||
+                    message.includes('250 roles') ||
+                    message.includes('250-roles') ||
+                    message.includes('already mapped') ||
+                    message.includes('duplicate-name')
+                ) {
+                    throw AppError.conflict(message)
+                }
+                if (message.includes('Label too long')) {
                     throw AppError.badRequest(message)
                 }
-            },
-        ),
+                throw AppError.badRequest(message)
+            }
+        }),
     )
 
     app.delete(

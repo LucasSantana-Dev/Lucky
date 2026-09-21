@@ -260,18 +260,14 @@ describe('VolumeSlider', () => {
 
         const slider = screen.getByRole('slider') as HTMLInputElement
 
-        // Simulate rapid slider changes
         fireEvent.change(slider, { target: { value: '60' } })
         fireEvent.change(slider, { target: { value: '70' } })
         fireEvent.change(slider, { target: { value: '80' } })
 
-        // onChange should not have been called yet (debounced)
         expect(onChange).not.toHaveBeenCalled()
 
-        // Fast-forward past debounce delay
         vi.advanceTimersByTime(150)
 
-        // Now onChange should be called with the final value
         expect(onChange).toHaveBeenCalledOnce()
         expect(onChange).toHaveBeenCalledWith(80)
     })
@@ -284,20 +280,15 @@ describe('VolumeSlider', () => {
 
         const slider = screen.getByRole('slider') as HTMLInputElement
 
-        // Change slider to 75
         fireEvent.change(slider, { target: { value: '75' } })
 
-        // Local value should update immediately
         expect(slider.value).toBe('75')
 
-        // Wait for debounce and onChange callback
         vi.advanceTimersByTime(150)
         expect(onChange).toHaveBeenCalledWith(75)
 
-        // Rerender with new volume prop from parent
         rerender(<VolumeSlider volume={75} onChange={onChange} />)
 
-        // Slider should now show the synced value
         expect(slider.value).toBe('75')
     })
 
@@ -310,13 +301,10 @@ describe('VolumeSlider', () => {
         const slider = screen.getByRole('slider') as HTMLInputElement
         fireEvent.change(slider, { target: { value: '60' } })
 
-        // Unmount before debounce completes
         unmount()
 
-        // Fast-forward timers
         vi.advanceTimersByTime(150)
 
-        // onChange should not be called since component was unmounted
         expect(onChange).not.toHaveBeenCalled()
     })
 
@@ -326,7 +314,6 @@ describe('VolumeSlider', () => {
 
         const slider = screen.getByRole('slider') as HTMLInputElement
 
-        // First batch of changes
         fireEvent.change(slider, { target: { value: '60' } })
         fireEvent.change(slider, { target: { value: '70' } })
         vi.advanceTimersByTime(150)
@@ -335,7 +322,6 @@ describe('VolumeSlider', () => {
 
         onChange.mockClear()
 
-        // Second batch of changes
         fireEvent.change(slider, { target: { value: '40' } })
         fireEvent.change(slider, { target: { value: '30' } })
         vi.advanceTimersByTime(150)
@@ -357,7 +343,6 @@ describe('VolumeSlider', () => {
         vi.advanceTimersByTime(150)
         expect(onChange1).toHaveBeenCalledWith(60)
 
-        // Switch to a different onChange handler
         onChange1.mockClear()
         rerender(<VolumeSlider volume={50} onChange={onChange2} />)
 

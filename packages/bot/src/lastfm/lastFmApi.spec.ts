@@ -341,7 +341,6 @@ describe('lastFmApi', () => {
             const call = fetchMock.mock.calls[0]?.[0] as string
             expect(call).toContain('limit=10')
 
-            // Test default limit
             fetchMock.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({ recenttracks: { track: [] } }),
@@ -364,7 +363,6 @@ describe('lastFmApi', () => {
                     fetchMock.mockRejectedValueOnce(new Error('network error'))
                     tracks = await getRecentTracks('username')
                     expect(tracks).toEqual([])
-                    // Test res.ok guard: non-ok response should return empty array
                     fetchMock.mockResolvedValueOnce({ ok: false })
                     tracks = await getRecentTracks('username')
                     expect(tracks).toEqual([])
@@ -433,7 +431,6 @@ describe('lastFmApi', () => {
                     fetchMock.mockRejectedValueOnce(new Error('network error'))
                     tracks = await getSimilarTracks('Artist', 'Track')
                     expect(tracks).toEqual([])
-                    // Test res.ok guard: non-ok response should return empty array
                     fetchMock.mockResolvedValueOnce({ ok: false })
                     tracks = await getSimilarTracks('Artist', 'Track')
                     expect(tracks).toEqual([])
@@ -525,7 +522,6 @@ describe('lastFmApi', () => {
                 title: 'Rock Track 2',
             })
 
-            // Test default limit
             fetchMock.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({ toptracks: { track: [] } }),
@@ -573,7 +569,6 @@ describe('lastFmApi', () => {
 
     describe('getArtistTopTags', () => {
         it('returns mapped, lowercased tags on success; respects limit; filters empty names; caches and keys by (artist, limit)', async () => {
-            // Initial fetch for artist/limit combo 1
             fetchMock.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
@@ -590,12 +585,10 @@ describe('lastFmApi', () => {
             const tags = await getArtistTopTags('Radiohead')
             expect(tags).toEqual(['indie', 'alternative', 'rock'])
 
-            // Cached call should not re-fetch
             const second = await getArtistTopTags('Radiohead')
             expect(second).toEqual(['indie', 'alternative', 'rock'])
             expect(fetchMock).toHaveBeenCalledTimes(1)
 
-            // Respect limit argument
             fetchMock.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
@@ -609,7 +602,6 @@ describe('lastFmApi', () => {
             const limited = await getArtistTopTags('Muse', 3)
             expect(limited).toHaveLength(3)
 
-            // Filter empty names
             fetchMock.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
@@ -806,8 +798,6 @@ describe('lastFmApi', () => {
         beforeEach(() => {
             process.env.LASTFM_API_KEY = 'test-key'
             process.env.LASTFM_API_SECRET = 'test-secret'
-            // Module-level caches persist across tests; reset so each case
-            // starts clean and ordering can't silently leak fixtures.
             __resetMetadataCacheForTests()
         })
 
@@ -862,12 +852,10 @@ describe('lastFmApi', () => {
                 duration: 354000,
             })
 
-            // Test caching: second call should not re-fetch
             const cached = await getTrackMetadata('queen', 'bohemian rhapsody')
             expect(cached).toEqual(result)
             expect(fetchMock).toHaveBeenCalledTimes(1)
 
-            // Test defaults for missing fields
             fetchMock.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
@@ -890,9 +878,6 @@ describe('lastFmApi', () => {
         })
 
         it('re-fetches when cached entry has expired TTL', async () => {
-            // lru-cache reads TTL from the performance object it captured at
-            // import, so spy on performance.now directly instead of using
-            // jest fake timers (which swap the global object).
             const perfNowSpy = jest.spyOn(globalThis.performance, 'now')
             try {
                 perfNowSpy.mockReturnValue(1_000_000)
@@ -914,11 +899,8 @@ describe('lastFmApi', () => {
                 expect(first!.title).toBe('First Version')
                 expect(fetchMock).toHaveBeenCalledTimes(1)
 
-                // lru-cache debounces perf.now() reads for 1ms via setTimeout;
-                // yield to the macrotask queue so the cached timestamp resets
                 await new Promise((resolve) => setTimeout(resolve, 5))
 
-                // Jump past the 24h TTL
                 perfNowSpy.mockReturnValue(1_000_000 + 86_400_001)
 
                 fetchMock.mockResolvedValueOnce({
@@ -1001,7 +983,6 @@ describe('lastFmApi', () => {
             expect(result2).toEqual(result1)
             expect(fetchMock).toHaveBeenCalledTimes(1)
 
-            // Also test collaboration handling
             fetchMock.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({

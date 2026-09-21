@@ -1,6 +1,5 @@
 import * as Sentry from '@sentry/node'
 import { infoLog } from '@lucky/shared/utils'
-// import { nodeProfilingIntegration } from '@sentry/profiling-node'
 
 /**
  * Extract the safe origin (protocol + hostname) from a URL string.
@@ -89,7 +88,6 @@ export function initializeSentry(): void {
         profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
         integrations: [],
         beforeSend(event) {
-            // Filter out sensitive data
             if (event.extra) {
                 delete event.extra.password
                 delete event.extra.token

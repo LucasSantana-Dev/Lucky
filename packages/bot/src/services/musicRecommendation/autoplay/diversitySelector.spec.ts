@@ -113,7 +113,6 @@ describe('diversitySelector', () => {
                 Array.from(excluded).some((key) => key.includes('testsong')),
             ).toBe(true)
 
-            // Handle missing titles and authors gracefully
             const trackWithoutMeta: Partial<Track> = {
                 title: undefined,
                 author: undefined,
@@ -145,7 +144,6 @@ describe('diversitySelector', () => {
 
     describe('isDuplicateCandidate', () => {
         test('detects duplicates by URL, video ID, or normalized key', () => {
-            // By full URL
             let excludedUrls = new Set([
                 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             ])
@@ -163,7 +161,6 @@ describe('diversitySelector', () => {
                 ),
             ).toBe(true)
 
-            // By video ID only
             excludedUrls = new Set(['dQw4w9WgXcQ'])
             expect(
                 isDuplicateCandidate(
@@ -173,7 +170,6 @@ describe('diversitySelector', () => {
                 ),
             ).toBe(true)
 
-            // By normalized track key
             excludedUrls = new Set<string>()
             excludedKeys = new Set(['somesong::someartist'])
             track = {
@@ -191,7 +187,6 @@ describe('diversitySelector', () => {
         })
 
         test('handles non-duplicates, missing URLs, and variant titles correctly', () => {
-            // Non-duplicate
             const excludedUrls = new Set([
                 'https://www.youtube.com/watch?v=old',
             ])
@@ -209,7 +204,6 @@ describe('diversitySelector', () => {
                 ),
             ).toBe(false)
 
-            // Missing URL
             track = { url: undefined, title: 'New Song', author: 'New Artist' }
             expect(
                 isDuplicateCandidate(
@@ -219,7 +213,6 @@ describe('diversitySelector', () => {
                 ),
             ).toBe(false)
 
-            // Variant titles (remastered, live) stripped and matched
             let variantUrls = new Set<string>()
             let variantKeys = new Set([
                 'bohemian rhapsody',
@@ -245,7 +238,6 @@ describe('diversitySelector', () => {
                 isDuplicateCandidate(track as Track, variantUrls, variantKeys),
             ).toBe(true)
 
-            // Mid-title variant words not stripped
             track = {
                 url: 'https://open.spotify.com/track/def',
                 title: 'Live and Let Die - Remastered',
@@ -259,7 +251,6 @@ describe('diversitySelector', () => {
 
     describe('selectDiverseCandidates', () => {
         test('selects diverse candidates respecting limits and preferring high scores', () => {
-            // Basic diversity: 2 artists, prefers high scores
             const candidates = new Map([
                 [
                     'track1',
@@ -308,7 +299,6 @@ describe('diversitySelector', () => {
         })
 
         test('respects maxPerArtist and maxPerSource limits', () => {
-            // All same artist: maxPerArtist=1 → max 1 track
             const singleArtistCandidates = new Map([
                 [
                     'track1',
@@ -344,7 +334,6 @@ describe('diversitySelector', () => {
             )
             expect(selected.length).toBe(1)
 
-            // All same source: maxPerSource=1 → max 1 track
             const singleSourceCandidates = new Map([
                 [
                     'track1',
@@ -380,7 +369,6 @@ describe('diversitySelector', () => {
             )
             expect(selected.length).toBe(1)
 
-            // Empty candidates
             selected = selectDiverseCandidates(new Map(), 5, 2, 3, '')
             expect(selected).toEqual([])
         })
@@ -442,10 +430,6 @@ describe('diversitySelector', () => {
 
             const selected = selectDiverseCandidates(candidates, 4, 2, 3, '')
 
-            // Track A: 0.9, no penalty (first from album)
-            // Track B: 0.85 - 0.12 = 0.73, reduced but selected
-            // Track C: 0.05 - 0.12 < 0, excluded
-            // Track D: 0.5, no album penalty
             const titles = selected.map((s) => s.track.title)
             expect(titles).toContain('Track A')
             expect(titles).not.toContain('Track C')
@@ -464,7 +448,6 @@ describe('diversitySelector', () => {
 
     describe('purgeDuplicatesOfCurrentTrack', () => {
         test('removes duplicates and ignores non-duplicates and empty queues', () => {
-            // Remove duplicate
             const dupTrack: Partial<Track> = {
                 url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
                 title: 'Different Title',
@@ -482,7 +465,6 @@ describe('diversitySelector', () => {
             )
             expect(queueRemove).toHaveBeenCalled()
 
-            // Don't remove non-duplicate
             jest.clearAllMocks()
             const otherTrack: Partial<Track> = {
                 url: 'https://www.youtube.com/watch?v=different',
@@ -502,7 +484,6 @@ describe('diversitySelector', () => {
                 (mockQueueWithTracks.node as any).remove,
             ).not.toHaveBeenCalled()
 
-            // Handle empty queue
             mockQueueWithTracks = {
                 ...mockQueue,
                 tracks: { toArray: jest.fn(() => []) },
@@ -567,7 +548,6 @@ describe('diversitySelector', () => {
                 },
             ]
 
-            // With user ID
             await addSelectedTracks(
                 mockQueueWithAdd as GuildQueue,
                 selected,
@@ -585,7 +565,6 @@ describe('diversitySelector', () => {
                 undefined,
             )
 
-            // Without user ID
             jest.clearAllMocks()
             await addSelectedTracks(
                 mockQueueWithAdd as GuildQueue,
@@ -628,7 +607,6 @@ describe('diversitySelector', () => {
                 },
             ]
 
-            // Test with discover mode
             await addSelectedTracks(
                 mockQueueWithAdd as GuildQueue,
                 selected,
@@ -645,7 +623,6 @@ describe('diversitySelector', () => {
                 'discover',
             )
 
-            // Test with popular mode
             jest.clearAllMocks()
             await addSelectedTracks(
                 mockQueueWithAdd as GuildQueue,
@@ -663,7 +640,6 @@ describe('diversitySelector', () => {
                 'popular',
             )
 
-            // Test with similar mode
             jest.clearAllMocks()
             await addSelectedTracks(
                 mockQueueWithAdd as GuildQueue,

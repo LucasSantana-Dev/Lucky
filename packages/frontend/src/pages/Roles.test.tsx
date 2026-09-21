@@ -65,7 +65,6 @@ describe('RolesPage', () => {
             </MemoryRouter>,
         )
 
-        // Check for section with empty state (icon and text scattered)
         expect(
             screen.queryByText((_content, element) => {
                 return (

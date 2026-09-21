@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals'
+import {
+    describe,
+    it,
+    expect,
+    beforeEach,
+    afterEach,
+    jest,
+} from '@jest/globals'
 import { safeSetInterval, safeSetTimeout, clearAllTimers } from './timerManager'
 
 describe('Timer Manager', () => {
@@ -57,7 +64,6 @@ describe('Timer Manager', () => {
             jest.advanceTimersByTime(1000)
             expect(mockFn).toHaveBeenCalledTimes(1)
 
-            // Should not be called again
             jest.advanceTimersByTime(1000)
             expect(mockFn).toHaveBeenCalledTimes(1)
         })
@@ -106,7 +112,6 @@ describe('Timer Manager', () => {
 
             clearAllTimers()
 
-            // Should be able to create new timers after clearing
             const newMockFn = jest.fn()
             const id = safeSetInterval(newMockFn, 1000)
             expect(id).toBeDefined()

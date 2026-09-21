@@ -219,13 +219,10 @@ function NowPlayingHero({
     onVolumeChange: (v: number) => void
 }) {
     const { t } = useTranslation()
-    // Prefer the live currentTrack from SSE; fall back to the head of the
-    // upcoming queue for older state payloads that only filled tracks[].
     const currentTrack = state.currentTrack ?? state.tracks[0]
     const busy = Boolean(pendingAction)
     const [now, setNow] = useState(() => Date.now())
 
-    // Re-tick while playing so the bar can flip to stale without a new SSE event.
     useEffect(() => {
         if (!state.isPlaying) return
         const id = window.setInterval(() => setNow(Date.now()), 1000)
@@ -315,7 +312,7 @@ function NowPlayingHero({
                                     />
                                 </div>
                             </div>
-                            {/* Relative wrapper so the stale notice does not shift the timestamps. */}
+                            {}
                             <div className='relative flex justify-between type-body-sm text-lucky-text-tertiary'>
                                 <span>{formatSeconds(position)}</span>
                                 {isStale ? (

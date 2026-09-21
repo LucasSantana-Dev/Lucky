@@ -1,7 +1,6 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import { GuildPremiumTier, PermissionFlagsBits } from 'discord.js'
 
-// Mock declarations first
 const getClientMock = jest.fn()
 const matchesScopeMock = jest.fn()
 const debugLogMock = jest.fn()

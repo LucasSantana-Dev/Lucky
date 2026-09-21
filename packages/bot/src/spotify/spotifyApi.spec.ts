@@ -44,8 +44,6 @@ describe('spotifyApi', () => {
 
     describe('request timeout (#1279)', () => {
         it('passes an AbortSignal deadline to the Spotify fetch', async () => {
-            // Vehicle only: any single-fetch helper exercises spotifyFetch's
-            // AbortSignal. Was getAudioFeatures until that endpoint was removed.
             fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) })
             await searchSpotifyTrack('test-token', 'Creep', 'Radiohead')
             expect(fetchMock).toHaveBeenCalledWith(

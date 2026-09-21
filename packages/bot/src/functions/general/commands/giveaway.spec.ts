@@ -35,7 +35,6 @@ jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
     }),
 }))
 
-// Import after mocking
 import giveawayCommand from './giveaway'
 
 function makeStartInteraction(
@@ -98,7 +97,7 @@ function makeEndInteraction(id = 'giveaway-123') {
 
 function makeTextChannel() {
     return {
-        type: 0, // GuildText
+        type: 0,
         permissionsFor: jest.fn().mockReturnValue({
             has: jest.fn().mockReturnValue(true),
         }),
@@ -165,7 +164,7 @@ describe('giveaway command', () => {
 
         it('rejects duration exceeding 14 days', async () => {
             const interaction = makeStartInteraction()
-            parseDurationMock.mockReturnValue(15 * 24 * 60 * 60 * 1000) // 15 days
+            parseDurationMock.mockReturnValue(15 * 24 * 60 * 60 * 1000)
 
             await giveawayCommand.execute({ interaction } as any)
 

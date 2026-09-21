@@ -46,7 +46,7 @@ function makeClient(
             fetch: jest.fn((id: string) =>
                 Promise.resolve({
                     id,
-                    type: 0, // ChannelType.GuildText === 0
+                    type: 0,
                     send: channelSend(id),
                 }),
             ),
@@ -112,7 +112,7 @@ describe('BirthdayScheduler.tick', () => {
         const scheduler = new BirthdayScheduler({
             clock: () => new Date('2026-04-20T00:00:00Z'),
         })
-        scheduler['client'] = client // inject without start()
+        scheduler['client'] = client
         await scheduler.tick()
         expect(sent).toHaveLength(0)
         expect(dbMocks.settingsFindUnique).not.toHaveBeenCalled()
@@ -187,7 +187,6 @@ describe('BirthdayScheduler.tick', () => {
         const scheduler = new BirthdayScheduler({ clock: () => currentDate })
         scheduler['client'] = client
         await scheduler.tick()
-        // roll over to next day
         currentDate = new Date('2026-04-21T00:30:00Z')
         await scheduler.tick()
         expect(sent).toHaveLength(2)
@@ -226,7 +225,6 @@ describe('BirthdayScheduler.tick', () => {
     })
 
     test('revokes birthday role from stale holders whose birthday is not today', async () => {
-        // No birthdays today in guild g2, but someone still holds the role
         dbMocks.findMany.mockResolvedValue([])
         dbMocks.settingsFindMany.mockResolvedValueOnce([
             { guildId: 'g2', birthdayRoleId: 'role-2' },
@@ -266,7 +264,7 @@ describe('BirthdayScheduler.tick', () => {
         const sent: Array<{ channelId: string; payload: unknown }> = []
         const rolesAdd = jest.fn(() => Promise.resolve())
         const member = {
-            rolesCacheHas: (id: string) => id === 'role-1', // already has it
+            rolesCacheHas: (id: string) => id === 'role-1',
             rolesAdd,
             rolesRemove: jest.fn(),
         }
@@ -299,7 +297,6 @@ describe('BirthdayScheduler.tick', () => {
             clock: () => new Date('2026-04-20T00:00:00Z'),
         })
         scheduler['client'] = client
-        // should not throw
         await expect(scheduler.tick()).resolves.toBeUndefined()
         expect(sent).toHaveLength(0)
     })
@@ -323,11 +320,9 @@ describe('BirthdayScheduler.tick', () => {
             clock: () => new Date('2026-04-20T00:00:00Z'),
         })
         scheduler['client'] = client
-        // Fire two ticks concurrently
         const p1 = scheduler.tick()
         const p2 = scheduler.tick()
         await Promise.all([p1, p2])
-        // Second tick should be skipped due to tickInProgress flag
         expect(sent).toHaveLength(1)
     })
 
@@ -346,7 +341,6 @@ describe('BirthdayScheduler.tick', () => {
             clock: () => new Date('2026-04-20T00:00:00Z'),
         })
         scheduler['client'] = client
-        // should not throw
         await expect(scheduler.tick()).resolves.toBeUndefined()
         expect(sent).toHaveLength(0)
     })
@@ -414,7 +408,6 @@ describe('BirthdayScheduler.tick', () => {
         } as never
         const scheduler = new BirthdayScheduler({ tickIntervalMs: 100 })
         scheduler.start(client)
-        // First tick happens immediately
         await new Promise((resolve) => setTimeout(resolve, 50))
         expect(tickSpy).toHaveBeenCalled()
         scheduler.stop()
@@ -445,13 +438,11 @@ describe('BirthdayScheduler.tick', () => {
         })
         scheduler['client'] = client
         await scheduler.tick()
-        // No channel configured, so no announcement
         expect(sent).toHaveLength(0)
     })
 
     test('paginates through guilds with role in batches of 500', async () => {
         dbMocks.findMany.mockResolvedValue([])
-        // Mock settingsFindMany to return two pages
         const page1 = Array.from({ length: 500 }, (_, i) => ({
             guildId: `g${i}`,
             birthdayRoleId: `role-${i}`,
@@ -486,7 +477,6 @@ describe('BirthdayScheduler.tick', () => {
         scheduler['client'] = client
         await scheduler.tick()
         expect(dbMocks.settingsFindMany).toHaveBeenCalledTimes(2)
-        // First call should request page 1
         const call1 = dbMocks.settingsFindMany.mock.calls[0][0]
         expect(call1.take).toBe(500)
         expect(call1.orderBy).toEqual({ guildId: 'asc' })
@@ -521,7 +511,6 @@ describe('BirthdayScheduler.tick', () => {
         })
         scheduler['client'] = client
         await scheduler.tick()
-        // Should only call settingsFindMany once (partial page < 500)
         expect(dbMocks.settingsFindMany).toHaveBeenCalledTimes(1)
     })
 })

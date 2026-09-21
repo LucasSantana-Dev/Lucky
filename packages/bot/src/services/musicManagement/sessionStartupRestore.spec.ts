@@ -32,8 +32,6 @@ function clientWith(
     channelVoice = true,
     humanCount = 1,
 ): CustomClient {
-    // Minimal stand-in for a discord.js Collection of voice members: filter()
-    // returns an object exposing `.size`, which is all the guard inspects.
     const members = {
         filter: (predicate: (m: { user: { bot: boolean } }) => boolean) => {
             const humans = Array.from({ length: humanCount }, () => ({
@@ -106,7 +104,7 @@ describe('restoreSessionsOnStartup', () => {
     it('deletes a stale snapshot instead of restoring', async () => {
         listGuildIdsMock.mockResolvedValue(['g1'])
         getSnapshotMock.mockResolvedValue({
-            savedAt: Date.now() - 60 * 60 * 1000, // 1h > 30m
+            savedAt: Date.now() - 60 * 60 * 1000,
             voiceChannelId: 'vc-1',
         })
 

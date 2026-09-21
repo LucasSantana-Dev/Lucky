@@ -167,7 +167,6 @@ describe('sanitizeMessage', () => {
     it('returns generic message when "Cannot find module" detected', () => {
         const message = "Error: Cannot find module 'package'"
         const result = sanitizeMessage(message)
-        // Pattern is replaced so doesn't match the generic check
         expect(result).toBe('Error: Required dependency not found')
     })
 
@@ -342,7 +341,6 @@ describe('createUserFriendlyError', () => {
     it('prefers first matching error mapping', () => {
         const error = new Error('ffmpeg connection timeout')
         const result = createUserFriendlyError(error)
-        // Should match 'ffmpeg' first (order matters)
         expect(result).toBe(
             'Audio processing is currently unavailable. Please try again later.',
         )
@@ -375,7 +373,6 @@ describe('createUserFriendlyError', () => {
     })
 
     it('sanitizes paths before mapping', () => {
-        // Paths trigger the generic message, so test without path
         const error = new Error('timeout occurred')
         const result = createUserFriendlyError(error)
         expect(result).toBe('Request timed out. Please try again.')
@@ -407,7 +404,6 @@ describe('createUserFriendlyError', () => {
     })
 
     it('handles errors that become technical after sanitization', () => {
-        // This error will trigger the spawn check after sanitization
         const error = new Error('Error with spawn in the message')
         const result = createUserFriendlyError(error)
         expect(result).toBe(
@@ -444,7 +440,6 @@ describe('createUserFriendlyError', () => {
     it('handles errors with Cannot find module', () => {
         const error = new Error("Cannot find module 'critical-module'")
         const result = createUserFriendlyError(error)
-        // The pattern is replaced, so no longer matches the check
         expect(result).toBe('Required dependency not found')
     })
 })
@@ -484,7 +479,6 @@ describe('integration scenarios', () => {
     it('end-to-end: complex error chain with download keyword', () => {
         const error = new Error('download failed: connection timeout')
         const result = createUserFriendlyError(error)
-        // Should match 'download' first (appears first in keywords list)
         expect(result).toBe(
             'Download failed. The content may be unavailable or restricted.',
         )

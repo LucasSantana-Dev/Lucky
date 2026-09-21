@@ -14,7 +14,6 @@ const ID_LENGTH = 8
  * @returns A fresh 8-character URL-safe correlation ID
  */
 export function mintCorrelationId(): string {
-    // randomInt draws uniformly from [0, CHARSET.length) with no modulo bias.
     let id = ''
     for (let i = 0; i < ID_LENGTH; i++) {
         id += CHARSET[randomInt(CHARSET.length)]

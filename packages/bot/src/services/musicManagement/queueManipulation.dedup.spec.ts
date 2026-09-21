@@ -206,7 +206,6 @@ describe('queueManipulation — title-only deduplication', () => {
             guildId: 'guild-1',
         })
 
-        // No duplicate titles should be added despite different authors/versions
         expect(addedTracks.length).toBe(0)
     })
 })
@@ -445,12 +444,10 @@ describe('queueManipulation.replenishQueue query variation', () => {
             addTrack: jest.fn((t: unknown) => tracks.push(t as Track)),
         })
 
-        // Call replenish 3 times - should accumulate different tracks
         await replenishQueue(queue as unknown as GuildQueue)
         await replenishQueue(queue as unknown as GuildQueue)
         await replenishQueue(queue as unknown as GuildQueue)
 
-        // Verify actual tracks were added to queue
         expect(tracks.length).toBeGreaterThan(0)
         tracks.forEach((track) => {
             expect(track).toHaveProperty('metadata')

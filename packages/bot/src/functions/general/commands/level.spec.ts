@@ -235,8 +235,6 @@ describe('/level', () => {
         })
 
         test('includes pagination buttons when needed', async () => {
-            // 10 entries at 5 items per page = 2 pages, so the leaderboard
-            // must include the pagination button row.
             const entries = Array.from({ length: 10 }, (_, i) => ({
                 userId: `u${i}`,
                 level: i,

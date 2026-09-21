@@ -62,8 +62,6 @@ describe('queueStateManager', () => {
         } as unknown as GuildQueue
     })
 
-    // Tracks lookup-style describes share this fixture; populating tracks once
-    // here removes the per-describe beforeEach that just re-set toArray.
     function withTracks(tracks: unknown[]): void {
         ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue(tracks)
     }
@@ -189,12 +187,10 @@ describe('queueStateManager', () => {
             getQueueState(mockQueue)
             expect(warnLogMock).toHaveBeenCalledTimes(1)
 
-            // Still inside the 1-minute window: suppressed.
             jest.advanceTimersByTime(59_000)
             getQueueState(mockQueue)
             expect(warnLogMock).toHaveBeenCalledTimes(1)
 
-            // Past the window: warns again.
             jest.advanceTimersByTime(2_000)
             getQueueState(mockQueue)
             expect(warnLogMock).toHaveBeenCalledTimes(2)
@@ -215,9 +211,9 @@ describe('queueStateManager', () => {
     describe('isQueueFull', () => {
         it.each([
             [50, 100, false],
-            [99, undefined, false], // default max=100
+            [99, undefined, false],
             [100, 100, true],
-            [100, undefined, true], // default max=100
+            [100, undefined, true],
             [150, 100, true],
             [25, 20, true],
             [1, 1, true],
@@ -305,8 +301,8 @@ describe('queueStateManager', () => {
             withTracks([
                 { duration: 100000, author: 'Artist A' },
                 { duration: 100000, author: 'Artist B' },
-                { duration: 100000, author: 'Artist A' }, // dedupe
-                { duration: 100000 }, // no author → excluded
+                { duration: 100000, author: 'Artist A' },
+                { duration: 100000 },
             ])
             const stats = getQueueStats(mockQueue)
             expect(stats.artists.sort()).toEqual(['Artist A', 'Artist B'])

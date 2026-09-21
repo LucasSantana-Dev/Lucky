@@ -342,10 +342,8 @@ describe('replenisher seam functions', () => {
             const currentTrack = createTrack()
             const result1 = await extractSeedAndSessionMood(queue, currentTrack)
 
-            // Call again - should use cached mood
             const result2 = await extractSeedAndSessionMood(queue, currentTrack)
 
-            // detectSessionMood called only once if history length unchanged
             expect(detectSessionMood.mock.calls.length).toBeLessThanOrEqual(2)
             expect(result1.sessionMood).toEqual(result2.sessionMood)
         })
@@ -358,7 +356,6 @@ describe('replenisher seam functions', () => {
             const moodDetector = require('./sessionMood')
             moodDetector.detectSessionMood.mockClear()
 
-            // Simulate new history with 3+ new tracks
             const newQueue = createGuildQueue({
                 history: {
                     tracks: {
@@ -623,9 +620,6 @@ describe('replenisher seam functions', () => {
                 fetcher,
             )
 
-            // The caller owns the fetcher, so the memo cache inside it survives
-            // across the seed lookup, session-family detection and the
-            // collectors. Building a second one here would reset that cache.
             const { createArtistTagFetcher } = require('./artistTagCache')
             expect(createArtistTagFetcher).not.toHaveBeenCalled()
             expect(fetcher).toHaveBeenCalledWith('Seed')
@@ -699,9 +693,6 @@ describe('replenisher seam functions', () => {
                 recentArtistIndices: new Map(),
             }
 
-            // guildSettings must carry autoplayGenres or the genre collector is
-            // skipped, and every collector mock leaves `candidates` empty, which
-            // is what lets the fallback branch (size === 0) run too.
             const result = await collectAllCandidates(
                 autoplayContext,
                 [createTrack()],

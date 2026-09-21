@@ -50,7 +50,7 @@ export async function enhancedAutoSearch(
     return service.search({
         query,
         requestedBy,
-        preferredEngine: undefined, // Auto-detect
+        preferredEngine: undefined,
     })
 }
 

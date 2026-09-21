@@ -5,7 +5,6 @@ import { debugLog, errorLog } from '@lucky/shared/utils'
 import { isSnowflakeId } from '../schemas/common'
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
-// Discord permission bitfield literal representing zero permissions granted
 const NO_PERMISSIONS = '0'
 
 interface DiscordGuildRole {
@@ -45,7 +44,6 @@ export interface RoleUpsertData {
     permissions?: string
 }
 
-// Zod validation schemas for Discord API responses
 const discordGuildRoleSchema = z.object({
     id: z.string().min(1),
     name: z.string(),
@@ -182,8 +180,6 @@ class RoleService {
         }
     }
 
-    // Returns null when there is no bot client or the client fetch fails,
-    // signaling callers to fall back to the REST API.
     private async fetchClientGuildRoles(
         guildId: string,
         errorMessage: string,

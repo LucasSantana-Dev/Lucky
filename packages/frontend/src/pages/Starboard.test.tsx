@@ -34,7 +34,6 @@ vi.mock('sonner', () => ({
     },
 }))
 
-// Translation key to English value mapping for starboard namespace
 const translations: Record<string, string> = {
     noServerSelected: 'No server selected',
     selectServerToView: 'Select a server to view starboard settings',

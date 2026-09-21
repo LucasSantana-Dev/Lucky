@@ -49,8 +49,6 @@ export async function showBatchConfirmation(
         const embed = buildConfirmationEmbed(params)
         const buttons = buildConfirmationButtons()
 
-        // Use followUp when the interaction was already deferred or replied to
-        // (e.g. the command called deferReply before invoking this gate).
         const alreadyResponded =
             'deferred' in interaction &&
             'replied' in interaction &&
@@ -70,16 +68,14 @@ export async function showBatchConfirmation(
             fetchReply: true,
         })
 
-        // Await button click from the invoker
         const response = await message.awaitMessageComponent({
             filter: (i: MessageComponentInteraction) =>
                 i.user.id === interaction.user.id,
-            time: 5 * 60 * 1000, // 5-minute timeout
+            time: 5 * 60 * 1000,
         })
 
         const isProceed = response.customId === 'batch_proceed'
 
-        // Update the interaction response to remove buttons
         await response.update({
             components: [],
         })
@@ -90,7 +86,6 @@ export async function showBatchConfirmation(
             message: 'Batch confirmation timeout or error',
             error,
         })
-        // Timeout or error → treat as cancel
         return false
     }
 }

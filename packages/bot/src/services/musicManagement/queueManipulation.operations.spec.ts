@@ -292,12 +292,9 @@ describe('queueManipulation.queueOperations', () => {
             author: 'Artist',
             url: 'https://youtube.com/stalled',
         } as Track
-        const searchMock = jest.fn().mockImplementation(
-            () =>
-                new Promise(() => {
-                    /* never resolves */
-                }),
-        )
+        const searchMock = jest
+            .fn()
+            .mockImplementation(() => new Promise(() => {}))
         const queue = {
             player: { search: searchMock },
             tracks: { toArray: jest.fn().mockReturnValue([track]), size: 1 },

@@ -1,5 +1,4 @@
 import type { Track } from 'discord-player'
-// import { errorLog } from "../../general/log"
 import { isSimilarTitle } from '../titleComparison'
 import { safeSetInterval } from '@lucky/shared/utils'
 import { TrackCacheManager } from './cacheManager'
@@ -124,7 +123,6 @@ export class TrackProcessor {
     }
 
     startCacheCleanup(): void {
-        // Clean up cache every 5 minutes
         safeSetInterval(() => {
             this.clearCache()
         }, 300000)

@@ -18,7 +18,6 @@ export function createErrorEmbed(
         timestamp: true,
     })
 
-    // Add error details if provided
     if (error) {
         embed.addFields({
             name: 'Error Details',
@@ -26,7 +25,6 @@ export function createErrorEmbed(
             inline: false,
         })
 
-        // Log the error for debugging
         handleError(error, {
             details: { context: 'Error Embed Creation', title, description },
         })

@@ -16,9 +16,6 @@ function renderPage() {
     )
 }
 
-// CHANGELOG.md is append-only and keeps growing, so rendering + querying it
-// in full gets slower over time; the default 5000ms timeout has started
-// flaking in CI under load (observed ~9.9s for the full suite).
 describe('Changelog', { timeout: 20000 }, () => {
     test('renders page title', () => {
         renderPage()
@@ -29,7 +26,6 @@ describe('Changelog', { timeout: 20000 }, () => {
 
     test('renders at least one version from CHANGELOG.md', () => {
         renderPage()
-        // Latest shipped version
         expect(screen.getAllByText(/v2\.11\.0/).length).toBeGreaterThanOrEqual(
             1,
         )

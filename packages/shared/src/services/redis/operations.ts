@@ -16,7 +16,6 @@ export class RedisOperations {
         this.keyOps = new KeyOperations(client, state)
     }
 
-    // String operations
     async get(key: string): Promise<string | null> {
         return this.stringOps.get(key)
     }
@@ -25,7 +24,6 @@ export class RedisOperations {
         return this.stringOps.set(key, value, ttl)
     }
 
-    // Key operations
     async del(key: string): Promise<boolean> {
         return this.keyOps.del(key)
     }
@@ -46,7 +44,6 @@ export class RedisOperations {
         return this.keyOps.ttl(key)
     }
 
-    // Additional Redis methods
     async setex(key: string, seconds: number, value: string): Promise<boolean> {
         return this.stringOps.setex(key, seconds, value)
     }

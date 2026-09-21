@@ -48,9 +48,7 @@ export abstract class IntervalScheduler {
      * Subclasses can override to run domain-specific initialization, e.g., running
      * tick immediately to handle startup boundary conditions.
      */
-    protected onStart(): void {
-        // Default: do nothing. Subclasses can override.
-    }
+    protected onStart(): void {}
 
     /**
      * Domain-specific tick logic. Implemented by subclasses.

@@ -4,7 +4,7 @@ import { getSupportUrl } from '../../config/config'
  * Result of building error support context.
  */
 export interface ErrorSupportContextResult {
-    supportLink: string | null // null if SUPPORT_URL is not configured
+    supportLink: string | null
     footerText: string
 }
 
@@ -36,17 +36,13 @@ export function buildErrorSupportContext(
     }
 
     if (!supportUrl) {
-        // Graceful absent state: support URL is optional
         return gracefulAbsent
     }
 
-    // Use the URL API so query params already present on SUPPORT_URL are
-    // preserved rather than clobbered by a naive `?` concatenation.
     let url: URL
     try {
         url = new URL(supportUrl)
     } catch {
-        // Malformed SUPPORT_URL: degrade gracefully rather than emit a bad link.
         return gracefulAbsent
     }
 

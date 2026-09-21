@@ -66,7 +66,6 @@ export class RoleGroupService {
      * Seed style from an existing reaction-role message's sibling roles.
      * Returns modal color, mode buttonStyle (tie -> Primary), and divergence flag.
      */
-    // eslint-disable-next-line complexity
     async seedStyleFromMessage(messageId: string): Promise<
         StyleTemplate & {
             buttonStyle: string
@@ -164,10 +163,7 @@ export class RoleGroupService {
             hoist: modalHoist,
             mentionable: modalMentionable,
             buttonStyle: modeStyle as
-                | 'Primary'
-                | 'Secondary'
-                | 'Success'
-                | 'Danger',
+                'Primary' | 'Secondary' | 'Success' | 'Danger',
             divergence,
         }
     }
@@ -262,7 +258,6 @@ export class RoleGroupService {
      * Add a role to a group with preflight checks, dry-run support, DB-first apply,
      * and role-only compensation on failure.
      */
-    // eslint-disable-next-line complexity
     async addRoleToGroup(
         guildId: string,
         groupId: string,
@@ -340,10 +335,7 @@ export class RoleGroupService {
         const resolvedColorHex = req.colorOverride ?? group.color
         const resolvedColorInt = this.hexToInt(resolvedColorHex)
         const resolvedButtonStyle = (group.buttonStyle ?? 'Primary') as
-            | 'Primary'
-            | 'Secondary'
-            | 'Success'
-            | 'Danger'
+            'Primary' | 'Secondary' | 'Success' | 'Danger'
 
         // Build plan
         const plan: AddRoleToGroupPlan = {

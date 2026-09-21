@@ -163,7 +163,7 @@ function Starboard() {
 
     return (
         <div className='space-y-6'>
-            {/* Entries */}
+            {}
             <section>
                 <h2 className='type-title text-lucky-text-primary uppercase tracking-wide mb-4'>
                     {t('topStarredMessages')}
@@ -205,7 +205,7 @@ function Starboard() {
                 )}
             </section>
 
-            {/* Settings */}
+            {}
             <section>
                 <h2 className='type-title text-lucky-text-primary uppercase tracking-wide mb-4'>
                     {t('settings')}

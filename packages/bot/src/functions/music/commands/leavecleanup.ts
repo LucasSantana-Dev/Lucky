@@ -46,7 +46,7 @@ async function cleanupTracksFromLeftMembers(
                 queue.node.remove(track)
                 removedCount++
             } catch {
-                // Track may already be removed, continue
+                // best-effort; track may already be gone from the queue
             }
         }
     }

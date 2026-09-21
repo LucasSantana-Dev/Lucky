@@ -90,7 +90,6 @@ export function deserializeReactionRolesJSON(
             return
         }
 
-        // Validate channelId
         if (!item.channelId) {
             errors.push(`${itemPrefix}channelId is required`)
             return
@@ -102,7 +101,6 @@ export function deserializeReactionRolesJSON(
             return
         }
 
-        // Validate title
         if (!item.title || typeof item.title !== 'string') {
             errors.push(`${itemPrefix}title is required and must be a string`)
             return
@@ -112,7 +110,6 @@ export function deserializeReactionRolesJSON(
             return
         }
 
-        // Validate description
         if (!item.description || typeof item.description !== 'string') {
             errors.push(
                 `${itemPrefix}description is required and must be a string`,
@@ -129,7 +126,6 @@ export function deserializeReactionRolesJSON(
             return
         }
 
-        // Validate roles
         if (!Array.isArray(item.roles)) {
             errors.push(`${itemPrefix}roles must be an array`)
             return
@@ -141,7 +137,6 @@ export function deserializeReactionRolesJSON(
             return
         }
 
-        // Validate each role
         let rolesValid = true
         for (let i = 0; i < item.roles.length; i++) {
             const role = item.roles[i]
@@ -194,7 +189,6 @@ export function deserializeReactionRolesJSON(
             return
         }
 
-        // Build the payload
         const payload: CreateReactionRolePayload = {
             channelId: String(item.channelId),
             title: item.title,

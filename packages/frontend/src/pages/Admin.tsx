@@ -106,7 +106,7 @@ export default function AdminPage() {
 
     return (
         <main className='bg-lucky-bg-primary min-h-screen'>
-            {/* Header — compact, density-first */}
+            {}
             <header className='border-b border-lucky-border bg-lucky-surface-sidebar px-4 md:px-6 py-4'>
                 <div className='flex items-center justify-between gap-3'>
                     <div className='flex items-center gap-3'>
@@ -135,7 +135,7 @@ export default function AdminPage() {
                 </div>
             </header>
 
-            {/* Content area — enterprise admin density */}
+            {}
             <div className='px-4 md:px-6 py-6 space-y-6'>
                 {loadError && (
                     <FeatureErrorBanner
@@ -144,7 +144,7 @@ export default function AdminPage() {
                     />
                 )}
 
-                {/* Global Toggles Section — grid density control */}
+                {}
                 <section
                     aria-labelledby='global-toggles-heading'
                     className='space-y-4'
@@ -172,7 +172,7 @@ export default function AdminPage() {
                     />
                 </section>
 
-                {/* Bot Guilds Section — enterprise list density */}
+                {}
                 <section
                     aria-labelledby='bot-guilds-heading'
                     className='space-y-4'

@@ -186,7 +186,6 @@ export class SearchEngineManager {
                 attempts: attempt,
             }
 
-            // Wait before retry (exponential backoff)
             if (attempt < maxRetries) {
                 const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
                 await new Promise((resolve) => setTimeout(resolve, delay))

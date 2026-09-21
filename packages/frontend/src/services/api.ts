@@ -124,7 +124,6 @@ apiClient.interceptors.response.use(
                 10,
             )
             const now = Date.now()
-            // 30s cooldown: if we redirected recently (OAuth loop), break it
             if (now - lastRedirect > 30_000) {
                 sessionStorage.setItem('auth_redirect_ts', String(now))
                 globalThis.window.location.assign(

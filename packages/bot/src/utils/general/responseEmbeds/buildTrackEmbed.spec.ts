@@ -92,35 +92,30 @@ describe('buildTrackEmbed', () => {
     })
 
     it('handles missing/unknown fields and edge cases', () => {
-        // Missing title
         const noTitle = buildTrackEmbed(
             { ...baseTrack, title: undefined },
             'playing',
         )
         expect(noTitle.data.title).toBe('Unknown Track')
 
-        // Missing author
         const noAuthor = buildTrackEmbed(
             { ...baseTrack, author: undefined },
             'playing',
         )
         expect(noAuthor.data.description).toContain('Unknown artist')
 
-        // Missing thumbnail
         const noThumb = buildTrackEmbed(
             { ...baseTrack, thumbnail: undefined },
             'playing',
         )
         expect(noThumb.data.thumbnail).toBeUndefined()
 
-        // Missing URL
         const noUrl = buildTrackEmbed(
             { ...baseTrack, url: undefined },
             'playing',
         )
         expect(noUrl.data.url).toBeUndefined()
 
-        // Unknown duration
         const unknownDur = buildTrackEmbed(
             { ...baseTrack, duration: '0:00' },
             'playing',
@@ -128,7 +123,6 @@ describe('buildTrackEmbed', () => {
         const fields = unknownDur.data.fields ?? []
         expect(fields.find((f) => f.name === 'Duration')).toBeUndefined()
 
-        // No requestedBy
         const noFooter = buildTrackEmbed(baseTrack, 'playing')
         expect(noFooter.data.footer).toBeUndefined()
     })

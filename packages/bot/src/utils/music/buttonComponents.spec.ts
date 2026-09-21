@@ -6,7 +6,6 @@ import {
     createLeaderboardPaginationButtons,
 } from './buttonComponents'
 
-// jest.mock is hoisted — cannot reference outer-scope const variables in factory
 jest.mock('discord.js', () => {
     class MockButtonBuilder {
         setCustomId = jest.fn().mockReturnThis()
@@ -55,12 +54,10 @@ function createMockQueue(
     }
 }
 
-// Restore addComponents after each resetMocks cycle
 beforeEach(() => {
     const { ActionRowBuilder } = jest.requireMock('discord.js') as {
         ActionRowBuilder: jest.Mock
     }
-    // Build a fresh rowInner per test since resetMocks clears implementations
     const rowInner = { addComponents: jest.fn().mockReturnThis() }
     ActionRowBuilder.mockReturnValue(rowInner)
 })

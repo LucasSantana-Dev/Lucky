@@ -88,7 +88,6 @@ describe('daysUntilBirthday', () => {
     test('past date rolls to next year', () => {
         const d = new Date(Date.UTC(2026, 3, 20))
         const days = daysUntilBirthday(d, 4, 19)
-        // April has 30 days, so 20 → next April 19 is 364 days
         expect(days).toBeGreaterThan(300)
         expect(days).toBeLessThan(366)
     })
@@ -97,7 +96,11 @@ describe('daysUntilBirthday', () => {
 describe('/birthday', () => {
     test('rejects when used in DMs', async () => {
         await birthdayCommand.execute({
-            interaction: makeInteraction('set', { month: 3, day: 15 }, false) as never,
+            interaction: makeInteraction(
+                'set',
+                { month: 3, day: 15 },
+                false,
+            ) as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
@@ -221,10 +224,11 @@ describe('/birthday', () => {
             } as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
-            content: { embeds: Array<{ description: string; footer: { text: string } }> }
+            content: {
+                embeds: Array<{ description: string; footer: { text: string } }>
+            }
         }
         const description = args.content.embeds[0].description
-        // Should show exactly 5 bullet lines
         expect(description.split('\n').length).toBe(5)
         expect(args.content.embeds[0].footer.text).toContain('5 of 7')
     })

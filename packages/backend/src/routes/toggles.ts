@@ -18,7 +18,8 @@ export function setupToggleRoutes(app: Express): void {
             const sources: Record<string, string> = {}
 
             for (const [name] of toggles) {
-                const state = await featureToggleService.getGlobalToggleStatus(name)
+                const state =
+                    await featureToggleService.getGlobalToggleStatus(name)
                 result[name] = state.enabled
                 sources[name] = state.provider
             }

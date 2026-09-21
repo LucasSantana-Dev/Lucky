@@ -388,7 +388,7 @@ describe('handleMoveMessageSelect — full flow', () => {
     })
 
     it('does not require Attach Files when there are no attachments', async () => {
-        const message = makeMessage() // empty attachments
+        const message = makeMessage()
         const source = makeChannel({
             messages: { fetch: jest.fn().mockResolvedValue(message) },
         })
@@ -401,7 +401,6 @@ describe('handleMoveMessageSelect — full flow', () => {
 
         await handleMoveMessageSelect(interaction as never, client)
 
-        // AttachFiles is missing but unneeded → the move still completes.
         expect(dest.send).toHaveBeenCalledTimes(1)
         expect(message.delete).toHaveBeenCalled()
     })

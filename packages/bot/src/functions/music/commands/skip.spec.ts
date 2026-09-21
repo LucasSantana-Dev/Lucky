@@ -85,7 +85,6 @@ describe('skip command', () => {
         interactionReplyMock.mockResolvedValue(undefined)
         createSuccessEmbedMock.mockReturnValue({ title: 'Song skipped' })
         buildCommandTrackEmbedMock.mockReturnValue({ title: 'Now playing' })
-        // Set default mock for resolveGuildQueue
         const queue = createQueue('guild-1')
         resolveGuildQueueMock.mockReturnValue({ queue })
     })

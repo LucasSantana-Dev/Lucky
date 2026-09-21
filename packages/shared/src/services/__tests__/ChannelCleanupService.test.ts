@@ -1,7 +1,5 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 
-// The service captures prisma at module load, so the factory must hand back
-// the mock at import time (module-level `const prisma = getPrismaClient()`).
 const mockPrisma = {
     channelCleanupConfig: {
         findUnique: jest.fn(),
@@ -201,7 +199,6 @@ describe('ChannelCleanupService', () => {
         it('honors each config own interval and asserts the query filter', async () => {
             const now = Date.now()
             const mockConfigs = [
-                // never run -> due
                 {
                     id: 'config1',
                     mode: 'purge_interval',
@@ -209,7 +206,6 @@ describe('ChannelCleanupService', () => {
                     intervalMinutes: 60,
                     lastRunAt: null,
                 },
-                // 60-min interval, ran 10 min ago -> NOT due (review P1)
                 {
                     id: 'config2',
                     mode: 'purge_interval',
@@ -217,7 +213,6 @@ describe('ChannelCleanupService', () => {
                     intervalMinutes: 60,
                     lastRunAt: new Date(now - 10 * 60 * 1000),
                 },
-                // 60-min interval, ran 61 min ago -> due
                 {
                     id: 'config3',
                     mode: 'purge_interval',
@@ -225,7 +220,6 @@ describe('ChannelCleanupService', () => {
                     intervalMinutes: 60,
                     lastRunAt: new Date(now - 61 * 60 * 1000),
                 },
-                // invalid interval -> never due
                 {
                     id: 'config4',
                     mode: 'purge_interval',

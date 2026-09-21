@@ -1,4 +1,3 @@
-// import { errorLog, warnLog } from "../../general/log"
 import type {
     YouTubeErrorInfo,
     YouTubeErrorContext,
@@ -49,7 +48,6 @@ export class YouTubeErrorAnalyzer {
     private shouldRetryError(error: Error): boolean {
         const errorMessage = error.message.toLowerCase()
 
-        // Retry for specific error types
         return (
             errorMessage.includes('timeout') ||
             errorMessage.includes('network') ||
@@ -61,7 +59,6 @@ export class YouTubeErrorAnalyzer {
     private shouldRetryWithFallback(error: Error): boolean {
         const errorMessage = error.message.toLowerCase()
 
-        // Retry with fallback for specific error types
         return (
             errorMessage.includes('signature') ||
             errorMessage.includes('cipher') ||

@@ -45,7 +45,7 @@ export function createSupportApi(client: AxiosInstance, apiBase: string) {
                     const body = (await res.json()) as { error?: string }
                     if (body.error) message = body.error
                 } catch {
-                    // non-JSON error body — keep the default message
+                    // best-effort; fall back to the default message above
                 }
                 throw new Error(message)
             }

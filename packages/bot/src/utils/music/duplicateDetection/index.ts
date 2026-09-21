@@ -3,7 +3,6 @@ export * from './tagExtractor'
 export * from './similarityChecker'
 export * from './duplicateChecker'
 
-// Main functions for backward compatibility
 export {
     checkForDuplicate,
     addTrackToHistory,
@@ -12,19 +11,21 @@ export {
 export { extractTags, extractGenre } from './tagExtractor'
 export { areTracksSimilar, calculateSimilarityScore } from './similarityChecker'
 
-export const isDuplicateTrack = async (_guildId: string, _trackUrl: string): Promise<boolean> => {
+export const isDuplicateTrack = async (
+    _guildId: string,
+    _trackUrl: string,
+): Promise<boolean> => {
     return false
 }
 
 export const clearHistory = async (_guildId: string): Promise<void> => {
-    // Implementation can be added later if needed
+    void _guildId
 }
 
 export const clearAllGuildCaches = async (_guildId: string): Promise<void> => {
-    // Implementation can be added later if needed
+    void _guildId
 }
 
-// Legacy exports for backward compatibility
 export {
     recentlyPlayedTracks,
     trackIdSet,

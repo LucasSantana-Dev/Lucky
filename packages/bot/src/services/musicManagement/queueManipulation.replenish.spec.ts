@@ -1,7 +1,5 @@
 import { jest } from '@jest/globals'
 
-// Transitively pulled in via replenisher -> skipCircuitBreaker; real module loads
-// prismaClient (import.meta). Factory-mock to keep this suite loadable.
 jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
     getAutoplaySkipRateForGuild: jest.fn(),
 }))
@@ -548,8 +546,6 @@ describe('queueManipulation.replenishQueue', () => {
     })
 
     it('caps autoplay to maxTracksPerArtist when same-artist candidates score highest', async () => {
-        // 3 tracks from 'Artist B' + 1 from 'Artist C'. With MAX_TRACKS_PER_ARTIST=2 (default),
-        // should pick at most 2 from 'Artist B' + 1 from 'Artist C' = 3 total (buffer needs 4)
         const queue = createQueueMock({
             tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
             player: {
@@ -586,7 +582,6 @@ describe('queueManipulation.replenishQueue', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        // Should have at most 2 tracks from Artist B + 1 from Artist C = 3 total
         const calls = queue.addTrack.mock.calls
         const artistBCount = calls.filter(
             (c) => (c[0] as Track).author === 'Artist B',
@@ -596,7 +591,6 @@ describe('queueManipulation.replenishQueue', () => {
     })
 
     it('caps autoplay tracks by source when all candidates are from same source', async () => {
-        // 5 candidates all from 'youtube'. With MAX_TRACKS_PER_SOURCE=3 (default), at most 3 selected.
         const queue = createQueueMock({
             tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
             currentTrack: {
@@ -862,10 +856,8 @@ describe('queueManipulation.replenishQueue', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        // Verify actual tracks were added (observable outcome)
         expect(queue.addTrack.mock.calls.length).toBeGreaterThan(0)
         expect(queue.addTrack.mock.calls.length).toBeLessThanOrEqual(3)
-        // Verify they have expected properties (queue state)
         queue.addTrack.mock.calls.forEach((call) => {
             expect(call[0]).toHaveProperty('url')
             expect(call[0]).toHaveProperty('source', 'youtube')
@@ -902,7 +894,6 @@ describe('queueManipulation.replenishQueue', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        // Assert observable outcome: tracks actually added to queue
         expect(addedTracks.length).toBeGreaterThan(0)
         expect(addedTracks[0]).toHaveProperty(
             'url',
@@ -971,9 +962,7 @@ describe('queueManipulation.replenishQueue', () => {
     it('uses broad artist fallback when seed search returns no candidates', async () => {
         const searchMock = jest
             .fn()
-            // Seed search (Spotify only) — returns empty
             .mockResolvedValueOnce({ tracks: [] })
-            // Broad fallback by author — returns a candidate
             .mockResolvedValueOnce({
                 tracks: [
                     {
@@ -998,7 +987,6 @@ describe('queueManipulation.replenishQueue', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        // Broad fallback call was made with author as query
         expect(searchMock).toHaveBeenCalledWith(
             'Artist A',
             expect.objectContaining({
@@ -1020,11 +1008,8 @@ describe('queueManipulation.replenishQueue', () => {
     it('swallows broad fallback search errors and tries the next query', async () => {
         const searchMock = jest
             .fn()
-            // Seed search (Spotify only) — returns empty
             .mockResolvedValueOnce({ tracks: [] })
-            // Broad fallback: first query ("Artist A") throws
             .mockRejectedValueOnce(new Error('Network blip'))
-            // Second query ("Artist A popular") succeeds
             .mockResolvedValueOnce({
                 tracks: [
                     {
@@ -1068,7 +1053,6 @@ describe('queueManipulation.replenishQueue', () => {
 
         const searchMock = jest
             .fn()
-            // Seed search (3 engines) — return a simple track so broad fallback is not triggered
             .mockResolvedValueOnce({
                 tracks: [
                     {
@@ -1078,7 +1062,6 @@ describe('queueManipulation.replenishQueue', () => {
                     },
                 ],
             })
-            // Last.fm seed: Spotify rejects, YouTube returns tracks
             .mockRejectedValueOnce(new Error('Spotify down'))
             .mockResolvedValueOnce({
                 tracks: [
@@ -1132,7 +1115,6 @@ describe('queueManipulation.replenishQueue', () => {
 
         const searchMock = jest
             .fn()
-            // Seed search returns one candidate so broad fallback does not run
             .mockResolvedValueOnce({
                 tracks: [
                     {
@@ -1142,7 +1124,6 @@ describe('queueManipulation.replenishQueue', () => {
                     },
                 ],
             })
-            // Last.fm seed: both engines reject → returns []
             .mockRejectedValueOnce(new Error('Spotify down'))
             .mockRejectedValueOnce(new Error('AUTO down'))
 
@@ -1159,7 +1140,6 @@ describe('queueManipulation.replenishQueue', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        // Only the seed candidate should be added — last.fm produced nothing
         const addedUrls = queue.addTrack.mock.calls.map(
             (c) => (c[0] as Track).url,
         )
