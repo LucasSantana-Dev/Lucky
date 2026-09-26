@@ -149,6 +149,10 @@ jest.mock('@lucky/shared/services', () => ({
         connect: (...args: unknown[]) => redisClientConnectMock(...args),
         disconnect: (...args: unknown[]) => redisClientDisconnectMock(...args),
     },
+    // dataRetentionScheduler constructs one of these at module load.
+    DatabaseService: jest.fn().mockImplementation(() => ({
+        cleanupOldData: jest.fn(),
+    })),
 }))
 
 jest.mock('../../utils/monitoring/metricsServer', () => ({

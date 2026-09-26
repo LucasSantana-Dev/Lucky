@@ -55,6 +55,13 @@ jest.mock('../../utils/general/supportSessionScheduler', () => ({
     supportSessionScheduler: { start: jest.fn(), stop: jest.fn() },
 }))
 
+// dataRetentionScheduler constructs a DatabaseService at module load, which
+// transitively reaches the Prisma client import.meta the bot jest transform
+// can't parse, so mock it like the sibling schedulers above.
+jest.mock('../../utils/general/dataRetentionScheduler', () => ({
+    dataRetentionScheduler: { start: jest.fn(), stop: jest.fn() },
+}))
+
 jest.mock('../../services/musicManagement/sessionStartupRestore', () => ({
     restoreSessionsOnStartup: jest.fn().mockResolvedValue(undefined),
 }))
