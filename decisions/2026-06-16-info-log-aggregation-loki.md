@@ -50,7 +50,8 @@ splits it into three concerns with two already solved:
 
 - **Metrics / statistics — already solved.** `prom-client` is wired in both
   `packages/backend` (`utils/prometheus.ts`, `/metrics` route) and `packages/bot`
-  (`utils/monitoring/metricsServer.ts`) — 200+ counters/gauges — scraped by the
+  (`utils/monitoring/metricsServer.ts`) — 6 bot + 4 backend custom metrics
+  (corrected 2026-09-26, see note below; was overstated as "200+") — scraped by the
   homelab Grafana/Prometheus. "Usage statistics" (play counts, command rates)
   belong here as counters, **not** as logs.
 - **Errors / warnings — already solved.** Sentry (`@sentry/node`, breadcrumbs).
@@ -173,3 +174,13 @@ This is a fallback of last resort, not the planned path.
 - Loki ops burden proves too high for one operator over ~3 months → re-open the
   on-box-vs-SaaS question (only then does the emergency SaaS fallback become a real
   candidate).
+
+## Correction (2026-09-26)
+
+The "200+ counters/gauges" figure in Context was never counted, only estimated.
+Actual count: 6 custom metrics in `packages/bot/src/utils/monitoring/prometheus.ts`
+(3 gauges: guilds, gatewayConnected, musicExtractorDegraded; 3 counters:
+guildAutomationUsageTotal, guildJoinsTotal, guildLeavesTotal) and 4 in
+`packages/backend/src/utils/prometheus.ts` (3 counters: httpRequestsTotal,
+httpServerErrorsTotal, guildAutomationUsageTotal; 1 histogram:
+httpRequestDurationSeconds) — 10 total, not 200+. Filed and fixed alongside #2386.
