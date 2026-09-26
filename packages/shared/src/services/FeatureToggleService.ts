@@ -54,6 +54,40 @@ class FeatureToggleService {
         }
     }
 
+    private async getDbGuildOverride(
+        guildId: string,
+        name: string,
+    ): Promise<boolean | null> {
+        try {
+            const row = await this.db.guildFeatureToggle.findUnique({
+                where: { guildId_name: { guildId, name } },
+                select: { enabled: true },
+            })
+            return row?.enabled ?? null
+        } catch (error) {
+            warnLog({
+                message:
+                    'Failed to read guild feature toggle override; falling back to global value',
+                error,
+                data: { guildId, name },
+            })
+            return null
+        }
+    }
+
+    /** Sets a guild-scoped feature toggle override in the database. */
+    async setGuildFeatureToggle(
+        guildId: string,
+        name: FeatureToggleName,
+        enabled: boolean,
+    ): Promise<void> {
+        await this.db.guildFeatureToggle.upsert({
+            where: { guildId_name: { guildId, name } },
+            update: { enabled },
+            create: { guildId, name, enabled },
+        })
+    }
+
     /** Sets a global feature toggle override in the database. */
     async setGlobalFeatureToggle(
         name: FeatureToggleName,
@@ -99,12 +133,21 @@ class FeatureToggleService {
         return status.enabled
     }
 
-    /** Checks if a feature is enabled (optionally scoped to user/guild). */
+    /**
+     * Checks if a feature is enabled, optionally scoped to a guild. A guild
+     * override wins over the global value, except that an explicit global
+     * `false` in the database acts as a kill switch for every guild.
+     */
     async isEnabled(
         name: FeatureToggleName,
-        _context?: { userId?: string; guildId?: string },
+        context?: { userId?: string; guildId?: string },
     ): Promise<boolean> {
-        return this.isEnabledGlobal(name)
+        const guildOverride = context?.guildId
+            ? await this.getDbGuildOverride(context.guildId, name)
+            : null
+        if (guildOverride === null) return this.isEnabledGlobal(name)
+        if (!guildOverride) return false
+        return (await this.getDbGlobalOverride(name)) !== false
     }
 
     /** Returns a copy of all loaded fallback toggles. */

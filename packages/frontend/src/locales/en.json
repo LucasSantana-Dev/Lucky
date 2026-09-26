@@ -877,7 +877,10 @@
         "exportSuccess": "Logs exported!",
         "loadError": "Failed to load logs. Please try again.",
         "userLabel": "User:",
-        "channelLabel": "Channel:"
+        "channelLabel": "Channel:",
+        "loggingToggle": "Record server activity",
+        "loggingToggleDescription": "Off by default. When on, Lucky stores member joins and leaves plus deleted and edited messages (up to 500 characters) for this server.",
+        "loggingToggleError": "Could not update logging. You need permission to manage server settings."
     },
     "serverSettings": {
         "title": "Server Settings",

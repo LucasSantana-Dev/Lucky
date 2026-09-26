@@ -105,6 +105,61 @@ const renderPage = () =>
 describe('ServerLogsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.mocked(api.serverLogs.getSettings).mockResolvedValue({
+            data: { enabled: false },
+        } as any)
+    })
+
+    test('shows logging switch off by default and opts the guild in', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+            data: { logs: [], total: 0 },
+        } as any)
+        vi.mocked(api.serverLogs.updateSettings).mockResolvedValue({
+            data: { enabled: true },
+        } as any)
+
+        renderPage()
+
+        const toggle = await screen.findByRole('switch', {
+            name: 'loggingToggle',
+        })
+        await waitFor(() => expect(toggle).not.toBeDisabled())
+        expect(toggle).toHaveAttribute('aria-checked', 'false')
+
+        await userEvent.click(toggle)
+
+        await waitFor(() =>
+            expect(toggle).toHaveAttribute('aria-checked', 'true'),
+        )
+        expect(api.serverLogs.updateSettings).toHaveBeenCalledWith(
+            mockGuild.id,
+            true,
+        )
+    })
+
+    test('keeps the switch off and warns when the update is rejected', async () => {
+        const { toast } = await import('sonner')
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+            data: { logs: [], total: 0 },
+        } as any)
+        vi.mocked(api.serverLogs.updateSettings).mockRejectedValue(
+            new Error('403'),
+        )
+
+        renderPage()
+
+        const toggle = await screen.findByRole('switch', {
+            name: 'loggingToggle',
+        })
+        await waitFor(() => expect(toggle).not.toBeDisabled())
+        await userEvent.click(toggle)
+
+        await waitFor(() =>
+            expect(toast.error).toHaveBeenCalledWith('loggingToggleError'),
+        )
+        expect(toggle).toHaveAttribute('aria-checked', 'false')
     })
 
     test('shows no server selected when no guild', () => {

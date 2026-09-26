@@ -14,6 +14,7 @@ import {
     AutoModTemplateNotFoundError,
     autoModService,
     customCommandService,
+    featureToggleService,
     serverLogService,
     serializeServerLog,
     type LogType,
@@ -269,6 +270,43 @@ export function setupManagementRoutes(app: Express): void {
                 serverLogService.countRecentLogs(guildId),
             ])
             res.json({ logs: logs.map(serializeServerLog), total })
+        }),
+    )
+
+    app.get(
+        '/api/guilds/:guildId/logs/settings',
+        requireAuth,
+        requireGuildModuleAccess('overview', 'view'),
+        validateParams(s.guildIdParam),
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const enabled = await featureToggleService.isEnabled(
+                'SERVER_LOGS',
+                { guildId: p(req.params.guildId) },
+            )
+            res.json({ enabled })
+        }),
+    )
+
+    app.put(
+        '/api/guilds/:guildId/logs/settings',
+        requireAuth,
+        requireGuildModuleAccess('settings', 'manage'),
+        writeLimiter,
+        validateParams(s.guildIdParam),
+        validateBody(s.logsSettingsBody),
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const guildId = p(req.params.guildId)
+            const { enabled } = s.logsSettingsBody.parse(req.body)
+            await featureToggleService.setGuildFeatureToggle(
+                guildId,
+                'SERVER_LOGS',
+                enabled,
+            )
+            res.json({
+                enabled: await featureToggleService.isEnabled('SERVER_LOGS', {
+                    guildId,
+                }),
+            })
         }),
     )
 
