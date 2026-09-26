@@ -1,0 +1,22 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: email-primary
+    receivers:
+      - uid: email-primary-receiver
+        type: email
+        settings:
+          addresses: ${ALERT_EMAIL_TO}
+          singleEmail: true
+        disableResolveMessage: false
+
+  - orgId: 1
+    name: watchdog-offbox
+    receivers:
+      - uid: watchdog-offbox-receiver
+        type: webhook
+        settings:
+          url: ${WATCHDOG_PING_URL}
+          httpMethod: GET
+        disableResolveMessage: true

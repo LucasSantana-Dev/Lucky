@@ -116,7 +116,11 @@ services:
             <<: *common-app-env
             SENTRY_SERVICE_NAME: ${SENTRY_SERVICE_NAME:-bot}
             BOT_NAME: ${BOT_NAME:-Lucky}
+            # On-box + off-box dead-man ping targets (ADR 2026-09-26 / #2390).
+            # Same var names on bot and backend: one heartbeat implementation
+            # (packages/shared/src/utils/monitoring/heartbeat.ts) reads both.
             HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL:-}
+            HEARTBEAT_PING_URL_EXTERNAL: ${HEARTBEAT_PING_URL_EXTERNAL:-}
             HEARTBEAT_INTERVAL_MS: ${HEARTBEAT_INTERVAL_MS:-}
             LASTFM_SESSION_KEY: ${LASTFM_SESSION_KEY:-}
             PLAYER_CONNECTION_TIMEOUT: ${PLAYER_CONNECTION_TIMEOUT:-15000}
@@ -185,6 +189,11 @@ services:
         environment:
             <<: *common-app-env
             SENTRY_SERVICE_NAME: ${SENTRY_SERVICE_NAME:-backend}
+            # Same heartbeat contract as bot (ADR 2026-09-26 / #2390): the
+            # backend has no "ready" gate, so it pings unconditionally.
+            HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL:-}
+            HEARTBEAT_PING_URL_EXTERNAL: ${HEARTBEAT_PING_URL_EXTERNAL:-}
+            HEARTBEAT_INTERVAL_MS: ${HEARTBEAT_INTERVAL_MS:-}
             LUCKY_NOTIFY_API_KEY: ${LUCKY_NOTIFY_API_KEY:-}
             CLIENT_SECRET: ${CLIENT_SECRET}
             WEBAPP_PORT: 3000
@@ -309,9 +318,107 @@ services:
                 max-file: "3"
                 tag: "{{.Name}}"
 
+    # Lucky-owned observability stack (ADR 2026-09-26, phase P2a).
+    # `docker compose --profile observability up -d`. No service in this
+    # group binds a host port; reach Grafana per observability/README.md.
+    prometheus:
+        mem_limit: 512m
+        cpus: 0.5
+        restart: unless-stopped
+        image: prom/prometheus:v3.9.0
+        container_name: lucky-prometheus
+        command:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=30d"
+            - "--storage.tsdb.retention.size=5GB"
+        volumes:
+            - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+            - ./observability/prometheus/rules:/etc/prometheus/rules:ro
+            - prometheus_data:/prometheus
+        networks:
+            - lucky-network
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    grafana:
+        mem_limit: 256m
+        cpus: 0.5
+        restart: unless-stopped
+        image: grafana/grafana:12.4.0
+        container_name: lucky-grafana
+        depends_on:
+            - prometheus
+        environment:
+            # NOTE: not `:?` (required). Compose interpolates every service's
+            # env references at parse time regardless of active profile, so a
+            # required var here would break plain `docker compose up` even
+            # when the observability profile is never requested. Empty
+            # defaults push the failure to Grafana's own startup instead,
+            # which only happens when this profile is actually used.
+            GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-}
+            GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+            # Consumed by observability/grafana/provisioning/alerting/*.yaml
+            # via Grafana's ${VAR} provisioning-file env expansion.
+            ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+            WATCHDOG_PING_URL: ${WATCHDOG_PING_URL:-}
+            GF_SMTP_ENABLED: "true"
+            GF_SMTP_HOST: ${SMTP_HOST:-}:${SMTP_PORT:-587}
+            GF_SMTP_USER: ${SMTP_USER:-}
+            GF_SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+            GF_SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-}
+        volumes:
+            - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+            - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards/files:ro
+            - grafana_data:/var/lib/grafana
+        networks:
+            - lucky-network
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    node-exporter:
+        mem_limit: 64m
+        cpus: 0.25
+        restart: unless-stopped
+        image: prom/node-exporter:v1.10.0
+        container_name: lucky-node-exporter
+        command:
+            - "--path.procfs=/host/proc"
+            - "--path.sysfs=/host/sys"
+            - "--path.rootfs=/host/root"
+            - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+        volumes:
+            - /proc:/host/proc:ro
+            - /sys:/host/sys:ro
+            - /:/host/root:ro
+        networks:
+            - lucky-network
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
 volumes:
     postgres_data:
     redis_data:
+    prometheus_data:
+    grafana_data:
 
 networks:
     lucky-network:

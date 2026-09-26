@@ -38,6 +38,8 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
+    startHeartbeat: (...args: unknown[]) => heartbeatServiceStartMock(...args),
+    stopHeartbeat: (...args: unknown[]) => heartbeatServiceStopMock(...args),
 }))
 
 jest.mock('../../handlers/clientHandler/service', () => ({
@@ -123,13 +125,6 @@ jest.mock('../../services/WeeklyDigestService', () => ({
     weeklyDigestService: {
         start: (...args: unknown[]) => weeklyDigestStartMock(...args),
         stop: (...args: unknown[]) => weeklyDigestStopMock(...args),
-    },
-}))
-
-jest.mock('../../services/HeartbeatService', () => ({
-    heartbeatService: {
-        start: (...args: unknown[]) => heartbeatServiceStartMock(...args),
-        stop: (...args: unknown[]) => heartbeatServiceStopMock(...args),
     },
 }))
 

@@ -1,15 +1,15 @@
 # Lucky — Prometheus alerting rules (Layer 3 of the observability remediation).
 #
-# Portable PromQL alert DEFINITIONS. They are NOT auto-loaded: the homelab owns the
-# Prometheus/Grafana config (Lucky's /metrics are scraped over the `lucky-monitoring`
-# Docker network). Wire these per monitoring/README.md.
+# Moved from monitoring/prometheus/ (ADR 2026-09-26, phase P2a). Auto-loaded by
+# the `observability/prometheus/prometheus.yml` rule_files glob when the
+# `observability` Compose profile is up. The `job` labels below (`lucky-backend`,
+# `lucky-bot`) match the scrape_configs job_names in prometheus.yml.
 #
 # Metrics referenced (already exported today):
 #   - lucky_backend_http_server_errors_total  (backend, counter, 5xx only)
 #   - lucky_backend_http_requests_total        (backend, counter)
 #   - up{job=...}                              (Prometheus scrape liveness)
 #
-# NOTE: adjust the `job` label values to match your Prometheus scrape_configs.
 # These are STARTER symptom alerts. Per ADR 2026-05-30, the availability SLO and a
 # proper multi-window burn-rate are defined AFTER ~14 days of observed data.
 #
@@ -18,6 +18,13 @@
 # longer divides by the lazily-grown V8 heap_total, and the memory alerts no
 # longer count page cache as used memory. See
 # decisions/2026-07-02-resource-hygiene-alert-calibration-first.md.
+#
+# FRICTION (P2a gate): the `container_memory_working_set_bytes` /
+# `container_spec_memory_limit_bytes` series in this group come from cAdvisor,
+# which is NOT part of the P2a scrape config (only node_exporter is). These four
+# rules stay defined (portable, ready for when cAdvisor is added) but are dormant:
+# no series, no alert, until a cAdvisor target exists. `HostMemoryHigh` is the
+# exception: it reads node_exporter's `node_memory_*` series and is live today.
 
 groups:
   - name: lucky-backend-errors

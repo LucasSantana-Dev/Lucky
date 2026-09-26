@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  # Lucky bot exposes /metrics on its own HTTP server (metricsServer.ts),
+  # port from METRICS_PORT (default 9091). Scraped by Docker service name on
+  # the shared `lucky-network`, no host port needed.
+  - job_name: lucky-bot
+    static_configs:
+      - targets: ["bot:9091"]
+
+  # Lucky backend mounts /metrics on the same Express app as the API
+  # (WEBAPP_PORT, default 3000).
+  - job_name: lucky-backend
+    static_configs:
+      - targets: ["backend:3000"]
+
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  # Prometheus scraping itself, for the Watchdog rule and basic self-health.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

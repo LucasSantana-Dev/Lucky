@@ -1,0 +1,60 @@
+# Disk-free alerts (ADR 2026-09-26, phase P2a) and the Watchdog dead-man rule.
+#
+# Disk thresholds are based on node_exporter filesystem metrics, excluding
+# tmpfs/overlay mounts (in-memory or container-layer filesystems whose
+# "free space" says nothing about real host disk pressure).
+
+groups:
+  - name: lucky-disk
+    rules:
+      - alert: LuckyDiskSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
+              / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}
+          ) < 0.20
+        for: 15m
+        labels:
+          severity: warning
+          service: homelab-host
+        annotations:
+          summary: "Disk {{ $labels.mountpoint }} on {{ $labels.instance }} below 20% free"
+          description: >-
+            Filesystem {{ $labels.mountpoint }} has less than 20% free space
+            for 15 minutes. Prometheus/Loki are size-capped so telemetry
+            cannot be the cause; check Postgres growth and application logs.
+
+      - alert: LuckyDiskSpaceCritical
+        expr: |
+          (
+            node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
+              / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}
+          ) < 0.10
+        for: 5m
+        labels:
+          severity: critical
+          service: homelab-host
+        annotations:
+          summary: "Disk {{ $labels.mountpoint }} on {{ $labels.instance }} below 10% free"
+          description: >-
+            Filesystem {{ $labels.mountpoint }} has less than 10% free space
+            for 5 minutes. The host is close to running out of disk.
+
+  - name: lucky-watchdog
+    rules:
+      # Always-firing rule. Grafana's notification policy routes this alert
+      # (by label match, see observability/grafana/provisioning/alerting) to
+      # the watchdog-offbox contact point so an external dead-man's-switch
+      # keeps ringing as long as Prometheus + Grafana are alive and
+      # evaluating rules. Silence of this alert IS the alarm.
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+        annotations:
+          summary: "Alerting pipeline heartbeat, always firing by design"
+          description: >-
+            This is a dead-man's-switch alert. It is always firing so the
+            alerting pipeline's own liveness can be monitored. It routes to
+            an off-box healthcheck; losing this ping means Prometheus or
+            Grafana died, not that something is wrong in the app.
