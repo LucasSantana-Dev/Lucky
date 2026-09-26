@@ -28,6 +28,7 @@ import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
 import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { channelPurgeScheduler } from '../../utils/general/channelPurgeScheduler'
+import { dataRetentionScheduler } from '../../utils/general/dataRetentionScheduler'
 import { aiDevToolkitService } from '../../services/AiDevToolkitService'
 import { dependencyCheckService } from '../../services/DependencyCheckService'
 import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
@@ -258,6 +259,15 @@ export class BotInitializer {
         } catch (error) {
             errorLog({
                 message: 'Error stopping channel purge scheduler:',
+                error,
+            })
+        }
+
+        try {
+            dataRetentionScheduler.stop()
+        } catch (error) {
+            errorLog({
+                message: 'Error stopping data retention scheduler:',
                 error,
             })
         }

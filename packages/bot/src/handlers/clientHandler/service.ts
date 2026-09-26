@@ -13,6 +13,7 @@ import { supportSessionScheduler } from '../../utils/general/supportSessionSched
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
 import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
 import { channelPurgeScheduler } from '../../utils/general/channelPurgeScheduler'
+import { dataRetentionScheduler } from '../../utils/general/dataRetentionScheduler'
 import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
 import { restoreSessionsOnStartup } from '../../services/musicManagement/sessionStartupRestore'
 
@@ -200,6 +201,15 @@ export async function startClient({
             } catch (error) {
                 errorLog({
                     message: 'Failed to start channel purge scheduler',
+                    error,
+                })
+            }
+
+            try {
+                dataRetentionScheduler.start(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to start data retention scheduler',
                     error,
                 })
             }

@@ -622,23 +622,26 @@ export class DatabaseService {
         }, 'get_top_artists')
     }
 
-    /** Deletes track history and expired rate limit records older than 30 days. */
+    /** Deletes track history, expired rate limit records, and server logs older than 30 days. */
     async cleanupOldData(): Promise<Result<number>> {
         return this.executeWithFallback(async () => {
             const thirtyDaysAgo = new Date(
                 Date.now() - 30 * 24 * 60 * 60 * 1000,
             )
 
-            const [tracks, rateLimits] = await Promise.all([
+            const [tracks, rateLimits, serverLogs] = await Promise.all([
                 this.prisma.trackHistory.deleteMany({
                     where: { playedAt: { lt: thirtyDaysAgo } },
                 }),
                 this.prisma.rateLimit.deleteMany({
                     where: { resetAt: { lt: new Date() } },
                 }),
+                this.prisma.serverLog.deleteMany({
+                    where: { createdAt: { lt: thirtyDaysAgo } },
+                }),
             ])
 
-            return tracks.count + rateLimits.count
+            return tracks.count + rateLimits.count + serverLogs.count
         }, 'cleanup_old_data')
     }
 
