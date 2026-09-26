@@ -214,12 +214,12 @@ export function initializeSentry(options: InitializeSentryOptions = {}): void {
     const tracesSampleRate = resolveSampleRate(
         options.tracesSampleRate,
         process.env.SENTRY_TRACES_SAMPLE_RATE,
-        1.0,
+        0.1,
     )
     const profilesSampleRate = resolveSampleRate(
         options.profilesSampleRate,
         process.env.SENTRY_PROFILES_SAMPLE_RATE,
-        1.0,
+        0.1,
     )
     const { appName, serviceName, release, serverName } =
         getSentryMetadata(options)
