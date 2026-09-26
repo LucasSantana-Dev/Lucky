@@ -20,6 +20,11 @@ jobs:
         name: Build — shared
         runs-on: ubuntu-latest
         timeout-minutes: 15
+        needs: changes
+        # Docs-only PRs (docs/**, decisions/**, .claude/**, *.md other than
+        # CHANGELOG.md) skip the whole build+test chain below: a skipped
+        # required check counts as passing. push/merge_group always build.
+        if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
             - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -45,7 +50,8 @@ jobs:
         name: Checks
         runs-on: ubuntu-latest
         timeout-minutes: 15
-        needs: build-shared
+        needs: [changes, build-shared]
+        if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
             - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -128,7 +134,8 @@ jobs:
         name: Test — shared
         runs-on: ubuntu-latest
         timeout-minutes: 15
-        needs: build-shared
+        needs: [changes, build-shared]
+        if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
             - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -151,7 +158,8 @@ jobs:
         name: Test — backend
         runs-on: ubuntu-latest
         timeout-minutes: 15
-        needs: build-shared
+        needs: [changes, build-shared]
+        if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
             - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -177,7 +185,8 @@ jobs:
         name: Test — bot
         runs-on: ubuntu-latest
         timeout-minutes: 15
-        needs: build-shared
+        needs: [changes, build-shared]
+        if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
             - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -259,7 +268,8 @@ jobs:
         name: Test — frontend
         runs-on: ubuntu-latest
         timeout-minutes: 15
-        needs: build-shared
+        needs: [changes, build-shared]
+        if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
             - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -294,7 +304,9 @@ jobs:
         name: madge / packages/bot
         runs-on: ubuntu-latest
         timeout-minutes: 20
-        needs: build-shared
+        needs: [changes, build-shared]
+        # Required status check by name, so a skip here counts as passing.
+        if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
               with:
@@ -346,53 +358,122 @@ jobs:
                   fi
               id: madge
 
-    detect-docker-changes:
-        name: Detect Docker-relevant changes
+    # Single early "what changed" job. Replaces the old detect-docker-changes
+    # job (all-or-nothing Docker relevance) with two things:
+    #   - `code`: is this a docs-only PR? (docs/**, decisions/**, .claude/**,
+    #     and *.md files other than CHANGELOG.md don't count). Gates
+    #     build-shared/checks/test-*/madge/sonar on pull_request only. Push
+    #     and merge_group always run the full suite, same as before.
+    #   - `services`: which of bot/backend/frontend/nginx actually need a
+    #     Docker rebuild, derived from the Dockerfile COPY graph. Filtered on
+    #     pull_request AND merge_group (matching detect-docker-changes' prior
+    #     scope); push never reaches docker-build in this workflow at all
+    #     (that's docker-publish.yml's job), so it gets the full list.
+    changes:
+        name: Detect changed files
         runs-on: ubuntu-latest
         timeout-minutes: 10
-        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         outputs:
-            relevant: ${{ steps.filter.outputs.relevant }}
+            code: ${{ steps.filter.outputs.code }}
+            bot: ${{ steps.filter.outputs.bot }}
+            backend: ${{ steps.filter.outputs.backend }}
+            frontend: ${{ steps.filter.outputs.frontend }}
+            nginx: ${{ steps.filter.outputs.nginx }}
+            services: ${{ steps.filter.outputs.services }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
               with:
                   fetch-depth: 0
-            - name: Check for Docker-relevant changes
+            - name: Detect changed files
               id: filter
               run: |
-                  BASE_SHA="${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}"
-                  if [ "${{ github.event_name }}" = "pull_request" ]; then
+                  EVENT="${{ github.event_name }}"
+                  if [ "$EVENT" = "pull_request" ]; then
                       # pull_request.base.sha is a snapshot from when the PR was
                       # opened/synced, not the live base branch tip — diffing
                       # against it directly can pick up unrelated commits merged
                       # to base after that point. Use the actual merge-base.
-                      BASE_SHA=$(git merge-base "$BASE_SHA" HEAD)
+                      BASE_SHA=$(git merge-base "${{ github.event.pull_request.base.sha }}" HEAD)
+                      CHANGED=$(git diff --name-only "$BASE_SHA" HEAD)
+                  elif [ "$EVENT" = "merge_group" ]; then
+                      CHANGED=$(git diff --name-only "${{ github.event.merge_group.base_sha }}" HEAD)
+                  else
+                      CHANGED=""
                   fi
-                  CHANGED=$(git diff --name-only "$BASE_SHA" HEAD)
                   echo "Changed files:"
                   echo "$CHANGED"
-                  # Mirrors docker-publish.yml's paths: filter, plus this
-                  # workflow file and the composite action it calls (so edits
-                  # to the docker-build job/action definitions are still
-                  # validated instead of silently reporting a false green).
-                  # CHANGELOG.md is in the list because Dockerfile:152 copies it
-                  # into the frontend image for the /changelog page, so a
-                  # changelog-only PR does change an image and must be built.
+
+                  # `code`: only filtered on pull_request. push/merge_group keep
+                  # running the full suite as today.
+                  if [ "$EVENT" = "pull_request" ]; then
+                      CODE_CHANGED=$(echo "$CHANGED" | grep -vE '^(docs/|decisions/|\.claude/)' | awk '!/\.md$/ || $0 == "CHANGELOG.md"')
+                      if [ -n "$CODE_CHANGED" ]; then code=true; else code=false; fi
+                  else
+                      code=true
+                  fi
+
+                  # Per-service Docker relevance, derived by hand from the
+                  # Dockerfile COPY lines (build-shared/build-bot/build-backend/
+                  # build-frontend/production-* stages):
+                  #   - packages/shared/**, prisma/**, root package*.json, and
+                  #     the Dockerfile itself feed every node image: bot,
+                  #     backend and frontend all COPY from build-shared /
+                  #     installed-deps / deps-production-base.
+                  #   - nginx/** + Dockerfile.nginx affect only the nginx image.
+                  #   - CHANGELOG.md is baked into the frontend image only
+                  #     (Dockerfile:152, the /changelog page's raw import).
+                  #   - Changes to this workflow file or the
+                  #     docker-build-service composite action can change how
+                  #     ANY image is built, so they force a rebuild of all four.
                   # THIRD copy of this list: keep in sync with
                   # docker-publish.yml's push.paths and deploy.yml's
-                  # docker_path_pattern.
-                  if echo "$CHANGED" | grep -qE '^(packages/|prisma/|Dockerfile$|Dockerfile\.|nginx/|package.*\.json$|CHANGELOG\.md$|\.github/workflows/ci\.yml$|\.github/actions/docker-build-service/)'; then
-                      echo "relevant=true" >> "$GITHUB_OUTPUT"
+                  # docker_path_pattern (those still build all four
+                  # unconditionally on push to main; only this per-PR/
+                  # merge_group matrix is now selective).
+                  if [ "$EVENT" = "pull_request" ] || [ "$EVENT" = "merge_group" ]; then
+                      bot=false; backend=false; frontend=false; nginx=false
+                      if echo "$CHANGED" | grep -qE '^(\.github/workflows/ci\.yml$|\.github/actions/docker-build-service/)'; then
+                          bot=true; backend=true; frontend=true; nginx=true
+                      else
+                          if echo "$CHANGED" | grep -qE '^(packages/shared/|prisma/|package.*\.json$|Dockerfile$)'; then
+                              bot=true; backend=true; frontend=true
+                          fi
+                          echo "$CHANGED" | grep -qE '^packages/bot/' && bot=true
+                          echo "$CHANGED" | grep -qE '^packages/backend/' && backend=true
+                          echo "$CHANGED" | grep -qE '^(packages/frontend/|CHANGELOG\.md$)' && frontend=true
+                          echo "$CHANGED" | grep -qE '^(nginx/|Dockerfile\.nginx$)' && nginx=true
+                      fi
                   else
-                      echo "relevant=false" >> "$GITHUB_OUTPUT"
+                      bot=true; backend=true; frontend=true; nginx=true
                   fi
+
+                  {
+                      echo "code=$code"
+                      echo "bot=$bot"
+                      echo "backend=$backend"
+                      echo "frontend=$frontend"
+                      echo "nginx=$nginx"
+                  } >> "$GITHUB_OUTPUT"
+
+                  FULL_MATRIX='[{"service":"bot","file":"Dockerfile","target":"production-bot"},{"service":"backend","file":"Dockerfile","target":"production-backend"},{"service":"frontend","file":"Dockerfile","target":"production-frontend"},{"service":"nginx","file":"Dockerfile.nginx","target":""}]'
+                  SERVICES=$(echo "$FULL_MATRIX" | jq -c \
+                      --argjson bot "$bot" --argjson backend "$backend" \
+                      --argjson frontend "$frontend" --argjson nginx "$nginx" '
+                      [ .[] | select(
+                          (.service == "bot" and $bot) or
+                          (.service == "backend" and $backend) or
+                          (.service == "frontend" and $frontend) or
+                          (.service == "nginx" and $nginx)
+                      ) ]')
+                  echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
+                  echo "Resolved: code=$code bot=$bot backend=$backend frontend=$frontend nginx=$nginx services=$SERVICES"
 
     docker-build:
         name: Build — ${{ matrix.service }}
         runs-on: ubuntu-latest
         timeout-minutes: 60
-        needs: detect-docker-changes
-        if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.detect-docker-changes.outputs.relevant == 'true'
+        needs: changes
+        if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.changes.outputs.services != '[]'
         concurrency:
             # Must include matrix.service: a shared group makes the matrix legs
             # cancel each other instead of cancelling superseded runs.
@@ -401,11 +482,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                include:
-                    - {service: bot, file: Dockerfile, target: production-bot}
-                    - {service: backend, file: Dockerfile, target: production-backend}
-                    - {service: frontend, file: Dockerfile, target: production-frontend}
-                    - {service: nginx, file: Dockerfile.nginx, target: ''}
+                include: ${{ fromJSON(needs.changes.outputs.services) }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
             - name: Build ${{ matrix.service }}
@@ -526,16 +603,16 @@ jobs:
         name: Build — Docker images
         runs-on: ubuntu-latest
         timeout-minutes: 10
-        needs: [detect-docker-changes, docker-build]
+        needs: [changes, docker-build]
         if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
         steps:
             - name: Assert all builds passed
               run: |
-                  if [[ "${{ needs.detect-docker-changes.result }}" != "success" ]]; then
-                      echo "Detect-docker-changes did not complete successfully: ${{ needs.detect-docker-changes.result }}"
+                  if [[ "${{ needs.changes.result }}" != "success" ]]; then
+                      echo "changes job did not complete successfully: ${{ needs.changes.result }}"
                       exit 1
                   fi
-                  if [[ "${{ needs.detect-docker-changes.outputs.relevant }}" != "true" ]]; then
+                  if [[ "${{ needs.changes.outputs.services }}" == "[]" ]]; then
                       echo "No Docker-relevant changes in this diff — skipping validation."
                       exit 0
                   fi
@@ -559,20 +636,28 @@ jobs:
                   backend="${{ needs.test-backend.result }}"
                   bot="${{ needs.test-bot.result }}"
                   frontend="${{ needs.test-frontend.result }}"
-                  if [[ "$checks" != "success" || "$shared" != "success" || "$backend" != "success" || "$bot" != "success" || "$frontend" != "success" ]]; then
-                      echo "Job results: checks=$checks  test-shared=$shared  test-backend=$backend  test-bot=$bot  test-frontend=$frontend"
-                      exit 1
-                  fi
+                  # `skipped` counts as passing here: it means the changes job
+                  # found no code changes (docs-only PR) and gated build-shared
+                  # (and everything downstream of it) off on purpose. Failure
+                  # or cancellation still fails this required check.
+                  for r in "$checks" "$shared" "$backend" "$bot" "$frontend"; do
+                      if [[ "$r" != "success" && "$r" != "skipped" ]]; then
+                          echo "Job results: checks=$checks  test-shared=$shared  test-backend=$backend  test-bot=$bot  test-frontend=$frontend"
+                          exit 1
+                      fi
+                  done
 
     sonar:
         name: SonarCloud Scan
         runs-on: ubuntu-latest
         timeout-minutes: 15
-        needs: [test-backend, test-bot, test-frontend]
+        needs: [changes, test-backend, test-bot, test-frontend]
         # Fork PRs get no secrets, so SONAR_TOKEN is never present and the
         # token policy step would hard-fail this required check. Skip the job
-        # there instead; a skipped required check counts as passing.
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        # there instead; a skipped required check counts as passing. Same for
+        # docs-only PRs: test-backend/test-bot/test-frontend are gated off by
+        # `changes`, so there's no coverage to scan.
+        if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && needs.changes.outputs.code == 'true')
         permissions:
             contents: read
             pull-requests: read
