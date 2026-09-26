@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import { getLogContext } from './context'
 import { getLogSink } from './sink'
 import { LEVEL_TOKEN } from './types'
-import type { LogLevelType, LogParams, LogConfig } from './types'
+import type { LogLevelType, LogParams, LogConfig, LogFormat } from './types'
 
 // LogLevelType -> Sentry level. SUCCESS has no counterpart there and maps to info.
 const SENTRY_LOG_LEVEL: Record<number, 'debug' | 'info' | 'warn' | 'error'> = {
@@ -11,6 +11,88 @@ const SENTRY_LOG_LEVEL: Record<number, 'debug' | 'info' | 'warn' | 'error'> = {
     2: 'info',
     3: 'info',
     4: 'debug',
+}
+
+// LOG_FORMAT wins when set explicitly. Otherwise production defaults to
+// `json` (a single line per call, so Loki/promtail see one entry per event
+// instead of one per pretty-printed line, see #2386) and every other
+// environment keeps the existing multi-line pretty format for local reading.
+function resolveLogFormat(): LogFormat {
+    const explicit = process.env.LOG_FORMAT
+    if (explicit === 'json' || explicit === 'pretty') return explicit
+    return process.env.NODE_ENV === 'production' ? 'json' : 'pretty'
+}
+
+// A circular `data` value or a BigInt are both things a caller can legally
+// hand to `data`, and JSON.stringify throws on the first and drops the
+// second silently. The replacer neutralises both so a log call can never
+// crash the caller over its payload shape.
+function jsonSafeReplacer(): (key: string, value: unknown) => unknown {
+    const seen = new WeakSet<object>()
+    return (_key: string, value: unknown) => {
+        if (typeof value === 'bigint') return value.toString()
+        if (typeof value === 'object' && value !== null) {
+            if (seen.has(value)) return '[Circular]'
+            seen.add(value)
+        }
+        return value
+    }
+}
+
+function stringifyJsonLine(record: Record<string, unknown>): string {
+    try {
+        return JSON.stringify(record, jsonSafeReplacer())
+    } catch {
+        // Last-resort fallback: still exactly one line, still valid JSON.
+        return JSON.stringify({
+            ts: new Date().toISOString(),
+            level: record.level,
+            msg: '[unserializable log payload]',
+        })
+    }
+}
+
+// Mirrors serializeError's read-each-property-once discipline: an Error can
+// expose a throwing getter for name/message/stack, so every read stays
+// inside the try. Unlike the pretty format, nothing here needs sanitizing
+// against log injection - JSON.stringify escapes control characters
+// (including newlines) inside string values, so an injected value can never
+// break out of the single JSON line.
+function buildErrorObject(err: unknown): {
+    name: string
+    message: string
+    stack: string
+} {
+    try {
+        if (err instanceof Error) {
+            return {
+                name: toDisplayString(err.name),
+                message: toDisplayString(err.message),
+                stack: toDisplayString(err.stack ?? ''),
+            }
+        }
+        return { name: 'Error', message: serializeData(err), stack: '' }
+    } catch {
+        return { name: 'Error', message: toDisplayString(err), stack: '' }
+    }
+}
+
+function extractStringField(data: unknown, key: string): string | undefined {
+    if (data === null || typeof data !== 'object' || Array.isArray(data))
+        return undefined
+    const value = (data as Record<string, unknown>)[key]
+    return typeof value === 'string' ? value : undefined
+}
+
+// guildId/userId/correlationId get their own top-level JSON keys (see
+// #2386), so once pulled out they are removed here to avoid printing the
+// same value twice in one record.
+function omitKeys(data: unknown, keys: string[]): unknown {
+    if (data === null || typeof data !== 'object' || Array.isArray(data))
+        return data
+    const rest: Record<string, unknown> = { ...(data as Record<string, unknown>) }
+    for (const key of keys) delete rest[key]
+    return Object.keys(rest).length > 0 ? rest : undefined
 }
 
 // A log attribute has to be a flat map. `data` can be anything (array, string, null), so
@@ -177,6 +259,7 @@ export class LogService {
         enableColors: true,
         enableTimestamp: true,
         enableCorrelationId: true,
+        format: resolveLogFormat(),
     }
 
     setLogLevel(level: LogLevelType): void {
@@ -250,9 +333,6 @@ export class LogService {
               }
             : params
 
-        const formattedMessage = this.formatMessage(effectiveParams)
-        const color = this.getColor(level)
-
         // The token sits OUTSIDE the colour wrapper. chalk wraps whatever it
         // is given in ANSI escapes, so a token inside it would make the line
         // start with \x1b[33m rather than [WARN] and defeat an anchored
@@ -260,31 +340,47 @@ export class LogService {
         // error, not a severity, so it falls back to INFO rather than
         // emitting `[undefined]`.
         const token = `[${LEVEL_TOKEN[level] ?? 'INFO'}] `
+        // Sentry gets this exact string in both formats (unchanged behaviour),
+        // even though json mode's own console line uses the raw message instead.
+        const formattedMessage = this.formatMessage(effectiveParams)
 
-        // Strip control characters (CR/LF/etc.) so user-provided values in the
-        // message can't forge additional log lines (log injection).
+        if (this.config.format === 'json') {
+            // One call, one line: see #2386. Everything (message, context,
+            // data, error) lives in a single JSON object after the token, so
+            // a shipper reading one physical line reads one whole event.
+            this.logJson(level, token, effectiveParams)
+        } else {
+            const color = this.getColor(level)
 
-        // The message is single-line by contract, so sanitise it BEFORE the
-        // split: a newline from user input would otherwise become a second
-        // physical record. Only stacks are legitimately multi-line.
-        console.log(
-            prefixLines(token, sanitizeForLogging(formattedMessage), color),
-        )
+            // Strip control characters (CR/LF/etc.) so user-provided values in
+            // the message can't forge additional log lines (log injection).
 
-        if (effectiveParams.data) {
+            // The message is single-line by contract, so sanitise it BEFORE the
+            // split: a newline from user input would otherwise become a second
+            // physical record. Only stacks are legitimately multi-line.
             console.log(
-                prefixLines(token, serializeData(effectiveParams.data), color),
+                prefixLines(token, sanitizeForLogging(formattedMessage), color),
             )
-        }
 
-        if (effectiveParams.error) {
-            console.error(
-                prefixLines(
-                    token,
-                    serializeError(effectiveParams.error),
-                    color,
-                ),
-            )
+            if (effectiveParams.data) {
+                console.log(
+                    prefixLines(
+                        token,
+                        serializeData(effectiveParams.data),
+                        color,
+                    ),
+                )
+            }
+
+            if (effectiveParams.error) {
+                console.error(
+                    prefixLines(
+                        token,
+                        serializeError(effectiveParams.error),
+                        color,
+                    ),
+                )
+            }
         }
 
         // A single exit point to Sentry, instead of the ~1160 call sites knowing about
@@ -300,6 +396,41 @@ export class LogService {
             sanitizeForLogging(formattedMessage),
             asLogAttributes(effectiveParams),
         )
+    }
+
+    // Builds and emits the single-line JSON record for production. `level`'s
+    // value matches the bracket TOKEN lower-cased (not the raw call name), so
+    // a LogQL `| json` stage agrees with the `[LEVEL]` the line starts with
+    // instead of introducing a second, contradictory level vocabulary
+    // (e.g. success() would otherwise disagree with its own `[INFO]` token).
+    private logJson(
+        level: LogLevelType,
+        token: string,
+        params: LogParams,
+    ): void {
+        const record: Record<string, unknown> = {
+            ts: new Date().toISOString(),
+            level: (LEVEL_TOKEN[level] ?? 'INFO').toLowerCase(),
+            msg: params.message,
+        }
+
+        if (params.correlationId) record.correlationId = params.correlationId
+
+        const guildId = extractStringField(params.data, 'guildId')
+        const userId = extractStringField(params.data, 'userId')
+        if (guildId) record.guildId = guildId
+        if (userId) record.userId = userId
+
+        const data = omitKeys(params.data, [
+            'guildId',
+            'userId',
+            'correlationId',
+        ])
+        if (data !== undefined) record.data = data
+
+        if (params.error) record.error = buildErrorObject(params.error)
+
+        console.log(token + stringifyJsonLine(record))
     }
 
     error(params: LogParams): void {

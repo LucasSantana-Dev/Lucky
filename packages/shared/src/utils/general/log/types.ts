@@ -37,10 +37,19 @@ export type LogParams = {
     correlationId?: string
 }
 
+/**
+ * `pretty` is the existing multi-line, colourised, human-readable output.
+ * `json` is one single-line JSON record per log call (see #2386): the
+ * pretty format's per-line `[LEVEL]` prefixing turns one event into many
+ * Loki entries, which `json` fixes by keeping everything on one line.
+ */
+export type LogFormat = 'pretty' | 'json'
+
 /** Log configuration. */
 export type LogConfig = {
     level: LogLevelType
     enableColors: boolean
     enableTimestamp: boolean
     enableCorrelationId: boolean
+    format: LogFormat
 }
