@@ -1,5 +1,5 @@
 import { reportError } from '@/lib/sentry'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import {
@@ -22,6 +22,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import {
     Select,
     SelectContent,
@@ -163,6 +164,11 @@ export default function ServerLogsPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [debouncedSearch, setDebouncedSearch] = useState('')
     const [page, setPage] = useState(1)
+    const [loggingEnabled, setLoggingEnabled] = useState<boolean | null>(null)
+    const [savingLogging, setSavingLogging] = useState(false)
+    const [loggingLoadFailed, setLoggingLoadFailed] = useState(false)
+    const selectedGuildIdRef = useRef(selectedGuild?.id)
+    selectedGuildIdRef.current = selectedGuild?.id
     const limit = 25
 
     const levelCounts = useMemo(() => {
@@ -213,6 +219,50 @@ export default function ServerLogsPage() {
     useEffect(() => {
         fetchLogs()
     }, [fetchLogs])
+
+    useEffect(() => {
+        const guildId = selectedGuild?.id
+        if (!guildId) return
+        let stale = false
+        setLoggingEnabled(null)
+        setLoggingLoadFailed(false)
+        api.serverLogs
+            .getSettings(guildId)
+            .then((res) => {
+                if (!stale) setLoggingEnabled(res.data.enabled)
+            })
+            .catch((error) => {
+                if (stale) return
+                setLoggingLoadFailed(true)
+                reportError('Failed to load log settings:', error, {
+                    component: 'ServerLogs',
+                    action: 'loadLogSettings',
+                })
+            })
+        return () => {
+            stale = true
+        }
+    }, [selectedGuild?.id])
+
+    const handleLoggingToggle = async (enabled: boolean) => {
+        const guildId = selectedGuild?.id
+        if (!guildId) return
+        setSavingLogging(true)
+        try {
+            const res = await api.serverLogs.updateSettings(guildId, enabled)
+            if (selectedGuildIdRef.current === guildId) {
+                setLoggingEnabled(res.data.enabled)
+            }
+        } catch (error) {
+            reportError('Failed to update log settings:', error, {
+                component: 'ServerLogs',
+                action: 'updateLogSettings',
+            })
+            toast.error(t('loggingToggleError'))
+        } finally {
+            setSavingLogging(false)
+        }
+    }
     useEffect(() => {
         setPage(1)
     }, [levelFilter, debouncedSearch])
@@ -269,6 +319,33 @@ export default function ServerLogsPage() {
                     </Button>
                 </div>
             </div>
+
+            <Card className='p-4 border border-lucky-border'>
+                <div className='flex items-start justify-between gap-4'>
+                    <div>
+                        <p className='text-sm font-semibold text-lucky-text-primary'>
+                            {t('loggingToggle')}
+                        </p>
+                        <p className='text-xs text-lucky-text-secondary mt-1'>
+                            {t('loggingToggleDescription')}
+                        </p>
+                        {loggingLoadFailed && (
+                            <p
+                                role='alert'
+                                className='text-xs text-lucky-error mt-1'
+                            >
+                                {t('loggingSettingsLoadError')}
+                            </p>
+                        )}
+                    </div>
+                    <Switch
+                        aria-label={t('loggingToggle')}
+                        checked={loggingEnabled ?? false}
+                        disabled={loggingEnabled === null || savingLogging}
+                        onCheckedChange={handleLoggingToggle}
+                    />
+                </div>
+            </Card>
 
             {}
             <Card className='p-4 space-y-3 border border-lucky-border'>
