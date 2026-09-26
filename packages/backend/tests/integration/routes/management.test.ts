@@ -46,6 +46,10 @@ jest.mock('@lucky/shared/services', () => ({
         updateCommand: jest.fn(),
         deleteCommand: jest.fn(),
     },
+    featureToggleService: {
+        isEnabled: jest.fn(),
+        setGuildFeatureToggle: jest.fn(),
+    },
     serverLogService: {
         getRecentLogs: jest.fn(),
         getLogsByType: jest.fn(),
@@ -71,6 +75,7 @@ import {
     AutoModTemplateNotFoundError,
     autoModService,
     customCommandService,
+    featureToggleService,
     serverLogService,
 } from '@lucky/shared/services'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
@@ -858,6 +863,122 @@ describe('Management Routes Integration', () => {
             expect(response.body).toEqual({
                 error: 'Not authenticated',
             })
+        })
+    })
+
+    describe('/api/guilds/:guildId/logs/settings', () => {
+        const mockToggles = featureToggleService as jest.Mocked<
+            typeof featureToggleService
+        >
+
+        test('GET returns the guild SERVER_LOGS state', async () => {
+            mockToggles.isEnabled.mockResolvedValue(false)
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/logs/settings')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(response.body).toEqual({ enabled: false })
+            expect(mockToggles.isEnabled).toHaveBeenCalledWith('SERVER_LOGS', {
+                guildId: '111111111111111111',
+            })
+        })
+
+        test('PUT returns the state recomputed after the write', async () => {
+            mockToggles.setGuildFeatureToggle.mockResolvedValue()
+            // Opt-in is stored, but a global kill switch keeps it off.
+            mockToggles.isEnabled.mockResolvedValueOnce(false)
+
+            const response = await request(app)
+                .put('/api/guilds/111111111111111111/logs/settings')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ enabled: true })
+                .expect(200)
+
+            expect(response.body).toEqual({ enabled: false })
+            expect(mockToggles.isEnabled).toHaveBeenCalledTimes(1)
+            expect(mockToggles.setGuildFeatureToggle).toHaveBeenCalledWith(
+                '111111111111111111',
+                'SERVER_LOGS',
+                true,
+            )
+        })
+
+        test('GET requires moderation view access', async () => {
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .get('/api/guilds/111111111111111111/logs/settings')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(403)
+
+            expect(mockGuildAccessService.hasAccess).toHaveBeenCalledWith(
+                MOCK_GUILD_CONTEXT,
+                'moderation',
+                'view',
+            )
+            expect(mockToggles.isEnabled).not.toHaveBeenCalled()
+        })
+
+        test('PUT requires moderation manage access', async () => {
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .put('/api/guilds/111111111111111111/logs/settings')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ enabled: true })
+                .expect(403)
+
+            expect(mockGuildAccessService.hasAccess).toHaveBeenCalledWith(
+                MOCK_GUILD_CONTEXT,
+                'moderation',
+                'manage',
+            )
+            expect(mockToggles.setGuildFeatureToggle).not.toHaveBeenCalled()
+        })
+
+        test('GET returns 401 when not authenticated', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(null)
+
+            await request(app)
+                .get('/api/guilds/111111111111111111/logs/settings')
+                .expect(401)
+
+            expect(mockToggles.isEnabled).not.toHaveBeenCalled()
+        })
+
+        test('PUT rejects a non-boolean body', async () => {
+            await request(app)
+                .put('/api/guilds/111111111111111111/logs/settings')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ enabled: 'yes' })
+                .expect(400)
+
+            expect(mockToggles.setGuildFeatureToggle).not.toHaveBeenCalled()
+        })
+
+        test('PUT returns 401 when not authenticated', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(null)
+
+            await request(app)
+                .put('/api/guilds/111111111111111111/logs/settings')
+                .send({ enabled: true })
+                .expect(401)
+
+            expect(mockToggles.setGuildFeatureToggle).not.toHaveBeenCalled()
         })
     })
 })

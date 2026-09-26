@@ -59,8 +59,8 @@ const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
     },
     SERVER_LOGS: {
         name: 'SERVER_LOGS',
-        enabled: true,
-        description: 'Enable server audit logging',
+        enabled: false,
+        description: 'Enable server audit logging (per-guild opt-in)',
     },
     WEBAPP: {
         name: 'WEBAPP',

@@ -29,6 +29,15 @@ export function createLogsApi(apiClient: AxiosInstance) {
             apiClient.get<{ logs: ServerLog[] }>(
                 `/guilds/${guildId}/logs/users/${userId}`,
             ),
+        getSettings: (guildId: string) =>
+            apiClient.get<{ enabled: boolean }>(
+                `/guilds/${guildId}/logs/settings`,
+            ),
+        updateSettings: (guildId: string, enabled: boolean) =>
+            apiClient.put<{ enabled: boolean }>(
+                `/guilds/${guildId}/logs/settings`,
+                { enabled },
+            ),
         getStats: (guildId: string) =>
             apiClient.get(`/guilds/${guildId}/logs/stats`),
     }
