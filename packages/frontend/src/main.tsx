@@ -7,6 +7,20 @@ import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary'
 import { Toaster } from './components/ui/sonner'
 import './lib/i18n'
+// Self-hosted fonts (issue #2375): replaces the Google Fonts CDN @import
+// that sent every visitor's IP to Google on load (GDPR risk, LG Munchen
+// 2022). Weights match what --font-lucky-* in index.css actually uses.
+import '@fontsource/sora/400.css'
+import '@fontsource/sora/500.css'
+import '@fontsource/sora/600.css'
+import '@fontsource/sora/700.css'
+import '@fontsource/manrope/400.css'
+import '@fontsource/manrope/500.css'
+import '@fontsource/manrope/600.css'
+import '@fontsource/manrope/700.css'
+import '@fontsource/jetbrains-mono/400.css'
+import '@fontsource/jetbrains-mono/500.css'
+import '@fontsource/jetbrains-mono/600.css'
 import './index.css'
 
 initSentry()

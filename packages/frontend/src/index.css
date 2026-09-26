@@ -1,4 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Sora:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+/* Self-hosted fonts (issue #2375) are imported from main.tsx, not here:
+   Tailwind's PostCSS @import bundler flattens this file before Vite's own
+   CSS pipeline runs, which breaks the relative url() paths that @fontsource
+   packages ship (Vite never sees them as a separate module to resolve, so
+   the woff2 files never get copied into the build). Importing them as a JS
+   side-effect import keeps Vite's normal CSS asset handling in play. */
 
 @import 'tailwindcss';
 
