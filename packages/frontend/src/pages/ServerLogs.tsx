@@ -1,5 +1,5 @@
 import { reportError } from '@/lib/sentry'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import {
@@ -166,6 +166,9 @@ export default function ServerLogsPage() {
     const [page, setPage] = useState(1)
     const [loggingEnabled, setLoggingEnabled] = useState<boolean | null>(null)
     const [savingLogging, setSavingLogging] = useState(false)
+    const [loggingLoadFailed, setLoggingLoadFailed] = useState(false)
+    const selectedGuildIdRef = useRef(selectedGuild?.id)
+    selectedGuildIdRef.current = selectedGuild?.id
     const limit = 25
 
     const levelCounts = useMemo(() => {
@@ -218,28 +221,38 @@ export default function ServerLogsPage() {
     }, [fetchLogs])
 
     useEffect(() => {
-        if (!selectedGuild?.id) return
+        const guildId = selectedGuild?.id
+        if (!guildId) return
+        let stale = false
         setLoggingEnabled(null)
+        setLoggingLoadFailed(false)
         api.serverLogs
-            .getSettings(selectedGuild.id)
-            .then((res) => setLoggingEnabled(res.data.enabled))
+            .getSettings(guildId)
+            .then((res) => {
+                if (!stale) setLoggingEnabled(res.data.enabled)
+            })
             .catch((error) => {
+                if (stale) return
+                setLoggingLoadFailed(true)
                 reportError('Failed to load log settings:', error, {
                     component: 'ServerLogs',
                     action: 'loadLogSettings',
                 })
             })
+        return () => {
+            stale = true
+        }
     }, [selectedGuild?.id])
 
     const handleLoggingToggle = async (enabled: boolean) => {
-        if (!selectedGuild?.id) return
+        const guildId = selectedGuild?.id
+        if (!guildId) return
         setSavingLogging(true)
         try {
-            const res = await api.serverLogs.updateSettings(
-                selectedGuild.id,
-                enabled,
-            )
-            setLoggingEnabled(res.data.enabled)
+            const res = await api.serverLogs.updateSettings(guildId, enabled)
+            if (selectedGuildIdRef.current === guildId) {
+                setLoggingEnabled(res.data.enabled)
+            }
         } catch (error) {
             reportError('Failed to update log settings:', error, {
                 component: 'ServerLogs',
@@ -316,6 +329,14 @@ export default function ServerLogsPage() {
                         <p className='text-xs text-lucky-text-secondary mt-1'>
                             {t('loggingToggleDescription')}
                         </p>
+                        {loggingLoadFailed && (
+                            <p
+                                role='alert'
+                                className='text-xs text-lucky-error mt-1'
+                            >
+                                {t('loggingSettingsLoadError')}
+                            </p>
+                        )}
                     </div>
                     <Switch
                         aria-label={t('loggingToggle')}

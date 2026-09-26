@@ -879,8 +879,9 @@
         "userLabel": "User:",
         "channelLabel": "Channel:",
         "loggingToggle": "Record server activity",
-        "loggingToggleDescription": "Off by default. When on, Lucky stores member joins and leaves plus deleted and edited messages (up to 500 characters) for this server.",
-        "loggingToggleError": "Could not update logging. You need permission to manage server settings."
+        "loggingToggleDescription": "Off by default. When on, Lucky stores for this server: member joins and leaves, deleted and edited messages (up to 500 characters of text), bans and unbans with their reasons, and channel and role changes.",
+        "loggingToggleError": "Could not update logging. Please try again.",
+        "loggingSettingsLoadError": "Could not load the logging setting. Reload the page to try again."
     },
     "serverSettings": {
         "title": "Server Settings",

@@ -33,13 +33,17 @@ class FeatureToggleService {
         return getPrismaClient()
     }
 
+    private async readDbGlobalOverride(name: string): Promise<boolean | null> {
+        const row = await this.db.globalFeatureToggle.findUnique({
+            where: { name },
+            select: { enabled: true },
+        })
+        return row?.enabled ?? null
+    }
+
     private async getDbGlobalOverride(name: string): Promise<boolean | null> {
         try {
-            const row = await this.db.globalFeatureToggle.findUnique({
-                where: { name },
-                select: { enabled: true },
-            })
-            return row?.enabled ?? null
+            return await this.readDbGlobalOverride(name)
         } catch (error) {
             // Fail open to the environment/config fallback, but surface the
             // failure: a swallowed-to-null DB error here was indistinguishable
@@ -147,7 +151,18 @@ class FeatureToggleService {
             : null
         if (guildOverride === null) return this.isEnabledGlobal(name)
         if (!guildOverride) return false
-        return (await this.getDbGlobalOverride(name)) !== false
+        try {
+            return (await this.readDbGlobalOverride(name)) !== false
+        } catch (error) {
+            // An unreadable kill switch must not leave an opted-in guild on.
+            warnLog({
+                message:
+                    'Failed to read global kill switch for guild opt-in; treating feature as disabled',
+                error,
+                data: { guildId: context?.guildId, name },
+            })
+            return false
+        }
     }
 
     /** Returns a copy of all loaded fallback toggles. */

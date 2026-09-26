@@ -202,10 +202,19 @@ describe('FeatureToggleService', () => {
             )
         })
 
-        it('falls back to the global value when the guild lookup throws', async () => {
+        it('falls back to the persisted global value when the guild lookup throws', async () => {
             mockGuildFindUnique.mockRejectedValue(new Error('DB error'))
-            mockFindUnique.mockResolvedValue(null)
+            mockFindUnique.mockResolvedValue({ enabled: true })
             expect(await service.isEnabled('LYRICS', { guildId: 'g1' })).toBe(
+                true,
+            )
+            expect(mockWarnLog).toHaveBeenCalled()
+        })
+
+        it('fails closed when the kill switch is unreadable for an opted-in guild', async () => {
+            mockGuildFindUnique.mockResolvedValue({ enabled: true })
+            mockFindUnique.mockRejectedValue(new Error('DB error'))
+            expect(await service.isEnabled('AUTOPLAY', { guildId: 'g1' })).toBe(
                 false,
             )
             expect(mockWarnLog).toHaveBeenCalled()

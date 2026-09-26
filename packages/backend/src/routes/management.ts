@@ -276,7 +276,7 @@ export function setupManagementRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/logs/settings',
         requireAuth,
-        requireGuildModuleAccess('overview', 'view'),
+        requireGuildModuleAccess('moderation', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const enabled = await featureToggleService.isEnabled(
@@ -290,7 +290,7 @@ export function setupManagementRoutes(app: Express): void {
     app.put(
         '/api/guilds/:guildId/logs/settings',
         requireAuth,
-        requireGuildModuleAccess('settings', 'manage'),
+        requireGuildModuleAccess('moderation', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.logsSettingsBody),

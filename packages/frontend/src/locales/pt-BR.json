@@ -875,8 +875,9 @@
         "userLabel": "Usuário:",
         "channelLabel": "Canal:",
         "loggingToggle": "Registrar atividade do servidor",
-        "loggingToggleDescription": "Desligado por padrão. Quando ligado, o Lucky guarda entradas e saídas de membros e mensagens apagadas ou editadas (até 500 caracteres) deste servidor.",
-        "loggingToggleError": "Não foi possível atualizar o registro. Você precisa de permissão para gerenciar as configurações do servidor."
+        "loggingToggleDescription": "Desligado por padrão. Quando ligado, o Lucky guarda deste servidor: entradas e saídas de membros, mensagens apagadas e editadas (até 500 caracteres de texto), banimentos e desbanimentos com o motivo, e alterações de canais e cargos.",
+        "loggingToggleError": "Não foi possível atualizar o registro. Tente novamente.",
+        "loggingSettingsLoadError": "Não foi possível carregar a configuração de registro. Recarregue a página para tentar de novo."
     },
     "serverSettings": {
         "title": "Configurações do Servidor",

@@ -138,6 +138,55 @@ describe('ServerLogsPage', () => {
         )
     })
 
+    test('shows an inline error and keeps the switch disabled when settings fail to load', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+            data: { logs: [], total: 0 },
+        } as any)
+        vi.mocked(api.serverLogs.getSettings).mockRejectedValue(
+            new Error('500'),
+        )
+
+        renderPage()
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'loggingSettingsLoadError',
+        )
+        expect(
+            screen.getByRole('switch', { name: 'loggingToggle' }),
+        ).toBeDisabled()
+    })
+
+    test('ignores a settings response for a guild that is no longer selected', async () => {
+        let resolveFirst: (v: unknown) => void = () => {}
+        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+            data: { logs: [], total: 0 },
+        } as any)
+        vi.mocked(api.serverLogs.getSettings)
+            .mockImplementationOnce(
+                () => new Promise((r) => (resolveFirst = r)) as any,
+            )
+            .mockResolvedValueOnce({ data: { enabled: false } } as any)
+
+        mockGuildStoreFn(mockGuild)
+        const { rerender } = renderPage()
+        mockGuildStoreFn({ ...mockGuild, id: 'other-guild' })
+        rerender(
+            <MemoryRouter>
+                <ServerLogsPage />
+            </MemoryRouter>,
+        )
+
+        const toggle = await screen.findByRole('switch', {
+            name: 'loggingToggle',
+        })
+        await waitFor(() => expect(toggle).not.toBeDisabled())
+        resolveFirst({ data: { enabled: true } })
+        await new Promise((r) => setTimeout(r, 0))
+
+        expect(toggle).toHaveAttribute('aria-checked', 'false')
+    })
+
     test('keeps the switch off and warns when the update is rejected', async () => {
         const { toast } = await import('sonner')
         mockGuildStoreFn(mockGuild)

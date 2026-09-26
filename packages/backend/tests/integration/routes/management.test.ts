@@ -885,9 +885,10 @@ describe('Management Routes Integration', () => {
             })
         })
 
-        test('PUT opts the guild in and returns the effective state', async () => {
+        test('PUT returns the state recomputed after the write', async () => {
             mockToggles.setGuildFeatureToggle.mockResolvedValue()
-            mockToggles.isEnabled.mockResolvedValue(true)
+            // Opt-in is stored, but a global kill switch keeps it off.
+            mockToggles.isEnabled.mockResolvedValueOnce(false)
 
             const response = await request(app)
                 .put('/api/guilds/111111111111111111/logs/settings')
@@ -895,12 +896,65 @@ describe('Management Routes Integration', () => {
                 .send({ enabled: true })
                 .expect(200)
 
-            expect(response.body).toEqual({ enabled: true })
+            expect(response.body).toEqual({ enabled: false })
+            expect(mockToggles.isEnabled).toHaveBeenCalledTimes(1)
             expect(mockToggles.setGuildFeatureToggle).toHaveBeenCalledWith(
                 '111111111111111111',
                 'SERVER_LOGS',
                 true,
             )
+        })
+
+        test('GET requires moderation view access', async () => {
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .get('/api/guilds/111111111111111111/logs/settings')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(403)
+
+            expect(mockGuildAccessService.hasAccess).toHaveBeenCalledWith(
+                MOCK_GUILD_CONTEXT,
+                'moderation',
+                'view',
+            )
+            expect(mockToggles.isEnabled).not.toHaveBeenCalled()
+        })
+
+        test('PUT requires moderation manage access', async () => {
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.hasAccess.mockReturnValue(false)
+
+            await request(app)
+                .put('/api/guilds/111111111111111111/logs/settings')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ enabled: true })
+                .expect(403)
+
+            expect(mockGuildAccessService.hasAccess).toHaveBeenCalledWith(
+                MOCK_GUILD_CONTEXT,
+                'moderation',
+                'manage',
+            )
+            expect(mockToggles.setGuildFeatureToggle).not.toHaveBeenCalled()
+        })
+
+        test('GET returns 401 when not authenticated', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(null)
+
+            await request(app)
+                .get('/api/guilds/111111111111111111/logs/settings')
+                .expect(401)
+
+            expect(mockToggles.isEnabled).not.toHaveBeenCalled()
         })
 
         test('PUT rejects a non-boolean body', async () => {
