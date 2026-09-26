@@ -3,7 +3,7 @@ import { errorLog, infoLog } from '@lucky/shared/utils'
 import { IntervalScheduler } from './IntervalScheduler'
 
 // Tick once a day to prune data past its retention window (track history,
-// expired rate limits, server logs — see DatabaseService.cleanupOldData).
+// expired rate limits, server logs; see DatabaseService.cleanupOldData).
 const DEFAULT_TICK_INTERVAL_MS = 24 * 60 * 60 * 1000
 
 // DatabaseConfig is accepted by the constructor but not read by

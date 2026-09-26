@@ -57,7 +57,7 @@ jest.mock('../../utils/general/supportSessionScheduler', () => ({
 
 // dataRetentionScheduler constructs a DatabaseService at module load, which
 // transitively reaches the Prisma client import.meta the bot jest transform
-// can't parse — mock it like the sibling schedulers above.
+// can't parse, so mock it like the sibling schedulers above.
 jest.mock('../../utils/general/dataRetentionScheduler', () => ({
     dataRetentionScheduler: { start: jest.fn(), stop: jest.fn() },
 }))
