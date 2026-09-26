@@ -1,4 +1,11 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
+import {
+    describe,
+    test,
+    expect,
+    jest,
+    beforeEach,
+    afterEach,
+} from '@jest/globals'
 
 const mockCleanupOldData = jest.fn<() => Promise<unknown>>()
 
@@ -29,8 +36,18 @@ function makeResult(overrides: {
     }
 }
 
+let scheduler: DataRetentionScheduler | undefined
+
 beforeEach(() => {
     jest.clearAllMocks()
+    jest.useFakeTimers()
+})
+
+afterEach(() => {
+    // Always clear the interval, even when an assertion above failed.
+    scheduler?.stop()
+    scheduler = undefined
+    jest.useRealTimers()
 })
 
 describe('DataRetentionScheduler', () => {
@@ -39,11 +56,11 @@ describe('DataRetentionScheduler', () => {
             isFailure: false,
             data: 42,
         }))
-        const scheduler = new DataRetentionScheduler(100)
+        scheduler = new DataRetentionScheduler(100)
 
         scheduler.start({} as any)
-        // onStart's immediate tick is fire-and-forget; give it a turn.
-        await new Promise((resolve) => setTimeout(resolve, 10))
+        // onStart's immediate tick is fire-and-forget; flush its promise.
+        await jest.advanceTimersByTimeAsync(0)
 
         expect(mockCleanupOldData).toHaveBeenCalledTimes(1)
         expect(infoLog).toHaveBeenCalledWith({
@@ -51,7 +68,6 @@ describe('DataRetentionScheduler', () => {
         })
         expect(errorLog).not.toHaveBeenCalled()
 
-        scheduler.stop()
     })
 
     test('logs an error and does not throw when the sweep fails', async () => {
@@ -60,10 +76,10 @@ describe('DataRetentionScheduler', () => {
             isFailure: true,
             error: boom,
         }))
-        const scheduler = new DataRetentionScheduler(100)
+        scheduler = new DataRetentionScheduler(100)
 
         scheduler.start({} as any)
-        await new Promise((resolve) => setTimeout(resolve, 10))
+        await jest.advanceTimersByTimeAsync(0)
 
         expect(errorLog).toHaveBeenCalledWith({
             message: 'Data retention sweep failed',
@@ -71,7 +87,6 @@ describe('DataRetentionScheduler', () => {
         })
         expect(infoLog).not.toHaveBeenCalled()
 
-        scheduler.stop()
     })
 
     test('ticks again on the configured interval', async () => {
@@ -79,13 +94,14 @@ describe('DataRetentionScheduler', () => {
             isFailure: false,
             data: 0,
         }))
-        const scheduler = new DataRetentionScheduler(20)
+        scheduler = new DataRetentionScheduler(20)
 
         scheduler.start({} as any)
-        await new Promise((resolve) => setTimeout(resolve, 70))
+        await jest.advanceTimersByTimeAsync(0)
+        expect(mockCleanupOldData).toHaveBeenCalledTimes(1)
 
-        expect(mockCleanupOldData.mock.calls.length).toBeGreaterThan(1)
+        await jest.advanceTimersByTimeAsync(20)
+        expect(mockCleanupOldData).toHaveBeenCalledTimes(2)
 
-        scheduler.stop()
     })
 })
