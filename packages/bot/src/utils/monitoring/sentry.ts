@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/node'
-import { infoLog } from '@lucky/shared/utils'
 
 /**
  * Extract the safe origin (protocol + hostname) from a URL string.
@@ -66,38 +65,6 @@ export function captureMessage(
         extra: extras,
         tags,
     })
-}
-
-/**
- * Initialize Sentry monitoring with appropriate configuration
- */
-export function initializeSentry(): void {
-    if (!process.env.SENTRY_DSN) {
-        if (process.env.NODE_ENV === 'production') {
-            infoLog({
-                message: 'Sentry DSN not configured, skipping initialization',
-            })
-        }
-        return
-    }
-
-    Sentry.init({
-        dsn: process.env.SENTRY_DSN,
-        environment: process.env.NODE_ENV ?? 'development',
-        tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-        profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-        integrations: [],
-        beforeSend(event) {
-            if (event.extra) {
-                delete event.extra.password
-                delete event.extra.token
-                delete event.extra.secret
-            }
-            return event
-        },
-    })
-
-    infoLog({ message: 'Sentry monitoring initialized' })
 }
 
 /**
