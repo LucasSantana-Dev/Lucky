@@ -16,6 +16,9 @@ vi.mock('@sentry/react', () => ({
     captureMessage: (...args: unknown[]) => captureMessageMock(...args),
     reactRouterV7BrowserTracingIntegration: (...args: unknown[]) =>
         reactRouterV7IntegrationMock(...args),
+    // Kept mocked (but never wired by sentry.ts) so a regression that
+    // re-adds replayIntegration to the integrations array is caught by
+    // "does not configure Session Replay" below instead of silently passing.
     replayIntegration: (...args: unknown[]) => replayIntegrationMock(...args),
 }))
 
@@ -44,8 +47,6 @@ describe('initSentry', () => {
             'VITE_SENTRY_ENVIRONMENT',
             'VITE_SENTRY_RELEASE',
             'VITE_SENTRY_TRACES_SAMPLE_RATE',
-            'VITE_SENTRY_REPLAYS_SESSION_SAMPLE_RATE',
-            'VITE_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE',
         ]) {
             const original = (ORIGINAL_ENV as Record<string, unknown>)[key]
             if (original === undefined) {
@@ -76,46 +77,45 @@ describe('initSentry', () => {
         expect(config.release).toBe('lucky@2.12.0')
     })
 
-    test('wires the React Router v7 + replay integrations', () => {
+    test('wires only the React Router v7 tracing integration', () => {
         setEnv({ VITE_SENTRY_DSN: 'https://abc@sentry.io/123' })
         initSentry()
         expect(reactRouterV7IntegrationMock).toHaveBeenCalledTimes(1)
-        expect(replayIntegrationMock).toHaveBeenCalledTimes(1)
         const config = initMock.mock.calls[0][0] as {
             integrations: Array<{ name: string }>
         }
         expect(config.integrations.map((i) => i.name)).toEqual([
             'react-router-v7',
-            'replay',
         ])
     })
 
-    test('respects custom sample rates from env', () => {
+    test('does not configure Session Replay', () => {
+        setEnv({ VITE_SENTRY_DSN: 'https://abc@sentry.io/123' })
+        initSentry()
+        expect(replayIntegrationMock).not.toHaveBeenCalled()
+        const config = initMock.mock.calls[0][0] as Record<string, unknown>
+        expect(config).not.toHaveProperty('replaysSessionSampleRate')
+        expect(config).not.toHaveProperty('replaysOnErrorSampleRate')
+    })
+
+    test('respects custom tracing sample rate from env', () => {
         setEnv({
             VITE_SENTRY_DSN: 'https://abc@sentry.io/123',
             VITE_SENTRY_TRACES_SAMPLE_RATE: '0.25',
-            VITE_SENTRY_REPLAYS_SESSION_SAMPLE_RATE: '0.5',
-            VITE_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE: '0.75',
         })
         initSentry()
         const config = initMock.mock.calls[0][0] as Record<string, number>
         expect(config.tracesSampleRate).toBeCloseTo(0.25)
-        expect(config.replaysSessionSampleRate).toBeCloseTo(0.5)
-        expect(config.replaysOnErrorSampleRate).toBeCloseTo(0.75)
     })
 
-    test('falls back to default sample rates when env is missing', () => {
+    test('falls back to default tracing sample rate when env is missing', () => {
         setEnv({
             VITE_SENTRY_DSN: 'https://abc@sentry.io/123',
             VITE_SENTRY_TRACES_SAMPLE_RATE: undefined,
-            VITE_SENTRY_REPLAYS_SESSION_SAMPLE_RATE: undefined,
-            VITE_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE: undefined,
         })
         initSentry()
         const config = initMock.mock.calls[0][0] as Record<string, number>
         expect(config.tracesSampleRate).toBeCloseTo(0.1)
-        expect(config.replaysSessionSampleRate).toBeCloseTo(0.1)
-        expect(config.replaysOnErrorSampleRate).toBeCloseTo(1.0)
     })
 })
 
