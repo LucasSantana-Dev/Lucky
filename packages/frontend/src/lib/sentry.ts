@@ -15,7 +15,6 @@ import {
  *   - Error reporting (uncaught + unhandled promise rejections)
  *   - browserTracingIntegration with React Router v7 instrumentation so
  *     route changes become transactions
- *   - Session replay (10% of sessions, 100% of sessions that hit an error)
  *
  * All sample rates and the DSN are configurable via Vite env vars so we
  * can tune ramp-up without code changes.
@@ -39,19 +38,9 @@ export function initSentry(): void {
                 createRoutesFromChildren,
                 matchRoutes,
             }),
-            Sentry.replayIntegration({
-                maskAllText: false,
-                blockAllMedia: false,
-            }),
         ],
         tracesSampleRate: Number(
             import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE ?? 0.1,
-        ),
-        replaysSessionSampleRate: Number(
-            import.meta.env.VITE_SENTRY_REPLAYS_SESSION_SAMPLE_RATE ?? 0.1,
-        ),
-        replaysOnErrorSampleRate: Number(
-            import.meta.env.VITE_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE ?? 1.0,
         ),
         tracePropagationTargets: [
             'localhost',
