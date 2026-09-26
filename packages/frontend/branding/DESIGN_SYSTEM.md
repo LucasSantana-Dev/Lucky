@@ -58,7 +58,7 @@ Short-form `--color-*` aliases are added alongside the long-form `--lucky-*` tok
 - **Body** (body copy, UI labels, controls): `Manrope` (`--font-lucky-body`) — same fallbacks.
 - **Mono** (command snippets, IDs, case numbers, technical metadata): `JetBrains Mono` (`--font-lucky-mono`) — fallback SFMono-Regular, Menlo, Monaco, Consolas.
 
-All four fonts are loaded at the top of `packages/frontend/src/index.css`; Inter remains in the import list as a transitional fallback while pages port from the legacy single-font system.
+The three fonts are self-hosted via `@fontsource/*` packages imported at the top of `packages/frontend/src/main.tsx` (not from `index.css`: Tailwind's PostCSS `@import` flattening breaks fontsource's relative font URLs). No third-party font CDN is used, so visitor IPs are not sent to Google. Inter was dropped.
 
 ### Type Scale
 
@@ -103,5 +103,5 @@ All four fonts are loaded at the top of `packages/frontend/src/index.css`; Inter
 1. **Dual accent**: Discord blurple `#5865f2` for primary CTAs + active states; neon pink `#ec4899` for secondary accents and gradient highlights. No gold, no legacy-purple gradients.
 2. **Flat panels**: No glassmorphism, no background radial gradients on pages.
 3. **Professional motion**: Only fade transitions. No glow-pulse, float, or shimmer.
-4. **Sora display + Manrope body + JetBrains Mono**: see Typography. Inter stays in the import list as a transitional fallback while pages port.
+4. **Sora display + Manrope body + JetBrains Mono**: see Typography. All three are self-hosted.
 5. **Consistent spacing**: panels use `p-4` or `p-5`.
