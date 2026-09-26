@@ -410,7 +410,14 @@ jobs:
                   # `code`: only filtered on pull_request. push/merge_group keep
                   # running the full suite as today.
                   if [ "$EVENT" = "pull_request" ]; then
-                      CODE_CHANGED=$(echo "$CHANGED" | grep -vE '^(docs/|decisions/|\.claude/)' | awk '!/\.md$/ || $0 == "CHANGELOG.md"')
+                      # `grep -v` exits 1 when every changed file matches the
+                      # exclude pattern (the docs-only case this filter exists
+                      # for) and `awk` exits 1 on truly empty input. Either one
+                      # aborts this step under bash's default -e/-o pipefail
+                      # for `run:` blocks, which would fail the changes job on
+                      # exactly the docs-only PR it's meant to pass. `|| true`
+                      # makes "no code files matched" a value, not an error.
+                      CODE_CHANGED=$(echo "$CHANGED" | grep -vE '^(docs/|decisions/|\.claude/)' | awk '!/\.md$/ || $0 == "CHANGELOG.md"') || true
                       if [ -n "$CODE_CHANGED" ]; then code=true; else code=false; fi
                   else
                       code=true
@@ -423,9 +430,16 @@ jobs:
                   #     the Dockerfile itself feed every node image: bot,
                   #     backend and frontend all COPY from build-shared /
                   #     installed-deps / deps-production-base.
-                  #   - nginx/** + Dockerfile.nginx affect only the nginx image.
+                  #   - nginx/nginx.conf, nginx/upstream-active.conf, and
+                  #     Dockerfile.nginx affect only the standalone nginx
+                  #     image. nginx/frontend.conf is COPY'd into
+                  #     production-frontend instead (Dockerfile, production-
+                  #     frontend stage), so it affects frontend, not nginx.
                   #   - CHANGELOG.md is baked into the frontend image only
                   #     (Dockerfile:152, the /changelog page's raw import).
+                  #   - .dockerignore shapes the build context for every
+                  #     target built from this Dockerfile, so it forces all
+                  #     four the same as a Dockerfile/ci.yml change.
                   #   - Changes to this workflow file or the
                   #     docker-build-service composite action can change how
                   #     ANY image is built, so they force a rebuild of all four.
@@ -436,7 +450,7 @@ jobs:
                   # merge_group matrix is now selective).
                   if [ "$EVENT" = "pull_request" ] || [ "$EVENT" = "merge_group" ]; then
                       bot=false; backend=false; frontend=false; nginx=false
-                      if echo "$CHANGED" | grep -qE '^(\.github/workflows/ci\.yml$|\.github/actions/docker-build-service/)'; then
+                      if echo "$CHANGED" | grep -qE '^(\.github/workflows/ci\.yml$|\.github/actions/docker-build-service/|\.dockerignore$)'; then
                           bot=true; backend=true; frontend=true; nginx=true
                       else
                           if echo "$CHANGED" | grep -qE '^(packages/shared/|prisma/|package.*\.json$|Dockerfile$)'; then
@@ -444,8 +458,8 @@ jobs:
                           fi
                           echo "$CHANGED" | grep -qE '^packages/bot/' && bot=true
                           echo "$CHANGED" | grep -qE '^packages/backend/' && backend=true
-                          echo "$CHANGED" | grep -qE '^(packages/frontend/|CHANGELOG\.md$)' && frontend=true
-                          echo "$CHANGED" | grep -qE '^(nginx/|Dockerfile\.nginx$)' && nginx=true
+                          echo "$CHANGED" | grep -qE '^(packages/frontend/|CHANGELOG\.md$|nginx/frontend\.conf$)' && frontend=true
+                          echo "$CHANGED" | grep -qE '^(nginx/nginx\.conf$|nginx/upstream-active\.conf$|Dockerfile\.nginx$)' && nginx=true
                       fi
                   else
                       bot=true; backend=true; frontend=true; nginx=true
