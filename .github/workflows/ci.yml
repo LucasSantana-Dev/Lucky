@@ -306,6 +306,10 @@ jobs:
         timeout-minutes: 20
         needs: [changes, build-shared]
         # Required status check by name, so a skip here counts as passing.
+        # If `changes` or build-shared FAILS, the implicit success() in this
+        # `if` also makes this job skip (not fail) -- merge stays blocked
+        # anyway because quality-gate independently checks both results and
+        # hard-fails the "Quality Gates" required check in that case.
         if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
@@ -626,25 +630,51 @@ jobs:
         name: Quality Gates
         runs-on: ubuntu-latest
         timeout-minutes: 10
-        needs: [build-shared, checks, test-shared, test-backend, test-bot, test-frontend]
+        needs: [changes, build-shared, checks, test-shared, test-backend, test-bot, test-frontend]
         if: always()
         steps:
             - name: Assert all jobs passed
               run: |
+                  # `changes` failing outright must never read as a pass:
+                  # build-shared/checks/test-* all have an implicit success()
+                  # in their `if`, so a failed `changes` (or a failed
+                  # build-shared) cascades into SKIPPED results below, and
+                  # skipped used to read as passing unconditionally. Check
+                  # `changes` first and hard fail here rather than let that
+                  # cascade through.
+                  if [[ "${{ needs.changes.result }}" != "success" ]]; then
+                      echo "changes job did not complete successfully: ${{ needs.changes.result }}"
+                      exit 1
+                  fi
+
+                  shared_build="${{ needs.build-shared.result }}"
                   checks="${{ needs.checks.result }}"
                   shared="${{ needs.test-shared.result }}"
                   backend="${{ needs.test-backend.result }}"
                   bot="${{ needs.test-bot.result }}"
                   frontend="${{ needs.test-frontend.result }}"
-                  # `skipped` counts as passing here: it means the changes job
-                  # found no code changes (docs-only PR) and gated build-shared
-                  # (and everything downstream of it) off on purpose. Failure
-                  # or cancellation still fails this required check.
-                  for r in "$checks" "$shared" "$backend" "$bot" "$frontend"; do
-                      if [[ "$r" != "success" && "$r" != "skipped" ]]; then
-                          echo "Job results: checks=$checks  test-shared=$shared  test-backend=$backend  test-bot=$bot  test-frontend=$frontend"
-                          exit 1
+
+                  # `skipped` is only a legitimate pass when `changes` itself
+                  # deliberately gated the chain off for a docs-only PR
+                  # (code == 'false'). On push/merge_group, or any PR where
+                  # code == 'true', a `skipped` result here means build-shared
+                  # (or something upstream of it) actually FAILED and cascaded
+                  # a skip rather than nothing needing to run, and that must
+                  # fail this required check, not pass it.
+                  docs_only_skip_ok=false
+                  if [[ "${{ github.event_name }}" == "pull_request" && "${{ needs.changes.outputs.code }}" != "true" ]]; then
+                      docs_only_skip_ok=true
+                  fi
+
+                  for r in "$shared_build" "$checks" "$shared" "$backend" "$bot" "$frontend"; do
+                      if [[ "$r" == "success" ]]; then
+                          continue
                       fi
+                      if [[ "$r" == "skipped" && "$docs_only_skip_ok" == "true" ]]; then
+                          continue
+                      fi
+                      echo "Job results: build-shared=$shared_build  checks=$checks  test-shared=$shared  test-backend=$backend  test-bot=$bot  test-frontend=$frontend  (docs_only_skip_ok=$docs_only_skip_ok)"
+                      exit 1
                   done
 
     sonar:
@@ -656,7 +686,11 @@ jobs:
         # token policy step would hard-fail this required check. Skip the job
         # there instead; a skipped required check counts as passing. Same for
         # docs-only PRs: test-backend/test-bot/test-frontend are gated off by
-        # `changes`, so there's no coverage to scan.
+        # `changes`, so there's no coverage to scan. If `changes` itself
+        # fails, this job's implicit success() also makes it skip rather
+        # than fail -- merge stays blocked anyway because quality-gate
+        # independently checks `changes`'s result and hard-fails "Quality
+        # Gates" in that case.
         if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && needs.changes.outputs.code == 'true')
         permissions:
             contents: read
