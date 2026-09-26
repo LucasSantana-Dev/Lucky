@@ -15,6 +15,7 @@ const mockRateLimitFindUnique = jest.fn<(args?: any) => Promise<any>>()
 const mockRateLimitUpsert = jest.fn<(args?: any) => Promise<any>>()
 const mockRateLimitUpdate = jest.fn<(args?: any) => Promise<any>>()
 const mockRateLimitDeleteMany = jest.fn<(args?: any) => Promise<any>>()
+const mockServerLogDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockGetPrismaClient = jest.fn<() => any>()
 
 jest.mock('../../utils/database/prismaClient', () => ({
@@ -65,7 +66,11 @@ describe('DatabaseService', () => {
                 update: mockRateLimitUpdate,
                 deleteMany: mockRateLimitDeleteMany,
             },
+            serverLog: {
+                deleteMany: mockServerLogDeleteMany,
+            },
         })
+        mockServerLogDeleteMany.mockResolvedValue({ count: 0 })
         service = new DatabaseService(TEST_CONFIG)
     })
 
@@ -757,16 +762,44 @@ describe('DatabaseService', () => {
     })
 
     describe('cleanupOldData', () => {
-        it('deletes old tracks and rate limits, returns total count', async () => {
+        it('deletes old tracks, rate limits, and server logs, returns total count', async () => {
             mockTrackHistoryDeleteMany.mockResolvedValue({ count: 50 })
             mockRateLimitDeleteMany.mockResolvedValue({ count: 30 })
+            mockServerLogDeleteMany.mockResolvedValue({ count: 20 })
 
             const result = await service.cleanupOldData()
 
             expect(result.isSuccess()).toBe(true)
-            expect(result.getData()).toBe(80)
+            expect(result.getData()).toBe(100)
             expect(mockTrackHistoryDeleteMany).toHaveBeenCalled()
             expect(mockRateLimitDeleteMany).toHaveBeenCalled()
+            expect(mockServerLogDeleteMany).toHaveBeenCalled()
+        })
+
+        it('deletes server logs older than 30 days', async () => {
+            mockTrackHistoryDeleteMany.mockResolvedValue({ count: 0 })
+            mockRateLimitDeleteMany.mockResolvedValue({ count: 0 })
+            mockServerLogDeleteMany.mockResolvedValue({ count: 15 })
+
+            const before = Date.now()
+            const result = await service.cleanupOldData()
+            const after = Date.now()
+
+            expect(result.isSuccess()).toBe(true)
+            expect(result.getData()).toBe(15)
+            expect(mockServerLogDeleteMany).toHaveBeenCalledWith({
+                where: { createdAt: { lt: expect.any(Date) } },
+            })
+            const cutoff = mockServerLogDeleteMany.mock.calls[0]?.[0].where
+                .createdAt.lt as Date
+            const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000
+            // Cutoff should be ~30 days before "now", bounded by the call window
+            expect(cutoff.getTime()).toBeGreaterThanOrEqual(
+                before - thirtyDaysMs - 1000,
+            )
+            expect(cutoff.getTime()).toBeLessThanOrEqual(
+                after - thirtyDaysMs + 1000,
+            )
         })
 
         it('handles zero deletions', async () => {
@@ -793,6 +826,18 @@ describe('DatabaseService', () => {
             mockTrackHistoryDeleteMany.mockResolvedValue({ count: 10 })
             mockRateLimitDeleteMany.mockRejectedValue(
                 new Error('Rate limit deletion failed'),
+            )
+
+            const result = await service.cleanupOldData()
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('returns failure on server log deletion error', async () => {
+            mockTrackHistoryDeleteMany.mockResolvedValue({ count: 10 })
+            mockRateLimitDeleteMany.mockResolvedValue({ count: 5 })
+            mockServerLogDeleteMany.mockRejectedValue(
+                new Error('Server log deletion failed'),
             )
 
             const result = await service.cleanupOldData()
@@ -923,19 +968,23 @@ describe('DatabaseService', () => {
             })
         })
 
-        it('cleanupOldData deletes by playedAt and resetAt cutoffs and sums counts', async () => {
+        it('cleanupOldData deletes by playedAt, resetAt, and createdAt cutoffs and sums counts', async () => {
             mockTrackHistoryDeleteMany.mockResolvedValue({ count: 3 })
             mockRateLimitDeleteMany.mockResolvedValue({ count: 2 })
+            mockServerLogDeleteMany.mockResolvedValue({ count: 4 })
 
             const result = await service.cleanupOldData()
 
-            // 3 + 2 = 5 (kills the + -> - arithmetic mutant)
-            expect(result.getData()).toBe(5)
+            // 3 + 2 + 4 = 9 (kills the + -> - arithmetic mutant)
+            expect(result.getData()).toBe(9)
             expect(mockTrackHistoryDeleteMany).toHaveBeenCalledWith({
                 where: { playedAt: { lt: expect.any(Date) } },
             })
             expect(mockRateLimitDeleteMany).toHaveBeenCalledWith({
                 where: { resetAt: { lt: expect.any(Date) } },
+            })
+            expect(mockServerLogDeleteMany).toHaveBeenCalledWith({
+                where: { createdAt: { lt: expect.any(Date) } },
             })
         })
     })
