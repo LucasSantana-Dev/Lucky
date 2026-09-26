@@ -107,6 +107,7 @@ const createDefaultToggles = (): FeatureToggleState => {
     const disabledByDefault: FeatureToggleName[] = [
         'LYRICS',
         'SPOTIFY_INTEGRATION',
+        'SERVER_LOGS',
     ]
     return toggleNames.reduce((acc, name) => {
         acc[name] = !disabledByDefault.includes(name)

@@ -33,13 +33,17 @@ class FeatureToggleService {
         return getPrismaClient()
     }
 
+    private async readDbGlobalOverride(name: string): Promise<boolean | null> {
+        const row = await this.db.globalFeatureToggle.findUnique({
+            where: { name },
+            select: { enabled: true },
+        })
+        return row?.enabled ?? null
+    }
+
     private async getDbGlobalOverride(name: string): Promise<boolean | null> {
         try {
-            const row = await this.db.globalFeatureToggle.findUnique({
-                where: { name },
-                select: { enabled: true },
-            })
-            return row?.enabled ?? null
+            return await this.readDbGlobalOverride(name)
         } catch (error) {
             // Fail open to the environment/config fallback, but surface the
             // failure: a swallowed-to-null DB error here was indistinguishable
@@ -52,6 +56,40 @@ class FeatureToggleService {
             })
             return null
         }
+    }
+
+    private async getDbGuildOverride(
+        guildId: string,
+        name: string,
+    ): Promise<boolean | null> {
+        try {
+            const row = await this.db.guildFeatureToggle.findUnique({
+                where: { guildId_name: { guildId, name } },
+                select: { enabled: true },
+            })
+            return row?.enabled ?? null
+        } catch (error) {
+            warnLog({
+                message:
+                    'Failed to read guild feature toggle override; falling back to global value',
+                error,
+                data: { guildId, name },
+            })
+            return null
+        }
+    }
+
+    /** Sets a guild-scoped feature toggle override in the database. */
+    async setGuildFeatureToggle(
+        guildId: string,
+        name: FeatureToggleName,
+        enabled: boolean,
+    ): Promise<void> {
+        await this.db.guildFeatureToggle.upsert({
+            where: { guildId_name: { guildId, name } },
+            update: { enabled },
+            create: { guildId, name, enabled },
+        })
     }
 
     /** Sets a global feature toggle override in the database. */
@@ -99,12 +137,32 @@ class FeatureToggleService {
         return status.enabled
     }
 
-    /** Checks if a feature is enabled (optionally scoped to user/guild). */
+    /**
+     * Checks if a feature is enabled, optionally scoped to a guild. A guild
+     * override wins over the global value, except that an explicit global
+     * `false` in the database acts as a kill switch for every guild.
+     */
     async isEnabled(
         name: FeatureToggleName,
-        _context?: { userId?: string; guildId?: string },
+        context?: { userId?: string; guildId?: string },
     ): Promise<boolean> {
-        return this.isEnabledGlobal(name)
+        const guildOverride = context?.guildId
+            ? await this.getDbGuildOverride(context.guildId, name)
+            : null
+        if (guildOverride === null) return this.isEnabledGlobal(name)
+        if (!guildOverride) return false
+        try {
+            return (await this.readDbGlobalOverride(name)) !== false
+        } catch (error) {
+            // An unreadable kill switch must not leave an opted-in guild on.
+            warnLog({
+                message:
+                    'Failed to read global kill switch for guild opt-in; treating feature as disabled',
+                error,
+                data: { guildId: context?.guildId, name },
+            })
+            return false
+        }
     }
 
     /** Returns a copy of all loaded fallback toggles. */
