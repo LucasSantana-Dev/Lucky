@@ -411,12 +411,10 @@ jobs:
                   # running the full suite as today.
                   if [ "$EVENT" = "pull_request" ]; then
                       # `grep -v` exits 1 when every changed file matches the
-                      # exclude pattern (the docs-only case this filter exists
-                      # for) and `awk` exits 1 on truly empty input. Either one
-                      # aborts this step under bash's default -e/-o pipefail
-                      # for `run:` blocks, which would fail the changes job on
-                      # exactly the docs-only PR it's meant to pass. `|| true`
-                      # makes "no code files matched" a value, not an error.
+                      # exclude pattern (the docs-only case). The default
+                      # `bash -e` shell has no pipefail, so awk's exit 0 masks
+                      # it today; `|| true` keeps "no code files matched" a
+                      # value, not an error, if pipefail is ever turned on.
                       CODE_CHANGED=$(echo "$CHANGED" | grep -vE '^(docs/|decisions/|\.claude/)' | awk '!/\.md$/ || $0 == "CHANGELOG.md"') || true
                       if [ -n "$CODE_CHANGED" ]; then code=true; else code=false; fi
                   else
