@@ -121,7 +121,7 @@ then parses the remainder with `| json`:
 ```logql
 # Errors only, filtered by the nested error message (| json flattens
 # error.message to error_message)
-{container_name="lucky-bot"} | regexp "^\\[ERROR\\] (?P<body>.*)$" | line_format "{{.body}}" | json | error_message=~".*rate.limit.*"
+{container_name="lucky-bot"} | regexp "^\\[ERROR\\] (?P<body>.*)$" | line_format "{{.body}}" | json | error_message=~".*rate\\.limit.*"
 ```
 
 ```logql

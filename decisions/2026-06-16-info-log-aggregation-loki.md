@@ -50,7 +50,7 @@ splits it into three concerns with two already solved:
 
 - **Metrics / statistics — already solved.** `prom-client` is wired in both
   `packages/backend` (`utils/prometheus.ts`, `/metrics` route) and `packages/bot`
-  (`utils/monitoring/metricsServer.ts`) — 6 bot + 4 backend custom counters/gauges
+  (`utils/monitoring/metricsServer.ts`) — 6 bot + 4 backend custom metrics
   (corrected 2026-09-26, see note below; was overstated as "200+") — scraped by the
   homelab Grafana/Prometheus. "Usage statistics" (play counts, command rates)
   belong here as counters, **not** as logs.

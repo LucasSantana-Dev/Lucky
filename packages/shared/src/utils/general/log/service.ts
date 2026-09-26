@@ -3,6 +3,7 @@ import { getLogContext } from './context'
 import { getLogSink } from './sink'
 import { LEVEL_TOKEN } from './types'
 import type { LogLevelType, LogParams, LogConfig, LogFormat } from './types'
+import type { LogContext } from './context'
 
 // LogLevelType -> Sentry level. SUCCESS has no counterpart there and maps to info.
 const SENTRY_LOG_LEVEL: Record<number, 'debug' | 'info' | 'warn' | 'error'> = {
@@ -23,11 +24,20 @@ function resolveLogFormat(): LogFormat {
     return process.env.NODE_ENV === 'production' ? 'json' : 'pretty'
 }
 
-// A circular `data` value or a BigInt are both things a caller can legally
-// hand to `data`, and JSON.stringify throws on the first and drops the
-// second silently. The replacer neutralises both so a log call can never
-// crash the caller over its payload shape.
-function jsonSafeReplacer(): (key: string, value: unknown) => unknown {
+// BigInt makes JSON.stringify throw (not just drop the field), so every
+// pass needs this regardless of whether circularity is also in play.
+function bigIntReplacer(_key: string, value: unknown): unknown {
+    return typeof value === 'bigint' ? value.toString() : value
+}
+
+// Second-pass fallback, only reached when the cheap pass above throws (a
+// genuine cycle, or a hostile getter). A WeakSet of every object visited
+// anywhere in the tree over-flags shared-but-not-circular references (two
+// keys pointing at the same object) as "[Circular]", so it is deliberately
+// NOT the first pass: `{ a: shared, b: shared }` must serialize both values
+// in the common, non-cyclic case, and only pays this fidelity cost on the
+// rarer path that would otherwise throw.
+function circularSafeReplacer(): (key: string, value: unknown) => unknown {
     const seen = new WeakSet<object>()
     return (_key: string, value: unknown) => {
         if (typeof value === 'bigint') return value.toString()
@@ -41,23 +51,29 @@ function jsonSafeReplacer(): (key: string, value: unknown) => unknown {
 
 function stringifyJsonLine(record: Record<string, unknown>): string {
     try {
-        return JSON.stringify(record, jsonSafeReplacer())
+        return JSON.stringify(record, bigIntReplacer)
     } catch {
-        // Last-resort fallback: still exactly one line, still valid JSON.
-        return JSON.stringify({
-            ts: new Date().toISOString(),
-            level: record.level,
-            msg: '[unserializable log payload]',
-        })
+        try {
+            return JSON.stringify(record, circularSafeReplacer())
+        } catch {
+            // Last-resort fallback: still exactly one line, still valid JSON.
+            return JSON.stringify({
+                ts: new Date().toISOString(),
+                level: record.level,
+                msg: '[unserializable log payload]',
+            })
+        }
     }
 }
 
 // Mirrors serializeError's read-each-property-once discipline: an Error can
 // expose a throwing getter for name/message/stack, so every read stays
-// inside the try. Unlike the pretty format, nothing here needs sanitizing
-// against log injection - JSON.stringify escapes control characters
-// (including newlines) inside string values, so an injected value can never
-// break out of the single JSON line.
+// inside the try. name/message are sanitised the same way the pretty format
+// sanitises them (defence in depth alongside JSON.stringify's own escaping);
+// stack is left raw because JSON.stringify already escapes its newlines as
+// `\n`, and running it through the control-char stripper would collapse the
+// real frame structure into one line, the same reason pretty mode's
+// serializeError never sanitises before splitting.
 function buildErrorObject(err: unknown): {
     name: string
     message: string
@@ -66,12 +82,16 @@ function buildErrorObject(err: unknown): {
     try {
         if (err instanceof Error) {
             return {
-                name: toDisplayString(err.name),
-                message: toDisplayString(err.message),
+                name: sanitizeForLogging(toDisplayString(err.name)),
+                message: sanitizeForLogging(toDisplayString(err.message)),
                 stack: toDisplayString(err.stack ?? ''),
             }
         }
-        return { name: 'Error', message: serializeData(err), stack: '' }
+        return {
+            name: 'Error',
+            message: sanitizeForLogging(serializeData(err)),
+            stack: '',
+        }
     } catch {
         return { name: 'Error', message: toDisplayString(err), stack: '' }
     }
@@ -88,6 +108,7 @@ function extractStringField(data: unknown, key: string): string | undefined {
 // #2386), so once pulled out they are removed here to avoid printing the
 // same value twice in one record.
 function omitKeys(data: unknown, keys: string[]): unknown {
+    if (keys.length === 0) return data
     if (data === null || typeof data !== 'object' || Array.isArray(data))
         return data
     const rest: Record<string, unknown> = { ...(data as Record<string, unknown>) }
@@ -95,9 +116,78 @@ function omitKeys(data: unknown, keys: string[]): unknown {
     return Object.keys(rest).length > 0 ? rest : undefined
 }
 
+type JsonIdentityFields = {
+    correlationId?: string
+    guildId?: string
+    userId?: string
+    data?: unknown
+}
+
+// Resolves guildId/userId/correlationId and the residual `data` blob for the
+// json record. Two things `effectiveParams.data` alone cannot give us:
+//   - ctx is consulted directly (not just via the data merge `log()` already
+//     did), so a non-plain `data` (array, string, ...) never drops the
+//     active AsyncLocalStorage context's identity fields the way reading
+//     them off `effectiveParams.data` would.
+//   - a key is only stripped from `data` when it was actually hoisted to a
+//     top-level field, so a value never just disappears (e.g. a `data`
+//     value with no matching top-level correlationId is never deleted).
+// The whole extraction is one try/catch: a `data` object with a throwing
+// getter must not crash the log call, matching pretty mode's
+// serializeData/toDisplayString fallback discipline - console output and
+// Sentry forwarding must still happen.
+function extractJsonFields(
+    params: LogParams,
+    ctx: LogContext | undefined,
+): JsonIdentityFields {
+    try {
+        const dataGuildId = extractStringField(params.data, 'guildId')
+        const dataUserId = extractStringField(params.data, 'userId')
+        const dataCorrelationId = extractStringField(
+            params.data,
+            'correlationId',
+        )
+
+        const omit: string[] = []
+        if (dataGuildId !== undefined) omit.push('guildId')
+        if (dataUserId !== undefined) omit.push('userId')
+        if (dataCorrelationId !== undefined) omit.push('correlationId')
+
+        return {
+            correlationId:
+                params.correlationId ?? dataCorrelationId ?? ctx?.correlationId,
+            guildId: dataGuildId ?? ctx?.guildId,
+            userId: dataUserId ?? ctx?.userId,
+            data: omitKeys(params.data, omit),
+        }
+    } catch {
+        // A hostile getter on `data` prevented reading any field off it.
+        // Identity fields still resolve from params/ctx (neither requires
+        // touching `data`), and `data` itself falls back to a best-effort
+        // display string - never thrown away silently, mirroring pretty
+        // mode's serializeData -> toDisplayString fallback.
+        return {
+            correlationId: params.correlationId ?? ctx?.correlationId,
+            guildId: ctx?.guildId,
+            userId: ctx?.userId,
+            data:
+                params.data === undefined
+                    ? undefined
+                    : toDisplayString(params.data),
+        }
+    }
+}
+
 // A log attribute has to be a flat map. `data` can be anything (array, string, null), so
 // whatever is not a plain object goes under one key instead of being spread or silently
 // dropped.
+//
+// `Object.assign` enumerates every own property of `data`, so a throwing
+// getter on any of them would abort this and, since it runs right before the
+// Sentry call, silently skip Sentry forwarding entirely (worse than the
+// console-output path, since there is no next step to observe the drop).
+// Falling back to correlationId-only keeps the call from throwing at all,
+// matching the "never crash the caller over its payload shape" guarantee.
 function asLogAttributes(
     params: LogParams,
 ): Record<string, unknown> | undefined {
@@ -106,7 +196,11 @@ function asLogAttributes(
     if (params.data !== undefined) {
         const d = params.data
         if (d !== null && typeof d === 'object' && !Array.isArray(d)) {
-            Object.assign(attrs, d as Record<string, unknown>)
+            try {
+                Object.assign(attrs, d as Record<string, unknown>)
+            } catch {
+                attrs.data = '[unserializable]'
+            }
         } else {
             attrs.data = d
         }
@@ -348,7 +442,7 @@ export class LogService {
             // One call, one line: see #2386. Everything (message, context,
             // data, error) lives in a single JSON object after the token, so
             // a shipper reading one physical line reads one whole event.
-            this.logJson(level, token, effectiveParams)
+            this.logJson(level, token, effectiveParams, ctx)
         } else {
             const color = this.getColor(level)
 
@@ -407,26 +501,25 @@ export class LogService {
         level: LogLevelType,
         token: string,
         params: LogParams,
+        ctx: LogContext | undefined,
     ): void {
         const record: Record<string, unknown> = {
             ts: new Date().toISOString(),
             level: (LEVEL_TOKEN[level] ?? 'INFO').toLowerCase(),
-            msg: params.message,
+            // Sanitised for the same reason the pretty format's message line
+            // is: a value coming from a caller must not forge a record. Not
+            // strictly required for this sink - JSON.stringify escapes
+            // control characters inside string values regardless - but kept
+            // in step with the rest of the file's sanitize-at-the-source
+            // discipline.
+            msg: sanitizeForLogging(params.message),
         }
 
-        if (params.correlationId) record.correlationId = params.correlationId
-
-        const guildId = extractStringField(params.data, 'guildId')
-        const userId = extractStringField(params.data, 'userId')
-        if (guildId) record.guildId = guildId
-        if (userId) record.userId = userId
-
-        const data = omitKeys(params.data, [
-            'guildId',
-            'userId',
-            'correlationId',
-        ])
-        if (data !== undefined) record.data = data
+        const fields = extractJsonFields(params, ctx)
+        if (fields.correlationId) record.correlationId = fields.correlationId
+        if (fields.guildId) record.guildId = fields.guildId
+        if (fields.userId) record.userId = fields.userId
+        if (fields.data !== undefined) record.data = fields.data
 
         if (params.error) record.error = buildErrorObject(params.error)
 
