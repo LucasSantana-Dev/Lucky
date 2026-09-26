@@ -364,15 +364,10 @@ services:
             # which only happens when this profile is actually used.
             GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-}
             GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
-            # Consumed by observability/grafana/provisioning/alerting/*.yaml
-            # via Grafana's ${VAR} provisioning-file env expansion.
-            ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
-            WATCHDOG_PING_URL: ${WATCHDOG_PING_URL:-}
-            GF_SMTP_ENABLED: "true"
-            GF_SMTP_HOST: ${SMTP_HOST:-}:${SMTP_PORT:-587}
-            GF_SMTP_USER: ${SMTP_USER:-}
-            GF_SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-            GF_SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-}
+            # Grafana is dashboards-only: alert evaluation and notification
+            # live in Prometheus + Alertmanager (single source of truth for
+            # rules). No SMTP/contact-point env vars needed here anymore.
+            GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/files/lucky-home.json
         volumes:
             - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
             - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards/files:ro
@@ -414,11 +409,105 @@ services:
                 max-file: "3"
                 tag: "{{.Name}}"
 
+    cadvisor:
+        mem_limit: 128m
+        cpus: 0.25
+        restart: unless-stopped
+        image: gcr.io/cadvisor/cadvisor:v0.52.1
+        container_name: lucky-cadvisor
+        # Feeds the lucky-resource-pressure rule group (per-container memory
+        # working-set / limit ratio) in observability/prometheus/rules/. Same
+        # `name` label as the container_name values those rules match on
+        # (lucky-bot, lucky-backend, ...).
+        volumes:
+            - /:/rootfs:ro
+            - /var/run:/var/run:ro
+            - /sys:/sys:ro
+            - /var/lib/docker:/var/lib/docker:ro
+        networks:
+            - lucky-network
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    # Renders observability/alertmanager/alertmanager.yml.tmpl into a shared
+    # volume before alertmanager starts. Alertmanager's config format has no
+    # native ${VAR} expansion, so the non-secret fields (SMTP host/port/from,
+    # alert recipient address) are substituted here with envsubst; the two
+    # secret fields (SMTP password, Watchdog webhook URL) instead use
+    # Alertmanager's own `_file` config options, fed by Compose `secrets:`
+    # sourced from env vars below, so no secret ever lands in the rendered
+    # plain-text config. Runs once and exits; alertmanager waits for it.
+    alertmanager-config:
+        image: alpine:3.20
+        container_name: lucky-alertmanager-config
+        restart: "no"
+        command:
+            - sh
+            - -c
+            - apk add --no-cache gettext >/dev/null && envsubst < /template/alertmanager.yml.tmpl > /rendered/alertmanager.yml
+        environment:
+            ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+            SMTP_HOST: ${SMTP_HOST:-}
+            SMTP_PORT: ${SMTP_PORT:-587}
+            SMTP_USER: ${SMTP_USER:-}
+            SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-}
+        volumes:
+            - ./observability/alertmanager:/template:ro
+            - alertmanager_config:/rendered
+        profiles:
+            - observability
+
+    alertmanager:
+        mem_limit: 128m
+        cpus: 0.25
+        restart: unless-stopped
+        image: prom/alertmanager:v0.28.1
+        container_name: lucky-alertmanager
+        depends_on:
+            alertmanager-config:
+                condition: service_completed_successfully
+        command:
+            - "--config.file=/etc/alertmanager/alertmanager.yml"
+            - "--storage.path=/alertmanager"
+        volumes:
+            - alertmanager_config:/etc/alertmanager:ro
+            - alertmanager_data:/alertmanager
+        secrets:
+            - smtp_password
+            - watchdog_ping_url
+        networks:
+            - lucky-network
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+secrets:
+    # Sourced from the host env vars Compose already has (no file on disk,
+    # nothing read from .env* by this repo's code); mounted read-only at
+    # /run/secrets/<name> inside whichever service declares them.
+    smtp_password:
+        environment: SMTP_PASSWORD
+    watchdog_ping_url:
+        environment: WATCHDOG_PING_URL
+
 volumes:
     postgres_data:
     redis_data:
     prometheus_data:
     grafana_data:
+    alertmanager_data:
+    alertmanager_config:
 
 networks:
     lucky-network:

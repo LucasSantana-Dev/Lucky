@@ -1,8 +1,10 @@
 # Lucky observability stack (P2a prototype)
 
-Phase P2a of `decisions/2026-09-26-lucky-owned-observability-stack.md`: Prometheus +
-Grafana, provisioned entirely from files, running as the `observability` Compose
-profile alongside the app. See issue #2392.
+Phase P2a of `decisions/2026-09-26-lucky-owned-observability-stack.md`:
+Prometheus, Alertmanager, Grafana, node_exporter, and cAdvisor, provisioned
+entirely from files, running as the `observability` Compose profile alongside
+the app. See issue #2392. For a non-technical guide to the dashboards and
+what to do when an alert fires, see [`docs/observability.md`](../docs/observability.md).
 
 ## Run it
 
@@ -10,8 +12,10 @@ profile alongside the app. See issue #2392.
 docker compose --profile observability up -d
 ```
 
-This starts `prometheus`, `grafana`, and `node-exporter` in addition to whatever
-other profile(s)/services you already run. None of them bind a host port.
+This starts `prometheus`, `alertmanager` (plus the one-shot
+`alertmanager-config` renderer), `grafana`, `node-exporter`, and `cadvisor` in
+addition to whatever other profile(s)/services you already run. None of them
+bind a host port.
 
 Bring it down with:
 
@@ -55,101 +59,168 @@ this PR does not modify since it is treated as secret-bearing).
 | --- | --- | --- |
 | `GRAFANA_ADMIN_USER` | grafana | Initial admin username (`GF_SECURITY_ADMIN_USER`). |
 | `GRAFANA_ADMIN_PASSWORD` | grafana | Initial admin password (`GF_SECURITY_ADMIN_PASSWORD`). |
-| `ALERT_EMAIL_TO` | grafana (contact point `email-primary`) | Where non-Watchdog alerts land. |
-| `WATCHDOG_PING_URL` | grafana (contact point `watchdog-offbox`) | Off-box healthchecks.io (or similar) ping URL. The Watchdog alert (always firing) hits this every minute; losing the ping is the alarm. |
-| `SMTP_HOST` | grafana | SMTP server host for `email-primary` (Grafana's `GF_SMTP_HOST`, combined with `SMTP_PORT`). |
-| `SMTP_PORT` | grafana | SMTP port, default `587`. |
-| `SMTP_USER` | grafana | SMTP auth username. |
-| `SMTP_PASSWORD` | grafana | SMTP auth password. |
-| `SMTP_FROM_ADDRESS` | grafana | "From" address on alert emails. |
+| `ALERT_EMAIL_TO` | alertmanager-config (templated into alertmanager.yml) | Where non-Watchdog alerts land. |
+| `WATCHDOG_PING_URL` | alertmanager, via a Compose secret (`watchdog_ping_url`) | Off-box healthchecks.io (or similar) ping URL. The Watchdog alert (always firing) hits this every minute; losing the ping is the alarm. |
+| `SMTP_HOST` | alertmanager-config (templated) | SMTP server host, combined with `SMTP_PORT` into `smtp_smarthost`. |
+| `SMTP_PORT` | alertmanager-config (templated) | SMTP port, default `587`. |
+| `SMTP_USER` | alertmanager-config (templated) | SMTP auth username. |
+| `SMTP_PASSWORD` | alertmanager, via a Compose secret (`smtp_password`) | SMTP auth password. Never templated into the rendered config file. |
+| `SMTP_FROM_ADDRESS` | alertmanager-config (templated) | "From" address on alert emails. |
 | `HEARTBEAT_PING_URL` | bot, backend | On-box dead-man ping target (issue #2390). |
 | `HEARTBEAT_PING_URL_EXTERNAL` | bot, backend | Off-box dead-man ping target (issue #2390). |
 | `HEARTBEAT_INTERVAL_MS` | bot, backend | Heartbeat interval, default `60000`. |
 
 None of the above are read by this PR's code from any `.env*` file directly;
-they're consumed at container-start time by Compose/Grafana/the app.
+they're consumed at container-start time by Compose/Alertmanager/Grafana/the
+app. Grafana no longer needs any SMTP or contact-point env vars: it is
+dashboards-only now (see "Alerting architecture" below).
 
-## Alerting choice: Grafana-managed alerting, not a separate Alertmanager
+## Alerting architecture: Prometheus + Alertmanager, Grafana is dashboards only
 
-The task allowed either "Grafana alerting (unified) evaluates the Prometheus
-rules" or "run Alertmanager." We picked **Grafana-managed alert rules**
-(`observability/grafana/provisioning/alerting/rules.yaml`) over adding an
-Alertmanager container:
+Switched from the initial Grafana-managed alerting to Prometheus native rules
+plus Alertmanager, per operator decision, so alert rules have exactly ONE
+source of truth: `observability/prometheus/rules/*.yml`. Prometheus evaluates
+them (`rule_files`) and forwards firing alerts to Alertmanager
+(`alerting.alertmanagers` in `prometheus.yml`), which owns grouping, routing,
+and delivery. Grafana only reads the same Prometheus datasource for
+dashboards; it has no alert rules, contact points, or notification policies
+of its own anymore (`observability/grafana/provisioning/alerting/` was
+removed).
 
-- **Fewer moving parts.** One less container, one less `mem_limit` to budget
-  against the 8 GB host floor the ADR sets, one less config surface to keep
-  in sync with contact points/routing.
-- **Grafana is already the single pane** per the ADR (§2, §4): dashboards,
-  contact points, and notification policies all live in Grafana regardless;
-  having it also own alert evaluation avoids a second alerting engine.
-- **Vanilla OSS Prometheus has no ruler write API** (that's a Mimir/Cortex/Loki
-  feature), so Grafana cannot treat our Prometheus as a "data source-managed"
-  ruler and pull `observability/prometheus/rules/*.yml` in directly. The
-  practical file-provisioned path is to re-express the same PromQL as
-  Grafana-managed alert rules querying the `prometheus` datasource, which is
-  what `rules.yaml` does: each rule's expression is copied from the matching
-  Prometheus rule.
+**Why the switch:** the previous Grafana-managed setup required hand-copying
+every PromQL expression into a second, Grafana-native rule format because
+vanilla OSS Prometheus has no ruler write API for Grafana to manage its rule
+files directly. That duplication was flagged as friction #3 in the original
+build and is what the operator asked to resolve. Alertmanager reads
+Prometheus's native rules directly, so there is only one rule definition per
+alert now.
 
-**Trade-off, disclosed:** Prometheus still loads `observability/prometheus/rules/*.yml`
-via `rule_files` (so `/api/v1/rules`, `promtool check rules`, and a future
-migration to Alertmanager/Mimir all still work), but with no `alerting:
-alertmanagers:` configured, Prometheus's own evaluation of those rules is
-inert (computed, never delivered). The rules that actually fire and notify are
-the separate Grafana-managed copies. The two must be kept in sync by hand;
-that's a real cost against the "everything is code" goal to revisit when this
-graduates past the prototype.
+**Templating Alertmanager's config.** Alertmanager's config format has no
+native `${VAR}` expansion. Two mechanisms are used together:
+
+- **Secrets, no templating:** `SMTP_PASSWORD` and `WATCHDOG_PING_URL` are
+  passed as Compose `secrets:` sourced from the host env vars (`environment:`
+  driver, no file on disk), mounted read-only at `/run/secrets/<name>` in the
+  `alertmanager` container. Alertmanager's own `smtp_auth_password_file` and
+  the webhook receiver's `url_file` config fields read them directly, so
+  neither secret ever appears in the rendered plain-text config.
+- **envsubst for everything else:** the non-secret fields (SMTP host/port/
+  from address, the `to:` address for alerts) have no `_file` equivalent in
+  Alertmanager's schema, so a small one-shot `alertmanager-config` service
+  (plain `alpine` image, installs `gettext` at start) renders
+  `observability/alertmanager/alertmanager.yml.tmpl` into a shared Docker
+  volume with `envsubst` before `alertmanager` starts (`depends_on:
+  condition: service_completed_successfully`).
+
+## cAdvisor
+
+Added per operator decision to feed the `lucky-resource-pressure` rule group
+(`container_memory_working_set_bytes` / `container_spec_memory_limit_bytes`),
+which had no data source in the original P2a build. cAdvisor's `name` label
+matches each service's `container_name:` in `docker-compose.yml` (`lucky-bot`,
+`lucky-backend`, ...), which is exactly what those rules already matched on,
+so no rule expression changes were needed.
+
+## Dashboards (for a non-technical operator)
+
+Two dashboards, both tagged `lucky` and cross-linked at the top nav:
+
+- **`lucky-home.json` ("Lucky: comece aqui")**: set as the Grafana org home
+  dashboard via `GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH`. A "Pergunta →
+  Onde olhar" table in pt-BR plus stat panels (bot up, backend up, 5xx rate
+  now, disk free %, active-alerts count from `count(ALERTS{alertstate=
+  "firing", alertname!="Watchdog"})`).
+- **`lucky-health.json` ("Lucky: saúde do sistema")**: every panel has a
+  pt-BR `description` naming what's normal vs. worrying, using the same
+  thresholds as the alert rules, plus panels the original starter dashboard
+  didn't have: gateway-connected, per-container memory-vs-limit (needs
+  cAdvisor), container uptime-since-last-start (a practical stand-in for
+  "restart count", see friction #6 below), and guild totals/joins/leaves.
+
+No panel requires the viewer to read or write PromQL; see
+`docs/observability.md` for the plain-language guide and the alert runbook.
 
 ## Friction log (P2a gate)
 
 Per the ADR, more than 3 friction points means stop and revisit the platform
-choice before P2b. Recorded here at build time; **the operator adds any
-runtime friction hit when actually bringing the profile up on the homelab.**
+choice before P2b. Recorded at build time across both rounds of this PR;
+**the operator adds any runtime friction hit when actually bringing the
+profile up on the homelab.**
 
 1. **Compose interpolates every service's env vars at parse time, regardless
    of active profile.** A `${GRAFANA_ADMIN_USER:?required}` on the
    profile-gated `grafana` service broke plain `docker compose config`/`up`
    even when `observability` was never requested, because Compose validates
    all services' `environment:` blocks up front. Fixed by using `:-` (empty
-   default) for the new Grafana/alerting vars instead of `:?` (hard-required);
-   the failure now surfaces at Grafana's own startup only when the profile is
-   actually used, not for every unrelated `compose up`.
-2. **cAdvisor-dependent rules have no data source in P2a.** The
-   `lucky-resource-pressure` group moved from `monitoring/prometheus/` reads
-   `container_memory_working_set_bytes` / `container_spec_memory_limit_bytes`,
-   which come from cAdvisor. P2a only deploys node_exporter. Those four rules
-   stay defined (portable) but are dormant: no series, no alert, until
-   cAdvisor is added in a later phase.
-3. **Vanilla Prometheus has no ruler API for Grafana to manage its rule files
-   directly** (see "Alerting choice" above), forcing the same alert logic to
-   be hand-duplicated between `observability/prometheus/rules/*.yml`
-   (Prometheus-native, inert for delivery) and
-   `observability/grafana/provisioning/alerting/rules.yaml` (Grafana-managed,
-   the one that actually notifies).
-4. **Unverified assumption: Grafana's `${VAR}` provisioning-file environment
-   expansion.** The contact points in `contactpoints.yaml` reference
-   `${ALERT_EMAIL_TO}` and `${WATCHDOG_PING_URL}`, expecting Grafana to expand
-   them from the container's environment at provisioning-load time (a
-   documented Grafana feature). This was **not verified against a running
-   Grafana container in this session** (see friction #5). Verify on first
-   `docker compose --profile observability up -d`, and if the values come
-   through literally instead of expanded, switch to an entrypoint `envsubst`
-   pass over the alerting YAML before Grafana starts.
-5. **Local dev environment only, not the platform's fault:** this session's
+   default) instead of `:?` (hard-required); the failure now surfaces at
+   Grafana's own startup only when the profile is actually used.
+2. **Resolved by adding cAdvisor.** The `lucky-resource-pressure` rule group
+   had no data source in the first round of this PR (only node_exporter was
+   deployed). Adding the `cadvisor` service and scrape job fixed this; no
+   rule expression changes were needed since the `name` label already
+   matched `container_name:` values.
+3. **Resolved by switching to Prometheus + Alertmanager.** The original
+   Grafana-managed alerting required hand-duplicating every PromQL
+   expression into a second rule format because vanilla Prometheus has no
+   ruler write API. Alertmanager reads Prometheus's native `rule_files`
+   directly, so there is exactly one rule definition per alert now.
+4. **Local dev environment only, not the platform's fault:** this session's
    local Docker (colima) had a corrupted containerd store (I/O errors on
-   blob/metadata reads and writes), so `docker run` for a `promtool` container
-   check failed. Worked around by installing `promtool` via Homebrew instead
-   (`brew install prometheus`) and running `promtool check config` /
-   `promtool check rules` directly against the files, and both passed. Filed as
-   a separate GitHub issue since it's an environment defect unrelated to this
-   change.
+   blob/metadata reads and writes), so `docker run` for `promtool` and
+   `amtool` container checks failed both rounds. Worked around by installing
+   `promtool` via Homebrew (`promtool check config` / `check rules` both
+   pass) and by rendering + hand-validating the Alertmanager config's YAML
+   directly (`amtool check-config` could not run). Filed as a separate
+   GitHub issue since it's an environment defect unrelated to this change.
+5. **Unverified: the `alertmanager-config` envsubst render.** It was tested
+   locally with the real `envsubst` binary against real env vars and
+   produces valid YAML (see "Verification" below), but the full chain
+   (Compose `secrets:` from env vars mounted at `/run/secrets/*`, the
+   one-shot renderer's `depends_on: service_completed_successfully` gate,
+   and Alertmanager actually reading `smtp_auth_password_file` / `url_file`)
+   was not exercised against a live container this session (blocked by
+   friction #4). Verify on first `docker compose --profile observability up
+   -d` per the live gate test below.
+6. **No true "restart count" metric from cAdvisor for plain Docker
+   containers.** That metric only exists for Kubernetes pods (via
+   kube-state-metrics). The health dashboard uses "time since last
+   container start" (`container_start_time_seconds`) as a practical proxy
+   instead: a value that keeps dropping back near zero signals a crash
+   loop, even without a literal count.
 
-**4 of the 5 are platform-relevant** (friction #5 is local-environment noise,
-not a Prometheus/Grafana platform concern), and that crosses the ADR's "more than
-3" threshold. Flagging this explicitly for the operator to weigh against
-proceeding to P2b; nothing here is a hard blocker for the prototype itself
-(`docker compose --profile observability config` and `promtool check` both
-pass), but per the ADR's own gate this is a signal to pause and re-evaluate
-before committing further to this stack.
+**Net across both rounds: friction #1 stands, #2 and #3 are resolved by this
+round's changes, #4 is a pre-existing local-environment issue (tracked
+separately, not the platform's fault), and #5/#6 are new but neither blocks
+the prototype** (config and rule checks pass; #6 is a documented
+approximation, not a defect). This brings the count of unresolved,
+platform-relevant friction down from 4 to effectively 1 (#1) plus one
+pending runtime verification (#5); worth another look by the operator
+against the ADR's "more than 3" gate, but the trend across this PR is toward
+resolving friction, not accumulating it.
+
+## Live gate test checklist (operator, on the homelab)
+
+Run after `docker compose --profile observability up -d` with real `.env`
+values:
+
+1. `docker compose --profile observability ps`: `prometheus`, `alertmanager`,
+   `grafana`, `node-exporter`, `cadvisor` all `Up`; `alertmanager-config`
+   `Exited (0)`.
+2. Open Prometheus's targets page (via the same `socat`/SSH-tunnel recipe,
+   forwarding to `prometheus:9090` instead of `grafana:3000`) and confirm
+   `lucky-bot`, `lucky-backend`, `node-exporter`, `cadvisor`, and
+   `prometheus` are all `UP`.
+3. Confirm the Watchdog ping reaches healthchecks.io (or whatever
+   `WATCHDOG_PING_URL` points at): the check should show a "last ping" within
+   the last minute.
+4. Fire a synthetic alert and confirm it arrives by email: either
+   `amtool alert add alertname=P2aGateTest severity=warning` against the
+   Alertmanager API, or temporarily add a rule with `expr: vector(1)` and a
+   different `alertname` to a rules file, reload Prometheus, and remove it
+   after confirming the email.
+5. Open Grafana ("Lucky: comece aqui" should load as the home dashboard) and
+   confirm the disk-free stat panel shows a real percentage matching `df -h`
+   on the host.
 
 ## What P2b adds next
 

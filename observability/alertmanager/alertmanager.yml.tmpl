@@ -1,0 +1,45 @@
+# Rendered into observability_alertmanager_config (a Docker volume) by the
+# `alertmanager-config` service, which runs `envsubst` over this file before
+# `alertmanager` starts. See observability/README.md "Alerting architecture".
+#
+# Non-secret values (SMTP host/port/from, alert recipient) are substituted
+# here via envsubst from plain env vars. The two secrets (SMTP password,
+# Watchdog webhook URL) are NOT templated: they use Alertmanager's own
+# `_file` config fields below, reading from files Compose mounts from
+# `secrets:` (sourced from SMTP_PASSWORD / WATCHDOG_PING_URL env vars), so no
+# secret value ever appears in this rendered file.
+
+global:
+  smtp_smarthost: '${SMTP_HOST}:${SMTP_PORT}'
+  smtp_from: '${SMTP_FROM_ADDRESS}'
+  smtp_auth_username: '${SMTP_USER}'
+  smtp_auth_password_file: /run/secrets/smtp_password
+  smtp_require_tls: true
+
+route:
+  receiver: email-primary
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    # Dead-man's-switch: Watchdog always fires, so it must repeat fast and
+    # go to the off-box healthcheck, never to email.
+    - matchers:
+        - alertname = "Watchdog"
+      receiver: watchdog-offbox
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1m
+      continue: false
+
+receivers:
+  - name: email-primary
+    email_configs:
+      - to: '${ALERT_EMAIL_TO}'
+        send_resolved: true
+
+  - name: watchdog-offbox
+    webhook_configs:
+      - url_file: /run/secrets/watchdog_ping_url
+        send_resolved: false

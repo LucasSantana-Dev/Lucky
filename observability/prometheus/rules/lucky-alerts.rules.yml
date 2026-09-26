@@ -19,12 +19,12 @@
 # longer count page cache as used memory. See
 # decisions/2026-07-02-resource-hygiene-alert-calibration-first.md.
 #
-# FRICTION (P2a gate): the `container_memory_working_set_bytes` /
-# `container_spec_memory_limit_bytes` series in this group come from cAdvisor,
-# which is NOT part of the P2a scrape config (only node_exporter is). These four
-# rules stay defined (portable, ready for when cAdvisor is added) but are dormant:
-# no series, no alert, until a cAdvisor target exists. `HostMemoryHigh` is the
-# exception: it reads node_exporter's `node_memory_*` series and is live today.
+# The `container_memory_working_set_bytes` / `container_spec_memory_limit_bytes`
+# series in the lucky-resource-pressure group come from cAdvisor, scraped as
+# the `cadvisor` job in prometheus.yml. The `name` label matches each
+# service's `container_name:` in docker-compose.yml (lucky-bot,
+# lucky-backend, ...), so no expression changes were needed once cAdvisor
+# was added.
 
 groups:
   - name: lucky-backend-errors

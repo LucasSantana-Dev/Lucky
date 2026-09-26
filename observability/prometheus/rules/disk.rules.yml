@@ -42,11 +42,12 @@ groups:
 
   - name: lucky-watchdog
     rules:
-      # Always-firing rule. Grafana's notification policy routes this alert
-      # (by label match, see observability/grafana/provisioning/alerting) to
-      # the watchdog-offbox contact point so an external dead-man's-switch
-      # keeps ringing as long as Prometheus + Grafana are alive and
-      # evaluating rules. Silence of this alert IS the alarm.
+      # Always-firing rule. Alertmanager's route
+      # (observability/alertmanager/alertmanager.yml.tmpl) matches this
+      # alert's name to the watchdog-offbox receiver so an external
+      # dead-man's-switch keeps ringing as long as Prometheus and
+      # Alertmanager are alive and evaluating/delivering rules. Silence of
+      # this alert IS the alarm.
       - alert: Watchdog
         expr: vector(1)
         labels:
@@ -57,4 +58,4 @@ groups:
             This is a dead-man's-switch alert. It is always firing so the
             alerting pipeline's own liveness can be monitored. It routes to
             an off-box healthcheck; losing this ping means Prometheus or
-            Grafana died, not that something is wrong in the app.
+            Alertmanager died, not that something is wrong in the app.

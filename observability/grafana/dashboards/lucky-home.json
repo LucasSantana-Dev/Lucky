@@ -1,0 +1,171 @@
+{
+  "title": "Lucky: comece aqui",
+  "uid": "lucky-home",
+  "editable": false,
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "tags": ["lucky"],
+  "templating": { "list": [] },
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": ["lucky"],
+      "targetBlank": false,
+      "title": "Dashboards do Lucky",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Onde eu olho para responder cada pergunta?",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "| Pergunta | Onde olhar |\n| --- | --- |\n| **O bot está no ar?** | Painel \"Bot ligado\" logo abaixo. Verde = sim, vermelho = não. Detalhe em [Lucky: saúde do sistema](/d/lucky-health/lucky-saude-do-sistema). |\n| **O backend está lento?** | [Lucky: saúde do sistema](/d/lucky-health/lucky-saude-do-sistema), painel \"Tempo de resposta (p95)\". Acima de 1 segundo por vários minutos é motivo de atenção. |\n| **Está dando erro?** | [Lucky: saúde do sistema](/d/lucky-health/lucky-saude-do-sistema), painel \"Erros 5xx\". Qualquer linha visível ali é um erro do backend acontecendo agora; olhe também o painel \"Erros 5xx agora\" logo abaixo. |\n| **O disco vai encher?** | Painel \"Espaço livre em disco\" logo abaixo, e em detalhe em [Lucky: saúde do sistema](/d/lucky-health/lucky-saude-do-sistema). Abaixo de 20% é aviso, abaixo de 10% é crítico. |\n| **Algum alerta disparou?** | Painel \"Alertas ativos agora\" logo abaixo. Qualquer número maior que zero significa que existe um alerta disparado (o Watchdog não conta, ele fica sempre ligado de propósito). |\n\nEsses dois primeiros painéis (bot e backend) mostram o estado agora. O painel de alertas mostra quantos alertas estão soando neste exato momento. Para o histórico e mais detalhe, use o link \"Lucky: saúde do sistema\" no menu de cima."
+      },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Bot ligado",
+      "description": "1 = o bot do Discord está rodando e o Prometheus consegue falar com ele. 0 = o bot caiu ou está inacessível.",
+      "gridPos": { "h": 5, "w": 5, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "up{job=\"lucky-bot\"}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "FORA DO AR", "color": "red" }, "1": { "text": "NO AR", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Backend ligado",
+      "description": "1 = o servidor web/API está rodando e respondendo. 0 = o backend caiu ou está inacessível.",
+      "gridPos": { "h": 5, "w": 5, "x": 5, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "up{job=\"lucky-backend\"}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "FORA DO AR", "color": "red" }, "1": { "text": "NO AR", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Erros 5xx agora",
+      "description": "Quantos erros de servidor (5xx) o backend está devolvendo por segundo. Acima de 5% das respostas vira aviso; acima de 10% vira crítico (mesmos limites do alerta).",
+      "gridPos": { "h": 5, "w": 5, "x": 10, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(lucky_backend_http_server_errors_total[5m])) / clamp_min(sum(rate(lucky_backend_http_requests_total[5m])), 1)",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.05 },
+              { "color": "red", "value": 0.10 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Espaço livre em disco",
+      "description": "Menor percentual de espaço livre entre os discos monitorados. Abaixo de 20% é aviso, abaixo de 10% é crítico (mesmos limites do alerta de disco).",
+      "gridPos": { "h": 5, "w": 5, "x": 15, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "min(node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\"})",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.10 },
+              { "color": "green", "value": 0.20 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Alertas ativos agora",
+      "description": "Quantos alertas estão disparados neste momento (sem contar o Watchdog, que fica sempre ligado de propósito para provar que o sistema de alerta está vivo). Zero é o normal.",
+      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "count(ALERTS{alertstate=\"firing\",alertname!=\"Watchdog\"})",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ]
+}
