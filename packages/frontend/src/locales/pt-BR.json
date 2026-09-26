@@ -873,7 +873,10 @@
         "exportSuccess": "Logs exportados!",
         "loadError": "Falha ao carregar logs. Por favor, tente novamente.",
         "userLabel": "Usuário:",
-        "channelLabel": "Canal:"
+        "channelLabel": "Canal:",
+        "loggingToggle": "Registrar atividade do servidor",
+        "loggingToggleDescription": "Desligado por padrão. Quando ligado, o Lucky guarda entradas e saídas de membros e mensagens apagadas ou editadas (até 500 caracteres) deste servidor.",
+        "loggingToggleError": "Não foi possível atualizar o registro. Você precisa de permissão para gerenciar as configurações do servidor."
     },
     "serverSettings": {
         "title": "Configurações do Servidor",

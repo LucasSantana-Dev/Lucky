@@ -6,7 +6,17 @@ const mockFindUnique = jest.fn() as jest.MockedFunction<
 const mockUpsert = jest.fn() as jest.MockedFunction<
     (...args: any[]) => Promise<any>
 >
+const mockGuildFindUnique = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+const mockGuildUpsert = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
 const mockPrismaClient = {
+    guildFeatureToggle: {
+        findUnique: (...args: unknown[]) => mockGuildFindUnique(...args),
+        upsert: (...args: unknown[]) => mockGuildUpsert(...args),
+    },
     globalFeatureToggle: {
         findUnique: (...args: unknown[]) => mockFindUnique(...args),
         upsert: (...args: unknown[]) => mockUpsert(...args),
@@ -52,6 +62,8 @@ describe('FeatureToggleService', () => {
         jest.resetModules()
         delete process.env.FLAGS
         mockFindUnique.mockReset()
+        mockGuildFindUnique.mockReset()
+        mockGuildUpsert.mockReset()
         mockUpsert.mockReset()
         mockWarnLog.mockReset()
 
@@ -152,6 +164,63 @@ describe('FeatureToggleService', () => {
             mockFindUnique.mockResolvedValue(null)
             const result = await service.isEnabled('AUTOPLAY')
             expect(result).toBe(true)
+            expect(mockGuildFindUnique).not.toHaveBeenCalled()
+        })
+
+        it('uses the global value when the guild has no override', async () => {
+            mockGuildFindUnique.mockResolvedValue(null)
+            mockFindUnique.mockResolvedValue(null)
+            expect(await service.isEnabled('LYRICS', { guildId: 'g1' })).toBe(
+                false,
+            )
+            expect(mockGuildFindUnique).toHaveBeenCalledWith({
+                where: { guildId_name: { guildId: 'g1', name: 'LYRICS' } },
+                select: { enabled: true },
+            })
+        })
+
+        it('lets a guild opt in to a feature that is off by default', async () => {
+            mockGuildFindUnique.mockResolvedValue({ enabled: true })
+            mockFindUnique.mockResolvedValue(null)
+            expect(await service.isEnabled('LYRICS', { guildId: 'g1' })).toBe(
+                true,
+            )
+        })
+
+        it('lets a guild opt out of a feature that is on by default', async () => {
+            mockGuildFindUnique.mockResolvedValue({ enabled: false })
+            expect(
+                await service.isEnabled('AUTOPLAY', { guildId: 'g1' }),
+            ).toBe(false)
+        })
+
+        it('treats an explicit global false as a kill switch over a guild opt-in', async () => {
+            mockGuildFindUnique.mockResolvedValue({ enabled: true })
+            mockFindUnique.mockResolvedValue({ enabled: false })
+            expect(await service.isEnabled('LYRICS', { guildId: 'g1' })).toBe(
+                false,
+            )
+        })
+
+        it('falls back to the global value when the guild lookup throws', async () => {
+            mockGuildFindUnique.mockRejectedValue(new Error('DB error'))
+            mockFindUnique.mockResolvedValue(null)
+            expect(await service.isEnabled('LYRICS', { guildId: 'g1' })).toBe(
+                false,
+            )
+            expect(mockWarnLog).toHaveBeenCalled()
+        })
+    })
+
+    describe('setGuildFeatureToggle', () => {
+        it('upserts the guild override', async () => {
+            mockGuildUpsert.mockResolvedValue({})
+            await service.setGuildFeatureToggle('g1', 'LYRICS', true)
+            expect(mockGuildUpsert).toHaveBeenCalledWith({
+                where: { guildId_name: { guildId: 'g1', name: 'LYRICS' } },
+                update: { enabled: true },
+                create: { guildId: 'g1', name: 'LYRICS', enabled: true },
+            })
         })
     })
 

@@ -46,6 +46,10 @@ jest.mock('@lucky/shared/services', () => ({
         updateCommand: jest.fn(),
         deleteCommand: jest.fn(),
     },
+    featureToggleService: {
+        isEnabled: jest.fn(),
+        setGuildFeatureToggle: jest.fn(),
+    },
     serverLogService: {
         getRecentLogs: jest.fn(),
         getLogsByType: jest.fn(),
@@ -71,6 +75,7 @@ import {
     AutoModTemplateNotFoundError,
     autoModService,
     customCommandService,
+    featureToggleService,
     serverLogService,
 } from '@lucky/shared/services'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
@@ -858,6 +863,68 @@ describe('Management Routes Integration', () => {
             expect(response.body).toEqual({
                 error: 'Not authenticated',
             })
+        })
+    })
+
+    describe('/api/guilds/:guildId/logs/settings', () => {
+        const mockToggles = featureToggleService as jest.Mocked<
+            typeof featureToggleService
+        >
+
+        test('GET returns the guild SERVER_LOGS state', async () => {
+            mockToggles.isEnabled.mockResolvedValue(false)
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/logs/settings')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(response.body).toEqual({ enabled: false })
+            expect(mockToggles.isEnabled).toHaveBeenCalledWith('SERVER_LOGS', {
+                guildId: '111111111111111111',
+            })
+        })
+
+        test('PUT opts the guild in and returns the effective state', async () => {
+            mockToggles.setGuildFeatureToggle.mockResolvedValue()
+            mockToggles.isEnabled.mockResolvedValue(true)
+
+            const response = await request(app)
+                .put('/api/guilds/111111111111111111/logs/settings')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ enabled: true })
+                .expect(200)
+
+            expect(response.body).toEqual({ enabled: true })
+            expect(mockToggles.setGuildFeatureToggle).toHaveBeenCalledWith(
+                '111111111111111111',
+                'SERVER_LOGS',
+                true,
+            )
+        })
+
+        test('PUT rejects a non-boolean body', async () => {
+            await request(app)
+                .put('/api/guilds/111111111111111111/logs/settings')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ enabled: 'yes' })
+                .expect(400)
+
+            expect(mockToggles.setGuildFeatureToggle).not.toHaveBeenCalled()
+        })
+
+        test('PUT returns 401 when not authenticated', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(null)
+
+            await request(app)
+                .put('/api/guilds/111111111111111111/logs/settings')
+                .send({ enabled: true })
+                .expect(401)
+
+            expect(mockToggles.setGuildFeatureToggle).not.toHaveBeenCalled()
         })
     })
 })

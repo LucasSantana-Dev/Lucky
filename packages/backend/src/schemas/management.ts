@@ -82,6 +82,8 @@ const logsQuery = z.object({
     type: z.string().max(50).optional(),
 })
 
+const logsSettingsBody = z.object({ enabled: z.boolean() }).strict()
+
 const logsSearchQuery = z.object({
     q: z.string().min(1, 'Search query is required').max(200),
     type: z.string().max(50).optional(),
@@ -233,6 +235,7 @@ export const managementSchemas = {
     updateCommandBody,
     logsQuery,
     logsSearchQuery,
+    logsSettingsBody,
     userIdParam,
     roleIdParam,
     roleUpsertBody,

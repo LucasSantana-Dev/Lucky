@@ -22,6 +22,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import {
     Select,
     SelectContent,
@@ -163,6 +164,8 @@ export default function ServerLogsPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [debouncedSearch, setDebouncedSearch] = useState('')
     const [page, setPage] = useState(1)
+    const [loggingEnabled, setLoggingEnabled] = useState<boolean | null>(null)
+    const [savingLogging, setSavingLogging] = useState(false)
     const limit = 25
 
     const levelCounts = useMemo(() => {
@@ -213,6 +216,40 @@ export default function ServerLogsPage() {
     useEffect(() => {
         fetchLogs()
     }, [fetchLogs])
+
+    useEffect(() => {
+        if (!selectedGuild?.id) return
+        setLoggingEnabled(null)
+        api.serverLogs
+            .getSettings(selectedGuild.id)
+            .then((res) => setLoggingEnabled(res.data.enabled))
+            .catch((error) => {
+                reportError('Failed to load log settings:', error, {
+                    component: 'ServerLogs',
+                    action: 'loadLogSettings',
+                })
+            })
+    }, [selectedGuild?.id])
+
+    const handleLoggingToggle = async (enabled: boolean) => {
+        if (!selectedGuild?.id) return
+        setSavingLogging(true)
+        try {
+            const res = await api.serverLogs.updateSettings(
+                selectedGuild.id,
+                enabled,
+            )
+            setLoggingEnabled(res.data.enabled)
+        } catch (error) {
+            reportError('Failed to update log settings:', error, {
+                component: 'ServerLogs',
+                action: 'updateLogSettings',
+            })
+            toast.error(t('loggingToggleError'))
+        } finally {
+            setSavingLogging(false)
+        }
+    }
     useEffect(() => {
         setPage(1)
     }, [levelFilter, debouncedSearch])
@@ -269,6 +306,25 @@ export default function ServerLogsPage() {
                     </Button>
                 </div>
             </div>
+
+            <Card className='p-4 border border-lucky-border'>
+                <div className='flex items-start justify-between gap-4'>
+                    <div>
+                        <p className='text-sm font-semibold text-lucky-text-primary'>
+                            {t('loggingToggle')}
+                        </p>
+                        <p className='text-xs text-lucky-text-secondary mt-1'>
+                            {t('loggingToggleDescription')}
+                        </p>
+                    </div>
+                    <Switch
+                        aria-label={t('loggingToggle')}
+                        checked={loggingEnabled ?? false}
+                        disabled={loggingEnabled === null || savingLogging}
+                        onCheckedChange={handleLoggingToggle}
+                    />
+                </div>
+            </Card>
 
             {}
             <Card className='p-4 space-y-3 border border-lucky-border'>
