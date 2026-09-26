@@ -53,7 +53,7 @@ jobs:
                   else
                       if echo "$CHANGED" | grep -qE '^(Dockerfile$|Dockerfile\.|deploy/)'; then dockerfile=true; else dockerfile=false; fi
                       if echo "$CHANGED" | grep -qE '^package.*\.json$'; then lockfile=true; else lockfile=false; fi
-                      CODE_CHANGED=$(echo "$CHANGED" | grep -vE '^(docs/|decisions/|\.claude/)' | awk '!/\.md$/ || $0 == "CHANGELOG.md"')
+                      CODE_CHANGED=$(echo "$CHANGED" | grep -vE '^(docs/|decisions/|\.claude/)' | awk '!/\.md$/ || $0 == "CHANGELOG.md"' || true)
                       if [ -n "$CODE_CHANGED" ]; then code=true; else code=false; fi
                   fi
                   {
