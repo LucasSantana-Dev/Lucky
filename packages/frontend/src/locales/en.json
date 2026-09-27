@@ -182,19 +182,18 @@
     "landing": {
         "meta": {
             "title": "Lucky — Free Discord music bot with autoplay & dashboard",
-            "description": "YouTube, Spotify, SoundCloud music bot with genre-aware autoplay, smart radio, moderation, and web dashboard. Open-source, self-hostable, free forever."
+            "description": "Lucky learns your server's taste and keeps the call playing with autoplay, no DJ needed. Free, no paywall."
         },
         "hero": {
             "eyebrow": "Open source · ISC",
-            "headlineLine1": "A Discord bot built right.",
-            "headlineLine2": "And yours to run.",
-            "subtitle": "Music, moderation, custom commands, and a full web dashboard. Use the hosted version in two clicks, or run it on your own box if you'd rather.",
-            "ctaPrimary": "Add to Discord",
-            "ctaSecondary": "Self-host on GitHub"
+            "headlineLine1": "Learns your server's taste.",
+            "headlineLine2": "Keeps the call playing.",
+            "subtitle": "No DJ needed. Search by name or paste a Spotify link and autoplay picks up from there. Free, forever, no paywall.",
+            "ctaPrimary": "Add to Discord"
         },
         "repoCard": {
             "name": "LucasSantana-Dev / Lucky",
-            "description": "Self-hosted Discord music bot — Spotify + YouTube + SoundCloud, autoplay recommendations, React dashboard, moderation suite.",
+            "description": "Discord music bot with taste-learning autoplay, a React dashboard, and a moderation suite.",
             "license": "ISC",
             "lang": "TypeScript",
             "serversLabel": "servers",
@@ -202,29 +201,12 @@
             "viewOnGithub": "View on GitHub",
             "copyClone": "Copy clone URL"
         },
-        "whySelfHost": {
-            "heading": "Why self-host",
-            "items": {
-                "data": {
-                    "title": "Your guild data stays yours",
-                    "description": "Postgres, Redis, your hardware. No third-party ToS over your community. Export and migrate any time."
-                },
-                "fork": {
-                    "title": "Fork the source",
-                    "description": "TypeScript monorepo. Add commands, change behavior, swap providers without waiting on a roadmap or paying for an API tier."
-                },
-                "free": {
-                    "title": "Free, with no premium tier",
-                    "description": "No feature paywall, no Patreon, no rate-limited tier. ISC licensed. The hosted version exists for people who don't want to run a box."
-                }
-            }
-        },
         "commands": {
             "heading": "100+ commands, scoped to what you actually run",
             "rows": {
                 "play": {
                     "name": "/play",
-                    "description": "Queue a track from Spotify, YouTube, or SoundCloud",
+                    "description": "Queue a track by name or paste a Spotify link",
                     "kbd": "music"
                 },
                 "autoplay": {
@@ -296,7 +278,7 @@
             "supportCopy": "Issues and PRs welcome on GitHub. Or hop in the Discord support server.",
             "terms": "Terms",
             "privacy": "Privacy",
-            "github": "GitHub",
+            "github": "Source code",
             "docs": "Docs",
             "changelog": "Changelog",
             "discord": "Support server",
@@ -308,7 +290,7 @@
             "items": {
                 "music": {
                     "title": "Music with smart autoplay",
-                    "description": "Queue from Spotify, YouTube, or SoundCloud. Autoplay matches the mood and won't drift into the wrong language."
+                    "description": "Search by name or paste a Spotify link. Autoplay learns the mood and won't drift into the wrong language."
                 },
                 "moderation": {
                     "title": "Moderation that doesn't sleep",

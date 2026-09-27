@@ -38,7 +38,7 @@ export const PUBLIC_ROUTES: RouteMeta[] = [
         path: '/',
         title: 'Lucky — Free Discord music bot with autoplay & dashboard',
         description:
-            'YouTube, Spotify, SoundCloud music bot with genre-aware autoplay, smart radio, moderation, and web dashboard. Open-source, self-hostable, free forever.',
+            "Lucky learns your server's taste and keeps the call playing with autoplay, no DJ needed. Free, no paywall.",
     },
     {
         path: '/docs',

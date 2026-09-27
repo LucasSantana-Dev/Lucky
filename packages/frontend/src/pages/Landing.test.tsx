@@ -81,6 +81,24 @@ describe('Landing', () => {
         })
     })
 
+    test('renders the hero pitch: taste-learning autoplay, no DJ needed', () => {
+        render(<Landing />)
+        expect(
+            screen.getByText(/Learns your server's taste\./i),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByText(/Keeps the call playing\./i),
+        ).toBeInTheDocument()
+        expect(screen.getByText(/No DJ needed\./i)).toBeInTheDocument()
+    })
+
+    test('never renders YouTube or self-host anywhere on the page', () => {
+        render(<Landing />)
+        const bodyText = document.body.textContent ?? ''
+        expect(bodyText).not.toMatch(/youtube/i)
+        expect(bodyText).not.toMatch(/self-host/i)
+    })
+
     test('renders top nav with brand wordmark and github link', () => {
         render(<Landing />)
         const wordmarks = screen.getAllByText('lucky')
@@ -100,9 +118,11 @@ describe('Landing', () => {
         const eyebrows = screen.getAllByText(/Open source/i)
         expect(eyebrows.length).toBeGreaterThanOrEqual(1)
         expect(
-            screen.getByText(/A Discord bot built right\./i),
+            screen.getByText(/Learns your server's taste\./i),
         ).toBeInTheDocument()
-        expect(screen.getByText(/And yours to run\./i)).toBeInTheDocument()
+        expect(
+            screen.getByText(/Keeps the call playing\./i),
+        ).toBeInTheDocument()
     })
 
     test('renders Add to Discord primary CTA in hero and nav when invite URL is set', () => {
@@ -142,18 +162,6 @@ describe('Landing', () => {
         } finally {
             Object.assign(import.meta.env, originalEnv)
         }
-    })
-
-    test('renders Self-host on GitHub secondary CTA in hero', () => {
-        render(<Landing />)
-        const selfHost = screen.getByRole('link', {
-            name: /Self-host on GitHub/i,
-        })
-        expect(selfHost).toHaveAttribute(
-            'href',
-            'https://github.com/LucasSantana-Dev/Lucky',
-        )
-        expect(selfHost).toHaveAttribute('target', '_blank')
     })
 
     test('dashboard nav button triggers login', () => {
@@ -246,17 +254,6 @@ describe('Landing', () => {
         }
     })
 
-    test('renders why-self-host section with three reason cards', () => {
-        render(<Landing />)
-        expect(
-            screen.getByText('Your guild data stays yours'),
-        ).toBeInTheDocument()
-        expect(screen.getByText('Fork the source')).toBeInTheDocument()
-        expect(
-            screen.getByText('Free, with no premium tier'),
-        ).toBeInTheDocument()
-    })
-
     test('renders command list with all six commands and category tags', () => {
         render(<Landing />)
         expect(screen.getByText('/play')).toBeInTheDocument()
@@ -322,7 +319,7 @@ describe('Landing', () => {
         setupMocks({ prefersReducedMotion: true })
         render(<Landing />)
         expect(
-            screen.getByText(/A Discord bot built right\./i),
+            screen.getByText(/Learns your server's taste\./i),
         ).toBeInTheDocument()
     })
 
