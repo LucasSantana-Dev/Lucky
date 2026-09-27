@@ -61,6 +61,7 @@ jest.mock('@lucky/shared/services', () => ({
         countLogsByType: jest.fn().mockResolvedValue(0),
         countRecentLogs: jest.fn().mockResolvedValue(0),
         searchLogs: jest.fn().mockResolvedValue([]),
+        countSearchLogs: jest.fn().mockResolvedValue(0),
         getUserLogs: jest.fn().mockResolvedValue([]),
         getStats: jest.fn().mockResolvedValue({}),
     },

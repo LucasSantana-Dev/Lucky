@@ -403,4 +403,105 @@ describe('Management Schemas', () => {
             expect(result.success).toBe(false)
         })
     })
+
+    describe('logsSearchQuery (frontend contract, #2413)', () => {
+        // Mirrors the exact params shape packages/frontend/src/services/
+        // logsApi.ts builds for `search()`, as they arrive over the wire
+        // (Express always parses query values as strings). Guards against
+        // the frontend and backend drifting on the search contract again.
+        function buildFrontendSearchParams(filters: {
+            q?: string
+            type?: string
+            userId?: string
+            limit?: number
+            offset?: number
+        }): Record<string, string> {
+            const params: Record<string, string> = {}
+            if (filters.q) params.q = filters.q
+            if (filters.type) params.type = filters.type
+            if (filters.userId) params.userId = filters.userId
+            if (filters.limit) params.limit = String(filters.limit)
+            if (filters.offset !== undefined) {
+                params.offset = String(filters.offset)
+            }
+            return params
+        }
+
+        test('accepts the query sent when the user types a search term', () => {
+            const params = buildFrontendSearchParams({
+                q: 'kicked',
+                limit: 25,
+                offset: 0,
+            })
+            const result = s.logsSearchQuery.safeParse(params)
+            expect(result.success).toBe(true)
+            if (result.success) {
+                expect(result.data).toEqual({
+                    q: 'kicked',
+                    limit: 25,
+                    offset: 0,
+                })
+            }
+        })
+
+        test('accepts a level filter combined with a search term and a paged offset', () => {
+            const params = buildFrontendSearchParams({
+                q: 'ban',
+                type: 'moderation',
+                limit: 25,
+                offset: 50,
+            })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(true)
+        })
+
+        test('accepts a level-only request with no search term', () => {
+            const params = buildFrontendSearchParams({
+                type: 'automod',
+                limit: 25,
+                offset: 0,
+            })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(true)
+        })
+
+        test('rejects a search term over 200 characters', () => {
+            const params = buildFrontendSearchParams({ q: 'a'.repeat(201) })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(false)
+        })
+
+        test('rejects a whitespace-only search term', () => {
+            const params = buildFrontendSearchParams({ q: '   ' })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(false)
+        })
+
+        test('accepts a search term at exactly the 200 character limit', () => {
+            const params = buildFrontendSearchParams({ q: 'a'.repeat(200) })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(true)
+        })
+
+        test('accepts a valid snowflake userId filter', () => {
+            const params = buildFrontendSearchParams({
+                userId: '333333333333333333',
+            })
+            const result = s.logsSearchQuery.safeParse(params)
+            expect(result.success).toBe(true)
+            if (result.success) {
+                expect(result.data.userId).toBe('333333333333333333')
+            }
+        })
+
+        test('rejects a non-snowflake userId', () => {
+            const params = buildFrontendSearchParams({ userId: 'not-a-id' })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(false)
+        })
+
+        test('rejects a limit over 500', () => {
+            const params = buildFrontendSearchParams({ limit: 501 })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(false)
+        })
+
+        test('rejects an offset over the 10000 pagination cap', () => {
+            const params = buildFrontendSearchParams({ offset: 10001 })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(false)
+        })
+    })
 })

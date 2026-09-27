@@ -26,133 +26,6 @@ describe('createLogsApi', () => {
         api = createLogsApi(mockClient)
     })
 
-    describe('getRecent', () => {
-        test('returns logs on success', async () => {
-            const response = {
-                data: { logs: [SERVER_LOG], total: 1 },
-            }
-            vi.mocked(mockClient.get).mockResolvedValueOnce(response)
-
-            const result = await api.getRecent('g1')
-
-            expect(mockClient.get).toHaveBeenCalledWith('/guilds/g1/logs', {
-                params: {},
-            })
-            expect(result.data.logs).toEqual([SERVER_LOG])
-        })
-
-        test('passes limit parameter correctly', async () => {
-            const response = {
-                data: { logs: [], total: 0 },
-            }
-            vi.mocked(mockClient.get).mockResolvedValueOnce(response)
-
-            await api.getRecent('g1', 50)
-
-            expect(mockClient.get).toHaveBeenCalledWith('/guilds/g1/logs', {
-                params: { limit: 50 },
-            })
-        })
-
-        test('returns empty array when no logs', async () => {
-            vi.mocked(mockClient.get).mockResolvedValueOnce({
-                data: { logs: [], total: 0 },
-            })
-
-            const result = await api.getRecent('g1')
-
-            expect(result.data.logs).toEqual([])
-        })
-
-        test('passes correct guildId in URL', async () => {
-            vi.mocked(mockClient.get).mockResolvedValueOnce({
-                data: { logs: [], total: 0 },
-            })
-
-            await api.getRecent('guild-123')
-
-            expect(mockClient.get).toHaveBeenCalledWith(
-                '/guilds/guild-123/logs',
-                expect.anything(),
-            )
-        })
-
-        test('omits limit param when undefined', async () => {
-            vi.mocked(mockClient.get).mockResolvedValueOnce({
-                data: { logs: [], total: 0 },
-            })
-
-            await api.getRecent('g1', undefined)
-
-            expect(mockClient.get).toHaveBeenCalledWith('/guilds/g1/logs', {
-                params: {},
-            })
-        })
-    })
-
-    describe('getByType', () => {
-        test('returns logs filtered by type', async () => {
-            const response = {
-                data: { logs: [SERVER_LOG], total: 1 },
-            }
-            vi.mocked(mockClient.get).mockResolvedValueOnce(response)
-
-            const result = await api.getByType('g1', 'message')
-
-            expect(mockClient.get).toHaveBeenCalledWith('/guilds/g1/logs', {
-                params: { type: 'message' },
-            })
-            expect(result.data.logs).toEqual([SERVER_LOG])
-        })
-
-        test('passes type and limit parameters', async () => {
-            vi.mocked(mockClient.get).mockResolvedValueOnce({
-                data: { logs: [], total: 0 },
-            })
-
-            await api.getByType('g1', 'moderation', 100)
-
-            expect(mockClient.get).toHaveBeenCalledWith('/guilds/g1/logs', {
-                params: { type: 'moderation', limit: 100 },
-            })
-        })
-
-        test('passes type without limit', async () => {
-            vi.mocked(mockClient.get).mockResolvedValueOnce({
-                data: { logs: [], total: 0 },
-            })
-
-            await api.getByType('g1', 'warn')
-
-            expect(mockClient.get).toHaveBeenCalledWith('/guilds/g1/logs', {
-                params: { type: 'warn' },
-            })
-        })
-
-        test('passes correct guildId in URL', async () => {
-            vi.mocked(mockClient.get).mockResolvedValueOnce({
-                data: { logs: [], total: 0 },
-            })
-
-            await api.getByType('guild-abc', 'kick', 50)
-
-            expect(mockClient.get).toHaveBeenCalledWith(
-                '/guilds/guild-abc/logs',
-                expect.anything(),
-            )
-        })
-
-        test('returns empty array when no matching logs', async () => {
-            vi.mocked(mockClient.get).mockResolvedValueOnce({
-                data: { logs: [], total: 0 },
-            })
-
-            const result = await api.getByType('g1', 'nonexistent')
-
-            expect(result.data.logs).toEqual([])
-        })
-    })
-
     describe('search', () => {
         test('returns logs matching search filters', async () => {
             const response = {
@@ -229,6 +102,71 @@ describe('createLogsApi', () => {
             const result = await api.search('g1', { type: 'nonexistent' })
 
             expect(result.data.logs).toEqual([])
+        })
+
+        test('passes the q text search param', async () => {
+            vi.mocked(mockClient.get).mockResolvedValueOnce({
+                data: { logs: [SERVER_LOG], total: 1 },
+            })
+
+            const result = await api.search('g1', { q: 'kicked' })
+
+            expect(mockClient.get).toHaveBeenCalledWith(
+                '/guilds/g1/logs/search',
+                { params: { q: 'kicked' } },
+            )
+            expect(result.data.total).toBe(1)
+        })
+
+        test('passes q, type, limit, and offset together', async () => {
+            vi.mocked(mockClient.get).mockResolvedValueOnce({
+                data: { logs: [], total: 0 },
+            })
+
+            await api.search('g1', {
+                q: 'ban',
+                type: 'moderation',
+                limit: 25,
+                offset: 25,
+            })
+
+            expect(mockClient.get).toHaveBeenCalledWith(
+                '/guilds/g1/logs/search',
+                {
+                    params: {
+                        q: 'ban',
+                        type: 'moderation',
+                        limit: 25,
+                        offset: 25,
+                    },
+                },
+            )
+        })
+
+        test('includes offset 0 explicitly since it is a valid page start', async () => {
+            vi.mocked(mockClient.get).mockResolvedValueOnce({
+                data: { logs: [], total: 0 },
+            })
+
+            await api.search('g1', { offset: 0 })
+
+            expect(mockClient.get).toHaveBeenCalledWith(
+                '/guilds/g1/logs/search',
+                { params: { offset: 0 } },
+            )
+        })
+
+        test('omits q when it is undefined', async () => {
+            vi.mocked(mockClient.get).mockResolvedValueOnce({
+                data: { logs: [], total: 0 },
+            })
+
+            await api.search('g1', { q: undefined, type: 'kick' })
+
+            expect(mockClient.get).toHaveBeenCalledWith(
+                '/guilds/g1/logs/search',
+                { params: { type: 'kick' } },
+            )
         })
     })
 

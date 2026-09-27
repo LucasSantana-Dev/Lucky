@@ -85,9 +85,13 @@ const logsQuery = z.object({
 const logsSettingsBody = z.object({ enabled: z.boolean() }).strict()
 
 const logsSearchQuery = z.object({
-    q: z.string().min(1, 'Search query is required').max(200),
+    q: z.string().trim().min(1, 'Search query is required').max(200).optional(),
     type: z.string().max(50).optional(),
     userId: snowflakeId.optional(),
+    limit: z.coerce.number().int().min(1).max(500).optional(),
+    // Capped so a crafted deep-page request can't force an unbounded
+    // OFFSET scan against the logs table.
+    offset: z.coerce.number().int().min(0).max(10000).optional(),
 })
 
 const userIdParam = guildIdParam.extend({

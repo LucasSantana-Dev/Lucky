@@ -174,8 +174,9 @@ describe('ServerLogService', () => {
                     type: 'mod_action',
                     userId: USER_A,
                 },
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                 take: 100,
+                skip: 0,
             })
         })
 
@@ -192,8 +193,55 @@ describe('ServerLogService', () => {
                     guildId: GUILD_A,
                     createdAt: { gte: startDate, lte: endDate },
                 },
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                 take: 100,
+                skip: 0,
+            })
+        })
+
+        test('should filter on the action field, case-insensitively, when q is provided', async () => {
+            mockPrisma.serverLog.findMany.mockResolvedValue([
+                { id: 'log-1', action: 'User warned' },
+            ])
+
+            await service.searchLogs(GUILD_A, { q: 'warned' })
+
+            expect(mockPrisma.serverLog.findMany).toHaveBeenCalledWith({
+                where: {
+                    guildId: GUILD_A,
+                    action: { contains: 'warned', mode: 'insensitive' },
+                },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+                take: 100,
+                skip: 0,
+            })
+        })
+
+        test('should apply limit and offset for pagination', async () => {
+            mockPrisma.serverLog.findMany.mockResolvedValue([])
+
+            await service.searchLogs(GUILD_A, { q: 'warned' }, 10, 20)
+
+            expect(mockPrisma.serverLog.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({ take: 10, skip: 20 }),
+            )
+        })
+    })
+
+    describe('countSearchLogs', () => {
+        test('should count logs matching the search filters', async () => {
+            mockPrisma.serverLog.count.mockResolvedValue(7)
+
+            const result = await service.countSearchLogs(GUILD_A, {
+                q: 'warned',
+            })
+
+            expect(result).toBe(7)
+            expect(mockPrisma.serverLog.count).toHaveBeenCalledWith({
+                where: {
+                    guildId: GUILD_A,
+                    action: { contains: 'warned', mode: 'insensitive' },
+                },
             })
         })
     })

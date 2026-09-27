@@ -3,27 +3,29 @@ import type { ServerLog } from '@/types'
 
 export function createLogsApi(apiClient: AxiosInstance) {
     return {
-        getRecent: (guildId: string, limit?: number) =>
-            apiClient.get<{ logs: ServerLog[]; total: number }>(
-                `/guilds/${guildId}/logs`,
-                {
-                    params: limit ? { limit } : {},
-                },
-            ),
-        getByType: (guildId: string, type: string, limit?: number) =>
-            apiClient.get<{ logs: ServerLog[]; total: number }>(
-                `/guilds/${guildId}/logs`,
-                {
-                    params: { type, ...(limit ? { limit } : {}) },
-                },
-            ),
         search: (
             guildId: string,
-            filters: { type?: string; userId?: string },
+            filters: {
+                q?: string
+                type?: string
+                userId?: string
+                limit?: number
+                offset?: number
+            },
         ) =>
-            apiClient.get<{ logs: ServerLog[] }>(
+            apiClient.get<{ logs: ServerLog[]; total: number }>(
                 `/guilds/${guildId}/logs/search`,
-                { params: filters },
+                {
+                    params: {
+                        ...(filters.q ? { q: filters.q } : {}),
+                        ...(filters.type ? { type: filters.type } : {}),
+                        ...(filters.userId ? { userId: filters.userId } : {}),
+                        ...(filters.limit ? { limit: filters.limit } : {}),
+                        ...(filters.offset !== undefined
+                            ? { offset: filters.offset }
+                            : {}),
+                    },
+                },
             ),
         getUserLogs: (guildId: string, userId: string) =>
             apiClient.get<{ logs: ServerLog[] }>(

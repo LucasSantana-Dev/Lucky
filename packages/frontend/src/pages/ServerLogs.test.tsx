@@ -1,5 +1,12 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import {
+    render,
+    screen,
+    waitFor,
+    within,
+    fireEvent,
+    act,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import ServerLogsPage from './ServerLogs'
@@ -112,7 +119,7 @@ describe('ServerLogsPage', () => {
 
     test('shows logging switch off by default and opts the guild in', async () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: [], total: 0 },
         } as any)
         vi.mocked(api.serverLogs.updateSettings).mockResolvedValue({
@@ -140,7 +147,7 @@ describe('ServerLogsPage', () => {
 
     test('shows an inline error and keeps the switch disabled when settings fail to load', async () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: [], total: 0 },
         } as any)
         vi.mocked(api.serverLogs.getSettings).mockRejectedValue(
@@ -159,7 +166,7 @@ describe('ServerLogsPage', () => {
 
     test('ignores a settings response for a guild that is no longer selected', async () => {
         let resolveFirst: (v: unknown) => void = () => {}
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: [], total: 0 },
         } as any)
         vi.mocked(api.serverLogs.getSettings)
@@ -190,7 +197,7 @@ describe('ServerLogsPage', () => {
     test('keeps the switch off and warns when the update is rejected', async () => {
         const { toast } = await import('sonner')
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: [], total: 0 },
         } as any)
         vi.mocked(api.serverLogs.updateSettings).mockRejectedValue(
@@ -222,7 +229,7 @@ describe('ServerLogsPage', () => {
 
     test('shows loading skeletons while fetching', () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockImplementation(
+        vi.mocked(api.serverLogs.search).mockImplementation(
             () => new Promise(() => {}),
         )
         renderPage()
@@ -232,7 +239,7 @@ describe('ServerLogsPage', () => {
 
     test('renders logs on success', async () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: mockLogs },
         } as any)
 
@@ -250,7 +257,7 @@ describe('ServerLogsPage', () => {
 
     test('renders header with guild name', async () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: mockLogs },
         } as any)
 
@@ -267,7 +274,7 @@ describe('ServerLogsPage', () => {
 
     test('shows user and channel info in log entries', async () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: mockLogs },
         } as any)
 
@@ -282,7 +289,7 @@ describe('ServerLogsPage', () => {
 
     test('shows empty state when no logs', async () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: [] },
         } as any)
 
@@ -299,7 +306,7 @@ describe('ServerLogsPage', () => {
 
     test('shows empty state on API error', async () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockRejectedValue(
+        vi.mocked(api.serverLogs.search).mockRejectedValue(
             new Error('Network error'),
         )
 
@@ -312,7 +319,7 @@ describe('ServerLogsPage', () => {
 
     test('shows export button', async () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: mockLogs },
         } as any)
 
@@ -323,7 +330,7 @@ describe('ServerLogsPage', () => {
 
     test('renders search input', () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockImplementation(
+        vi.mocked(api.serverLogs.search).mockImplementation(
             () => new Promise(() => {}),
         )
         renderPage()
@@ -332,7 +339,7 @@ describe('ServerLogsPage', () => {
 
     test('renders level summary chips', async () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: mockLogs },
         } as any)
 
@@ -349,7 +356,7 @@ describe('ServerLogsPage', () => {
     test('updates search query when typing', async () => {
         const user = userEvent.setup()
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: mockLogs, total: 3 },
         } as any)
 
@@ -369,7 +376,7 @@ describe('ServerLogsPage', () => {
     test('clears search when X button is clicked', async () => {
         const user = userEvent.setup()
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: mockLogs, total: 3 },
         } as any)
 
@@ -393,12 +400,14 @@ describe('ServerLogsPage', () => {
     test('clicking level chip filters by that level', async () => {
         const user = userEvent.setup()
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
-            data: { logs: mockLogs, total: 3 },
-        } as any)
-        vi.mocked(api.serverLogs.getByType).mockResolvedValue({
-            data: { logs: [mockLogs[0]], total: 1 },
-        } as any)
+        vi.mocked(api.serverLogs.search).mockImplementation((_g, filters) =>
+            Promise.resolve({
+                data:
+                    filters.type === 'info'
+                        ? { logs: [mockLogs[0]], total: 1 }
+                        : { logs: mockLogs, total: 3 },
+            } as any),
+        )
 
         renderPage()
         await waitFor(() =>
@@ -414,10 +423,9 @@ describe('ServerLogsPage', () => {
         await user.click(infoChip!)
 
         await waitFor(() => {
-            expect(api.serverLogs.getByType).toHaveBeenCalledWith(
+            expect(api.serverLogs.search).toHaveBeenCalledWith(
                 mockGuild.id,
-                'info',
-                expect.any(Number),
+                expect.objectContaining({ type: 'info' }),
             )
         })
     })
@@ -426,7 +434,7 @@ describe('ServerLogsPage', () => {
         const user = userEvent.setup()
         const { toast } = await import('sonner')
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: mockLogs, total: 3 },
         } as any)
 
@@ -459,10 +467,10 @@ describe('ServerLogsPage', () => {
         anchorClick.mockRestore()
     })
 
-    test('navigates to next and previous pages', async () => {
+    test('navigates to next and previous pages using server-side offset, not client slicing', async () => {
         const user = userEvent.setup()
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.serverLogs.getRecent).mockResolvedValue({
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
             data: { logs: mockLogs, total: 50 },
         } as any)
 
@@ -473,6 +481,11 @@ describe('ServerLogsPage', () => {
             ).toBeInTheDocument(),
         )
 
+        expect(api.serverLogs.search).toHaveBeenCalledWith(
+            mockGuild.id,
+            expect.objectContaining({ limit: 25, offset: 0 }),
+        )
+
         expect(screen.getByText('1/2')).toBeInTheDocument()
         const [prevBtn, nextBtn] = within(
             screen.getByText('1/2').parentElement!,
@@ -481,11 +494,89 @@ describe('ServerLogsPage', () => {
 
         await user.click(nextBtn)
         await waitFor(() => expect(screen.getByText('2/2')).toBeInTheDocument())
+        expect(api.serverLogs.search).toHaveBeenCalledWith(
+            mockGuild.id,
+            expect.objectContaining({ limit: 25, offset: 25 }),
+        )
 
         const [prevBtn2] = within(
             screen.getByText('2/2').parentElement!,
         ).getAllByRole('button')
         await user.click(prevBtn2)
         await waitFor(() => expect(screen.getByText('1/2')).toBeInTheDocument())
+    })
+
+    test('reaches the backend with the debounced search text (#2413)', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
+            data: { logs: mockLogs, total: 3 },
+        } as any)
+
+        renderPage()
+        await waitFor(() =>
+            expect(
+                screen.getByText('User joined the server'),
+            ).toBeInTheDocument(),
+        )
+        vi.mocked(api.serverLogs.search).mockClear()
+
+        vi.useFakeTimers()
+        try {
+            const searchInput = screen.getByPlaceholderText('Search logs…')
+            fireEvent.change(searchInput, { target: { value: 'kicked' } })
+            await act(async () => {
+                await vi.runAllTimersAsync()
+            })
+        } finally {
+            vi.useRealTimers()
+        }
+
+        await waitFor(() => {
+            expect(api.serverLogs.search).toHaveBeenCalledWith(
+                mockGuild.id,
+                expect.objectContaining({ q: 'kicked' }),
+            )
+        })
+    })
+
+    test('does not send a q param when the search box is empty', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
+            data: { logs: mockLogs, total: 3 },
+        } as any)
+
+        renderPage()
+        await waitFor(() =>
+            expect(
+                screen.getByText('User joined the server'),
+            ).toBeInTheDocument(),
+        )
+
+        expect(api.serverLogs.search).toHaveBeenCalledWith(
+            mockGuild.id,
+            expect.objectContaining({ q: undefined }),
+        )
+    })
+
+    test('caps pagination so it never requests an offset past the backend limit (#2459 follow-up)', async () => {
+        mockGuildStoreFn(mockGuild)
+        // 500,000 matches, far more than the backend's offset cap of 10000
+        // can page through at limit=25 (max page = 10000/25 + 1 = 401).
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
+            data: { logs: mockLogs, total: 500000 },
+        } as any)
+
+        renderPage()
+        await waitFor(() =>
+            expect(
+                screen.getByText('User joined the server'),
+            ).toBeInTheDocument(),
+        )
+
+        expect(screen.getByText('1/401')).toBeInTheDocument()
+
+        for (const call of vi.mocked(api.serverLogs.search).mock.calls) {
+            expect(call[1].offset).toBeLessThanOrEqual(10000)
+        }
     })
 })

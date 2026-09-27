@@ -170,6 +170,10 @@ export default function ServerLogsPage() {
     const selectedGuildIdRef = useRef(selectedGuild?.id)
     selectedGuildIdRef.current = selectedGuild?.id
     const limit = 25
+    // Mirrors the offset cap in packages/backend/src/schemas/management.ts
+    // (logsSearchQuery) so the Next button never requests a page whose
+    // offset the backend would reject with a 400 (cubic follow-up).
+    const maxOffset = 10000
 
     const levelCounts = useMemo(() => {
         const counts: Partial<Record<LogLevel, number>> = {}
@@ -188,20 +192,13 @@ export default function ServerLogsPage() {
         if (!selectedGuild?.id) return
         setLoading(true)
         try {
-            const pageLimit = limit * page
-            const res =
-                levelFilter !== 'all'
-                    ? await api.serverLogs.getByType(
-                          selectedGuild.id,
-                          levelFilter,
-                          pageLimit,
-                      )
-                    : await api.serverLogs.getRecent(
-                          selectedGuild.id,
-                          pageLimit,
-                      )
-            const allLogs = res.data.logs
-            setLogs(allLogs.slice((page - 1) * limit, page * limit))
+            const res = await api.serverLogs.search(selectedGuild.id, {
+                q: debouncedSearch.trim() || undefined,
+                type: levelFilter !== 'all' ? levelFilter : undefined,
+                limit,
+                offset: (page - 1) * limit,
+            })
+            setLogs(res.data.logs)
             setTotal(res.data.total)
         } catch (error) {
             reportError('Failed to load logs:', error, {
@@ -267,7 +264,8 @@ export default function ServerLogsPage() {
         setPage(1)
     }, [levelFilter, debouncedSearch])
 
-    const totalPages = Math.max(1, Math.ceil(total / limit))
+    const maxPage = Math.floor(maxOffset / limit) + 1
+    const totalPages = Math.min(Math.max(1, Math.ceil(total / limit)), maxPage)
 
     const handleExport = () => {
         if (!selectedGuild?.id || logs.length === 0) return
@@ -360,6 +358,7 @@ export default function ServerLogsPage() {
                             placeholder={t('searchPlaceholder')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            maxLength={200}
                             className='pl-9 bg-lucky-bg-tertiary border-lucky-border text-lucky-text-primary placeholder:text-lucky-text-tertiary'
                         />
                         {searchQuery && (

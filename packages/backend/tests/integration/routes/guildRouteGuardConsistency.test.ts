@@ -58,6 +58,7 @@ const mockApplyTemplate = jest.fn<any>()
 const mockGetRecentLogs = jest.fn<any>()
 const mockCountRecentLogs = jest.fn<any>()
 const mockSearchLogs = jest.fn<any>()
+const mockCountSearchLogs = jest.fn<any>()
 const mockGetUserLogs = jest.fn<any>()
 const mockGetStats = jest.fn<any>()
 
@@ -86,6 +87,7 @@ jest.mock('@lucky/shared/services', () => ({
         getLogsByType: jest.fn().mockResolvedValue([]),
         countLogsByType: jest.fn().mockResolvedValue(0),
         searchLogs: (...a: any[]) => mockSearchLogs(...a),
+        countSearchLogs: (...a: any[]) => mockCountSearchLogs(...a),
         getUserLogs: (...a: any[]) => mockGetUserLogs(...a),
         getStats: (...a: any[]) => mockGetStats(...a),
         logAutoModSettingsChange: jest.fn().mockResolvedValue(undefined),
@@ -307,7 +309,10 @@ const cases: RouteCase[] = [
         prefix: { path: '/api/guilds/:guildId/logs', module: 'moderation' },
         setups: [setupManagementRoutes],
         query: { q: 'test' },
-        mockHappyPath: () => mockSearchLogs.mockResolvedValue([]),
+        mockHappyPath: () => {
+            mockSearchLogs.mockResolvedValue([])
+            mockCountSearchLogs.mockResolvedValue(0)
+        },
         successStatus: 200,
         wrongModule: 'overview',
     },
