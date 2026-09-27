@@ -365,6 +365,38 @@ describe('EmbedBuilder', () => {
         })
     })
 
+    test('renders thumbnail in the preview (#2407)', async () => {
+        const user = userEvent.setup()
+        mockGuildStore()
+        vi.mocked(api.embeds.list).mockResolvedValue([])
+
+        render(
+            <MemoryRouter>
+                <EmbedBuilder />
+            </MemoryRouter>,
+        )
+
+        await waitFor(() => screen.getByText('No embed templates'))
+
+        const newButton = screen.getAllByText(/New Template/)[0]
+        await user.click(newButton)
+
+        const titleInput = screen.getByPlaceholderText('Embed title')
+        await user.type(titleInput, 'Preview Test')
+
+        // urlPlaceholder ('https://...') is shared by the color hex,
+        // thumbnail, and image inputs (in that DOM order) - thumbnail is index 1.
+        const [, thumbnailInput] = screen.getAllByPlaceholderText('https://...')
+        await user.type(thumbnailInput, 'https://example.com/thumb.png')
+
+        await waitFor(() => {
+            expect(screen.getByAltText('embed thumbnail')).toHaveAttribute(
+                'src',
+                'https://example.com/thumb.png',
+            )
+        })
+    })
+
     test('handles API error when loading templates', async () => {
         mockGuildStore()
         vi.mocked(api.embeds.list).mockRejectedValue(new Error('Network error'))

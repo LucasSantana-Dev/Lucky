@@ -72,6 +72,17 @@ function EmbedPreview({ form }: { form: FormState }) {
                         ))}
                     </div>
                 )}
+                {form.thumbnail && (
+                    <img
+                        src={form.thumbnail}
+                        alt='embed thumbnail'
+                        className='rounded max-w-[80px]'
+                        onError={(e) => {
+                            ;(e.target as HTMLImageElement).style.display =
+                                'none'
+                        }}
+                    />
+                )}
                 {form.image && (
                     <img
                         src={form.image}
