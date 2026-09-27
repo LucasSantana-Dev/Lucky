@@ -51,7 +51,10 @@ visibility and, eventually, monetize.
 1. **Pitch:** "Lucky learns your server's taste and keeps the call playing, no DJ needed.
    Every Sunday, see what your server listened to." Audio sources are never advertised, in
    the top.gg listing, the App Directory or the README.
-   Self-hosting stays prominent, framed as owning your bot, never as avoiding enforcement.
+   Self-hosting is no longer promoted: the code stays open source (ISC) and a README section
+   documents running your own copy as unsupported, with no support for setup, hosting or
+   upgrades. Promoting self-hosting as the way to keep features the hosted bot turns off
+   would read as evasion.
 2. **Product focus:** keep music, autoplay, thumbs feedback, Spotify and Last.fm linking.
    Build a one-click station button for the first hour, Server Wrapped (new, from
    `TrackHistory`) and a per-server taste profile that does not expire. Hide moderation,
@@ -105,7 +108,8 @@ week of maintenance and a published case study by 2027-01-31.
 - With a $50 budget the ad share of the cohort is small (about 20 guilds at the one published
   cost figure), so hand recruiting carries the sample. At about 90 guilds, proportions read
   within roughly +/-10 points: enough for the go/no-go thresholds, not for fine comparisons.
-- The README no longer claims Lucky "can't be shut down".
+- The README leads with adding the hosted bot; it no longer claims Lucky "can't be shut
+  down", no longer names audio sources, and drops the "Why Self-Host?" section.
 
 ## Alternatives considered
 

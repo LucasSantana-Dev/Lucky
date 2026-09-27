@@ -7,7 +7,7 @@
 
 <p align="center">
   <b>🎵 The Discord music bot that learns your server's taste and keeps the call playing.</b><br>
-  <strong>Self-hosted · Open-source · TypeScript monorepo · No paywall, no premium tier</strong>
+  <strong>Free · Open source · English and Português · No paywall, no premium tier</strong>
 </p>
 
 <p align="center">
@@ -31,9 +31,9 @@
 
 ## 🎯 What is Lucky?
 
-Lucky is a **production-grade, self-hosted Discord music bot**, built as a TypeScript monorepo with a React 19 dashboard, full moderation suite, and a leveling system. Search by name or paste a Spotify link, and smart autoplay keeps the queue going from your server's listening history.
+Lucky is a **free Discord music bot** that learns what your server likes. Search by name or paste a Spotify link, and smart autoplay keeps the queue going from your server's listening history. Add it in one click; every feature is included, with no paywall and no premium tier.
 
-Lucky is yours to run: **host it yourself** and every feature is included, with no paywall and no premium tier.
+The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 
 - **Live demo**: [lucky.lucassantana.tech](https://lucky.lucassantana.tech)  
 - **Invite to your server**: [Add Lucky now](https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge)
@@ -84,19 +84,6 @@ Lucky is yours to run: **host it yourself** and every feature is included, with 
 
 ---
 
-## 🚀 Why Self-Host?
-
-Running your own Lucky means the bot, its data and its settings are yours:
-
-| Feature | Lucky | Cloud Bots |
-|---------|-------|-----------|
-| **Uptime** | Your control | Service-dependent |
-| **Feature parity** | Full suite included | Pay-to-unlock model |
-| **Data privacy** | On your servers | Third-party storage |
-| **Customization** | Modify the source code | Limited options |
-
----
-
 ## 📦 Tech Stack
 
 | Layer | Technology |
@@ -112,7 +99,9 @@ Running your own Lucky means the bot, its data and its settings are yours:
 
 ---
 
-## 🔧 Quick Start
+## 🔧 Running your own copy
+
+Lucky is meant to be added from the invite link above. Running your own copy is possible but **unsupported**: no help with setup, hosting or upgrades.
 
 ### Prerequisites
 
