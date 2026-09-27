@@ -217,22 +217,51 @@ describe('ServersPage', () => {
             data: { inviteUrl: 'https://discord.com/invite/test' },
         } as any)
         const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
-        const selectGuild = vi.fn()
-        const guild = { id: '1', name: 'Server 1', botAdded: false }
-        mockStores({ guilds: [guild], selectGuild })
-        const user = userEvent.setup()
-        renderAtServers()
+        try {
+            const selectGuild = vi.fn()
+            const guild = { id: '1', name: 'Server 1', botAdded: false }
+            mockStores({ guilds: [guild], selectGuild })
+            const user = userEvent.setup()
+            renderAtServers()
 
-        const card = screen.getByText('Server 1').closest('button')
-        await user.click(card as HTMLButtonElement)
+            const card = screen.getByText('Server 1').closest('button')
+            await user.click(card as HTMLButtonElement)
 
-        expect(api.guilds.getInvite).toHaveBeenCalledWith('1')
-        expect(openSpy).toHaveBeenCalledWith(
-            'https://discord.com/invite/test',
-            '_blank',
-        )
-        expect(selectGuild).not.toHaveBeenCalled()
-        expect(screen.queryByTestId('home-page')).not.toBeInTheDocument()
-        openSpy.mockRestore()
+            expect(api.guilds.getInvite).toHaveBeenCalledWith('1')
+            expect(openSpy).toHaveBeenCalledWith(
+                'https://discord.com/invite/test',
+                '_blank',
+            )
+            expect(selectGuild).not.toHaveBeenCalled()
+            expect(screen.queryByTestId('home-page')).not.toBeInTheDocument()
+        } finally {
+            openSpy.mockRestore()
+        }
+    })
+
+    test('recently active card shows an error toast and does not navigate when invite generation fails', async () => {
+        const { api } = await import('@/services/api')
+        const { toast } = await import('sonner')
+        vi.mocked(api.guilds.getInvite).mockRejectedValue(new Error('boom'))
+        const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+        try {
+            const selectGuild = vi.fn()
+            const guild = { id: '1', name: 'Server 1', botAdded: false }
+            mockStores({ guilds: [guild], selectGuild })
+            const user = userEvent.setup()
+            renderAtServers()
+
+            const card = screen.getByText('Server 1').closest('button')
+            await user.click(card as HTMLButtonElement)
+
+            expect(toast.error).toHaveBeenCalledWith(
+                'Failed to generate invite URL',
+            )
+            expect(openSpy).not.toHaveBeenCalled()
+            expect(selectGuild).not.toHaveBeenCalled()
+            expect(screen.queryByTestId('home-page')).not.toBeInTheDocument()
+        } finally {
+            openSpy.mockRestore()
+        }
     })
 })
