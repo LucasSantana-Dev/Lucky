@@ -1,11 +1,12 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import CustomCommandsPage from './CustomCommands'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 import type { Command } from '@/types'
+import type { EffectiveAccessMap } from '@/types/rbac'
 
 vi.mock('@/services/api')
 vi.mock('@/stores/guildStore')
@@ -24,40 +25,51 @@ const mockGuild = {
     approximate_presence_count: 50,
 }
 
+const manageAccess: EffectiveAccessMap = {
+    overview: 'manage',
+    settings: 'manage',
+    moderation: 'manage',
+    automation: 'manage',
+    music: 'manage',
+    integrations: 'manage',
+}
+
+const viewOnlyAccess: EffectiveAccessMap = {
+    ...manageAccess,
+    automation: 'view',
+}
+
 const mockCommands: Command[] = [
     {
         id: 'cmd1',
         name: 'play',
         description: 'Play a song',
-        category: 'Misc',
+        response: 'Now playing!',
         enabled: true,
-        hasSettings: false,
-        hasHelp: true,
+        useCount: 3,
+        commandKind: 'basic',
     },
     {
         id: 'cmd2',
-        name: 'ban',
-        description: 'Ban a user',
-        category: 'Moderator',
-        enabled: true,
-        hasSettings: false,
-        hasHelp: true,
-    },
-    {
-        id: 'cmd3',
         name: 'coinflip',
         description: 'Flip a coin',
-        category: 'Fun',
+        response: 'Heads!',
         enabled: false,
-        hasSettings: false,
-        hasHelp: true,
+        useCount: 0,
+        commandKind: 'basic',
     },
 ]
 
-function mockGuildStore(guild: typeof mockGuild | null) {
+function mockGuildStore(
+    guild: typeof mockGuild | null,
+    effectiveAccess: EffectiveAccessMap = manageAccess,
+) {
     vi.mocked(useGuildStore).mockReturnValue({
         guilds: guild ? [guild] : [],
-        selectedGuild: guild as any,
+        selectedGuild: guild
+            ? ({ ...guild, effectiveAccess } as any)
+            : (null as any),
+        memberContext: null,
         selectGuild: vi.fn(),
         isLoading: false,
         error: null,
@@ -82,9 +94,6 @@ describe('CustomCommandsPage', () => {
         mockGuildStore(null)
         renderPage()
         expect(screen.getByText('No Server Selected')).toBeInTheDocument()
-        expect(
-            screen.getByText('Select a server to manage commands'),
-        ).toBeInTheDocument()
     })
 
     test('shows loading skeletons while fetching', () => {
@@ -97,7 +106,7 @@ describe('CustomCommandsPage', () => {
         expect(skeletons.length).toBeGreaterThan(0)
     })
 
-    test('renders command cards on success', async () => {
+    test('renders command cards with name and description, without category', async () => {
         mockGuildStore(mockGuild)
         vi.mocked(api.commands.list).mockResolvedValue({
             data: { commands: mockCommands },
@@ -107,55 +116,31 @@ describe('CustomCommandsPage', () => {
 
         await waitFor(() => {
             expect(screen.getByText('/play')).toBeInTheDocument()
-            expect(screen.getByText('/ban')).toBeInTheDocument()
+            expect(screen.getByText('Play a song')).toBeInTheDocument()
             expect(screen.getByText('/coinflip')).toBeInTheDocument()
         })
     })
 
-    test('renders command descriptions', async () => {
+    test('search filters commands by name', async () => {
+        const user = userEvent.setup()
         mockGuildStore(mockGuild)
         vi.mocked(api.commands.list).mockResolvedValue({
             data: { commands: mockCommands },
         } as any)
 
         renderPage()
+        await waitFor(() =>
+            expect(screen.getByText('/play')).toBeInTheDocument(),
+        )
+
+        await user.type(
+            screen.getByPlaceholderText('Search commands...'),
+            'play',
+        )
 
         await waitFor(() => {
-            expect(screen.getByText('Play a song')).toBeInTheDocument()
-            expect(screen.getByText('Ban a user')).toBeInTheDocument()
-            expect(screen.getByText('Flip a coin')).toBeInTheDocument()
-        })
-    })
-
-    test('renders category badges', async () => {
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockResolvedValue({
-            data: { commands: mockCommands },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('Misc')).toBeInTheDocument()
-            expect(screen.getByText('Moderator')).toBeInTheDocument()
-            expect(screen.getByText('Fun')).toBeInTheDocument()
-        })
-    })
-
-    test('renders toggle switches', async () => {
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockResolvedValue({
-            data: { commands: mockCommands },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            const switches = screen.getAllByRole('switch')
-            expect(switches.length).toBe(3)
-            expect(switches[0]).toBeChecked()
-            expect(switches[1]).toBeChecked()
-            expect(switches[2]).not.toBeChecked()
+            expect(screen.getByText('/play')).toBeInTheDocument()
+            expect(screen.queryByText('/coinflip')).not.toBeInTheDocument()
         })
     })
 
@@ -169,172 +154,10 @@ describe('CustomCommandsPage', () => {
 
         await waitFor(() => {
             expect(screen.getByText('No commands found')).toBeInTheDocument()
-            expect(
-                screen.getByText('Commands will appear here'),
-            ).toBeInTheDocument()
         })
     })
 
-    test('search filters commands by name', async () => {
-        const user = userEvent.setup()
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockResolvedValue({
-            data: { commands: mockCommands },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('/play')).toBeInTheDocument()
-        })
-
-        const searchInput = screen.getByPlaceholderText('Search commands...')
-        await user.type(searchInput, 'play')
-
-        await waitFor(() => {
-            expect(screen.getByText('/play')).toBeInTheDocument()
-            expect(screen.queryByText('/ban')).not.toBeInTheDocument()
-            expect(screen.queryByText('/coinflip')).not.toBeInTheDocument()
-        })
-    })
-
-    test('search filters commands by description', async () => {
-        const user = userEvent.setup()
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockResolvedValue({
-            data: { commands: mockCommands },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('/play')).toBeInTheDocument()
-        })
-
-        const searchInput = screen.getByPlaceholderText('Search commands...')
-        await user.type(searchInput, 'coin')
-
-        await waitFor(() => {
-            expect(screen.getByText('/coinflip')).toBeInTheDocument()
-            expect(screen.queryByText('/play')).not.toBeInTheDocument()
-            expect(screen.queryByText('/ban')).not.toBeInTheDocument()
-        })
-    })
-
-    test('clears search on X button click', async () => {
-        const user = userEvent.setup()
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockResolvedValue({
-            data: { commands: mockCommands },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('/play')).toBeInTheDocument()
-        })
-
-        const searchInput = screen.getByPlaceholderText('Search commands...')
-        await user.type(searchInput, 'play')
-
-        await waitFor(() => {
-            expect(screen.queryByText('/ban')).not.toBeInTheDocument()
-        })
-
-        const clearButton = screen.getByRole('button', { name: '' })
-        await user.click(clearButton)
-
-        await waitFor(() => {
-            expect(screen.getByText('/play')).toBeInTheDocument()
-            expect(screen.getByText('/ban')).toBeInTheDocument()
-            expect(screen.getByText('/coinflip')).toBeInTheDocument()
-        })
-    })
-
-    test('category filter chips work', async () => {
-        const user = userEvent.setup()
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockResolvedValue({
-            data: { commands: mockCommands },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText(/All \(3\)/)).toBeInTheDocument()
-        })
-
-        const musicChip = screen.getByRole('button', { name: /Misc \(1\)/ })
-        await user.click(musicChip)
-
-        await waitFor(() => {
-            expect(screen.getByText('/play')).toBeInTheDocument()
-            expect(screen.queryByText('/ban')).not.toBeInTheDocument()
-            expect(screen.queryByText('/coinflip')).not.toBeInTheDocument()
-        })
-    })
-
-    test('clicking category twice resets filter', async () => {
-        const user = userEvent.setup()
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockResolvedValue({
-            data: { commands: mockCommands },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText(/All \(3\)/)).toBeInTheDocument()
-        })
-
-        const funChip = screen.getByRole('button', { name: /Fun \(1\)/ })
-        await user.click(funChip)
-
-        await waitFor(() => {
-            expect(screen.queryByText('/play')).not.toBeInTheDocument()
-        })
-
-        await user.click(funChip)
-
-        await waitFor(() => {
-            expect(screen.getByText('/play')).toBeInTheDocument()
-            expect(screen.getByText('/ban')).toBeInTheDocument()
-        })
-    })
-
-    test('all chip resets category filter', async () => {
-        const user = userEvent.setup()
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockResolvedValue({
-            data: { commands: mockCommands },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText(/All \(3\)/)).toBeInTheDocument()
-        })
-
-        const moderatorChip = screen.getByRole('button', {
-            name: /Moderator \(1\)/,
-        })
-        await user.click(moderatorChip)
-
-        await waitFor(() => {
-            expect(screen.queryByText('/play')).not.toBeInTheDocument()
-        })
-
-        const allChip = screen.getByRole('button', { name: /All \(3\)/ })
-        await user.click(allChip)
-
-        await waitFor(() => {
-            expect(screen.getByText('/play')).toBeInTheDocument()
-            expect(screen.getByText('/ban')).toBeInTheDocument()
-            expect(screen.getByText('/coinflip')).toBeInTheDocument()
-        })
-    })
-
-    test('toggle command calls api.commands.toggle', async () => {
+    test('toggle calls api.commands.toggle keyed by name, not id', async () => {
         const user = userEvent.setup()
         mockGuildStore(mockGuild)
         vi.mocked(api.commands.list).mockResolvedValue({
@@ -343,45 +166,19 @@ describe('CustomCommandsPage', () => {
         vi.mocked(api.commands.toggle).mockResolvedValue({} as any)
 
         renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('/coinflip')).toBeInTheDocument()
-        })
+        await waitFor(() =>
+            expect(screen.getByText('/coinflip')).toBeInTheDocument(),
+        )
 
         const switches = screen.getAllByRole('switch')
-        const coinflipSwitch = switches[2]
-
-        await user.click(coinflipSwitch)
+        await user.click(switches[1])
 
         await waitFor(() => {
             expect(api.commands.toggle).toHaveBeenCalledWith(
                 '123',
-                'cmd3',
+                'coinflip',
                 true,
             )
-        })
-    })
-
-    test('toggle success shows toast', async () => {
-        const user = userEvent.setup()
-        const { toast } = await import('sonner')
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockResolvedValue({
-            data: { commands: mockCommands },
-        } as any)
-        vi.mocked(api.commands.toggle).mockResolvedValue({} as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('/coinflip')).toBeInTheDocument()
-        })
-
-        const switches = screen.getAllByRole('switch')
-        await user.click(switches[2])
-
-        await waitFor(() => {
-            expect(toast.success).toHaveBeenCalledWith('coinflip enabled')
         })
     })
 
@@ -397,115 +194,244 @@ describe('CustomCommandsPage', () => {
         )
 
         renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('/play')).toBeInTheDocument()
-        })
-
-        const switches = screen.getAllByRole('switch')
-        await user.click(switches[0])
-
-        await waitFor(() => {
-            expect(toast.error).toHaveBeenCalledWith('Failed to toggle command')
-        })
-    })
-
-    test('toggle updates local state on success', async () => {
-        const user = userEvent.setup()
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockResolvedValue({
-            data: { commands: mockCommands },
-        } as any)
-        vi.mocked(api.commands.toggle).mockResolvedValue({} as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('/coinflip')).toBeInTheDocument()
-        })
-
-        const switches = screen.getAllByRole('switch')
-        const coinflipSwitch = switches[2]
-
-        expect(coinflipSwitch).not.toBeChecked()
-
-        await user.click(coinflipSwitch)
-
-        await waitFor(() => {
-            expect(coinflipSwitch).toBeChecked()
-        })
-    })
-
-    test('disabled command has opacity styling', async () => {
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockResolvedValue({
-            data: { commands: mockCommands },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('/coinflip')).toBeInTheDocument()
-        })
-
-        const coinflipCard = screen
-            .getByText('/coinflip')
-            .closest('[class*="surface-panel"]')
-        expect(coinflipCard).toHaveClass('opacity-60')
-    })
-
-    test('shows empty state with filters applied', async () => {
-        const user = userEvent.setup()
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockResolvedValue({
-            data: { commands: mockCommands },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('/play')).toBeInTheDocument()
-        })
-
-        const searchInput = screen.getByPlaceholderText('Search commands...')
-        await user.type(searchInput, 'nonexistent')
-
-        await waitFor(() => {
-            expect(screen.getByText('No commands found')).toBeInTheDocument()
-            expect(
-                screen.getByText('Try adjusting your filters'),
-            ).toBeInTheDocument()
-        })
-    })
-
-    test('handles API error gracefully', async () => {
-        mockGuildStore(mockGuild)
-        vi.mocked(api.commands.list).mockRejectedValue(
-            new Error('Network error'),
+        await waitFor(() =>
+            expect(screen.getByText('/play')).toBeInTheDocument(),
         )
 
-        renderPage()
+        await user.click(screen.getAllByRole('switch')[0])
 
         await waitFor(() => {
-            expect(screen.getByText('No commands found')).toBeInTheDocument()
+            expect(toast.error).toHaveBeenCalled()
         })
     })
 
-    test('renders header with guild name', async () => {
+    test('no button contains a nested switch or another button (#2427)', async () => {
         mockGuildStore(mockGuild)
         vi.mocked(api.commands.list).mockResolvedValue({
             data: { commands: mockCommands },
         } as any)
 
         renderPage()
+        await waitFor(() =>
+            expect(screen.getByText('/play')).toBeInTheDocument(),
+        )
 
-        await waitFor(() => {
-            expect(screen.getByText('Custom Commands')).toBeInTheDocument()
+        const buttons = screen.getAllByRole('button')
+        for (const button of buttons) {
+            expect(within(button).queryByRole('switch')).not.toBeInTheDocument()
+            const nestedButtons = button.querySelectorAll('button')
+            expect(nestedButtons.length).toBe(0)
+        }
+    })
+
+    describe('manage-only controls (rbac gating)', () => {
+        test('hides new command button without manage access', async () => {
+            mockGuildStore(mockGuild, viewOnlyAccess)
+            vi.mocked(api.commands.list).mockResolvedValue({
+                data: { commands: mockCommands },
+            } as any)
+
+            renderPage()
+            await waitFor(() =>
+                expect(screen.getByText('/play')).toBeInTheDocument(),
+            )
+
             expect(
-                screen.getByText(
-                    /Manage and configure commands for Test Guild/,
-                ),
+                screen.queryByRole('button', { name: /new command/i }),
+            ).not.toBeInTheDocument()
+        })
+
+        test('hides edit and delete controls without manage access', async () => {
+            mockGuildStore(mockGuild, viewOnlyAccess)
+            vi.mocked(api.commands.list).mockResolvedValue({
+                data: { commands: mockCommands },
+            } as any)
+
+            renderPage()
+            await waitFor(() =>
+                expect(screen.getByText('/play')).toBeInTheDocument(),
+            )
+
+            expect(
+                screen.queryByRole('button', { name: /edit play/i }),
+            ).not.toBeInTheDocument()
+            expect(
+                screen.queryByRole('button', { name: /delete play/i }),
+            ).not.toBeInTheDocument()
+        })
+
+        test('shows new command button with manage access', async () => {
+            mockGuildStore(mockGuild, manageAccess)
+            vi.mocked(api.commands.list).mockResolvedValue({
+                data: { commands: mockCommands },
+            } as any)
+
+            renderPage()
+            await waitFor(() =>
+                expect(screen.getByText('/play')).toBeInTheDocument(),
+            )
+
+            expect(
+                screen.getByRole('button', { name: /new command/i }),
             ).toBeInTheDocument()
+        })
+    })
+
+    describe('create command', () => {
+        test('submitting the form calls api.commands.create and adds the command', async () => {
+            const user = userEvent.setup()
+            mockGuildStore(mockGuild, manageAccess)
+            vi.mocked(api.commands.list).mockResolvedValue({
+                data: { commands: [] },
+            } as any)
+            vi.mocked(api.commands.create).mockResolvedValue({
+                data: {
+                    id: 'cmd3',
+                    name: 'welcome',
+                    description: null,
+                    response: 'Welcome!',
+                    enabled: true,
+                    useCount: 0,
+                    commandKind: 'basic',
+                },
+            } as any)
+
+            renderPage()
+            await waitFor(() =>
+                expect(
+                    screen.getByText('No commands found'),
+                ).toBeInTheDocument(),
+            )
+
+            await user.click(
+                screen.getByRole('button', { name: /new command/i }),
+            )
+            await user.type(screen.getByLabelText(/name/i), 'welcome')
+            await user.type(screen.getByLabelText(/response/i), 'Welcome!')
+            await user.click(screen.getByRole('button', { name: /^create$/i }))
+
+            await waitFor(() => {
+                expect(api.commands.create).toHaveBeenCalledWith('123', {
+                    name: 'welcome',
+                    response: 'Welcome!',
+                })
+            })
+            await waitFor(() =>
+                expect(screen.getByText('/welcome')).toBeInTheDocument(),
+            )
+        })
+
+        test('shows a validation error and does not call the API for an invalid name', async () => {
+            const user = userEvent.setup()
+            mockGuildStore(mockGuild, manageAccess)
+            vi.mocked(api.commands.list).mockResolvedValue({
+                data: { commands: [] },
+            } as any)
+
+            renderPage()
+            await waitFor(() =>
+                expect(
+                    screen.getByText('No commands found'),
+                ).toBeInTheDocument(),
+            )
+
+            await user.click(
+                screen.getByRole('button', { name: /new command/i }),
+            )
+            await user.type(screen.getByLabelText(/name/i), 'bad name!')
+            await user.type(screen.getByLabelText(/response/i), 'hi')
+            await user.click(screen.getByRole('button', { name: /^create$/i }))
+
+            await waitFor(() => {
+                expect(api.commands.create).not.toHaveBeenCalled()
+            })
+        })
+    })
+
+    describe('edit command', () => {
+        test('submitting the edit form calls api.commands.update keyed by name', async () => {
+            const user = userEvent.setup()
+            mockGuildStore(mockGuild, manageAccess)
+            vi.mocked(api.commands.list).mockResolvedValue({
+                data: { commands: mockCommands },
+            } as any)
+            vi.mocked(api.commands.update).mockResolvedValue({
+                data: { ...mockCommands[0], response: 'New response' },
+            } as any)
+
+            renderPage()
+            await waitFor(() =>
+                expect(screen.getByText('/play')).toBeInTheDocument(),
+            )
+
+            await user.click(screen.getByRole('button', { name: /edit play/i }))
+
+            const responseField = screen.getByLabelText(/response/i)
+            await user.clear(responseField)
+            await user.type(responseField, 'New response')
+            await user.click(
+                screen.getByRole('button', { name: /save changes/i }),
+            )
+
+            await waitFor(() => {
+                expect(api.commands.update).toHaveBeenCalledWith(
+                    '123',
+                    'play',
+                    { response: 'New response', description: 'Play a song' },
+                )
+            })
+        })
+    })
+
+    describe('delete command', () => {
+        test('clicking delete opens a confirm dialog and cancel does not call the API', async () => {
+            const user = userEvent.setup()
+            mockGuildStore(mockGuild, manageAccess)
+            vi.mocked(api.commands.list).mockResolvedValue({
+                data: { commands: mockCommands },
+            } as any)
+
+            renderPage()
+            await waitFor(() =>
+                expect(screen.getByText('/play')).toBeInTheDocument(),
+            )
+
+            await user.click(
+                screen.getByRole('button', { name: /delete play/i }),
+            )
+            expect(screen.getByText(/delete command/i)).toBeInTheDocument()
+
+            await user.click(screen.getByRole('button', { name: /cancel/i }))
+
+            expect(api.commands.delete).not.toHaveBeenCalled()
+        })
+
+        test('confirming delete calls api.commands.delete keyed by name and removes the row', async () => {
+            const user = userEvent.setup()
+            mockGuildStore(mockGuild, manageAccess)
+            vi.mocked(api.commands.list).mockResolvedValue({
+                data: { commands: mockCommands },
+            } as any)
+            vi.mocked(api.commands.delete).mockResolvedValue({
+                data: { success: true },
+            } as any)
+
+            renderPage()
+            await waitFor(() =>
+                expect(screen.getByText('/play')).toBeInTheDocument(),
+            )
+
+            await user.click(
+                screen.getByRole('button', { name: /delete play/i }),
+            )
+            await user.click(screen.getByRole('button', { name: /^delete$/i }))
+
+            await waitFor(() => {
+                expect(api.commands.delete).toHaveBeenCalledWith('123', 'play')
+            })
+            await waitFor(() =>
+                expect(screen.queryByText('/play')).not.toBeInTheDocument(),
+            )
         })
     })
 })

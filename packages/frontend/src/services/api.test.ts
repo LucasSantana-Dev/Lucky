@@ -59,6 +59,7 @@ const loadApiModule = async (inferredBase = '/api') => {
         get: vi.fn(),
         post: vi.fn(),
         put: vi.fn(),
+        patch: vi.fn(),
         delete: vi.fn(),
         interceptors: {
             response: {
@@ -302,7 +303,15 @@ describe('api service bootstrap', () => {
             volume: 80,
         })
         await module.api.commands.list('guild-1')
+        await module.api.commands.create('guild-1', {
+            name: 'play',
+            response: 'Now playing!',
+        })
+        await module.api.commands.update('guild-1', 'play', {
+            response: 'Updated!',
+        })
         await module.api.commands.toggle('guild-1', 'play', false)
+        await module.api.commands.delete('guild-1', 'play')
         await module.api.commands.getSettings('guild-1', 'play')
         await module.api.commands.updateSettings('guild-1', 'play', {
             cooldown: 10,
@@ -368,8 +377,19 @@ describe('api service bootstrap', () => {
         )
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/commands')
         expect(apiClient.post).toHaveBeenCalledWith(
-            '/guilds/guild-1/commands/play/toggle',
+            '/guilds/guild-1/commands',
+            { name: 'play', response: 'Now playing!' },
+        )
+        expect(apiClient.patch).toHaveBeenCalledWith(
+            '/guilds/guild-1/commands/play',
+            { response: 'Updated!' },
+        )
+        expect(apiClient.patch).toHaveBeenCalledWith(
+            '/guilds/guild-1/commands/play',
             { enabled: false },
+        )
+        expect(apiClient.delete).toHaveBeenCalledWith(
+            '/guilds/guild-1/commands/play',
         )
         expect(apiClient.get).toHaveBeenCalledWith(
             '/guilds/guild-1/commands/play/settings',

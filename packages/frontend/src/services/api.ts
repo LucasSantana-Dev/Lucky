@@ -36,6 +36,18 @@ import { createBatchJobsApi } from './batchJobsApi'
 import { createForumApi } from './forumApi'
 import { createRecommendationsApi } from './recommendationsApi'
 
+export interface CreateCommandInput {
+    name: string
+    response: string
+    description?: string
+}
+
+export interface UpdateCommandInput {
+    response?: string
+    description?: string
+    enabled?: boolean
+}
+
 export interface VoteStatus {
     hasVoted: boolean
     streak: number
@@ -279,10 +291,21 @@ export const api = {
             apiClient.get<{ commands: Command[] }>(
                 `/guilds/${guildId}/commands`,
             ),
-        toggle: (guildId: string, commandId: string, enabled: boolean) =>
-            apiClient.post<{ success: boolean }>(
-                `/guilds/${guildId}/commands/${commandId}/toggle`,
+        create: (guildId: string, input: CreateCommandInput) =>
+            apiClient.post<Command>(`/guilds/${guildId}/commands`, input),
+        update: (guildId: string, name: string, input: UpdateCommandInput) =>
+            apiClient.patch<Command>(
+                `/guilds/${guildId}/commands/${encodeURIComponent(name)}`,
+                input,
+            ),
+        toggle: (guildId: string, name: string, enabled: boolean) =>
+            apiClient.patch<Command>(
+                `/guilds/${guildId}/commands/${encodeURIComponent(name)}`,
                 { enabled },
+            ),
+        delete: (guildId: string, name: string) =>
+            apiClient.delete<{ success: boolean }>(
+                `/guilds/${guildId}/commands/${encodeURIComponent(name)}`,
             ),
         getSettings: (guildId: string, commandId: string) =>
             apiClient.get<{ settings: Record<string, unknown> }>(
