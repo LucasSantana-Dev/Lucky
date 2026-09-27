@@ -263,6 +263,17 @@ describe('setupRoutes', () => {
         ).not.toThrow()
         expect(next).toHaveBeenCalled()
 
+        // cubic review on PR #2449: the test above only proves the skip
+        // branch works. It would still pass if the guard skipped
+        // EVERYTHING (e.g. `skip: () => true`), silently disabling the
+        // automation check on every /roles path. Prove the non-skip branch
+        // is wired too: for a path that is not /manage, the guard must
+        // call the automation module-check (the mocked tag, a plain
+        // string above, not a function), so invoking it throws.
+        expect(() =>
+            rolesGuard({ path: '/exclusive' }, {}, jest.fn()),
+        ).toThrow()
+
         // #2410: role-groups must NOT force manage mode on every method. GET
         // should resolve to view like its /roles and /reaction-roles
         // siblings, so a settings:view-only user can load the page.
