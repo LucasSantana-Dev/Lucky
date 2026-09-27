@@ -138,7 +138,7 @@ describe('searchLogs', () => {
                 guildId: 'g1',
                 action: { contains: 'kicked', mode: 'insensitive' },
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             take: 100,
             skip: 0,
         })
@@ -160,7 +160,7 @@ describe('searchLogs', () => {
                 type: 'mod_action',
                 userId: 'u1',
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             take: 100,
             skip: 0,
         })
@@ -173,7 +173,7 @@ describe('searchLogs', () => {
 
         expect(mockServerLog.findMany).toHaveBeenCalledWith({
             where: { guildId: 'g1', type: 'mod_action' },
-            orderBy: { createdAt: 'desc' },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             take: 100,
             skip: 0,
         })

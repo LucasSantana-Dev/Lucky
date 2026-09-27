@@ -472,5 +472,36 @@ describe('Management Schemas', () => {
             const params = buildFrontendSearchParams({ q: '   ' })
             expect(s.logsSearchQuery.safeParse(params).success).toBe(false)
         })
+
+        test('accepts a search term at exactly the 200 character limit', () => {
+            const params = buildFrontendSearchParams({ q: 'a'.repeat(200) })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(true)
+        })
+
+        test('accepts a valid snowflake userId filter', () => {
+            const params = buildFrontendSearchParams({
+                userId: '333333333333333333',
+            })
+            const result = s.logsSearchQuery.safeParse(params)
+            expect(result.success).toBe(true)
+            if (result.success) {
+                expect(result.data.userId).toBe('333333333333333333')
+            }
+        })
+
+        test('rejects a non-snowflake userId', () => {
+            const params = buildFrontendSearchParams({ userId: 'not-a-id' })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(false)
+        })
+
+        test('rejects a limit over 500', () => {
+            const params = buildFrontendSearchParams({ limit: 501 })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(false)
+        })
+
+        test('rejects an offset over the 10000 pagination cap', () => {
+            const params = buildFrontendSearchParams({ offset: 10001 })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(false)
+        })
     })
 })

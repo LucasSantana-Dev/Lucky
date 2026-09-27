@@ -253,7 +253,9 @@ export class ServerLogService {
     ) {
         return await prisma.serverLog.findMany({
             where: this.buildSearchWhere(guildId, filters),
-            orderBy: { createdAt: 'desc' },
+            // A stable secondary sort key keeps offset pagination consistent
+            // when multiple rows share the same `createdAt` (cubic P1).
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             take: limit,
             skip: offset,
         })

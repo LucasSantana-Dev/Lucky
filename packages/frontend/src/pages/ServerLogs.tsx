@@ -353,6 +353,7 @@ export default function ServerLogsPage() {
                             placeholder={t('searchPlaceholder')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            maxLength={200}
                             className='pl-9 bg-lucky-bg-tertiary border-lucky-border text-lucky-text-primary placeholder:text-lucky-text-tertiary'
                         />
                         {searchQuery && (

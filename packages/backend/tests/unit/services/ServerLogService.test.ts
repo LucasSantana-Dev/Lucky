@@ -174,7 +174,7 @@ describe('ServerLogService', () => {
                     type: 'mod_action',
                     userId: USER_A,
                 },
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                 take: 100,
                 skip: 0,
             })
@@ -193,7 +193,7 @@ describe('ServerLogService', () => {
                     guildId: GUILD_A,
                     createdAt: { gte: startDate, lte: endDate },
                 },
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                 take: 100,
                 skip: 0,
             })
@@ -211,7 +211,7 @@ describe('ServerLogService', () => {
                     guildId: GUILD_A,
                     action: { contains: 'warned', mode: 'insensitive' },
                 },
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                 take: 100,
                 skip: 0,
             })

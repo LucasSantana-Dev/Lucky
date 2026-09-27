@@ -521,12 +521,15 @@ describe('ServerLogsPage', () => {
         vi.mocked(api.serverLogs.search).mockClear()
 
         vi.useFakeTimers()
-        const searchInput = screen.getByPlaceholderText('Search logs…')
-        fireEvent.change(searchInput, { target: { value: 'kicked' } })
-        await act(async () => {
-            await vi.runAllTimersAsync()
-        })
-        vi.useRealTimers()
+        try {
+            const searchInput = screen.getByPlaceholderText('Search logs…')
+            fireEvent.change(searchInput, { target: { value: 'kicked' } })
+            await act(async () => {
+                await vi.runAllTimersAsync()
+            })
+        } finally {
+            vi.useRealTimers()
+        }
 
         await waitFor(() => {
             expect(api.serverLogs.search).toHaveBeenCalledWith(
