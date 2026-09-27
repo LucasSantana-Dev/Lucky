@@ -24,6 +24,9 @@ declare module '@prisma/client' {
             update(args: unknown): Promise<unknown>
             deleteMany(args: unknown): Promise<{ count: number }>
         }
+        serverLog: {
+            deleteMany(args: unknown): Promise<{ count: number }>
+        }
         reactionRoleMessage: {
             create(args: unknown): Promise<unknown>
             findUnique(args: unknown): Promise<unknown | null>

@@ -86,6 +86,49 @@ errorLog({
 })
 ```
 
+## Output format: pretty (local) vs json (production)
+
+Locally the logger prints the existing multi-line, colourised format. In
+production (`NODE_ENV=production`), or whenever `LOG_FORMAT=json` is set
+explicitly, each log call instead writes **exactly one stdout line**: the
+`[LEVEL]` token (unchanged, used by promtail's level regex), followed by a
+single-line JSON object.
+
+```
+[INFO] {"ts":"2026-09-26T12:00:00.000Z","level":"info","msg":"Guild joined","guildId":"110373943822540800"}
+```
+
+`correlationId`, `guildId` and `userId` are top-level keys (omitted when not
+set) instead of being buried inside `data`, and an attached error becomes an
+`error: { name, message, stack }` object with the stack's newlines escaped as
+`\n` rather than split across physical lines. This fixes #2386: one log call
+is now one Loki entry, not one entry per pretty-printed line.
+
+Override the default with `LOG_FORMAT=pretty` or `LOG_FORMAT=json` in any
+environment.
+
+## Querying in Grafana (LogQL)
+
+Every json-format line starts with the `[LEVEL] ` token before the JSON
+object, so a query first strips that prefix with `regexp` + `line_format`,
+then parses the remainder with `| json`:
+
+```logql
+# All logs for one guild
+{container_name="lucky-bot"} | regexp "^\\[\\w+\\] (?P<body>.*)$" | line_format "{{.body}}" | json | guildId="123"
+```
+
+```logql
+# Errors only, filtered by the nested error message (| json flattens
+# error.message to error_message)
+{container_name="lucky-bot"} | regexp "^\\[ERROR\\] (?P<body>.*)$" | line_format "{{.body}}" | json | error_message=~".*rate\\.limit.*"
+```
+
+```logql
+# Trace one request end to end across the backend by correlationId
+{container_name="lucky-backend"} | regexp "^\\[\\w+\\] (?P<body>.*)$" | line_format "{{.body}}" | json | correlationId="req-abc-123"
+```
+
 ## Related decision
 
-See ADR [2026-06-01 — logging-observability-hardening](../decisions/2026-06-01-logging-observability-hardening.md) for the full logging strategy, including silent-catch enforcement (ESLint rule) and request-id threading.
+See ADR [2026-06-01 — logging-observability-hardening](../decisions/2026-06-01-logging-observability-hardening.md) for the full logging strategy, including silent-catch enforcement (ESLint rule) and request-id threading. See also [2026-06-16 — info-log-aggregation-loki](../decisions/2026-06-16-info-log-aggregation-loki.md) and #2386 for the single-line json output format.

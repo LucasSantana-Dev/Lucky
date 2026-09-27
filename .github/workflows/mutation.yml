@@ -14,18 +14,31 @@ name: Mutation Testing
 # The three near-identical per-package jobs were converted into a single matrix
 # job over shared/backend/bot (fail-fast: false, per-package cache keys and
 # artifact names preserved).
+#
+# Was pull_request: [opened, synchronize, reopened, ready_for_review], 3
+# jobs/135 job-min per PR push (issue #2402), most of it queuing behind the
+# 20-concurrent-job cap rather than running. Not a required status check, so
+# it doesn't gate merges; moved off the per-push path onto a nightly run
+# against main plus opt-in triggers (manual dispatch, or the `run-mutation`
+# label on a PR that specifically needs a mutation-score check before merge).
+#
+# Label check lives in the job `if`, not the trigger, and `synchronize` /
+# `reopened` / `ready_for_review` are all in `types` (mirrors the `staging`
+# label pattern in deploy-staging.yml): a label alone only fires once, but a
+# label PLUS these event types means every later push to an already-labeled
+# PR re-runs it too, and a labeled draft PR runs as soon as it's marked
+# ready (the `ready_for_review` event clears `draft`, and the label is still
+# there from before).
 
 on:
+  schedule:
+    - cron: '0 3 * * *' # nightly, main
+  workflow_dispatch:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [labeled, synchronize, reopened, ready_for_review]
     branches:
       - main
       - 'release/**'
-    paths:
-      - 'packages/shared/**'
-      - 'packages/backend/**'
-      - 'packages/bot/**'
-      - '.github/workflows/mutation.yml'
 
 concurrency:
   group: mutation-${{ github.ref }}
@@ -39,7 +52,13 @@ jobs:
     name: Mutation (${{ matrix.package }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: ${{ !github.event.pull_request.draft }}
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'run-mutation') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'run-mutation') &&
+       !github.event.pull_request.draft)
     strategy:
       fail-fast: false
       matrix:

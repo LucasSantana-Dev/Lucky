@@ -220,7 +220,31 @@ describe('sentry monitoring', () => {
             process.env.SENTRY_TRACES_SAMPLE_RATE = 'not-a-number'
             initializeSentry({})
             expect(initMock).toHaveBeenCalledWith(
-                expect.objectContaining({ tracesSampleRate: 1.0 }),
+                expect.objectContaining({ tracesSampleRate: 0.1 }),
+            )
+        })
+
+        it('defaults sample rates to 0.1 when env vars are unset', () => {
+            delete process.env.SENTRY_TRACES_SAMPLE_RATE
+            delete process.env.SENTRY_PROFILES_SAMPLE_RATE
+            initializeSentry({})
+            expect(initMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    tracesSampleRate: 0.1,
+                    profilesSampleRate: 0.1,
+                }),
+            )
+        })
+
+        it('defaults sample rates to 0.1 when env vars are empty strings', () => {
+            process.env.SENTRY_TRACES_SAMPLE_RATE = ''
+            process.env.SENTRY_PROFILES_SAMPLE_RATE = ''
+            initializeSentry({})
+            expect(initMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    tracesSampleRate: 0.1,
+                    profilesSampleRate: 0.1,
+                }),
             )
         })
 
