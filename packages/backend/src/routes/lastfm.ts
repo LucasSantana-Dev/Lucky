@@ -16,6 +16,7 @@ import { apiLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
+import { timingSafeKeyCompare } from '../utils/timingSafeKeyCompare'
 
 const LASTFM_STATE_COOKIE = 'lastfm_state'
 const STATE_MAX_AGE_SEC = 600
@@ -245,8 +246,13 @@ export function setupLastFmRoutes(app: Express): void {
                     )
                 }
 
-                // Query state must exactly match cookie state to prevent replay attacks
-                if (stateFromQuery !== stateFromCookieValidated.data) {
+                // Query state must match cookie state (constant time) to prevent CSRF
+                if (
+                    !timingSafeKeyCompare(
+                        stateFromQuery,
+                        stateFromCookieValidated.data,
+                    )
+                ) {
                     return res.redirect(
                         `${frontendUrl}/?error=lastfm_invalid_state`,
                     )

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import request from 'supertest'
 import type { Express, Request, Response, NextFunction } from 'express'
 import express from 'express'
+import cookieParser from 'cookie-parser'
 
 const mockSpotifyLinkService = {
     getByDiscordId: jest.fn() as any,
@@ -71,6 +72,7 @@ describe('Spotify Routes', () => {
         jest.clearAllMocks()
         app = express()
         app.use(express.json())
+        app.use(cookieParser())
         setupSpotifyRoutes(app)
         app.use(errorHandler)
 
@@ -287,11 +289,72 @@ describe('Spotify Routes', () => {
 
         it('redirects with error when state is invalid hmac', async () => {
             const badState = `${Buffer.from('user-x').toString('base64url')}.badhmacsignature`
-            const res = await request(app).get(
-                `/api/spotify/callback?code=code&state=${badState}`,
-            )
+            const res = await request(app)
+                .get(`/api/spotify/callback?code=code&state=${badState}`)
+                .set('Cookie', [`spotify_state=${badState}`])
             expect(res.status).toBe(302)
             expect(res.header.location).toContain('error=spotify_invalid_state')
+        })
+
+        it('rejects when the state query param is missing', async () => {
+            const state = Buffer.from('test-discord-id').toString('base64url')
+            const sig = require('crypto')
+                .createHmac('sha256', 'test-secret')
+                .update('test-discord-id')
+                .digest('hex')
+            const encodedState = `${state}.${sig}`
+
+            const res = await request(app)
+                .get('/api/spotify/callback?code=auth-code')
+                .set('Cookie', [`spotify_state=${encodedState}`])
+
+            expect(res.status).toBe(302)
+            expect(res.header.location).toContain('error=spotify_missing_state')
+            expect(
+                mockSpotifyAuthService.exchangeCodeForToken,
+            ).not.toHaveBeenCalled()
+        })
+
+        it('rejects when the state cookie is missing', async () => {
+            const state = Buffer.from('test-discord-id').toString('base64url')
+            const sig = require('crypto')
+                .createHmac('sha256', 'test-secret')
+                .update('test-discord-id')
+                .digest('hex')
+            const encodedState = `${state}.${sig}`
+
+            const res = await request(app).get(
+                `/api/spotify/callback?code=auth-code&state=${encodedState}`,
+            )
+
+            expect(res.status).toBe(302)
+            expect(res.header.location).toContain('error=spotify_missing_state')
+            expect(
+                mockSpotifyAuthService.exchangeCodeForToken,
+            ).not.toHaveBeenCalled()
+        })
+
+        it('rejects when the query state does not match the cookie state (CSRF)', async () => {
+            const buildState = (discordId: string) => {
+                const payload = Buffer.from(discordId).toString('base64url')
+                const sig = require('crypto')
+                    .createHmac('sha256', 'test-secret')
+                    .update(discordId)
+                    .digest('hex')
+                return `${payload}.${sig}`
+            }
+            const queryState = buildState('test-discord-id')
+            const cookieState = buildState('attacker-discord-id')
+
+            const res = await request(app)
+                .get(`/api/spotify/callback?code=auth-code&state=${queryState}`)
+                .set('Cookie', [`spotify_state=${cookieState}`])
+
+            expect(res.status).toBe(302)
+            expect(res.header.location).toContain('error=spotify_invalid_state')
+            expect(
+                mockSpotifyAuthService.exchangeCodeForToken,
+            ).not.toHaveBeenCalled()
         })
 
         it('redirects with error when set fails', async () => {
@@ -311,9 +374,9 @@ describe('Spotify Routes', () => {
                 .digest('hex')
             const encodedState = `${state}.${sig}`
 
-            const res = await request(app).get(
-                `/api/spotify/callback?code=code&state=${encodedState}`,
-            )
+            const res = await request(app)
+                .get(`/api/spotify/callback?code=code&state=${encodedState}`)
+                .set('Cookie', [`spotify_state=${encodedState}`])
             expect(res.status).toBe(302)
             expect(res.header.location).toContain('error=spotify_save_failed')
         })
@@ -373,9 +436,11 @@ describe('Spotify Routes', () => {
                 .digest('hex')
             const encodedState = `${state}.${sig}`
 
-            const res = await request(app).get(
-                `/api/spotify/callback?code=auth-code&state=${encodedState}`,
-            )
+            const res = await request(app)
+                .get(
+                    `/api/spotify/callback?code=auth-code&state=${encodedState}`,
+                )
+                .set('Cookie', [`spotify_state=${encodedState}`])
 
             expect(res.status).toBe(500)
             expect(res.body.error).toBe('Internal server error')
