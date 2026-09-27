@@ -1061,7 +1061,8 @@
         "playMusicToSeeHistory": "Play some music to see your history here",
         "loadMore": "Load More ({{remaining}} remaining)",
         "loading": "Loading...",
-        "failedToClearHistory": "Failed to clear history"
+        "failedToClearHistory": "Failed to clear history",
+        "playedBy": "By <bold>{{user}}</bold>"
     },
     "twitch": {
         "selectServerToManage": "Select a server to manage Twitch notifications",

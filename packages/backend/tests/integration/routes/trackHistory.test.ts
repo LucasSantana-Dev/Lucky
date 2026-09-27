@@ -4,12 +4,22 @@ import request from 'supertest'
 import express from 'express'
 import { setupTrackHistoryRoutes } from '../../../src/routes/trackHistory'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
+import { requireAuth } from '../../../src/middleware/auth'
+import { requireGuildModuleAccess } from '../../../src/middleware/guildAccess'
 import { sessionService } from '../../../src/services/SessionService'
-import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import { guildAccessService } from '../../../src/services/GuildAccessService'
+import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
         getSession: jest.fn(),
+    },
+}))
+
+jest.mock('../../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        resolveGuildContext: jest.fn(),
+        hasAccess: jest.fn(),
     },
 }))
 
@@ -38,6 +48,14 @@ describe('Track History Routes', () => {
         app = express()
         app.use(express.json())
         setupSessionMiddleware(app)
+        // Mirrors the guildGuardConfigs entry for '/api/guilds/:guildId/music'
+        // in src/routes/index.ts, which prefix-matches this route's paths and
+        // runs ahead of trackHistory.ts's own per-route check in production.
+        app.use(
+            '/api/guilds/:guildId/music',
+            requireAuth,
+            requireGuildModuleAccess('music'),
+        )
         setupTrackHistoryRoutes(app)
         app.use(errorHandler)
         jest.clearAllMocks()
@@ -48,6 +66,49 @@ describe('Track History Routes', () => {
     function authed() {
         const mock = sessionService as jest.Mocked<typeof sessionService>
         mock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.resolveGuildContext.mockResolvedValue(
+            MOCK_GUILD_CONTEXT,
+        )
+        mockGuildAccessService.hasAccess.mockReturnValue(true)
+    }
+
+    // Shared by both the global-guard suite and the route-level-only suite
+    // below. Every mock asserts the module too (not just the mode) so a
+    // guard accidentally protecting the wrong module (e.g. 'settings'
+    // instead of 'music') flips the outcome and fails the suite, rather
+    // than passing identically regardless of which module was checked.
+    function noAccess() {
+        authed()
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.hasAccess.mockImplementation(
+            (_context, module) => module !== 'music',
+        )
+    }
+
+    function viewOnlyAccess() {
+        authed()
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.hasAccess.mockImplementation(
+            (_context, module, mode) => module === 'music' && mode === 'view',
+        )
+    }
+
+    function manageAccess() {
+        authed()
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.hasAccess.mockImplementation(
+            (_context, module, mode) => module === 'music' && mode === 'manage',
+        )
     }
 
     describe('GET /api/guilds/:guildId/music/history', () => {
@@ -175,6 +236,174 @@ describe('Track History Routes', () => {
             expect(res.status).toBe(200)
             expect(res.body.success).toBe(true)
             expect(mockClearHistory).toHaveBeenCalledWith(GUILD_ID)
+        })
+    })
+
+    describe('guild module access', () => {
+        test('returns 403 for GET history without guild module access', async () => {
+            noAccess()
+
+            const res = await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/history`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(403)
+            expect(mockGetHistory).not.toHaveBeenCalled()
+        })
+
+        test('returns 403 for GET stats without guild module access', async () => {
+            noAccess()
+
+            const res = await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/history/stats`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(403)
+            expect(mockGenerateStats).not.toHaveBeenCalled()
+        })
+
+        test('returns 403 for GET top-tracks without guild module access', async () => {
+            noAccess()
+
+            const res = await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/history/top-tracks`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(403)
+            expect(mockGetTopTracks).not.toHaveBeenCalled()
+        })
+
+        test('returns 403 for GET top-artists without guild module access', async () => {
+            noAccess()
+
+            const res = await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/history/top-artists`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(403)
+            expect(mockGetTopArtists).not.toHaveBeenCalled()
+        })
+
+        test('returns 403 for DELETE history without guild module access', async () => {
+            noAccess()
+
+            const res = await request(app)
+                .delete(`/api/guilds/${GUILD_ID}/music/history`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(403)
+            expect(mockClearHistory).not.toHaveBeenCalled()
+        })
+
+        test('allows GET endpoints but forbids DELETE for a view-only user', async () => {
+            viewOnlyAccess()
+            mockGetHistory.mockResolvedValue([])
+            mockGenerateStats.mockResolvedValue(null)
+            mockGetTopTracks.mockResolvedValue([])
+            mockGetTopArtists.mockResolvedValue([])
+
+            const history = await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/history`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+            expect(history.status).toBe(200)
+
+            const stats = await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/history/stats`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+            expect(stats.status).toBe(200)
+
+            const topTracks = await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/history/top-tracks`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+            expect(topTracks.status).toBe(200)
+
+            const topArtists = await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/history/top-artists`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+            expect(topArtists.status).toBe(200)
+
+            const del = await request(app)
+                .delete(`/api/guilds/${GUILD_ID}/music/history`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+            expect(del.status).toBe(403)
+            expect(mockClearHistory).not.toHaveBeenCalled()
+        })
+
+        test('allows DELETE for a user with manage access', async () => {
+            manageAccess()
+            mockClearHistory.mockResolvedValue(true)
+
+            const res = await request(app)
+                .delete(`/api/guilds/${GUILD_ID}/music/history`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(200)
+            expect(res.body.success).toBe(true)
+            expect(mockClearHistory).toHaveBeenCalledWith(GUILD_ID)
+        })
+    })
+
+    // The suite above mounts the same global guildGuardConfigs guard that
+    // production wires ahead of these routes in routes/index.ts. That guard
+    // makes the exact same allow/deny decision as trackHistory.ts's own
+    // per-route requireGuildModuleAccess calls and runs first, so it fully
+    // shadows the route-level guard: those assertions would pass identically
+    // even if the per-route checks were deleted. This block builds the app
+    // from setupTrackHistoryRoutes alone, with no global guard mounted, so a
+    // regression in the route-level guards is actually caught.
+    describe('guild module access (route-level guard only, no global guard)', () => {
+        function buildRouteOnlyApp(): express.Express {
+            const routeOnlyApp = express()
+            routeOnlyApp.use(express.json())
+            setupSessionMiddleware(routeOnlyApp)
+            setupTrackHistoryRoutes(routeOnlyApp)
+            routeOnlyApp.use(errorHandler)
+            return routeOnlyApp
+        }
+
+        test('denies GET history without music access', async () => {
+            noAccess()
+
+            const res = await request(buildRouteOnlyApp())
+                .get(`/api/guilds/${GUILD_ID}/music/history`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(403)
+            expect(mockGetHistory).not.toHaveBeenCalled()
+        })
+
+        test('allows GET history for a view-only user', async () => {
+            viewOnlyAccess()
+            mockGetHistory.mockResolvedValue([])
+
+            const res = await request(buildRouteOnlyApp())
+                .get(`/api/guilds/${GUILD_ID}/music/history`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(200)
+        })
+
+        test('denies DELETE for a view-only user', async () => {
+            viewOnlyAccess()
+
+            const res = await request(buildRouteOnlyApp())
+                .delete(`/api/guilds/${GUILD_ID}/music/history`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(403)
+            expect(mockClearHistory).not.toHaveBeenCalled()
+        })
+
+        test('allows DELETE for a user with manage access', async () => {
+            manageAccess()
+            mockClearHistory.mockResolvedValue(true)
+
+            const res = await request(buildRouteOnlyApp())
+                .delete(`/api/guilds/${GUILD_ID}/music/history`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(200)
+            expect(res.body.success).toBe(true)
         })
     })
 })

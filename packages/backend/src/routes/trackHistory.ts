@@ -1,5 +1,6 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { validateParams, validateQuery } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
@@ -21,6 +22,7 @@ export function setupTrackHistoryRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/music/history',
         requireAuth,
+        requireGuildModuleAccess('music', 'view'),
         validateParams(s.guildIdParam),
         validateQuery(historyQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -41,6 +43,7 @@ export function setupTrackHistoryRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/music/history/stats',
         requireAuth,
+        requireGuildModuleAccess('music', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -52,6 +55,7 @@ export function setupTrackHistoryRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/music/history/top-tracks',
         requireAuth,
+        requireGuildModuleAccess('music', 'view'),
         validateParams(s.guildIdParam),
         validateQuery(topQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -68,6 +72,7 @@ export function setupTrackHistoryRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/music/history/top-artists',
         requireAuth,
+        requireGuildModuleAccess('music', 'view'),
         validateParams(s.guildIdParam),
         validateQuery(topQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -84,6 +89,7 @@ export function setupTrackHistoryRoutes(app: Express): void {
     app.delete(
         '/api/guilds/:guildId/music/history',
         requireAuth,
+        requireGuildModuleAccess('music', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
