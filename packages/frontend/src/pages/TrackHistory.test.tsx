@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import TrackHistoryPage from './TrackHistory'
 import { api } from '@/services/api'
 import i18n from '@/lib/i18n'
+import en from '@/locales/en.json'
 
 vi.mock('@/services/api')
 vi.mock('@/hooks/useGuildSelection')
@@ -114,7 +115,7 @@ describe('TrackHistoryPage', () => {
         i18n.addResourceBundle(
             'en',
             'translation',
-            { trackHistory: { playedBy: 'By <bold>{{user}}</bold>' } },
+            { trackHistory: { playedBy: en.trackHistory.playedBy } },
             true,
             true,
         )
