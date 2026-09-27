@@ -1,10 +1,11 @@
 # Architecture Decision Records
 
-138 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
+139 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
-## Accepted (131)
+## Accepted (132)
 
+- [2026-09-27 - Position Lucky as the free music bot that keeps the call playing](2026-09-27-music-first-positioning.md)
 - [2026-09-26 - Lucky owns its observability stack as code, portable to any host](2026-09-26-lucky-owned-observability-stack.md)
 - [2026-09-05 - Skip-reason feedback UX redesign: deferred](2026-09-05-skip-feedback-redesign-deferred.md) - _Accepted (defer)_
 - [2026-09-03 - Audit gate takes a second npm audit read before passing](2026-09-03-audit-gate-double-read.md)
