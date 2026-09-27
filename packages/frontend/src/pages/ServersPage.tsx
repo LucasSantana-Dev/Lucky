@@ -1,6 +1,7 @@
 import { Crown, LayoutGrid, Settings, ExternalLink } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Skeleton from '@/components/ui/Skeleton'
 import ServerGrid from '@/components/Dashboard/ServerGrid'
@@ -9,13 +10,30 @@ import { useAuthStore } from '@/stores/authStore'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { cn } from '@/lib/utils'
 import { getUserAvatarUrl } from '@/lib/discord'
+import { api } from '@/services/api'
+import type { Guild } from '@/types'
 
 export default function ServersPage() {
     const { t } = useTranslation('servers')
     const guilds = useGuildStore((state) => state.guilds)
     const isLoading = useGuildStore((state) => state.isLoading)
+    const selectGuild = useGuildStore((state) => state.selectGuild)
     const user = useAuthStore((state) => state.user)
     const navigate = useNavigate()
+
+    const handlePrimaryGuildClick = async (guild: Guild) => {
+        if (guild.botAdded) {
+            selectGuild(guild)
+            navigate('/')
+            return
+        }
+        try {
+            const response = await api.guilds.getInvite(guild.id)
+            window.open(response.data.inviteUrl, '_blank')
+        } catch {
+            toast.error('Failed to generate invite URL')
+        }
+    }
 
     usePageMetadata({
         title: 'Servers - Lucky',
@@ -152,7 +170,7 @@ export default function ServersPage() {
                         </h2>
                         <button
                             onClick={() =>
-                                navigate(`/guild/${primaryGuild.id}`)
+                                handlePrimaryGuildClick(primaryGuild)
                             }
                             className={cn(
                                 'surface-panel w-full p-6 text-left border-2 transition-all hover:bg-lucky-bg-active/25 hover:border-lucky-brand/50',
