@@ -1,4 +1,4 @@
-import { errorLog, getPrismaClient } from '@lucky/shared/utils'
+import { errorLog, getPrismaClient, telemetryLog } from '@lucky/shared/utils'
 import { parseIntEnv } from '@lucky/shared/utils/env'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { cleanAuthor } from '../../utils/music/searchQueryCleaner'
@@ -79,6 +79,9 @@ export class RecommendationFeedbackService {
                     expiresAt,
                 },
             })
+
+            // Activation telemetry (#2471): explicit thumbs usage, no userId.
+            telemetryLog('track_feedback', { guildId, kind: feedback })
         } catch (error) {
             errorLog({
                 message: 'Failed to store recommendation feedback',
@@ -195,7 +198,10 @@ export class RecommendationFeedbackService {
             })
 
             for (const entry of entries) {
-                weights.set(entry.trackKey, decayWeight(entry.updatedAt.getTime()))
+                weights.set(
+                    entry.trackKey,
+                    decayWeight(entry.updatedAt.getTime()),
+                )
             }
         } catch (error) {
             errorLog({
@@ -403,7 +409,8 @@ export class RecommendationFeedbackService {
 
             for (const pref of prefs) {
                 if (pref.preference === 'prefer') preferred.push(pref.artistKey)
-                else if (pref.preference === 'block') blocked.push(pref.artistKey)
+                else if (pref.preference === 'block')
+                    blocked.push(pref.artistKey)
             }
 
             return { preferred, blocked }
@@ -422,12 +429,17 @@ export class RecommendationFeedbackService {
         return this.implicitFeedbackCache.get(userId) ?? {}
     }
 
-    private initializeImplicitFeedbackForUser(userId: string): ImplicitFeedbackMap {
+    private initializeImplicitFeedbackForUser(
+        userId: string,
+    ): ImplicitFeedbackMap {
         // Initialize empty map for this user if not present (write-only path)
         if (!this.implicitFeedbackCache.has(userId)) {
             this.implicitFeedbackCache.set(userId, {})
         }
-        return assertDefined(this.implicitFeedbackCache.get(userId), 'Map entry present after .has() and .set() guards')
+        return assertDefined(
+            this.implicitFeedbackCache.get(userId),
+            'Map entry present after .has() and .set() guards',
+        )
     }
 
     async recordImplicitFeedback(
@@ -500,7 +512,11 @@ export class RecommendationFeedbackService {
         return this.getImplicitKeysByType(userId, 'implicit_like')
     }
 
-    recordGuildImplicitDislike(guildId: string, trackKey: string, now = Date.now()): void {
+    recordGuildImplicitDislike(
+        guildId: string,
+        trackKey: string,
+        now = Date.now(),
+    ): void {
         if (!guildId || !trackKey) return
 
         let cache = this.guildImplicitDislikeCache.get(guildId)
@@ -513,12 +529,17 @@ export class RecommendationFeedbackService {
 
         // Cap at 200 most recent entries per guild (same as user-level cap)
         if (cache.size > 200) {
-            const oldest = [...cache.entries()].sort((a, b) => a[1] - b[1])[0][0]
+            const oldest = [...cache.entries()].sort(
+                (a, b) => a[1] - b[1],
+            )[0][0]
             cache.delete(oldest)
         }
     }
 
-    getGuildImplicitDislikeKeys(guildId: string, now = Date.now()): Set<string> {
+    getGuildImplicitDislikeKeys(
+        guildId: string,
+        now = Date.now(),
+    ): Set<string> {
         const cache = this.guildImplicitDislikeCache.get(guildId)
         if (!cache) return new Set()
 

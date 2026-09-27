@@ -1,7 +1,8 @@
 import type { Track, GuildQueue } from 'discord-player'
 import { QueueRepeatMode } from 'discord-player'
-import { infoLog, debugLog, errorLog } from '@lucky/shared/utils'
+import { infoLog, debugLog, errorLog, telemetryLog } from '@lucky/shared/utils'
 import { addTrackToHistory } from '../../utils/music/duplicateDetection'
+import { resolveActualStreamSource } from './streamSourceResolver'
 import { replenishQueue } from '../../services/musicManagement/queueOperations'
 import { resetAutoplayCount } from '../../utils/music/autoplayManager'
 import { featureToggleService } from '@lucky/shared/services'
@@ -161,6 +162,12 @@ const handlePlayerStart = async (
             data: requestedQuery ? { requestedQuery } : undefined,
         })
         debugLog({ message: `Track URL: ${track.url}` })
+        // Activation telemetry (#2471): the actual audio origin, not the
+        // search source track_history.source already records.
+        telemetryLog('track_stream_source', {
+            guildId: queue.guild.id,
+            source: resolveActualStreamSource(track),
+        })
         if (queue.node.volume !== constants.VOLUME)
             queue.node.setVolume(constants.VOLUME)
 

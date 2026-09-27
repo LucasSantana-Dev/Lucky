@@ -4,16 +4,20 @@ import {
     scrubUrls,
     captureMessage,
     addBreadcrumb,
+    monitorCommandExecution,
 } from './sentry.js'
+import { telemetryLog } from '@lucky/shared/utils'
 
 jest.mock('@sentry/node', () => ({
     captureMessage: jest.fn(),
     addBreadcrumb: jest.fn(),
     captureException: jest.fn(),
+    setContext: jest.fn(),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
+    telemetryLog: jest.fn(),
 }))
 
 describe('safeUrlOrigin', () => {
@@ -116,5 +120,36 @@ describe('sentry telemetry helpers', () => {
                 data: { url: 'https://www.youtube.com' },
             }),
         )
+    })
+
+    it('monitorCommandExecution emits command_executed telemetry with no userId', () => {
+        monitorCommandExecution('play', 'user-42', 'guild-7')
+
+        expect(telemetryLog).toHaveBeenCalledWith('command_executed', {
+            guildId: 'guild-7',
+            command: 'play',
+        })
+        // Never passes userId to telemetryLog, only to Sentry's own context.
+        const telemetryCallArgs = (telemetryLog as jest.Mock).mock.calls.flat()
+        expect(JSON.stringify(telemetryCallArgs)).not.toContain('user-42')
+    })
+
+    it('monitorCommandExecution uses "dm" as the guildId sentinel outside a guild', () => {
+        monitorCommandExecution('play', 'user-42')
+
+        expect(telemetryLog).toHaveBeenCalledWith('command_executed', {
+            guildId: 'dm',
+            command: 'play',
+        })
+    })
+
+    it('monitorCommandExecution still sets the Sentry command context', () => {
+        monitorCommandExecution('play', 'user-42', 'guild-7')
+
+        expect(Sentry.setContext).toHaveBeenCalledWith('command', {
+            name: 'play',
+            userId: 'user-42',
+            guildId: 'guild-7',
+        })
     })
 })

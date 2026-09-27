@@ -15,6 +15,7 @@ import {
     errorLog,
     infoLog,
     debugLog,
+    telemetryLog,
     captureException,
     runWithLogContext,
     withSentryRequestScope,
@@ -30,6 +31,7 @@ import { handleReactionEvents } from './reactionHandler'
 import { scheduledEventNotificationService } from '../services/ScheduledEventNotificationService'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
 import { executeContextMenu } from './commandsHandler'
+import { monitorCommandExecution } from '../utils/monitoring'
 import {
     handleMoveMessageSelect,
     MOVE_MESSAGE_SELECT_PREFIX,
@@ -129,10 +131,30 @@ function findOnboardingChannel(guild: Guild): GuildBasedChannel | null {
 async function sendOnboardingMessage(guild: Guild): Promise<void> {
     const channel = findOnboardingChannel(guild)
     if (!channel || channel.type !== ChannelType.GuildText) {
-        // No channel the bot can post to — skip silently, never throw.
+        // No channel the bot can post to — skip silently, never throw. #2471:
+        // this used to be invisible; now it's a countable delivery outcome.
+        telemetryLog('onboarding', {
+            guildId: guild.id,
+            delivered: false,
+            reason: 'no_postable_channel',
+        })
         return
     }
-    await channel.send({ embeds: [ONBOARDING_EMBED] })
+    try {
+        await channel.send({ embeds: [ONBOARDING_EMBED] })
+        telemetryLog('onboarding', {
+            guildId: guild.id,
+            delivered: true,
+            reason: 'ok',
+        })
+    } catch (error) {
+        telemetryLog('onboarding', {
+            guildId: guild.id,
+            delivered: false,
+            reason: 'send_failed',
+        })
+        throw error
+    }
 }
 
 function handleGuildCreate(client: Client): void {
@@ -191,6 +213,15 @@ async function handleCommandExecution(
         await handleCommandNotFound(interaction)
         return
     }
+
+    // Same monitoring chokepoint executeContextMenu already calls for
+    // context-menu commands (commandsHandler.ts) — this is the live dispatch
+    // path for slash commands, which never went through it (#2471).
+    monitorCommandExecution(
+        interaction.commandName,
+        interaction.user.id,
+        interaction.guildId ?? undefined,
+    )
 
     await command.execute({
         client: client as CustomClient,

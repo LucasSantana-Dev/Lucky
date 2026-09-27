@@ -6,6 +6,7 @@ import { handleOAuthCallback } from '../../../src/routes/authCallback'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { discordOAuthService } from '../../../src/services/DiscordOAuthService'
+import { telemetryLog } from '@lucky/shared/utils'
 import {
     MOCK_DISCORD_USER,
     MOCK_TOKEN_RESPONSE,
@@ -25,6 +26,10 @@ jest.mock('../../../src/services/DiscordOAuthService', () => ({
         getUserInfo: jest.fn(),
     },
 }))
+
+// `@lucky/shared/utils` is mocked globally in tests/setup.ts (incl.
+// `telemetryLog: jest.fn()`) — reuse that mock instead of overriding it here.
+const telemetryLogMock = telemetryLog as jest.Mock
 
 describe('OAuth Callback (handleOAuthCallback)', () => {
     let app: express.Express
@@ -54,6 +59,78 @@ describe('OAuth Callback (handleOAuthCallback)', () => {
 
         app.use(errorHandler)
         jest.clearAllMocks()
+    })
+
+    describe('Activation telemetry (#2471)', () => {
+        test('logs dashboard_login with no fields on a successful callback', async () => {
+            mockSuccessfulOAuthFlow()
+
+            const testApp = express()
+            setupSessionMiddleware(testApp)
+
+            testApp.use((req, _res, next) => {
+                req.session.oauthState = MOCK_OAUTH_STATE
+                req.session.save((err) => {
+                    if (err) next(err)
+                    else next()
+                })
+            })
+
+            testApp.get('/api/auth/callback', handleOAuthCallback)
+            testApp.use(errorHandler)
+
+            const agent = request.agent(testApp)
+
+            await agent
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
+                .expect(302)
+
+            expect(telemetryLogMock).toHaveBeenCalledTimes(1)
+            expect(telemetryLogMock).toHaveBeenCalledWith('dashboard_login')
+            // Never the raw Discord user id, in any argument.
+            const loggedArgs = telemetryLogMock.mock.calls.flat()
+            expect(JSON.stringify(loggedArgs)).not.toContain(
+                MOCK_DISCORD_USER.id,
+            )
+        })
+
+        test('does not log dashboard_login when OAuth state validation fails', async () => {
+            mockSuccessfulOAuthFlow()
+
+            await request(app)
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE })
+                .expect(302)
+
+            expect(telemetryLogMock).not.toHaveBeenCalled()
+        })
+
+        test('does not log dashboard_login when the token exchange fails', async () => {
+            getDiscordOAuthMock().exchangeCodeForToken.mockRejectedValue(
+                new Error('Token exchange failed'),
+            )
+
+            const testApp = express()
+            setupSessionMiddleware(testApp)
+
+            testApp.use((req, _res, next) => {
+                req.session.oauthState = MOCK_OAUTH_STATE
+                next()
+            })
+
+            testApp.get('/api/auth/callback', handleOAuthCallback)
+            testApp.use(errorHandler)
+
+            const agent = request.agent(testApp)
+
+            await agent
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
+                .expect(302)
+
+            expect(telemetryLogMock).not.toHaveBeenCalled()
+        })
     })
 
     describe('State validation', () => {

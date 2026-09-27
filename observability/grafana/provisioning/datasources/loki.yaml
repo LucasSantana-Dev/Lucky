@@ -1,0 +1,20 @@
+apiVersion: 1
+
+# Points at the homelab's existing shared Loki instance (see
+# decisions/2026-06-16-info-log-aggregation-loki.md), not a Loki service
+# this repo's docker-compose stands up (that is P2b, still pending per
+# decisions/2026-09-26-lucky-owned-observability-stack.md). `lucky-network`
+# is already shared with the homelab monitoring stack (`external: true`,
+# see docker-compose.yml `networks`), so `loki:3100` resolves as long as
+# the homelab Loki container joins that same network under the `loki`
+# alias/name — verify this on first deploy and adjust `url` if the
+# homelab's actual service name differs.
+datasources:
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      maxLines: 1000

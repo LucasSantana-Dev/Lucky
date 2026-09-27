@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/node'
+import { telemetryLog } from '@lucky/shared/utils'
 
 /**
  * Extract the safe origin (protocol + hostname) from a URL string.
@@ -97,6 +98,13 @@ export function monitorCommandExecution(
     guildId?: string,
 ): void {
     addBreadcrumb(`Command executed: ${commandName}`, 'command', 'info')
+
+    // Activation telemetry (#2471): no userId, no command arguments — read in
+    // aggregate (Grafana) as "commands per guild", never per user.
+    telemetryLog('command_executed', {
+        guildId: guildId ?? 'dm',
+        command: commandName,
+    })
 
     if (process.env.SENTRY_DSN && process.env.NODE_ENV !== 'development') {
         Sentry.setContext('command', {

@@ -13,8 +13,11 @@ const mockUserArtistPreference = {
     findMany: jest.fn().mockResolvedValue([]),
 }
 
+const telemetryLogMock = jest.fn()
+
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
+    telemetryLog: (...args: unknown[]) => telemetryLogMock(...args),
     getPrismaClient: () => ({
         userTrackFeedback: mockUserTrackFeedback,
         userArtistPreference: mockUserArtistPreference,
@@ -32,6 +35,7 @@ describe('RecommendationFeedbackService', () => {
         mockUserArtistPreference.upsert.mockClear()
         mockUserArtistPreference.deleteMany.mockClear()
         mockUserArtistPreference.findMany.mockClear()
+        telemetryLogMock.mockClear()
     })
 
     it.each([
@@ -64,8 +68,22 @@ describe('RecommendationFeedbackService', () => {
 
             expect(keys.has(key)).toBe(true)
             expect(mockUserTrackFeedback.upsert).toHaveBeenCalled()
+            expect(telemetryLogMock).toHaveBeenCalledWith('track_feedback', {
+                guildId: 'guild-1',
+                kind: feedback,
+            })
         },
     )
+
+    it('does not emit track_feedback telemetry when the upsert fails', async () => {
+        const service = new RecommendationFeedbackService(30)
+        const key = service.buildTrackKey('Song', 'Artist')
+        mockUserTrackFeedback.upsert.mockRejectedValueOnce(new Error('db down'))
+
+        await service.setFeedback('guild-1', 'user-1', key, 'like')
+
+        expect(telemetryLogMock).not.toHaveBeenCalled()
+    })
 
     it('getFeedbackCounts returns correct liked/disliked counts', async () => {
         const service = new RecommendationFeedbackService(30)

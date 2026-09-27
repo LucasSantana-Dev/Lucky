@@ -1,0 +1,145 @@
+{
+    "title": "Lucky: ativação e uso",
+    "uid": "lucky-activation",
+    "editable": false,
+    "schemaVersion": 39,
+    "version": 1,
+    "timezone": "browser",
+    "time": { "from": "now-24h", "to": "now" },
+    "refresh": "5m",
+    "tags": ["lucky", "activation"],
+    "templating": { "list": [] },
+    "links": [
+        {
+            "asDropdown": false,
+            "icon": "external link",
+            "includeVars": false,
+            "keepTime": false,
+            "tags": ["lucky"],
+            "targetBlank": false,
+            "title": "Dashboards do Lucky",
+            "type": "dashboards"
+        }
+    ],
+    "panels": [
+        {
+            "id": 1,
+            "type": "text",
+            "title": "O que este painel mostra",
+            "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+            "options": {
+                "mode": "markdown",
+                "content": "Telemetria de ativação (issue #2471): o que uma guilda faz entre entrar e sair. Fonte: logs INFO estruturados do bot/backend no Loki (`{event, guildId, ...}`), nunca `userId` ou conteúdo de mensagem. \"Comandos por guilda (1h)\" é uma aproximação: Loki não cruza dois streams de log, então compare os horários deste painel com o log `Guild joined` (já existente) para saber quais guildas são novas."
+            },
+            "fieldConfig": { "defaults": {}, "overrides": [] }
+        },
+        {
+            "id": 2,
+            "type": "table",
+            "title": "Comandos por guilda (última hora)",
+            "description": "Contagem de comandos executados por guilda na última hora, via {event=\"command_executed\"}. Para ver ativação na primeira hora após a entrada, compare os guildId aqui com os do log \"Guild joined\" no mesmo intervalo (Loki não junta dois eventos por tempo relativo em uma única consulta).",
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+            "datasource": { "type": "loki", "uid": "loki" },
+            "targets": [
+                {
+                    "expr": "sum by (guildId) (count_over_time({container_name=\"lucky-bot\"} | json | msg=\"command_executed\" [1h]))",
+                    "legendFormat": "{{guildId}}",
+                    "refId": "A",
+                    "datasource": { "type": "loki", "uid": "loki" },
+                    "instant": true
+                }
+            ],
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+        },
+        {
+            "id": 3,
+            "type": "stat",
+            "title": "Taxa de entrega do onboarding",
+            "description": "Percentual de entradas de servidor em que a mensagem de boas-vindas foi realmente enviada (`{event=\"onboarding\", delivered}`). Menos de 100% normalmente significa que o bot não tem um canal de texto postável na guilda.",
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 4 },
+            "datasource": { "type": "loki", "uid": "loki" },
+            "targets": [
+                {
+                    "expr": "sum(count_over_time({container_name=\"lucky-bot\"} | json | msg=\"onboarding\" | json data_delivered=\"data.delivered\" | data_delivered=\"true\" [$__range])) / clamp_min(sum(count_over_time({container_name=\"lucky-bot\"} | json | msg=\"onboarding\" [$__range])), 1)",
+                    "refId": "A",
+                    "datasource": { "type": "loki", "uid": "loki" },
+                    "instant": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "red", "value": null },
+                            { "color": "orange", "value": 0.7 },
+                            { "color": "green", "value": 0.9 }
+                        ]
+                    }
+                },
+                "overrides": []
+            }
+        },
+        {
+            "id": 4,
+            "type": "stat",
+            "title": "Logins no dashboard (7 dias)",
+            "description": "Quantos logins bem-sucedidos no dashboard web nos últimos 7 dias (`{event=\"dashboard_login\"}`). Nunca inclui o id do usuário do Discord.",
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 4 },
+            "datasource": { "type": "loki", "uid": "loki" },
+            "targets": [
+                {
+                    "expr": "sum(count_over_time({container_name=\"lucky-backend\"} | json | msg=\"dashboard_login\" [7d]))",
+                    "refId": "A",
+                    "datasource": { "type": "loki", "uid": "loki" },
+                    "instant": true
+                }
+            ],
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+        },
+        {
+            "id": 5,
+            "type": "piechart",
+            "title": "De onde vem o áudio tocado (fonte real do stream)",
+            "description": "Extrator que realmente produziu o áudio de cada faixa tocada (`{event=\"track_stream_source\", source}`) — não a fonte de busca que o histórico de faixas já grava. \"soundcloud-bridge\" e \"youtube\" saem do mesmo bridge de stream (play-dl/yt-dlp); \"soundcloud\" é o extrator dedicado; \"other\" cobre Apple Music, Vimeo e anexos.",
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+            "datasource": { "type": "loki", "uid": "loki" },
+            "targets": [
+                {
+                    "expr": "sum by (data_source) (count_over_time({container_name=\"lucky-bot\"} | json | msg=\"track_stream_source\" | json data_source=\"data.source\" [$__range]))",
+                    "legendFormat": "{{data_source}}",
+                    "refId": "A",
+                    "datasource": { "type": "loki", "uid": "loki" },
+                    "instant": true
+                }
+            ],
+            "fieldConfig": { "defaults": {}, "overrides": [] },
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "values": ["percent"]
+                }
+            }
+        },
+        {
+            "id": 6,
+            "type": "stat",
+            "title": "Feedback de faixas (curtir/não curtir)",
+            "description": "Quantas vezes `/feedback` foi usado nos últimos 7 dias, por tipo (`{event=\"track_feedback\", kind}`). Sinal de quanto a base de usuários realmente usa o feedback explícito de curtir/não curtir.",
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+            "datasource": { "type": "loki", "uid": "loki" },
+            "targets": [
+                {
+                    "expr": "sum by (data_kind) (count_over_time({container_name=\"lucky-bot\"} | json | msg=\"track_feedback\" | json data_kind=\"data.kind\" [7d]))",
+                    "legendFormat": "{{data_kind}}",
+                    "refId": "A",
+                    "datasource": { "type": "loki", "uid": "loki" },
+                    "instant": true
+                }
+            ],
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+        }
+    ]
+}
