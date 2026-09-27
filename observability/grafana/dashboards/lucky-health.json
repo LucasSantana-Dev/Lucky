@@ -1,0 +1,317 @@
+{
+  "title": "Lucky: saúde do sistema",
+  "uid": "lucky-health",
+  "editable": false,
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "tags": ["lucky", "observability"],
+  "templating": { "list": [] },
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": ["lucky"],
+      "targetBlank": false,
+      "title": "Dashboards do Lucky",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Bot ligado",
+      "description": "1 = o bot do Discord está no ar e o Prometheus consegue falar com ele pela porta 9091. 0 = o último scrape falhou ou o bot caiu. O alerta LuckyBotScrapeDown só dispara depois de 5 minutos seguidos assim; este painel mostra o instante mais recente, então pode piscar vermelho por uma falha isolada sem virar alerta.",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "up{job=\"lucky-bot\"}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "FORA DO AR", "color": "red" }, "1": { "text": "NO AR", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Backend ligado",
+      "description": "1 = o servidor web/API está no ar e o Prometheus consegue falar com ele. 0 = o último scrape falhou ou o backend caiu. O alerta LuckyBackendScrapeDown só dispara depois de 5 minutos seguidos assim; este painel mostra o instante mais recente, então pode piscar vermelho por uma falha isolada sem virar alerta.",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "up{job=\"lucky-backend\"}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "FORA DO AR", "color": "red" }, "1": { "text": "NO AR", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Gateway do Discord conectado",
+      "description": "1 = o bot está conectado ao Discord de verdade (não só o processo rodando). 0 = o processo está de pé mas perdeu a conexão com o Discord; o bot não responde a comandos mesmo aparecendo 'ligado' no painel anterior.",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "lucky_bot_gateway_connected",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DESCONECTADO", "color": "red" }, "1": { "text": "CONECTADO", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Guildas ativas",
+      "description": "Quantos servidores do Discord têm o bot instalado agora.",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "lucky_bot_guilds_total{state=\"active\"}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Entradas de servidor (24h)",
+      "description": "Quantos servidores adicionaram o bot nas últimas 24 horas.",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "increase(lucky_bot_guild_joins_total[24h])",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Saídas de servidor (24h)",
+      "description": "Quantos servidores removeram o bot nas últimas 24 horas.",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "increase(lucky_bot_guild_leaves_total[24h])",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "orange" } }, "overrides": [] }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Taxa de requisições do backend (por rota)",
+      "description": "Quantas requisições por segundo o backend está recebendo, separadas por rota da API. Não tem limite de alerta; serve para ver picos de uso e comparar com os erros abaixo.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(lucky_backend_http_requests_total[5m])) by (route)",
+          "legendFormat": "{{route}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Tempo de resposta (p95)",
+      "description": "95% das requisições respondem mais rápido que esta linha. Não tem alerta configurado ainda; como referência, acima de 1 segundo por vários minutos seguidos costuma indicar lentidão real.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(lucky_backend_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Erros 5xx (proporção)",
+      "description": "Percentual das respostas do backend que são erro (5xx), média dos últimos 5 minutos. Verde é normal. Laranja acima de 5% e vermelho acima de 10% dessa média de 5 minutos (mesma janela do alerta LuckyBackendHighErrorRate). O alerta crítico LuckyBackendErrorBurstFast usa uma janela mais curta (2 minutos) e pode disparar antes deste painel ficar vermelho.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(lucky_backend_http_server_errors_total[5m])) / clamp_min(sum(rate(lucky_backend_http_requests_total[5m])), 1) or vector(0)",
+          "legendFormat": "erros 5xx",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.05 },
+              { "color": "red", "value": 0.10 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Memória usada vs limite do container",
+      "description": "Quanto da memória permitida (mem_limit no docker-compose.yml) cada container já está usando. O bot tem um limite próprio de 90% (alerta LuckyBotHeapHigh); os demais containers avisam acima de 85% (HighMemoryUsage) e ficam críticos acima de 95% (CriticalMemoryUsage). Perto de 100% o container pode ser encerrado à força pelo sistema (OOM kill).",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{name=~\"lucky-bot|lucky-backend\"} / (container_spec_memory_limit_bytes{name=~\"lucky-bot|lucky-backend\"} > 0)",
+          "legendFormat": "{{name}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.85 },
+              { "color": "red", "value": 0.95 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "lucky-bot" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "orange", "value": 0.90 },
+                    { "color": "red", "value": 0.95 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Tempo desde o último início do container",
+      "description": "Há quanto tempo cada container está rodando sem reiniciar. cAdvisor não conta 'número de reinícios' diretamente para containers Docker comuns (isso só existe em Kubernetes); esta é a alternativa prática: se a linha cai para perto de zero, o container acabou de reiniciar. Quedas frequentes indicam crash loop.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "time() - container_start_time_seconds{name=~\"lucky-bot|lucky-backend\"}",
+          "legendFormat": "{{name}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Espaço livre em disco (por partição)",
+      "description": "Percentual de espaço livre em cada disco monitorado (exclui tmpfs e overlay, que não são disco real). Abaixo de 20% dispara aviso (LuckyDiskSpaceLow), abaixo de 10% dispara crítico (LuckyDiskSpaceCritical).",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\"}",
+          "legendFormat": "{{mountpoint}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.10 },
+              { "color": "green", "value": 0.20 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ]
+}

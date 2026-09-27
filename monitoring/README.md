@@ -3,6 +3,12 @@
 Observability remediation, Layers 1–3 (see
 [`decisions/2026-05-30-observability-remediation-strategy.md`](../decisions/2026-05-30-observability-remediation-strategy.md)).
 
+> Layer 3's Prometheus rules and the Grafana provisioning follow-up now live in
+> [`observability/`](../observability/), Lucky's owned, fully file-provisioned
+> stack (Prometheus + Grafana; see
+> [`decisions/2026-09-26-lucky-owned-observability-stack.md`](../decisions/2026-09-26-lucky-owned-observability-stack.md)).
+> This file stays for Layers 1 and 2 (Sentry releases, heartbeat).
+
 Everything here is **no-op-by-default**: the code/CI changes activate only when the
 corresponding secrets/URLs are configured, so this PR is safe to merge before any
 external wiring is done. This file lists the manual steps that remain.
@@ -36,44 +42,34 @@ but events stopped" — the class of failure that hid the v2.15.x silent-deploy 
 
 **Wired in this repo:** bot and backend call `startHeartbeat()` (shared module
 `packages/shared/src/utils/monitoring/heartbeat.ts`). Each posts to the configured
-monitor on startup and every `HEALTHCHECK_INTERVAL_MS` (default 60s), with the running
-version in the ping body. No-op when no URL is set.
+monitor on startup and every `HEARTBEAT_INTERVAL_MS` (default 60s), with the running
+version in the ping body. No-op when no URL is set. The bot passes an `isReady`
+gate so a disconnected gateway goes silent instead of pinging (issue #2390).
 
 **Runtime env vars** (set in the deployed `.env` — `.env.example` is intentionally not
 edited here as it is treated as secret-bearing):
 
 | Var | Purpose |
 | --- | --- |
-| `HEALTHCHECK_URL` | On-box Healthchecks ping URL (homelab PR #87). Catches "service died, box alive". |
-| `HEALTHCHECK_URL_EXTERNAL` | **Off-box** monitor (healthchecks.io free / UptimeRobot). Catches a full homelab reboot that also kills the on-box monitor. |
-| `HEALTHCHECK_INTERVAL_MS` | Ping interval (default `60000`). Keep below the monitor's period+grace. |
+| `HEARTBEAT_PING_URL` | On-box Healthchecks ping URL. Catches "service died, box alive". |
+| `HEARTBEAT_PING_URL_EXTERNAL` | **Off-box** monitor (healthchecks.io free / UptimeRobot). Catches a full homelab reboot that also kills the on-box monitor. |
+| `HEARTBEAT_INTERVAL_MS` | Ping interval (default `60000`). Keep below the monitor's period+grace. |
 
 **Manual steps:**
 
 1. Create two checks (one per service, or one shared) on the **on-box** Healthchecks
    instance; set period ≈ 60s and grace ≈ 30–60s; route the check's alert to Discord.
 2. Create one **off-box** check (healthchecks.io free tier or UptimeRobot) and set its
-   URL as `HEALTHCHECK_URL_EXTERNAL`.
+   URL as `HEARTBEAT_PING_URL_EXTERNAL`.
 3. Add the URLs to the bot/backend runtime env.
 
 ## Layer 3 — symptom alerts on metrics
 
-**Provided in this repo:** [`prometheus/lucky-alerts.rules.yml`](prometheus/lucky-alerts.rules.yml)
-— portable PromQL alert definitions (backend 5xx error-ratio warning + fast-burn
-critical; backend/bot scrape-down). These are **definitions only**; the homelab owns
-the Prometheus/Grafana config, so they are not auto-loaded.
-
-**Manual steps (recommended path — Grafana unified alerting, already running):**
-
-1. In Grafana, add a **Discord contact point** (incoming webhook for the alerts channel).
-2. Recreate these rules as Grafana-managed alerts against the Prometheus datasource, OR
-   load the file into the homelab Prometheus `rule_files` and route via Alertmanager
-   `discord_configs`. Adjust the `job=...` labels to match your `scrape_configs`.
-3. Measure backend errors/day for ~3 days, then tune the thresholds (first ~7 days are a
-   tuning window).
-
-Per the ADR, the availability **SLO** and a proper multi-window burn-rate are defined
-**after ~14 days** of observed data — these starter alerts come first.
+**Moved to [`observability/prometheus/rules/lucky-alerts.rules.yml`](../observability/prometheus/rules/lucky-alerts.rules.yml)**
+(ADR 2026-09-26, phase P2a). Auto-loaded by Lucky's own Prometheus in the
+`observability` Compose profile; see [`observability/README.md`](../observability/README.md)
+for how to run it and how the alerts are actually delivered (Grafana-managed
+alerting, not a separate Alertmanager).
 
 ## What this does NOT do (by design)
 

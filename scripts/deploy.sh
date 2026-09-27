@@ -170,7 +170,10 @@ require_running_containers() {
     # Derive expected services from docker-compose config, excluding one-shots.
     # cloudflared runs with a profile and is not required for core deploy success.
     # webhook is a deployment helper (not a user-facing service) and runs on demand.
-    local excluded_pattern="^(cloudflared|webhook)$"
+    # alertmanager-config is a one-shot renderer for the observability profile
+    # (docker-compose.yml): it is expected to exit 0 and stay stopped, so it
+    # must never be treated as a required long-running container.
+    local excluded_pattern="^(cloudflared|webhook|alertmanager-config)$"
     local expected_services
     expected_services=$(docker_compose config --services 2>/dev/null | grep -v -E "$excluded_pattern" || true)
 

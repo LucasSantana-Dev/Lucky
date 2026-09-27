@@ -116,7 +116,20 @@ services:
             <<: *common-app-env
             SENTRY_SERVICE_NAME: ${SENTRY_SERVICE_NAME:-bot}
             BOT_NAME: ${BOT_NAME:-Lucky}
-            HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL:-}
+            # On-box + off-box dead-man ping targets (ADR 2026-09-26 / #2390).
+            # One heartbeat implementation (packages/shared/src/utils/
+            # monitoring/heartbeat.ts) reads the same var names in every
+            # process, but each service maps from its OWN source var
+            # (HEARTBEAT_PING_URL_BOT / _BACKEND) so a URL-keyed external
+            # monitor (e.g. healthchecks.io) can tell bot and backend apart;
+            # sharing one URL would let the backend's unconditional pings
+            # mask a dead/zombie bot forever. Falls back to the generic
+            # HEARTBEAT_PING_URL(_EXTERNAL) when the per-service var is
+            # unset, so a deployment that has not migrated to the
+            # per-service vars yet keeps its heartbeat instead of getting
+            # an empty string here that would shadow the generic value.
+            HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL_BOT:-${HEARTBEAT_PING_URL:-}}
+            HEARTBEAT_PING_URL_EXTERNAL: ${HEARTBEAT_PING_URL_BOT_EXTERNAL:-${HEARTBEAT_PING_URL_EXTERNAL:-}}
             HEARTBEAT_INTERVAL_MS: ${HEARTBEAT_INTERVAL_MS:-}
             LASTFM_SESSION_KEY: ${LASTFM_SESSION_KEY:-}
             PLAYER_CONNECTION_TIMEOUT: ${PLAYER_CONNECTION_TIMEOUT:-15000}
@@ -185,6 +198,15 @@ services:
         environment:
             <<: *common-app-env
             SENTRY_SERVICE_NAME: ${SENTRY_SERVICE_NAME:-backend}
+            # Same heartbeat contract as bot (ADR 2026-09-26 / #2390): the
+            # backend has no "ready" gate, so it pings unconditionally. Its
+            # own source vars (HEARTBEAT_PING_URL_BACKEND / _EXTERNAL) keep
+            # it distinguishable from the bot on a URL-keyed monitor, with
+            # the same generic HEARTBEAT_PING_URL(_EXTERNAL) fallback as
+            # the bot above for a deployment not yet migrated.
+            HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL_BACKEND:-${HEARTBEAT_PING_URL:-}}
+            HEARTBEAT_PING_URL_EXTERNAL: ${HEARTBEAT_PING_URL_BACKEND_EXTERNAL:-${HEARTBEAT_PING_URL_EXTERNAL:-}}
+            HEARTBEAT_INTERVAL_MS: ${HEARTBEAT_INTERVAL_MS:-}
             LUCKY_NOTIFY_API_KEY: ${LUCKY_NOTIFY_API_KEY:-}
             CLIENT_SECRET: ${CLIENT_SECRET}
             WEBAPP_PORT: 3000
@@ -309,12 +331,207 @@ services:
                 max-file: "3"
                 tag: "{{.Name}}"
 
+    # Lucky-owned observability stack (ADR 2026-09-26, phase P2a).
+    # `docker compose --profile observability up -d`. No service in this
+    # group binds a host port; reach Grafana per observability/README.md.
+    prometheus:
+        <<: *medium-svc
+        image: prom/prometheus:v3.9.0
+        container_name: lucky-prometheus
+        command:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=30d"
+            - "--storage.tsdb.retention.size=5GB"
+        volumes:
+            - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+            - ./observability/prometheus/rules:/etc/prometheus/rules:ro
+            - prometheus_data:/prometheus
+        networks:
+            - lucky-network
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    grafana:
+        <<: *medium-svc
+        mem_limit: 256m
+        image: grafana/grafana:12.4.0
+        container_name: lucky-grafana
+        depends_on:
+            - prometheus
+        environment:
+            # NOTE: not `:?` (required). Compose interpolates every service's
+            # env references at parse time regardless of active profile, so a
+            # required var here would break plain `docker compose up` even
+            # when the observability profile is never requested. Empty
+            # defaults push the failure to Grafana's own startup instead,
+            # which only happens when this profile is actually used.
+            GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-}
+            GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+            # Grafana is dashboards-only: alert evaluation and notification
+            # live in Prometheus + Alertmanager (single source of truth for
+            # rules). No SMTP/contact-point env vars needed here anymore.
+            GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/files/lucky-home.json
+        volumes:
+            - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+            - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards/files:ro
+            - grafana_data:/var/lib/grafana
+        networks:
+            - lucky-network
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    node-exporter:
+        <<: *small-svc
+        mem_limit: 64m
+        image: prom/node-exporter:v1.10.0
+        container_name: lucky-node-exporter
+        command:
+            - "--path.procfs=/host/proc"
+            - "--path.sysfs=/host/sys"
+            - "--path.rootfs=/host/root"
+            - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+        volumes:
+            - /proc:/host/proc:ro
+            - /sys:/host/sys:ro
+            - /:/host/root:ro
+        networks:
+            - lucky-network
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    cadvisor:
+        <<: *small-svc
+        image: gcr.io/cadvisor/cadvisor:v0.52.1
+        container_name: lucky-cadvisor
+        # Feeds the lucky-resource-pressure rule group (per-container memory
+        # working-set / limit ratio) in observability/prometheus/rules/. Same
+        # `name` label as the container_name values those rules match on
+        # (lucky-bot, lucky-backend, ...).
+        volumes:
+            - /:/rootfs:ro
+            - /var/run:/var/run:ro
+            - /sys:/sys:ro
+            - /var/lib/docker:/var/lib/docker:ro
+        networks:
+            - lucky-network
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    # Renders observability/alertmanager/alertmanager.yml.tmpl into a shared
+    # volume before alertmanager starts. Alertmanager's config format has no
+    # native ${VAR} expansion, so the non-secret fields (SMTP host/port/from,
+    # alert recipient address) are substituted here with envsubst (baked into
+    # the image at build time via observability/alertmanager/Dockerfile, not
+    # installed at every startup); the two secret fields (SMTP password,
+    # Watchdog webhook URL) instead use Alertmanager's own `_file` config
+    # options, fed by Compose `secrets:` sourced from env vars below, so no
+    # secret ever lands in the rendered plain-text config. Runs once and
+    # exits; alertmanager waits for it.
+    #
+    # IMPORTANT: Compose does not detect changes to a bind-mounted file, so
+    # editing alertmanager.yml.tmpl does NOT get picked up by a plain
+    # `docker compose up -d`. After changing the template, force both
+    # containers to redo their work:
+    #   docker compose --profile observability up -d --force-recreate \
+    #     alertmanager-config alertmanager
+    alertmanager-config:
+        build:
+            context: ./observability/alertmanager
+            dockerfile: Dockerfile
+        container_name: lucky-alertmanager-config
+        restart: "no"
+        command:
+            - sh
+            - -c
+            - envsubst < /template/alertmanager.yml.tmpl > /rendered/alertmanager.yml
+        environment:
+            ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+            SMTP_HOST: ${SMTP_HOST:-}
+            SMTP_PORT: ${SMTP_PORT:-587}
+            SMTP_USER: ${SMTP_USER:-}
+            SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-}
+        volumes:
+            - ./observability/alertmanager:/template:ro
+            - alertmanager_config:/rendered
+        profiles:
+            - observability
+
+    alertmanager:
+        <<: *small-svc
+        image: prom/alertmanager:v0.28.1
+        container_name: lucky-alertmanager
+        depends_on:
+            alertmanager-config:
+                condition: service_completed_successfully
+        command:
+            - "--config.file=/etc/alertmanager/alertmanager.yml"
+            - "--storage.path=/alertmanager"
+        volumes:
+            - alertmanager_config:/etc/alertmanager:ro
+            - alertmanager_data:/alertmanager
+        secrets:
+            - smtp_password
+            - watchdog_ping_url
+        networks:
+            - lucky-network
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+secrets:
+    # Sourced from the host env vars Compose already has (no file on disk,
+    # nothing read from .env* by this repo's code); mounted read-only at
+    # /run/secrets/<name> inside whichever service declares them.
+    smtp_password:
+        environment: SMTP_PASSWORD
+    watchdog_ping_url:
+        environment: WATCHDOG_PING_URL
+
 volumes:
     postgres_data:
     redis_data:
+    prometheus_data:
+    grafana_data:
+    alertmanager_data:
+    alertmanager_config:
 
 networks:
     lucky-network:
+        # Explicit name (not the Compose project-prefixed default): the
+        # observability/README.md and docs/observability.md forwarder
+        # recipes attach with `docker run --network lucky-network ...`,
+        # which needs this exact network name to exist.
+        name: lucky-network
         driver: bridge
     # External network shared with the homelab monitoring stack
     # (Prometheus, Grafana). Lucky owns/creates it; homelab joins it

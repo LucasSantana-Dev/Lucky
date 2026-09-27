@@ -38,6 +38,8 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
+    startHeartbeat: (...args: unknown[]) => heartbeatServiceStartMock(...args),
+    stopHeartbeat: (...args: unknown[]) => heartbeatServiceStopMock(...args),
 }))
 
 jest.mock('../../handlers/clientHandler/service', () => ({
@@ -126,13 +128,6 @@ jest.mock('../../services/WeeklyDigestService', () => ({
     },
 }))
 
-jest.mock('../../services/HeartbeatService', () => ({
-    heartbeatService: {
-        start: (...args: unknown[]) => heartbeatServiceStartMock(...args),
-        stop: (...args: unknown[]) => heartbeatServiceStopMock(...args),
-    },
-}))
-
 jest.mock('../../services/CriativariaLiveNotificationService', () => ({
     criativariaLiveNotificationService: {
         start: jest.fn(),
@@ -194,6 +189,33 @@ describe('BotInitializer', () => {
                     message: 'Bot initialization completed successfully',
                 }),
             )
+            expect(heartbeatServiceStartMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    serviceName: 'bot',
+                    isReady: expect.any(Function),
+                }),
+            )
+        })
+
+        it('isReady callback passed to startHeartbeat reflects the client gateway state', async () => {
+            const isReadyMock = jest.fn().mockReturnValue(true)
+            createClientMock.mockResolvedValue({
+                removeAllListeners: jest.fn(),
+                destroy: jest.fn().mockResolvedValue(undefined),
+                player: undefined,
+                isReady: isReadyMock,
+            } as unknown as CustomClient)
+
+            await initializer.initializeBot()
+
+            const options = heartbeatServiceStartMock.mock.calls[0][0] as {
+                isReady: () => boolean
+            }
+            expect(options.isReady()).toBe(true)
+            expect(isReadyMock).toHaveBeenCalled()
+
+            isReadyMock.mockReturnValue(false)
+            expect(options.isReady()).toBe(false)
         })
 
         it('returns cached client if already initialized', async () => {

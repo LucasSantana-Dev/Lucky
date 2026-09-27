@@ -34,7 +34,7 @@ Manual deploy of any ref: run the **Deploy Staging** workflow via
 |---|---|---|
 | Compose project | `lucky` | `lucky-staging` |
 | Containers | `lucky-*` | `lucky-staging-*` |
-| Network | `lucky_lucky-network` | `lucky-staging-network` |
+| Network | `lucky-network` | `lucky-staging-network` |
 | DB / Redis volumes | `postgres_data` / `redis_data` | `staging_postgres_data` / `staging_redis_data` |
 | nginx host port | 8090 | 8093 |
 | Tunnel routing | `nginx:80` (docker net) | `http://100.95.204.103:8093` (host port) |
