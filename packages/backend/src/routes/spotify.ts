@@ -16,6 +16,7 @@ import { apiLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
+import { timingSafeKeyCompare } from '../utils/timingSafeKeyCompare'
 
 const SPOTIFY_STATE_COOKIE = 'spotify_state'
 const STATE_MAX_AGE_SEC = 600
@@ -217,25 +218,39 @@ export function setupSpotifyRoutes(app: Express): void {
                 )
             }
 
-            // Extract and validate state from query or cookies
+            // Extract and validate state from query and cookies
             const stateFromQuery = parsedQuery.data.state
             const stateFromCookieRaw: unknown =
                 req.cookies?.[SPOTIFY_STATE_COOKIE]
             const stateFromCookieValidated =
                 stateCookieSchema.safeParse(stateFromCookieRaw)
 
-            const state =
-                typeof stateFromQuery === 'string'
-                    ? stateFromQuery
-                    : stateFromCookieValidated.success
-                      ? stateFromCookieValidated.data
-                      : null
-
-            if (!state) {
+            // Both query state and cookie state must exist
+            if (!stateFromQuery) {
                 return res.redirect(
                     `${frontendUrl}/?error=spotify_missing_state`,
                 )
             }
+
+            if (!stateFromCookieValidated.success) {
+                return res.redirect(
+                    `${frontendUrl}/?error=spotify_missing_state`,
+                )
+            }
+
+            // Query state must match cookie state (constant time) to prevent CSRF
+            if (
+                !timingSafeKeyCompare(
+                    stateFromQuery,
+                    stateFromCookieValidated.data,
+                )
+            ) {
+                return res.redirect(
+                    `${frontendUrl}/?error=spotify_invalid_state`,
+                )
+            }
+
+            const state = stateFromQuery
             const secret = getLinkSecret()
             const discordId = decodeAndVerifyState(state, secret)
             if (!discordId) {
