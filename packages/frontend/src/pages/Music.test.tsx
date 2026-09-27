@@ -14,7 +14,11 @@ vi.mock('@/components/Music/ImportPlaylist', () => ({
     default: () => <div data-testid='import-playlist'>ImportPlaylist</div>,
 }))
 vi.mock('@/components/Music/QueueList', () => ({
-    default: () => <div data-testid='queue-list'>QueueList</div>,
+    default: ({ isLoading }: { isLoading?: boolean }) => (
+        <div data-testid='queue-list' data-loading={String(Boolean(isLoading))}>
+            QueueList
+        </div>
+    ),
 }))
 vi.mock('@/components/Music/AutoplayGenres', () => ({
     default: () => <div data-testid='autoplay-genres'>AutoplayGenres</div>,
@@ -115,6 +119,37 @@ describe('MusicPage', () => {
         expect(screen.getByTestId('autoplay-genres')).toBeInTheDocument()
         expect(screen.getByTestId('autoplay-telemetry')).toBeInTheDocument()
         expect(screen.getByTestId('forum-thread-cta')).toBeInTheDocument()
+    })
+
+    test("renders exactly one H1 (Layout's header is a non-heading label)", () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        const { container } = render(
+            <MemoryRouter>
+                <MusicPage />
+            </MemoryRouter>,
+        )
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
+    })
+
+    test('passes isLoading to QueueList only before the first state arrives', () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        vi.mocked(useMusicPlayer).mockReturnValue({
+            ...mockPlayer,
+            lastStateUpdate: null,
+        } as any)
+        render(
+            <MemoryRouter>
+                <MusicPage />
+            </MemoryRouter>,
+        )
+        expect(screen.getByTestId('queue-list')).toHaveAttribute(
+            'data-loading',
+            'true',
+        )
     })
 
     test('shows a loading skeleton before the first player state arrives', () => {

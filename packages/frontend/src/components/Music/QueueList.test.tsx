@@ -48,7 +48,7 @@ describe('QueueList', () => {
     })
 
     test('renders empty state', () => {
-        render(
+        const { container } = render(
             <QueueList
                 tracks={[]}
                 onRemove={onRemove}
@@ -60,6 +60,9 @@ describe('QueueList', () => {
         expect(screen.getByText('Queue is empty')).toBeInTheDocument()
         expect(screen.getByText('(0 tracks)')).toBeInTheDocument()
         expect(screen.queryByLabelText('Clear queue')).not.toBeInTheDocument()
+        // The empty state renders bare (no nested surface-panel) so it
+        // never becomes a card inside the Queue card.
+        expect(container.querySelectorAll('.surface-panel')).toHaveLength(0)
     })
 
     test('renders tracks with titles and authors', () => {

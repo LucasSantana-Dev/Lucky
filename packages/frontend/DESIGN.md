@@ -49,17 +49,13 @@ Preservation rules applied:
    sidebar previously had no orientation mark at all. No new asset, no new
    visual language — reused an existing official asset and an existing
    wordmark treatment (Art rule: no hand-drawn SVG, no mascot).
-3. **Page header hierarchy (`Layout.tsx`)** — the route `<h1>` was set in
-   `type-title` (1rem/600), which `DESIGN_SYSTEM.md` documents as the _card
-   title_ scale, not the _page heading_ scale (`type-h1`,
-   clamp(1.6rem,2.5vw,2.25rem)/700). Corrected to `type-h1` and bumped the
-   header's vertical padding slightly (py-3.5/4 -> py-4/5) to give the larger
-   heading room. This is a token-scale correction, not a new token.
-4. **Music page focal point (`Music.tsx`)** — reordered the page body so
-   Now-Playing hero + Queue sit immediately together at the top (Gestalt
-   proximity groups "what's playing / what's next / controls" as one block);
-   Search, Import, and the autoplay panels moved below as secondary
-   utilities. No component was rewritten, only relocated in the JSX.
+3. **Page header hierarchy (`Layout.tsx`)** — see "Round 2" below; the route
+   title in `Layout.tsx`'s header is a compact, non-heading label. Each page
+   owns its own single `<h1>`.
+4. **Music page focal point (`Music.tsx`)** — Now-Playing hero and Queue sit
+   side by side in a `lg:grid-cols-5` layout (hero `col-span-3`, queue
+   `col-span-2`), stacked on mobile; Search, Import, and the autoplay panels
+   moved below as secondary utilities.
 5. **Loading state (`Music.tsx`)** — `NowPlayingHero` rendered its "Nothing
    playing" empty state immediately on mount, before the first SSE/REST
    payload ever arrived (`lastStateUpdate` starts `null`). That flashes an
@@ -85,6 +81,55 @@ satisfy a check" — every change traces to the brief (nav order, focal point,
 empty/loading state, header hierarchy) or to a documented token-scale
 mismatch (`type-title` vs `type-h1`).
 
+## Round 2 (post-review fixes)
+
+Owner review of `after-music-desktop.png` found three real regressions/gaps
+from round 1. Fixes, all still redesign-preserve (no tokens/routes changed):
+
+1. **Double H1.** Round 1 bumped `Layout.tsx`'s header title from
+   `type-title` to `type-h1`, which made it visually identical to Music.tsx's
+   own `<h1>` right below it. Root cause turned out to be app-wide: an audit
+   of `src/pages/*.tsx` found 28 of 34 pages already render their own `<h1>`
+   (either inline, like Music.tsx, or via the shared `SectionHeader`
+   component used by `DashboardOverview.tsx` and 9 other pages). `Layout.tsx`
+   rendering an `<h1>` on every route was already a latent double-H1 bug for
+   those 28 pages; round 1 just made it visible for Music. Fix applied
+   app-wide in `Layout.tsx`: the header title is now a `<p>` (`type-body`,
+   compact, not a heading) — a context label, not the page's H1. Every page
+   still owns its single `<h1>` in its own body. Verified live (not just
+   unit-mocked): Playwright count of `document.querySelectorAll('h1')` is
+   exactly 1 on both `/` (Dashboard) and `/music`.
+   Known gap this reintroduces awareness of, not fixed here (6 pages have no
+   heading of their own at all — `Docs.tsx`, `Levels.tsx`,
+   `PrivacyPolicy.tsx`, `RoleGroups.tsx`, `Starboard.tsx`,
+   `TermsOfService.tsx` — they now show only the compact label with no
+   `<h1>`. Pre-existing exposure, not caused by this diff, but worth its own
+   ticket to give each of those pages a real `<h1>`.
+2. **Card-in-card + repeated "Queue" label.** `Music.tsx` had its own
+   `<h2>Queue</h2>` wrapper around `<QueueList>`, which renders its own
+   "Queue (N tracks)" header inside a `Card`. Removed the wrapper; `QueueList`
+   is now the one container with the one heading. Separately, `QueueList`'s
+   empty state rendered `<EmptyState>` without `bare`, so it added its own
+   `surface-panel` card nested inside `QueueList`'s own `Card` — the actual
+   "card inside a card". Fixed by passing `bare` (same fix already applied to
+   the Now-Playing empty state in round 1). Verified: a Playwright check
+   walks every `.surface-panel` on the page and asserts none contains
+   another.
+3. **Every screenshot showed the empty state.** Added a Playwright-only mock
+   (temporary spec, not shipped) with a populated `currentTrack` and 6 queue
+   tracks to capture the real focal state, and restructured the layout so
+   Now-Playing and Queue sit side by side (`grid-cols-1 lg:grid-cols-5`,
+   hero `col-span-3` / queue `col-span-2`) on `lg+`, stacked below that.
+4. **`QueueList` `isLoading` wiring.** The signal already existed
+   (`player.lastStateUpdate === null`, the same one driving the Now-Playing
+   skeleton) and is real data, not invented: passed
+   `isLoading={player.lastStateUpdate === null}` from `Music.tsx` to
+   `QueueList`. No fake loading path added.
+
+Nothing in this round was changed only to satisfy a script: the two
+Playwright assertions added (h1 count, no-nested-`.surface-panel`) exist to
+verify these exact fixes, not to game an external checklist.
+
 ## Known pre-existing gaps found, not fixed (out of scope for this pass)
 
 - `Sidebar.tsx` `NavSections` links: keyboard focus on non-active items
@@ -96,8 +141,10 @@ mismatch (`type-title` vs `type-h1`).
   not fixed here — the root cause is a CSS cascade/specificity interaction
   in `index.css` shared by every nav link in the app and deserves its own
   change + test, not a same-PR side fix.
-- `QueueList`'s `isLoading` prop and its `QueueSkeleton` are never actually
-  passed a `true` value from `Music.tsx` (dead code path).
+- Six pages (`Docs.tsx`, `Levels.tsx`, `PrivacyPolicy.tsx`, `RoleGroups.tsx`,
+  `Starboard.tsx`, `TermsOfService.tsx`) render no heading of their own and
+  now show no `<h1>` at all, since `Layout.tsx` no longer provides one.
+  Pre-existing exposure surfaced by the round-2 H1 fix; needs its own pass.
 - axe reports 24 (dashboard) / 16 (Music) "serious" (non-critical)
   `color-contrast` violations against the locked token palette. Tokens are
   locked for this pass; not touched.

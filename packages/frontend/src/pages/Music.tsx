@@ -104,47 +104,48 @@ export default function MusicPage() {
                 </div>
             </header>
 
-            <NowPlayingHero
-                state={player.state}
-                lastStateUpdate={player.lastStateUpdate}
-                controlsEnabled={controlsEnabled}
-                pendingAction={player.pendingAction}
-                onPlayPause={handlePlayPause}
-                onPrevious={() => {
-                    if (controlsEnabled) player.previous()
-                }}
-                onSkip={() => {
-                    if (controlsEnabled) player.skip()
-                }}
-                onShuffle={() => {
-                    if (controlsEnabled) player.shuffle()
-                }}
-                onRepeatCycle={handleRepeatCycle}
-                onVolumeChange={(v) => {
-                    if (controlsEnabled) player.setVolume(v)
-                }}
-            />
-
-            <div>
-                <h2 className='type-title text-lucky-text-primary mb-3 px-1'>
-                    {t('music.queue')}
-                </h2>
-                <QueueList
-                    tracks={player.state.tracks}
-                    disabled={!controlsEnabled}
-                    onRemove={(i) => {
-                        if (!controlsEnabled) return
-                        player.removeTrack(i)
-                    }}
-                    onMove={(from, to) => {
-                        if (!controlsEnabled) return
-                        player.moveTrack(from, to)
-                    }}
-                    onClear={() => {
-                        if (!controlsEnabled) return
-                        player.clearQueue()
-                    }}
-                />
+            <div className='grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6 items-start'>
+                <div className='lg:col-span-3'>
+                    <NowPlayingHero
+                        state={player.state}
+                        lastStateUpdate={player.lastStateUpdate}
+                        controlsEnabled={controlsEnabled}
+                        pendingAction={player.pendingAction}
+                        onPlayPause={handlePlayPause}
+                        onPrevious={() => {
+                            if (controlsEnabled) player.previous()
+                        }}
+                        onSkip={() => {
+                            if (controlsEnabled) player.skip()
+                        }}
+                        onShuffle={() => {
+                            if (controlsEnabled) player.shuffle()
+                        }}
+                        onRepeatCycle={handleRepeatCycle}
+                        onVolumeChange={(v) => {
+                            if (controlsEnabled) player.setVolume(v)
+                        }}
+                    />
+                </div>
+                <div className='lg:col-span-2'>
+                    <QueueList
+                        tracks={player.state.tracks}
+                        isLoading={player.lastStateUpdate === null}
+                        disabled={!controlsEnabled}
+                        onRemove={(i) => {
+                            if (!controlsEnabled) return
+                            player.removeTrack(i)
+                        }}
+                        onMove={(from, to) => {
+                            if (!controlsEnabled) return
+                            player.moveTrack(from, to)
+                        }}
+                        onClear={() => {
+                            if (!controlsEnabled) return
+                            player.clearQueue()
+                        }}
+                    />
+                </div>
             </div>
 
             {player.error && (
