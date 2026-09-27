@@ -224,6 +224,7 @@ describe('eventHandler', () => {
             isButton: () => false,
             isMessageContextMenuCommand: () => false,
             isChannelSelectMenu: () => false,
+            isStringSelectMenu: () => false,
             isChatInputCommand: () => true,
             commandName: 'unknown',
             replied: false,
@@ -251,6 +252,7 @@ describe('eventHandler', () => {
             isButton: () => false,
             isMessageContextMenuCommand: () => true,
             isChannelSelectMenu: () => false,
+            isStringSelectMenu: () => false,
             isChatInputCommand: () => false,
         } as unknown as Interaction
 
@@ -273,6 +275,7 @@ describe('eventHandler', () => {
             isButton: () => false,
             isMessageContextMenuCommand: () => false,
             isChannelSelectMenu: () => true,
+            isStringSelectMenu: () => false,
             isChatInputCommand: () => false,
             customId: 'movemsg:src:msg',
         } as unknown as Interaction
@@ -301,6 +304,7 @@ describe('eventHandler', () => {
             isButton: () => false,
             isMessageContextMenuCommand: () => false,
             isChannelSelectMenu: () => false,
+            isStringSelectMenu: () => false,
             isChatInputCommand: () => true,
             commandName: 'broken',
             replied: true,
@@ -340,6 +344,7 @@ describe('eventHandler', () => {
             isButton: () => false,
             isMessageContextMenuCommand: () => false,
             isChannelSelectMenu: () => false,
+            isStringSelectMenu: () => false,
             isChatInputCommand: () => true,
             commandName: 'broken',
             guildId: 'guild-123',
@@ -392,6 +397,7 @@ describe('eventHandler', () => {
             isButton: () => false,
             isMessageContextMenuCommand: () => false,
             isChannelSelectMenu: () => false,
+            isStringSelectMenu: () => false,
             isChatInputCommand: () => true,
             commandName: 'broken',
             guildId: 'guild-123',

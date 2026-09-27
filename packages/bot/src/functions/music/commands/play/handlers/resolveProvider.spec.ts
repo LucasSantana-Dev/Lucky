@@ -327,6 +327,100 @@ describe('resolveQueryWithFallbacks', () => {
         })
     })
 
+    describe('HOSTED_YOUTUBE_ENABLED = false', () => {
+        const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
+
+        beforeEach(() => {
+            process.env.HOSTED_YOUTUBE_ENABLED = 'false'
+        })
+
+        afterEach(() => {
+            if (originalEnv === undefined) {
+                delete process.env.HOSTED_YOUTUBE_ENABLED
+            } else {
+                process.env.HOSTED_YOUTUBE_ENABLED = originalEnv
+            }
+        })
+
+        it('skips the YouTube fallback arm entirely and resolves via SoundCloud', async () => {
+            const primaryError = new Error('Primary failed')
+            const mockTrack = { title: 'Test Song' }
+
+            mockPlayer.play
+                .mockRejectedValueOnce(primaryError)
+                .mockResolvedValueOnce(mockTrack)
+
+            const { result, telemetry } = await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'test query',
+                'default',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            expect(result).toEqual(mockTrack)
+            expect(telemetry.resolvedVia).toBe('soundcloud-fallback')
+            // Exactly primary + soundcloud — no YouTube attempt in between.
+            expect(mockPlayer.play).toHaveBeenCalledTimes(2)
+            expect(mockPlayer.play.mock.calls[1][2]).toMatchObject({
+                searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+            })
+            expect(warnLogMock).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Primary search failed, falling back to YouTube',
+                }),
+            )
+        })
+
+        it('a Spotify query that fails still resolves via SoundCloud, not YouTube', async () => {
+            const primaryError = new Error('No results found (Spotify)')
+            const mockTrack = { title: 'Wish You Were Here' }
+
+            mockPlayer.play
+                .mockRejectedValueOnce(primaryError)
+                .mockResolvedValueOnce(mockTrack)
+
+            const { result, telemetry } = await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'pink floyd wish you were here',
+                'spotify',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            expect(result).toEqual(mockTrack)
+            expect(telemetry.resolvedVia).toBe('soundcloud-fallback')
+            expect(mockPlayer.play).toHaveBeenCalledTimes(2)
+            for (const call of mockPlayer.play.mock.calls) {
+                expect(call[2].searchEngine).not.toBe(QueryType.YOUTUBE_SEARCH)
+            }
+        })
+
+        it('still throws when SoundCloud also fails, with no YouTube attempt counted', async () => {
+            const primaryError = new Error('Primary failed')
+            const soundcloudError = new Error('SoundCloud failed')
+
+            mockPlayer.play
+                .mockRejectedValueOnce(primaryError)
+                .mockRejectedValueOnce(soundcloudError)
+
+            await expect(
+                resolveQueryWithFallbacks(
+                    mockPlayer,
+                    mockVoiceChannel,
+                    'test query',
+                    'default',
+                    QueryType.SPOTIFY_SEARCH,
+                    mockPlayOptions,
+                ),
+            ).rejects.toThrow('SoundCloud failed')
+
+            expect(mockPlayer.play).toHaveBeenCalledTimes(2)
+        })
+    })
+
     describe('failure handling', () => {
         it('should include error class when all attempts fail', async () => {
             class CustomError extends Error {

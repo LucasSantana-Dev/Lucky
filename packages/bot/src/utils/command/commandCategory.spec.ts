@@ -13,9 +13,7 @@ describe('getCategoryFromFilePath', () => {
             getCategoryFromFilePath('src/functions/music/commands/play.ts'),
         ).toBe('music')
         expect(
-            getCategoryFromFilePath(
-                'src/functions/general/commands/ping.ts',
-            ),
+            getCategoryFromFilePath('src/functions/general/commands/ping.ts'),
         ).toBe('general')
     })
 
@@ -53,6 +51,28 @@ describe('getCommandCategory', () => {
 
     it('defaults to general when command data is missing', () => {
         expect(getCommandCategory({} as never)).toBe('general')
+    })
+
+    // #2475: several real music commands (artist, album, seek, nowplaying,
+    // spotify, voteskip, ...) don't start with any prefix in
+    // COMMAND_CATEGORIES.music.prefixes and were silently miscategorized as
+    // 'general' by name-based matching alone. The command's own declared
+    // `category` must win.
+    it('trusts the command-declared category over name-prefix guessing', () => {
+        expect(
+            getCommandCategory({
+                data: { name: 'artist' },
+                category: 'music',
+            } as never),
+        ).toBe('music')
+    })
+
+    it('still falls back to name matching when no category is declared', () => {
+        expect(
+            getCommandCategory({
+                data: { name: 'ping' },
+            } as never),
+        ).toBe('general')
     })
 })
 

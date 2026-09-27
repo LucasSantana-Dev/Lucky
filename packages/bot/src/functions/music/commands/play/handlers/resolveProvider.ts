@@ -12,6 +12,7 @@ import {
     hasVersionMarker,
     queryRequestsVersion,
 } from '../../../../../utils/music/searchQueryCleaner'
+import { isHostedYoutubeEnabled } from '../../../../../config/featureFlags'
 
 const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
 const ATTACHMENT_EXTRACTOR_ID = 'com.discord-player.attachmentextractor'
@@ -199,53 +200,70 @@ export async function resolveQueryWithFallbacks(
                 }
             }
 
-            warnLog({
-                message: 'Primary search failed, falling back to YouTube',
-                data: {
-                    query,
-                    requestedProvider,
-                    searchEngine: String(searchEngine),
-                    error: String(lastPrimaryError),
-                },
-            })
-
-            try {
-                // Attempt YouTube fallback. See TEXT_SEARCH_BLOCKED_EXTRACTORS
-                // for why these are excluded.
-                const result = await player.play(voiceChannel, query, {
-                    ...resolvedPlayOptions,
-                    searchEngine: QueryType.YOUTUBE_SEARCH,
-                    blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
-                })
-                telemetry.latencyMs = Date.now() - startTime
-                telemetry.resolvedVia = 'youtube-fallback'
-                return { result, telemetry }
-            } catch (_youtubeError) {
+            // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-
+            // positioning.md point 3): with no YouTube extractor registered,
+            // this arm would only pay for a guaranteed NoResultError, so skip
+            // straight to the SoundCloud fallback instead of attempting it.
+            if (isHostedYoutubeEnabled()) {
                 warnLog({
-                    message:
-                        'YouTube search failed, falling back to SoundCloud',
-                    data: { query, error: String(_youtubeError) },
+                    message: 'Primary search failed, falling back to YouTube',
+                    data: {
+                        query,
+                        requestedProvider,
+                        searchEngine: String(searchEngine),
+                        error: String(lastPrimaryError),
+                    },
                 })
 
                 try {
-                    // Attempt SoundCloud fallback — same block reason as above
+                    // Attempt YouTube fallback. See
+                    // TEXT_SEARCH_BLOCKED_EXTRACTORS for why these are excluded.
                     const result = await player.play(voiceChannel, query, {
                         ...resolvedPlayOptions,
-                        searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                        searchEngine: QueryType.YOUTUBE_SEARCH,
                         blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
                     })
                     telemetry.latencyMs = Date.now() - startTime
-                    telemetry.resolvedVia = 'soundcloud-fallback'
+                    telemetry.resolvedVia = 'youtube-fallback'
                     return { result, telemetry }
-                } catch (soundcloudError) {
-                    // All fallbacks exhausted
-                    telemetry.latencyMs = Date.now() - startTime
-                    telemetry.resolvedVia = 'failed'
-                    telemetry.errorClass = (
-                        soundcloudError as Error
-                    ).constructor.name
-                    throw soundcloudError
+                } catch (_youtubeError) {
+                    warnLog({
+                        message:
+                            'YouTube search failed, falling back to SoundCloud',
+                        data: { query, error: String(_youtubeError) },
+                    })
                 }
+            } else {
+                warnLog({
+                    message:
+                        'Primary search failed, YouTube disabled — falling back to SoundCloud',
+                    data: {
+                        query,
+                        requestedProvider,
+                        searchEngine: String(searchEngine),
+                        error: String(lastPrimaryError),
+                    },
+                })
+            }
+
+            try {
+                // Attempt SoundCloud fallback — same block reason as above
+                const result = await player.play(voiceChannel, query, {
+                    ...resolvedPlayOptions,
+                    searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                    blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
+                })
+                telemetry.latencyMs = Date.now() - startTime
+                telemetry.resolvedVia = 'soundcloud-fallback'
+                return { result, telemetry }
+            } catch (soundcloudError) {
+                // All fallbacks exhausted
+                telemetry.latencyMs = Date.now() - startTime
+                telemetry.resolvedVia = 'failed'
+                telemetry.errorClass = (
+                    soundcloudError as Error
+                ).constructor.name
+                throw soundcloudError
             }
         } else {
             // No fallbacks available for AUTO

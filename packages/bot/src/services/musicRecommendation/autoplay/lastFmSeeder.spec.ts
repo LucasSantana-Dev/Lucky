@@ -169,6 +169,41 @@ describe('searchLastFmQuery', () => {
         expect(searchMock).toHaveBeenCalledTimes(2)
     })
 
+    describe('HOSTED_YOUTUBE_ENABLED = false (#2475)', () => {
+        const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
+
+        beforeEach(() => {
+            process.env.HOSTED_YOUTUBE_ENABLED = 'false'
+        })
+
+        afterEach(() => {
+            if (originalEnv === undefined) {
+                delete process.env.HOSTED_YOUTUBE_ENABLED
+            } else {
+                process.env.HOSTED_YOUTUBE_ENABLED = originalEnv
+            }
+        })
+
+        it('skips the YouTube engine arm and falls through to AUTO', async () => {
+            const track = createTrack()
+            const queue = createQueue({ tracks: [] })
+            const searchMock = queue.player.search as jest.Mock
+            searchMock
+                .mockRejectedValueOnce(new Error('spotify error'))
+                .mockResolvedValueOnce({ tracks: [track] })
+            const user = createUser()
+
+            const result = await searchLastFmQuery(queue, 'test query', user)
+
+            expect(result).toHaveLength(1)
+            // Only 2 arms attempted (Spotify, AUTO) — YouTube skipped.
+            expect(searchMock).toHaveBeenCalledTimes(2)
+            expect(searchMock.mock.calls[1][1]).toMatchObject({
+                searchEngine: 'auto',
+            })
+        })
+    })
+
     it('returns empty array when all engines fail', async () => {
         const queue = createQueue({ tracks: [] })
         const searchMock = queue.player.search as jest.Mock

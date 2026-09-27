@@ -28,6 +28,7 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
 import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from './play/handlers/resolveProvider'
+import { isHostedYoutubeEnabled } from '../../../config/featureFlags'
 import type { CustomClient } from '../../../types/CustomClient'
 
 const DEFAULT_LIMIT = 10
@@ -227,6 +228,16 @@ export default new Command({
             let resolvedEngine: QueryType = QueryType.SPOTIFY_SEARCH
 
             for (const arm of SEARCH_ARMS) {
+                // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-
+                // positioning.md point 3): no extractor is registered to
+                // serve this engine, so skip the arm instead of paying for a
+                // guaranteed miss.
+                if (
+                    arm.engine === QueryType.YOUTUBE_SEARCH &&
+                    !isHostedYoutubeEnabled()
+                ) {
+                    continue
+                }
                 let armResult: ArtistSearchResult | null = null
                 try {
                     armResult = await client.player.search(artistName, {

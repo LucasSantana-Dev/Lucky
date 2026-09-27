@@ -18,7 +18,9 @@
         "errors": {
             "notInGuild": "This command only works inside a server.",
             "notInVoice": "Join a voice channel first.",
-            "nothingPlaying": "Nothing is playing right now."
+            "nothingPlaying": "Nothing is playing right now.",
+            "youtubeDisabledTitle": "YouTube is unavailable",
+            "youtubeDisabledDescription": "YouTube isn't available on this bot right now. Try a Spotify or SoundCloud link, or just search by song and artist name."
         },
         "nowPlaying": "Now playing {{title}}, don't stop",
         "queue": {

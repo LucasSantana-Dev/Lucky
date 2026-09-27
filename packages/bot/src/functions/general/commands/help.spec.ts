@@ -27,7 +27,7 @@ jest.mock('../../../utils/general/embeds.js', () => ({
 }))
 
 import { errorLog } from '@lucky/shared/utils'
-import helpCommand from './help.js'
+import helpCommand, { handleHelpCategorySelect } from './help.js'
 
 function makeCommand(name: string, description: string, category = 'general') {
     return {
@@ -53,6 +53,20 @@ function makeClient(commands: unknown[]) {
             displayAvatarURL: () => 'https://example.com/bot-avatar.png',
         },
         commands: new Map(commands.map((cmd: any) => [cmd.data.name, cmd])),
+    }
+}
+
+function makeSelectInteraction(selected: string) {
+    return {
+        values: [selected],
+        user: {
+            id: 'u1',
+            tag: 'alice#0000',
+            displayAvatarURL: () => 'https://example.com/avatar.png',
+        },
+        update: jest.fn().mockResolvedValue(undefined),
+        followUp: jest.fn().mockResolvedValue(undefined),
+        reply: jest.fn().mockResolvedValue(undefined),
     }
 }
 
@@ -94,10 +108,14 @@ describe('/help', () => {
     })
 
     test('handles many commands with pagination', async () => {
+        // Category set to 'music': the default view only shows that
+        // category (#2475), so a general-category flood wouldn't paginate
+        // the page the assertion actually reads.
         const commands = Array.from({ length: 250 }, (_, i) =>
             makeCommand(
                 `cmd${i}`,
                 `Description for command number ${i} that is long enough to fill pages`,
+                'music',
             ),
         )
         const client = makeClient(commands)
@@ -113,6 +131,7 @@ describe('/help', () => {
             makeCommand(
                 `cmd${i}`,
                 `Description for command number ${i} that is long enough to fill pages`,
+                'music',
             ),
         )
         const client = makeClient(commands)
@@ -128,6 +147,64 @@ describe('/help', () => {
         expect(firstCall.content.embeds[0].data.title).toContain(
             `1/${calls.length}`,
         )
+    })
+
+    // #2475: hosted bot leads with music — default /help view shows only the
+    // music category, with everything else reachable via the select menu.
+    test('default view lists only music commands, hiding other categories', async () => {
+        const client = makeClient([
+            makeCommand('play', 'Play music', 'music'),
+            makeCommand('ban', 'Ban a user', 'general'),
+        ])
+        const interaction = makeInteraction() as never
+
+        await helpCommand.execute({ client: client as never, interaction })
+
+        const call = interactionReply.mock.calls[0][0] as {
+            content: {
+                embeds: Array<{
+                    data: { fields?: Array<{ name: string; value: string }> }
+                }>
+            }
+        }
+        const fields = call.content.embeds[0].data.fields ?? []
+        const combined = fields.map((f) => `${f.name} ${f.value}`).join(' ')
+        expect(combined).toContain('/play')
+        expect(combined).not.toContain('/ban')
+    })
+
+    test('default reply attaches a category select menu', async () => {
+        const client = makeClient([makeCommand('play', 'Play music', 'music')])
+        const interaction = makeInteraction() as never
+
+        await helpCommand.execute({ client: client as never, interaction })
+
+        const call = interactionReply.mock.calls[0][0] as {
+            content: { components?: unknown[] }
+        }
+        expect(call.content.components?.length).toBe(1)
+    })
+
+    test('category select updates the message in place with the chosen category', async () => {
+        const client = makeClient([
+            makeCommand('play', 'Play music', 'music'),
+            makeCommand('ban', 'Ban a user', 'general'),
+        ])
+        const interaction = makeSelectInteraction('general')
+
+        await handleHelpCategorySelect(interaction as never, client as never)
+
+        expect(interaction.update).toHaveBeenCalledTimes(1)
+        expect(interaction.reply).not.toHaveBeenCalled()
+        const call = interaction.update.mock.calls[0][0] as {
+            embeds: Array<{
+                data: { fields?: Array<{ name: string; value: string }> }
+            }>
+        }
+        const fields = call.embeds[0].data.fields ?? []
+        const combined = fields.map((f) => `${f.name} ${f.value}`).join(' ')
+        expect(combined).toContain('/ban')
+        expect(combined).not.toContain('/play')
     })
 
     test('catches errors and replies with error message', async () => {

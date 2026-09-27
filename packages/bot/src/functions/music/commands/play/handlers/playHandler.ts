@@ -17,6 +17,7 @@ import {
     normalizeSoundCloudUrl,
     normalizeYouTubeUrl,
     expandSoundCloudShortUrl,
+    replyYoutubeDisabledIfNeeded,
 } from '../queryUtils'
 import {
     resolveQueryWithFallbacks,
@@ -65,6 +66,9 @@ export async function executePlayHandler({
     // (`list=RD...`) context that the youtubei extractor cannot resolve.
     const query = normalizeYouTubeUrl(normalizeSoundCloudUrl(expandedQuery))
     const provider = interaction.options.getString('provider')
+
+    if (await replyYoutubeDisabledIfNeeded(interaction, query, provider)) return
+
     const collaborativeCheck = collaborativePlaylistService.canAddTracks(
         interaction.guildId,
         interaction.user.id,

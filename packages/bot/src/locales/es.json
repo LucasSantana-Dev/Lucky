@@ -18,7 +18,9 @@
         "errors": {
             "notInGuild": "Este comando solo funciona dentro de un servidor.",
             "notInVoice": "Únete a un canal de voz primero.",
-            "nothingPlaying": "No se está reproduciendo nada ahora mismo."
+            "nothingPlaying": "No se está reproduciendo nada ahora mismo.",
+            "youtubeDisabledTitle": "YouTube no disponible",
+            "youtubeDisabledDescription": "YouTube no está disponible en este bot por ahora. Prueba con un enlace de Spotify o SoundCloud, o busca por el nombre de la canción y el artista."
         },
         "nowPlaying": "Reproduciendo {{title}}, no pares",
         "queue": {

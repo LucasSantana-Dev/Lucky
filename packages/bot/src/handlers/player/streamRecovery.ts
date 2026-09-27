@@ -10,6 +10,7 @@ import { providerHealthService } from '../../services/musicManagement/search/pro
 import type { QueueMetadata } from '../../types/QueueMetadata'
 import { isSameTrack } from './errorClassification'
 import { notifyChannelStreamFailed } from './streamFailureNotifier'
+import { isHostedYoutubeEnabled } from '../../config/featureFlags'
 
 function describeYouTubeParserErrorType(
     youtubeErrorInfo: ReturnType<typeof analyzeYouTubeError>,
@@ -77,6 +78,20 @@ export async function recoverFromStreamExtractionError(
         warnLog({
             message: 'Stream failed, track has no title — skipping recovery',
             data: { guildId: queue.guild.id },
+        })
+        await notifyChannelStreamFailed(queue, currentTrack.title)
+        queue.node.skip()
+        return
+    }
+
+    // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-positioning.md
+    // point 3): no extractor is registered to serve YOUTUBE_SEARCH, so the
+    // search below would only throw. Skip straight to the failure path.
+    if (!isHostedYoutubeEnabled()) {
+        warnLog({
+            message:
+                'Stream failed, YouTube recovery disabled (HOSTED_YOUTUBE_ENABLED=false) — skipping',
+            data: { title: currentTrack.title, guildId: queue.guild.id },
         })
         await notifyChannelStreamFailed(queue, currentTrack.title)
         queue.node.skip()
