@@ -1,10 +1,11 @@
 # Architecture Decision Records
 
-138 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
+139 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
-## Accepted (131)
+## Accepted (132)
 
+- [2026-09-27 - Lucky as a taste-learning music bot: one bounded 12-week test, decided 2026-12-20](2026-09-27-music-first-positioning.md)
 - [2026-09-26 - Lucky owns its observability stack as code, portable to any host](2026-09-26-lucky-owned-observability-stack.md)
 - [2026-09-05 - Skip-reason feedback UX redesign: deferred](2026-09-05-skip-feedback-redesign-deferred.md) - _Accepted (defer)_
 - [2026-09-03 - Audit gate takes a second npm audit read before passing](2026-09-03-audit-gate-double-read.md)
@@ -109,7 +110,7 @@
 - [2026-05-23 - Bot test reduction Phase 4: deletion + replacement strategy](2026-05-23-bot-test-reduction-phase4-replacement-strategy.md)
 - [2026-05-23 - ADR: Branch Protection Required Status Checks for `main`](2026-05-23-branch-protection-required-checks.md)
 - [2026-05-23 - ADR: Split GuildAutomationService into Orchestrator and Repository](2026-05-23-guild-automation-orchestrator-repository-split.md)
-- [2026-05-23 - ADR: Lucky OSS Positioning — Portfolio + Reference Implementation](2026-05-23-lucky-oss-positioning.md)
+- [2026-05-23 - ADR: Lucky OSS Positioning — Portfolio + Reference Implementation](2026-05-23-lucky-oss-positioning.md) - _Accepted (product pitch amended by `2026-09-27-music-first-positioning.md`)_
 - [2026-05-23 - ADR: Replace messageHandler Kitchen-Sink with a MessagePipeline Chain](2026-05-23-message-pipeline-handler-chain.md)
 - [2026-05-23 - ADR: Collapse Recommendation Engine to a Single Public Entry Point](2026-05-23-recommendation-engine-single-entrypoint.md)
 - [2026-05-23 - Repo organisation: what AI-tool config is tracked](2026-05-23-repo-organisation-tracked-ai-config.md) - _Accepted (no explicit status field; settled by content)_

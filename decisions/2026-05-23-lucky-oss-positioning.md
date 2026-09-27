@@ -1,7 +1,7 @@
 # ADR: Lucky OSS Positioning — Portfolio + Reference Implementation
 
 **Date:** 2026-05-23  
-**Status:** Accepted
+**Status:** Accepted (product pitch amended by `2026-09-27-music-first-positioning.md`)
 
 ---
 
