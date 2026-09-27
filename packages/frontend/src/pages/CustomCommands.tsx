@@ -14,7 +14,6 @@ import Skeleton from '@/components/ui/Skeleton'
 import Button from '@/components/ui/Button'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { z } from 'zod'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 import { hasModuleAccess } from '@/lib/rbac'
@@ -23,14 +22,15 @@ import type { Command } from '@/types'
 import { useTranslation } from 'react-i18next'
 
 // Mirrors packages/backend/src/schemas/management.ts createCommandBody /
-// updateCommandBody so invalid input never reaches the API (#2408).
-const commandNameSchema = z
-    .string()
-    .min(1)
-    .max(32)
-    .regex(/^[\w-]+$/)
-const commandResponseSchema = z.string().min(1).max(2000)
-const commandDescriptionSchema = z.string().max(100).optional()
+// updateCommandBody so invalid input never reaches the API (#2408). Plain
+// checks (not zod) to avoid pulling the vendor-forms bundle into this route.
+const NAME_REGEX = /^[\w-]+$/
+const isValidCommandName = (name: string) =>
+    name.length > 0 && name.length <= 32 && NAME_REGEX.test(name)
+const isValidCommandResponse = (response: string) =>
+    response.length > 0 && response.length <= 2000
+const isValidCommandDescription = (description: string) =>
+    description.length <= 100
 
 interface CommandFormState {
     name: string
@@ -64,19 +64,15 @@ function CommandFormModal({
     const [error, setError] = useState<string | null>(null)
 
     const handleSave = async () => {
-        if (!isEdit) {
-            const nameResult = commandNameSchema.safeParse(form.name)
-            if (!nameResult.success) {
-                setError(t('customCommands.nameInvalid'))
-                return
-            }
+        if (!isEdit && !isValidCommandName(form.name)) {
+            setError(t('customCommands.nameInvalid'))
+            return
         }
-        const responseResult = commandResponseSchema.safeParse(form.response)
-        if (!responseResult.success) {
+        if (!isValidCommandResponse(form.response)) {
             setError(t('customCommands.responseRequired'))
             return
         }
-        if (!commandDescriptionSchema.safeParse(form.description).success) {
+        if (!isValidCommandDescription(form.description)) {
             setError(t('customCommands.descriptionTooLong'))
             return
         }
