@@ -1,14 +1,40 @@
-import { describe, test, expect, vi, beforeEach } from 'vitest'
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import TrackHistoryPage from './TrackHistory'
 import { api } from '@/services/api'
+import i18n from '@/lib/i18n'
 
 vi.mock('@/services/api')
 vi.mock('@/hooks/useGuildSelection')
 
-const mockGuild = { id: '123', name: 'Test Server', botAdded: true }
+type AccessValue = 'none' | 'view' | 'manage'
+type AccessMap = Record<
+    | 'overview'
+    | 'settings'
+    | 'moderation'
+    | 'automation'
+    | 'music'
+    | 'integrations',
+    AccessValue
+>
+
+const fullAccess: AccessMap = {
+    overview: 'manage',
+    settings: 'manage',
+    moderation: 'manage',
+    automation: 'manage',
+    music: 'manage',
+    integrations: 'manage',
+}
+
+const mockGuild = {
+    id: '123',
+    name: 'Test Server',
+    botAdded: true,
+    effectiveAccess: fullAccess,
+}
 
 const mockHistory = [
     {
@@ -82,6 +108,16 @@ function renderPage() {
 describe('TrackHistoryPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+    })
+
+    afterEach(() => {
+        i18n.addResourceBundle(
+            'en',
+            'translation',
+            { trackHistory: { playedBy: 'By <bold>{{user}}</bold>' } },
+            true,
+            true,
+        )
     })
 
     test('shows select server message when no guild selected', () => {
@@ -286,5 +322,56 @@ describe('TrackHistoryPage', () => {
         expect(
             screen.queryByRole('button', { name: /Load More/ }),
         ).not.toBeInTheDocument()
+    })
+
+    test('hides clear button when user lacks music manage access', async () => {
+        mockGuildSelection({
+            ...mockGuild,
+            effectiveAccess: { ...fullAccess, music: 'view' },
+        })
+        vi.mocked(api.trackHistory.getHistory).mockResolvedValue({
+            data: { history: mockHistory },
+        } as any)
+        vi.mocked(api.trackHistory.getStats).mockResolvedValue({
+            data: { stats: mockStats },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Recent Tracks')).toBeInTheDocument()
+        })
+
+        expect(screen.queryByText('Clear')).not.toBeInTheDocument()
+    })
+
+    test('renders playedBy label through i18n instead of a hardcoded string', async () => {
+        i18n.addResourceBundle(
+            'en',
+            'translation',
+            {
+                trackHistory: {
+                    playedBy: 'Requested by <bold>{{user}}</bold>',
+                },
+            },
+            true,
+            true,
+        )
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.trackHistory.getHistory).mockResolvedValue({
+            data: {
+                history: [{ ...mockHistory[0], playedBy: 'Alice' }],
+            },
+        } as any)
+        vi.mocked(api.trackHistory.getStats).mockResolvedValue({
+            data: { stats: null },
+        } as any)
+
+        renderPage()
+
+        const playedByName = await screen.findByText('Alice')
+        expect(playedByName.closest('p')?.textContent).toBe(
+            'Requested by Alice',
+        )
     })
 })

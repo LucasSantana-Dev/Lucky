@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { History, BarChart3, Music2, User, Trash2, Clock } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
+import { useGuildStore } from '@/stores/guildStore'
+import { hasModuleAccess } from '@/lib/rbac'
 import { api } from '@/services/api'
 import StatTile from '@/components/ui/StatTile'
 import EmptyState from '@/components/ui/EmptyState'
@@ -46,7 +48,11 @@ const PAGE_SIZE = 50
 export default function TrackHistoryPage() {
     const { t } = useTranslation()
     const { selectedGuild } = useGuildSelection()
+    const { memberContext } = useGuildStore()
     const guildId = selectedGuild?.id
+    const effectiveAccess =
+        memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess
+    const canManageMusic = hasModuleAccess(effectiveAccess, 'music', 'manage')
     const [history, setHistory] = useState<TrackEntry[]>([])
     const [stats, setStats] = useState<Stats | null>(null)
     const [isLoading, setIsLoading] = useState(false)
@@ -137,7 +143,7 @@ export default function TrackHistoryPage() {
                         {t('trackHistory.trackHistory')}
                     </h1>
                 </div>
-                {history.length > 0 && (
+                {history.length > 0 && canManageMusic && (
                     <button
                         onClick={handleClear}
                         className='flex items-center gap-2 px-3 min-h-[44px] type-body-sm rounded-sm bg-lucky-error/10 text-lucky-error hover:bg-lucky-error/20 transition-colors font-semibold uppercase'
@@ -284,10 +290,17 @@ export default function TrackHistoryPage() {
                                                     </p>
                                                     {track.playedBy && (
                                                         <p className='type-body-sm text-lucky-text-tertiary'>
-                                                            By{' '}
-                                                            <span className='text-lucky-text-secondary font-medium'>
-                                                                {track.playedBy}
-                                                            </span>
+                                                            <Trans
+                                                                i18nKey='trackHistory.playedBy'
+                                                                values={{
+                                                                    user: track.playedBy,
+                                                                }}
+                                                                components={{
+                                                                    bold: (
+                                                                        <span className='text-lucky-text-secondary font-medium' />
+                                                                    ),
+                                                                }}
+                                                            />
                                                         </p>
                                                     )}
                                                 </div>
