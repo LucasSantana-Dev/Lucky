@@ -189,7 +189,7 @@ describe('Twitch Routes', () => {
             expect(mockPublishRefresh).toHaveBeenCalledTimes(1)
         })
 
-        test('surfaces a server error and does not signal the bot when remove fails', async () => {
+        test('returns 404 and does not signal the bot when there was nothing to remove', async () => {
             authed()
             mockRemove.mockResolvedValue(false)
 
@@ -198,10 +198,21 @@ describe('Twitch Routes', () => {
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .send({ twitchUserId: 'tw123' })
 
+            expect(res.status).toBe(404)
+            expect(res.body.error).toMatch(/not found/i)
+            expect(mockPublishRefresh).not.toHaveBeenCalled()
+        })
+
+        test('returns 500 and does not signal the bot when the delete throws', async () => {
+            authed()
+            mockRemove.mockRejectedValue(new Error('db unavailable'))
+
+            const res = await request(app)
+                .delete(`/api/guilds/${GUILD_ID}/twitch/notifications`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ twitchUserId: 'tw123' })
+
             expect(res.status).toBe(500)
-            expect(res.body.error).toMatch(
-                /Failed to remove Twitch notification/,
-            )
             expect(mockPublishRefresh).not.toHaveBeenCalled()
         })
     })

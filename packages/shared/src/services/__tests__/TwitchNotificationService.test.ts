@@ -74,14 +74,14 @@ describe('TwitchNotificationService', () => {
             expect(result).toBe(false)
         })
 
-        it('returns false when the delete throws', async () => {
+        it('rethrows when the delete throws, so callers can tell a real error apart from not-found', async () => {
             mockPrisma.twitchNotification.deleteMany.mockRejectedValue(
                 new Error('db unavailable'),
             )
 
-            const result = await service.remove('guild1', 'tw123')
-
-            expect(result).toBe(false)
+            await expect(service.remove('guild1', 'tw123')).rejects.toThrow(
+                'db unavailable',
+            )
         })
     })
 })

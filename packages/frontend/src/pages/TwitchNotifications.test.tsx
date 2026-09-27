@@ -444,6 +444,32 @@ describe('TwitchNotificationsPage', () => {
         expect(api.twitch.list).toHaveBeenCalledTimes(1)
     })
 
+    test('removes the row silently without an error when remove 404s (already gone)', async () => {
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: mockNotifications },
+        } as any)
+        vi.mocked(api.twitch.remove).mockRejectedValue(
+            new ApiError(404, 'Twitch notification not found'),
+        )
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('shroud')).toBeInTheDocument()
+        })
+
+        const removeButton = screen.getByLabelText('Remove shroud')
+        await userEvent.click(removeButton)
+
+        await waitFor(() => {
+            expect(screen.queryByText('shroud')).not.toBeInTheDocument()
+        })
+        expect(
+            screen.queryByText('Twitch notification not found'),
+        ).not.toBeInTheDocument()
+    })
+
     test('keeps the notification in the list and shows an error when remove fails', async () => {
         mockGuildSelection(mockGuild)
         vi.mocked(api.twitch.list).mockResolvedValue({

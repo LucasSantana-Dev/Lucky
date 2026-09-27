@@ -224,6 +224,14 @@ export default function TwitchNotificationsPage() {
                 prev.filter((n) => n.twitchUserId !== twitchUserId),
             )
         } catch (error) {
+            // A 404 means it was already gone (double click, or removed by
+            // another admin) - converge the UI silently instead of erroring.
+            if (error instanceof ApiError && error.isNotFound) {
+                setNotifications((prev) =>
+                    prev.filter((n) => n.twitchUserId !== twitchUserId),
+                )
+                return
+            }
             setError(getErrorMessage(error, t('failedToRemoveNotification')))
         }
     }
