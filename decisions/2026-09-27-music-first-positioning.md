@@ -48,9 +48,12 @@ visibility and, eventually, monetize.
 
 ## Decision
 
+"Active guild" in every metric of this ADR excludes the operator's guilds, test-named guilds
+and the Discord Bots listing server (the 38-guild base of the diagnosis).
+
 1. **Pitch:** "Lucky learns your server's taste and keeps the call playing, no DJ needed.
    Every Sunday, see what your server listened to." Audio sources are never advertised, in
-   the top.gg listing, the App Directory or the README.
+   the top.gg listing, the App Directory, the website or the README.
    Self-hosting is no longer promoted: the code stays open source (ISC) and a README section
    documents running your own copy as unsupported, with no support for setup, hosting or
    upgrades. Promoting self-hosting as the way to keep features the hosted bot turns off
@@ -74,10 +77,13 @@ visibility and, eventually, monetize.
    of about 90 new guilds: about 20 from a $50 top.gg ad run, about 40 recruited by hand (25
    pt-BR, 15 international), plus organic joins and free directories (discordbotlist,
    discords.com via BotBlock). The ad spend is a measurement cost, not a channel.
-6. **pt-BR is settled by data:** Lucky goes Brazil-first after the decision date only if the
-   pt-BR cohort's day-8 retention is at least 1.5x the rest AND at least 6 pt-BR guilds are
-   active on day 8. With about 25 guilds the ratio alone is noise (95% CI about +/-14
-   points), so the absolute floor is required.
+6. **pt-BR is settled by data:** the comparison uses one acquisition channel, hand
+   recruiting: the 25 pt-BR recruits against the 15 international recruits, so channel does
+   not masquerade as language. Lucky goes Brazil-first after the decision date only if the
+   pt-BR recruits' day-8 retention is at least 1.5x the international recruits' AND at least
+   6 pt-BR guilds are active on day 8. With groups this small the ratio alone is noise (95%
+   CI about +/-14 points at n=25), so the absolute floor is required, and the result is a
+   directional signal, not proof.
 7. **Watch-together (Go Live style) is out.** The only compliant design embeds the official
    YouTube player, which shows the same ads as Discord's native Watch Together.
 
@@ -91,13 +97,15 @@ visibility and, eventually, monetize.
 | 3     | 10-27 to 11-22      | $50 top.gg ads; finish recruiting; Wrapped and taste profile shipped by 11-22                                                                                 |
 | 4     | 11-23 to 12-20      | Interim read 11-30; decision 12-20                                                                                                                            |
 
-"Active guild" in every metric below excludes the operator's guilds, test-named guilds and
-the Discord Bots listing server (the 38-guild base of the diagnosis).
+**Continue on 2026-12-20 only if all hold:** 20 or more weekly active guilds for 3
+consecutive weeks; 35% or more of new guilds hear a track within their first hour; 15% or
+more of new guilds still active on day 8.
 
-**Continue on 2026-12-20 only if all hold:** 20 or more weekly active non-operator guilds for
-3 consecutive weeks; 35% or more of new guilds hear a track within their first hour; 15% or
-more of new guilds still active on day 8; 20% or more of active guilds used thumbs feedback
-(otherwise drop the "learns your taste" pitch). Continue means App Directory, the Brazil
+**Positioning check, not a continuation gate:** if under 20% of active guilds used thumbs
+feedback, drop the "learns your taste" pitch and lead with the weekly recap; the test still
+continues if the three gates above hold.
+
+Continue means App Directory, the Brazil
 decision and a YouTube-free mode. Otherwise Lucky moves to portfolio mode: about 2 hours a
 week of maintenance and a published case study by 2027-01-31.
 
