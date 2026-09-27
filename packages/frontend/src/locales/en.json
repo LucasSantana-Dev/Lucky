@@ -519,6 +519,7 @@
         "descriptionTooLong": "Description must be 100 characters or fewer",
         "nameInvalid": "Name must be alphanumeric with dashes/underscores",
         "responseRequired": "Response is required",
+        "responseTooLong": "Response must be 2000 characters or fewer",
         "cancel": "Cancel",
         "create": "Create",
         "saveChanges": "Save Changes",

@@ -345,6 +345,11 @@ describe('CustomCommandsPage', () => {
             await waitFor(() => {
                 expect(api.commands.create).not.toHaveBeenCalled()
             })
+            expect(
+                screen.getByText(
+                    'Name must be alphanumeric with dashes/underscores',
+                ),
+            ).toBeInTheDocument()
         })
     })
 

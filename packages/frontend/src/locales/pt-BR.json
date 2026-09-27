@@ -515,6 +515,7 @@
         "descriptionTooLong": "A descrição deve ter no máximo 100 caracteres",
         "nameInvalid": "O nome deve ser alfanumérico com hífens/underscores",
         "responseRequired": "A resposta é obrigatória",
+        "responseTooLong": "A resposta deve ter no máximo 2000 caracteres",
         "cancel": "Cancelar",
         "create": "Criar",
         "saveChanges": "Salvar Alterações",

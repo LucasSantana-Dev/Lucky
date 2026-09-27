@@ -37,6 +37,12 @@ describe('CommandsConfig', () => {
             expect(screen.getByText('/play')).toBeInTheDocument()
         })
         expect(screen.queryByText('undefined')).not.toBeInTheDocument()
+        // The customCommand model has no category field: the name row
+        // should only render the command name, no extra category chip next
+        // to it (cubic review: the previous check only caught the literal
+        // string "undefined", not an empty chip).
+        const nameRow = screen.getByText('/play').parentElement
+        expect(nameRow?.children.length).toBe(1)
     })
 
     test('toggling a command calls api.commands.toggle keyed by name, not id', async () => {

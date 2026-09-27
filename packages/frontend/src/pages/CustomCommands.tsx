@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
     Search,
     X,
@@ -27,8 +27,6 @@ import { useTranslation } from 'react-i18next'
 const NAME_REGEX = /^[\w-]+$/
 const isValidCommandName = (name: string) =>
     name.length > 0 && name.length <= 32 && NAME_REGEX.test(name)
-const isValidCommandResponse = (response: string) =>
-    response.length > 0 && response.length <= 2000
 const isValidCommandDescription = (description: string) =>
     description.length <= 100
 
@@ -62,14 +60,24 @@ function CommandFormModal({
     )
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const nameInputRef = useRef<HTMLInputElement>(null)
+    const responseInputRef = useRef<HTMLTextAreaElement>(null)
+
+    useEffect(() => {
+        ;(isEdit ? responseInputRef.current : nameInputRef.current)?.focus()
+    }, [isEdit])
 
     const handleSave = async () => {
         if (!isEdit && !isValidCommandName(form.name)) {
             setError(t('customCommands.nameInvalid'))
             return
         }
-        if (!isValidCommandResponse(form.response)) {
+        if (form.response.length === 0) {
             setError(t('customCommands.responseRequired'))
+            return
+        }
+        if (form.response.length > 2000) {
+            setError(t('customCommands.responseTooLong'))
             return
         }
         if (!isValidCommandDescription(form.description)) {
@@ -90,9 +98,22 @@ function CommandFormModal({
     }
 
     return (
-        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4'>
-            <div className='surface-card w-full max-w-lg rounded-xl p-5 space-y-4'>
-                <h2 className='type-title text-lucky-text-primary'>
+        <div
+            className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4'
+            onKeyDown={(e) => {
+                if (e.key === 'Escape') onClose()
+            }}
+        >
+            <div
+                role='dialog'
+                aria-modal='true'
+                aria-labelledby='command-form-title'
+                className='surface-card w-full max-w-lg rounded-xl p-5 space-y-4'
+            >
+                <h2
+                    id='command-form-title'
+                    className='type-title text-lucky-text-primary'
+                >
                     {isEdit
                         ? t('customCommands.editCommandTitle')
                         : t('customCommands.newCommandTitle')}
@@ -113,6 +134,7 @@ function CommandFormModal({
                     </Label>
                     <Input
                         id='cmd-name'
+                        ref={nameInputRef}
                         value={form.name}
                         disabled={isEdit}
                         placeholder={t('customCommands.namePlaceholder')}
@@ -135,6 +157,7 @@ function CommandFormModal({
                     </Label>
                     <textarea
                         id='cmd-response'
+                        ref={responseInputRef}
                         value={form.response}
                         placeholder={t('customCommands.responsePlaceholder')}
                         onChange={(e) =>
@@ -202,17 +225,26 @@ export default function CustomCommandsPage() {
         memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess
     const canManage = hasModuleAccess(effectiveAccess, 'automation', 'manage')
 
-    const fetchCommands = () => {
-        if (!selectedGuild?.id) return
+    useEffect(() => {
+        const guildId = selectedGuild?.id
+        if (!guildId) return
+        let stale = false
         setLoading(true)
         api.commands
-            .list(selectedGuild.id)
-            .then((res) => setCommands(res.data.commands))
-            .catch(() => setCommands([]))
-            .finally(() => setLoading(false))
-    }
-
-    useEffect(fetchCommands, [selectedGuild?.id])
+            .list(guildId)
+            .then((res) => {
+                if (!stale) setCommands(res.data.commands)
+            })
+            .catch(() => {
+                if (!stale) setCommands([])
+            })
+            .finally(() => {
+                if (!stale) setLoading(false)
+            })
+        return () => {
+            stale = true
+        }
+    }, [selectedGuild?.id])
 
     const filtered = useMemo(() => {
         return commands.filter((cmd) => {
@@ -248,15 +280,17 @@ export default function CustomCommandsPage() {
 
     const handleCreateOrUpdate = async (form: CommandFormState) => {
         if (!selectedGuild) return
-        const payload = {
-            response: form.response,
-            description: form.description || undefined,
-        }
         if (modalCommand) {
+            // Editing: send the description as typed (including '') so
+            // clearing it actually clears it server-side, instead of the
+            // key being dropped and the old value silently surviving.
             const res = await api.commands.update(
                 selectedGuild.id,
                 modalCommand.name,
-                payload,
+                {
+                    response: form.response,
+                    description: form.description,
+                },
             )
             setCommands((prev) =>
                 prev.map((c) => (c.id === modalCommand.id ? res.data : c)),
@@ -267,9 +301,19 @@ export default function CustomCommandsPage() {
         } else {
             const res = await api.commands.create(selectedGuild.id, {
                 name: form.name,
-                ...payload,
+                response: form.response,
+                description: form.description || undefined,
             })
-            setCommands((prev) => [...prev, res.data])
+            setCommands((prev) => {
+                // POST /commands is idempotent on (guildId, name): a
+                // case-insensitive name collision returns the existing row
+                // with 200, so only append when it isn't already in state
+                // (otherwise we'd render a duplicate row with a duplicate key).
+                const exists = prev.some((c) => c.id === res.data.id)
+                return exists
+                    ? prev.map((c) => (c.id === res.data.id ? res.data : c))
+                    : [...prev, res.data]
+            })
             toast.success(
                 t('customCommands.createSuccess', { name: form.name }),
             )
@@ -409,6 +453,7 @@ export default function CustomCommandsPage() {
                                 <div className='flex items-center gap-2 shrink-0'>
                                     <Switch
                                         checked={cmd.enabled}
+                                        disabled={!canManage}
                                         onCheckedChange={() =>
                                             handleToggle(cmd)
                                         }
@@ -486,9 +531,22 @@ export default function CustomCommandsPage() {
             )}
 
             {deleteTarget && (
-                <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4'>
-                    <div className='surface-card rounded-xl p-6 max-w-sm w-full space-y-4'>
-                        <h3 className='type-title text-lucky-text-primary'>
+                <div
+                    className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4'
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') setDeleteTarget(null)
+                    }}
+                >
+                    <div
+                        role='dialog'
+                        aria-modal='true'
+                        aria-labelledby='delete-command-title'
+                        className='surface-card rounded-xl p-6 max-w-sm w-full space-y-4'
+                    >
+                        <h3
+                            id='delete-command-title'
+                            className='type-title text-lucky-text-primary'
+                        >
                             {t('customCommands.deleteCommand')}
                         </h3>
                         <p className='type-body-sm text-lucky-text-secondary'>
@@ -499,6 +557,7 @@ export default function CustomCommandsPage() {
                         <div className='flex gap-3 justify-end'>
                             <Button
                                 variant='secondary'
+                                autoFocus
                                 onClick={() => setDeleteTarget(null)}
                             >
                                 {t('customCommands.cancel')}
