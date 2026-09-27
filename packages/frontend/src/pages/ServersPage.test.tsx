@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { userEvent } from '@testing-library/user-event'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import ServersPage from './ServersPage'
 import { useGuildStore } from '@/stores/guildStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -10,6 +11,10 @@ vi.mock('@/stores/authStore')
 vi.mock('@/hooks/usePageMetadata', () => ({ usePageMetadata: vi.fn() }))
 vi.mock('@/components/Dashboard/ServerGrid', () => ({
     default: () => <div data-testid='server-grid'>ServerGrid</div>,
+}))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('@/services/api', () => ({
+    api: { guilds: { getInvite: vi.fn() } },
 }))
 
 const translations: Record<string, string> = {
@@ -55,12 +60,13 @@ function mockStores({
     isLoading = false,
     guilds = mockGuilds,
     user = mockUser,
+    selectGuild = vi.fn(),
 }: any = {}) {
     vi.mocked(useGuildStore).mockImplementation((selector?: any) => {
         const state = {
             guilds,
             selectedGuild: null,
-            selectGuild: vi.fn(),
+            selectGuild,
             isLoading,
             error: null,
             fetchGuilds: vi.fn(),
@@ -167,5 +173,95 @@ describe('ServersPage', () => {
             </MemoryRouter>,
         )
         expect(screen.getByText('Lucky installed')).toBeInTheDocument()
+    })
+
+    function renderAtServers() {
+        return render(
+            <MemoryRouter initialEntries={['/servers']}>
+                <Routes>
+                    <Route path='/servers' element={<ServersPage />} />
+                    <Route
+                        path='/'
+                        element={<div data-testid='home-page'>Home</div>}
+                    />
+                    <Route
+                        path='*'
+                        element={<div data-testid='not-found'>Not Found</div>}
+                    />
+                </Routes>
+            </MemoryRouter>,
+        )
+    }
+
+    test('recently active card navigates to a route that exists when bot is installed', async () => {
+        const selectGuild = vi.fn()
+        const guild = { id: '1', name: 'Server 1', botAdded: true }
+        mockStores({ guilds: [guild], selectGuild })
+        const user = userEvent.setup()
+        renderAtServers()
+
+        const card = screen.getByText('Server 1').closest('button')
+        expect(card).not.toBeNull()
+        await user.click(card as HTMLButtonElement)
+
+        expect(selectGuild).toHaveBeenCalledWith(
+            expect.objectContaining({ id: '1' }),
+        )
+        expect(screen.getByTestId('home-page')).toBeInTheDocument()
+        expect(screen.queryByTestId('not-found')).not.toBeInTheDocument()
+    })
+
+    test('recently active card opens invite flow instead of navigating when bot is not installed', async () => {
+        const { api } = await import('@/services/api')
+        vi.mocked(api.guilds.getInvite).mockResolvedValue({
+            data: { inviteUrl: 'https://discord.com/invite/test' },
+        } as any)
+        const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+        try {
+            const selectGuild = vi.fn()
+            const guild = { id: '1', name: 'Server 1', botAdded: false }
+            mockStores({ guilds: [guild], selectGuild })
+            const user = userEvent.setup()
+            renderAtServers()
+
+            const card = screen.getByText('Server 1').closest('button')
+            await user.click(card as HTMLButtonElement)
+
+            expect(api.guilds.getInvite).toHaveBeenCalledWith('1')
+            expect(openSpy).toHaveBeenCalledWith(
+                'https://discord.com/invite/test',
+                '_blank',
+            )
+            expect(selectGuild).not.toHaveBeenCalled()
+            expect(screen.queryByTestId('home-page')).not.toBeInTheDocument()
+        } finally {
+            openSpy.mockRestore()
+        }
+    })
+
+    test('recently active card shows an error toast and does not navigate when invite generation fails', async () => {
+        const { api } = await import('@/services/api')
+        const { toast } = await import('sonner')
+        vi.mocked(api.guilds.getInvite).mockRejectedValue(new Error('boom'))
+        const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+        try {
+            const selectGuild = vi.fn()
+            const guild = { id: '1', name: 'Server 1', botAdded: false }
+            mockStores({ guilds: [guild], selectGuild })
+            const user = userEvent.setup()
+            renderAtServers()
+
+            const card = screen.getByText('Server 1').closest('button')
+            await user.click(card as HTMLButtonElement)
+
+            expect(toast.error).toHaveBeenCalledWith(
+                'Failed to generate invite URL',
+            )
+            expect(openSpy).not.toHaveBeenCalled()
+            expect(selectGuild).not.toHaveBeenCalled()
+            expect(screen.queryByTestId('home-page')).not.toBeInTheDocument()
+        } finally {
+            openSpy.mockRestore()
+        }
     })
 })
