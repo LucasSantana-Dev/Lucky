@@ -1,10 +1,4 @@
-import {
-    describe,
-    test,
-    expect,
-    jest,
-    beforeEach,
-} from '@jest/globals'
+import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import type { Request, Response, NextFunction } from 'express'
 
 const requireGuildModuleAccess = jest.fn()
@@ -49,8 +43,12 @@ jest.mock('@lucky/shared/services', () => ({
         getWelcomeMessage: jest.fn().mockResolvedValue(null),
         getLeaveMessage: jest.fn().mockResolvedValue(null),
         createMessage: jest.fn().mockResolvedValue({ id: 'msg-1' }),
-        updateMessage: jest.fn().mockResolvedValue({ id: 'msg-1', type: 'welcome' }),
-        toggleMessage: jest.fn().mockResolvedValue({ id: 'msg-1', type: 'welcome' }),
+        updateMessage: jest
+            .fn()
+            .mockResolvedValue({ id: 'msg-1', type: 'welcome' }),
+        toggleMessage: jest
+            .fn()
+            .mockResolvedValue({ id: 'msg-1', type: 'welcome' }),
         deleteMessage: jest.fn().mockResolvedValue({}),
     },
     serverLogService: {
@@ -76,16 +74,9 @@ function createApp() {
     const app = express()
     app.use(express.json())
     setupManagementRoutes(app)
-    app.use(
-        (
-            err: any,
-            _req: Request,
-            res: Response,
-            _next: NextFunction,
-        ) => {
-            res.status(err.statusCode ?? 500).json({ error: err.message })
-        },
-    )
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+        res.status(err.statusCode ?? 500).json({ error: err.message })
+    })
     return app
 }
 
@@ -98,23 +89,17 @@ describe('Management Routes RBAC', () => {
         beforeEach(() => {
             requireGuildModuleAccess.mockImplementation(
                 (_module: string, _mode?: string) => {
-                    return (_req: Request, _res: Response, next: NextFunction) => {
+                    return (
+                        _req: Request,
+                        _res: Response,
+                        next: NextFunction,
+                    ) => {
                         const res = _res as any
                         res.status(403).json({ error: 'Forbidden' })
                         res.statusCode = 403
                     }
                 },
             )
-        })
-
-        test('PATCH /api/guilds/:guildId/automod/settings returns 403 without manage access', async () => {
-            const app = createApp()
-            const res = await request(app)
-                .patch('/api/guilds/guild-123/automod/settings')
-                .send({ enabled: false })
-
-            expect(res.status).toBe(403)
-            expect(res.body.error).toBe('Forbidden')
         })
 
         test('POST /api/guilds/:guildId/commands returns 403 without manage access', async () => {
@@ -147,16 +132,27 @@ describe('Management Routes RBAC', () => {
             )
         })
 
-        test('requireGuildModuleAccess is called for automod state-changing routes', async () => {
-            const app = createApp()
-            await request(app)
-                .patch('/api/guilds/guild-123/automod/settings')
-                .send({ enabled: false })
+        // #2409: /automod/* and /logs/* used to register a second,
+        // handler-level requireGuildModuleAccess('settings', ...) /
+        // ('overview', ...) check on top of the `/automod` (moderation) and
+        // `/logs` (moderation) prefix guards wired in routes/index.ts,
+        // forcing callers to hold two unrelated modules. Those handler-level
+        // checks were removed, so routes/index.ts's prefix guard is now the
+        // only check for these paths.
+        //
+        // cubic review on PR #2449: this scans every route this file
+        // registers (commands, embeds, automessages included), not just
+        // /automod and /logs, so a future handler that legitimately needs
+        // `settings` would fail here with a misleading name. Scoped title to
+        // match the actual file-wide assertion.
+        test('requireGuildModuleAccess is never registered with settings or overview anywhere in setupManagementRoutes', () => {
+            createApp()
 
-            expect(requireGuildModuleAccess).toHaveBeenCalledWith(
-                'settings',
-                'manage',
+            const calledModules = requireGuildModuleAccess.mock.calls.map(
+                (call) => call[0],
             )
+            expect(calledModules).not.toContain('settings')
+            expect(calledModules).not.toContain('overview')
         })
 
         test('requireGuildModuleAccess is called for command state-changing routes', async () => {
@@ -168,16 +164,6 @@ describe('Management Routes RBAC', () => {
             expect(requireGuildModuleAccess).toHaveBeenCalledWith(
                 'automation',
                 'manage',
-            )
-        })
-
-        test('requireGuildModuleAccess is called with view mode for GET routes', async () => {
-            const app = createApp()
-            await request(app).get('/api/guilds/guild-123/logs')
-
-            expect(requireGuildModuleAccess).toHaveBeenCalledWith(
-                'overview',
-                'view',
             )
         })
     })

@@ -149,28 +149,14 @@ describe('Management Routes Integration', () => {
             })
         })
 
-        test('should return 403 for unauthorized user', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const mockGuildAccessServiceSvc = guildAccessService as jest.Mocked<
-                typeof guildAccessService
-            >
-            mockGuildAccessServiceSvc.resolveGuildContext.mockResolvedValue(
-                null,
-            )
-
-            const response = await request(app)
-                .get('/api/guilds/111111111111111111/automod/settings')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .expect(403)
-
-            expect(response.body).toEqual({
-                error: 'No access to this server',
-            })
-        })
+        // No "403 for unauthorized user" test here: #2409 removed this
+        // route's own requireGuildModuleAccess check (it duplicated, and
+        // conflicted with, the `/automod` prefix guard in routes/index.ts).
+        // Guild-access enforcement for this path is now covered end-to-end
+        // by tests/integration/routes/guildRouteGuardConsistency.test.ts and
+        // tests/unit/routes/index.test.ts, which exercise the real prefix
+        // wiring; this file mounts setupManagementRoutes in isolation, so it
+        // no longer has that check to observe.
 
         test('should return 500 on service error', async () => {
             const mockSessionService = sessionService as jest.Mocked<
