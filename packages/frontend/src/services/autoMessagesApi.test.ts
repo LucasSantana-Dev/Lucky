@@ -1,6 +1,19 @@
 import type { AxiosInstance } from 'axios'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { createAutoMessagesApi } from './autoMessagesApi'
+import {
+    buildCreatePayload,
+    buildUpdatePayload,
+    createAutoMessagesApi,
+    type AutoMessageFormValues,
+} from './autoMessagesApi'
+
+const baseForm: AutoMessageFormValues = {
+    type: 'welcome',
+    message: 'Welcome!',
+    channelId: '  123456789012345678  ',
+    trigger: '',
+    exactMatch: false,
+}
 
 const apiClient = {
     get: vi.fn(),
@@ -22,14 +35,14 @@ describe('createAutoMessagesApi', () => {
 
     test('create calls POST /guilds/:guildId/automessages with data', () => {
         const api = createAutoMessagesApi(apiClient)
-        const data = { name: 'Test', channel: 'ch-1', content: 'Hello', interval: 3600 }
+        const data = { type: 'welcome' as const, message: 'Hello', channelId: '123456789012345678' }
         api.create('guild-1', data)
         expect(apiClient.post).toHaveBeenCalledWith('/guilds/guild-1/automessages', data)
     })
 
     test('update calls PATCH /guilds/:guildId/automessages/:id with data', () => {
         const api = createAutoMessagesApi(apiClient)
-        const data = { content: 'Updated' }
+        const data = { message: 'Updated' }
         api.update('guild-1', 'msg-1', data)
         expect(apiClient.patch).toHaveBeenCalledWith('/guilds/guild-1/automessages/msg-1', data)
     })
@@ -54,5 +67,19 @@ describe('createAutoMessagesApi', () => {
         const api = createAutoMessagesApi(apiClient)
         api.delete('guild-1', 'msg-1')
         expect(apiClient.delete).toHaveBeenCalledWith('/guilds/guild-1/automessages/msg-1')
+    })
+})
+
+describe('buildCreatePayload', () => {
+    test('trims surrounding whitespace from a copied channel id', () => {
+        const payload = buildCreatePayload(baseForm)
+        expect(payload.channelId).toBe('123456789012345678')
+    })
+})
+
+describe('buildUpdatePayload', () => {
+    test('trims surrounding whitespace from a copied channel id', () => {
+        const payload = buildUpdatePayload(baseForm)
+        expect(payload.channelId).toBe('123456789012345678')
     })
 })

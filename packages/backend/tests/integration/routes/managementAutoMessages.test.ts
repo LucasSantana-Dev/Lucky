@@ -25,6 +25,7 @@ jest.mock('@lucky/shared/services', () => ({
         getMessagesByType: jest.fn(),
         getWelcomeMessage: jest.fn(),
         getLeaveMessage: jest.fn(),
+        getAutoResponders: jest.fn(),
         createMessage: jest.fn(),
         updateMessage: jest.fn(),
         toggleMessage: jest.fn(),
@@ -83,6 +84,7 @@ describe('Auto Message Routes Integration', () => {
                 welcomeMsg,
             )
             mockAutoMessageService.getLeaveMessage.mockResolvedValue(leaveMsg)
+            mockAutoMessageService.getAutoResponders.mockResolvedValue([])
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/automessages')
@@ -98,6 +100,38 @@ describe('Auto Message Routes Integration', () => {
             expect(mockAutoMessageService.getLeaveMessage).toHaveBeenCalledWith(
                 '111111111111111111',
             )
+        })
+
+        test('should include auto-response messages in the unified payload', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockAutoMessageService = autoMessageService as jest.Mocked<
+                typeof autoMessageService
+            >
+            const autoResponse = {
+                id: '3',
+                type: 'auto_response',
+                message: 'Pong!',
+                trigger: 'ping',
+            }
+            mockAutoMessageService.getWelcomeMessage.mockResolvedValue(null)
+            mockAutoMessageService.getLeaveMessage.mockResolvedValue(null)
+            mockAutoMessageService.getAutoResponders.mockResolvedValue([
+                autoResponse,
+            ])
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/automessages')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(response.body).toEqual({ messages: [autoResponse] })
+            expect(
+                mockAutoMessageService.getAutoResponders,
+            ).toHaveBeenCalledWith('111111111111111111')
         })
 
         test('should return 401 when not authenticated', async () => {
