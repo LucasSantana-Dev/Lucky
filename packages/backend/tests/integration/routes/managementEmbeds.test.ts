@@ -220,6 +220,24 @@ describe('Embed Management Routes Integration', () => {
             ).not.toHaveBeenCalled()
         })
 
+        test('rejects null thumbnail/image/footer on create (only PATCH can clear, #2445 review)', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const response = await request(app)
+                .post('/api/guilds/111111111111111111/embeds')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({
+                    name: 'welcome',
+                    embedData: { title: 'Welcome', thumbnail: null },
+                })
+                .expect(400)
+
+            expect(response.body.error).toBe('Validation failed')
+        })
+
         test('should return 401 when not authenticated', async () => {
             const mockSessionService = sessionService as jest.Mocked<
                 typeof sessionService
