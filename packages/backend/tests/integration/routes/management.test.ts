@@ -54,6 +54,7 @@ jest.mock('@lucky/shared/services', () => ({
         getRecentLogs: jest.fn(),
         getLogsByType: jest.fn(),
         searchLogs: jest.fn(),
+        countSearchLogs: jest.fn(),
         getUserLogs: jest.fn(),
         getStats: jest.fn(),
         countRecentLogs: jest.fn(),
@@ -720,7 +721,7 @@ describe('Management Routes Integration', () => {
     })
 
     describe('GET /api/guilds/:guildId/logs/search', () => {
-        test('should search logs when authenticated', async () => {
+        test('should search logs by text query when authenticated', async () => {
             const mockSessionService = sessionService as jest.Mocked<
                 typeof sessionService
             >
@@ -732,20 +733,75 @@ describe('Management Routes Integration', () => {
                 typeof serverLogService
             >
             mockServerLogService.searchLogs.mockResolvedValue(mockLogs)
+            mockServerLogService.countSearchLogs.mockResolvedValue(1)
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/logs/search?q=test')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
-            expect(response.body).toEqual({ logs: mockLogs })
+            expect(response.body).toEqual({ logs: mockLogs, total: 1 })
             expect(mockServerLogService.searchLogs).toHaveBeenCalledWith(
                 '111111111111111111',
                 {
+                    q: 'test',
+                    type: undefined,
+                    userId: undefined,
+                },
+                50,
+                0,
+            )
+            expect(mockServerLogService.countSearchLogs).toHaveBeenCalledWith(
+                '111111111111111111',
+                {
+                    q: 'test',
                     type: undefined,
                     userId: undefined,
                 },
             )
+        })
+
+        test('threads limit and offset through to the service for pagination', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockServerLogService = serverLogService as jest.Mocked<
+                typeof serverLogService
+            >
+            mockServerLogService.searchLogs.mockResolvedValue([])
+            mockServerLogService.countSearchLogs.mockResolvedValue(0)
+
+            await request(app)
+                .get(
+                    '/api/guilds/111111111111111111/logs/search?q=test&limit=10&offset=20',
+                )
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(mockServerLogService.searchLogs).toHaveBeenCalledWith(
+                '111111111111111111',
+                expect.objectContaining({ q: 'test' }),
+                10,
+                20,
+            )
+        })
+
+        test('rejects a search query over the 200 character limit', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const response = await request(app)
+                .get(
+                    `/api/guilds/111111111111111111/logs/search?q=${'a'.repeat(201)}`,
+                )
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(400)
+
+            expect(response.body.error).toBe('Validation failed')
         })
 
         test('should return 401 when not authenticated', async () => {

@@ -201,10 +201,46 @@ export class ServerLogService {
         })
     }
 
-    /** Searches logs with optional filters on type, user, channel, moderator, and date range. */
+    /** Builds the shared Prisma `where` clause for {@link searchLogs} and {@link countSearchLogs}. */
+    private buildSearchWhere(
+        guildId: string,
+        filters: {
+            q?: string
+            type?: LogType
+            userId?: string
+            channelId?: string
+            moderatorId?: string
+            startDate?: Date
+            endDate?: Date
+        },
+    ) {
+        return {
+            guildId,
+            // `q` is zod-validated and length-bounded by the caller; Prisma
+            // parameterizes `contains`, so this is safe against injection.
+            ...(filters.q && {
+                action: { contains: filters.q, mode: 'insensitive' as const },
+            }),
+            ...(filters.type && { type: filters.type }),
+            ...(filters.userId && { userId: filters.userId }),
+            ...(filters.channelId && { channelId: filters.channelId }),
+            ...(filters.moderatorId && {
+                moderatorId: filters.moderatorId,
+            }),
+            ...((filters.startDate || filters.endDate) && {
+                createdAt: {
+                    ...(filters.startDate && { gte: filters.startDate }),
+                    ...(filters.endDate && { lte: filters.endDate }),
+                },
+            }),
+        }
+    }
+
+    /** Searches logs with optional filters on text, type, user, channel, moderator, and date range. */
     async searchLogs(
         guildId: string,
         filters: {
+            q?: string
             type?: LogType
             userId?: string
             channelId?: string
@@ -213,25 +249,31 @@ export class ServerLogService {
             endDate?: Date
         },
         limit: number = 100,
+        offset: number = 0,
     ) {
         return await prisma.serverLog.findMany({
-            where: {
-                guildId,
-                ...(filters.type && { type: filters.type }),
-                ...(filters.userId && { userId: filters.userId }),
-                ...(filters.channelId && { channelId: filters.channelId }),
-                ...(filters.moderatorId && {
-                    moderatorId: filters.moderatorId,
-                }),
-                ...((filters.startDate || filters.endDate) && {
-                    createdAt: {
-                        ...(filters.startDate && { gte: filters.startDate }),
-                        ...(filters.endDate && { lte: filters.endDate }),
-                    },
-                }),
-            },
+            where: this.buildSearchWhere(guildId, filters),
             orderBy: { createdAt: 'desc' },
             take: limit,
+            skip: offset,
+        })
+    }
+
+    /** Counts logs matching the same filters as {@link searchLogs}, for pagination totals. */
+    async countSearchLogs(
+        guildId: string,
+        filters: {
+            q?: string
+            type?: LogType
+            userId?: string
+            channelId?: string
+            moderatorId?: string
+            startDate?: Date
+            endDate?: Date
+        },
+    ) {
+        return await prisma.serverLog.count({
+            where: this.buildSearchWhere(guildId, filters),
         })
     }
 

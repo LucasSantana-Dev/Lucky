@@ -230,6 +230,71 @@ describe('createLogsApi', () => {
 
             expect(result.data.logs).toEqual([])
         })
+
+        test('passes the q text search param', async () => {
+            vi.mocked(mockClient.get).mockResolvedValueOnce({
+                data: { logs: [SERVER_LOG], total: 1 },
+            })
+
+            const result = await api.search('g1', { q: 'kicked' })
+
+            expect(mockClient.get).toHaveBeenCalledWith(
+                '/guilds/g1/logs/search',
+                { params: { q: 'kicked' } },
+            )
+            expect(result.data.total).toBe(1)
+        })
+
+        test('passes q, type, limit, and offset together', async () => {
+            vi.mocked(mockClient.get).mockResolvedValueOnce({
+                data: { logs: [], total: 0 },
+            })
+
+            await api.search('g1', {
+                q: 'ban',
+                type: 'moderation',
+                limit: 25,
+                offset: 25,
+            })
+
+            expect(mockClient.get).toHaveBeenCalledWith(
+                '/guilds/g1/logs/search',
+                {
+                    params: {
+                        q: 'ban',
+                        type: 'moderation',
+                        limit: 25,
+                        offset: 25,
+                    },
+                },
+            )
+        })
+
+        test('includes offset 0 explicitly since it is a valid page start', async () => {
+            vi.mocked(mockClient.get).mockResolvedValueOnce({
+                data: { logs: [], total: 0 },
+            })
+
+            await api.search('g1', { offset: 0 })
+
+            expect(mockClient.get).toHaveBeenCalledWith(
+                '/guilds/g1/logs/search',
+                { params: { offset: 0 } },
+            )
+        })
+
+        test('omits q when it is undefined', async () => {
+            vi.mocked(mockClient.get).mockResolvedValueOnce({
+                data: { logs: [], total: 0 },
+            })
+
+            await api.search('g1', { q: undefined, type: 'kick' })
+
+            expect(mockClient.get).toHaveBeenCalledWith(
+                '/guilds/g1/logs/search',
+                { params: { type: 'kick' } },
+            )
+        })
     })
 
     describe('getUserLogs', () => {

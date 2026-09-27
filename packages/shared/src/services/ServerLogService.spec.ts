@@ -1,10 +1,19 @@
-import { describe, expect, it, jest } from '@jest/globals'
+import { describe, expect, it, jest, beforeEach } from '@jest/globals'
+
+const mockServerLog: any = {
+    findMany: jest.fn(),
+    count: jest.fn(),
+}
 
 jest.mock('../utils/database/prismaClient', () => ({
-    getPrismaClient: () => ({ serverLog: {} }),
+    getPrismaClient: () => ({ serverLog: mockServerLog }),
 }))
 
-import { serializeServerLog, LOG_LEVEL_BY_TYPE } from './ServerLogService'
+import {
+    serializeServerLog,
+    LOG_LEVEL_BY_TYPE,
+    serverLogService,
+} from './ServerLogService'
 
 describe('serializeServerLog', () => {
     const createdAt = new Date('2026-07-02T16:00:00.000Z')
@@ -110,5 +119,95 @@ describe('serializeServerLog', () => {
         expect(LOG_LEVEL_BY_TYPE.automod_trigger).toBe('automod')
         expect(LOG_LEVEL_BY_TYPE.mod_action).toBe('moderation')
         expect(LOG_LEVEL_BY_TYPE.custom_command).toBe('system')
+    })
+})
+
+describe('searchLogs', () => {
+    beforeEach(() => {
+        mockServerLog.findMany.mockReset()
+        mockServerLog.count.mockReset()
+    })
+
+    it('filters on the action field, case-insensitively, when q is provided', async () => {
+        mockServerLog.findMany.mockResolvedValue([])
+
+        await serverLogService.searchLogs('g1', { q: 'kicked' })
+
+        expect(mockServerLog.findMany).toHaveBeenCalledWith({
+            where: {
+                guildId: 'g1',
+                action: { contains: 'kicked', mode: 'insensitive' },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+            skip: 0,
+        })
+    })
+
+    it('combines q with type and userId filters', async () => {
+        mockServerLog.findMany.mockResolvedValue([])
+
+        await serverLogService.searchLogs('g1', {
+            q: 'ban',
+            type: 'mod_action',
+            userId: 'u1',
+        })
+
+        expect(mockServerLog.findMany).toHaveBeenCalledWith({
+            where: {
+                guildId: 'g1',
+                action: { contains: 'ban', mode: 'insensitive' },
+                type: 'mod_action',
+                userId: 'u1',
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+            skip: 0,
+        })
+    })
+
+    it('omits the action filter when q is absent', async () => {
+        mockServerLog.findMany.mockResolvedValue([])
+
+        await serverLogService.searchLogs('g1', { type: 'mod_action' })
+
+        expect(mockServerLog.findMany).toHaveBeenCalledWith({
+            where: { guildId: 'g1', type: 'mod_action' },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+            skip: 0,
+        })
+    })
+
+    it('threads limit and offset through for pagination', async () => {
+        mockServerLog.findMany.mockResolvedValue([])
+
+        await serverLogService.searchLogs('g1', { q: 'x' }, 10, 20)
+
+        expect(mockServerLog.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({ take: 10, skip: 20 }),
+        )
+    })
+})
+
+describe('countSearchLogs', () => {
+    beforeEach(() => {
+        mockServerLog.count.mockReset()
+    })
+
+    it('counts logs matching the same filters as searchLogs', async () => {
+        mockServerLog.count.mockResolvedValue(3)
+
+        const result = await serverLogService.countSearchLogs('g1', {
+            q: 'kicked',
+        })
+
+        expect(result).toBe(3)
+        expect(mockServerLog.count).toHaveBeenCalledWith({
+            where: {
+                guildId: 'g1',
+                action: { contains: 'kicked', mode: 'insensitive' },
+            },
+        })
     })
 })

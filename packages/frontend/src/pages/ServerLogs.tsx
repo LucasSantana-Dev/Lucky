@@ -188,20 +188,13 @@ export default function ServerLogsPage() {
         if (!selectedGuild?.id) return
         setLoading(true)
         try {
-            const pageLimit = limit * page
-            const res =
-                levelFilter !== 'all'
-                    ? await api.serverLogs.getByType(
-                          selectedGuild.id,
-                          levelFilter,
-                          pageLimit,
-                      )
-                    : await api.serverLogs.getRecent(
-                          selectedGuild.id,
-                          pageLimit,
-                      )
-            const allLogs = res.data.logs
-            setLogs(allLogs.slice((page - 1) * limit, page * limit))
+            const res = await api.serverLogs.search(selectedGuild.id, {
+                q: debouncedSearch.trim() || undefined,
+                type: levelFilter !== 'all' ? levelFilter : undefined,
+                limit,
+                offset: (page - 1) * limit,
+            })
+            setLogs(res.data.logs)
             setTotal(res.data.total)
         } catch (error) {
             reportError('Failed to load logs:', error, {

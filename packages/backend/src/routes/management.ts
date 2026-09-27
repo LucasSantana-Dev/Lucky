@@ -317,11 +317,18 @@ export function setupManagementRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const query = s.logsSearchQuery.parse(req.query)
-            const logs = await serverLogService.searchLogs(guildId, {
+            const filters = {
+                q: query.q,
                 type: query.type as LogType | undefined,
                 userId: query.userId,
-            })
-            res.json({ logs: logs.map(serializeServerLog) })
+            }
+            const limit = query.limit ?? 50
+            const offset = query.offset ?? 0
+            const [logs, total] = await Promise.all([
+                serverLogService.searchLogs(guildId, filters, limit, offset),
+                serverLogService.countSearchLogs(guildId, filters),
+            ])
+            res.json({ logs: logs.map(serializeServerLog), total })
         }),
     )
 
