@@ -81,20 +81,27 @@ export const debugLog = (params: LogParams): void => {
  *
  * `LogService` merges the ambient AsyncLocalStorage context into `data` for
  * any identity field (`correlationId`/`guildId`/`userId`) the caller does not
- * explicitly provide (see `log/service.ts`'s `extractJsonFields`). Called
- * from inside an interaction handler — where that context already carries the
- * requesting user's Discord id — this would otherwise leak a userId into
- * every telemetry line. These events are read in aggregate (Grafana panels)
- * and must never carry a per-user identifier or free-text content, so the
- * context is reset to empty before logging: only fields the caller passes
- * explicitly can appear.
+ * explicitly provide, AND hoists a `userId`/`correlationId` key found inside
+ * `data` itself to a top-level JSON field (see `log/service.ts`'s
+ * `extractJsonFields`). Resetting the context only closes the first path —
+ * a caller that (accidentally) passes `userId`/`correlationId` in `fields`
+ * would still have it hoisted and logged. These events are read in aggregate
+ * (Grafana panels) and must never carry a per-user identifier or free-text
+ * content, so both paths are closed here: the context is reset to empty, AND
+ * `userId`/`correlationId` are stripped from `fields` before they ever reach
+ * `data`.
  */
 export const telemetryLog = (
     event: string,
     fields: Record<string, string | boolean | undefined> = {},
 ): void => {
+    const {
+        userId: _userId,
+        correlationId: _correlationId,
+        ...safeFields
+    } = fields
     runWithLogContext({}, () => {
-        infoLog({ message: event, data: { event, ...fields } })
+        infoLog({ message: event, data: { event, ...safeFields } })
     })
 }
 

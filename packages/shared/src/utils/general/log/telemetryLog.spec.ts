@@ -54,6 +54,31 @@ describe('telemetryLog', () => {
         expect(output).toContain('dashboard_login')
     })
 
+    it('strips an explicit userId/correlationId field instead of letting them get hoisted and logged', () => {
+        const consoleSpy = jest
+            .spyOn(console, 'log')
+            .mockImplementation(() => {})
+
+        // No ambient context at all here — this call site itself is the
+        // one (accidentally) passing identity fields as `fields`.
+        telemetryLog('command_executed', {
+            guildId: 'g1',
+            command: 'play',
+            userId: 'explicit-user-id',
+            correlationId: 'explicit-correlation-id',
+        })
+
+        const output = consoleSpy.mock.calls
+            .map((call) => call.join(' '))
+            .join('\n')
+        expect(output).not.toContain('explicit-user-id')
+        expect(output).not.toContain('explicit-correlation-id')
+        expect(output).not.toContain('userId')
+        expect(output).not.toContain('correlationId')
+        expect(output).toContain('g1')
+        expect(output).toContain('play')
+    })
+
     it('restores the outer context after logging (does not leak the reset)', () => {
         jest.spyOn(console, 'log').mockImplementation(() => {})
 

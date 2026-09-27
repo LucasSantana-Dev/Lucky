@@ -384,6 +384,12 @@ services:
             - grafana_data:/var/lib/grafana
         networks:
             - lucky-network
+            # Shared monitoring network so Grafana can reach the homelab's
+            # Loki instance for the lucky-activation dashboard's Loki
+            # datasource (see observability/grafana/provisioning/datasources/loki.yaml).
+            # Same network bot/backend already join for the reverse
+            # direction (homelab Prometheus scraping them). See homelab PR #135.
+            - lucky-monitoring
         profiles:
             - observability
         logging:

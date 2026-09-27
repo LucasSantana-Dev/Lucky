@@ -98,11 +98,18 @@ describe('OAuth Callback (handleOAuthCallback)', () => {
         test('does not log dashboard_login when OAuth state validation fails', async () => {
             mockSuccessfulOAuthFlow()
 
-            await request(app)
+            const response = await request(app)
                 .get('/api/auth/callback')
                 .query({ code: MOCK_AUTH_CODE })
                 .expect(302)
 
+            // Prove *why* telemetryLog wasn't called: state validation
+            // short-circuited before the code ever reached the token
+            // exchange, not some unrelated silent failure.
+            expect(response.headers.location).toContain('invalid_state')
+            expect(
+                getDiscordOAuthMock().exchangeCodeForToken,
+            ).not.toHaveBeenCalled()
             expect(telemetryLogMock).not.toHaveBeenCalled()
         })
 
@@ -124,11 +131,17 @@ describe('OAuth Callback (handleOAuthCallback)', () => {
 
             const agent = request.agent(testApp)
 
-            await agent
+            const response = await agent
                 .get('/api/auth/callback')
                 .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
                 .expect(302)
 
+            // Prove the token exchange was actually attempted (and failed)
+            // rather than the request never reaching that point.
+            expect(
+                getDiscordOAuthMock().exchangeCodeForToken,
+            ).toHaveBeenCalled()
+            expect(response.headers.location).toContain('error=auth_failed')
             expect(telemetryLogMock).not.toHaveBeenCalled()
         })
     })
