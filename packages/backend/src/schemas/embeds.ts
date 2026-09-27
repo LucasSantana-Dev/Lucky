@@ -43,7 +43,7 @@ const createEmbedBody = z.object({
 
 // Flat, matching what EmbedBuilder.tsx sends and what
 // EmbedBuilderService.updateTemplate persists directly (no `embedData`
-// wrapper) — see #2407.
+// wrapper). See #2407.
 const updateEmbedBody = embedDataSchema
     .extend({
         description: z.string().max(500).optional(),
