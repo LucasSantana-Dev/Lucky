@@ -227,3 +227,38 @@ describe('streamViaYtDlpSearch', () => {
         )
     })
 })
+
+// ---------------------------------------------------------------------------
+// HOSTED_YOUTUBE_ENABLED = false (#2475 follow-up)
+// ---------------------------------------------------------------------------
+
+describe('HOSTED_YOUTUBE_ENABLED = false', () => {
+    const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
+    const validUrl = 'https://www.youtube.com/watch?v=abc123'
+
+    beforeEach(() => {
+        process.env.HOSTED_YOUTUBE_ENABLED = 'false'
+    })
+
+    afterEach(() => {
+        if (originalEnv === undefined) {
+            delete process.env.HOSTED_YOUTUBE_ENABLED
+        } else {
+            process.env.HOSTED_YOUTUBE_ENABLED = originalEnv
+        }
+    })
+
+    it('streamViaYtDlp rejects without spawning yt-dlp', async () => {
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow(
+            'YouTube disabled',
+        )
+        expect(mockSpawn).not.toHaveBeenCalled()
+    })
+
+    it('streamViaYtDlpSearch rejects without spawning yt-dlp', async () => {
+        await expect(streamViaYtDlpSearch('some song')).rejects.toThrow(
+            'YouTube disabled',
+        )
+        expect(mockSpawn).not.toHaveBeenCalled()
+    })
+})

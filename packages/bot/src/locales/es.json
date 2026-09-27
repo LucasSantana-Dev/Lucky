@@ -1,4 +1,9 @@
 {
+    "general": {
+        "errors": {
+            "menuNotYours": "Este menú no es tuyo. Ejecuta el comando tú mismo para explorar las categorías."
+        }
+    },
     "music": {
         "common": {
             "error": "Error",

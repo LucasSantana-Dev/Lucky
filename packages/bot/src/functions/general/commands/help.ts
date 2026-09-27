@@ -16,6 +16,7 @@ import {
     getAllCategories,
 } from '../../../utils/command/commandCategory'
 import { EMBED_COLORS } from '../../../utils/general/embeds'
+import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
 
 // The hosted bot leads with music (decisions/2026-09-27-music-first-
 // positioning.md point 2): moderation, automod, giveaways, logs, Twitch and
@@ -274,6 +275,25 @@ export async function handleHelpCategorySelect(
     client: CustomClient,
 ): Promise<void> {
     try {
+        // The default /help reply is not ephemeral, so anyone in the channel
+        // can see and click its select menu. Only the original invoker may
+        // change it: compare against the interaction that produced the
+        // message, not the current interaction's own user (which would
+        // trivially match). No metadata (message not sent from an
+        // interaction, or Discord hasn't backfilled it) fails closed.
+        const ownerId = interaction.message.interactionMetadata?.user.id
+        if (interaction.user.id !== ownerId) {
+            const t = await translatorForInteraction(interaction)
+            await interactionReply({
+                interaction,
+                content: {
+                    content: t('general.errors.menuNotYours'),
+                    ephemeral: true,
+                },
+            })
+            return
+        }
+
         const selected = interaction.values[0]
         const categoryCommands = buildCategoryCommands(client.commands)
         const embeds = createHelpEmbeds(categoryCommands, client, interaction, [

@@ -4,6 +4,7 @@ import { PassThrough } from 'node:stream'
 import type { Readable } from 'node:stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
+import { isHostedYoutubeEnabled } from '../../config/featureFlags'
 
 // Absolute path, not a bare "yt-dlp" resolved via PATH lookup (CWE-426):
 // the Dockerfile symlinks the venv binary to this fixed location. Override
@@ -98,7 +99,20 @@ function ytdlpCookiesArgs(): string[] {
 // above that measured p100.
 export const YTDLP_STREAM_START_TIMEOUT_MS = 8_000
 
+// HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-positioning.md
+// point 3): this is the layer that actually spawns yt-dlp against YouTube, so
+// the kill switch is enforced here rather than only at the extractor
+// registration in playerFactory.ts. Registration is normally the only path
+// in, but this module is exported (re-exported at playerFactory.ts) and
+// callers reaching it directly must not be able to bypass the flag.
+// streamViaYtDlpSearch delegates to this function for every call, so this
+// single check covers both the URL and search entry points.
 export function streamViaYtDlp(url: string): Promise<Readable> {
+    if (!isHostedYoutubeEnabled()) {
+        return Promise.reject(
+            new Error('yt-dlp: YouTube disabled (HOSTED_YOUTUBE_ENABLED)'),
+        )
+    }
     try {
         validateYtDlpUrl(url)
     } catch (err) {
@@ -176,7 +190,9 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
                 reject(new Error(`yt-dlp exited with code ${code}${reason}`))
             } else {
                 reject(
-                    new Error(`yt-dlp exited without output (code ${code})${reason}`),
+                    new Error(
+                        `yt-dlp exited without output (code ${code})${reason}`,
+                    ),
                 )
             }
         })

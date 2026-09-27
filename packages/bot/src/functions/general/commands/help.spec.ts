@@ -26,6 +26,13 @@ jest.mock('../../../utils/general/embeds.js', () => ({
     EMBED_COLORS: { INFO: 0x3b82f6 },
 }))
 
+// translatorForInteraction transitively loads @lucky/shared/services (Prisma-
+// backed, ESM), irrelevant to this suite, so stub it directly.
+const translatorForInteraction = jest.fn(async () => (key: string) => key)
+jest.mock('../../../i18n/translatorForInteraction.js', () => ({
+    translatorForInteraction,
+}))
+
 import { errorLog } from '@lucky/shared/utils'
 import helpCommand, { handleHelpCategorySelect } from './help.js'
 
@@ -56,13 +63,16 @@ function makeClient(commands: unknown[]) {
     }
 }
 
-function makeSelectInteraction(selected: string) {
+function makeSelectInteraction(selected: string, ownerId = 'u1') {
     return {
         values: [selected],
         user: {
             id: 'u1',
             tag: 'alice#0000',
             displayAvatarURL: () => 'https://example.com/avatar.png',
+        },
+        message: {
+            interactionMetadata: { user: { id: ownerId } },
         },
         update: jest.fn().mockResolvedValue(undefined),
         followUp: jest.fn().mockResolvedValue(undefined),
@@ -232,6 +242,34 @@ describe('/help', () => {
         await handleHelpCategorySelect(interaction as never, client as never)
 
         expect(errorLog).toHaveBeenCalled()
+        expect(interactionReply).toHaveBeenCalledTimes(1)
+    })
+
+    test('category select rejects a click from someone other than the invoker', async () => {
+        const client = makeClient([makeCommand('play', 'Play music', 'music')])
+        const interaction = makeSelectInteraction('music', 'someone-else')
+
+        await handleHelpCategorySelect(interaction as never, client as never)
+
+        expect(interaction.update).not.toHaveBeenCalled()
+        expect(interactionReply).toHaveBeenCalledTimes(1)
+        const call = interactionReply.mock.calls[0][0] as {
+            content: { content?: string; ephemeral?: boolean }
+        }
+        expect(call.content.ephemeral).toBe(true)
+        expect(call.content.content).toBe('general.errors.menuNotYours')
+    })
+
+    test('category select allows a click with no interactionMetadata to be rejected, not crash', async () => {
+        const client = makeClient([makeCommand('play', 'Play music', 'music')])
+        const interaction = {
+            ...makeSelectInteraction('music'),
+            message: {},
+        }
+
+        await handleHelpCategorySelect(interaction as never, client as never)
+
+        expect(interaction.update).not.toHaveBeenCalled()
         expect(interactionReply).toHaveBeenCalledTimes(1)
     })
 
