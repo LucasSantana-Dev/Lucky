@@ -486,27 +486,31 @@ export default function AutoModPage() {
 
     useEffect(() => {
         if (!selectedGuild?.id) return
+        const guildId = selectedGuild.id
+        let cancelled = false
         setLoading(true)
         setSettingsError(null)
         api.automod
-            .getSettings(selectedGuild.id)
-            .then((res) =>
+            .getSettings(guildId)
+            .then((res) => {
+                if (cancelled) return
                 setSettings(
-                    normalizeAutoModSettings(
-                        res.data?.settings,
-                        selectedGuild.id,
-                    ),
-                ),
-            )
+                    normalizeAutoModSettings(res.data?.settings, guildId),
+                )
+            })
             .catch(() => {
+                if (cancelled) return
                 setSettingsError(
                     'Failed to load automod settings. Saving is disabled until settings load successfully.',
                 )
-                setSettings(
-                    normalizeAutoModSettings(undefined, selectedGuild.id),
-                )
+                setSettings(normalizeAutoModSettings(undefined, guildId))
             })
-            .finally(() => setLoading(false))
+            .finally(() => {
+                if (!cancelled) setLoading(false)
+            })
+        return () => {
+            cancelled = true
+        }
     }, [selectedGuild?.id])
 
     useEffect(() => {
@@ -551,13 +555,7 @@ export default function AutoModPage() {
     }
 
     const handleSave = async () => {
-        if (!selectedGuild?.id) return
-        if (settingsError) {
-            toast.error(
-                'Cannot save: settings failed to load. Reload the page and try again.',
-            )
-            return
-        }
+        if (!selectedGuild?.id || settingsError) return
         setSaving(true)
         try {
             const {
