@@ -109,7 +109,6 @@ export default function Landing() {
             />
             <FeatureGrid />
             <CommandList />
-            <WhySelfHost />
             <StackList />
             <RepoFooterBanner />
             <FooterSection />
@@ -291,15 +290,6 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
                                 />
                             </button>
                         )}
-                        <a
-                            href={REPO_URL}
-                            target='_blank'
-                            rel='noreferrer'
-                            className='inline-flex h-11 items-center justify-center gap-2 rounded-md border border-lucky-border-strong bg-transparent px-5 font-semibold text-lucky-text-body hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas active:scale-[0.98]'
-                        >
-                            <GithubMark size={14} />{' '}
-                            {t('landing.hero.ctaSecondary')}
-                        </a>
                     </div>
                 </motion.div>
 
@@ -543,38 +533,6 @@ function RepoStat({
             </span>
             <span className='text-lucky-text-muted'>{label}</span>
         </div>
-    )
-}
-
-function WhySelfHost() {
-    const { t } = useTranslation()
-    const items = ['data', 'fork', 'free'] as const
-    return (
-        <section className='border-t border-lucky-border-soft px-4 py-20 md:px-8'>
-            <div className='mx-auto max-w-6xl'>
-                <h2 className='mb-10 max-w-2xl font-mono text-xs uppercase tracking-[0.22em] text-lucky-text-muted'>
-                    <span className='mr-2 text-lucky-brand'>{'//'}</span>
-                    {t('landing.whySelfHost.heading')}
-                </h2>
-                <ul className='grid gap-px overflow-hidden rounded-xl border border-lucky-border-soft bg-lucky-border-soft md:grid-cols-3'>
-                    {items.map((key) => (
-                        <li
-                            key={key}
-                            className='bg-lucky-surface-sidebar p-5 sm:p-7 min-w-0'
-                        >
-                            <h3 className='mb-2.5 text-base font-semibold text-lucky-text-strong tracking-tight'>
-                                {t(`landing.whySelfHost.items.${key}.title`)}
-                            </h3>
-                            <p className='text-sm text-lucky-text-body leading-relaxed break-words'>
-                                {t(
-                                    `landing.whySelfHost.items.${key}.description`,
-                                )}
-                            </p>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-        </section>
     )
 }
 

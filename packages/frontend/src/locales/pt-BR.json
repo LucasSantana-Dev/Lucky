@@ -177,20 +177,19 @@
     },
     "landing": {
         "meta": {
-            "title": "Lucky — Um bot do Discord que você pode hospedar",
-            "description": "Bot do Discord open source com música, moderação, comandos personalizados e painel web. Grátis para sempre. Rode na sua própria máquina."
+            "title": "Lucky: bot de música grátis do Discord com autoplay e painel",
+            "description": "Lucky aprende o gosto musical do seu servidor e mantém a call tocando, sem precisar de DJ. Grátis, sem paywall."
         },
         "hero": {
             "eyebrow": "Open source · ISC",
-            "headlineLine1": "Um bot do Discord bem feito.",
-            "headlineLine2": "E você que manda.",
-            "subtitle": "Música, moderação, comandos personalizados e um painel web completo. Use a versão hospedada em dois cliques, ou rode no seu próprio box se preferir.",
-            "ctaPrimary": "Adicionar ao Discord",
-            "ctaSecondary": "Auto-hospedar no GitHub"
+            "headlineLine1": "Aprende o gosto do seu servidor.",
+            "headlineLine2": "Mantém a call tocando.",
+            "subtitle": "Sem precisar de DJ. Busque pelo nome ou cole um link do Spotify, e o autoplay continua a partir daí. Grátis, sem paywall.",
+            "ctaPrimary": "Adicionar ao Discord"
         },
         "repoCard": {
             "name": "LucasSantana-Dev / Lucky",
-            "description": "Bot de música do Discord auto-hospedável — Spotify + YouTube + SoundCloud, autoplay com recomendações, painel React, suíte de moderação.",
+            "description": "Bot de música do Discord com autoplay que aprende o gosto do servidor, painel React e suíte de moderação.",
             "license": "ISC",
             "lang": "TypeScript",
             "serversLabel": "servidores",
@@ -198,29 +197,12 @@
             "viewOnGithub": "Ver no GitHub",
             "copyClone": "Copiar URL de clone"
         },
-        "whySelfHost": {
-            "heading": "Por que auto-hospedar",
-            "items": {
-                "data": {
-                    "title": "Os dados do seu servidor são seus",
-                    "description": "Postgres, Redis, seu hardware. Nada de termos de uso de terceiros sobre a sua comunidade. Exporte e migre quando quiser."
-                },
-                "fork": {
-                    "title": "Fork no código",
-                    "description": "Monorepo TypeScript. Adicione comandos, mude comportamento, troque providers sem esperar por uma roadmap ou pagar por tier de API."
-                },
-                "free": {
-                    "title": "Grátis, sem tier premium",
-                    "description": "Sem paywall, sem Patreon, sem limite de uso por tier. Licença ISC. A versão hospedada existe pra quem não quer rodar uma máquina."
-                }
-            }
-        },
         "commands": {
             "heading": "100+ comandos, com escopo no que você roda",
             "rows": {
                 "play": {
                     "name": "/play",
-                    "description": "Adicione um track do Spotify, YouTube ou SoundCloud à fila",
+                    "description": "Adicione uma música pelo nome ou cole um link do Spotify",
                     "kbd": "música"
                 },
                 "autoplay": {
@@ -292,7 +274,7 @@
             "supportCopy": "Issues e PRs são bem-vindos no GitHub. Ou entre no servidor de suporte do Discord.",
             "terms": "Termos",
             "privacy": "Privacidade",
-            "github": "GitHub",
+            "github": "Código-fonte",
             "docs": "Docs",
             "changelog": "Changelog",
             "discord": "Servidor de suporte",
@@ -304,7 +286,7 @@
             "items": {
                 "music": {
                     "title": "Música com autoplay inteligente",
-                    "description": "Adicione tracks do Spotify, YouTube ou SoundCloud. O autoplay acompanha o mood e não troca de idioma."
+                    "description": "Busque pelo nome ou cole um link do Spotify. O autoplay aprende o clima e não troca de idioma."
                 },
                 "moderation": {
                     "title": "Moderação que não dorme",
