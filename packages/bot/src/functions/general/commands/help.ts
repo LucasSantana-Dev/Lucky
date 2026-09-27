@@ -244,10 +244,17 @@ export default new Command({
             // interactionReply edits the deferred reply on the first call and
             // routes subsequent calls to followUp (interaction.replied), so
             // each page lands as its own message within Discord's 6000 cap.
-            for (const embed of embeds) {
+            // The category select only goes on the first page: attaching it
+            // to every page would leave multiple "live" menus around, and
+            // picking one on a later page only updates that one message,
+            // leaving the others stuck showing a stale category.
+            for (const [index, embed] of embeds.entries()) {
                 await interactionReply({
                     interaction,
-                    content: { embeds: [embed], components: [row] },
+                    content: {
+                        embeds: [embed],
+                        components: index === 0 ? [row] : [],
+                    },
                 })
             }
             infoLog({ message: 'Help command: Successfully sent response' })
@@ -280,9 +287,10 @@ export async function handleHelpCategorySelect(
         })
 
         // Extra pages are rare (only a very large category would need one);
-        // send any beyond the first as plain follow-ups.
+        // send any beyond the first as plain follow-ups, with no select menu
+        // of their own (same reasoning as the default /help reply above).
         for (const embed of embeds.slice(1)) {
-            await interaction.followUp({ embeds: [embed], components: [row] })
+            await interaction.followUp({ embeds: [embed] })
         }
     } catch (error) {
         errorLog({ message: 'Help category select error:', error })

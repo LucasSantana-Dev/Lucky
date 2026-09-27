@@ -345,12 +345,13 @@ export async function searchLastFmQuery(
     // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-positioning.md
     // point 3): no extractor is registered to serve YOUTUBE_SEARCH when
     // disabled, so drop it from the arm list instead of paying for a
-    // guaranteed miss.
-    const engines: QueryType[] = [
-        QueryType.SPOTIFY_SEARCH,
-        ...(isHostedYoutubeEnabled() ? [QueryType.YOUTUBE_SEARCH] : []),
-        QueryType.AUTO,
-    ]
+    // guaranteed miss. AUTO also defaults to a YouTube search for a plain-text
+    // query (see engineManager.spec.ts), so it is just as much a guaranteed
+    // miss here; swap it for SOUNDCLOUD_SEARCH instead of dropping the last
+    // arm entirely.
+    const engines: QueryType[] = isHostedYoutubeEnabled()
+        ? [QueryType.SPOTIFY_SEARCH, QueryType.YOUTUBE_SEARCH, QueryType.AUTO]
+        : [QueryType.SPOTIFY_SEARCH, QueryType.SOUNDCLOUD_SEARCH]
     let hadError = false
     for (const engine of engines) {
         try {

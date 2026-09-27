@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { QueryType } from 'discord-player'
 import type { Track, GuildQueue } from 'discord-player'
 import type { AutoplayContext } from './autoplayContext'
 
@@ -25,6 +26,7 @@ jest.mock('discord-player', () => ({
     QueryType: {
         SPOTIFY_SEARCH: 'spotify_search',
         YOUTUBE_SEARCH: 'youtube_search',
+        SOUNDCLOUD_SEARCH: 'soundcloud_search',
         AUTO: 'auto',
     },
 }))
@@ -184,7 +186,7 @@ describe('searchLastFmQuery', () => {
             }
         })
 
-        it('skips the YouTube engine arm and falls through to AUTO', async () => {
+        it('skips the YouTube engine arm and falls through to SoundCloud', async () => {
             const track = createTrack()
             const queue = createQueue({ tracks: [] })
             const searchMock = queue.player.search as jest.Mock
@@ -196,10 +198,11 @@ describe('searchLastFmQuery', () => {
             const result = await searchLastFmQuery(queue, 'test query', user)
 
             expect(result).toHaveLength(1)
-            // Only 2 arms attempted (Spotify, AUTO): YouTube skipped.
+            // Only 2 arms attempted (Spotify, SoundCloud): YouTube and AUTO
+            // (which itself defaults to a YouTube search) are both skipped.
             expect(searchMock).toHaveBeenCalledTimes(2)
             expect(searchMock.mock.calls[1][1]).toMatchObject({
-                searchEngine: 'auto',
+                searchEngine: QueryType.SOUNDCLOUD_SEARCH,
             })
         })
     })

@@ -5,6 +5,7 @@ const requireDJRoleMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
 const buildPlayResponseEmbedMock = jest.fn()
 const createMusicControlButtonsMock = jest.fn()
+const createMusicActionButtonsMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createErrorEmbedMock = jest.fn()
 const createWarningEmbedMock = jest.fn()
@@ -39,6 +40,8 @@ jest.mock('../../../../utils/music/nowPlayingEmbed', () => ({
 jest.mock('../../../../utils/music/buttonComponents', () => ({
     createMusicControlButtons: (...args: unknown[]) =>
         createMusicControlButtonsMock(...args),
+    createMusicActionButtons: (...args: unknown[]) =>
+        createMusicActionButtonsMock(...args),
 }))
 jest.mock('../../../../utils/general/embeds', () => ({
     createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
@@ -351,6 +354,7 @@ describe('executePlayAtTop — fallback chain', () => {
         resolveGuildQueueMock.mockReturnValue({ queue: fakeQueue })
         buildPlayResponseEmbedMock.mockReturnValue({ title: 'Now Playing' })
         createMusicControlButtonsMock.mockReturnValue([])
+        createMusicActionButtonsMock.mockReturnValue([])
         interactionReplyMock.mockResolvedValue(undefined)
         createUserFriendlyErrorMock.mockReturnValue('friendly error')
         createErrorEmbedMock.mockReturnValue({ title: 'error' })

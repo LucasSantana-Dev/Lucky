@@ -419,6 +419,43 @@ describe('resolveQueryWithFallbacks', () => {
 
             expect(mockPlayer.play).toHaveBeenCalledTimes(2)
         })
+
+        it('still runs the #2145 Spotify retry before falling back to SoundCloud', async () => {
+            // The retry-on-NoResultError check (isNoResultError) runs before
+            // the isHostedYoutubeEnabled() branch, so a genuine NoResultError
+            // still pays for the retry even with the flag off. A regression
+            // that drops or reorders the retry would make this 2 calls
+            // instead of 3.
+            class NoResultError extends Error {
+                constructor(message: string) {
+                    super(message)
+                    this.name = 'NoResultError'
+                }
+            }
+            const noResultError = new NoResultError('No results found')
+            const mockTrack = { title: 'Test Song' }
+
+            mockPlayer.play
+                .mockRejectedValueOnce(noResultError)
+                .mockRejectedValueOnce(noResultError)
+                .mockResolvedValueOnce(mockTrack)
+
+            const { result, telemetry } = await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'test query',
+                'default',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            expect(result).toEqual(mockTrack)
+            expect(telemetry.resolvedVia).toBe('soundcloud-fallback')
+            expect(mockPlayer.play).toHaveBeenCalledTimes(3)
+            expect(mockPlayer.play.mock.calls[2][2]).toMatchObject({
+                searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+            })
+        })
     })
 
     describe('failure handling', () => {

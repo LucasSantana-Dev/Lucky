@@ -8,8 +8,9 @@ import {
 } from '@jest/globals'
 
 // #2475: HOSTED_YOUTUBE_ENABLED kill switch. Verifies registerExtractorsInOrder
-// skips the YouTube extractor entirely when disabled (default bot state), and
-// still registers it when enabled (self-hosters / current hosted behavior).
+// skips the YouTube extractor entirely when explicitly disabled, and still
+// registers it by default (unset defaults to enabled, so self-hosters are
+// unaffected).
 const registerMock = jest.fn()
 const infoLogMock = jest.fn()
 const warnLogMock = jest.fn()
@@ -99,6 +100,15 @@ describe('registerExtractorsInOrder: HOSTED_YOUTUBE_ENABLED', () => {
                 ),
             }),
         )
+        // Skipping registration is a deliberate no-op, not a degraded state:
+        // nothing should mark YouTube specifically as degraded or log an
+        // error on boot (other extractors, e.g. Spotify, may still call
+        // setExtractorDegraded for their own unrelated reasons).
+        expect(setExtractorDegradedMock).not.toHaveBeenCalledWith(
+            'youtube',
+            expect.anything(),
+        )
+        expect(errorLogMock).not.toHaveBeenCalled()
     })
 
     it('registers the YouTube extractor when the flag is on (default/unset)', async () => {

@@ -207,6 +207,34 @@ describe('/help', () => {
         expect(combined).not.toContain('/play')
     })
 
+    test('category select pages a large category across update and follow-ups', async () => {
+        const commands = Array.from({ length: 250 }, (_, i) =>
+            makeCommand(
+                `cmd${i}`,
+                `Description for command number ${i} that is long enough to fill pages`,
+                'general',
+            ),
+        )
+        const client = makeClient(commands)
+        const interaction = makeSelectInteraction('general')
+
+        await handleHelpCategorySelect(interaction as never, client as never)
+
+        expect(interaction.update).toHaveBeenCalledTimes(1)
+        expect(interaction.followUp.mock.calls.length).toBeGreaterThan(0)
+    })
+
+    test('category select replies with an error when update fails', async () => {
+        const client = makeClient([makeCommand('play', 'Play music', 'music')])
+        const interaction = makeSelectInteraction('music')
+        interaction.update.mockRejectedValueOnce(new Error('stale interaction'))
+
+        await handleHelpCategorySelect(interaction as never, client as never)
+
+        expect(errorLog).toHaveBeenCalled()
+        expect(interactionReply).toHaveBeenCalledTimes(1)
+    })
+
     test('catches errors and replies with error message', async () => {
         const client = makeClient([makeCommand('ping', 'Check latency')])
         const interaction = {

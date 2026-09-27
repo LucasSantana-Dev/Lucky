@@ -199,11 +199,17 @@ export function normalizeYouTubeUrl(url: string): string {
     }
 }
 
-/** True when `url` resolves to a real youtube.com/youtu.be watch link. */
+/**
+ * True when `url` is hosted on youtube.com or youtu.be. This is a host check,
+ * not a watch-link check: a playlist, channel, or bare-domain URL also
+ * matches, which is correct here since all of those require the YouTube
+ * extractor too.
+ */
 export function isYouTubeUrl(url: string): boolean {
-    if (!isUrl(url)) return false
+    const trimmed = url.trim()
+    if (!isUrl(trimmed)) return false
     try {
-        return hasHost(new URL(url), 'youtube.com', 'youtu.be')
+        return hasHost(new URL(trimmed), 'youtube.com', 'youtu.be')
     } catch {
         return false
     }
@@ -299,16 +305,19 @@ export async function executePlayAtTop({
         'voice channel present after requireVoiceChannel guard',
     )
 
+    const query = interaction.options.getString('query', true)
+
+    // Checked before deferring so the "YouTube is unavailable" notice can
+    // still be its own ephemeral reply instead of editing the public defer
+    // below, which would strip the ephemeral flag.
+    if (await replyYoutubeDisabledIfNeeded(interaction, query)) return
+
     try {
         await interaction.deferReply()
     } catch (error) {
         if (isUnknownInteractionError(error)) return
         throw error
     }
-
-    const query = interaction.options.getString('query', true)
-
-    if (await replyYoutubeDisabledIfNeeded(interaction, query)) return
 
     try {
         const searchEngine = resolveSearchEngine(query)

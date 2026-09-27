@@ -52,6 +52,17 @@ export async function executePlayHandler({
         'Voice channel guaranteed by requireVoiceChannel check',
     )
 
+    const rawQuery = interaction.options.getString('query', true)
+    const provider = interaction.options.getString('provider')
+
+    // Checked on the raw query, before deferring, so the "YouTube is
+    // unavailable" notice can still be its own ephemeral reply instead of
+    // editing the public defer below, which would strip the ephemeral flag.
+    // Safe on the raw query: SoundCloud expansion/normalization below never
+    // changes a youtube.com/youtu.be host.
+    if (await replyYoutubeDisabledIfNeeded(interaction, rawQuery, provider))
+        return
+
     try {
         await interaction.deferReply()
     } catch (error) {
@@ -59,15 +70,11 @@ export async function executePlayHandler({
         throw error
     }
 
-    const rawQuery = interaction.options.getString('query', true)
     // Expand SoundCloud short links first (on.soundcloud.com → full URL)
     const expandedQuery = await expandSoundCloudShortUrl(rawQuery)
     // Then normalize: SoundCloud `?in=` playlist context, and YouTube Mix
     // (`list=RD...`) context that the youtubei extractor cannot resolve.
     const query = normalizeYouTubeUrl(normalizeSoundCloudUrl(expandedQuery))
-    const provider = interaction.options.getString('provider')
-
-    if (await replyYoutubeDisabledIfNeeded(interaction, query, provider)) return
 
     const collaborativeCheck = collaborativePlaylistService.canAddTracks(
         interaction.guildId,
