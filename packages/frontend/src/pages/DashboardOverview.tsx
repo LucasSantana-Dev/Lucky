@@ -314,7 +314,7 @@ export default function DashboardOverview() {
                 >
                     <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3 sm:px-6'>
                         <div>
-                            <h2 className='type-h2 text-lucky-text-primary'>
+                            <h2 className='type-title text-lucky-text-primary'>
                                 {t('dashboardOverview.recentMusic')}
                             </h2>
                             <p className='type-body-sm text-lucky-text-tertiary'>
@@ -528,7 +528,7 @@ export default function DashboardOverview() {
                 >
                     <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
                         <div>
-                            <h2 className='type-h2 text-lucky-text-primary'>
+                            <h2 className='type-title text-lucky-text-primary'>
                                 {t('dashboardOverview.recentCases')}
                             </h2>
                             <p className='type-body-sm text-lucky-text-tertiary'>
@@ -650,7 +650,7 @@ export default function DashboardOverview() {
                     <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
                         <div className='surface-panel overflow-hidden border border-lucky-border'>
                             <div className='border-b border-lucky-border px-4 py-3'>
-                                <h3 className='type-h2 text-lucky-text-primary'>
+                                <h3 className='type-title text-lucky-text-primary'>
                                     {t('dashboardOverview.levelLeaderboard')}
                                 </h3>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
@@ -718,7 +718,7 @@ export default function DashboardOverview() {
 
                         <div className='surface-panel overflow-hidden border border-lucky-border'>
                             <div className='border-b border-lucky-border px-4 py-3'>
-                                <h3 className='type-h2 text-lucky-text-primary'>
+                                <h3 className='type-title text-lucky-text-primary'>
                                     {t('dashboardOverview.starboardHighlights')}
                                 </h3>
                                 <p className='type-body-sm text-lucky-text-tertiary'>

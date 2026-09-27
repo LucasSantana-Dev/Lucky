@@ -355,9 +355,7 @@ function RankingCard({
     const max = items[0]?.count ?? 1
     return (
         <div className='p-4 rounded-sm bg-lucky-bg-tertiary border border-lucky-border'>
-            <h3 className='type-title text-lucky-text-primary uppercase tracking-wide mb-3 font-semibold'>
-                {title}
-            </h3>
+            <h3 className='type-title mb-3 text-lucky-text-primary'>{title}</h3>
             <div className='space-y-2'>
                 {items.slice(0, 5).map((item, i) => (
                     <div key={item.label} className='flex items-center gap-2'>

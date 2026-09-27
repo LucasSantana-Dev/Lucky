@@ -264,3 +264,56 @@ Dashboard/Music; tokens are locked for this pass and were not touched.
   Surfaced by React's own DOM-nesting warning during the existing test
   suite. Pre-existing on `main`. Filed as a GitHub issue; not fixed here
   since `PreferredArtists.tsx` was left untouched this pass.
+
+## Round 5 (owner review of Round 4: nav active state, lyrics typography)
+
+Two fixes found reviewing `u2-after-*.png` / `u2b-after-*.png`:
+
+1. **Nav active state root cause.** `useNavigation.ts`'s `isActive` matched
+   any pathname that started with a nav item's path, with a single
+   hardcoded exception for `/music/artists`. On `/music/history` this lit
+   up both "Music Player" (`/music`) and "Track History" (`/music/history`).
+   Replaced with a general rule derived from `navConfig`'s own path list: a
+   prefix match is active unless some other known nav path is a longer,
+   equally valid match for the current pathname -- that item is the more
+   specific owner of the route. The `/music/artists` special case is now
+   redundant and removed. Covered by four `Sidebar.test.tsx` cases:
+   `/music`, `/music/history`, `/music/artists`, and a non-music nested
+   route (`/settings/advanced`).
+2. **`Lyrics.tsx` typography.** The result body rendered in JetBrains Mono
+   via a `<pre>` (lyrics are prose, not code). Switched to the body face:
+   `<p className="type-body max-w-prose whitespace-pre-line ...">` (no
+   `font-mono`), keeping line breaks and blank lines between verses via
+   `whitespace-pre-line`, with `max-w-prose` for a readable line length.
+
+This round also attempted a first pass at DashboardOverview's inconsistent
+section headings by normalizing every one of them to `type-h2`. That
+flattened a real hierarchy -- panel titles inside cards became visually
+identical to the standalone section headings above them. See Round 6 for
+the corrected two-level system.
+
+## Round 6 (two-level heading system, replacing Round 5's flat type-h2 pass)
+
+Round 5's "one style for every section title" fix was wrong: it made panel
+titles nested inside cards ("Level Leaderboard", "Starboard Highlights",
+"Recent Cases") the same size as standalone section headings ("Community")
+sitting above them, so the page read as one flat wall of large headings.
+
+**The two levels, now documented so they don't drift apart again:**
+
+| Level           | Where it appears                                                                   | Class        | Case                           | Example                                                                                                  |
+| --------------- | ---------------------------------------------------------------------------------- | ------------ | ------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Section heading | Standalone, outside any card                                                       | `type-h2`    | Sentence case                  | "Community", "Cases by Type", "Quick Actions"                                                            |
+| Panel title     | The header row inside a card, paired with a muted `type-body-sm` subtitle below it | `type-title` | Sentence case, never uppercase | "Recent Music", "Recent Cases", "Level Leaderboard", "Starboard Highlights", "Top Tracks", "Top Artists" |
+
+Uppercase stays only on `type-meta` eyebrows and stat labels (e.g.
+"TRACKS PLAYED", "RECENT TRACKS") -- never on a `type-title` panel title.
+
+Applied to `DashboardOverview.tsx` (`Recent Music`, `Recent Cases`,
+`Level Leaderboard`, `Starboard Highlights` demoted from `type-h2` back to
+`type-title`; `Quick Actions`, `Community`, `Cases by Type` stay `type-h2`)
+and `TrackHistory.tsx` (`RankingCard`'s `<h3>` title -- "Top Tracks" /
+"Top Artists" -- dropped `uppercase tracking-wide`, now plain `type-title`
+sentence case, matching the Dashboard panel titles). The music block still
+stands out through its hero row and top-of-page position, not through a
+one-off heading size.
