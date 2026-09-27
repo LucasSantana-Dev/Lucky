@@ -29,6 +29,11 @@ import { handleExternalScrobbler } from './externalScrobbler'
 import { handleReactionEvents } from './reactionHandler'
 import { scheduledEventNotificationService } from '../services/ScheduledEventNotificationService'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
+import {
+    createOnboardingStationRow,
+    handleOnboardingStationButton,
+    ONBOARDING_STATION_BUTTON_PREFIX,
+} from './onboardingStation'
 import { executeContextMenu } from './commandsHandler'
 import {
     handleMoveMessageSelect,
@@ -108,6 +113,8 @@ const ONBOARDING_EMBED = new EmbedBuilder()
             '`/play <song or url>` — play music in your voice channel',
             '`/queue` — see the current and upcoming tracks',
             '`/help` — browse every command',
+            '',
+            '🎧 Or join a voice channel and pick a station below to start listening now:',
         ].join('\n'),
     )
     .setFooter({ text: 'Lucky' })
@@ -136,7 +143,10 @@ async function sendOnboardingMessage(guild: Guild): Promise<void> {
         // No channel the bot can post to — skip silently, never throw.
         return
     }
-    await channel.send({ embeds: [ONBOARDING_EMBED] })
+    await channel.send({
+        embeds: [ONBOARDING_EMBED],
+        components: [await createOnboardingStationRow(guild)],
+    })
 }
 
 function handleGuildCreate(client: Client): void {
@@ -326,6 +336,10 @@ async function runInteraction(
                 id.startsWith('leaderboard_page')
             ) {
                 await handleMusicButtonInteraction(interaction)
+                return
+            }
+            if (id.startsWith(ONBOARDING_STATION_BUTTON_PREFIX)) {
+                await handleOnboardingStationButton(interaction)
                 return
             }
             // `/vaga` preview buttons are handled by that command's own

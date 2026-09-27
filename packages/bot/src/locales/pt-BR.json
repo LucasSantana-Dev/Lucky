@@ -28,6 +28,22 @@
             "youtubeDisabledDescription": "O YouTube não está disponível neste bot no momento. Tente um link do Spotify ou SoundCloud, ou busque pelo nome da música e do artista."
         },
         "nowPlaying": "Tocando agora {{title}}, não pare",
+        "station": {
+            "genres": {
+                "lofi": "Lo-fi",
+                "gaming": "Gaming",
+                "pop": "Pop",
+                "brMix": "Mix Brasileiro"
+            },
+            "notInVoiceTitle": "Entre em um canal de voz",
+            "notInVoiceDescription": "Entre em um canal de voz primeiro e clique na estação de novo.",
+            "missingPermissionsTitle": "Permissões faltando",
+            "missingPermissionsDescription": "Preciso de permissão para conectar e falar no seu canal de voz.",
+            "startedTitle": "Estação iniciada",
+            "startedDescription": "Tocando {{genre}} agora. Pule, veja a fila ou explore mais com /play.",
+            "failedTitle": "Não foi possível iniciar a estação",
+            "failedDescription": "Algo deu errado ao iniciar a estação. Tente /play."
+        },
         "queue": {
             "nowPlaying": "🎵 Tocando agora",
             "recommendedBecause": "\nRecomendado porque: _{{reason}}_",
