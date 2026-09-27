@@ -20,8 +20,14 @@ let heartbeatTimer: ReturnType<typeof setInterval> | undefined
 
 function resolveHeartbeatUrls(): string[] {
     return [
-        process.env.HEARTBEAT_PING_URL,
-        process.env.HEARTBEAT_PING_URL_EXTERNAL,
+        // HEALTHCHECK_URL(_EXTERNAL) are the pre-rename names (issue #2390).
+        // Kept as a fallback so a deployment whose .env still sets only the
+        // old names does not silently lose its heartbeat: Compose passes an
+        // empty string for an unset HEARTBEAT_PING_URL(_EXTERNAL), which is
+        // falsy, so the `||` below reaches the legacy var untouched.
+        process.env.HEARTBEAT_PING_URL || process.env.HEALTHCHECK_URL,
+        process.env.HEARTBEAT_PING_URL_EXTERNAL ||
+            process.env.HEALTHCHECK_URL_EXTERNAL,
     ]
         .map((value) => value?.trim())
         .filter((value): value is string => Boolean(value))
@@ -36,7 +42,9 @@ function resolveRunningVersion(): string {
 }
 
 function resolveIntervalMs(): number {
-    const parsed = Number(process.env.HEARTBEAT_INTERVAL_MS)
+    const raw =
+        process.env.HEARTBEAT_INTERVAL_MS || process.env.HEALTHCHECK_INTERVAL_MS
+    const parsed = Number(raw)
     return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_INTERVAL_MS
 }
 
@@ -60,7 +68,10 @@ async function ping(url: string, body: string): Promise<void> {
  *
  * No-ops when neither `HEARTBEAT_PING_URL` (on-box) nor
  * `HEARTBEAT_PING_URL_EXTERNAL` (off-box) is set, so it is safe to call
- * unconditionally in every environment. The running version (`SENTRY_RELEASE`
+ * unconditionally in every environment. Falls back to the pre-rename
+ * `HEALTHCHECK_URL(_EXTERNAL)` / `HEALTHCHECK_INTERVAL_MS` names (issue
+ * #2390) when the new ones are unset, so an existing deployment's `.env`
+ * keeps working until it is migrated. The running version (`SENTRY_RELEASE`
  * ?? `COMMIT_SHA`) is sent in the ping body so the monitor surfaces which
  * release is live.
  *

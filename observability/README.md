@@ -52,8 +52,8 @@ opens a host port beyond the loopback-bound one you started yourself.
 
 ## Env vars
 
-All read from `.env` (not committed; see `.env.example` at the repo root, which
-this PR does not modify since it is treated as secret-bearing).
+All read from `.env` (not committed). Names and placeholder values (never
+real secrets) are documented in `.env.example` at the repo root.
 
 | Var | Used by | Purpose |
 | --- | --- | --- |
@@ -66,8 +66,8 @@ this PR does not modify since it is treated as secret-bearing).
 | `SMTP_USER` | alertmanager-config (templated) | SMTP auth username. |
 | `SMTP_PASSWORD` | alertmanager, via a Compose secret (`smtp_password`) | SMTP auth password. Never templated into the rendered config file. |
 | `SMTP_FROM_ADDRESS` | alertmanager-config (templated) | "From" address on alert emails. |
-| `HEARTBEAT_PING_URL` | bot, backend | On-box dead-man ping target (issue #2390). |
-| `HEARTBEAT_PING_URL_EXTERNAL` | bot, backend | Off-box dead-man ping target (issue #2390). |
+| `HEARTBEAT_PING_URL_BOT` / `_BOT_EXTERNAL` | bot only | On-box / off-box dead-man ping target for the bot (issue #2390). Compose maps these into the bot's `HEARTBEAT_PING_URL(_EXTERNAL)`. |
+| `HEARTBEAT_PING_URL_BACKEND` / `_BACKEND_EXTERNAL` | backend only | Same, for the backend. Separate vars per service so a URL-keyed external monitor can tell them apart. |
 | `HEARTBEAT_INTERVAL_MS` | bot, backend | Heartbeat interval, default `60000`. |
 
 None of the above are read by this PR's code from any `.env*` file directly;
@@ -162,8 +162,9 @@ profile up on the homelab.**
 3. **Resolved by switching to Prometheus + Alertmanager.** The original
    Grafana-managed alerting required hand-duplicating every PromQL
    expression into a second rule format because vanilla Prometheus has no
-   ruler write API. Alertmanager reads Prometheus's native `rule_files`
-   directly, so there is exactly one rule definition per alert now.
+   ruler write API. Prometheus evaluates the native `rule_files` and pushes
+   firing alerts to Alertmanager, so there is exactly one rule definition
+   per alert now.
 4. **Local dev environment only, not the platform's fault:** this session's
    local Docker (colima) had a corrupted containerd store (I/O errors on
    blob/metadata reads and writes), so `docker run` for `promtool` and
@@ -213,11 +214,20 @@ values:
 3. Confirm the Watchdog ping reaches healthchecks.io (or whatever
    `WATCHDOG_PING_URL` points at): the check should show a "last ping" within
    the last minute.
-4. Fire a synthetic alert and confirm it arrives by email: either
-   `amtool alert add alertname=P2aGateTest severity=warning` against the
-   Alertmanager API, or temporarily add a rule with `expr: vector(1)` and a
-   different `alertname` to a rules file, reload Prometheus, and remove it
-   after confirming the email.
+4. Fire a synthetic alert and confirm it arrives by email. `amtool` needs
+   network access to Alertmanager, which has no host port, so run it in a
+   throwaway container on `lucky-network` (same idea as the `socat`
+   forwarder above):
+   ```sh
+   docker run --rm --network lucky-network prom/alertmanager:v0.28.1 \
+     amtool alert add alertname=P2aGateTest severity=warning \
+     --alertmanager.url=http://alertmanager:9093
+   ```
+   The synthetic alert resolves almost immediately (no `for:` duration), so
+   the expected signal is a "resolved" notification on the `email-primary`
+   contact point shortly after the "firing" one. Alternatively, temporarily
+   add a rule with `expr: vector(1)` and a different `alertname` to a rules
+   file, reload Prometheus, and remove it after confirming the email.
 5. Open Grafana ("Lucky: comece aqui" should load as the home dashboard) and
    confirm the disk-free stat panel shows a real percentage matching `df -h`
    on the host.

@@ -117,10 +117,15 @@ services:
             SENTRY_SERVICE_NAME: ${SENTRY_SERVICE_NAME:-bot}
             BOT_NAME: ${BOT_NAME:-Lucky}
             # On-box + off-box dead-man ping targets (ADR 2026-09-26 / #2390).
-            # Same var names on bot and backend: one heartbeat implementation
-            # (packages/shared/src/utils/monitoring/heartbeat.ts) reads both.
-            HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL:-}
-            HEARTBEAT_PING_URL_EXTERNAL: ${HEARTBEAT_PING_URL_EXTERNAL:-}
+            # One heartbeat implementation (packages/shared/src/utils/
+            # monitoring/heartbeat.ts) reads the same var names in every
+            # process, but each service maps from its OWN source var
+            # (HEARTBEAT_PING_URL_BOT / _BACKEND) so a URL-keyed external
+            # monitor (e.g. healthchecks.io) can tell bot and backend apart;
+            # sharing one URL would let the backend's unconditional pings
+            # mask a dead/zombie bot forever.
+            HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL_BOT:-}
+            HEARTBEAT_PING_URL_EXTERNAL: ${HEARTBEAT_PING_URL_BOT_EXTERNAL:-}
             HEARTBEAT_INTERVAL_MS: ${HEARTBEAT_INTERVAL_MS:-}
             LASTFM_SESSION_KEY: ${LASTFM_SESSION_KEY:-}
             PLAYER_CONNECTION_TIMEOUT: ${PLAYER_CONNECTION_TIMEOUT:-15000}
@@ -190,9 +195,11 @@ services:
             <<: *common-app-env
             SENTRY_SERVICE_NAME: ${SENTRY_SERVICE_NAME:-backend}
             # Same heartbeat contract as bot (ADR 2026-09-26 / #2390): the
-            # backend has no "ready" gate, so it pings unconditionally.
-            HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL:-}
-            HEARTBEAT_PING_URL_EXTERNAL: ${HEARTBEAT_PING_URL_EXTERNAL:-}
+            # backend has no "ready" gate, so it pings unconditionally. Its
+            # own source vars (HEARTBEAT_PING_URL_BACKEND / _EXTERNAL) keep
+            # it distinguishable from the bot on a URL-keyed monitor.
+            HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL_BACKEND:-}
+            HEARTBEAT_PING_URL_EXTERNAL: ${HEARTBEAT_PING_URL_BACKEND_EXTERNAL:-}
             HEARTBEAT_INTERVAL_MS: ${HEARTBEAT_INTERVAL_MS:-}
             LUCKY_NOTIFY_API_KEY: ${LUCKY_NOTIFY_API_KEY:-}
             CLIENT_SECRET: ${CLIENT_SECRET}
@@ -322,9 +329,7 @@ services:
     # `docker compose --profile observability up -d`. No service in this
     # group binds a host port; reach Grafana per observability/README.md.
     prometheus:
-        mem_limit: 512m
-        cpus: 0.5
-        restart: unless-stopped
+        <<: *medium-svc
         image: prom/prometheus:v3.9.0
         container_name: lucky-prometheus
         command:
@@ -348,9 +353,8 @@ services:
                 tag: "{{.Name}}"
 
     grafana:
+        <<: *medium-svc
         mem_limit: 256m
-        cpus: 0.5
-        restart: unless-stopped
         image: grafana/grafana:12.4.0
         container_name: lucky-grafana
         depends_on:
@@ -384,9 +388,8 @@ services:
                 tag: "{{.Name}}"
 
     node-exporter:
+        <<: *small-svc
         mem_limit: 64m
-        cpus: 0.25
-        restart: unless-stopped
         image: prom/node-exporter:v1.10.0
         container_name: lucky-node-exporter
         command:
@@ -410,9 +413,7 @@ services:
                 tag: "{{.Name}}"
 
     cadvisor:
-        mem_limit: 128m
-        cpus: 0.25
-        restart: unless-stopped
+        <<: *small-svc
         image: gcr.io/cadvisor/cadvisor:v0.52.1
         container_name: lucky-cadvisor
         # Feeds the lucky-resource-pressure rule group (per-container memory
@@ -438,19 +439,30 @@ services:
     # Renders observability/alertmanager/alertmanager.yml.tmpl into a shared
     # volume before alertmanager starts. Alertmanager's config format has no
     # native ${VAR} expansion, so the non-secret fields (SMTP host/port/from,
-    # alert recipient address) are substituted here with envsubst; the two
-    # secret fields (SMTP password, Watchdog webhook URL) instead use
-    # Alertmanager's own `_file` config options, fed by Compose `secrets:`
-    # sourced from env vars below, so no secret ever lands in the rendered
-    # plain-text config. Runs once and exits; alertmanager waits for it.
+    # alert recipient address) are substituted here with envsubst (baked into
+    # the image at build time via observability/alertmanager/Dockerfile, not
+    # installed at every startup); the two secret fields (SMTP password,
+    # Watchdog webhook URL) instead use Alertmanager's own `_file` config
+    # options, fed by Compose `secrets:` sourced from env vars below, so no
+    # secret ever lands in the rendered plain-text config. Runs once and
+    # exits; alertmanager waits for it.
+    #
+    # IMPORTANT: Compose does not detect changes to a bind-mounted file, so
+    # editing alertmanager.yml.tmpl does NOT get picked up by a plain
+    # `docker compose up -d`. After changing the template, force both
+    # containers to redo their work:
+    #   docker compose --profile observability up -d --force-recreate \
+    #     alertmanager-config alertmanager
     alertmanager-config:
-        image: alpine:3.20
+        build:
+            context: ./observability/alertmanager
+            dockerfile: Dockerfile
         container_name: lucky-alertmanager-config
         restart: "no"
         command:
             - sh
             - -c
-            - apk add --no-cache gettext >/dev/null && envsubst < /template/alertmanager.yml.tmpl > /rendered/alertmanager.yml
+            - envsubst < /template/alertmanager.yml.tmpl > /rendered/alertmanager.yml
         environment:
             ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
             SMTP_HOST: ${SMTP_HOST:-}
@@ -464,9 +476,7 @@ services:
             - observability
 
     alertmanager:
-        mem_limit: 128m
-        cpus: 0.25
-        restart: unless-stopped
+        <<: *small-svc
         image: prom/alertmanager:v0.28.1
         container_name: lucky-alertmanager
         depends_on:
@@ -511,6 +521,11 @@ volumes:
 
 networks:
     lucky-network:
+        # Explicit name (not the Compose project-prefixed default): the
+        # observability/README.md and docs/observability.md forwarder
+        # recipes attach with `docker run --network lucky-network ...`,
+        # which needs this exact network name to exist.
+        name: lucky-network
         driver: bridge
     # External network shared with the homelab monitoring stack
     # (Prometheus, Grafana). Lucky owns/creates it; homelab joins it

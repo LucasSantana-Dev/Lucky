@@ -9,6 +9,9 @@ describe('heartbeat', () => {
         delete process.env.HEARTBEAT_PING_URL
         delete process.env.HEARTBEAT_PING_URL_EXTERNAL
         delete process.env.HEARTBEAT_INTERVAL_MS
+        delete process.env.HEALTHCHECK_URL
+        delete process.env.HEALTHCHECK_URL_EXTERNAL
+        delete process.env.HEALTHCHECK_INTERVAL_MS
     })
 
     it('no-ops and returns a stop function when no URL is configured', () => {
@@ -85,6 +88,51 @@ describe('heartbeat', () => {
         ready = true
         jest.advanceTimersByTime(1000)
         expect(fetchSpy).toHaveBeenCalledTimes(1)
+    })
+
+    it('falls back to the legacy HEALTHCHECK_URL(_EXTERNAL) vars when the new ones are unset', () => {
+        process.env.HEALTHCHECK_URL = 'https://hc.example/ping/legacy-a'
+        process.env.HEALTHCHECK_URL_EXTERNAL = 'https://hc-ping.com/legacy-b'
+        const fetchSpy = jest
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValue({ ok: true, status: 200 } as unknown as Response)
+
+        startHeartbeat({ serviceName: 'backend' })
+
+        expect(fetchSpy).toHaveBeenCalledTimes(2)
+        const urls = fetchSpy.mock.calls.map(([url]) => url)
+        expect(urls).toEqual([
+            'https://hc.example/ping/legacy-a',
+            'https://hc-ping.com/legacy-b',
+        ])
+    })
+
+    it('prefers HEARTBEAT_PING_URL over legacy HEALTHCHECK_URL when both are set', () => {
+        process.env.HEARTBEAT_PING_URL = 'https://hc.example/ping/new'
+        process.env.HEALTHCHECK_URL = 'https://hc.example/ping/legacy'
+        const fetchSpy = jest
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValue({ ok: true, status: 200 } as unknown as Response)
+
+        startHeartbeat({ serviceName: 'backend' })
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1)
+        expect(fetchSpy.mock.calls[0][0]).toBe('https://hc.example/ping/new')
+    })
+
+    it('falls back to legacy HEALTHCHECK_INTERVAL_MS when HEARTBEAT_INTERVAL_MS is unset', () => {
+        jest.useFakeTimers()
+        process.env.HEARTBEAT_PING_URL = 'https://hc.example/ping/a'
+        process.env.HEALTHCHECK_INTERVAL_MS = '1000'
+        const fetchSpy = jest
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValue({ ok: true, status: 200 } as unknown as Response)
+
+        startHeartbeat({ serviceName: 'bot' })
+        expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+        jest.advanceTimersByTime(1000)
+        expect(fetchSpy).toHaveBeenCalledTimes(2)
     })
 
     it('never throws when fetch rejects', async () => {

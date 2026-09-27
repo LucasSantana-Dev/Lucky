@@ -26,7 +26,7 @@
       "id": 1,
       "type": "stat",
       "title": "Bot ligado",
-      "description": "1 = o bot do Discord está no ar e o Prometheus consegue falar com ele pela porta 9091. 0 = o bot caiu ou não responde há mais de 5 minutos (mesmo tempo do alerta LuckyBotScrapeDown).",
+      "description": "1 = o bot do Discord está no ar e o Prometheus consegue falar com ele pela porta 9091. 0 = o último scrape falhou ou o bot caiu. O alerta LuckyBotScrapeDown só dispara depois de 5 minutos seguidos assim; este painel mostra o instante mais recente, então pode piscar vermelho por uma falha isolada sem virar alerta.",
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -50,7 +50,7 @@
       "id": 2,
       "type": "stat",
       "title": "Backend ligado",
-      "description": "1 = o servidor web/API está no ar e o Prometheus consegue falar com ele. 0 = o backend caiu ou não responde há mais de 5 minutos (mesmo tempo do alerta LuckyBackendScrapeDown).",
+      "description": "1 = o servidor web/API está no ar e o Prometheus consegue falar com ele. 0 = o último scrape falhou ou o backend caiu. O alerta LuckyBackendScrapeDown só dispara depois de 5 minutos seguidos assim; este painel mostra o instante mais recente, então pode piscar vermelho por uma falha isolada sem virar alerta.",
       "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -193,12 +193,12 @@
       "id": 9,
       "type": "timeseries",
       "title": "Erros 5xx (proporção)",
-      "description": "Percentual das respostas do backend que são erro (5xx). Verde é normal. Passa a laranja acima de 5% por 5 minutos (alerta LuckyBackendHighErrorRate) e vermelho acima de 10% em 2 minutos (alerta LuckyBackendErrorBurstFast, sinal de queda rápida).",
+      "description": "Percentual das respostas do backend que são erro (5xx), média dos últimos 5 minutos. Verde é normal. Laranja acima de 5% e vermelho acima de 10% dessa média de 5 minutos (mesma janela do alerta LuckyBackendHighErrorRate). O alerta crítico LuckyBackendErrorBurstFast usa uma janela mais curta (2 minutos) e pode disparar antes deste painel ficar vermelho.",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum(rate(lucky_backend_http_server_errors_total[5m])) / clamp_min(sum(rate(lucky_backend_http_requests_total[5m])), 1)",
+          "expr": "sum(rate(lucky_backend_http_server_errors_total[5m])) / clamp_min(sum(rate(lucky_backend_http_requests_total[5m])), 1) or vector(0)",
           "legendFormat": "erros 5xx",
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
@@ -246,7 +246,24 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "lucky-bot" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "orange", "value": 0.90 },
+                    { "color": "red", "value": 0.95 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
       }
     },
     {

@@ -5,7 +5,7 @@ providers:
     orgId: 1
     folder: Lucky
     type: file
-    disableDeletion: false
+    disableDeletion: true
     updateIntervalSeconds: 30
     allowUiUpdates: false
     options:

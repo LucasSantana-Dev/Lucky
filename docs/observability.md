@@ -45,11 +45,11 @@ eles.
 | --- | --- | --- |
 | **LuckyBackendScrapeDown** | O backend não responde há 5 minutos. | Veja se o container `lucky-backend` está rodando (`docker ps`); se caiu, reinicie (`docker compose restart backend`) e olhe os logs. |
 | **LuckyBotScrapeDown** | O bot não responde há 5 minutos. | Mesma ideia: cheque `docker ps`, reinicie o serviço `bot` se necessário, olhe os logs. |
-| **LuckyBackendHighErrorRate** | Mais de 5% das respostas do backend são erro (5xx) por 5 minutos seguidos. | Olhe o painel "Erros 5xx" em "Lucky: saúde do sistema" e os logs do backend para achar a causa (deploy recente, banco fora do ar, etc). |
+| **LuckyBackendHighErrorRate** | Mais de 5% das respostas do backend são erro (5xx) por 5 minutos seguidos. | Olhe o painel "Erros 5xx (proporção)" em "Lucky: saúde do sistema" e os logs do backend para achar a causa (deploy recente, banco fora do ar, etc). |
 | **LuckyBackendErrorBurstFast** | Mais de 10% de erro em só 2 minutos: sinal de queda rápida, mais urgente que o alerta acima. | Trate como incidente: confira se o backend está de pé, se o Postgres/Redis respondem, e se o último deploy é o suspeito. |
 | **LuckyDiskSpaceLow** | Um disco está com menos de 20% livre. | Sem urgência imediata, mas planeje limpar espaço (backups antigos, logs, imagens Docker não usadas) antes de virar crítico. |
 | **LuckyDiskSpaceCritical** | Um disco está com menos de 10% livre. | Urgente: libere espaço agora (`docker system prune`, apagar logs antigos) para não travar o Postgres nem os outros serviços. |
-| **HostMemoryHigh** | Menos de 10% de memória livre na máquina toda. | Veja quais containers estão consumindo mais (painel "Memória usada vs limite") e considere reiniciar o que estiver vazando memória. |
+| **HostMemoryHigh** | Menos de 10% de memória disponível (usable, não "livre") na máquina toda. Num Linux saudável a memória "livre" costuma ser pequena de propósito, porque o kernel usa o resto como cache; o que importa é a disponível. | Veja quais containers estão consumindo mais (painel "Memória usada vs limite") e considere reiniciar o que estiver vazando memória. |
 | **LuckyBotHeapHigh** / **HighMemoryUsage** / **CriticalMemoryUsage** | Um container específico está perto do próprio limite de memória (`mem_limit`). | Olhe qual container é (`{{ $labels.name }}` no email) no painel "Memória usada vs limite"; se persistir, ele pode ser encerrado à força (OOM) em breve. |
 | **Watchdog** | Este alerta fica sempre ligado de propósito; ele prova que o Prometheus e o Alertmanager estão vivos. | Não é um problema no app. Se ele PARAR de chegar no healthchecks.io, é sinal de que o Prometheus ou o Alertmanager caíram, ou a máquina toda caiu. |
 

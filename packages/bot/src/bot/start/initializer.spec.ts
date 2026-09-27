@@ -185,6 +185,12 @@ describe('BotInitializer', () => {
                     message: 'Bot initialization completed successfully',
                 }),
             )
+            expect(heartbeatServiceStartMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    serviceName: 'bot',
+                    isReady: expect.any(Function),
+                }),
+            )
         })
 
         it('returns cached client if already initialized', async () => {
