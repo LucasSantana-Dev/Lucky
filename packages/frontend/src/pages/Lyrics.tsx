@@ -155,9 +155,9 @@ export default function LyricsPage() {
                             {result.artist}
                         </p>
                     </div>
-                    <pre className='type-body-sm text-lucky-text-primary whitespace-pre-wrap p-4 font-mono leading-relaxed'>
+                    <p className='type-body max-w-prose whitespace-pre-line p-4 leading-relaxed text-lucky-text-primary'>
                         {result.lyrics}
-                    </pre>
+                    </p>
                 </div>
             )}
         </div>
