@@ -3,6 +3,7 @@ import {
     isExemptFromPermissionCap,
     isExemptFromHierarchy,
     assertRequestedPermissionsWithinGrant,
+    assertCanManageRoles,
     getHighestRolePosition,
     assertRoleHierarchyAllowed,
     type RoleGuardContext,
@@ -176,6 +177,47 @@ describe('assertRequestedPermissionsWithinGrant', () => {
                 KICK_MEMBERS,
             ),
         ).toThrow(/Invalid permissions value/)
+    })
+})
+
+describe('assertCanManageRoles', () => {
+    test('rejects a MANAGE_GUILD-only holder (no MANAGE_ROLES bit)', () => {
+        expect(() =>
+            assertCanManageRoles(context({ permissions: MANAGE_GUILD })),
+        ).toThrow(/Manage Roles/)
+    })
+
+    test('allows a holder with the MANAGE_ROLES bit', () => {
+        expect(() =>
+            assertCanManageRoles(context({ permissions: MANAGE_ROLES })),
+        ).not.toThrow()
+    })
+
+    test('allows a holder with MANAGE_ROLES combined with other bits', () => {
+        const combined = (
+            BigInt(MANAGE_ROLES) | BigInt(KICK_MEMBERS)
+        ).toString()
+        expect(() =>
+            assertCanManageRoles(context({ permissions: combined })),
+        ).not.toThrow()
+    })
+
+    test('owner is exempt without holding MANAGE_ROLES', () => {
+        expect(() =>
+            assertCanManageRoles(context({ owner: true, permissions: '0' })),
+        ).not.toThrow()
+    })
+
+    test('true Administrator is exempt without holding MANAGE_ROLES', () => {
+        expect(() =>
+            assertCanManageRoles(context({ permissions: ADMINISTRATOR })),
+        ).not.toThrow()
+    })
+
+    test('rejects a holder with no permissions at all', () => {
+        expect(() =>
+            assertCanManageRoles(context({ permissions: '0' })),
+        ).toThrow(/Manage Roles/)
     })
 })
 

@@ -207,13 +207,14 @@ function authed(allowedModule: ModuleKey | null, level: AccessMode = 'manage') {
         guildId: GUILD_ID,
         userId: MOCK_SESSION_DATA.userId,
         roles: [],
-        // Raw Discord permissions bitfield (#2451) - a plain '0' string,
-        // matching the real GuildAccessContext.permissions type. This file
-        // tests guard MODULE composition, not permission-cap/hierarchy
-        // fine-grained behavior (that's covered by roles.test.ts), so
-        // owner/roleIds/botPresenceChecked are intentionally left unset:
-        // roleEscalationGuard treats missing role data as "unavailable"
-        // and skips its hierarchy check rather than guessing.
+        // This file tests guard MODULE composition, not permission-cap/
+        // hierarchy/MANAGE_ROLES fine-grained behavior (that's covered by
+        // roles.test.ts) - `owner: true` exempts every route case from all
+        // three roleEscalationGuard checks (permission cap, MANAGE_ROLES
+        // gate, and the on-demand role-hierarchy fetch added for #2451
+        // gap 1/2) so `mockHappyPath`'s deliberately-generic role-list
+        // fixtures aren't affected by checks this file isn't exercising.
+        owner: true,
         permissions: '0',
     } as any)
     accessMock.hasAccess.mockImplementation(

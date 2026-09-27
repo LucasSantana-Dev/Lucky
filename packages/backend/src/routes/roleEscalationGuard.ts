@@ -2,6 +2,7 @@ import { AppError } from '../errors/AppError'
 import type { GuildRoleManage } from '../services/RoleService'
 
 const ADMINISTRATOR_BIT = BigInt(0x8)
+const MANAGE_ROLES_BIT = BigInt(0x10000000)
 
 /**
  * The subset of GuildAccessContext this guard needs. Kept narrow (rather
@@ -101,6 +102,28 @@ export function assertRequestedPermissionsWithinGrant(
         throw AppError.forbidden(
             'Cannot grant permissions you do not hold yourself',
         )
+    }
+}
+
+/**
+ * On Discord, a member without the Manage Roles permission cannot touch
+ * roles at all, even if they hold another guild-level permission such as
+ * Manage Guild. `/roles/manage/*` was previously reachable with just
+ * `settings:manage` (which MANAGE_GUILD alone satisfies), so this closes
+ * that gap: every write requires the requester to actually hold Manage
+ * Roles, unless they are exempt (owner or true Administrator, same as the
+ * permission cap above). Fails closed (403) otherwise (#2451 review).
+ */
+export function assertCanManageRoles(
+    context: Pick<RoleGuardContext, 'owner' | 'permissions'>,
+): void {
+    if (isExemptFromPermissionCap(context)) {
+        return
+    }
+
+    const bits = parsePermissionBits(context.permissions)
+    if ((bits & MANAGE_ROLES_BIT) !== MANAGE_ROLES_BIT) {
+        throw AppError.forbidden('Requires the Manage Roles permission')
     }
 }
 
