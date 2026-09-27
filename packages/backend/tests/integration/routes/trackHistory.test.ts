@@ -4,6 +4,8 @@ import request from 'supertest'
 import express from 'express'
 import { setupTrackHistoryRoutes } from '../../../src/routes/trackHistory'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
+import { requireAuth } from '../../../src/middleware/auth'
+import { requireGuildModuleAccess } from '../../../src/middleware/guildAccess'
 import { sessionService } from '../../../src/services/SessionService'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
@@ -46,6 +48,14 @@ describe('Track History Routes', () => {
         app = express()
         app.use(express.json())
         setupSessionMiddleware(app)
+        // Mirrors the guildGuardConfigs entry for '/api/guilds/:guildId/music'
+        // in src/routes/index.ts, which prefix-matches this route's paths and
+        // runs ahead of trackHistory.ts's own per-route check in production.
+        app.use(
+            '/api/guilds/:guildId/music',
+            requireAuth,
+            requireGuildModuleAccess('music'),
+        )
         setupTrackHistoryRoutes(app)
         app.use(errorHandler)
         jest.clearAllMocks()
