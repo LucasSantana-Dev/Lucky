@@ -684,6 +684,14 @@ log "Restarting Cloudflare tunnel..."
 if docker_compose --profile tunnel up -d cloudflared >/dev/null 2>&1; then
     log "Cloudflare tunnel restarted via compose profile"
 elif docker ps --format '{{.Names}}' | grep -qx "lucky-tunnel"; then
+    # A tunnel container that compose could not recreate keeps whatever
+    # network it was created on, so it can lose sight of nginx when the
+    # compose network changes (lucky_lucky-network -> lucky-network, #2468).
+    # Attach it to nginx's network before restarting.
+    if ! docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' lucky-tunnel | grep -qw "lucky-network"; then
+        docker network connect lucky-network lucky-tunnel
+        log "Cloudflare tunnel attached to lucky-network"
+    fi
     docker restart lucky-tunnel >/dev/null
     log "Cloudflare tunnel restarted via container restart"
 else
