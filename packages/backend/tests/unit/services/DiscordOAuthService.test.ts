@@ -392,6 +392,30 @@ describe('DiscordOAuthService', () => {
         })
     })
 
+    describe('getPermissionsBitfield', () => {
+        test('returns the permissions string as-is', () => {
+            expect(discordOAuthService.getPermissionsBitfield('19')).toBe('19')
+        })
+
+        test('prefers permissions_new over permissions when both are set', () => {
+            expect(
+                discordOAuthService.getPermissionsBitfield('19', '999'),
+            ).toBe('999')
+        })
+
+        test('falls back to "0" when the payload is invalid', () => {
+            expect(
+                discordOAuthService.getPermissionsBitfield('not-a-number'),
+            ).toBe('0')
+        })
+
+        test('falls back to "0" when no value is provided', () => {
+            expect(discordOAuthService.getPermissionsBitfield(undefined)).toBe(
+                '0',
+            )
+        })
+    })
+
     describe('filterAdminGuilds', () => {
         test('should filter guilds with admin permissions', () => {
             const guilds = [

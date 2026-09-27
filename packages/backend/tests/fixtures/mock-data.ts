@@ -79,4 +79,5 @@ export const MOCK_GUILD_CONTEXT: GuildAccessContext = {
         integrations: 'manage',
     },
     canManageRbac: true,
+    permissions: '2147483647',
 }

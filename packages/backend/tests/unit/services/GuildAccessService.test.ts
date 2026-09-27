@@ -7,6 +7,10 @@ const mockHasAdminPermission = jest.fn<
     boolean,
     [string | null | undefined, string | null | undefined]
 >()
+const mockGetPermissionsBitfield = jest.fn<
+    string,
+    [string | null | undefined, string | null | undefined]
+>()
 
 class MockDiscordApiError extends Error {
     constructor(
@@ -41,6 +45,9 @@ jest.mock('../../../src/services/DiscordOAuthService', () => ({
         hasAdminPermission: (
             ...args: [string | null | undefined, string | null | undefined]
         ) => mockHasAdminPermission(...args),
+        getPermissionsBitfield: (
+            ...args: [string | null | undefined, string | null | undefined]
+        ) => mockGetPermissionsBitfield(...args),
     },
 }))
 
@@ -128,6 +135,9 @@ describe('GuildAccessService', () => {
         jest.clearAllMocks()
         guildAccessService.resetCachesForTests()
         mockHasAdminPermission.mockImplementation(() => false)
+        mockGetPermissionsBitfield.mockImplementation(
+            (permissions) => permissions ?? '0',
+        )
         mockHasAnyAccess.mockImplementation((access) =>
             Object.values(access).some((value) => value !== 'none'),
         )
@@ -496,7 +506,7 @@ describe('GuildAccessService', () => {
     })
 
     test('resolveGuildContext returns member nickname/roles for authorized guild', async () => {
-        const guild = makeGuild('606')
+        const guild = makeGuild('606', { permissions: '19' })
         const moderationViewAccess = {
             ...EMPTY_ACCESS,
             moderation: 'view',
@@ -523,6 +533,9 @@ describe('GuildAccessService', () => {
             botPresenceChecked: true,
             roleIds: ['role-mod'],
             nickname: 'Moderator',
+            // The raw Discord permissions bitfield the member holds, used to
+            // cap role-permission grants (#2451) - distinct from isAdmin.
+            permissions: '19',
             canManageRbac: false,
             effectiveAccess: moderationViewAccess,
         })
@@ -609,6 +622,7 @@ describe('GuildAccessService', () => {
                 nickname: null,
                 effectiveAccess: access,
                 canManageRbac: false,
+                permissions: '0',
             },
             'settings',
             'manage',

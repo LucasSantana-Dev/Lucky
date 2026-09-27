@@ -6,6 +6,8 @@ import { setupRolesRoutes } from '../../../src/routes/roles'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
+import { requireAuth } from '../../../src/middleware/auth'
+import { requireGuildModuleAccess } from '../../../src/middleware/guildAccess'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
@@ -40,6 +42,20 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
+const mockGetFullGuildRoles = jest.fn<any>()
+const mockCreateGuildRole = jest.fn<any>()
+const mockUpdateGuildRole = jest.fn<any>()
+const mockDeleteGuildRole = jest.fn<any>()
+
+jest.mock('../../../src/services/GuildService', () => ({
+    guildService: {
+        getFullGuildRoles: (...args: any[]) => mockGetFullGuildRoles(...args),
+        createGuildRole: (...args: any[]) => mockCreateGuildRole(...args),
+        updateGuildRole: (...args: any[]) => mockUpdateGuildRole(...args),
+        deleteGuildRole: (...args: any[]) => mockDeleteGuildRole(...args),
+    },
+}))
+
 describe('Roles Routes', () => {
     let app: express.Express
 
@@ -47,15 +63,25 @@ describe('Roles Routes', () => {
         app = express()
         app.use(express.json())
         setupSessionMiddleware(app)
+        // Mirrors the `/roles/manage` guildGuardConfigs entry in
+        // routes/index.ts (production populates req.guildContext here,
+        // before roles.ts's handlers run) - without it, requests never
+        // reach the manage endpoints' permission-cap checks (#2451).
+        app.use(
+            '/api/guilds/:guildId/roles/manage',
+            requireAuth,
+            requireGuildModuleAccess('settings', 'manage'),
+        )
         setupRolesRoutes(app)
         app.use(errorHandler)
         jest.clearAllMocks()
         process.env.DISCORD_TOKEN = 'test-token-default'
+        mockGetFullGuildRoles.mockResolvedValue([])
     })
 
     const GUILD_ID = '111111111111111111'
 
-    function authed() {
+    function authed(guildContextOverrides: Record<string, unknown> = {}) {
         const sessionMock = sessionService as jest.Mocked<typeof sessionService>
         sessionMock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
@@ -65,8 +91,19 @@ describe('Roles Routes', () => {
         accessMock.resolveGuildContext.mockResolvedValue({
             guildId: GUILD_ID,
             userId: MOCK_SESSION_DATA.userId,
-            roles: [],
-            permissions: new Set(),
+            owner: false,
+            isAdmin: false,
+            hasBot: true,
+            botPresenceChecked: true,
+            roleIds: [],
+            nickname: null,
+            effectiveAccess: {},
+            canManageRbac: false,
+            // Raw Discord permissions bitfield the member holds (#2451);
+            // defaults to none so tests opt in explicitly to what a
+            // non-admin requester is allowed to grant.
+            permissions: '0',
+            ...guildContextOverrides,
         } as any)
         accessMock.hasAccess.mockReturnValue(true)
     }
@@ -579,6 +616,251 @@ describe('Roles Routes', () => {
 
             expect(res.status).toBe(200)
             expect(res.body).toEqual({ messageId: MESSAGE_ID })
+        })
+    })
+
+    // #2451: /roles/manage accepts an arbitrary Discord permissions
+    // bitfield. A dashboard user with only settings:manage (not Discord
+    // Administrator/owner) must not be able to grant a role permission bits
+    // they do not hold themselves, or touch a role at/above their own
+    // highest role.
+    describe('Role permission cap (#2451)', () => {
+        const ROLE_ID = '999999999999999999'
+        const ADMINISTRATOR = '8'
+        const KICK_MEMBERS = '2'
+        const MY_ROLE_ID = '444444444444444444'
+
+        function roleFixture(overrides: Record<string, unknown> = {}) {
+            return {
+                id: ROLE_ID,
+                name: 'Target Role',
+                color: 0,
+                hoist: false,
+                mentionable: false,
+                permissions: '0',
+                position: 1,
+                managed: false,
+                ...overrides,
+            }
+        }
+
+        describe('POST /api/guilds/:guildId/roles/manage', () => {
+            test('rejects a non-admin granting Administrator they do not hold', async () => {
+                authed({ permissions: KICK_MEMBERS })
+
+                const res = await request(app)
+                    .post(`/api/guilds/${GUILD_ID}/roles/manage`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+                    .send({ name: 'New Role', permissions: ADMINISTRATOR })
+
+                expect(res.status).toBe(403)
+                expect(mockCreateGuildRole).not.toHaveBeenCalled()
+            })
+
+            test('allows a non-admin granting a bit they hold', async () => {
+                authed({ permissions: KICK_MEMBERS })
+                mockCreateGuildRole.mockResolvedValue(
+                    roleFixture({ permissions: KICK_MEMBERS }),
+                )
+
+                const res = await request(app)
+                    .post(`/api/guilds/${GUILD_ID}/roles/manage`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+                    .send({ name: 'New Role', permissions: KICK_MEMBERS })
+
+                expect(res.status).toBe(201)
+                expect(mockCreateGuildRole).toHaveBeenCalledWith(
+                    GUILD_ID,
+                    expect.objectContaining({ permissions: KICK_MEMBERS }),
+                )
+            })
+
+            test('allows the guild owner to grant Administrator', async () => {
+                authed({ owner: true, permissions: '0' })
+                mockCreateGuildRole.mockResolvedValue(
+                    roleFixture({ permissions: ADMINISTRATOR }),
+                )
+
+                const res = await request(app)
+                    .post(`/api/guilds/${GUILD_ID}/roles/manage`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+                    .send({ name: 'New Role', permissions: ADMINISTRATOR })
+
+                expect(res.status).toBe(201)
+            })
+
+            test('allows a true Administrator holder to grant Administrator', async () => {
+                authed({ permissions: ADMINISTRATOR })
+                mockCreateGuildRole.mockResolvedValue(
+                    roleFixture({ permissions: ADMINISTRATOR }),
+                )
+
+                const res = await request(app)
+                    .post(`/api/guilds/${GUILD_ID}/roles/manage`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+                    .send({ name: 'New Role', permissions: ADMINISTRATOR })
+
+                expect(res.status).toBe(201)
+            })
+        })
+
+        describe('PATCH /api/guilds/:guildId/roles/manage/:roleId', () => {
+            test('rejects a non-admin granting Administrator they do not hold', async () => {
+                authed({ permissions: KICK_MEMBERS, roleIds: [MY_ROLE_ID] })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ position: 1 }),
+                    { id: MY_ROLE_ID, position: 5 },
+                ])
+
+                const res = await request(app)
+                    .patch(`/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+                    .send({ name: 'Renamed', permissions: ADMINISTRATOR })
+
+                expect(res.status).toBe(403)
+                expect(mockUpdateGuildRole).not.toHaveBeenCalled()
+            })
+
+            test('rejects editing a role positioned at or above the requester highest role', async () => {
+                authed({ permissions: KICK_MEMBERS, roleIds: [MY_ROLE_ID] })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ position: 9 }),
+                    { id: MY_ROLE_ID, position: 5 },
+                ])
+
+                const res = await request(app)
+                    .patch(`/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+                    .send({ name: 'Renamed' })
+
+                expect(res.status).toBe(403)
+                expect(mockUpdateGuildRole).not.toHaveBeenCalled()
+            })
+
+            test('allows editing a role below the requester highest role with a held permission bit', async () => {
+                authed({ permissions: KICK_MEMBERS, roleIds: [MY_ROLE_ID] })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ position: 1 }),
+                    { id: MY_ROLE_ID, position: 5 },
+                ])
+                mockUpdateGuildRole.mockResolvedValue(
+                    roleFixture({ permissions: KICK_MEMBERS }),
+                )
+
+                const res = await request(app)
+                    .patch(`/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+                    .send({ name: 'Renamed', permissions: KICK_MEMBERS })
+
+                expect(res.status).toBe(200)
+                expect(mockUpdateGuildRole).toHaveBeenCalled()
+            })
+
+            test('allows the guild owner to edit a role above every other member', async () => {
+                authed({ owner: true, permissions: '0', roleIds: [] })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ position: 50 }),
+                ])
+                mockUpdateGuildRole.mockResolvedValue(roleFixture())
+
+                const res = await request(app)
+                    .patch(`/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+                    .send({ name: 'Renamed', permissions: ADMINISTRATOR })
+
+                expect(res.status).toBe(200)
+            })
+        })
+
+        describe('DELETE /api/guilds/:guildId/roles/manage/:roleId', () => {
+            test('rejects deleting a role positioned at or above the requester highest role', async () => {
+                authed({ permissions: KICK_MEMBERS, roleIds: [MY_ROLE_ID] })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ position: 9 }),
+                    { id: MY_ROLE_ID, position: 5 },
+                ])
+
+                const res = await request(app)
+                    .delete(`/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+
+                expect(res.status).toBe(403)
+                expect(mockDeleteGuildRole).not.toHaveBeenCalled()
+            })
+
+            test('allows deleting a role below the requester highest role', async () => {
+                authed({ permissions: KICK_MEMBERS, roleIds: [MY_ROLE_ID] })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ position: 1 }),
+                    { id: MY_ROLE_ID, position: 5 },
+                ])
+                mockDeleteGuildRole.mockResolvedValue(undefined)
+
+                const res = await request(app)
+                    .delete(`/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+
+                expect(res.status).toBe(200)
+                expect(mockDeleteGuildRole).toHaveBeenCalledWith(
+                    GUILD_ID,
+                    ROLE_ID,
+                )
+            })
+        })
+
+        describe('POST /api/guilds/:guildId/roles/manage/:roleId/duplicate', () => {
+            test('rejects duplicating a role whose permissions the requester does not hold', async () => {
+                authed({ permissions: KICK_MEMBERS })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ permissions: ADMINISTRATOR }),
+                ])
+
+                const res = await request(app)
+                    .post(
+                        `/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}/duplicate`,
+                    )
+                    .set('Cookie', ['sessionId=valid_session_id'])
+
+                expect(res.status).toBe(403)
+                expect(mockCreateGuildRole).not.toHaveBeenCalled()
+            })
+
+            test('allows duplicating a role whose permissions the requester already holds', async () => {
+                authed({ permissions: KICK_MEMBERS })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ permissions: KICK_MEMBERS }),
+                ])
+                mockCreateGuildRole.mockResolvedValue(
+                    roleFixture({ permissions: KICK_MEMBERS }),
+                )
+
+                const res = await request(app)
+                    .post(
+                        `/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}/duplicate`,
+                    )
+                    .set('Cookie', ['sessionId=valid_session_id'])
+
+                expect(res.status).toBe(201)
+                expect(mockCreateGuildRole).toHaveBeenCalled()
+            })
+
+            test('allows the guild owner to duplicate an Administrator role', async () => {
+                authed({ owner: true, permissions: '0' })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ permissions: ADMINISTRATOR }),
+                ])
+                mockCreateGuildRole.mockResolvedValue(
+                    roleFixture({ permissions: ADMINISTRATOR }),
+                )
+
+                const res = await request(app)
+                    .post(
+                        `/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}/duplicate`,
+                    )
+                    .set('Cookie', ['sessionId=valid_session_id'])
+
+                expect(res.status).toBe(201)
+            })
         })
     })
 })

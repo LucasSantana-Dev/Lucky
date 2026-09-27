@@ -12,6 +12,10 @@ import {
 import { guildService } from '../services/GuildService'
 import multer from 'multer'
 import { paramToString as p } from '../utils/paramCoerce'
+import {
+    assertRequestedPermissionsWithinGrant,
+    assertRoleHierarchyAllowed,
+} from './roleEscalationGuard'
 
 // File upload middleware for reaction roles images
 const imageUpload = multer({
@@ -87,6 +91,19 @@ function parseReactionRolePayload(req: AuthenticatedRequest): unknown {
         }
     }
     return req.body
+}
+
+// /roles/manage/* is only reachable behind the settings:manage guard in
+// routes/index.ts, which always populates req.guildContext before these
+// handlers run. Failing closed here (rather than assuming it is set) covers
+// the case where that invariant is ever broken (#2451).
+function requireGuildContext(
+    req: AuthenticatedRequest,
+): NonNullable<AuthenticatedRequest['guildContext']> {
+    if (!req.guildContext) {
+        throw AppError.forbidden('Guild access context is required')
+    }
+    return req.guildContext
 }
 
 export function setupRolesRoutes(app: Express): void {
@@ -289,6 +306,11 @@ export function setupRolesRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const data = s.roleUpsertBody.parse(req.body)
+            const guildContext = requireGuildContext(req)
+            assertRequestedPermissionsWithinGrant(
+                guildContext,
+                data.permissions,
+            )
 
             try {
                 const role = await guildService.createGuildRole(guildId, data)
@@ -319,6 +341,13 @@ export function setupRolesRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const roleId = p(req.params.roleId)
             const data = s.roleUpsertBody.parse(req.body)
+            const guildContext = requireGuildContext(req)
+            assertRequestedPermissionsWithinGrant(
+                guildContext,
+                data.permissions,
+            )
+            const existingRoles = await guildService.getFullGuildRoles(guildId)
+            assertRoleHierarchyAllowed(guildContext, roleId, existingRoles)
 
             try {
                 const role = await guildService.updateGuildRole(
@@ -354,6 +383,9 @@ export function setupRolesRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const roleId = p(req.params.roleId)
+            const guildContext = requireGuildContext(req)
+            const existingRoles = await guildService.getFullGuildRoles(guildId)
+            assertRoleHierarchyAllowed(guildContext, roleId, existingRoles)
 
             try {
                 await guildService.deleteGuildRole(guildId, roleId)
@@ -385,6 +417,7 @@ export function setupRolesRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const roleId = p(req.params.roleId)
+            const guildContext = requireGuildContext(req)
 
             try {
                 const roles = await guildService.getFullGuildRoles(guildId)
@@ -393,6 +426,13 @@ export function setupRolesRoutes(app: Express): void {
                 if (!sourceRole) {
                     throw AppError.notFound('Source role not found')
                 }
+
+                // Duplicating copies the source role's permissions onto a new
+                // role: the same escalation vector as a direct grant (#2451).
+                assertRequestedPermissionsWithinGrant(
+                    guildContext,
+                    sourceRole.permissions,
+                )
 
                 const duplicatedRole = await guildService.createGuildRole(
                     guildId,
@@ -428,6 +468,11 @@ export function setupRolesRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const { roleIds } = s.bulkDeleteBody.parse(req.body)
+            const guildContext = requireGuildContext(req)
+            const existingRoles = await guildService.getFullGuildRoles(guildId)
+            for (const roleId of roleIds) {
+                assertRoleHierarchyAllowed(guildContext, roleId, existingRoles)
+            }
 
             const BATCH_SIZE = 10
             const deleted: string[] = []

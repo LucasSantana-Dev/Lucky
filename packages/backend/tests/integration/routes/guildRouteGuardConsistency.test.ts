@@ -495,7 +495,12 @@ const cases: RouteCase[] = [
             mode: 'manage',
         },
         setups: [setupRolesRoutes],
-        mockHappyPath: () => mockDeleteGuildRole.mockResolvedValue(undefined),
+        // #2451: DELETE now checks role hierarchy, which fetches the role
+        // list first.
+        mockHappyPath: () => {
+            mockGetFullGuildRoles.mockResolvedValue([])
+            mockDeleteGuildRole.mockResolvedValue(undefined)
+        },
         successStatus: 200,
         wrongModule: 'automation',
     },
@@ -539,7 +544,12 @@ const cases: RouteCase[] = [
         },
         setups: [setupRolesRoutes],
         body: { roleIds: [ROLE_ID] },
-        mockHappyPath: () => mockDeleteGuildRole.mockResolvedValue(undefined),
+        // #2451: bulk-delete now checks role hierarchy per role, which
+        // fetches the role list first.
+        mockHappyPath: () => {
+            mockGetFullGuildRoles.mockResolvedValue([])
+            mockDeleteGuildRole.mockResolvedValue(undefined)
+        },
         successStatus: 200,
         wrongModule: 'automation',
     },

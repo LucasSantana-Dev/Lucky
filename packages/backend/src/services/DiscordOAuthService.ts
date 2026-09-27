@@ -378,6 +378,24 @@ class DiscordOAuthService {
         )
     }
 
+    /**
+     * The raw Discord permissions bitfield the user holds in the guild
+     * (union of their roles' permissions), as a numeric string. Used to cap
+     * what a non-admin dashboard user can grant a role (#2451): distinct
+     * from `hasAdminPermission`, which also treats MANAGE_GUILD as
+     * dashboard-admin-equivalent for broader access purposes.
+     */
+    getPermissionsBitfield(
+        permissions: string | null | undefined,
+        permissionsNew?: string | null,
+    ): string {
+        const permissionsBigInt =
+            this.parsePermissionBits(permissionsNew) ??
+            this.parsePermissionBits(permissions)
+
+        return permissionsBigInt !== null ? permissionsBigInt.toString() : '0'
+    }
+
     filterAdminGuilds(guilds: DiscordGuild[]): DiscordGuild[] {
         return guilds.filter((guild) =>
             this.hasAdminPermission(guild.permissions, guild.permissions_new),
