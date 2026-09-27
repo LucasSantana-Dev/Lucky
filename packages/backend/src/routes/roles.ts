@@ -15,6 +15,7 @@ import { paramToString as p } from '../utils/paramCoerce'
 import {
     assertRequestedPermissionsWithinGrant,
     assertRoleHierarchyAllowed,
+    type RoleGuardContext,
 } from './roleEscalationGuard'
 
 // File upload middleware for reaction roles images
@@ -104,6 +105,23 @@ function requireGuildContext(
         throw AppError.forbidden('Guild access context is required')
     }
     return req.guildContext
+}
+
+// GuildAccessService skips the real member lookup (roleIds) for guild
+// owners and for the dashboard's broader MANAGE_GUILD-inclusive `isAdmin`,
+// since those callers already get full dashboard access - `roleIds` is `[]`
+// in that case but that means "never checked", not "holds no roles"
+// (botPresenceChecked distinguishes the two). Map that through so the
+// hierarchy check can skip rather than wrongly treat them as @everyone.
+function toRoleGuardContext(
+    guildContext: NonNullable<AuthenticatedRequest['guildContext']>,
+): RoleGuardContext {
+    return {
+        owner: guildContext.owner,
+        permissions: guildContext.permissions,
+        roleIds: guildContext.roleIds,
+        roleDataAvailable: guildContext.botPresenceChecked,
+    }
 }
 
 export function setupRolesRoutes(app: Express): void {
@@ -347,7 +365,11 @@ export function setupRolesRoutes(app: Express): void {
                 data.permissions,
             )
             const existingRoles = await guildService.getFullGuildRoles(guildId)
-            assertRoleHierarchyAllowed(guildContext, roleId, existingRoles)
+            assertRoleHierarchyAllowed(
+                toRoleGuardContext(guildContext),
+                roleId,
+                existingRoles,
+            )
 
             try {
                 const role = await guildService.updateGuildRole(
@@ -385,7 +407,11 @@ export function setupRolesRoutes(app: Express): void {
             const roleId = p(req.params.roleId)
             const guildContext = requireGuildContext(req)
             const existingRoles = await guildService.getFullGuildRoles(guildId)
-            assertRoleHierarchyAllowed(guildContext, roleId, existingRoles)
+            assertRoleHierarchyAllowed(
+                toRoleGuardContext(guildContext),
+                roleId,
+                existingRoles,
+            )
 
             try {
                 await guildService.deleteGuildRole(guildId, roleId)
@@ -471,7 +497,11 @@ export function setupRolesRoutes(app: Express): void {
             const guildContext = requireGuildContext(req)
             const existingRoles = await guildService.getFullGuildRoles(guildId)
             for (const roleId of roleIds) {
-                assertRoleHierarchyAllowed(guildContext, roleId, existingRoles)
+                assertRoleHierarchyAllowed(
+                    toRoleGuardContext(guildContext),
+                    roleId,
+                    existingRoles,
+                )
             }
 
             const BATCH_SIZE = 10

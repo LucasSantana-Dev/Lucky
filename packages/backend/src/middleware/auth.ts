@@ -14,6 +14,7 @@ export interface AuthenticatedRequest extends Request {
         nickname: string | null
         canManageRbac: boolean
         permissions: string
+        botPresenceChecked: boolean
     }
     user?: {
         id: string

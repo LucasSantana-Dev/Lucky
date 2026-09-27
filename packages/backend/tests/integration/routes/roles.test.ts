@@ -628,6 +628,7 @@ describe('Roles Routes', () => {
         const ROLE_ID = '999999999999999999'
         const ADMINISTRATOR = '8'
         const KICK_MEMBERS = '2'
+        const MANAGE_GUILD = '32'
         const MY_ROLE_ID = '444444444444444444'
 
         function roleFixture(overrides: Record<string, unknown> = {}) {
@@ -805,6 +806,101 @@ describe('Roles Routes', () => {
                     GUILD_ID,
                     ROLE_ID,
                 )
+            })
+
+            test('a non-owner Administrator is still blocked by role hierarchy', async () => {
+                // Real Discord behavior: Administrator does not bypass the
+                // role-position rule, only the guild owner does (#2451
+                // review).
+                authed({
+                    permissions: ADMINISTRATOR,
+                    roleIds: [MY_ROLE_ID],
+                    botPresenceChecked: true,
+                })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ position: 9 }),
+                    { id: MY_ROLE_ID, position: 5 },
+                ])
+
+                const res = await request(app)
+                    .delete(`/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+
+                expect(res.status).toBe(403)
+                expect(mockDeleteGuildRole).not.toHaveBeenCalled()
+            })
+
+            test('fails closed when the role list cannot be resolved', async () => {
+                authed({ permissions: KICK_MEMBERS, roleIds: [MY_ROLE_ID] })
+                mockGetFullGuildRoles.mockResolvedValue([])
+
+                const res = await request(app)
+                    .delete(`/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+
+                expect(res.status).toBe(403)
+                expect(mockDeleteGuildRole).not.toHaveBeenCalled()
+            })
+
+            test('a MANAGE_GUILD-only admin (real roles never fetched) is not wrongly blocked', async () => {
+                // GuildAccessService short-circuits the member-role lookup
+                // for the dashboard's broader isAdmin (which MANAGE_GUILD
+                // alone satisfies), so roleIds is always [] for them - that
+                // must not read as "holds no roles" (#2451 review).
+                authed({
+                    permissions: MANAGE_GUILD,
+                    roleIds: [],
+                    botPresenceChecked: false,
+                })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ position: 50 }),
+                ])
+                mockDeleteGuildRole.mockResolvedValue(undefined)
+
+                const res = await request(app)
+                    .delete(`/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+
+                expect(res.status).toBe(200)
+            })
+        })
+
+        describe('POST /api/guilds/:guildId/roles/manage/bulk-delete', () => {
+            const OTHER_ROLE_ID = '888888888888888888'
+
+            test('rejects the whole batch when one role is positioned at or above the requester highest role', async () => {
+                authed({ permissions: KICK_MEMBERS, roleIds: [MY_ROLE_ID] })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ id: ROLE_ID, position: 1 }),
+                    roleFixture({ id: OTHER_ROLE_ID, position: 9 }),
+                    { id: MY_ROLE_ID, position: 5 },
+                ])
+
+                const res = await request(app)
+                    .post(`/api/guilds/${GUILD_ID}/roles/manage/bulk-delete`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+                    .send({ roleIds: [ROLE_ID, OTHER_ROLE_ID] })
+
+                expect(res.status).toBe(403)
+                expect(mockDeleteGuildRole).not.toHaveBeenCalled()
+            })
+
+            test('allows a batch entirely below the requester highest role', async () => {
+                authed({ permissions: KICK_MEMBERS, roleIds: [MY_ROLE_ID] })
+                mockGetFullGuildRoles.mockResolvedValue([
+                    roleFixture({ id: ROLE_ID, position: 1 }),
+                    roleFixture({ id: OTHER_ROLE_ID, position: 2 }),
+                    { id: MY_ROLE_ID, position: 5 },
+                ])
+                mockDeleteGuildRole.mockResolvedValue(undefined)
+
+                const res = await request(app)
+                    .post(`/api/guilds/${GUILD_ID}/roles/manage/bulk-delete`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+                    .send({ roleIds: [ROLE_ID, OTHER_ROLE_ID] })
+
+                expect(res.status).toBe(200)
+                expect(mockDeleteGuildRole).toHaveBeenCalledTimes(2)
             })
         })
 

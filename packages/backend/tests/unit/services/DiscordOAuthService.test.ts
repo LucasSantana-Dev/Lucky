@@ -390,6 +390,10 @@ describe('DiscordOAuthService', () => {
                 false,
             )
         })
+
+        test('should return false for a negative permission payload instead of matching every bit', () => {
+            expect(discordOAuthService.hasAdminPermission('-1')).toBe(false)
+        })
     })
 
     describe('getPermissionsBitfield', () => {
@@ -413,6 +417,13 @@ describe('DiscordOAuthService', () => {
             expect(discordOAuthService.getPermissionsBitfield(undefined)).toBe(
                 '0',
             )
+        })
+
+        test('falls back to "0" on a negative value instead of returning it as-is', () => {
+            // A negative bigint has every bit set under `&`, which would
+            // make a malformed value look like Administrator to any caller
+            // that checks bits on the returned string (#2451 review).
+            expect(discordOAuthService.getPermissionsBitfield('-1')).toBe('0')
         })
     })
 

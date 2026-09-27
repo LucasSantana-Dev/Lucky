@@ -82,7 +82,15 @@ class DiscordOAuthService {
     private normalizePermissionValue(value: unknown): string | null {
         if (typeof value === 'string') {
             const normalized = value.trim()
-            return normalized.length > 0 ? normalized : null
+            // A real Discord permissions bitfield is never negative; a
+            // leading '-' means malformed/hostile data. Rejecting it here
+            // (rather than accepting it) matters because a negative bigint
+            // has every bit set under `&`, which would make
+            // hasAdminPermission/getPermissionsBitfield callers treat a
+            // malformed value as "has every permission" (#2451 review).
+            return normalized.length > 0 && !normalized.startsWith('-')
+                ? normalized
+                : null
         }
 
         if (

@@ -14,32 +14,67 @@ export interface RoleGuardContext {
     permissions: string
     /** Discord role IDs the requester holds in the guild. */
     roleIds: string[]
-}
-
-function toBigIntSafe(value: string | undefined | null): bigint {
-    if (!value) {
-        return BigInt(0)
-    }
-    try {
-        return BigInt(value)
-    } catch {
-        return BigInt(0)
-    }
+    /**
+     * False when GuildAccessService never fetched this requester's real
+     * guild member (it short-circuits that lookup for guild owners and for
+     * the dashboard's broader MANAGE_GUILD-inclusive `isAdmin`, since those
+     * callers already get full dashboard access). When false, `roleIds` is
+     * always `[]` but that does NOT mean the requester actually holds no
+     * Discord roles - it means we never checked. Treating it as "no roles"
+     * would wrongly block a MANAGE_GUILD-holding admin from every real role.
+     * Mirrors GuildAccessContext.botPresenceChecked.
+     */
+    roleDataAvailable: boolean
 }
 
 /**
- * Guild owner or true Discord Administrator bypass the role permission cap
- * and hierarchy checks below, mirroring Discord's own rule. This is
- * intentionally narrower than the dashboard's `isAdmin` concept (which also
- * treats MANAGE_GUILD as admin-equivalent for broader dashboard access) -
- * MANAGE_GUILD alone does not exempt a member from Discord's role hierarchy.
+ * Parses a permissions bitfield that must already be present (never the
+ * "no value supplied" case - callers handle that separately). Fails closed:
+ * throws on anything that isn't a valid non-negative integer string, rather
+ * than silently treating malformed input as zero permissions, which could
+ * let a bad "requested" value slip through as trivially satisfied (#2451
+ * review).
  */
-export function isExemptFromRoleCap(context: RoleGuardContext): boolean {
-    if (context.owner) {
-        return true
+function parsePermissionBits(value: string): bigint {
+    let bits: bigint
+    try {
+        bits = BigInt(value)
+    } catch {
+        throw AppError.forbidden('Invalid permissions value')
     }
-    const bits = toBigIntSafe(context.permissions)
+    if (bits < BigInt(0)) {
+        throw AppError.forbidden('Invalid permissions value')
+    }
+    return bits
+}
+
+function hasAdministratorBit(permissionsBitfield: string): boolean {
+    const bits = parsePermissionBits(permissionsBitfield)
     return (bits & ADMINISTRATOR_BIT) === ADMINISTRATOR_BIT
+}
+
+/**
+ * Guild owner or true Discord Administrator bypass the permission cap:
+ * Administrator means "can do anything permission-wise", so it does not
+ * matter that a granted bit isn't in the requester's own bitfield.
+ */
+export function isExemptFromPermissionCap(
+    context: Pick<RoleGuardContext, 'owner' | 'permissions'>,
+): boolean {
+    return context.owner || hasAdministratorBit(context.permissions)
+}
+
+/**
+ * Only the guild owner bypasses Discord's role-hierarchy rule. This is
+ * deliberately narrower than isExemptFromPermissionCap: on Discord itself,
+ * Administrator does not let a member edit, delete, or reorder a role
+ * positioned at or above their own highest role - only the owner is exempt
+ * from that structural constraint (#2451 review).
+ */
+export function isExemptFromHierarchy(
+    context: Pick<RoleGuardContext, 'owner'>,
+): boolean {
+    return context.owner
 }
 
 /**
@@ -49,15 +84,18 @@ export function isExemptFromRoleCap(context: RoleGuardContext): boolean {
  * Fails closed (403) rather than silently stripping bits.
  */
 export function assertRequestedPermissionsWithinGrant(
-    context: RoleGuardContext,
+    context: Pick<RoleGuardContext, 'owner' | 'permissions'>,
     requestedPermissions: string | undefined,
 ): void {
-    if (requestedPermissions === undefined || isExemptFromRoleCap(context)) {
+    if (
+        requestedPermissions === undefined ||
+        isExemptFromPermissionCap(context)
+    ) {
         return
     }
 
-    const requestedBits = toBigIntSafe(requestedPermissions)
-    const holderBits = toBigIntSafe(context.permissions)
+    const requestedBits = parsePermissionBits(requestedPermissions)
+    const holderBits = parsePermissionBits(context.permissions)
 
     if ((requestedBits & holderBits) !== requestedBits) {
         throw AppError.forbidden(
@@ -91,22 +129,40 @@ export function getHighestRolePosition(
 /**
  * Enforces that a role being edited or deleted is strictly below the
  * requester's highest role, mirroring Discord's hierarchy rule (#2451).
- * Skipped when the requester is exempt, or when the target role's position
- * cannot be resolved from `allRoles` (data not reliably available) - the
- * downstream Discord call remains the source of truth for a genuinely
- * missing role.
+ *
+ * Skipped (not blocked) only when we genuinely have no way to know the
+ * requester's own role positions (`roleDataAvailable` is false - see its
+ * doc comment). Fails closed (403) when the role list came back empty,
+ * since every caller here passes a real target roleId: getFullGuildRoles
+ * returns `[]` both for a guild with genuinely zero custom roles and when
+ * the underlying Discord fetch failed, and those are indistinguishable
+ * here, so an empty result is treated as "couldn't verify" rather than
+ * silently allowed through.
  */
 export function assertRoleHierarchyAllowed(
-    context: RoleGuardContext,
+    context: Pick<RoleGuardContext, 'owner' | 'roleIds' | 'roleDataAvailable'>,
     targetRoleId: string,
     allRoles: GuildRoleManage[],
 ): void {
-    if (isExemptFromRoleCap(context)) {
+    if (isExemptFromHierarchy(context)) {
         return
+    }
+
+    if (!context.roleDataAvailable) {
+        return
+    }
+
+    if (allRoles.length === 0) {
+        throw AppError.forbidden(
+            'Unable to verify role hierarchy right now; please try again',
+        )
     }
 
     const targetRole = allRoles.find((role) => role.id === targetRoleId)
     if (!targetRole) {
+        // A non-empty list was fetched successfully but doesn't contain
+        // this role - most likely it was already deleted. Let the
+        // downstream Discord call be the source of truth (it will 404).
         return
     }
 

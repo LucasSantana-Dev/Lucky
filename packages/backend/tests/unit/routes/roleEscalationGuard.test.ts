@@ -1,6 +1,7 @@
 import { describe, test, expect } from '@jest/globals'
 import {
-    isExemptFromRoleCap,
+    isExemptFromPermissionCap,
+    isExemptFromHierarchy,
     assertRequestedPermissionsWithinGrant,
     getHighestRolePosition,
     assertRoleHierarchyAllowed,
@@ -18,6 +19,7 @@ function context(overrides: Partial<RoleGuardContext> = {}): RoleGuardContext {
         owner: false,
         permissions: '0',
         roleIds: [],
+        roleDataAvailable: true,
         ...overrides,
     }
 }
@@ -36,28 +38,48 @@ function role(overrides: Partial<GuildRoleManage> = {}): GuildRoleManage {
     }
 }
 
-describe('isExemptFromRoleCap', () => {
+describe('isExemptFromPermissionCap', () => {
     test('owner is exempt regardless of permissions', () => {
         expect(
-            isExemptFromRoleCap(context({ owner: true, permissions: '0' })),
+            isExemptFromPermissionCap(
+                context({ owner: true, permissions: '0' }),
+            ),
         ).toBe(true)
     })
 
     test('true Administrator bit is exempt', () => {
         expect(
-            isExemptFromRoleCap(context({ permissions: ADMINISTRATOR })),
+            isExemptFromPermissionCap(context({ permissions: ADMINISTRATOR })),
         ).toBe(true)
     })
 
     test('MANAGE_GUILD alone is NOT exempt (not real Administrator)', () => {
         expect(
-            isExemptFromRoleCap(context({ permissions: MANAGE_GUILD })),
+            isExemptFromPermissionCap(context({ permissions: MANAGE_GUILD })),
         ).toBe(false)
     })
 
     test('non-admin, non-owner is not exempt', () => {
         expect(
-            isExemptFromRoleCap(context({ permissions: KICK_MEMBERS })),
+            isExemptFromPermissionCap(context({ permissions: KICK_MEMBERS })),
+        ).toBe(false)
+    })
+})
+
+describe('isExemptFromHierarchy', () => {
+    test('owner is exempt', () => {
+        expect(isExemptFromHierarchy(context({ owner: true }))).toBe(true)
+    })
+
+    test('non-owner is not exempt, even with Administrator', () => {
+        // On Discord itself, Administrator does not bypass role hierarchy -
+        // only the guild owner can touch a role at or above their own
+        // highest role. This is deliberately narrower than
+        // isExemptFromPermissionCap (#2451 review).
+        expect(
+            isExemptFromHierarchy(
+                context({ owner: false, permissions: ADMINISTRATOR }),
+            ),
         ).toBe(false)
     })
 })
@@ -128,6 +150,33 @@ describe('assertRequestedPermissionsWithinGrant', () => {
             ),
         ).toThrow(/Cannot grant permissions/)
     })
+
+    test('fails closed on a negative requested permissions value', () => {
+        expect(() =>
+            assertRequestedPermissionsWithinGrant(
+                context({ permissions: '-1' }),
+                KICK_MEMBERS,
+            ),
+        ).toThrow(/Invalid permissions value/)
+    })
+
+    test('fails closed on a non-numeric requested permissions value', () => {
+        expect(() =>
+            assertRequestedPermissionsWithinGrant(
+                context({ permissions: KICK_MEMBERS }),
+                'not-a-number',
+            ),
+        ).toThrow(/Invalid permissions value/)
+    })
+
+    test('fails closed on a malformed holder permissions value (e.g. a corrupt duplicate source role)', () => {
+        expect(() =>
+            assertRequestedPermissionsWithinGrant(
+                context({ permissions: 'garbage' }),
+                KICK_MEMBERS,
+            ),
+        ).toThrow(/Invalid permissions value/)
+    })
 })
 
 describe('getHighestRolePosition', () => {
@@ -193,7 +242,7 @@ describe('assertRoleHierarchyAllowed', () => {
         ).not.toThrow()
     })
 
-    test('allows a member with no roles to be blocked from every real role', () => {
+    test('blocks a member with no roles from every real role', () => {
         const roles = [role({ id: 'target', position: 1 })]
         expect(() =>
             assertRoleHierarchyAllowed(
@@ -215,20 +264,56 @@ describe('assertRoleHierarchyAllowed', () => {
         ).not.toThrow()
     })
 
-    test('Administrator bypasses hierarchy check', () => {
-        const roles = [role({ id: 'target', position: 99 })]
+    test('Administrator does NOT bypass hierarchy when role data is available', () => {
+        // Mirrors real Discord behavior: Administrator does not exempt a
+        // non-owner from the role-position rule (#2451 review).
+        const roles = [
+            role({ id: 'mine', position: 3 }),
+            role({ id: 'target', position: 5 }),
+        ]
         expect(() =>
             assertRoleHierarchyAllowed(
-                context({ permissions: ADMINISTRATOR, roleIds: [] }),
+                context({ permissions: ADMINISTRATOR, roleIds: ['mine'] }),
                 'target',
+                roles,
+            ),
+        ).toThrow(/at or above/)
+    })
+
+    test('skips the check when the target role is absent from a non-empty, successfully-fetched list', () => {
+        const roles = [role({ id: 'other', position: 3 })]
+        expect(() =>
+            assertRoleHierarchyAllowed(
+                context({ roleIds: [] }),
+                'unknown',
                 roles,
             ),
         ).not.toThrow()
     })
 
-    test('skips the check when the target role cannot be resolved (data unavailable)', () => {
+    test('fails closed when the role list comes back empty (fetch failure vs. genuinely empty guild are indistinguishable)', () => {
         expect(() =>
-            assertRoleHierarchyAllowed(context({ roleIds: [] }), 'unknown', []),
+            assertRoleHierarchyAllowed(context({ roleIds: [] }), 'target', []),
+        ).toThrow(/Unable to verify role hierarchy/)
+    })
+
+    test('skips the check entirely when role data was never fetched (e.g. a MANAGE_GUILD-only admin)', () => {
+        // GuildAccessService never looks up real member roles for a
+        // MANAGE_GUILD-holding, non-owner, non-true-Administrator admin
+        // (it already grants them full dashboard access another way), so
+        // roleIds is always [] for them. Without roleDataAvailable, that
+        // would wrongly read as "holds no roles" and block every role.
+        const roles = [role({ id: 'target', position: 50 })]
+        expect(() =>
+            assertRoleHierarchyAllowed(
+                context({
+                    permissions: MANAGE_GUILD,
+                    roleIds: [],
+                    roleDataAvailable: false,
+                }),
+                'target',
+                roles,
+            ),
         ).not.toThrow()
     })
 })
