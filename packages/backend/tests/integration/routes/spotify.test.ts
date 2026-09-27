@@ -65,6 +65,17 @@ function errorHandler(
     res.status(500).json({ error: 'Internal server error' })
 }
 
+// Builds a signed callback state the same way SpotifyAuthService's
+// encodeState does, for tests that need a valid or attacker-controlled state.
+function buildState(discordId: string, secret = 'test-secret'): string {
+    const payload = Buffer.from(discordId).toString('base64url')
+    const sig = require('crypto')
+        .createHmac('sha256', secret)
+        .update(discordId)
+        .digest('hex')
+    return `${payload}.${sig}`
+}
+
 describe('Spotify Routes', () => {
     let app: Express
 
@@ -241,12 +252,7 @@ describe('Spotify Routes', () => {
             })
             mockSpotifyLinkService.set.mockResolvedValue(true)
 
-            const state = Buffer.from('test-discord-id').toString('base64url')
-            const sig = require('crypto')
-                .createHmac('sha256', 'test-secret')
-                .update('test-discord-id')
-                .digest('hex')
-            const encodedState = `${state}.${sig}`
+            const encodedState = buildState('test-discord-id')
 
             const res = await request(app)
                 .get(
@@ -262,12 +268,7 @@ describe('Spotify Routes', () => {
             mockSpotifyAuthService.isSpotifyAuthConfigured.mockReturnValue(true)
             mockSpotifyAuthService.exchangeCodeForToken.mockResolvedValue(null)
 
-            const state = Buffer.from('test-discord-id').toString('base64url')
-            const sig = require('crypto')
-                .createHmac('sha256', 'test-secret')
-                .update('test-discord-id')
-                .digest('hex')
-            const encodedState = `${state}.${sig}`
+            const encodedState = buildState('test-discord-id')
 
             const res = await request(app)
                 .get(
@@ -297,12 +298,7 @@ describe('Spotify Routes', () => {
         })
 
         it('rejects when the state query param is missing', async () => {
-            const state = Buffer.from('test-discord-id').toString('base64url')
-            const sig = require('crypto')
-                .createHmac('sha256', 'test-secret')
-                .update('test-discord-id')
-                .digest('hex')
-            const encodedState = `${state}.${sig}`
+            const encodedState = buildState('test-discord-id')
 
             const res = await request(app)
                 .get('/api/spotify/callback?code=auth-code')
@@ -316,12 +312,7 @@ describe('Spotify Routes', () => {
         })
 
         it('rejects when the state cookie is missing', async () => {
-            const state = Buffer.from('test-discord-id').toString('base64url')
-            const sig = require('crypto')
-                .createHmac('sha256', 'test-secret')
-                .update('test-discord-id')
-                .digest('hex')
-            const encodedState = `${state}.${sig}`
+            const encodedState = buildState('test-discord-id')
 
             const res = await request(app).get(
                 `/api/spotify/callback?code=auth-code&state=${encodedState}`,
@@ -335,14 +326,6 @@ describe('Spotify Routes', () => {
         })
 
         it('rejects when the query state does not match the cookie state (CSRF)', async () => {
-            const buildState = (discordId: string) => {
-                const payload = Buffer.from(discordId).toString('base64url')
-                const sig = require('crypto')
-                    .createHmac('sha256', 'test-secret')
-                    .update(discordId)
-                    .digest('hex')
-                return `${payload}.${sig}`
-            }
             const queryState = buildState('test-discord-id')
             const cookieState = buildState('attacker-discord-id')
 
@@ -367,12 +350,7 @@ describe('Spotify Routes', () => {
             })
             mockSpotifyLinkService.set.mockResolvedValue(null)
 
-            const state = Buffer.from('test-discord-id').toString('base64url')
-            const sig = require('crypto')
-                .createHmac('sha256', 'test-secret')
-                .update('test-discord-id')
-                .digest('hex')
-            const encodedState = `${state}.${sig}`
+            const encodedState = buildState('test-discord-id')
 
             const res = await request(app)
                 .get(`/api/spotify/callback?code=code&state=${encodedState}`)
@@ -429,12 +407,7 @@ describe('Spotify Routes', () => {
                 new Error('token exchange error'),
             )
 
-            const state = Buffer.from('test-discord-id').toString('base64url')
-            const sig = require('crypto')
-                .createHmac('sha256', 'test-secret')
-                .update('test-discord-id')
-                .digest('hex')
-            const encodedState = `${state}.${sig}`
+            const encodedState = buildState('test-discord-id')
 
             const res = await request(app)
                 .get(
