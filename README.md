@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <b>🎵 The Discord music bot that can't be shut down — because you host it.</b><br>
+  <b>🎵 The Discord music bot that learns your server's taste and keeps the call playing.</b><br>
   <strong>Self-hosted · Open-source · TypeScript monorepo · No paywall, no premium tier</strong>
 </p>
 
@@ -33,7 +33,7 @@
 
 Lucky is a **production-grade, self-hosted Discord music bot** — built as a TypeScript monorepo with a React 19 dashboard, full moderation suite, and a leveling system. Supports **YouTube, Spotify, and SoundCloud** with smart autoplay powered by listening history recommendations.
 
-Unlike Groovy, Rythm, or Hydra (all shut down by third-party enforcement), Lucky can't be taken offline because **you host it.** Every feature is included — no paywall, no premium tier.
+Lucky is yours to run: **host it yourself** and every feature is included, with no paywall and no premium tier.
 
 - **Live demo**: [lucky.lucassantana.tech](https://lucky.lucassantana.tech)  
 - **Invite to your server**: [Add Lucky now](https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge)
