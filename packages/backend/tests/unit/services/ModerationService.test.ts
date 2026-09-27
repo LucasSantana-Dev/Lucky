@@ -427,6 +427,111 @@ describe('ModerationService', () => {
         })
     })
 
+    describe('getFilteredCases', () => {
+        test('should default to page 1 and limit 25 and return the total count', async () => {
+            mockPrisma.moderationCase.findMany.mockResolvedValue([])
+            mockPrisma.moderationCase.count.mockResolvedValue(0)
+
+            const result = await service.getFilteredCases(GUILD_A)
+
+            expect(mockPrisma.moderationCase.findMany).toHaveBeenCalledWith({
+                where: { guildId: GUILD_A },
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
+                take: 25,
+                skip: 0,
+            })
+            expect(mockPrisma.moderationCase.count).toHaveBeenCalledWith({
+                where: { guildId: GUILD_A },
+            })
+            expect(result).toEqual({ cases: [], total: 0 })
+        })
+
+        test('should page using skip = (page - 1) * limit', async () => {
+            mockPrisma.moderationCase.findMany.mockResolvedValue([])
+            mockPrisma.moderationCase.count.mockResolvedValue(0)
+
+            await service.getFilteredCases(GUILD_A, { page: 2, limit: 15 })
+
+            expect(mockPrisma.moderationCase.findMany).toHaveBeenCalledWith({
+                where: { guildId: GUILD_A },
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
+                take: 15,
+                skip: 15,
+            })
+        })
+
+        test('should filter by type', async () => {
+            mockPrisma.moderationCase.findMany.mockResolvedValue([])
+            mockPrisma.moderationCase.count.mockResolvedValue(0)
+
+            await service.getFilteredCases(GUILD_A, { type: 'warn' })
+
+            expect(mockPrisma.moderationCase.findMany).toHaveBeenCalledWith({
+                where: { guildId: GUILD_A, type: 'warn' },
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
+                take: 25,
+                skip: 0,
+            })
+            expect(mockPrisma.moderationCase.count).toHaveBeenCalledWith({
+                where: { guildId: GUILD_A, type: 'warn' },
+            })
+        })
+
+        test('should search across username, moderatorName and reason', async () => {
+            mockPrisma.moderationCase.findMany.mockResolvedValue([])
+            mockPrisma.moderationCase.count.mockResolvedValue(0)
+
+            await service.getFilteredCases(GUILD_A, { search: 'spam' })
+
+            const expectedOr = [
+                { username: { contains: 'spam', mode: 'insensitive' } },
+                { moderatorName: { contains: 'spam', mode: 'insensitive' } },
+                { reason: { contains: 'spam', mode: 'insensitive' } },
+            ]
+            const call = mockPrisma.moderationCase.findMany.mock.calls[0][0]
+            expect(call.where.guildId).toBe(GUILD_A)
+            expect(call.where.OR).toEqual(expectedOr)
+            expect(mockPrisma.moderationCase.count).toHaveBeenCalledWith({
+                where: { guildId: GUILD_A, OR: expectedOr },
+            })
+        })
+
+        test('should combine type and search with AND semantics', async () => {
+            mockPrisma.moderationCase.findMany.mockResolvedValue([])
+            mockPrisma.moderationCase.count.mockResolvedValue(0)
+
+            await service.getFilteredCases(GUILD_A, {
+                type: 'ban',
+                search: 'spam',
+            })
+
+            const expectedWhere = {
+                guildId: GUILD_A,
+                type: 'ban',
+                OR: [
+                    { username: { contains: 'spam', mode: 'insensitive' } },
+                    {
+                        moderatorName: {
+                            contains: 'spam',
+                            mode: 'insensitive',
+                        },
+                    },
+                    { reason: { contains: 'spam', mode: 'insensitive' } },
+                ],
+            }
+
+            expect(mockPrisma.moderationCase.findMany).toHaveBeenCalledWith({
+                where: expectedWhere,
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
+                take: 25,
+                skip: 0,
+            })
+            expect(mockPrisma.moderationCase.count).toHaveBeenCalledWith({
+                where: expectedWhere,
+            })
+        })
+    })
+
     describe('getActiveWarningsCount', () => {
         test('should count active warnings for a user', async () => {
             mockPrisma.moderationCase.count.mockResolvedValue(3)

@@ -390,6 +390,143 @@ describe('ModerationService', () => {
             })
         })
 
+        it('getFilteredCases defaults to page 1 and limit 25 with no filters', async () => {
+            const m = setupCaseMock()
+            m.findMany.mockResolvedValue([])
+            m.count.mockResolvedValue(0)
+
+            const result = await service.getFilteredCases('guild-1')
+
+            expect(m.findMany).toHaveBeenCalledWith({
+                where: { guildId: 'guild-1' },
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
+                take: 25,
+                skip: 0,
+            })
+            expect(m.count).toHaveBeenCalledWith({
+                where: { guildId: 'guild-1' },
+            })
+            expect(result).toEqual({ cases: [], total: 0 })
+        })
+
+        it('getFilteredCases computes skip from page and limit', async () => {
+            const m = setupCaseMock()
+            m.findMany.mockResolvedValue([])
+            m.count.mockResolvedValue(0)
+
+            await service.getFilteredCases('guild-1', { page: 3, limit: 10 })
+
+            expect(m.findMany).toHaveBeenCalledWith({
+                where: { guildId: 'guild-1' },
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
+                take: 10,
+                skip: 20,
+            })
+        })
+
+        it('getFilteredCases filters by type', async () => {
+            const m = setupCaseMock()
+            m.findMany.mockResolvedValue([])
+            m.count.mockResolvedValue(0)
+
+            await service.getFilteredCases('guild-1', { type: 'ban' })
+
+            expect(m.findMany).toHaveBeenCalledWith({
+                where: { guildId: 'guild-1', type: 'ban' },
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
+                take: 25,
+                skip: 0,
+            })
+            expect(m.count).toHaveBeenCalledWith({
+                where: { guildId: 'guild-1', type: 'ban' },
+            })
+        })
+
+        it('getFilteredCases searches username, moderatorName, and reason', async () => {
+            const m = setupCaseMock()
+            m.findMany.mockResolvedValue([])
+            m.count.mockResolvedValue(0)
+
+            await service.getFilteredCases('guild-1', { search: 'spam' })
+
+            const expectedWhere = {
+                guildId: 'guild-1',
+                OR: [
+                    {
+                        username: {
+                            contains: 'spam',
+                            mode: 'insensitive',
+                        },
+                    },
+                    {
+                        moderatorName: {
+                            contains: 'spam',
+                            mode: 'insensitive',
+                        },
+                    },
+                    {
+                        reason: {
+                            contains: 'spam',
+                            mode: 'insensitive',
+                        },
+                    },
+                ],
+            }
+
+            expect(m.findMany).toHaveBeenCalledWith({
+                where: expectedWhere,
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
+                take: 25,
+                skip: 0,
+            })
+            expect(m.count).toHaveBeenCalledWith({ where: expectedWhere })
+        })
+
+        it('getFilteredCases combines type and search with AND semantics', async () => {
+            const m = setupCaseMock()
+            m.findMany.mockResolvedValue([])
+            m.count.mockResolvedValue(0)
+
+            await service.getFilteredCases('guild-1', {
+                type: 'ban',
+                search: 'spam',
+            })
+
+            const expectedWhere = {
+                guildId: 'guild-1',
+                type: 'ban',
+                OR: [
+                    { username: { contains: 'spam', mode: 'insensitive' } },
+                    {
+                        moderatorName: {
+                            contains: 'spam',
+                            mode: 'insensitive',
+                        },
+                    },
+                    { reason: { contains: 'spam', mode: 'insensitive' } },
+                ],
+            }
+
+            expect(m.findMany).toHaveBeenCalledWith({
+                where: expectedWhere,
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
+                take: 25,
+                skip: 0,
+            })
+            expect(m.count).toHaveBeenCalledWith({ where: expectedWhere })
+        })
+
+        it('getFilteredCases returns the cases and total count together', async () => {
+            const m = setupCaseMock()
+            const cases = [{ id: 'case-1' }]
+            m.findMany.mockResolvedValue(cases)
+            m.count.mockResolvedValue(42)
+
+            const result = await service.getFilteredCases('guild-1')
+
+            expect(result).toEqual({ cases, total: 42 })
+        })
+
         it('getCasesSince filters by createdAt gte the given date', async () => {
             const m = setupCaseMock()
             m.findMany.mockResolvedValue([])

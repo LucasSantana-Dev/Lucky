@@ -30,12 +30,11 @@ export function setupModerationRoutes(app: Express): void {
         validateQuery(s.casesQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const query = s.casesQuery.parse(req.query)
-            const limit = query.limit ?? 25
-            const cases = await moderationService.getRecentCases(
+            const { cases, total } = await moderationService.getFilteredCases(
                 p(req.params.guildId),
-                limit,
+                query,
             )
-            res.json({ cases })
+            res.json({ cases, total })
         }),
     )
 
