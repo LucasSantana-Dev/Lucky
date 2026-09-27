@@ -31,10 +31,11 @@ export function buildCreatePayload(
     form: AutoMessageFormValues,
 ): CreateAutoMessageInput {
     const isAutoResponse = form.type === 'auto_response'
+    const channelId = form.channelId.trim()
     return {
         type: form.type,
         message: form.message,
-        channelId: form.channelId.trim() === '' ? undefined : form.channelId,
+        channelId: channelId === '' ? undefined : channelId,
         ...(isAutoResponse
             ? { trigger: form.trigger, exactMatch: form.exactMatch }
             : {}),
@@ -50,9 +51,10 @@ export function buildUpdatePayload(
     form: AutoMessageFormValues,
 ): UpdateAutoMessageInput {
     const isAutoResponse = form.type === 'auto_response'
+    const channelId = form.channelId.trim()
     return {
         message: form.message,
-        channelId: form.channelId.trim() === '' ? null : form.channelId,
+        channelId: channelId === '' ? null : channelId,
         ...(isAutoResponse
             ? { trigger: form.trigger, exactMatch: form.exactMatch }
             : {}),
