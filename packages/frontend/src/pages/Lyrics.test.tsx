@@ -47,6 +47,18 @@ describe('LyricsPage', () => {
         ).toBeInTheDocument()
     })
 
+    test('renders exactly one h1', () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        render(
+            <MemoryRouter>
+                <LyricsPage />
+            </MemoryRouter>,
+        )
+        expect(document.querySelectorAll('h1')).toHaveLength(1)
+    })
+
     test('shows initial help text before searching', () => {
         vi.mocked(useGuildSelection).mockReturnValue({
             selectedGuild: mockGuild,

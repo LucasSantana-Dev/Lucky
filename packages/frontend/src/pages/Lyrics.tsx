@@ -3,6 +3,8 @@ import { MicVocal, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { api } from '@/services/api'
+import SectionHeader from '@/components/ui/SectionHeader'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface LyricsResult {
     lyrics: string
@@ -12,6 +14,7 @@ interface LyricsResult {
 
 export default function LyricsPage() {
     const { t } = useTranslation('lyrics')
+    const { t: tCommon } = useTranslation()
     const { selectedGuild } = useGuildSelection()
     const [title, setTitle] = useState('')
     const [artist, setArtist] = useState('')
@@ -44,21 +47,21 @@ export default function LyricsPage() {
 
     if (!selectedGuild) {
         return (
-            <div className='flex flex-col items-center justify-center h-64 text-lucky-text-secondary'>
-                <MicVocal className='h-12 w-12 mb-4 opacity-50' />
-                <p className='text-lg'>{t('selectServerToSearch')}</p>
-            </div>
+            <EmptyState
+                icon={<MicVocal className='h-10 w-10' aria-hidden='true' />}
+                title={t('noServerSelected')}
+                description={t('selectServerToSearch')}
+            />
         )
     }
 
     return (
         <div className='space-y-6 px-1 sm:px-0'>
-            <header className='flex items-center gap-3'>
-                <MicVocal className='h-6 w-6 text-lucky-red' />
-                <h1 className='type-h2 text-lucky-text-primary'>
-                    {t('lyricsSearch')}
-                </h1>
-            </header>
+            <SectionHeader
+                eyebrow={tCommon('sidebar.sections.media')}
+                title={t('lyricsSearch')}
+                description={tCommon('layout.routes.lyrics.subtitle')}
+            />
 
             <form
                 onSubmit={handleSearch}
@@ -127,21 +130,24 @@ export default function LyricsPage() {
                 </div>
             )}
 
-            {!isLoading && !result && !error && hasSearched && (
-                <div className='text-center py-12 text-lucky-text-tertiary'>
-                    {t('noLyricsFound')}
-                </div>
-            )}
-
-            {!isLoading && !result && !error && !hasSearched && (
-                <div className='text-center py-12 text-lucky-text-tertiary'>
-                    {t('searchForLyrics')}
-                </div>
+            {!isLoading && !result && !error && (
+                <EmptyState
+                    bare
+                    icon={<MicVocal className='h-10 w-10' aria-hidden='true' />}
+                    title={
+                        hasSearched ? t('noLyricsFound') : t('findLyricsTitle')
+                    }
+                    description={
+                        hasSearched
+                            ? t('noLyricsFoundDescription')
+                            : t('searchForLyrics')
+                    }
+                />
             )}
 
             {result && !isLoading && (
-                <div className='space-y-4'>
-                    <div className='surface-panel p-4 rounded-lg border border-lucky-border'>
+                <div className='surface-panel overflow-hidden rounded-lg border border-lucky-border'>
+                    <div className='border-b border-lucky-border p-4'>
                         <h2 className='type-body-sm font-bold text-lucky-text-primary'>
                             {result.title}
                         </h2>
@@ -149,12 +155,9 @@ export default function LyricsPage() {
                             {result.artist}
                         </p>
                     </div>
-
-                    <div className='surface-panel p-4 rounded-lg border border-lucky-border'>
-                        <pre className='type-body-sm text-lucky-text-primary whitespace-pre-wrap font-mono leading-relaxed'>
-                            {result.lyrics}
-                        </pre>
-                    </div>
+                    <pre className='type-body-sm text-lucky-text-primary whitespace-pre-wrap p-4 font-mono leading-relaxed'>
+                        {result.lyrics}
+                    </pre>
                 </div>
             )}
         </div>

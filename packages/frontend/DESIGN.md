@@ -182,3 +182,85 @@ Added the same assertion to every render-branch test in `Levels.test.tsx`,
 matching each page's actual branches), so a future change that removes or
 duplicates a page's `SectionHeader` fails a unit test immediately, without
 needing a full-route Playwright harness.
+
+## Round 4 (unit 2: DashboardOverview, TrackHistory, Lyrics, PreferredArtists)
+
+Same mode as before: redesign-preserve. Tokens, `SectionHeader`, `EmptyState`,
+and `Skeleton` come from this file's existing lock; nothing here adds a font,
+route, dependency, or palette value.
+
+1. **`DashboardOverview.tsx` leads with music.** The existing "Recent Music"
+   section (built on `useRecentTracks`, already fetched at `limit=5`, no new
+   query added) moved from the bottom of the page to directly under the
+   page's `SectionHeader`, ahead of the member/case stats grid. The most
+   recent track renders as a small hero row (icon tile + title + artist,
+   `type-h2` sized) labeled "Last played" (historical data, not live state
+   -- deliberately not called "Now Playing" so the copy stays honest about
+   what it is); the remaining tracks list below it, unchanged in content.
+   Considered wiring `useMusicPlayer` (Music.tsx's live SSE hook) in for a
+   true now-playing widget, but that would open a new SSE connection on a
+   page that has never had one -- out of scope for a visual reposition and
+   excluded by the "no new API calls" brief constraint. The empty state
+   ("No tracks played yet") now reuses the shared `EmptyState` component
+   (`bare`) instead of a bespoke centered `div`, matching every other empty
+   state on this page.
+2. **`TrackHistory.tsx` / `Lyrics.tsx` header cohesion.** Both pages
+   predated the `SectionHeader` convention Round 3 applied to
+   Levels/RoleGroups/Starboard and used a plain icon+`<h1>` header with no
+   eyebrow or description -- visibly inconsistent with their own Media-nav
+   siblings (`PreferredArtists.tsx`, `LastFm.tsx`), which already use
+   `SectionHeader`. Converted both to `SectionHeader`, eyebrow
+   `sidebar.sections.media` ("Media"), description reusing the existing
+   `layout.routes.<page>.subtitle` copy the old `Layout.tsx` header used for
+   the same route (no new copy for the header itself). `Lyrics.tsx` needed a
+   second `useTranslation()` call (`tCommon`) alongside its
+   `useTranslation('lyrics')` one to reach those cross-namespace keys --
+   same pattern Round 3 used for `RoleGroups.tsx`.
+3. **`Lyrics.tsx` state honesty.** The no-server-selected branch was a
+   one-off centered `div`; switched to the shared `EmptyState` (added
+   `lyrics.noServerSelected` key, description unchanged). The idle
+   ("search for lyrics") and no-results states were separate plain-text
+   blocks; merged into one `EmptyState` (`bare`) keyed off `hasSearched`,
+   each with a distinct title + description (`findLyricsTitle` /
+   `noLyricsFound`, `searchForLyrics` / `noLyricsFoundDescription`, both new
+   keys) so a failed search reads differently from an unstarted one. The
+   result panel (title/artist + lyrics body) merged from two stacked
+   `surface-panel`s into one panel with an internal divider -- one focal
+   block instead of two.
+4. **`PreferredArtists.tsx` -- no changes.** Already on `SectionHeader`,
+   already single-panel-per-tab, nav label already "Musical Taste"; carries
+   the Round-3 language without modification.
+
+New copy (`en.json` / `pt-BR.json`, no `es.json` in this repo): `dashboardOverview.lastPlayed`,
+`dashboardOverview.unknownListener`, `lyrics.noServerSelected`,
+`lyrics.findLyricsTitle`, `lyrics.noLyricsFoundDescription`. No audio-source
+names (YouTube/SoundCloud) introduced anywhere (see #2491).
+
+Single-H1 test coverage extended to all four pages: `DashboardOverview.test.tsx`
+and `TrackHistory.test.tsx` gained a `querySelectorAll('h1')` assertion using
+their real (unmocked) `SectionHeader`; `Lyrics.test.tsx` (pre-existing file)
+gained the same. `PreferredArtists.test.tsx` mocks `SectionHeader` out for its
+interaction tests, so a separate `PreferredArtists.a11y.test.tsx` was added
+that renders the real component tree and asserts the h1 count instead of
+weakening or bypassing the existing mock.
+
+Axe (axe-core, installed `--no-save` for this verification pass only, not a
+project dependency): 0 critical violations on all four pages, both with data
+and empty. Serious `color-contrast` violations remain (16-36 nodes per page)
+-- the same locked-token-palette gap Round 2 already recorded for
+Dashboard/Music; tokens are locked for this pass and were not touched.
+
+## Known pre-existing bugs found in this pass, not fixed (out of scope)
+
+- `TrackHistory.tsx`'s "Clear" button (`handleClear`) calls
+  `api.trackHistory.clearHistory` and wipes the list immediately, with no
+  confirm dialog and no undo. Pre-existing on `main` (confirmed via
+  `git show main:...TrackHistory.tsx`, predates this branch). Filed as a
+  GitHub issue rather than fixed here, since the brief scoped this pass to
+  visual/structural changes with existing handlers preserved.
+- `PreferredArtists.tsx`'s `ArtistTile` renders a `<button>` (the tile) with
+  nested `<button>` elements (`Prefer`/`Block`, ~lines 124-153) inside it --
+  invalid HTML and a real keyboard/AT hazard (nested interactive elements).
+  Surfaced by React's own DOM-nesting warning during the existing test
+  suite. Pre-existing on `main`. Filed as a GitHub issue; not fixed here
+  since `PreferredArtists.tsx` was left untouched this pass.

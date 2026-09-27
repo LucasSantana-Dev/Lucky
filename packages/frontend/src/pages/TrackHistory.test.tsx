@@ -175,6 +175,22 @@ describe('TrackHistoryPage', () => {
         expect(screen.getAllByText('3:32').length).toBeGreaterThanOrEqual(1)
     })
 
+    test('renders exactly one h1', async () => {
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.trackHistory.getHistory).mockResolvedValue({
+            data: { history: mockHistory },
+        } as any)
+        vi.mocked(api.trackHistory.getStats).mockResolvedValue({
+            data: { stats: mockStats },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(document.querySelectorAll('h1')).toHaveLength(1)
+        })
+    })
+
     test('renders ranking cards for top tracks and artists', async () => {
         mockGuildSelection(mockGuild)
         vi.mocked(api.trackHistory.getHistory).mockResolvedValue({

@@ -567,6 +567,8 @@
         "manageCommunityHighlights": "Gerencie destaques da comunidade.",
         "recentMusic": "Música Recente",
         "latestTracksPlayed": "Últimas faixas tocadas",
+        "lastPlayed": "Tocada por último",
+        "unknownListener": "Desconhecido",
         "noTracksPlayedYet": "Nenhuma faixa tocada ainda",
         "trackHistoryWillAppearWhenMusicPlayed": "O histórico de faixas aparecerá aqui quando a música for tocada",
         "community": "Comunidade",
@@ -706,6 +708,7 @@
         "failedToLoadSettings": "Falha ao carregar as configurações de nível"
     },
     "lyrics": {
+        "noServerSelected": "Nenhum Servidor Selecionado",
         "selectServerToSearch": "Selecione um servidor para pesquisar letras",
         "lyricsSearch": "Busca de Letras",
         "songTitle": "Título da Música",
@@ -717,6 +720,8 @@
         "searching": "Buscando...",
         "failedToFetchLyrics": "Falha ao buscar letras. Tente novamente.",
         "noLyricsFound": "Nenhuma letra encontrada",
+        "noLyricsFoundDescription": "Tente um título diferente ou verifique a ortografia.",
+        "findLyricsTitle": "Encontre a letra de qualquer música",
         "searchForLyrics": "Pesquise por letras inserindo um título de música"
     },
     "moderation": {
