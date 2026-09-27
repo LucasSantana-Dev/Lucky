@@ -12,6 +12,7 @@ import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { createResilientStream } from './resilientStreamBridge'
 import { refreshSoundCloudClientId } from './soundcloudMatcher'
 import { setExtractorDegraded } from './extractorHealth'
+import { isHostedYoutubeEnabled } from '../../config/featureFlags'
 
 type CreatePlayerParams = {
     client: CustomClient
@@ -46,7 +47,9 @@ const registerExtractors = (player: Player): void => {
     })
 }
 
-const registerExtractorsInOrder = async (player: Player): Promise<void> => {
+export const registerExtractorsInOrder = async (
+    player: Player,
+): Promise<void> => {
     // 1. Spotify — first priority for searches and Spotify URLs
     await registerSpotifyExtractor(player)
 
@@ -56,7 +59,19 @@ const registerExtractorsInOrder = async (player: Player): Promise<void> => {
     //    registration, leaving #play of YouTube URLs returning "No results
     //    found" until the call resolved (#1468). Extractor priority is
     //    unchanged (Spotify → YouTube → SoundCloud …).
-    await loadYoutubeExtractor(player)
+    //
+    //    Gated by HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-
+    //    positioning.md point 3): skipping registration here means nothing
+    //    downstream can search or stream via YouTube: there is no extractor
+    //    left to serve a `youtubeSearch`/`youtubeVideo` query.
+    if (isHostedYoutubeEnabled()) {
+        await loadYoutubeExtractor(player)
+    } else {
+        infoLog({
+            message:
+                'HOSTED_YOUTUBE_ENABLED=false, skipping YouTube extractor registration',
+        })
+    }
 
     // 3. play-dl SoundCloud client id — used only at stream time by the bridge;
     //    bounded so a hang cannot stall the remaining registrations.

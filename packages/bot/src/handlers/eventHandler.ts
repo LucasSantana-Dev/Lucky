@@ -34,6 +34,10 @@ import {
     handleMoveMessageSelect,
     MOVE_MESSAGE_SELECT_PREFIX,
 } from './moveMessageHandler'
+import {
+    handleHelpCategorySelect,
+    HELP_CATEGORY_SELECT_ID,
+} from '../functions/general/commands/help'
 import { reactionRolesService } from '@lucky/shared/services'
 import { syncAllGuildFollowerRoles } from '../twitch/followerRoleSync'
 import { aiDevToolkitService } from '../services/AiDevToolkitService'
@@ -347,6 +351,14 @@ async function runInteraction(
             interaction.customId.startsWith(MOVE_MESSAGE_SELECT_PREFIX)
         ) {
             await handleMoveMessageSelect(interaction, client as CustomClient)
+            return
+        }
+
+        if (
+            interaction.isStringSelectMenu() &&
+            interaction.customId === HELP_CATEGORY_SELECT_ID
+        ) {
+            await handleHelpCategorySelect(interaction, client as CustomClient)
             return
         }
 

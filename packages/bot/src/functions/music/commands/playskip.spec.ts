@@ -56,6 +56,13 @@ jest.mock('@lucky/shared/utils', () => ({
     handleError: jest.fn(),
 }))
 
+// queryUtils.ts's replyYoutubeDisabledIfNeeded (#2475) pulls in
+// translatorForInteraction, which transitively loads @lucky/shared/services
+// (Prisma-backed, ESM), irrelevant to this suite, so stub it directly.
+jest.mock('../../../i18n/translatorForInteraction', () => ({
+    translatorForInteraction: jest.fn(async () => (key: string) => key),
+}))
+
 import playSkipCommand from './playskip'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { buildPlayResponseEmbed } from '../../../utils/music/nowPlayingEmbed'

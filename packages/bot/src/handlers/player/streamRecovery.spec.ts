@@ -335,5 +335,49 @@ describe('streamRecovery', () => {
                 }),
             )
         })
+
+        describe('HOSTED_YOUTUBE_ENABLED = false', () => {
+            const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
+
+            beforeEach(() => {
+                process.env.HOSTED_YOUTUBE_ENABLED = 'false'
+            })
+
+            afterEach(() => {
+                if (originalEnv === undefined) {
+                    delete process.env.HOSTED_YOUTUBE_ENABLED
+                } else {
+                    process.env.HOSTED_YOUTUBE_ENABLED = originalEnv
+                }
+            })
+
+            it('skips the YouTube search recovery and goes straight to failure/skip', async () => {
+                const queue = {
+                    guild: { id: 'guild-1', name: 'Guild 1' },
+                    metadata: { requestedBy: { id: 'user-1' } },
+                    currentTrack: {
+                        url: 'https://example.com/current',
+                        title: 'Song A',
+                        requestedBy: { id: 'user-1' },
+                    },
+                    player: { search: jest.fn() },
+                    insertTrack: jest.fn(),
+                    node: { skip: jest.fn() },
+                }
+
+                await recoverFromStreamExtractionError(
+                    queue as any,
+                    queue.currentTrack as any,
+                )
+
+                expect(queue.player.search).not.toHaveBeenCalled()
+                expect(queue.insertTrack).not.toHaveBeenCalled()
+                expect(notifyChannelStreamFailedMock).toHaveBeenCalledWith(
+                    queue,
+                    'Song A',
+                )
+                expect(queue.node.skip).toHaveBeenCalled()
+            })
+        })
     })
 })

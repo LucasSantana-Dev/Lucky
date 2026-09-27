@@ -14,13 +14,18 @@ import {
     createMusicControlButtons,
     createMusicActionButtons,
 } from '../../../../utils/music/buttonComponents'
-import { createErrorEmbed } from '../../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    createWarningEmbed,
+} from '../../../../utils/general/embeds'
 import { interactionReply } from '../../../../utils/general/interactionReply'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { withTimeout } from '@lucky/shared/utils/async'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { isHost } from '../../../../utils/general/urlHost'
+import { isHostedYoutubeEnabled } from '../../../../config/featureFlags'
+import { translatorForInteraction } from '../../../../i18n/translatorForInteraction'
 
 export { isHost }
 
@@ -194,6 +199,54 @@ export function normalizeYouTubeUrl(url: string): string {
     }
 }
 
+/**
+ * True when `url` is hosted on youtube.com or youtu.be. This is a host check,
+ * not a watch-link check: a playlist, channel, or bare-domain URL also
+ * matches, which is correct here since all of those require the YouTube
+ * extractor too.
+ */
+export function isYouTubeUrl(url: string): boolean {
+    const trimmed = url.trim()
+    if (!isUrl(trimmed)) return false
+    try {
+        return hasHost(new URL(trimmed), 'youtube.com', 'youtu.be')
+    } catch {
+        return false
+    }
+}
+
+/**
+ * When YouTube is disabled on the hosted bot (HOSTED_YOUTUBE_ENABLED=false)
+ * and the request can only be served by YouTube (a pasted YouTube URL, or
+ * `provider: youtube` explicitly picked in the slash command), reply with a
+ * friendly, translated notice instead of letting the search silently fail
+ * with a generic "no results" error. Returns true when it replied (caller
+ * should stop), false otherwise.
+ */
+export async function replyYoutubeDisabledIfNeeded(
+    interaction: ChatInputCommandInteraction,
+    query: string,
+    provider?: string | null,
+): Promise<boolean> {
+    if (isHostedYoutubeEnabled()) return false
+    if (provider !== 'youtube' && !isYouTubeUrl(query)) return false
+
+    const t = await translatorForInteraction(interaction)
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createWarningEmbed(
+                    t('music.errors.youtubeDisabledTitle'),
+                    t('music.errors.youtubeDisabledDescription'),
+                ),
+            ],
+            ephemeral: true,
+        },
+    })
+    return true
+}
+
 export function resolveSearchEngine(
     query: string,
     provider?: string | null,
@@ -252,14 +305,19 @@ export async function executePlayAtTop({
         'voice channel present after requireVoiceChannel guard',
     )
 
+    const query = interaction.options.getString('query', true)
+
+    // Checked before deferring so the "YouTube is unavailable" notice can
+    // still be its own ephemeral reply instead of editing the public defer
+    // below, which would strip the ephemeral flag.
+    if (await replyYoutubeDisabledIfNeeded(interaction, query)) return
+
     try {
         await interaction.deferReply()
     } catch (error) {
         if (isUnknownInteractionError(error)) return
         throw error
     }
-
-    const query = interaction.options.getString('query', true)
 
     try {
         const searchEngine = resolveSearchEngine(query)
@@ -272,25 +330,43 @@ export async function executePlayAtTop({
             })
         } catch (primaryError) {
             if (searchEngine !== QueryType.AUTO) {
-                warnLog({
-                    message: 'Primary search failed, falling back to YouTube',
-                    data: {
-                        query,
-                        searchEngine: String(searchEngine),
-                        error: String(primaryError),
-                    },
-                })
-                try {
-                    result = await client.player.play(voiceChannel, query, {
-                        searchEngine: QueryType.YOUTUBE_SEARCH,
-                        blockExtractors: [SPOTIFY_EXTRACTOR_ID],
-                        afterSearch,
-                    })
-                } catch (youtubeError) {
+                if (isHostedYoutubeEnabled()) {
                     warnLog({
                         message:
-                            'YouTube search failed, falling back to SoundCloud',
-                        data: { query, error: String(youtubeError) },
+                            'Primary search failed, falling back to YouTube',
+                        data: {
+                            query,
+                            searchEngine: String(searchEngine),
+                            error: String(primaryError),
+                        },
+                    })
+                    try {
+                        result = await client.player.play(voiceChannel, query, {
+                            searchEngine: QueryType.YOUTUBE_SEARCH,
+                            blockExtractors: [SPOTIFY_EXTRACTOR_ID],
+                            afterSearch,
+                        })
+                    } catch (youtubeError) {
+                        warnLog({
+                            message:
+                                'YouTube search failed, falling back to SoundCloud',
+                            data: { query, error: String(youtubeError) },
+                        })
+                        result = await client.player.play(voiceChannel, query, {
+                            searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                            blockExtractors: [SPOTIFY_EXTRACTOR_ID],
+                            afterSearch,
+                        })
+                    }
+                } else {
+                    warnLog({
+                        message:
+                            'Primary search failed, YouTube disabled, falling back to SoundCloud',
+                        data: {
+                            query,
+                            searchEngine: String(searchEngine),
+                            error: String(primaryError),
+                        },
                     })
                     result = await client.player.play(voiceChannel, query, {
                         searchEngine: QueryType.SOUNDCLOUD_SEARCH,

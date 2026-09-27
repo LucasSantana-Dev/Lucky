@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { QueryType } from 'discord-player'
 import type { Track, GuildQueue } from 'discord-player'
 import type { AutoplayContext } from './autoplayContext'
 
@@ -25,6 +26,7 @@ jest.mock('discord-player', () => ({
     QueryType: {
         SPOTIFY_SEARCH: 'spotify_search',
         YOUTUBE_SEARCH: 'youtube_search',
+        SOUNDCLOUD_SEARCH: 'soundcloud_search',
         AUTO: 'auto',
     },
 }))
@@ -167,6 +169,42 @@ describe('searchLastFmQuery', () => {
         const result = await searchLastFmQuery(queue, 'test query', user)
         expect(result).toHaveLength(1)
         expect(searchMock).toHaveBeenCalledTimes(2)
+    })
+
+    describe('HOSTED_YOUTUBE_ENABLED = false (#2475)', () => {
+        const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
+
+        beforeEach(() => {
+            process.env.HOSTED_YOUTUBE_ENABLED = 'false'
+        })
+
+        afterEach(() => {
+            if (originalEnv === undefined) {
+                delete process.env.HOSTED_YOUTUBE_ENABLED
+            } else {
+                process.env.HOSTED_YOUTUBE_ENABLED = originalEnv
+            }
+        })
+
+        it('skips the YouTube engine arm and falls through to SoundCloud', async () => {
+            const track = createTrack()
+            const queue = createQueue({ tracks: [] })
+            const searchMock = queue.player.search as jest.Mock
+            searchMock
+                .mockRejectedValueOnce(new Error('spotify error'))
+                .mockResolvedValueOnce({ tracks: [track] })
+            const user = createUser()
+
+            const result = await searchLastFmQuery(queue, 'test query', user)
+
+            expect(result).toHaveLength(1)
+            // Only 2 arms attempted (Spotify, SoundCloud): YouTube and AUTO
+            // (which itself defaults to a YouTube search) are both skipped.
+            expect(searchMock).toHaveBeenCalledTimes(2)
+            expect(searchMock.mock.calls[1][1]).toMatchObject({
+                searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+            })
+        })
     })
 
     it('returns empty array when all engines fail', async () => {

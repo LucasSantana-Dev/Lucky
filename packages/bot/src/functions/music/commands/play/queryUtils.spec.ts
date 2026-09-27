@@ -5,12 +5,15 @@ const requireDJRoleMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
 const buildPlayResponseEmbedMock = jest.fn()
 const createMusicControlButtonsMock = jest.fn()
+const createMusicActionButtonsMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createErrorEmbedMock = jest.fn()
+const createWarningEmbedMock = jest.fn()
 const createUserFriendlyErrorMock = jest.fn()
 const warnLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const debugLogMock = jest.fn()
+const translatorForInteractionMock = jest.fn()
 
 jest.mock('discord-player', () => ({
     QueryType: {
@@ -37,12 +40,19 @@ jest.mock('../../../../utils/music/nowPlayingEmbed', () => ({
 jest.mock('../../../../utils/music/buttonComponents', () => ({
     createMusicControlButtons: (...args: unknown[]) =>
         createMusicControlButtonsMock(...args),
+    createMusicActionButtons: (...args: unknown[]) =>
+        createMusicActionButtonsMock(...args),
 }))
 jest.mock('../../../../utils/general/embeds', () => ({
     createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
+    createWarningEmbed: (...args: unknown[]) => createWarningEmbedMock(...args),
 }))
 jest.mock('../../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
+}))
+jest.mock('../../../../i18n/translatorForInteraction', () => ({
+    translatorForInteraction: (...args: unknown[]) =>
+        translatorForInteractionMock(...args),
 }))
 jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
     createUserFriendlyError: (...args: unknown[]) =>
@@ -71,6 +81,7 @@ import {
     normalizeSoundCloudUrl,
     isUrl,
     isHost,
+    isYouTubeUrl,
     executePlayAtTop,
     expandSoundCloudShortUrl,
 } from './queryUtils'
@@ -190,6 +201,21 @@ describe('isHost', () => {
 
     it('returns false for non-URL strings', () => {
         expect(isHost('not a url', 'youtube.com')).toBe(false)
+    })
+})
+
+describe('isYouTubeUrl', () => {
+    it('recognizes youtube.com and youtu.be links', () => {
+        expect(isYouTubeUrl('https://www.youtube.com/watch?v=abc')).toBe(true)
+        expect(isYouTubeUrl('https://youtu.be/abc')).toBe(true)
+    })
+
+    it('rejects non-YouTube URLs and plain text', () => {
+        expect(isYouTubeUrl('https://open.spotify.com/track/abc')).toBe(false)
+        expect(isYouTubeUrl('some song name')).toBe(false)
+        expect(isYouTubeUrl('https://evil-youtube.com.attacker.tld/x')).toBe(
+            false,
+        )
     })
 })
 
@@ -328,6 +354,7 @@ describe('executePlayAtTop — fallback chain', () => {
         resolveGuildQueueMock.mockReturnValue({ queue: fakeQueue })
         buildPlayResponseEmbedMock.mockReturnValue({ title: 'Now Playing' })
         createMusicControlButtonsMock.mockReturnValue([])
+        createMusicActionButtonsMock.mockReturnValue([])
         interactionReplyMock.mockResolvedValue(undefined)
         createUserFriendlyErrorMock.mockReturnValue('friendly error')
         createErrorEmbedMock.mockReturnValue({ title: 'error' })
@@ -384,6 +411,77 @@ describe('executePlayAtTop — fallback chain', () => {
             }),
         )
         expect(interactionReplyMock).toHaveBeenCalled()
+    })
+
+    describe('HOSTED_YOUTUBE_ENABLED = false (#2475)', () => {
+        const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
+
+        beforeEach(() => {
+            process.env.HOSTED_YOUTUBE_ENABLED = 'false'
+            translatorForInteractionMock.mockResolvedValue((key: string) => key)
+            createWarningEmbedMock.mockReturnValue({ title: 'warning' })
+        })
+
+        afterEach(() => {
+            if (originalEnv === undefined) {
+                delete process.env.HOSTED_YOUTUBE_ENABLED
+            } else {
+                process.env.HOSTED_YOUTUBE_ENABLED = originalEnv
+            }
+        })
+
+        it('skips the YouTube fallback arm and goes straight to SoundCloud', async () => {
+            const successResult = { track: fakeTrack }
+            const client = makeClient((_, __, opts: unknown) => {
+                const o = opts as { searchEngine: string }
+                if (o.searchEngine === 'spotifySearch') {
+                    return Promise.reject(new Error('Spotify unavailable'))
+                }
+                return Promise.resolve(successResult)
+            })
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction(),
+                skipCurrent: false,
+                commandName: 'playtop',
+            })
+
+            expect(warnLogMock).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Primary search failed, falling back to YouTube',
+                }),
+            )
+            const playCalls = (client.player.play as jest.Mock).mock.calls.map(
+                (call) => (call[2] as { searchEngine: string }).searchEngine,
+            )
+            expect(playCalls).not.toContain('youtubeSearch')
+            expect(playCalls).toEqual(['spotifySearch', 'soundcloudSearch'])
+            expect(interactionReplyMock).toHaveBeenCalled()
+        })
+
+        it('replies with a friendly notice for a pasted YouTube URL instead of searching', async () => {
+            const client = makeClient(() =>
+                Promise.reject(new Error('should not be called')),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction(
+                    'https://www.youtube.com/watch?v=abc123',
+                ),
+                skipCurrent: false,
+                commandName: 'playtop',
+            })
+
+            expect(client.player.play).not.toHaveBeenCalled()
+            expect(createWarningEmbedMock).toHaveBeenCalled()
+            expect(interactionReplyMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: expect.objectContaining({ ephemeral: true }),
+                }),
+            )
+        })
     })
 })
 
