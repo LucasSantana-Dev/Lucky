@@ -557,4 +557,26 @@ describe('ServerLogsPage', () => {
             expect.objectContaining({ q: undefined }),
         )
     })
+
+    test('caps pagination so it never requests an offset past the backend limit (#2459 follow-up)', async () => {
+        mockGuildStoreFn(mockGuild)
+        // 500,000 matches, far more than the backend's offset cap of 10000
+        // can page through at limit=25 (max page = 10000/25 + 1 = 401).
+        vi.mocked(api.serverLogs.search).mockResolvedValue({
+            data: { logs: mockLogs, total: 500000 },
+        } as any)
+
+        renderPage()
+        await waitFor(() =>
+            expect(
+                screen.getByText('User joined the server'),
+            ).toBeInTheDocument(),
+        )
+
+        expect(screen.getByText('1/401')).toBeInTheDocument()
+
+        for (const call of vi.mocked(api.serverLogs.search).mock.calls) {
+            expect(call[1].offset).toBeLessThanOrEqual(10000)
+        }
+    })
 })

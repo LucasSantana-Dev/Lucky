@@ -170,6 +170,10 @@ export default function ServerLogsPage() {
     const selectedGuildIdRef = useRef(selectedGuild?.id)
     selectedGuildIdRef.current = selectedGuild?.id
     const limit = 25
+    // Mirrors the offset cap in packages/backend/src/schemas/management.ts
+    // (logsSearchQuery) so the Next button never requests a page whose
+    // offset the backend would reject with a 400 (cubic follow-up).
+    const maxOffset = 10000
 
     const levelCounts = useMemo(() => {
         const counts: Partial<Record<LogLevel, number>> = {}
@@ -260,7 +264,8 @@ export default function ServerLogsPage() {
         setPage(1)
     }, [levelFilter, debouncedSearch])
 
-    const totalPages = Math.max(1, Math.ceil(total / limit))
+    const maxPage = Math.floor(maxOffset / limit) + 1
+    const totalPages = Math.min(Math.max(1, Math.ceil(total / limit)), maxPage)
 
     const handleExport = () => {
         if (!selectedGuild?.id || logs.length === 0) return
