@@ -119,10 +119,12 @@ jest.mock('../../../src/services/GuildService', () => ({
 }))
 
 const mockListRoleGroups = jest.fn<any>()
+const mockCreateRoleGroup = jest.fn<any>()
 
 jest.mock('../../../src/services/RoleGroupService', () => ({
     roleGroupService: {
         listRoleGroups: (...a: any[]) => mockListRoleGroups(...a),
+        createRoleGroup: (...a: any[]) => mockCreateRoleGroup(...a),
     },
 }))
 
@@ -186,7 +188,15 @@ function buildRolesApp() {
     return app
 }
 
-function authed(allowedModule: ModuleKey | null) {
+/**
+ * `level` defaults to 'manage' (the real access hierarchy: manage implies
+ * view, per GuildRoleAccessService.hasAccess). Pass 'view' to model a
+ * view-only caller, so tests can prove a route needs exactly the
+ * method-appropriate mode rather than accepting any access to the module
+ * (cubic review on PR #2449: the module-only mock let a wrongly-strict GET
+ * guard, or a wrongly-loose write guard, pass unnoticed).
+ */
+function authed(allowedModule: ModuleKey | null, level: AccessMode = 'manage') {
     const sessionMock = sessionService as jest.Mocked<typeof sessionService>
     sessionMock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
@@ -199,10 +209,12 @@ function authed(allowedModule: ModuleKey | null) {
         roles: [],
         permissions: new Set(),
     } as any)
-    // A caller who holds `allowedModule` holds it at manage level, which also
-    // satisfies a `view` requirement, matching real access-hierarchy semantics.
     accessMock.hasAccess.mockImplementation(
-        (_ctx: unknown, module: ModuleKey) => module === allowedModule,
+        (_ctx: unknown, module: ModuleKey, requiredMode: AccessMode) => {
+            if (module !== allowedModule) return false
+            if (level === 'manage') return true
+            return requiredMode === 'view'
+        },
     )
 }
 
@@ -540,6 +552,12 @@ describe('guild route guard consistency (#2409)', () => {
     })
 
     for (const c of cases) {
+        // The mode this route actually requires: whatever the prefix forces
+        // (e.g. /roles/manage always demands manage), or the HTTP-method
+        // default otherwise (GET -> view, everything else -> manage).
+        const requiredLevel: AccessMode =
+            c.prefix.mode ?? (c.method === 'get' ? 'view' : 'manage')
+
         describe(c.name, () => {
             test(`a caller holding only ${c.prefix.module} (the prefix guard's module) succeeds`, async () => {
                 authed(c.prefix.module)
@@ -555,6 +573,43 @@ describe('guild route guard consistency (#2409)', () => {
                 const res = await req
                 expect(res.status).toBe(c.successStatus)
             })
+
+            // cubic review on PR #2449: the module-only mock above lets a
+            // manage-level caller pass regardless of what mode the route
+            // actually needs, so it can't tell a correctly view-gated GET
+            // apart from one that quietly demands manage. Assert the exact,
+            // method-appropriate (or intentionally forced) level directly.
+            if (requiredLevel === 'view') {
+                test(`a caller holding only ${c.prefix.module} at VIEW level (the method-appropriate minimum) succeeds`, async () => {
+                    authed(c.prefix.module, 'view')
+                    c.mockHappyPath()
+                    const app = buildApp(c.prefix, c.setups)
+
+                    let req = (request(app) as any)
+                        [c.method](c.path)
+                        .set('Cookie', ['sessionId=valid_session_id'])
+                    if (c.query) req = req.query(c.query)
+                    if (c.body !== undefined) req = req.send(c.body)
+
+                    const res = await req
+                    expect(res.status).toBe(c.successStatus)
+                })
+            } else {
+                test(`a caller holding only ${c.prefix.module} at VIEW level (below the required manage level) is rejected with 403`, async () => {
+                    authed(c.prefix.module, 'view')
+                    c.mockHappyPath()
+                    const app = buildApp(c.prefix, c.setups)
+
+                    let req = (request(app) as any)
+                        [c.method](c.path)
+                        .set('Cookie', ['sessionId=valid_session_id'])
+                    if (c.query) req = req.query(c.query)
+                    if (c.body !== undefined) req = req.send(c.body)
+
+                    const res = await req
+                    expect(res.status).toBe(403)
+                })
+            }
 
             test('a caller holding none of the guild modules is rejected with 403', async () => {
                 authed(null)
@@ -608,18 +663,10 @@ describe('role-groups guard mode consistency (#2410)', () => {
     })
 
     test('GET /role-groups succeeds for a settings:view-only caller once the prefix mode is method-based', async () => {
-        authed('settings')
-        const accessMock = guildAccessService as jest.Mocked<
-            typeof guildAccessService
-        >
-        // Simulate a caller who has settings at VIEW level only (not manage).
-        accessMock.hasAccess.mockImplementation(
-            (_ctx: unknown, module: ModuleKey, mode: AccessMode) =>
-                module === 'settings' && mode === 'view',
-        )
+        // No explicit `mode`, matching the fixed config (auto: view for GET).
+        authed('settings', 'view')
         mockListRoleGroups.mockResolvedValue([])
 
-        // No explicit `mode`, matching the fixed config (auto: view for GET).
         const app = buildApp(prefix, [setupRoleGroupsRoutes])
 
         const res = await request(app)
@@ -640,6 +687,36 @@ describe('role-groups guard mode consistency (#2410)', () => {
             .set('Cookie', ['sessionId=valid_session_id'])
 
         expect(res.status).toBe(403)
+    })
+
+    // cubic review on PR #2449: prove writes actually need manage, not just
+    // any access to settings, so a config regression back to a hardcoded
+    // `mode: 'view'` (which would silently let writes through on view-only
+    // access) is caught here rather than only by the GET-only checks above.
+    test('POST /role-groups is rejected with 403 for a settings:view-only caller', async () => {
+        authed('settings', 'view')
+
+        const app = buildApp(prefix, [setupRoleGroupsRoutes])
+
+        const res = await request(app)
+            .post(`/api/guilds/${GUILD_ID}/role-groups`)
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({ name: 'New Group' })
+
+        expect(res.status).toBe(403)
+    })
+
+    test('POST /role-groups succeeds for a settings:manage caller', async () => {
+        authed('settings', 'manage')
+        mockCreateRoleGroup.mockResolvedValue({ id: 'rg-1', name: 'New Group' })
+        const app = buildApp(prefix, [setupRoleGroupsRoutes])
+
+        const res = await request(app)
+            .post(`/api/guilds/${GUILD_ID}/role-groups`)
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({ name: 'New Group' })
+
+        expect(res.status).toBe(201)
     })
 })
 

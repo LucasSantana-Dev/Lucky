@@ -138,9 +138,14 @@ describe('Management Routes RBAC', () => {
         // `/logs` (moderation) prefix guards wired in routes/index.ts,
         // forcing callers to hold two unrelated modules. Those handler-level
         // checks were removed, so routes/index.ts's prefix guard is now the
-        // only check for these paths, and `settings` and `overview` should
-        // never appear as the module argument registered from this file.
-        test('requireGuildModuleAccess is never registered with settings or overview for /automod or /logs routes', () => {
+        // only check for these paths.
+        //
+        // cubic review on PR #2449: this scans every route this file
+        // registers (commands, embeds, automessages included), not just
+        // /automod and /logs, so a future handler that legitimately needs
+        // `settings` would fail here with a misleading name. Scoped title to
+        // match the actual file-wide assertion.
+        test('requireGuildModuleAccess is never registered with settings or overview anywhere in setupManagementRoutes', () => {
             createApp()
 
             const calledModules = requireGuildModuleAccess.mock.calls.map(
