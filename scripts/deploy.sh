@@ -678,7 +678,7 @@ fi
 # service name, which is what nginx and the tunnel config resolve.
 ensure_on_lucky_network() {
     local container="$1" alias="$2"
-    if ! docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$container" | grep -qw "lucky-network"; then
+    if [[ -z "$(docker inspect -f '{{if index .NetworkSettings.Networks "lucky-network"}}attached{{end}}' "$container")" ]]; then
         docker network connect --alias "$alias" lucky-network "$container"
         log "$container attached to lucky-network"
     fi
