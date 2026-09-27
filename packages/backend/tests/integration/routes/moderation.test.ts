@@ -174,6 +174,10 @@ describe('Moderation Routes Integration', () => {
         test('should reject an invalid type filter', async () => {
             setupAuth()
 
+            const mockModerationService = moderationService as jest.Mocked<
+                typeof moderationService
+            >
+
             const response = await request(app)
                 .get(
                     '/api/guilds/111111111111111111/moderation/cases?type=not-a-real-type',
@@ -182,23 +186,37 @@ describe('Moderation Routes Integration', () => {
                 .expect(400)
 
             expect(response.body.error).toBe('Validation failed')
+            expect(
+                mockModerationService.getFilteredCases,
+            ).not.toHaveBeenCalled()
         })
 
         test('should reject a page number above the bounded maximum', async () => {
             setupAuth()
 
+            const mockModerationService = moderationService as jest.Mocked<
+                typeof moderationService
+            >
+
             const response = await request(app)
                 .get(
-                    '/api/guilds/111111111111111111/moderation/cases?page=100001',
+                    '/api/guilds/111111111111111111/moderation/cases?page=2001',
                 )
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(400)
 
             expect(response.body.error).toBe('Validation failed')
+            expect(
+                mockModerationService.getFilteredCases,
+            ).not.toHaveBeenCalled()
         })
 
         test('should reject a limit above the bounded maximum', async () => {
             setupAuth()
+
+            const mockModerationService = moderationService as jest.Mocked<
+                typeof moderationService
+            >
 
             const response = await request(app)
                 .get(
@@ -208,6 +226,74 @@ describe('Moderation Routes Integration', () => {
                 .expect(400)
 
             expect(response.body.error).toBe('Validation failed')
+            expect(
+                mockModerationService.getFilteredCases,
+            ).not.toHaveBeenCalled()
+        })
+
+        test('should reject a search term over the bounded maximum length', async () => {
+            setupAuth()
+
+            const mockModerationService = moderationService as jest.Mocked<
+                typeof moderationService
+            >
+            const longSearch = 'a'.repeat(201)
+
+            const response = await request(app)
+                .get(
+                    `/api/guilds/111111111111111111/moderation/cases?search=${longSearch}`,
+                )
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(400)
+
+            expect(response.body.error).toBe('Validation failed')
+            expect(
+                mockModerationService.getFilteredCases,
+            ).not.toHaveBeenCalled()
+        })
+
+        test('should reject a whitespace-only search term', async () => {
+            setupAuth()
+
+            const mockModerationService = moderationService as jest.Mocked<
+                typeof moderationService
+            >
+
+            const response = await request(app)
+                .get(
+                    '/api/guilds/111111111111111111/moderation/cases?search=%20%20%20',
+                )
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(400)
+
+            expect(response.body.error).toBe('Validation failed')
+            expect(
+                mockModerationService.getFilteredCases,
+            ).not.toHaveBeenCalled()
+        })
+
+        test('should accept page and limit at the bounded maximum', async () => {
+            setupAuth()
+
+            const mockModerationService = moderationService as jest.Mocked<
+                typeof moderationService
+            >
+            mockModerationService.getFilteredCases.mockResolvedValue({
+                cases: [],
+                total: 0,
+            })
+
+            await request(app)
+                .get(
+                    '/api/guilds/111111111111111111/moderation/cases?page=2000&limit=500',
+                )
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(mockModerationService.getFilteredCases).toHaveBeenCalledWith(
+                '111111111111111111',
+                { page: 2000, limit: 500 },
+            )
         })
 
         test('should return 401 when not authenticated', async () => {

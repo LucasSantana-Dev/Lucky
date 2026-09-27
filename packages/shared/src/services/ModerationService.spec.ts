@@ -399,7 +399,7 @@ describe('ModerationService', () => {
 
             expect(m.findMany).toHaveBeenCalledWith({
                 where: { guildId: 'guild-1' },
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
                 take: 25,
                 skip: 0,
             })
@@ -418,7 +418,7 @@ describe('ModerationService', () => {
 
             expect(m.findMany).toHaveBeenCalledWith({
                 where: { guildId: 'guild-1' },
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
                 take: 10,
                 skip: 20,
             })
@@ -433,7 +433,7 @@ describe('ModerationService', () => {
 
             expect(m.findMany).toHaveBeenCalledWith({
                 where: { guildId: 'guild-1', type: 'ban' },
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
                 take: 25,
                 skip: 0,
             })
@@ -449,34 +449,71 @@ describe('ModerationService', () => {
 
             await service.getFilteredCases('guild-1', { search: 'spam' })
 
+            const expectedWhere = {
+                guildId: 'guild-1',
+                OR: [
+                    {
+                        username: {
+                            contains: 'spam',
+                            mode: 'insensitive',
+                        },
+                    },
+                    {
+                        moderatorName: {
+                            contains: 'spam',
+                            mode: 'insensitive',
+                        },
+                    },
+                    {
+                        reason: {
+                            contains: 'spam',
+                            mode: 'insensitive',
+                        },
+                    },
+                ],
+            }
+
             expect(m.findMany).toHaveBeenCalledWith({
-                where: {
-                    guildId: 'guild-1',
-                    OR: [
-                        {
-                            username: {
-                                contains: 'spam',
-                                mode: 'insensitive',
-                            },
-                        },
-                        {
-                            moderatorName: {
-                                contains: 'spam',
-                                mode: 'insensitive',
-                            },
-                        },
-                        {
-                            reason: {
-                                contains: 'spam',
-                                mode: 'insensitive',
-                            },
-                        },
-                    ],
-                },
-                orderBy: { createdAt: 'desc' },
+                where: expectedWhere,
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
                 take: 25,
                 skip: 0,
             })
+            expect(m.count).toHaveBeenCalledWith({ where: expectedWhere })
+        })
+
+        it('getFilteredCases combines type and search with AND semantics', async () => {
+            const m = setupCaseMock()
+            m.findMany.mockResolvedValue([])
+            m.count.mockResolvedValue(0)
+
+            await service.getFilteredCases('guild-1', {
+                type: 'ban',
+                search: 'spam',
+            })
+
+            const expectedWhere = {
+                guildId: 'guild-1',
+                type: 'ban',
+                OR: [
+                    { username: { contains: 'spam', mode: 'insensitive' } },
+                    {
+                        moderatorName: {
+                            contains: 'spam',
+                            mode: 'insensitive',
+                        },
+                    },
+                    { reason: { contains: 'spam', mode: 'insensitive' } },
+                ],
+            }
+
+            expect(m.findMany).toHaveBeenCalledWith({
+                where: expectedWhere,
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
+                take: 25,
+                skip: 0,
+            })
+            expect(m.count).toHaveBeenCalledWith({ where: expectedWhere })
         })
 
         it('getFilteredCases returns the cases and total count together', async () => {

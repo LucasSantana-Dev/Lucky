@@ -53,9 +53,26 @@ describe('moderationSchemas.casesQuery contract with frontend Moderation.tsx par
         }
     })
 
-    test('rejects a page size beyond the server-side bound', () => {
-        const result = s.casesQuery.safeParse({ limit: 100000 })
+    test('rejects a limit beyond the server-side bound', () => {
+        const result = s.casesQuery.safeParse({ limit: 501 })
 
         expect(result.success).toBe(false)
+    })
+
+    test('rejects a page number beyond the server-side bound', () => {
+        const result = s.casesQuery.safeParse({ page: 2001 })
+
+        expect(result.success).toBe(false)
+    })
+
+    test('rejects a search term over the server-side bound', () => {
+        const result = s.casesQuery.safeParse({ search: 'a'.repeat(201) })
+
+        expect(result.success).toBe(false)
+    })
+
+    test('rejects an empty or whitespace-only search term', () => {
+        expect(s.casesQuery.safeParse({ search: '' }).success).toBe(false)
+        expect(s.casesQuery.safeParse({ search: '   ' }).success).toBe(false)
     })
 })

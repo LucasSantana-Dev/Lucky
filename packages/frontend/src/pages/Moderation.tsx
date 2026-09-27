@@ -306,7 +306,7 @@ export default function ModerationPage() {
                     typeFilter !== 'all'
                         ? (typeFilter as ModerationCase['type'])
                         : undefined,
-                search: debouncedSearch || undefined,
+                search: debouncedSearch.trim() || undefined,
             })
             setCases(res.data.cases)
             setTotal(res.data.total)
@@ -439,6 +439,7 @@ export default function ModerationPage() {
                             placeholder={t('searchByUserModeratorOrReason')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            maxLength={200}
                             className='pl-9 bg-lucky-bg-tertiary border-lucky-border text-white placeholder:text-lucky-text-tertiary'
                         />
                         {searchQuery && (

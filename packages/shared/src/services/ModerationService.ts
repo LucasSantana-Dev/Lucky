@@ -213,7 +213,9 @@ export class ModerationService {
         const [cases, total] = await Promise.all([
             prisma.moderationCase.findMany({
                 where,
-                orderBy: { createdAt: 'desc' },
+                // caseNumber as a tiebreaker keeps page ordering stable when
+                // multiple cases share the same createdAt timestamp.
+                orderBy: [{ createdAt: 'desc' }, { caseNumber: 'desc' }],
                 take: limit,
                 skip: (page - 1) * limit,
             }),

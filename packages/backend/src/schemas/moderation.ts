@@ -29,7 +29,9 @@ const caseTypeFilter = z.enum([
 
 const casesQuery = z.object({
     limit: z.coerce.number().int().min(1).max(500).optional(),
-    page: z.coerce.number().int().min(1).max(100000).optional(),
+    // Bounded well below a value that would let a deep offset (page * limit)
+    // force an expensive full-table scan on moderation_cases.
+    page: z.coerce.number().int().min(1).max(2000).optional(),
     type: caseTypeFilter.optional(),
     search: z.string().trim().min(1).max(200).optional(),
 })
