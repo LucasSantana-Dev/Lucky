@@ -22,14 +22,14 @@ describe('createAutoMessagesApi', () => {
 
     test('create calls POST /guilds/:guildId/automessages with data', () => {
         const api = createAutoMessagesApi(apiClient)
-        const data = { name: 'Test', channel: 'ch-1', content: 'Hello', interval: 3600 }
+        const data = { type: 'welcome' as const, message: 'Hello', channelId: '123456789012345678' }
         api.create('guild-1', data)
         expect(apiClient.post).toHaveBeenCalledWith('/guilds/guild-1/automessages', data)
     })
 
     test('update calls PATCH /guilds/:guildId/automessages/:id with data', () => {
         const api = createAutoMessagesApi(apiClient)
-        const data = { content: 'Updated' }
+        const data = { message: 'Updated' }
         api.update('guild-1', 'msg-1', data)
         expect(apiClient.patch).toHaveBeenCalledWith('/guilds/guild-1/automessages/msg-1', data)
     })

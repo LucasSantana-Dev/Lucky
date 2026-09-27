@@ -1,14 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import {
-    MessageSquare,
-    Plus,
-    Clock,
-    Hash,
-    Pencil,
-    Trash2,
-    Calendar,
-} from 'lucide-react'
+import { MessageSquare, Plus, Hash, Pencil, Trash2, Reply } from 'lucide-react'
+import { toast } from 'sonner'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Badge } from '@/components/ui/badge'
@@ -25,28 +18,19 @@ import {
 } from '@/components/ui/dialog'
 import { useGuildStore } from '@/stores/guildStore'
 import { api } from '@/services/api'
-import type { AutoMessage } from '@/types'
+import type { AutoMessage, AutoMessageType } from '@/types'
 import type {
     CreateAutoMessageInput,
     UpdateAutoMessageInput,
 } from '@/services/autoMessagesApi'
 import { useTranslation } from 'react-i18next'
 
-function formatInterval(seconds: number): string {
-    if (seconds < 60) return `${seconds}s`
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
-    return `${Math.floor(seconds / 86400)}d`
-}
+const MESSAGE_TYPES: AutoMessageType[] = ['welcome', 'leave', 'auto_response']
 
-function formatNextPost(date: Date): string {
-    const d = new Date(date)
-    return d.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    })
+const TYPE_LABEL_KEY: Record<AutoMessageType, string> = {
+    welcome: 'autoMessages.typeWelcome',
+    leave: 'autoMessages.typeLeave',
+    auto_response: 'autoMessages.typeAutoResponse',
 }
 
 interface MessageFormProps {
@@ -65,20 +49,22 @@ function MessageFormDialog({
     onClose,
 }: MessageFormProps) {
     const { t } = useTranslation()
-    const [name, setName] = useState(initial?.name ?? '')
-    const [channel, setChannel] = useState(initial?.channel ?? '')
-    const [content, setContent] = useState(initial?.content ?? '')
-    const [interval, setInterval] = useState(initial?.interval ?? 3600)
-    const [isEmbed, setIsEmbed] = useState(initial?.isEmbed ?? false)
+    const [type, setType] = useState<AutoMessageType>(
+        initial?.type ?? 'welcome',
+    )
+    const [channelId, setChannelId] = useState(initial?.channelId ?? '')
+    const [message, setMessage] = useState(initial?.message ?? '')
+    const [trigger, setTrigger] = useState(initial?.trigger ?? '')
+    const [exactMatch, setExactMatch] = useState(initial?.exactMatch ?? false)
     const [saving, setSaving] = useState(false)
 
     useEffect(() => {
         if (open) {
-            setName(initial?.name ?? '')
-            setChannel(initial?.channel ?? '')
-            setContent(initial?.content ?? '')
-            setInterval(initial?.interval ?? 3600)
-            setIsEmbed(initial?.isEmbed ?? false)
+            setType(initial?.type ?? 'welcome')
+            setChannelId(initial?.channelId ?? '')
+            setMessage(initial?.message ?? '')
+            setTrigger(initial?.trigger ?? '')
+            setExactMatch(initial?.exactMatch ?? false)
         }
     }, [open, initial])
 
@@ -86,8 +72,26 @@ function MessageFormDialog({
         e.preventDefault()
         setSaving(true)
         try {
-            await onSave({ name, channel, content, interval, isEmbed })
+            const isAutoResponse = type === 'auto_response'
+            if (initial) {
+                const data: UpdateAutoMessageInput = {
+                    message,
+                    channelId: channelId || undefined,
+                    ...(isAutoResponse ? { trigger, exactMatch } : {}),
+                }
+                await onSave(data)
+            } else {
+                const data: CreateAutoMessageInput = {
+                    type,
+                    message,
+                    channelId: channelId || undefined,
+                    ...(isAutoResponse ? { trigger, exactMatch } : {}),
+                }
+                await onSave(data)
+            }
             onClose()
+        } catch {
+            toast.error(t('autoMessages.saveError'))
         } finally {
             setSaving(false)
         }
@@ -103,25 +107,34 @@ function MessageFormDialog({
             <DialogContent className='bg-lucky-bg-secondary border-lucky-border max-w-md'>
                 <DialogHeader>
                     <DialogTitle className='type-title text-lucky-text-primary'>
-                        {initial ? 'Edit Auto Message' : 'New Auto Message'}
+                        {initial
+                            ? t('autoMessages.editAutoMessage')
+                            : t('autoMessages.newAutoMessage')}
                     </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className='space-y-4 mt-2'>
                     <div className='space-y-1.5'>
                         <Label
-                            htmlFor='am-name'
+                            htmlFor='am-type'
                             className='type-meta text-lucky-text-secondary'
                         >
-                            {t('autoMessages.name')}
+                            {t('autoMessages.type')}
                         </Label>
-                        <Input
-                            id='am-name'
-                            className='bg-lucky-bg-tertiary border-lucky-border text-white placeholder:text-lucky-text-tertiary'
-                            placeholder={t('autoMessages.namePlaceholder')}
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                        />
+                        <select
+                            id='am-type'
+                            className='h-9 w-full rounded-md border border-lucky-border bg-lucky-bg-tertiary px-3 text-sm text-white disabled:opacity-50'
+                            value={type}
+                            onChange={(e) =>
+                                setType(e.target.value as AutoMessageType)
+                            }
+                            disabled={!!initial}
+                        >
+                            {MESSAGE_TYPES.map((value) => (
+                                <option key={value} value={value}>
+                                    {t(TYPE_LABEL_KEY[value])}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                     <div className='space-y-1.5'>
                         <Label
@@ -134,60 +147,64 @@ function MessageFormDialog({
                             id='am-channel'
                             className='bg-lucky-bg-tertiary border-lucky-border text-white placeholder:text-lucky-text-tertiary'
                             placeholder={t('autoMessages.channelIdPlaceholder')}
-                            value={channel}
-                            onChange={(e) => setChannel(e.target.value)}
-                            required
+                            value={channelId}
+                            onChange={(e) => setChannelId(e.target.value)}
                         />
                     </div>
                     <div className='space-y-1.5'>
                         <Label
-                            htmlFor='am-content'
+                            htmlFor='am-message'
                             className='type-meta text-lucky-text-secondary'
                         >
-                            {t('autoMessages.content')}
+                            {t('autoMessages.message')}
                         </Label>
                         <textarea
-                            id='am-content'
+                            id='am-message'
                             className='w-full rounded-lg border border-lucky-border bg-lucky-bg-tertiary px-3 py-2 type-body-sm text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:border-lucky-brand resize-none'
-                            placeholder={t('autoMessages.contentPlaceholder')}
+                            placeholder={t('autoMessages.messagePlaceholder')}
                             rows={3}
-                            value={content}
-                            onChange={(e) => setContent(e.target.value)}
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
                             required
                         />
                     </div>
-                    <div className='space-y-1.5'>
-                        <Label
-                            htmlFor='am-interval'
-                            className='type-meta text-lucky-text-secondary'
-                        >
-                            {t('autoMessages.intervalSeconds')}
-                        </Label>
-                        <Input
-                            id='am-interval'
-                            type='number'
-                            min={60}
-                            className='bg-lucky-bg-tertiary border-lucky-border text-white placeholder:text-lucky-text-tertiary'
-                            value={interval}
-                            onChange={(e) =>
-                                setInterval(Number(e.target.value))
-                            }
-                            required
-                        />
-                    </div>
-                    <div className='flex items-center gap-3'>
-                        <Switch
-                            id='am-embed'
-                            checked={isEmbed}
-                            onCheckedChange={setIsEmbed}
-                        />
-                        <Label
-                            htmlFor='am-embed'
-                            className='type-body-sm text-lucky-text-secondary cursor-pointer'
-                        >
-                            {t('autoMessages.sendAsEmbed')}
-                        </Label>
-                    </div>
+                    {type === 'auto_response' && (
+                        <>
+                            <div className='space-y-1.5'>
+                                <Label
+                                    htmlFor='am-trigger'
+                                    className='type-meta text-lucky-text-secondary'
+                                >
+                                    {t('autoMessages.trigger')}
+                                </Label>
+                                <Input
+                                    id='am-trigger'
+                                    className='bg-lucky-bg-tertiary border-lucky-border text-white placeholder:text-lucky-text-tertiary'
+                                    placeholder={t(
+                                        'autoMessages.triggerPlaceholder',
+                                    )}
+                                    value={trigger}
+                                    onChange={(e) =>
+                                        setTrigger(e.target.value)
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className='flex items-center gap-3'>
+                                <Switch
+                                    id='am-exact-match'
+                                    checked={exactMatch}
+                                    onCheckedChange={setExactMatch}
+                                />
+                                <Label
+                                    htmlFor='am-exact-match'
+                                    className='type-body-sm text-lucky-text-secondary cursor-pointer'
+                                >
+                                    {t('autoMessages.exactMatch')}
+                                </Label>
+                            </div>
+                        </>
+                    )}
                     <div className='flex justify-end gap-2 pt-2 border-t border-lucky-border'>
                         <Button
                             variant='ghost'
@@ -221,6 +238,7 @@ export default function AutoMessagesPage() {
     const [loading, setLoading] = useState(true)
     const [modalOpen, setModalOpen] = useState(false)
     const [editing, setEditing] = useState<AutoMessage | null>(null)
+    const [deleteTarget, setDeleteTarget] = useState<AutoMessage | null>(null)
 
     const fetchMessages = useCallback(async () => {
         if (!selectedGuild?.id) return
@@ -263,6 +281,7 @@ export default function AutoMessagesPage() {
     async function handleDelete(id: string) {
         if (!selectedGuild?.id) return
         await api.autoMessages.delete(selectedGuild.id, id)
+        setDeleteTarget(null)
         await fetchMessages()
     }
 
@@ -369,7 +388,7 @@ export default function AutoMessagesPage() {
                                                     />
                                                 </div>
                                                 <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
-                                                    {msg.name}
+                                                    {t(TYPE_LABEL_KEY[msg.type])}
                                                 </h3>
                                             </div>
                                             <div className='flex items-center gap-1'>
@@ -378,7 +397,16 @@ export default function AutoMessagesPage() {
                                                         openEdit(msg)
                                                     }
                                                     className='p-1.5 rounded-md text-lucky-text-tertiary hover:text-lucky-text-primary hover:bg-lucky-bg-active transition-colors'
-                                                    aria-label={`Edit ${msg.name}`}
+                                                    aria-label={t(
+                                                        'autoMessages.editAriaLabel',
+                                                        {
+                                                            type: t(
+                                                                TYPE_LABEL_KEY[
+                                                                    msg.type
+                                                                ],
+                                                            ),
+                                                        },
+                                                    )}
                                                 >
                                                     <Pencil
                                                         className='w-3.5 h-3.5'
@@ -387,12 +415,19 @@ export default function AutoMessagesPage() {
                                                 </button>
                                                 <button
                                                     onClick={() =>
-                                                        void handleDelete(
-                                                            msg.id,
-                                                        )
+                                                        setDeleteTarget(msg)
                                                     }
                                                     className='p-1.5 rounded-md text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors'
-                                                    aria-label={`Delete ${msg.name}`}
+                                                    aria-label={t(
+                                                        'autoMessages.deleteAriaLabel',
+                                                        {
+                                                            type: t(
+                                                                TYPE_LABEL_KEY[
+                                                                    msg.type
+                                                                ],
+                                                            ),
+                                                        },
+                                                    )}
                                                 >
                                                     <Trash2
                                                         className='w-3.5 h-3.5'
@@ -402,48 +437,47 @@ export default function AutoMessagesPage() {
                                             </div>
                                         </div>
                                         <p className='type-body-sm text-lucky-text-secondary line-clamp-2 mb-3'>
-                                            {msg.content}
+                                            {msg.message}
                                         </p>
                                         <div className='flex flex-wrap items-center gap-2'>
-                                            <Badge
-                                                variant='outline'
-                                                className='type-meta gap-1 uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary rounded-sm'
-                                            >
-                                                <Hash
-                                                    className='w-3 h-3'
-                                                    aria-hidden='true'
-                                                />
-                                                {msg.channel}
-                                            </Badge>
-                                            <Badge
-                                                variant='outline'
-                                                className='type-meta gap-1 uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary rounded-sm'
-                                            >
-                                                <Clock
-                                                    className='w-3 h-3'
-                                                    aria-hidden='true'
-                                                />
-                                                Every{' '}
-                                                {formatInterval(msg.interval)}
-                                            </Badge>
-                                            {msg.isEmbed && (
+                                            {msg.channelId && (
                                                 <Badge
                                                     variant='outline'
-                                                    className='type-meta uppercase font-semibold bg-lucky-brand/10 text-lucky-brand border-lucky-brand/20 rounded-sm'
+                                                    className='type-meta gap-1 uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary rounded-sm'
                                                 >
-                                                    Embed
+                                                    <Hash
+                                                        className='w-3 h-3'
+                                                        aria-hidden='true'
+                                                    />
+                                                    {msg.channelId}
                                                 </Badge>
                                             )}
+                                            {msg.type === 'auto_response' &&
+                                                msg.trigger && (
+                                                    <Badge
+                                                        variant='outline'
+                                                        className='type-meta gap-1 uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary rounded-sm'
+                                                    >
+                                                        <Reply
+                                                            className='w-3 h-3'
+                                                            aria-hidden='true'
+                                                        />
+                                                        {msg.trigger}
+                                                    </Badge>
+                                                )}
                                             <Badge
                                                 variant='outline'
-                                                className='type-meta gap-1 uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-tertiary rounded-sm'
+                                                className={
+                                                    msg.enabled
+                                                        ? 'type-meta uppercase font-semibold bg-lucky-brand/10 text-lucky-brand border-lucky-brand/20 rounded-sm'
+                                                        : 'type-meta uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-tertiary rounded-sm'
+                                                }
                                             >
-                                                <Calendar
-                                                    className='w-3 h-3'
-                                                    aria-hidden='true'
-                                                />
-                                                Next:{' '}
-                                                {formatNextPost(msg.nextPost)}
+                                                {msg.enabled
+                                                    ? t('autoMessages.enabled')
+                                                    : t(
+                                                          'autoMessages.disabled',
+                                                      )}
                                             </Badge>
                                         </div>
                                     </Card>
@@ -474,6 +508,44 @@ export default function AutoMessagesPage() {
                     />
                 )}
             </div>
+
+            <AnimatePresence>
+                {deleteTarget && (
+                    <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4'>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.96 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.96 }}
+                            className='surface-card rounded-xl p-6 max-w-sm w-full space-y-4'
+                        >
+                            <h3 className='type-title text-lucky-text-primary'>
+                                {t('autoMessages.deleteMessage')}
+                            </h3>
+                            <p className='type-body-sm text-lucky-text-secondary'>
+                                {t('autoMessages.deleteMessageConfirm', {
+                                    type: t(TYPE_LABEL_KEY[deleteTarget.type]),
+                                })}
+                            </p>
+                            <div className='flex gap-3 justify-end'>
+                                <Button
+                                    variant='secondary'
+                                    onClick={() => setDeleteTarget(null)}
+                                >
+                                    {t('autoMessages.cancel')}
+                                </Button>
+                                <Button
+                                    variant='destructive'
+                                    onClick={() =>
+                                        void handleDelete(deleteTarget.id)
+                                    }
+                                >
+                                    {t('autoMessages.delete')}
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </>
     )
 }

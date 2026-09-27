@@ -1,12 +1,21 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { toast } from 'sonner'
 import AutoMessagesPage from './AutoMessages'
 import { useGuildStore } from '@/stores/guildStore'
 import { api } from '@/services/api'
+import type { AutoMessage } from '@/types'
 
 vi.mock('@/stores/guildStore')
 vi.mock('@/services/api')
+vi.mock('sonner', () => ({
+    toast: {
+        success: vi.fn(),
+        error: vi.fn(),
+    },
+}))
 
 const mockGuild = { id: '123', name: 'Test Guild' }
 
@@ -92,6 +101,77 @@ describe('AutoMessagesPage', () => {
 
         await waitFor(() => {
             expect(screen.getByText('No auto messages configured')).toBeInTheDocument()
+        })
+    })
+
+    test('shows an error toast when saving a new message fails', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.autoMessages.create).mockRejectedValue(
+            new Error('Request failed with status code 400'),
+        )
+
+        renderPage()
+
+        await user.click(screen.getByText('New Message'))
+        await user.type(
+            screen.getByLabelText('Message'),
+            'Welcome to the server!',
+        )
+        await user.click(screen.getByRole('button', { name: 'Save' }))
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith(
+                'Failed to save auto message',
+            )
+        })
+    })
+
+    test('asks for confirmation before deleting and only deletes after confirming', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        const existingMessage: AutoMessage = {
+            id: 'msg-1',
+            type: 'welcome',
+            message: 'Welcome!',
+            channelId: '123456789012345678',
+            enabled: true,
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+        }
+        vi.mocked(api.autoMessages.list).mockResolvedValue({
+            data: { messages: [existingMessage] },
+        } as any)
+        vi.mocked(api.autoMessages.delete).mockResolvedValue({
+            data: { success: true },
+        } as any)
+
+        renderPage()
+
+        const deleteButton = await screen.findByLabelText(
+            'Delete Welcome message',
+        )
+        await user.click(deleteButton)
+
+        expect(screen.getByText('Delete Auto Message')).toBeInTheDocument()
+        expect(api.autoMessages.delete).not.toHaveBeenCalled()
+
+        await user.click(screen.getByRole('button', { name: 'Cancel' }))
+        await waitFor(() => {
+            expect(
+                screen.queryByText('Delete Auto Message'),
+            ).not.toBeInTheDocument()
+        })
+        expect(api.autoMessages.delete).not.toHaveBeenCalled()
+
+        await user.click(deleteButton)
+        await user.click(screen.getByRole('button', { name: 'Delete' }))
+
+        await waitFor(() => {
+            expect(api.autoMessages.delete).toHaveBeenCalledWith(
+                mockGuild.id,
+                'msg-1',
+            )
         })
     })
 })

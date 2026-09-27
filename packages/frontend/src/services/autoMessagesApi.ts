@@ -1,20 +1,19 @@
 import type { AxiosInstance } from 'axios'
-import type { AutoMessage } from '@/types'
+import type { AutoMessage, AutoMessageType } from '@/types'
 
 export interface CreateAutoMessageInput {
-    name: string
-    channel: string
-    content: string
-    interval: number
-    isEmbed?: boolean
+    type: AutoMessageType
+    message: string
+    channelId?: string
+    trigger?: string
+    exactMatch?: boolean
 }
 
 export interface UpdateAutoMessageInput {
-    name?: string
-    channel?: string
-    content?: string
-    interval?: number
-    isEmbed?: boolean
+    message?: string
+    channelId?: string
+    trigger?: string
+    exactMatch?: boolean
     enabled?: boolean
 }
 
@@ -25,7 +24,7 @@ export function createAutoMessagesApi(apiClient: AxiosInstance) {
                 `/guilds/${guildId}/automessages`,
             ),
         create: (guildId: string, data: CreateAutoMessageInput) =>
-            apiClient.post<{ message: AutoMessage }>(
+            apiClient.post<AutoMessage>(
                 `/guilds/${guildId}/automessages`,
                 data,
             ),
@@ -34,7 +33,7 @@ export function createAutoMessagesApi(apiClient: AxiosInstance) {
             messageId: string,
             data: UpdateAutoMessageInput,
         ) =>
-            apiClient.patch<{ message: AutoMessage }>(
+            apiClient.patch<AutoMessage>(
                 `/guilds/${guildId}/automessages/${messageId}`,
                 data,
             ),
