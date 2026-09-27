@@ -361,7 +361,7 @@ describe('resolveQueryWithFallbacks', () => {
 
             expect(result).toEqual(mockTrack)
             expect(telemetry.resolvedVia).toBe('soundcloud-fallback')
-            // Exactly primary + soundcloud — no YouTube attempt in between.
+            // Exactly primary + soundcloud, no YouTube attempt in between.
             expect(mockPlayer.play).toHaveBeenCalledTimes(2)
             expect(mockPlayer.play.mock.calls[1][2]).toMatchObject({
                 searchEngine: QueryType.SOUNDCLOUD_SEARCH,

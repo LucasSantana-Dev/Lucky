@@ -58,7 +58,7 @@ jest.mock('@lucky/shared/utils', () => ({
 
 // queryUtils.ts's replyYoutubeDisabledIfNeeded (#2475) pulls in
 // translatorForInteraction, which transitively loads @lucky/shared/services
-// (Prisma-backed, ESM) — irrelevant to this suite, so stub it directly.
+// (Prisma-backed, ESM), irrelevant to this suite, so stub it directly.
 jest.mock('../../../i18n/translatorForInteraction', () => ({
     translatorForInteraction: jest.fn(async () => (key: string) => key),
 }))

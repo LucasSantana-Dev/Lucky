@@ -48,7 +48,7 @@ function buildCategoryCommands(
 
 type HelpField = { name: string; value: string }
 
-/** The subset of an interaction createHelpEmbeds needs — shared by the
+/** The subset of an interaction createHelpEmbeds needs, shared by the
  * slash-command reply and the category-select follow-up. */
 type HelpInteractionLike = {
     user: { tag: string; displayAvatarURL(): string }
@@ -74,7 +74,7 @@ function createHelpEmbeds(
     const categories = categoryKeys
         ? allCategories.filter(({ key }) => categoryKeys.includes(key))
         : allCategories
-    // Count only the categories actually shown on this page set — otherwise
+    // Count only the categories actually shown on this page set, otherwise
     // a filtered view (e.g. music-only) would report the bot's full command
     // count in the footer while showing a fraction of them.
     const totalCommands = categories.reduce(
@@ -279,8 +279,8 @@ export async function handleHelpCategorySelect(
             components: [row],
         })
 
-        // Extra pages are rare (only a very large category would need one)
-        // — send any beyond the first as plain follow-ups.
+        // Extra pages are rare (only a very large category would need one);
+        // send any beyond the first as plain follow-ups.
         for (const embed of embeds.slice(1)) {
             await interaction.followUp({ embeds: [embed], components: [row] })
         }

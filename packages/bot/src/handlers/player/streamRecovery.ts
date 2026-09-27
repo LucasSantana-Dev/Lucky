@@ -90,7 +90,7 @@ export async function recoverFromStreamExtractionError(
     if (!isHostedYoutubeEnabled()) {
         warnLog({
             message:
-                'Stream failed, YouTube recovery disabled (HOSTED_YOUTUBE_ENABLED=false) — skipping',
+                'Stream failed, YouTube recovery disabled (HOSTED_YOUTUBE_ENABLED=false), skipping',
             data: { title: currentTrack.title, guildId: queue.guild.id },
         })
         await notifyChannelStreamFailed(queue, currentTrack.title)

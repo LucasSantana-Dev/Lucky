@@ -196,7 +196,7 @@ describe('searchLastFmQuery', () => {
             const result = await searchLastFmQuery(queue, 'test query', user)
 
             expect(result).toHaveLength(1)
-            // Only 2 arms attempted (Spotify, AUTO) — YouTube skipped.
+            // Only 2 arms attempted (Spotify, AUTO): YouTube skipped.
             expect(searchMock).toHaveBeenCalledTimes(2)
             expect(searchMock.mock.calls[1][1]).toMatchObject({
                 searchEngine: 'auto',

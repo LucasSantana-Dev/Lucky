@@ -149,7 +149,7 @@ describe('/help', () => {
         )
     })
 
-    // #2475: hosted bot leads with music — default /help view shows only the
+    // #2475: hosted bot leads with music, default /help view shows only the
     // music category, with everything else reachable via the select menu.
     test('default view lists only music commands, hiding other categories', async () => {
         const client = makeClient([

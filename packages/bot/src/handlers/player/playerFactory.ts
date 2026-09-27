@@ -62,14 +62,14 @@ export const registerExtractorsInOrder = async (
     //
     //    Gated by HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-
     //    positioning.md point 3): skipping registration here means nothing
-    //    downstream can search or stream via YouTube — there is no extractor
+    //    downstream can search or stream via YouTube: there is no extractor
     //    left to serve a `youtubeSearch`/`youtubeVideo` query.
     if (isHostedYoutubeEnabled()) {
         await loadYoutubeExtractor(player)
     } else {
         infoLog({
             message:
-                'HOSTED_YOUTUBE_ENABLED=false — skipping YouTube extractor registration',
+                'HOSTED_YOUTUBE_ENABLED=false, skipping YouTube extractor registration',
         })
     }
 

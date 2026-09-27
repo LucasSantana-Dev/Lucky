@@ -173,7 +173,7 @@ describe('artist command search fallback', () => {
                 interaction,
             } as never)
 
-            // Only 2 arms attempted (Spotify, SoundCloud) — YouTube skipped.
+            // Only 2 arms attempted (Spotify, SoundCloud): YouTube skipped.
             expect(search).toHaveBeenCalledTimes(2)
             expect(search.mock.calls[0][1]).toMatchObject({
                 searchEngine: 'SPOTIFY_SEARCH',

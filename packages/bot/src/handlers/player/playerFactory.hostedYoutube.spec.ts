@@ -65,7 +65,7 @@ function makeMockPlayer() {
     } as never
 }
 
-describe('registerExtractorsInOrder — HOSTED_YOUTUBE_ENABLED', () => {
+describe('registerExtractorsInOrder: HOSTED_YOUTUBE_ENABLED', () => {
     const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
 
     beforeEach(() => {
@@ -89,7 +89,7 @@ describe('registerExtractorsInOrder — HOSTED_YOUTUBE_ENABLED', () => {
 
         const registeredCtors = registerMock.mock.calls.map((call) => call[0])
         expect(registeredCtors).not.toContain(FakeYoutubeExtractor)
-        // Everything else still registers — flag is YouTube-only.
+        // Everything else still registers, flag is YouTube-only.
         expect(registeredCtors).toContain(FakeSpotifyExtractor)
         expect(registeredCtors).toContain(FakeSoundCloudExtractor)
         expect(infoLogMock).toHaveBeenCalledWith(

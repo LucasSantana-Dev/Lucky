@@ -211,8 +211,8 @@ export function isYouTubeUrl(url: string): boolean {
 
 /**
  * When YouTube is disabled on the hosted bot (HOSTED_YOUTUBE_ENABLED=false)
- * and the request can only be served by YouTube — a pasted YouTube URL, or
- * `provider: youtube` explicitly picked in the slash command — reply with a
+ * and the request can only be served by YouTube (a pasted YouTube URL, or
+ * `provider: youtube` explicitly picked in the slash command), reply with a
  * friendly, translated notice instead of letting the search silently fail
  * with a generic "no results" error. Returns true when it replied (caller
  * should stop), false otherwise.
@@ -352,7 +352,7 @@ export async function executePlayAtTop({
                 } else {
                     warnLog({
                         message:
-                            'Primary search failed, YouTube disabled — falling back to SoundCloud',
+                            'Primary search failed, YouTube disabled, falling back to SoundCloud',
                         data: {
                             query,
                             searchEngine: String(searchEngine),

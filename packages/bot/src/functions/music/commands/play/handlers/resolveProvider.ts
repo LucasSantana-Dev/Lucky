@@ -236,7 +236,7 @@ export async function resolveQueryWithFallbacks(
             } else {
                 warnLog({
                     message:
-                        'Primary search failed, YouTube disabled — falling back to SoundCloud',
+                        'Primary search failed, YouTube disabled, falling back to SoundCloud',
                     data: {
                         query,
                         requestedProvider,
@@ -247,7 +247,7 @@ export async function resolveQueryWithFallbacks(
             }
 
             try {
-                // Attempt SoundCloud fallback — same block reason as above
+                // Attempt SoundCloud fallback, same block reason as above
                 const result = await player.play(voiceChannel, query, {
                     ...resolvedPlayOptions,
                     searchEngine: QueryType.SOUNDCLOUD_SEARCH,
