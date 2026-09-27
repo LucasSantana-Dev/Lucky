@@ -18,6 +18,8 @@ import {
 import { interactionReply } from '../utils/general/interactionReply'
 import { isUnknownInteractionError } from '../functions/music/commands/play/queryUtils'
 import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from '../functions/music/commands/play/handlers/resolveProvider'
+import { runPostPlayBackgroundOps } from '../functions/music/commands/play/handlers/postPlayBackgroundOps'
+import { resolveGuildQueue } from '../services/musicManagement/queueResolver'
 import { translatorForInteraction } from '../i18n/translatorForInteraction'
 
 /**
@@ -57,7 +59,7 @@ export async function createOnboardingStationRow(
 ): Promise<ActionRowBuilder<ButtonBuilder>> {
     const t = await translatorForInteraction({ guildId: guild.id, guild })
     return new ActionRowBuilder<ButtonBuilder>().addComponents(
-        STATION_GENRES.map((genre) =>
+        ...STATION_GENRES.map((genre) =>
             new ButtonBuilder()
                 .setCustomId(`${ONBOARDING_STATION_BUTTON_PREFIX}${genre.id}`)
                 .setLabel(t(`music.station.genres.${genre.id}`))
@@ -164,13 +166,24 @@ export async function handleOnboardingStationButton(
     try {
         await interaction.deferReply({ ephemeral: true })
     } catch (error) {
-        if (isUnknownInteractionError(error)) return
+        if (isUnknownInteractionError(error)) {
+            logStationClick({
+                guildId,
+                genre: genre.id,
+                started: false,
+                reason: 'interaction_expired',
+            })
+            return
+        }
         throw error
     }
 
     const client = interaction.client as CustomClient
     try {
-        await client.player.play(voiceChannel, genre.query, {
+        const hadQueueBeforePlay = Boolean(
+            resolveGuildQueue(client, guildId).queue,
+        )
+        const result = await client.player.play(voiceChannel, genre.query, {
             searchEngine: QueryType.SOUNDCLOUD_SEARCH,
             blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
             requestedBy: interaction.user,
@@ -185,6 +198,26 @@ export async function handleOnboardingStationButton(
                 leaveOnEnd: true,
                 leaveOnEndCooldown: 300_000,
             },
+        })
+
+        // Without this, the seed track plays once and stops: trackEventHandlers
+        // only replenishes the queue in QueueRepeatMode.AUTOPLAY, and a fresh
+        // queue defaults to OFF. This is the same call /play makes for a
+        // guild's first-ever queue (playHandler.ts) — it reads the guild's
+        // stored preference (default: on) and flips repeatMode accordingly.
+        const { queue } = resolveGuildQueue(client, guildId)
+        void runPostPlayBackgroundOps({
+            queue,
+            guildId,
+            track: result.track,
+            hadQueueBeforePlay,
+            isPlaylist: false,
+        }).catch((backgroundOpsError: unknown) => {
+            warnLog({
+                message: 'Onboarding station post-play background ops failed',
+                error: backgroundOpsError,
+                data: { guildId, genre: genre.id },
+            })
         })
 
         logStationClick({

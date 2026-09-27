@@ -8,6 +8,8 @@ const createErrorEmbedMock = jest.fn((title: string) => ({ title }))
 const createWarningEmbedMock = jest.fn((title: string) => ({ title }))
 const createSuccessEmbedMock = jest.fn((title: string) => ({ title }))
 const isUnknownInteractionErrorMock = jest.fn(() => false)
+const resolveGuildQueueMock = jest.fn()
+const runPostPlayBackgroundOpsMock = jest.fn<() => Promise<void>>()
 
 // A fixed, distinguishable blocklist so tests can assert it flows through
 // unmodified to player.play — the real list lives in resolveProvider.ts and
@@ -24,7 +26,7 @@ jest.mock('discord.js', () => {
     }
     class MockActionRowBuilder {
         components: unknown[] = []
-        addComponents(components: unknown[]) {
+        addComponents(...components: unknown[]) {
             this.components = components
             return this
         }
@@ -73,6 +75,18 @@ jest.mock('../functions/music/commands/play/handlers/resolveProvider', () => ({
     TEXT_SEARCH_BLOCKED_EXTRACTORS: FAKE_BLOCKED_EXTRACTORS,
 }))
 
+jest.mock(
+    '../functions/music/commands/play/handlers/postPlayBackgroundOps',
+    () => ({
+        runPostPlayBackgroundOps: (...args: unknown[]) =>
+            runPostPlayBackgroundOpsMock(...args),
+    }),
+)
+
+jest.mock('../services/musicManagement/queueResolver', () => ({
+    resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
+}))
+
 jest.mock('../i18n/translatorForInteraction', () => ({
     translatorForInteraction: (...args: unknown[]) =>
         translatorForInteractionMock(...args),
@@ -99,7 +113,9 @@ function createVoiceChannel(hasPermissions: boolean): MockVoiceChannel {
 function createInteraction(
     overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
-    const playMock = jest.fn().mockResolvedValue(undefined)
+    const playMock = jest
+        .fn()
+        .mockResolvedValue({ track: { title: 'Fake Track' } })
     return {
         customId: `${ONBOARDING_STATION_BUTTON_PREFIX}lofi`,
         guildId: 'guild-1',
@@ -149,7 +165,8 @@ describe('handleOnboardingStationButton', () => {
             (key: string, opts?: { genre?: string }) =>
                 opts?.genre ? `${key}:${opts.genre}` : key,
         )
-        delete process.env.HOSTED_YOUTUBE_ENABLED
+        resolveGuildQueueMock.mockReturnValue({ queue: null })
+        runPostPlayBackgroundOpsMock.mockResolvedValue(undefined)
     })
 
     it('replies ephemerally asking to join a voice channel when not in one', async () => {
@@ -209,6 +226,10 @@ describe('handleOnboardingStationButton', () => {
     })
 
     it('starts playback from SoundCloud (never YouTube) when in voice with permissions', async () => {
+        const fakeQueue = { id: 'queue-1' }
+        resolveGuildQueueMock
+            .mockReturnValueOnce({ queue: null }) // hadQueueBeforePlay check: fresh guild
+            .mockReturnValueOnce({ queue: fakeQueue }) // post-play lookup
         const interaction = createInteraction()
 
         await handleOnboardingStationButton(interaction as never)
@@ -226,7 +247,21 @@ describe('handleOnboardingStationButton', () => {
         )
         expect(typeof query).toBe('string')
         expect(playOptions.searchEngine).toBe('soundcloudSearch')
+        expect(playOptions.searchEngine).not.toBe('youtubeSearch')
+        expect(playOptions.searchEngine).not.toBe('auto')
         expect(playOptions.blockExtractors).toBe(FAKE_BLOCKED_EXTRACTORS)
+
+        // #2473 hand-off: without this call the seed track plays once and
+        // stops, since trackEventHandlers only replenishes the queue in
+        // QueueRepeatMode.AUTOPLAY and a fresh queue defaults to OFF.
+        expect(runPostPlayBackgroundOpsMock).toHaveBeenCalledWith({
+            queue: fakeQueue,
+            guildId: 'guild-1',
+            track: { title: 'Fake Track' },
+            hadQueueBeforePlay: false,
+            isPlaylist: false,
+        })
+
         expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'music.station.startedTitle',
             'music.station.startedDescription:music.station.genres.lofi',
@@ -242,21 +277,27 @@ describe('handleOnboardingStationButton', () => {
         )
     })
 
-    it('never uses a YouTube search engine even with HOSTED_YOUTUBE_ENABLED=false', async () => {
-        process.env.HOSTED_YOUTUBE_ENABLED = 'false'
-        const interaction = createInteraction()
+    it('logs interaction_expired and does not start playback when the defer races the interaction timing out', async () => {
+        isUnknownInteractionErrorMock.mockReturnValueOnce(true)
+        const interaction = createInteraction({
+            deferReply: jest
+                .fn()
+                .mockRejectedValue(new Error('Unknown interaction')),
+        })
 
         await handleOnboardingStationButton(interaction as never)
 
         const client = interaction.client as { player: { play: jest.Mock } }
-        const [, , playOptions] = client.player.play.mock.calls[0] as [
-            unknown,
-            string,
-            Record<string, unknown>,
-        ]
-        expect(playOptions.searchEngine).toBe('soundcloudSearch')
-        expect(playOptions.searchEngine).not.toBe('youtubeSearch')
-        expect(playOptions.searchEngine).not.toBe('auto')
+        expect(client.player.play).not.toHaveBeenCalled()
+        expect(interactionReplyMock).not.toHaveBeenCalled()
+        expect(infoLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    started: false,
+                    reason: 'interaction_expired',
+                }),
+            }),
+        )
     })
 
     it('shows a friendly error and logs a failure when playback throws', async () => {
