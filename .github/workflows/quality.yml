@@ -15,12 +15,61 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
+    # Lightweight changes job, local to this workflow: the reusable
+    # quality.yml runs as its own workflow_call invocation and can't see
+    # ci.yml's `changes` job outputs (different workflow run). Only feeds
+    # the three toggleable inputs the reusable workflow already exposes
+    # (has-dockerfile / run-deadcode / run-osv-scanner). semgrep, CodeQL,
+    # trivy and actionlint have no such toggle upstream and always run.
+    # push to main always runs everything, same as before.
+    changes:
+        name: Detect changed files
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        outputs:
+            dockerfile: ${{ steps.filter.outputs.dockerfile }}
+            lockfile: ${{ steps.filter.outputs.lockfile }}
+            code: ${{ steps.filter.outputs.code }}
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+              with:
+                  fetch-depth: 0
+            - name: Detect changed files
+              id: filter
+              run: |
+                  if [ "${{ github.event_name }}" = "pull_request" ]; then
+                      BASE_SHA=$(git merge-base "${{ github.event.pull_request.base.sha }}" HEAD)
+                      CHANGED=$(git diff --name-only "$BASE_SHA" HEAD)
+                  else
+                      CHANGED=""
+                  fi
+                  echo "Changed files:"
+                  echo "$CHANGED"
+
+                  if [ "${{ github.event_name }}" != "pull_request" ]; then
+                      dockerfile=true
+                      lockfile=true
+                      code=true
+                  else
+                      if echo "$CHANGED" | grep -qE '^(Dockerfile$|Dockerfile\.|deploy/)'; then dockerfile=true; else dockerfile=false; fi
+                      if echo "$CHANGED" | grep -qE '^package.*\.json$'; then lockfile=true; else lockfile=false; fi
+                      CODE_CHANGED=$(echo "$CHANGED" | grep -vE '^(docs/|decisions/|\.claude/)' | awk '!/\.md$/ || $0 == "CHANGELOG.md"' || true)
+                      if [ -n "$CODE_CHANGED" ]; then code=true; else code=false; fi
+                  fi
+                  {
+                      echo "dockerfile=$dockerfile"
+                      echo "lockfile=$lockfile"
+                      echo "code=$code"
+                  } >> "$GITHUB_OUTPUT"
+
     quality:
+        needs: changes
         uses: LucasSantana-Dev/.github/.github/workflows/quality.yml@fa22667c1e0b6a5a27e7262c56b412db8b9f7c13
         with:
             node-version: '24'
-            has-dockerfile: true
-            run-deadcode: true
+            has-dockerfile: ${{ github.event_name != 'pull_request' || needs.changes.outputs.dockerfile == 'true' }}
+            run-deadcode: ${{ github.event_name != 'pull_request' || needs.changes.outputs.code == 'true' }}
+            run-osv-scanner: ${{ github.event_name != 'pull_request' || needs.changes.outputs.lockfile == 'true' }}
             package-manager: npm
             pre-lint-script: 'npm run db:generate && npm run build:shared'
             # ci.yml's checks job already lints all four workspaces.

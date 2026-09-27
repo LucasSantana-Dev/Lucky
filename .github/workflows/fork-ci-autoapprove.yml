@@ -26,6 +26,11 @@ jobs:
         name: Approve CI for trusted contributors
         runs-on: ubuntu-latest
         timeout-minutes: 10
+        # Non-fork PRs never land in the "action required" state this
+        # workflow exists to clear (that gate is fork-only), so skip the run
+        # entirely instead of executing the script only to find nothing
+        # pending. Trigger/permissions/pull_request_target semantics untouched.
+        if: github.event.pull_request.head.repo.fork
         steps:
             - name: Approve pending runs
               uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
