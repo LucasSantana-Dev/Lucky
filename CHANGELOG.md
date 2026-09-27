@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.46.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.45.3...v2.46.0) (2026-09-27)
+
+
+### Features
+
+* **observability:** prometheus and grafana profile with heartbeat fix ([#2401](https://github.com/LucasSantana-Dev/Lucky/issues/2401)) ([646ec6a](https://github.com/LucasSantana-Dev/Lucky/commit/646ec6ae2e69fb891e0237245f0d8a67f5838ab8))
+
+
+### Bug Fixes
+
+* **api:** cap role permission edits to what the requesting member holds ([#2463](https://github.com/LucasSantana-Dev/Lucky/issues/2463)) ([55e63ad](https://github.com/LucasSantana-Dev/Lucky/commit/55e63ad94d4f8f8beaaaeaed2e6630cb12adf146))
+* **api:** check one module per guild route ([#2449](https://github.com/LucasSantana-Dev/Lucky/issues/2449)) ([6b55514](https://github.com/LucasSantana-Dev/Lucky/commit/6b55514c2c407b959d1bf746ae010048805041dd))
+* **api:** spotify oauth callback requires state to match the cookie ([#2460](https://github.com/LucasSantana-Dev/Lucky/issues/2460)) ([2d09103](https://github.com/LucasSantana-Dev/Lucky/commit/2d091032a1ec6dff63a0d2f7b39fe170d54df441))
+* **dashboard:** align auto messages with the backend model ([#2443](https://github.com/LucasSantana-Dev/Lucky/issues/2443)) ([4152534](https://github.com/LucasSantana-Dev/Lucky/commit/4152534b2eaa93942e1b9abc48a11779c2e4f54c))
+* **dashboard:** block automod save after a failed settings load ([#2457](https://github.com/LucasSantana-Dev/Lucky/issues/2457)) ([5104a97](https://github.com/LucasSantana-Dev/Lucky/commit/5104a9782173762aff51924a1f3dc24b47984759))
+* **dashboard:** fix custom commands toggle and add crud ui ([#2446](https://github.com/LucasSantana-Dev/Lucky/issues/2446)) ([8830a93](https://github.com/LucasSantana-Dev/Lucky/commit/8830a93bf7bcd684a62430f2b9609368af9bee32))
+* **dashboard:** moderation cases pagination, type filter, search ([#2461](https://github.com/LucasSantana-Dev/Lucky/issues/2461)) ([37cb6e5](https://github.com/LucasSantana-Dev/Lucky/commit/37cb6e58d150b48ca940b52c090bc2e7eea7842c))
+* **dashboard:** route recently active server card to an existing route ([#2464](https://github.com/LucasSantana-Dev/Lucky/issues/2464)) ([b5deacd](https://github.com/LucasSantana-Dev/Lucky/commit/b5deacd8df47684fb5986f40437a68e6a27d7d16))
+* **dashboard:** save embed templates with thumbnail, image and footer ([#2445](https://github.com/LucasSantana-Dev/Lucky/issues/2445)) ([e964a1f](https://github.com/LucasSantana-Dev/Lucky/commit/e964a1f4c614bb76d7b7b5e737abb0d698136437))
+* **dashboard:** server logs search box never reaches the backend ([#2459](https://github.com/LucasSantana-Dev/Lucky/issues/2459)) ([cc319a9](https://github.com/LucasSantana-Dev/Lucky/commit/cc319a99848d17e50b4c54e523debb44991ec49c))
+* **dashboard:** twitch notification add and remove report success when they fail ([#2458](https://github.com/LucasSantana-Dev/Lucky/issues/2458)) ([8f87be0](https://github.com/LucasSantana-Dev/Lucky/commit/8f87be068d1b344ed5399dac4e6f11d55ff7ce57))
+* **frontend:** hide track history clear for view-only users ([#2442](https://github.com/LucasSantana-Dev/Lucky/issues/2442)) ([7dd6947](https://github.com/LucasSantana-Dev/Lucky/commit/7dd69472138ccb7bb327815436cf01aab8f735b2))
+* **frontend:** remove Sentry Session Replay ([#2381](https://github.com/LucasSantana-Dev/Lucky/issues/2381)) ([1d6b1f5](https://github.com/LucasSantana-Dev/Lucky/commit/1d6b1f5cdeae12061e59afebd6f2857ccc2907e7))
+* **frontend:** self-host fonts instead of the Google Fonts CDN ([#2382](https://github.com/LucasSantana-Dev/Lucky/issues/2382)) ([af36ea6](https://github.com/LucasSantana-Dev/Lucky/commit/af36ea640da66236d6ed2bf527a3caa45791e9e5))
+* **logs:** make SERVER_LOGS a per-guild opt-in, off by default ([#2373](https://github.com/LucasSantana-Dev/Lucky/issues/2373)) ([f0c8fd0](https://github.com/LucasSantana-Dev/Lucky/commit/f0c8fd0a8affcebaa90745a8823ebbd9b72d03d4))
+* **monitoring:** default Sentry sampling to 10% ([#2388](https://github.com/LucasSantana-Dev/Lucky/issues/2388)) ([10c6713](https://github.com/LucasSantana-Dev/Lucky/commit/10c67137e476d12ebac2a6b6796f3732a6aa0289))
+* **shared:** prune server logs older than 30 days ([#2384](https://github.com/LucasSantana-Dev/Lucky/issues/2384)) ([6dd2b7f](https://github.com/LucasSantana-Dev/Lucky/commit/6dd2b7fe601562aaf48381ddaab1efcb06b844f9))
+
 ## [2.45.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.45.2...v2.45.3) (2026-09-10)
 
 
