@@ -21,6 +21,31 @@ const ALLOWED_YTDLP_DOMAINS = new Set([
     'www.soundcloud.com',
 ])
 
+// Subset of ALLOWED_YTDLP_DOMAINS the HOSTED_YOUTUBE_ENABLED kill switch
+// actually gates. This module also streams the allowlisted SoundCloud
+// domains via yt-dlp, and that path has nothing to do with YouTube, so it
+// must keep working when YouTube is disabled.
+const YOUTUBE_YTDLP_DOMAINS = new Set([
+    'youtube.com',
+    'www.youtube.com',
+    'youtu.be',
+    'music.youtube.com',
+])
+
+function isYoutubeYtDlpTarget(url: string): boolean {
+    // streamViaYtDlpSearch always builds a `ytsearch1:<query>` string, which
+    // only ever searches YouTube.
+    if (url.startsWith('ytsearch')) return true
+    try {
+        const hostname = new URL(url).hostname.toLowerCase().replace(/\.$/, '')
+        return YOUTUBE_YTDLP_DOMAINS.has(hostname)
+    } catch {
+        // Not a parseable URL: validateYtDlpUrl below will reject it on its
+        // own terms, independent of the flag.
+        return false
+    }
+}
+
 function validateYtDlpUrl(url: string): void {
     if (url.startsWith('ytsearch')) return
     let parsed: URL
@@ -106,9 +131,11 @@ export const YTDLP_STREAM_START_TIMEOUT_MS = 8_000
 // in, but this module is exported (re-exported at playerFactory.ts) and
 // callers reaching it directly must not be able to bypass the flag.
 // streamViaYtDlpSearch delegates to this function for every call, so this
-// single check covers both the URL and search entry points.
+// single check covers both the URL and search entry points. Scoped to actual
+// YouTube targets (isYoutubeYtDlpTarget) so the allowlisted SoundCloud path
+// through this same function keeps working when YouTube is disabled.
 export function streamViaYtDlp(url: string): Promise<Readable> {
-    if (!isHostedYoutubeEnabled()) {
+    if (isYoutubeYtDlpTarget(url) && !isHostedYoutubeEnabled()) {
         return Promise.reject(
             new Error('yt-dlp: YouTube disabled (HOSTED_YOUTUBE_ENABLED)'),
         )
