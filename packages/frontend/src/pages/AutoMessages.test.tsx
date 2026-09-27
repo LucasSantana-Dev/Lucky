@@ -174,4 +174,39 @@ describe('AutoMessagesPage', () => {
             )
         })
     })
+
+    test('shows an error toast and keeps the dialog open when delete fails', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        const existingMessage: AutoMessage = {
+            id: 'msg-1',
+            type: 'welcome',
+            message: 'Welcome!',
+            channelId: '123456789012345678',
+            enabled: true,
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+        }
+        vi.mocked(api.autoMessages.list).mockResolvedValue({
+            data: { messages: [existingMessage] },
+        } as any)
+        vi.mocked(api.autoMessages.delete).mockRejectedValue(
+            new Error('Request failed with status code 500'),
+        )
+
+        renderPage()
+
+        const deleteButton = await screen.findByLabelText(
+            'Delete Welcome message',
+        )
+        await user.click(deleteButton)
+        await user.click(screen.getByRole('button', { name: 'Delete' }))
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith(
+                'Failed to delete auto message',
+            )
+        })
+        expect(screen.getByText('Delete Auto Message')).toBeInTheDocument()
+    })
 })

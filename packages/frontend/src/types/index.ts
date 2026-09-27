@@ -76,7 +76,7 @@ export type AutoMessageType = 'welcome' | 'leave' | 'auto_response'
 export interface AutoMessage {
     id: string
     type: AutoMessageType
-    message: string
+    message: string | null
     channelId?: string | null
     trigger?: string | null
     exactMatch?: boolean

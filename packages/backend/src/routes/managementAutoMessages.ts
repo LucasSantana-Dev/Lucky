@@ -42,15 +42,18 @@ export function setupAutoMessageRoutes(app: Express): void {
                 return
             }
 
-            const [welcome, leave] = await Promise.all([
+            const [welcome, leave, autoResponders] = await Promise.all([
                 autoMessageService.getWelcomeMessage(guildId),
                 autoMessageService.getLeaveMessage(guildId),
+                autoMessageService.getAutoResponders(guildId),
             ])
 
-            const messages = [welcome, leave].filter(
-                (message): message is NonNullable<typeof message> =>
-                    message !== null,
-            )
+            const messages = [welcome, leave]
+                .filter(
+                    (message): message is NonNullable<typeof message> =>
+                        message !== null,
+                )
+                .concat(autoResponders)
 
             res.json({ messages })
         }),

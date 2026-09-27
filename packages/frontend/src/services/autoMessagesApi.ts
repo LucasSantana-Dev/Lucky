@@ -11,10 +11,52 @@ export interface CreateAutoMessageInput {
 
 export interface UpdateAutoMessageInput {
     message?: string
-    channelId?: string
+    channelId?: string | null
     trigger?: string
     exactMatch?: boolean
     enabled?: boolean
+}
+
+/** Raw values held by the auto message create/edit form. */
+export interface AutoMessageFormValues {
+    type: AutoMessageType
+    message: string
+    channelId: string
+    trigger: string
+    exactMatch: boolean
+}
+
+/** Builds the exact payload the create form sends, from its raw field values. */
+export function buildCreatePayload(
+    form: AutoMessageFormValues,
+): CreateAutoMessageInput {
+    const isAutoResponse = form.type === 'auto_response'
+    return {
+        type: form.type,
+        message: form.message,
+        channelId: form.channelId.trim() === '' ? undefined : form.channelId,
+        ...(isAutoResponse
+            ? { trigger: form.trigger, exactMatch: form.exactMatch }
+            : {}),
+    }
+}
+
+/**
+ * Builds the exact payload the edit form sends, from its raw field values.
+ * An emptied channel field sends an explicit `null` so the backend clears it,
+ * rather than omitting the key (which the backend treats as "no change").
+ */
+export function buildUpdatePayload(
+    form: AutoMessageFormValues,
+): UpdateAutoMessageInput {
+    const isAutoResponse = form.type === 'auto_response'
+    return {
+        message: form.message,
+        channelId: form.channelId.trim() === '' ? null : form.channelId,
+        ...(isAutoResponse
+            ? { trigger: form.trigger, exactMatch: form.exactMatch }
+            : {}),
+    }
 }
 
 export function createAutoMessagesApi(apiClient: AxiosInstance) {

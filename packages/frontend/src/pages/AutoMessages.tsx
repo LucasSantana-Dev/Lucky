@@ -19,9 +19,11 @@ import {
 import { useGuildStore } from '@/stores/guildStore'
 import { api } from '@/services/api'
 import type { AutoMessage, AutoMessageType } from '@/types'
-import type {
-    CreateAutoMessageInput,
-    UpdateAutoMessageInput,
+import {
+    buildCreatePayload,
+    buildUpdatePayload,
+    type CreateAutoMessageInput,
+    type UpdateAutoMessageInput,
 } from '@/services/autoMessagesApi'
 import { useTranslation } from 'react-i18next'
 
@@ -72,23 +74,10 @@ function MessageFormDialog({
         e.preventDefault()
         setSaving(true)
         try {
-            const isAutoResponse = type === 'auto_response'
-            if (initial) {
-                const data: UpdateAutoMessageInput = {
-                    message,
-                    channelId: channelId || undefined,
-                    ...(isAutoResponse ? { trigger, exactMatch } : {}),
-                }
-                await onSave(data)
-            } else {
-                const data: CreateAutoMessageInput = {
-                    type,
-                    message,
-                    channelId: channelId || undefined,
-                    ...(isAutoResponse ? { trigger, exactMatch } : {}),
-                }
-                await onSave(data)
-            }
+            const form = { type, message, channelId, trigger, exactMatch }
+            await onSave(
+                initial ? buildUpdatePayload(form) : buildCreatePayload(form),
+            )
             onClose()
         } catch {
             toast.error(t('autoMessages.saveError'))
@@ -280,9 +269,13 @@ export default function AutoMessagesPage() {
 
     async function handleDelete(id: string) {
         if (!selectedGuild?.id) return
-        await api.autoMessages.delete(selectedGuild.id, id)
-        setDeleteTarget(null)
-        await fetchMessages()
+        try {
+            await api.autoMessages.delete(selectedGuild.id, id)
+            setDeleteTarget(null)
+            await fetchMessages()
+        } catch {
+            toast.error(t('autoMessages.deleteError'))
+        }
     }
 
     function openCreate() {

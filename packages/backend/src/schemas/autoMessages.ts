@@ -19,10 +19,7 @@ const createMessageBody = z.object({
 const updateMessageBody = z
     .object({
         message: z.string().min(1).max(2000).optional(),
-        channelId: z
-            .string()
-
-            .optional(),
+        channelId: z.string().nullable().optional(),
         trigger: z.string().max(200).optional(),
         exactMatch: z.boolean().optional(),
         cronSchedule: z.string().max(100).optional(),

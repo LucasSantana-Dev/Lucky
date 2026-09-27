@@ -444,6 +444,7 @@
         "saving": "Salvando…",
         "save": "Salvar",
         "saveError": "Falha ao salvar mensagem automática",
+        "deleteError": "Falha ao excluir mensagem automática",
         "noServerSelected": "Nenhum Servidor Selecionado",
         "selectServerToManage": "Selecione um servidor para gerenciar mensagens automáticas",
         "noAutoMessagesConfigured": "Nenhuma mensagem automática configurada",

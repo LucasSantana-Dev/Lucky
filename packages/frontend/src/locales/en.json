@@ -448,6 +448,7 @@
         "saving": "Saving…",
         "save": "Save",
         "saveError": "Failed to save auto message",
+        "deleteError": "Failed to delete auto message",
         "noServerSelected": "No Server Selected",
         "selectServerToManage": "Select a server to manage auto messages",
         "noAutoMessagesConfigured": "No auto messages configured",
