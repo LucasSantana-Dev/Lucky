@@ -81,9 +81,10 @@ and the Discord Bots listing server (the 38-guild base of the diagnosis).
    recruiting: the 25 pt-BR recruits against the 15 international recruits, so channel does
    not masquerade as language. Lucky goes Brazil-first after the decision date only if the
    pt-BR recruits' day-8 retention is at least 1.5x the international recruits' AND at least
-   6 pt-BR guilds are active on day 8. With groups this small the ratio alone is noise (95%
-   CI about +/-14 points at n=25), so the absolute floor is required, and the result is a
-   directional signal, not proof.
+   6 pt-BR guilds are active on day 8. With groups this small the ratio alone is noise: at
+   about 15% retention in both groups, the 95% CI of the difference between 25 and 15 guilds
+   is about +/-23 points. So the absolute floor is required, and the result is a directional
+   signal, not proof.
 7. **Watch-together (Go Live style) is out.** The only compliant design embeds the official
    YouTube player, which shows the same ads as Discord's native Watch Together.
 
