@@ -218,12 +218,27 @@ export default function TwitchNotificationsPage() {
 
     const handleRemove = async (twitchUserId: string) => {
         if (!guildId) return
+        const requestGuildId = guildId
         try {
-            await api.twitch.remove(guildId, twitchUserId)
-            setNotifications((prev) =>
-                prev.filter((n) => n.twitchUserId !== twitchUserId),
-            )
+            await api.twitch.remove(requestGuildId, twitchUserId)
+            // Guard against a late response landing after the admin switched
+            // to a different guild that happens to have the same twitchUserId.
+            if (selectedGuildIdRef.current === requestGuildId) {
+                setNotifications((prev) =>
+                    prev.filter((n) => n.twitchUserId !== twitchUserId),
+                )
+            }
         } catch (error) {
+            // A 404 means it was already gone (double click, or removed by
+            // another admin) - converge the UI silently instead of erroring.
+            if (error instanceof ApiError && error.isNotFound) {
+                if (selectedGuildIdRef.current === requestGuildId) {
+                    setNotifications((prev) =>
+                        prev.filter((n) => n.twitchUserId !== twitchUserId),
+                    )
+                }
+                return
+            }
             setError(getErrorMessage(error, t('failedToRemoveNotification')))
         }
     }

@@ -200,11 +200,12 @@ export function setupTwitchRoutes(app: Express): void {
                 twitchUserId,
                 twitchLogin,
             )
+            if (!success) {
+                throw new AppError(500, 'Failed to add Twitch notification')
+            }
             // Tell the running bot to register the new EventSub subscription
             // now, instead of only on its next restart (#870).
-            if (success) {
-                await twitchControlService.publishRefresh()
-            }
+            await twitchControlService.publishRefresh()
             res.json({ success })
         }),
     )
@@ -218,15 +219,20 @@ export function setupTwitchRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const { twitchUserId } = removeTwitchBody.parse(req.body)
+            // remove() rethrows on a real DB failure (asyncHandler forwards
+            // it to the 500 error handler) and only returns false when
+            // there was nothing to remove, which is a 404, not a server
+            // error (double click, or another admin removed it first).
             const success = await twitchNotificationService.remove(
                 guildId,
                 twitchUserId,
             )
+            if (!success) {
+                throw AppError.notFound('Twitch notification not found')
+            }
             // Tell the running bot to drop the EventSub subscription now,
             // instead of only on its next restart (#870).
-            if (success) {
-                await twitchControlService.publishRefresh()
-            }
+            await twitchControlService.publishRefresh()
             res.json({ success })
         }),
     )

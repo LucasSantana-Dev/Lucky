@@ -142,7 +142,7 @@ describe('Twitch Routes', () => {
             expect(mockPublishRefresh).toHaveBeenCalledTimes(1)
         })
 
-        test('does not signal the bot when the add is a no-op', async () => {
+        test('surfaces a server error and does not signal the bot when add fails', async () => {
             authed()
             mockAdd.mockResolvedValue(false)
 
@@ -155,8 +155,8 @@ describe('Twitch Routes', () => {
                     discordChannelId: '444444444444444444',
                 })
 
-            expect(res.status).toBe(200)
-            expect(res.body.success).toBe(false)
+            expect(res.status).toBe(500)
+            expect(res.body.error).toMatch(/Failed to add Twitch notification/)
             expect(mockPublishRefresh).not.toHaveBeenCalled()
         })
 
@@ -189,7 +189,7 @@ describe('Twitch Routes', () => {
             expect(mockPublishRefresh).toHaveBeenCalledTimes(1)
         })
 
-        test('does not signal the bot when the remove is a no-op', async () => {
+        test('returns 404 and does not signal the bot when there was nothing to remove', async () => {
             authed()
             mockRemove.mockResolvedValue(false)
 
@@ -198,8 +198,21 @@ describe('Twitch Routes', () => {
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .send({ twitchUserId: 'tw123' })
 
-            expect(res.status).toBe(200)
-            expect(res.body.success).toBe(false)
+            expect(res.status).toBe(404)
+            expect(res.body.error).toMatch(/not found/i)
+            expect(mockPublishRefresh).not.toHaveBeenCalled()
+        })
+
+        test('returns 500 and does not signal the bot when the delete throws', async () => {
+            authed()
+            mockRemove.mockRejectedValue(new Error('db unavailable'))
+
+            const res = await request(app)
+                .delete(`/api/guilds/${GUILD_ID}/twitch/notifications`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ twitchUserId: 'tw123' })
+
+            expect(res.status).toBe(500)
             expect(mockPublishRefresh).not.toHaveBeenCalled()
         })
     })

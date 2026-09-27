@@ -51,13 +51,20 @@ export class TwitchNotificationService {
         }
     }
 
-    /** Removes a Twitch notification subscription from a guild. */
+    /**
+     * Removes a Twitch notification subscription from a guild.
+     * Returns `false` when there was nothing to remove (not an error);
+     * rethrows on a real DB failure so the caller can tell the two apart.
+     */
     async remove(guildId: string, twitchUserId: string): Promise<boolean> {
         try {
             const prisma = getPrismaClient()
-            await prisma.twitchNotification.deleteMany({
+            const result = await prisma.twitchNotification.deleteMany({
                 where: { guildId, twitchUserId },
             })
+            if (result.count === 0) {
+                return false
+            }
             debugLog({
                 message: `Twitch notification removed: ${twitchUserId} from guild ${guildId}`,
             })
@@ -67,7 +74,7 @@ export class TwitchNotificationService {
                 message: 'Failed to remove Twitch notification',
                 error,
             })
-            return false
+            throw error
         }
     }
 
