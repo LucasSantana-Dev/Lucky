@@ -470,6 +470,51 @@ describe('TwitchNotificationsPage', () => {
         ).not.toBeInTheDocument()
     })
 
+    test('ignores a late remove response after the admin switched to a different guild', async () => {
+        const otherGuild = { id: '999', name: 'Other Server', botAdded: true }
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: mockNotifications },
+        } as any)
+        let resolveRemove: (() => void) | undefined
+        vi.mocked(api.twitch.remove).mockReturnValue(
+            new Promise((resolve) => {
+                resolveRemove = () =>
+                    resolve({ data: { success: true } } as any)
+            }),
+        )
+
+        const { rerender } = renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('shroud')).toBeInTheDocument()
+        })
+
+        const removeButton = screen.getByLabelText('Remove shroud')
+        await userEvent.click(removeButton)
+
+        // Switch to a different guild while the remove request is still in
+        // flight, then let the stale response for the old guild land.
+        mockGuildSelection(otherGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: mockNotifications },
+        } as any)
+        rerender(
+            <I18nextProvider i18n={testI18n}>
+                <MemoryRouter>
+                    <TwitchNotificationsPage />
+                </MemoryRouter>
+            </I18nextProvider>,
+        )
+        resolveRemove?.()
+
+        // "shroud" belongs to the newly selected guild too (same twitchUserId)
+        // and must not be dropped by the stale response for the old guild.
+        await waitFor(() => {
+            expect(screen.getByText('shroud')).toBeInTheDocument()
+        })
+    })
+
     test('keeps the notification in the list and shows an error when remove fails', async () => {
         mockGuildSelection(mockGuild)
         vi.mocked(api.twitch.list).mockResolvedValue({
