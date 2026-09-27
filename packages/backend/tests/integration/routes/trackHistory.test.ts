@@ -76,6 +76,41 @@ describe('Track History Routes', () => {
         mockGuildAccessService.hasAccess.mockReturnValue(true)
     }
 
+    // Shared by both the global-guard suite and the route-level-only suite
+    // below. Every mock asserts the module too (not just the mode) so a
+    // guard accidentally protecting the wrong module (e.g. 'settings'
+    // instead of 'music') flips the outcome and fails the suite, rather
+    // than passing identically regardless of which module was checked.
+    function noAccess() {
+        authed()
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.hasAccess.mockImplementation(
+            (_context, module) => module !== 'music',
+        )
+    }
+
+    function viewOnlyAccess() {
+        authed()
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.hasAccess.mockImplementation(
+            (_context, module, mode) => module === 'music' && mode === 'view',
+        )
+    }
+
+    function manageAccess() {
+        authed()
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.hasAccess.mockImplementation(
+            (_context, module, mode) => module === 'music' && mode === 'manage',
+        )
+    }
+
     describe('GET /api/guilds/:guildId/music/history', () => {
         test('should return track history', async () => {
             authed()
@@ -205,42 +240,6 @@ describe('Track History Routes', () => {
     })
 
     describe('guild module access', () => {
-        // Every mock asserts the module too (not just the mode) so a guard
-        // accidentally protecting the wrong module (e.g. 'settings' instead
-        // of 'music') flips the outcome and fails the suite, rather than
-        // passing identically regardless of which module was checked.
-        function noAccess() {
-            authed()
-            const mockGuildAccessService = guildAccessService as jest.Mocked<
-                typeof guildAccessService
-            >
-            mockGuildAccessService.hasAccess.mockImplementation(
-                (_context, module) => module !== 'music',
-            )
-        }
-
-        function viewOnlyAccess() {
-            authed()
-            const mockGuildAccessService = guildAccessService as jest.Mocked<
-                typeof guildAccessService
-            >
-            mockGuildAccessService.hasAccess.mockImplementation(
-                (_context, module, mode) =>
-                    module === 'music' && mode === 'view',
-            )
-        }
-
-        function manageAccess() {
-            authed()
-            const mockGuildAccessService = guildAccessService as jest.Mocked<
-                typeof guildAccessService
-            >
-            mockGuildAccessService.hasAccess.mockImplementation(
-                (_context, module, mode) =>
-                    module === 'music' && mode === 'manage',
-            )
-        }
-
         test('returns 403 for GET history without guild module access', async () => {
             noAccess()
 
@@ -360,38 +359,6 @@ describe('Track History Routes', () => {
             setupTrackHistoryRoutes(routeOnlyApp)
             routeOnlyApp.use(errorHandler)
             return routeOnlyApp
-        }
-
-        function noAccess() {
-            authed()
-            const mockGuildAccessService = guildAccessService as jest.Mocked<
-                typeof guildAccessService
-            >
-            mockGuildAccessService.hasAccess.mockImplementation(
-                (_context, module) => module !== 'music',
-            )
-        }
-
-        function viewOnlyAccess() {
-            authed()
-            const mockGuildAccessService = guildAccessService as jest.Mocked<
-                typeof guildAccessService
-            >
-            mockGuildAccessService.hasAccess.mockImplementation(
-                (_context, module, mode) =>
-                    module === 'music' && mode === 'view',
-            )
-        }
-
-        function manageAccess() {
-            authed()
-            const mockGuildAccessService = guildAccessService as jest.Mocked<
-                typeof guildAccessService
-            >
-            mockGuildAccessService.hasAccess.mockImplementation(
-                (_context, module, mode) =>
-                    module === 'music' && mode === 'manage',
-            )
         }
 
         test('denies GET history without music access', async () => {
