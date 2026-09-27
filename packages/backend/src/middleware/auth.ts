@@ -13,6 +13,8 @@ export interface AuthenticatedRequest extends Request {
         roleIds: string[]
         nickname: string | null
         canManageRbac: boolean
+        permissions: string
+        botPresenceChecked: boolean
     }
     user?: {
         id: string

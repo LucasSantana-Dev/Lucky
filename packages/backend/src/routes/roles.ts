@@ -12,6 +12,12 @@ import {
 import { guildService } from '../services/GuildService'
 import multer from 'multer'
 import { paramToString as p } from '../utils/paramCoerce'
+import {
+    assertCanManageRoles,
+    assertRequestedPermissionsWithinGrant,
+    assertRoleHierarchyAllowed,
+    type RoleGuardContext,
+} from './roleEscalationGuard'
 
 // File upload middleware for reaction roles images
 const imageUpload = multer({
@@ -87,6 +93,87 @@ function parseReactionRolePayload(req: AuthenticatedRequest): unknown {
         }
     }
     return req.body
+}
+
+// /roles/manage/* is only reachable behind the settings:manage guard in
+// routes/index.ts, which always populates req.guildContext before these
+// handlers run. Failing closed here (rather than assuming it is set) covers
+// the case where that invariant is ever broken (#2451).
+function requireGuildContext(
+    req: AuthenticatedRequest,
+): NonNullable<AuthenticatedRequest['guildContext']> {
+    if (!req.guildContext) {
+        throw AppError.forbidden('Guild access context is required')
+    }
+    return req.guildContext
+}
+
+// GuildAccessService skips the real member lookup (roleIds) for guild
+// owners and for the dashboard's broader MANAGE_GUILD-inclusive `isAdmin`,
+// since those callers already get full dashboard access - `roleIds` is `[]`
+// in that case but that means "never checked", not "holds no roles"
+// (botPresenceChecked distinguishes the two). Map that through so the
+// hierarchy check can skip rather than wrongly treat them as @everyone.
+function toRoleGuardContext(
+    guildContext: NonNullable<AuthenticatedRequest['guildContext']>,
+): RoleGuardContext {
+    return {
+        owner: guildContext.owner,
+        permissions: guildContext.permissions,
+        roleIds: guildContext.roleIds,
+        roleDataAvailable: guildContext.botPresenceChecked,
+    }
+}
+
+// The hierarchy check must not silently pass open for a requester whose
+// real Discord roles were never fetched (roleDataAvailable=false): that is
+// true for the guild owner (genuinely exempt) but also for the dashboard's
+// broader MANAGE_GUILD-inclusive `isAdmin`, who is NOT exempt from Discord's
+// hierarchy rule (only the owner is). For everyone else in that state, fetch
+// their real roles via the bot before running the check; fail closed (403)
+// if that fetch cannot be completed (#2451 review).
+async function resolveHierarchyGuardContext(
+    req: AuthenticatedRequest,
+    guildId: string,
+    guildContext: NonNullable<AuthenticatedRequest['guildContext']>,
+): Promise<RoleGuardContext> {
+    const base = toRoleGuardContext(guildContext)
+    if (base.owner || base.roleDataAvailable) {
+        return base
+    }
+
+    const userId = req.user?.id
+    if (!userId) {
+        throw AppError.forbidden(
+            'Unable to verify role hierarchy right now; please try again',
+        )
+    }
+
+    try {
+        const hasBot = await guildService.hasBotInGuild(guildId)
+        if (!hasBot) {
+            throw AppError.forbidden(
+                'Unable to verify role hierarchy right now; please try again',
+            )
+        }
+
+        const memberContext = await guildService.getGuildMemberContext(
+            guildId,
+            userId,
+        )
+        return {
+            ...base,
+            roleIds: memberContext.roleIds,
+            roleDataAvailable: true,
+        }
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error
+        }
+        throw AppError.forbidden(
+            'Unable to verify role hierarchy right now; please try again',
+        )
+    }
 }
 
 export function setupRolesRoutes(app: Express): void {
@@ -289,6 +376,12 @@ export function setupRolesRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const data = s.roleUpsertBody.parse(req.body)
+            const guildContext = requireGuildContext(req)
+            assertCanManageRoles(guildContext)
+            assertRequestedPermissionsWithinGrant(
+                guildContext,
+                data.permissions,
+            )
 
             try {
                 const role = await guildService.createGuildRole(guildId, data)
@@ -319,6 +412,19 @@ export function setupRolesRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const roleId = p(req.params.roleId)
             const data = s.roleUpsertBody.parse(req.body)
+            const guildContext = requireGuildContext(req)
+            assertCanManageRoles(guildContext)
+            assertRequestedPermissionsWithinGrant(
+                guildContext,
+                data.permissions,
+            )
+            const existingRoles = await guildService.getFullGuildRoles(guildId)
+            const hierarchyContext = await resolveHierarchyGuardContext(
+                req,
+                guildId,
+                guildContext,
+            )
+            assertRoleHierarchyAllowed(hierarchyContext, roleId, existingRoles)
 
             try {
                 const role = await guildService.updateGuildRole(
@@ -354,6 +460,15 @@ export function setupRolesRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const roleId = p(req.params.roleId)
+            const guildContext = requireGuildContext(req)
+            assertCanManageRoles(guildContext)
+            const existingRoles = await guildService.getFullGuildRoles(guildId)
+            const hierarchyContext = await resolveHierarchyGuardContext(
+                req,
+                guildId,
+                guildContext,
+            )
+            assertRoleHierarchyAllowed(hierarchyContext, roleId, existingRoles)
 
             try {
                 await guildService.deleteGuildRole(guildId, roleId)
@@ -385,6 +500,8 @@ export function setupRolesRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const roleId = p(req.params.roleId)
+            const guildContext = requireGuildContext(req)
+            assertCanManageRoles(guildContext)
 
             try {
                 const roles = await guildService.getFullGuildRoles(guildId)
@@ -393,6 +510,13 @@ export function setupRolesRoutes(app: Express): void {
                 if (!sourceRole) {
                     throw AppError.notFound('Source role not found')
                 }
+
+                // Duplicating copies the source role's permissions onto a new
+                // role: the same escalation vector as a direct grant (#2451).
+                assertRequestedPermissionsWithinGrant(
+                    guildContext,
+                    sourceRole.permissions,
+                )
 
                 const duplicatedRole = await guildService.createGuildRole(
                     guildId,
@@ -428,6 +552,21 @@ export function setupRolesRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const { roleIds } = s.bulkDeleteBody.parse(req.body)
+            const guildContext = requireGuildContext(req)
+            assertCanManageRoles(guildContext)
+            const existingRoles = await guildService.getFullGuildRoles(guildId)
+            const hierarchyContext = await resolveHierarchyGuardContext(
+                req,
+                guildId,
+                guildContext,
+            )
+            for (const roleId of roleIds) {
+                assertRoleHierarchyAllowed(
+                    hierarchyContext,
+                    roleId,
+                    existingRoles,
+                )
+            }
 
             const BATCH_SIZE = 10
             const deleted: string[] = []

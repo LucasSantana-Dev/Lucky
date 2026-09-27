@@ -209,7 +209,15 @@ function authed(allowedModule: ModuleKey | null, level: AccessMode = 'manage') {
         guildId: GUILD_ID,
         userId: MOCK_SESSION_DATA.userId,
         roles: [],
-        permissions: new Set(),
+        // This file tests guard MODULE composition, not permission-cap/
+        // hierarchy/MANAGE_ROLES fine-grained behavior (that's covered by
+        // roles.test.ts) - `owner: true` exempts every route case from all
+        // three roleEscalationGuard checks (permission cap, MANAGE_ROLES
+        // gate, and the on-demand role-hierarchy fetch added for #2451
+        // gap 1/2) so `mockHappyPath`'s deliberately-generic role-list
+        // fixtures aren't affected by checks this file isn't exercising.
+        owner: true,
+        permissions: '0',
     } as any)
     accessMock.hasAccess.mockImplementation(
         (_ctx: unknown, module: ModuleKey, requiredMode: AccessMode) => {
@@ -482,11 +490,15 @@ const cases: RouteCase[] = [
         },
         setups: [setupRolesRoutes],
         body: { name: 'Renamed Role' },
-        mockHappyPath: () =>
+        // #2451: PATCH now checks role hierarchy, which fetches the role
+        // list first.
+        mockHappyPath: () => {
+            mockGetFullGuildRoles.mockResolvedValue([])
             mockUpdateGuildRole.mockResolvedValue({
                 id: ROLE_ID,
                 name: 'Renamed Role',
-            }),
+            })
+        },
         successStatus: 200,
         wrongModule: 'automation',
     },
@@ -500,7 +512,12 @@ const cases: RouteCase[] = [
             mode: 'manage',
         },
         setups: [setupRolesRoutes],
-        mockHappyPath: () => mockDeleteGuildRole.mockResolvedValue(undefined),
+        // #2451: DELETE now checks role hierarchy, which fetches the role
+        // list first.
+        mockHappyPath: () => {
+            mockGetFullGuildRoles.mockResolvedValue([])
+            mockDeleteGuildRole.mockResolvedValue(undefined)
+        },
         successStatus: 200,
         wrongModule: 'automation',
     },
@@ -544,7 +561,12 @@ const cases: RouteCase[] = [
         },
         setups: [setupRolesRoutes],
         body: { roleIds: [ROLE_ID] },
-        mockHappyPath: () => mockDeleteGuildRole.mockResolvedValue(undefined),
+        // #2451: bulk-delete now checks role hierarchy per role, which
+        // fetches the role list first.
+        mockHappyPath: () => {
+            mockGetFullGuildRoles.mockResolvedValue([])
+            mockDeleteGuildRole.mockResolvedValue(undefined)
+        },
         successStatus: 200,
         wrongModule: 'automation',
     },

@@ -82,7 +82,15 @@ class DiscordOAuthService {
     private normalizePermissionValue(value: unknown): string | null {
         if (typeof value === 'string') {
             const normalized = value.trim()
-            return normalized.length > 0 ? normalized : null
+            // A real Discord permissions bitfield is never negative; a
+            // leading '-' means malformed/hostile data. Rejecting it here
+            // (rather than accepting it) matters because a negative bigint
+            // has every bit set under `&`, which would make
+            // hasAdminPermission/getPermissionsBitfield callers treat a
+            // malformed value as "has every permission" (#2451 review).
+            return normalized.length > 0 && !normalized.startsWith('-')
+                ? normalized
+                : null
         }
 
         if (
@@ -376,6 +384,24 @@ class DiscordOAuthService {
             (permissionsBigInt & manageGuildPermission) ===
                 manageGuildPermission
         )
+    }
+
+    /**
+     * The raw Discord permissions bitfield the user holds in the guild
+     * (union of their roles' permissions), as a numeric string. Used to cap
+     * what a non-admin dashboard user can grant a role (#2451): distinct
+     * from `hasAdminPermission`, which also treats MANAGE_GUILD as
+     * dashboard-admin-equivalent for broader access purposes.
+     */
+    getPermissionsBitfield(
+        permissions: string | null | undefined,
+        permissionsNew?: string | null,
+    ): string {
+        const permissionsBigInt =
+            this.parsePermissionBits(permissionsNew) ??
+            this.parsePermissionBits(permissions)
+
+        return permissionsBigInt !== null ? permissionsBigInt.toString() : '0'
     }
 
     filterAdminGuilds(guilds: DiscordGuild[]): DiscordGuild[] {

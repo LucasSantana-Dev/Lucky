@@ -27,6 +27,14 @@ export interface GuildAccessContext {
     nickname: string | null
     effectiveAccess: EffectiveAccessMap
     canManageRbac: boolean
+    /**
+     * Raw Discord permissions bitfield (numeric string) the user holds in
+     * this guild, from Discord's own OAuth guild list. Distinct from
+     * `isAdmin` (which also treats MANAGE_GUILD as admin-equivalent for
+     * dashboard access) — used to cap what a non-admin can grant a role
+     * (#2451), where only real Discord Administrator/owner should bypass.
+     */
+    permissions: string
 }
 
 export interface AuthorizedGuild extends GuildWithBotStatus {
@@ -180,6 +188,10 @@ class GuildAccessService {
                 guild.permissions,
                 guild.permissions_new,
             )
+        const permissions = discordOAuthService.getPermissionsBitfield(
+            guild.permissions,
+            guild.permissions_new,
+        )
         if (isAdmin) {
             const effectiveAccess =
                 await guildRoleAccessService.resolveEffectiveAccess(
@@ -198,6 +210,7 @@ class GuildAccessService {
                 nickname: null,
                 effectiveAccess,
                 canManageRbac: true,
+                permissions,
             }
         }
 
@@ -223,6 +236,7 @@ class GuildAccessService {
             nickname: memberContext.nickname,
             effectiveAccess,
             canManageRbac: isAdmin,
+            permissions,
         }
     }
 
