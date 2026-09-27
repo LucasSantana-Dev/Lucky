@@ -31,7 +31,7 @@
 
 ## 🎯 What is Lucky?
 
-Lucky is a **production-grade, self-hosted Discord music bot** — built as a TypeScript monorepo with a React 19 dashboard, full moderation suite, and a leveling system. Supports **YouTube, Spotify, and SoundCloud** with smart autoplay powered by listening history recommendations.
+Lucky is a **production-grade, self-hosted Discord music bot**, built as a TypeScript monorepo with a React 19 dashboard, full moderation suite, and a leveling system. Search by name or paste a Spotify link, and smart autoplay keeps the queue going from your server's listening history.
 
 Lucky is yours to run: **host it yourself** and every feature is included, with no paywall and no premium tier.
 
@@ -48,7 +48,7 @@ Lucky is yours to run: **host it yourself** and every feature is included, with 
 </p>
 
 ### 🎵 Music Player
-- **Multi-source playback**: YouTube, Spotify, SoundCloud
+- **Spotify-first search**: find tracks by name or paste Spotify links
 - **Smart autoplay**: Recommendations based on your listening history
 - **Queue management**: Shuffle, repeat, clear, skip, pause/resume
 - **Session save/restore**: Pick up where you left off
@@ -86,9 +86,7 @@ Lucky is yours to run: **host it yourself** and every feature is included, with 
 
 ## 🚀 Why Self-Host?
 
-**Groovy, Rythm, and Hydra were all killed by YouTube API enforcement.** Cloud-only bots have a single point of failure — if the hosting service shuts down, so does your bot.
-
-Lucky solves this:
+Running your own Lucky means the bot, its data and its settings are yours:
 
 | Feature | Lucky | Cloud Bots |
 |---------|-------|-----------|
@@ -96,7 +94,6 @@ Lucky solves this:
 | **Feature parity** | Full suite included | Pay-to-unlock model |
 | **Data privacy** | On your servers | Third-party storage |
 | **Customization** | Modify the source code | Limited options |
-| **Shutdown risk** | None | High (enforcement, API changes) |
 
 ---
 

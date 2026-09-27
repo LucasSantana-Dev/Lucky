@@ -110,7 +110,7 @@
 - [2026-05-23 - Bot test reduction Phase 4: deletion + replacement strategy](2026-05-23-bot-test-reduction-phase4-replacement-strategy.md)
 - [2026-05-23 - ADR: Branch Protection Required Status Checks for `main`](2026-05-23-branch-protection-required-checks.md)
 - [2026-05-23 - ADR: Split GuildAutomationService into Orchestrator and Repository](2026-05-23-guild-automation-orchestrator-repository-split.md)
-- [2026-05-23 - ADR: Lucky OSS Positioning — Portfolio + Reference Implementation](2026-05-23-lucky-oss-positioning.md)
+- [2026-05-23 - ADR: Lucky OSS Positioning — Portfolio + Reference Implementation](2026-05-23-lucky-oss-positioning.md) - _Accepted (product pitch amended by `2026-09-27-music-first-positioning.md`)_
 - [2026-05-23 - ADR: Replace messageHandler Kitchen-Sink with a MessagePipeline Chain](2026-05-23-message-pipeline-handler-chain.md)
 - [2026-05-23 - ADR: Collapse Recommendation Engine to a Single Public Entry Point](2026-05-23-recommendation-engine-single-entrypoint.md)
 - [2026-05-23 - Repo organisation: what AI-tool config is tracked](2026-05-23-repo-organisation-tracked-ai-config.md) - _Accepted (no explicit status field; settled by content)_

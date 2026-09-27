@@ -49,7 +49,8 @@ visibility and, eventually, monetize.
 ## Decision
 
 1. **Pitch:** "Lucky learns your server's taste and keeps the call playing, no DJ needed.
-   Every Sunday, see what your server listened to." Audio sources are never advertised.
+   Every Sunday, see what your server listened to." Audio sources are never advertised, in
+   the top.gg listing, the App Directory or the README.
    Self-hosting stays prominent, framed as owning your bot, never as avoiding enforcement.
 2. **Product focus:** keep music, autoplay, thumbs feedback, Spotify and Last.fm linking.
    Build a one-click station button for the first hour, Server Wrapped (new, from
@@ -70,8 +71,10 @@ visibility and, eventually, monetize.
    of about 90 new guilds: about 20 from a $50 top.gg ad run, about 40 recruited by hand (25
    pt-BR, 15 international), plus organic joins and free directories (discordbotlist,
    discords.com via BotBlock). The ad spend is a measurement cost, not a channel.
-6. **pt-BR is settled by data:** if the pt-BR cohort's day-8 retention is at least 1.5x the
-   rest, Lucky goes Brazil-first after the decision date.
+6. **pt-BR is settled by data:** Lucky goes Brazil-first after the decision date only if the
+   pt-BR cohort's day-8 retention is at least 1.5x the rest AND at least 6 pt-BR guilds are
+   active on day 8. With about 25 guilds the ratio alone is noise (95% CI about +/-14
+   points), so the absolute floor is required.
 7. **Watch-together (Go Live style) is out.** The only compliant design embeds the official
    YouTube player, which shows the same ads as Discord's native Watch Together.
 
@@ -84,6 +87,9 @@ visibility and, eventually, monetize.
 | 2     | 10-13 to 10-26      | Uptime gate: 14 days at 99% or better via external ping; start recruiting; start Wrapped; free directories                                                    |
 | 3     | 10-27 to 11-22      | $50 top.gg ads; finish recruiting; Wrapped and taste profile shipped by 11-22                                                                                 |
 | 4     | 11-23 to 12-20      | Interim read 11-30; decision 12-20                                                                                                                            |
+
+"Active guild" in every metric below excludes the operator's guilds, test-named guilds and
+the Discord Bots listing server (the 38-guild base of the diagnosis).
 
 **Continue on 2026-12-20 only if all hold:** 20 or more weekly active non-operator guilds for
 3 consecutive weeks; 35% or more of new guilds hear a track within their first hour; 15% or
