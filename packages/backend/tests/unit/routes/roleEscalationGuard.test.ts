@@ -154,8 +154,8 @@ describe('assertRequestedPermissionsWithinGrant', () => {
     test('fails closed on a negative requested permissions value', () => {
         expect(() =>
             assertRequestedPermissionsWithinGrant(
-                context({ permissions: '-1' }),
-                KICK_MEMBERS,
+                context({ permissions: KICK_MEMBERS }),
+                '-1',
             ),
         ).toThrow(/Invalid permissions value/)
     })
@@ -169,7 +169,7 @@ describe('assertRequestedPermissionsWithinGrant', () => {
         ).toThrow(/Invalid permissions value/)
     })
 
-    test('fails closed on a malformed holder permissions value (e.g. a corrupt duplicate source role)', () => {
+    test('fails closed on a malformed holder permissions value (e.g. corrupt Discord OAuth data)', () => {
         expect(() =>
             assertRequestedPermissionsWithinGrant(
                 context({ permissions: 'garbage' }),
