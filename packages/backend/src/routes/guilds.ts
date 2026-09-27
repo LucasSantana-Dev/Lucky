@@ -129,11 +129,13 @@ export function setupGuildRoutes(app: Express): void {
         }),
     )
 
+    // Guarded by the `/roles` prefix (automation) in routes/index.ts — used
+    // by the ReactionRoles page, which itself lives under automation; no
+    // separate module check here (#2409).
     app.get(
         '/api/guilds/:guildId/roles',
         requireAuth,
         validateParams(guildIdParam),
-        requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = getGuildId(req)
             const roles = await guildService.getGuildRoleOptions(guildId)

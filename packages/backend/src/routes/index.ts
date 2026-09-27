@@ -67,11 +67,7 @@ const guildGuardConfigs: GuildGuardConfig[] = [
     { path: '/api/guilds/:guildId/levels', module: 'settings' },
     { path: '/api/guilds/:guildId/starboard', module: 'settings' },
     { path: '/api/guilds/:guildId/recommendations', module: 'settings' },
-    {
-        path: '/api/guilds/:guildId/role-groups',
-        module: 'settings',
-        mode: 'manage',
-    },
+    { path: '/api/guilds/:guildId/role-groups', module: 'settings' },
     { path: '/api/guilds/:guildId/batch-jobs', module: 'moderation' },
 ]
 

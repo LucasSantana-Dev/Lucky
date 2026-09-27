@@ -232,10 +232,14 @@ describe('setupRoutes', () => {
             requireAuth,
             'settings:manage',
         )
+        // #2410: role-groups must NOT force manage mode on every method — GET
+        // should resolve to view like its /roles and /reaction-roles
+        // siblings, so a settings:view-only user can load the page.
+        expect(requireGuildModuleAccess).toHaveBeenCalledWith('settings')
         expect(app.use).toHaveBeenCalledWith(
             '/api/guilds/:guildId/role-groups',
             requireAuth,
-            'settings:manage',
+            'settings:view',
         )
 
         expect(setupAuthRoutes).toHaveBeenCalledWith(app)
