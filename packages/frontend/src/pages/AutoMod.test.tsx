@@ -466,6 +466,30 @@ describe('AutoModPage', () => {
         })
     })
 
+    test('blocks save and shows error banner when settings fail to load', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockRejectedValue(
+            new Error('Not found'),
+        )
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByText(
+                    'Failed to load automod settings. Saving is disabled until settings load successfully.',
+                ),
+            ).toBeInTheDocument()
+        })
+
+        const saveButtons = screen.getAllByRole('button', {
+            name: /Save Changes/,
+        })
+        saveButtons.forEach((button) => expect(button).toBeDisabled())
+
+        expect(api.automod.updateSettings).not.toHaveBeenCalled()
+    })
+
     test('uses default settings when API returns malformed success payload', async () => {
         mockGuildStore(mockGuild)
         vi.mocked(api.automod.getSettings).mockResolvedValue({

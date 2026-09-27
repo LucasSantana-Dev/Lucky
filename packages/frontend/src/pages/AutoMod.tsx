@@ -482,26 +482,35 @@ export default function AutoModPage() {
     const [templatesError, setTemplatesError] = useState<string | null>(null)
     const [channelsError, setChannelsError] = useState<string | null>(null)
     const [rolesError, setRolesError] = useState<string | null>(null)
+    const [settingsError, setSettingsError] = useState<string | null>(null)
 
     useEffect(() => {
         if (!selectedGuild?.id) return
+        const guildId = selectedGuild.id
+        let cancelled = false
         setLoading(true)
+        setSettingsError(null)
         api.automod
-            .getSettings(selectedGuild.id)
-            .then((res) =>
+            .getSettings(guildId)
+            .then((res) => {
+                if (cancelled) return
                 setSettings(
-                    normalizeAutoModSettings(
-                        res.data?.settings,
-                        selectedGuild.id,
-                    ),
-                ),
-            )
-            .catch(() =>
-                setSettings(
-                    normalizeAutoModSettings(undefined, selectedGuild.id),
-                ),
-            )
-            .finally(() => setLoading(false))
+                    normalizeAutoModSettings(res.data?.settings, guildId),
+                )
+            })
+            .catch(() => {
+                if (cancelled) return
+                setSettingsError(
+                    'Failed to load automod settings. Saving is disabled until settings load successfully.',
+                )
+                setSettings(normalizeAutoModSettings(undefined, guildId))
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false)
+            })
+        return () => {
+            cancelled = true
+        }
     }, [selectedGuild?.id])
 
     useEffect(() => {
@@ -546,7 +555,7 @@ export default function AutoModPage() {
     }
 
     const handleSave = async () => {
-        if (!selectedGuild?.id) return
+        if (!selectedGuild?.id || settingsError) return
         setSaving(true)
         try {
             const {
@@ -694,7 +703,7 @@ export default function AutoModPage() {
                 </header>
                 <Button
                     onClick={handleSave}
-                    disabled={saving}
+                    disabled={saving || !!settingsError}
                     className='bg-lucky-red hover:bg-lucky-red/90 gap-2'
                 >
                     {saving ? (
@@ -705,6 +714,12 @@ export default function AutoModPage() {
                     Save Changes
                 </Button>
             </div>
+
+            {settingsError && (
+                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-sm'>
+                    {settingsError}
+                </div>
+            )}
 
             <div className='space-y-6'>
                 {}
@@ -980,7 +995,7 @@ export default function AutoModPage() {
             <div className='lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-lucky-bg-primary/95 backdrop-blur-sm border-t border-lucky-border z-30'>
                 <Button
                     onClick={handleSave}
-                    disabled={saving}
+                    disabled={saving || !!settingsError}
                     className='w-full bg-lucky-red hover:bg-lucky-red/90 gap-2'
                 >
                     {saving ? (
