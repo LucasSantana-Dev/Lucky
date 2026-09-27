@@ -55,9 +55,12 @@ export class TwitchNotificationService {
     async remove(guildId: string, twitchUserId: string): Promise<boolean> {
         try {
             const prisma = getPrismaClient()
-            await prisma.twitchNotification.deleteMany({
+            const result = await prisma.twitchNotification.deleteMany({
                 where: { guildId, twitchUserId },
             })
+            if (result.count === 0) {
+                return false
+            }
             debugLog({
                 message: `Twitch notification removed: ${twitchUserId} from guild ${guildId}`,
             })

@@ -419,6 +419,57 @@ describe('TwitchNotificationsPage', () => {
         ).toBeInTheDocument()
     })
 
+    test('keeps the add form open and shows an error when the add request fails', async () => {
+        const user = userEvent.setup()
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: [] },
+        } as any)
+        vi.mocked(api.twitch.add).mockRejectedValue(
+            new ApiError(500, 'Failed to add Twitch notification'),
+        )
+
+        renderPage()
+
+        await openAddForm(user)
+        await fillNotificationForm(user, 'teststreamer')
+        await user.click(screen.getByText('Save'))
+
+        expect(
+            await screen.findByText('Failed to add Twitch notification'),
+        ).toBeInTheDocument()
+        // The form must stay open and the list must not be reloaded as if
+        // the add had succeeded (#2414).
+        expect(screen.getByText('Add Twitch Notification')).toBeInTheDocument()
+        expect(api.twitch.list).toHaveBeenCalledTimes(1)
+    })
+
+    test('keeps the notification in the list and shows an error when remove fails', async () => {
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: mockNotifications },
+        } as any)
+        vi.mocked(api.twitch.remove).mockRejectedValue(
+            new ApiError(500, 'Failed to remove Twitch notification'),
+        )
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('shroud')).toBeInTheDocument()
+        })
+
+        const removeButton = screen.getByLabelText('Remove shroud')
+        await userEvent.click(removeButton)
+
+        expect(
+            await screen.findByText('Failed to remove Twitch notification'),
+        ).toBeInTheDocument()
+        // The row must not be removed optimistically when the delete failed
+        // on the backend (#2414).
+        expect(screen.getByText('shroud')).toBeInTheDocument()
+    })
+
     test('shows not-configured banner when twitch api is not set up', async () => {
         mockGuildSelection(mockGuild)
         vi.mocked(api.twitch.status).mockResolvedValue({

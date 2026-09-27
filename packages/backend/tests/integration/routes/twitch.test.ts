@@ -142,7 +142,7 @@ describe('Twitch Routes', () => {
             expect(mockPublishRefresh).toHaveBeenCalledTimes(1)
         })
 
-        test('does not signal the bot when the add is a no-op', async () => {
+        test('surfaces a server error and does not signal the bot when add fails', async () => {
             authed()
             mockAdd.mockResolvedValue(false)
 
@@ -155,8 +155,8 @@ describe('Twitch Routes', () => {
                     discordChannelId: '444444444444444444',
                 })
 
-            expect(res.status).toBe(200)
-            expect(res.body.success).toBe(false)
+            expect(res.status).toBe(500)
+            expect(res.body.error).toMatch(/Failed to add Twitch notification/)
             expect(mockPublishRefresh).not.toHaveBeenCalled()
         })
 
@@ -189,7 +189,7 @@ describe('Twitch Routes', () => {
             expect(mockPublishRefresh).toHaveBeenCalledTimes(1)
         })
 
-        test('does not signal the bot when the remove is a no-op', async () => {
+        test('surfaces a server error and does not signal the bot when remove fails', async () => {
             authed()
             mockRemove.mockResolvedValue(false)
 
@@ -198,8 +198,10 @@ describe('Twitch Routes', () => {
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .send({ twitchUserId: 'tw123' })
 
-            expect(res.status).toBe(200)
-            expect(res.body.success).toBe(false)
+            expect(res.status).toBe(500)
+            expect(res.body.error).toMatch(
+                /Failed to remove Twitch notification/,
+            )
             expect(mockPublishRefresh).not.toHaveBeenCalled()
         })
     })

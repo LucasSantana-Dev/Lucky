@@ -200,11 +200,12 @@ export function setupTwitchRoutes(app: Express): void {
                 twitchUserId,
                 twitchLogin,
             )
+            if (!success) {
+                throw new AppError(500, 'Failed to add Twitch notification')
+            }
             // Tell the running bot to register the new EventSub subscription
             // now, instead of only on its next restart (#870).
-            if (success) {
-                await twitchControlService.publishRefresh()
-            }
+            await twitchControlService.publishRefresh()
             res.json({ success })
         }),
     )
@@ -222,11 +223,12 @@ export function setupTwitchRoutes(app: Express): void {
                 guildId,
                 twitchUserId,
             )
+            if (!success) {
+                throw new AppError(500, 'Failed to remove Twitch notification')
+            }
             // Tell the running bot to drop the EventSub subscription now,
             // instead of only on its next restart (#870).
-            if (success) {
-                await twitchControlService.publishRefresh()
-            }
+            await twitchControlService.publishRefresh()
             res.json({ success })
         }),
     )
