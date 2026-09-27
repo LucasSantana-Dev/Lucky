@@ -21,24 +21,12 @@ export interface Module {
 export interface Command {
     id: string
     name: string
-    description: string
+    description: string | null
+    response: string | null
     enabled: boolean
-    category: CommandCategory
-    hasSettings: boolean
-    hasHelp: boolean
+    useCount: number
+    commandKind: string
 }
-
-export type CommandCategory =
-    | 'Manager'
-    | 'Misc'
-    | 'Info'
-    | 'Fun'
-    | 'Moderator'
-    | 'Roles'
-    | 'Tags'
-    | 'Slowmode'
-    | 'Game'
-    | 'Levels'
 
 export interface EmbedField {
     id: string

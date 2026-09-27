@@ -1,11 +1,9 @@
 import { reportError } from '@/lib/sentry'
 import { useState, useEffect, useMemo } from 'react'
-import { Terminal, Search, Filter } from 'lucide-react'
+import { Terminal, Search } from 'lucide-react'
 import Card from '@/components/ui/Card'
-import Button from '@/components/ui/Button'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
 import { api } from '@/services/api'
@@ -19,9 +17,6 @@ interface CommandsConfigProps {
 export default function CommandsConfig({ guildId }: CommandsConfigProps) {
     const [commands, setCommands] = useState<Command[]>([])
     const [searchQuery, setSearchQuery] = useState('')
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(
-        null,
-    )
 
     useEffect(() => {
         if (guildId) {
@@ -42,30 +37,23 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
         }
     }
 
-    const categories = useMemo(() => {
-        return Array.from(new Set(commands.map((cmd) => cmd.category)))
-    }, [commands])
-
     const filteredCommands = useMemo(() => {
         return commands.filter((cmd) => {
-            const matchesSearch =
-                searchQuery === '' ||
-                cmd.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                cmd.description
-                    .toLowerCase()
-                    .includes(searchQuery.toLowerCase())
-            const matchesCategory =
-                selectedCategory === null || cmd.category === selectedCategory
-            return matchesSearch && matchesCategory
+            const q = searchQuery.toLowerCase()
+            return (
+                q === '' ||
+                cmd.name.toLowerCase().includes(q) ||
+                (cmd.description ?? '').toLowerCase().includes(q)
+            )
         })
-    }, [commands, searchQuery, selectedCategory])
+    }, [commands, searchQuery])
 
-    const toggleCommand = async (commandId: string, enabled: boolean) => {
+    const toggleCommand = async (command: Command, enabled: boolean) => {
         try {
-            await api.commands.toggle(guildId, commandId, enabled)
+            await api.commands.toggle(guildId, command.name, enabled)
             setCommands((prev) =>
                 prev.map((cmd) =>
-                    cmd.id === commandId ? { ...cmd, enabled } : cmd,
+                    cmd.id === command.id ? { ...cmd, enabled } : cmd,
                 ),
             )
             toast.success(`Command ${enabled ? 'enabled' : 'disabled'}`)
@@ -106,44 +94,6 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                     />
                 </div>
 
-                <div
-                    className='flex flex-wrap gap-2'
-                    role='group'
-                    aria-label='Filter by category'
-                >
-                    <Button
-                        type='button'
-                        variant={
-                            selectedCategory === null ? 'primary' : 'ghost'
-                        }
-                        size='sm'
-                        onClick={() => setSelectedCategory(null)}
-                        className='h-8'
-                    >
-                        All
-                    </Button>
-                    {categories.map((category) => (
-                        <Button
-                            key={category}
-                            type='button'
-                            variant={
-                                selectedCategory === category
-                                    ? 'primary'
-                                    : 'ghost'
-                            }
-                            size='sm'
-                            onClick={() => setSelectedCategory(category)}
-                            className='h-8'
-                        >
-                            <Filter
-                                className='mr-1 h-3 w-3'
-                                aria-hidden='true'
-                            />
-                            {category}
-                        </Button>
-                    ))}
-                </div>
-
                 <ScrollArea className='h-[400px] rounded-lg border border-lucky-border bg-lucky-bg-tertiary'>
                     <div className='space-y-1 p-4'>
                         {filteredCommands.length === 0 ? (
@@ -163,12 +113,6 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                                             <span className='text-base font-medium text-white'>
                                                 /{command.name}
                                             </span>
-                                            <Badge
-                                                variant='secondary'
-                                                className='text-xs'
-                                            >
-                                                {command.category}
-                                            </Badge>
                                         </div>
                                         <p className='text-sm text-lucky-text-secondary'>
                                             {command.description}
@@ -177,7 +121,7 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                                     <Switch
                                         checked={command.enabled}
                                         onCheckedChange={(checked: boolean) =>
-                                            toggleCommand(command.id, checked)
+                                            toggleCommand(command, checked)
                                         }
                                         aria-label={`Toggle ${command.name} command`}
                                     />
