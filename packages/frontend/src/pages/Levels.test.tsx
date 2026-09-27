@@ -86,11 +86,12 @@ describe('Levels', () => {
 
     test('renders empty state when no guild is selected', () => {
         mockGuildStore(null)
-        render(<Levels />)
+        const { container } = render(<Levels />)
         expect(screen.getByText('No server selected')).toBeInTheDocument()
         expect(
             screen.getByText('Select a server to view level settings'),
         ).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('renders loading skeletons initially', () => {
@@ -98,11 +99,12 @@ describe('Levels', () => {
         const { container } = render(<Levels />)
         const skeletons = container.querySelectorAll('.animate-pulse')
         expect(skeletons.length).toBeGreaterThan(0)
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('loads and displays leaderboard data', async () => {
         mockGuildStore()
-        render(<Levels />)
+        const { container } = render(<Levels />)
 
         await waitFor(() => {
             expect(api.levels.getLeaderboard).toHaveBeenCalledWith('123456', 20)
@@ -112,6 +114,7 @@ describe('Levels', () => {
         expect(screen.getByText('222')).toBeInTheDocument()
         expect(screen.getByText('1,500 XP')).toBeInTheDocument()
         expect(screen.getByText('800 XP')).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('displays empty state when leaderboard is empty', async () => {

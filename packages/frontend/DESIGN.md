@@ -99,12 +99,13 @@ from round 1. Fixes, all still redesign-preserve (no tokens/routes changed):
    still owns its single `<h1>` in its own body. Verified live (not just
    unit-mocked): Playwright count of `document.querySelectorAll('h1')` is
    exactly 1 on both `/` (Dashboard) and `/music`.
-   Known gap this reintroduces awareness of, not fixed here (6 pages have no
-   heading of their own at all — `Docs.tsx`, `Levels.tsx`,
-   `PrivacyPolicy.tsx`, `RoleGroups.tsx`, `Starboard.tsx`,
-   `TermsOfService.tsx` — they now show only the compact label with no
-   `<h1>`. Pre-existing exposure, not caused by this diff, but worth its own
-   ticket to give each of those pages a real `<h1>`.
+   Known gap flagged here, corrected in Round 3 below: an incomplete grep at
+   the time (checking only for inline `<h1` and `SectionHeader` usage, missing
+   `DocsShell`) wrongly listed 6 pages as headingless. `Docs.tsx`,
+   `PrivacyPolicy.tsx`, and `TermsOfService.tsx` render through `DocsShell`,
+   which already provides its own `<h1>` — those 3 were never broken. Only
+   `Levels.tsx`, `RoleGroups.tsx`, and `Starboard.tsx` genuinely had no
+   heading of their own after this fix. See Round 3.
 2. **Card-in-card + repeated "Queue" label.** `Music.tsx` had its own
    `<h2>Queue</h2>` wrapper around `<QueueList>`, which renders its own
    "Queue (N tracks)" header inside a `Card`. Removed the wrapper; `QueueList`
@@ -141,10 +142,43 @@ verify these exact fixes, not to game an external checklist.
   not fixed here — the root cause is a CSS cascade/specificity interaction
   in `index.css` shared by every nav link in the app and deserves its own
   change + test, not a same-PR side fix.
-- Six pages (`Docs.tsx`, `Levels.tsx`, `PrivacyPolicy.tsx`, `RoleGroups.tsx`,
-  `Starboard.tsx`, `TermsOfService.tsx`) render no heading of their own and
-  now show no `<h1>` at all, since `Layout.tsx` no longer provides one.
-  Pre-existing exposure surfaced by the round-2 H1 fix; needs its own pass.
 - axe reports 24 (dashboard) / 16 (Music) "serious" (non-critical)
   `color-contrast` violations against the locked token palette. Tokens are
   locked for this pass; not touched.
+
+## Round 3 (fix the 6-page H1 gap flagged in Round 2)
+
+Round 2 flagged 6 pages as left with zero `<h1>` after `Layout.tsx`'s header
+stopped rendering one. Re-audit found the list was wrong: `Docs.tsx`,
+`PrivacyPolicy.tsx`, and `TermsOfService.tsx` all render through
+`DocsShell`, which has its own `<h1 className='text-3xl font-bold ...'>` —
+those 3 never lost a heading. Only `Levels.tsx`, `RoleGroups.tsx`, and
+`Starboard.tsx` genuinely had no heading source at all. This is a regression
+this branch introduced (Round 2's Layout.tsx change removed the only H1
+those 3 pages had), so it's fixed on this branch, not filed separately.
+
+Fix: each of the 3 pages now renders the shared `SectionHeader` component
+(the same pattern already used by 9+ other pages, e.g. `GuildAutomation.tsx`,
+`LastFm.tsx`) as the first child of every return branch (no-guild, loading,
+empty/main), using the `layout.routes.<page>.title` / `.subtitle` i18n keys
+that already existed in both `en.json` and `pt-BR.json` (same keys
+`Layout.tsx`'s old header used) — no new i18n keys needed, and `es.json`
+does not exist in this repo (confirmed in Round 1), so there was nothing to
+add there.
+
+- `Levels.tsx`: added `SectionHeader` to the no-guild, loading, and main
+  branches.
+- `RoleGroups.tsx`: added a `tCommon` (`useTranslation()`, default namespace)
+  hook alongside the existing `useTranslation('roleGroups')`, built one
+  `SectionHeader` element, reused across all 4 branches (no-guild, loading,
+  empty-groups, main list).
+- `Starboard.tsx`: same pattern as `RoleGroups.tsx` (added `tCommon`, one
+  shared `SectionHeader`, reused across no-guild, loading, and main branches).
+
+Extended the single-H1 regression guard: `Music.test.tsx` already asserted
+`querySelectorAll('h1')` has length 1 for the Music page (from Round 2).
+Added the same assertion to every render-branch test in `Levels.test.tsx`,
+`RoleGroups.test.tsx`, and `Starboard.test.tsx` (no-guild / loading / main,
+matching each page's actual branches), so a future change that removes or
+duplicates a page's `SectionHeader` fails a unit test immediately, without
+needing a full-route Playwright harness.
