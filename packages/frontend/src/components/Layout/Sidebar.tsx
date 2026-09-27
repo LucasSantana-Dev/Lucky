@@ -161,6 +161,30 @@ function NavSections({
     )
 }
 
+function SidebarBrand() {
+    return (
+        <Link
+            to='/'
+            className='lucky-focus-visible flex shrink-0 items-center gap-2.5 border-b border-lucky-border px-4 py-4 text-lucky-text-primary transition-colors hover:text-lucky-brand'
+        >
+            <img
+                src='/lucky-logo.png'
+                alt='Lucky'
+                width='26'
+                height='26'
+                className='h-[26px] w-[26px] shrink-0 rounded-full'
+                loading='eager'
+            />
+            <span
+                className='font-mono text-sm font-semibold tracking-tight'
+                aria-hidden='true'
+            >
+                lucky<span className='text-lucky-brand'>.</span>
+            </span>
+        </Link>
+    )
+}
+
 function Sidebar() {
     const location = useLocation()
     const { isDeveloper } = useAuthStore()
@@ -174,6 +198,7 @@ function Sidebar() {
 
     const sidebarContent = (
         <div className='flex h-full flex-col'>
+            <SidebarBrand />
             <NavSections
                 isActive={isActive}
                 canViewModule={canViewModule}

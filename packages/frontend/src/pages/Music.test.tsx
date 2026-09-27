@@ -117,6 +117,22 @@ describe('MusicPage', () => {
         expect(screen.getByTestId('forum-thread-cta')).toBeInTheDocument()
     })
 
+    test('shows a loading skeleton before the first player state arrives', () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        vi.mocked(useMusicPlayer).mockReturnValue({
+            ...mockPlayer,
+            lastStateUpdate: null,
+        } as any)
+        render(
+            <MemoryRouter>
+                <MusicPage />
+            </MemoryRouter>,
+        )
+        expect(screen.queryByText('Nothing playing')).not.toBeInTheDocument()
+    })
+
     test('shows not connected message when no voice channel', () => {
         vi.mocked(useGuildSelection).mockReturnValue({
             selectedGuild: mockGuild,

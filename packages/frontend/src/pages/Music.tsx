@@ -13,6 +13,7 @@ import {
     Repeat1,
     Volume2,
     Loader2,
+    AlertCircle,
 } from 'lucide-react'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { useMusicPlayer } from '@/hooks/useMusicPlayer'
@@ -23,6 +24,7 @@ import AutoplayGenres from '@/components/Music/AutoplayGenres'
 import AutoplayTelemetry from '@/components/Music/AutoplayTelemetry'
 import ForumThreadCta from '@/components/Music/ForumThreadCta'
 import EmptyState from '@/components/ui/EmptyState'
+import Skeleton from '@/components/ui/Skeleton'
 import type { QueueState } from '@/types'
 import type { MusicActionKey } from '@/hooks/useMusicPlayer'
 
@@ -123,31 +125,6 @@ export default function MusicPage() {
                 }}
             />
 
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6'>
-                <SearchBar
-                    disabled={!controlsEnabled}
-                    onPlay={async (q) => {
-                        if (!controlsEnabled) {
-                            throw new Error(t('music.playerNotConnected'))
-                        }
-                        await player.play(q)
-                    }}
-                />
-                <ImportPlaylist
-                    disabled={!controlsEnabled}
-                    onImport={async (url) => {
-                        if (!controlsEnabled) {
-                            throw new Error(t('music.playerNotConnected'))
-                        }
-                        await player.importPlaylist(url)
-                    }}
-                />
-            </div>
-
-            {guildId && <AutoplayGenres guildId={guildId} />}
-
-            {guildId && <AutoplayTelemetry guildId={guildId} />}
-
             <div>
                 <h2 className='type-title text-lucky-text-primary mb-3 px-1'>
                     {t('music.queue')}
@@ -172,10 +149,14 @@ export default function MusicPage() {
 
             {player.error && (
                 <div
-                    className='type-body-sm text-lucky-error bg-lucky-error/10 border border-lucky-error/20 rounded-lg p-3 flex items-start justify-between gap-3'
+                    className='type-body-sm text-lucky-error bg-lucky-error/10 border border-lucky-error/20 rounded-lg p-3 flex items-start gap-3'
                     role='alert'
                 >
-                    <span>{player.error}</span>
+                    <AlertCircle
+                        className='h-4 w-4 shrink-0 mt-0.5'
+                        aria-hidden='true'
+                    />
+                    <span className='flex-1'>{player.error}</span>
                     <button
                         type='button'
                         onClick={() => player.clearError()}
@@ -185,6 +166,31 @@ export default function MusicPage() {
                     </button>
                 </div>
             )}
+
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6'>
+                <SearchBar
+                    disabled={!controlsEnabled}
+                    onPlay={async (q) => {
+                        if (!controlsEnabled) {
+                            throw new Error(t('music.playerNotConnected'))
+                        }
+                        await player.play(q)
+                    }}
+                />
+                <ImportPlaylist
+                    disabled={!controlsEnabled}
+                    onImport={async (url) => {
+                        if (!controlsEnabled) {
+                            throw new Error(t('music.playerNotConnected'))
+                        }
+                        await player.importPlaylist(url)
+                    }}
+                />
+            </div>
+
+            {guildId && <AutoplayGenres guildId={guildId} />}
+
+            {guildId && <AutoplayTelemetry guildId={guildId} />}
         </div>
     )
 }
@@ -234,21 +240,34 @@ function NowPlayingHero({
         lastStateUpdate !== null &&
         now - lastStateUpdate > STALE_AFTER_MS
 
+    // No SSE/REST payload has arrived yet for this guild: render a skeleton
+    // instead of "nothing playing" so a real track loading in doesn't flash
+    // as an empty player first.
+    if (lastStateUpdate === null) {
+        return (
+            <div className='surface-panel rounded-xl p-4 sm:p-6 border border-lucky-border'>
+                <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 items-start'>
+                    <Skeleton className='sm:col-span-1 aspect-square w-full rounded-lg' />
+                    <div className='sm:col-span-2 space-y-3'>
+                        <Skeleton className='h-3 w-24' />
+                        <Skeleton className='h-6 w-3/4' />
+                        <Skeleton className='h-4 w-1/2' />
+                        <Skeleton className='h-1 w-full mt-4' />
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     if (!currentTrack) {
         return (
-            <div className='surface-panel rounded-xl p-6 sm:p-8 border border-lucky-border flex items-center justify-center min-h-[280px] sm:min-h-[320px]'>
-                <div className='text-center'>
-                    <Music2
-                        className='h-12 w-12 text-lucky-text-tertiary mx-auto mb-3'
-                        aria-hidden='true'
-                    />
-                    <p className='type-body text-lucky-text-secondary'>
-                        {t('music.nothingPlaying')}
-                    </p>
-                    <p className='type-body-sm text-lucky-text-tertiary mt-1'>
-                        {t('music.searchOrImportToGetStarted')}
-                    </p>
-                </div>
+            <div className='surface-panel rounded-xl border border-lucky-border overflow-hidden'>
+                <EmptyState
+                    bare
+                    icon={<Music2 className='h-10 w-10' aria-hidden='true' />}
+                    title={t('music.nothingPlaying')}
+                    description={t('music.searchOrImportToGetStarted')}
+                />
             </div>
         )
     }

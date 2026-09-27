@@ -169,9 +169,9 @@ function Layout({ children }: LayoutProps) {
             <Sidebar />
             <div className='flex min-w-0 flex-1 flex-col'>
                 <header className='lucky-shell-header sticky top-0 z-30 border-b border-lucky-border bg-lucky-bg-primary relative'>
-                    <div className='mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-3.5 md:px-6 md:py-4'>
+                    <div className='mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-4 md:px-6 md:py-5'>
                         <div className='min-w-0'>
-                            <h1 className='type-title text-lucky-text-primary leading-tight'>
+                            <h1 className='type-h1 text-lucky-text-primary leading-tight truncate'>
                                 {routeCopy.title}
                             </h1>
                             <p className='type-body-sm text-lucky-text-tertiary hidden sm:block'>
