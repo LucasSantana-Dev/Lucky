@@ -92,7 +92,7 @@ function parseReactionRolePayload(req: AuthenticatedRequest): unknown {
 
 export function setupRolesRoutes(app: Express): void {
     // Guarded by the `/reaction-roles` prefix (automation) in
-    // routes/index.ts — no separate module check here (#2409).
+    // routes/index.ts, no separate module check here (#2409).
     app.get(
         '/api/guilds/:guildId/reaction-roles',
         requireAuth,
@@ -245,7 +245,7 @@ export function setupRolesRoutes(app: Express): void {
         }),
     )
 
-    // Guarded by the `/roles` prefix (automation) in routes/index.ts — no
+    // Guarded by the `/roles` prefix (automation) in routes/index.ts, no
     // separate module check here (#2409).
     app.get(
         '/api/guilds/:guildId/roles/exclusive',
@@ -259,16 +259,18 @@ export function setupRolesRoutes(app: Express): void {
         }),
     )
 
-    // /roles/manage/* is guarded by the `/roles` prefix (automation) in
-    // routes/index.ts. These handlers intentionally require `manage` even on
-    // the GET (full role list includes hierarchy/permission data), so the
-    // mode stays 'manage' — only the module is aligned to match the prefix
-    // guard, so a caller needs exactly one module, not automation+settings
-    // (#2409).
+    // /roles/manage/* has its own `settings:manage` guard registered in
+    // routes/index.ts (guildGuardConfigs), separate from the broader `/roles`
+    // (automation) prefix. It must stay `settings`, never `automation`: the
+    // POST/PATCH bodies here accept an arbitrary Discord permissions
+    // bitfield, so an automation-only caller must not be able to touch this
+    // route (#2409, security finding on PR #2449). These handlers
+    // intentionally require `manage` even on the GET (the full role list
+    // includes hierarchy/permission data), matching the prefix guard.
     app.get(
         '/api/guilds/:guildId/roles/manage',
         requireAuth,
-        requireGuildModuleAccess('automation', 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -281,7 +283,7 @@ export function setupRolesRoutes(app: Express): void {
         '/api/guilds/:guildId/roles/manage',
         requireAuth,
         writeLimiter,
-        requireGuildModuleAccess('automation', 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         validateParams(s.guildIdParam),
         validateBody(s.roleUpsertBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -311,7 +313,7 @@ export function setupRolesRoutes(app: Express): void {
         '/api/guilds/:guildId/roles/manage/:roleId',
         requireAuth,
         writeLimiter,
-        requireGuildModuleAccess('automation', 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         validateParams(s.roleIdParam),
         validateBody(s.roleUpsertBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -349,7 +351,7 @@ export function setupRolesRoutes(app: Express): void {
         '/api/guilds/:guildId/roles/manage/:roleId',
         requireAuth,
         writeLimiter,
-        requireGuildModuleAccess('automation', 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         validateParams(s.roleIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -381,7 +383,7 @@ export function setupRolesRoutes(app: Express): void {
         '/api/guilds/:guildId/roles/manage/:roleId/duplicate',
         requireAuth,
         writeLimiter,
-        requireGuildModuleAccess('automation', 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         validateParams(s.roleIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -424,7 +426,7 @@ export function setupRolesRoutes(app: Express): void {
         '/api/guilds/:guildId/roles/manage/bulk-delete',
         requireAuth,
         writeLimiter,
-        requireGuildModuleAccess('automation', 'manage'),
+        requireGuildModuleAccess('settings', 'manage'),
         validateParams(s.guildIdParam),
         validateBody(s.bulkDeleteBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {

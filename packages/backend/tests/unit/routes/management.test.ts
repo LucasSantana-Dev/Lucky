@@ -137,8 +137,8 @@ describe('Management Routes RBAC', () => {
         // ('overview', ...) check on top of the `/automod` (moderation) and
         // `/logs` (moderation) prefix guards wired in routes/index.ts,
         // forcing callers to hold two unrelated modules. Those handler-level
-        // checks were removed — routes/index.ts's prefix guard is now the
-        // only check for these paths — so `settings` and `overview` should
+        // checks were removed, so routes/index.ts's prefix guard is now the
+        // only check for these paths, and `settings` and `overview` should
         // never appear as the module argument registered from this file.
         test('requireGuildModuleAccess is never registered with settings or overview for /automod or /logs routes', () => {
             createApp()

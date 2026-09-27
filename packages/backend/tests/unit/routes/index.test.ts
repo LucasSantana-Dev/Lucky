@@ -232,7 +232,38 @@ describe('setupRoutes', () => {
             requireAuth,
             'settings:manage',
         )
-        // #2410: role-groups must NOT force manage mode on every method — GET
+        // Security review on PR #2449: /roles/manage/* must be guarded by
+        // its OWN settings:manage check, never by the broader /roles
+        // (automation) guard, since a role's permissions bitfield can be set
+        // there (privilege escalation to Administrator otherwise).
+        expect(app.use).toHaveBeenCalledWith(
+            '/api/guilds/:guildId/roles/manage',
+            requireAuth,
+            'settings:manage',
+        )
+
+        // The /roles guard must SKIP requests under /manage (that dedicated
+        // settings:manage guard above is what applies instead), so an
+        // automation-only caller cannot fall through to it and reach
+        // /roles/manage/*. Pull the actual guard function registered for
+        // '/roles' and exercise its skip branch directly: if it did not
+        // skip, it would call the mocked module-check tag as a function and
+        // throw, since the mock returns a plain string, not a function.
+        const rolesGuardCall = useCalls.find(
+            (call) => call[0] === '/api/guilds/:guildId/roles',
+        )
+        const rolesGuard = rolesGuardCall?.[2] as (
+            req: { path: string },
+            res: unknown,
+            next: () => void,
+        ) => void
+        const next = jest.fn()
+        expect(() =>
+            rolesGuard({ path: '/manage/111111111111111111' }, {}, next),
+        ).not.toThrow()
+        expect(next).toHaveBeenCalled()
+
+        // #2410: role-groups must NOT force manage mode on every method. GET
         // should resolve to view like its /roles and /reaction-roles
         // siblings, so a settings:view-only user can load the page.
         expect(requireGuildModuleAccess).toHaveBeenCalledWith('settings')

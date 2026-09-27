@@ -33,8 +33,8 @@ function requireUserId(req: AuthenticatedRequest): string {
 }
 
 export function setupManagementRoutes(app: Express): void {
-    // Guarded by the `/automod` prefix (moderation) in routes/index.ts —
-    // no separate module check here (#2409).
+    // Guarded by the `/automod` prefix (moderation) in routes/index.ts, no
+    // separate module check here (#2409).
     app.get(
         '/api/guilds/:guildId/automod/settings',
         requireAuth,
@@ -238,7 +238,7 @@ export function setupManagementRoutes(app: Express): void {
     setupEmbedRoutes(app)
     setupAutoMessageRoutes(app)
 
-    // Guarded by the `/logs` prefix (moderation) in routes/index.ts — no
+    // Guarded by the `/logs` prefix (moderation) in routes/index.ts, no
     // separate module check here (#2409).
     app.get(
         '/api/guilds/:guildId/logs',

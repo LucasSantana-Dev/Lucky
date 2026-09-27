@@ -1,4 +1,4 @@
-import type { Express } from 'express'
+import type { Express, Request } from 'express'
 import { setupAuthRoutes } from './auth'
 import { setupToggleRoutes } from './toggles'
 import { setupGuildRoutes } from './guilds'
@@ -37,11 +37,19 @@ import { setupInviteRoute } from './invite'
 import { setupSupportRoutes } from './support'
 import { setupSecurityRoutes } from './security'
 import { setupBatchJobRoutes } from './batchJobs'
+import { isRolesManagePath } from './rolesManageGuard'
 
 type GuildGuardConfig = {
     path: string
     module: Parameters<typeof requireGuildModuleAccess>[0]
     mode?: Parameters<typeof requireGuildModuleAccess>[1]
+    /**
+     * When true, this guard is skipped for the request (a different, more
+     * specific guard, e.g. `/roles/manage`, is what should apply instead).
+     * Without this, `/roles/manage/*` would be double-guarded again: the
+     * broad `/roles` prefix still matches it too.
+     */
+    skip?: (req: Request) => boolean
 }
 
 const guildGuardConfigs: GuildGuardConfig[] = [
@@ -52,7 +60,16 @@ const guildGuardConfigs: GuildGuardConfig[] = [
     { path: '/api/guilds/:guildId/automessages', module: 'automation' },
     { path: '/api/guilds/:guildId/embeds', module: 'automation' },
     { path: '/api/guilds/:guildId/reaction-roles', module: 'automation' },
-    { path: '/api/guilds/:guildId/roles', module: 'automation' },
+    {
+        path: '/api/guilds/:guildId/roles',
+        module: 'automation',
+        skip: isRolesManagePath,
+    },
+    {
+        path: '/api/guilds/:guildId/roles/manage',
+        module: 'settings',
+        mode: 'manage',
+    },
     { path: '/api/guilds/:guildId/music', module: 'music' },
     { path: '/api/guilds/:guildId/twitch', module: 'integrations' },
     { path: '/api/guilds/:guildId/channels', module: 'integrations' },
@@ -116,11 +133,19 @@ export function setupRoutes(app: Express): void {
     setupAdminRoutes(app)
 
     for (const config of guildGuardConfigs) {
-        const middleware = config.mode
+        const moduleCheck = config.mode
             ? requireGuildModuleAccess(config.module, config.mode)
             : requireGuildModuleAccess(config.module)
 
-        app.use(config.path, requireAuth, middleware)
+        const guard = config.skip
+            ? (
+                  req: Request,
+                  res: Parameters<typeof moduleCheck>[1],
+                  next: Parameters<typeof moduleCheck>[2],
+              ) => (config.skip?.(req) ? next() : moduleCheck(req, res, next))
+            : moduleCheck
+
+        app.use(config.path, requireAuth, guard)
     }
 
     for (const setupRoute of routeSetups) {
