@@ -13,8 +13,10 @@ const embedDataSchema = z.object({
         .regex(/^#[0-9a-fA-F]{6}$/)
         .optional(),
     url: z.string().url().max(2048).optional(),
-    thumbnail: z.string().url().max(2048).optional(),
-    image: z.string().url().max(2048).optional(),
+    // Nullable so a PATCH can explicitly clear an existing value (null),
+    // distinct from omitting the key (leave unchanged) - see #2407 review.
+    thumbnail: z.string().url().max(2048).nullable().optional(),
+    image: z.string().url().max(2048).nullable().optional(),
     author: z
         .object({
             name: z.string().max(256).optional(),
@@ -22,7 +24,7 @@ const embedDataSchema = z.object({
             url: z.string().url().max(2048).optional(),
         })
         .optional(),
-    footer: z.string().max(2048).optional(),
+    footer: z.string().max(2048).nullable().optional(),
     fields: z
         .array(
             z.object({
@@ -43,10 +45,15 @@ const createEmbedBody = z.object({
 
 // Flat, matching what EmbedBuilder.tsx sends and what
 // EmbedBuilderService.updateTemplate persists directly (no `embedData`
-// wrapper). See #2407.
+// wrapper). See #2407. `author`/`url` are omitted: EmbedTemplate has no
+// columns for them (kept in embedDataSchema only for #2444) and letting
+// them through here 500s on the Prisma update. `description` is inherited
+// from embedDataSchema (max 4096, matching createEmbedBody's embedData.description
+// and the DB column) rather than redeclared - a stricter override here would
+// reject edits to a template whose description create had already accepted.
 const updateEmbedBody = embedDataSchema
+    .omit({ author: true, url: true })
     .extend({
-        description: z.string().max(500).optional(),
         name: z.string().min(1).max(100).optional(),
     })
     .strict()

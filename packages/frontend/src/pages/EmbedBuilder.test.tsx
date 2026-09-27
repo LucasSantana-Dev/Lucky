@@ -365,7 +365,7 @@ describe('EmbedBuilder', () => {
         })
     })
 
-    test('renders thumbnail in the preview (#2407)', async () => {
+    test('renders thumbnail in the preview for a thumbnail-only embed (#2407)', async () => {
         const user = userEvent.setup()
         mockGuildStore()
         vi.mocked(api.embeds.list).mockResolvedValue([])
@@ -381,12 +381,9 @@ describe('EmbedBuilder', () => {
         const newButton = screen.getAllByText(/New Template/)[0]
         await user.click(newButton)
 
-        const titleInput = screen.getByPlaceholderText('Embed title')
-        await user.type(titleInput, 'Preview Test')
-
-        // urlPlaceholder ('https://...') is shared by the color hex,
-        // thumbnail, and image inputs (in that DOM order) - thumbnail is index 1.
-        const [, thumbnailInput] = screen.getAllByPlaceholderText('https://...')
+        // No title/description/fields set - only the thumbnail - to also
+        // cover the preview pane showing up for a thumbnail-only embed.
+        const thumbnailInput = screen.getByLabelText('Thumbnail URL')
         await user.type(thumbnailInput, 'https://example.com/thumb.png')
 
         await waitFor(() => {

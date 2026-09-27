@@ -382,6 +382,81 @@ describe('Embed Management Routes Integration', () => {
             )
         })
 
+        test('accepts null to explicitly clear an existing thumbnail/image/footer (#2445 review)', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const requestBody = {
+                thumbnail: null,
+                image: null,
+                footer: null,
+            }
+
+            const mockEmbedService = embedBuilderService as jest.Mocked<
+                typeof embedBuilderService
+            >
+            mockEmbedService.updateTemplate.mockResolvedValue({
+                name: 'welcome',
+                ...requestBody,
+            })
+
+            const response = await request(app)
+                .patch('/api/guilds/111111111111111111/embeds/welcome')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send(requestBody)
+                .expect(200)
+
+            expect(response.body).toEqual({ name: 'welcome', ...requestBody })
+            expect(mockEmbedService.updateTemplate).toHaveBeenCalledWith(
+                '111111111111111111',
+                'welcome',
+                requestBody,
+            )
+        })
+
+        test('accepts a description up to 4096 chars, matching what create allows (#2445 review)', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const longDescription = 'a'.repeat(4096)
+            const requestBody = { description: longDescription }
+
+            const mockEmbedService = embedBuilderService as jest.Mocked<
+                typeof embedBuilderService
+            >
+            mockEmbedService.updateTemplate.mockResolvedValue({
+                name: 'welcome',
+                ...requestBody,
+            })
+
+            const response = await request(app)
+                .patch('/api/guilds/111111111111111111/embeds/welcome')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send(requestBody)
+                .expect(200)
+
+            expect(response.body).toEqual({ name: 'welcome', ...requestBody })
+        })
+
+        test('rejects author/url so a PATCH cannot 500 on non-existent Prisma columns (#2445 review)', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const response = await request(app)
+                .patch('/api/guilds/111111111111111111/embeds/welcome')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ author: { name: 'a' } })
+                .expect(400)
+
+            expect(response.body.error).toBe('Validation failed')
+        })
+
         test('should return 401 when not authenticated', async () => {
             const mockSessionService = sessionService as jest.Mocked<
                 typeof sessionService

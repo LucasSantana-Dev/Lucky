@@ -582,6 +582,7 @@
         "description": "Description",
         "descriptionPlaceholder": "Embed description (supports markdown)",
         "thumbnailUrl": "Thumbnail URL",
+        "thumbnailAlt": "embed thumbnail",
         "imageUrl": "Image URL",
         "urlPlaceholder": "https://...",
         "footer": "Footer",
