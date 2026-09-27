@@ -671,8 +671,27 @@ if ! docker_compose run --rm --no-deps backend \
     exit 1
 fi
 
+# Containers this script does not recreate keep whatever network they were
+# created on, so they lose sight of nginx when the compose network changes
+# (lucky_lucky-network -> lucky-network broke the tunnel and the deploy
+# webhook, #2468). Attach them to nginx's network under their compose
+# service name, which is what nginx and the tunnel config resolve.
+ensure_on_lucky_network() {
+    local container="$1" alias="$2"
+    if ! docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$container" | grep -qw "lucky-network"; then
+        docker network connect --alias "$alias" lucky-network "$container"
+        log "$container attached to lucky-network"
+    fi
+}
+
 log "Rolling out services..."
 docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx postgres redis
+
+# The webhook runs this script, so it is never recreated here; nginx proxies
+# /webhook/ to it by service name.
+if docker ps --format '{{.Names}}' | grep -qx "lucky-webhook"; then
+    ensure_on_lucky_network lucky-webhook webhook
+fi
 
 if ! verify_cloudflared_config "$CLOUDFLARED_CONFIG_DIR"; then
     print_targeted_logs
@@ -684,14 +703,7 @@ log "Restarting Cloudflare tunnel..."
 if docker_compose --profile tunnel up -d cloudflared >/dev/null 2>&1; then
     log "Cloudflare tunnel restarted via compose profile"
 elif docker ps --format '{{.Names}}' | grep -qx "lucky-tunnel"; then
-    # A tunnel container that compose could not recreate keeps whatever
-    # network it was created on, so it can lose sight of nginx when the
-    # compose network changes (lucky_lucky-network -> lucky-network, #2468).
-    # Attach it to nginx's network before restarting.
-    if ! docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' lucky-tunnel | grep -qw "lucky-network"; then
-        docker network connect lucky-network lucky-tunnel
-        log "Cloudflare tunnel attached to lucky-network"
-    fi
+    ensure_on_lucky_network lucky-tunnel cloudflared
     docker restart lucky-tunnel >/dev/null
     log "Cloudflare tunnel restarted via container restart"
 else
