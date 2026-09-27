@@ -38,6 +38,7 @@ jest.mock('@lucky/shared/services', () => ({
         createCase: jest.fn(),
         getCase: jest.fn(),
         getRecentCases: jest.fn(),
+        getFilteredCases: jest.fn(),
         getUserCases: jest.fn(),
         deactivateCase: jest.fn(),
         getSettings: jest.fn(),
@@ -89,7 +90,7 @@ describe('Moderation Routes Integration', () => {
     })
 
     describe('GET /api/guilds/:guildId/moderation/cases', () => {
-        test('should return recent cases with default limit', async () => {
+        test('should return recent cases with default limit and total', async () => {
             setupAuth()
 
             const mockCases = [
@@ -108,16 +109,19 @@ describe('Moderation Routes Integration', () => {
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
             >
-            mockModerationService.getRecentCases.mockResolvedValue(mockCases)
+            mockModerationService.getFilteredCases.mockResolvedValue({
+                cases: mockCases,
+                total: 1,
+            })
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/moderation/cases')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
-            expect(response.body).toEqual({ cases: mockCases })
-            expect(mockModerationService.getRecentCases).toHaveBeenCalledWith(
+            expect(response.body).toEqual({ cases: mockCases, total: 1 })
+            expect(mockModerationService.getFilteredCases).toHaveBeenCalledWith(
                 '111111111111111111',
-                25,
+                {},
             )
         })
 
@@ -127,17 +131,83 @@ describe('Moderation Routes Integration', () => {
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
             >
-            mockModerationService.getRecentCases.mockResolvedValue([])
+            mockModerationService.getFilteredCases.mockResolvedValue({
+                cases: [],
+                total: 0,
+            })
 
             await request(app)
                 .get('/api/guilds/111111111111111111/moderation/cases?limit=50')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
-            expect(mockModerationService.getRecentCases).toHaveBeenCalledWith(
+            expect(mockModerationService.getFilteredCases).toHaveBeenCalledWith(
                 '111111111111111111',
-                50,
+                { limit: 50 },
             )
+        })
+
+        test('should forward page, type and search to the service', async () => {
+            setupAuth()
+
+            const mockModerationService = moderationService as jest.Mocked<
+                typeof moderationService
+            >
+            mockModerationService.getFilteredCases.mockResolvedValue({
+                cases: [],
+                total: 0,
+            })
+
+            await request(app)
+                .get(
+                    '/api/guilds/111111111111111111/moderation/cases?page=2&type=ban&search=spam',
+                )
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(mockModerationService.getFilteredCases).toHaveBeenCalledWith(
+                '111111111111111111',
+                { page: 2, type: 'ban', search: 'spam' },
+            )
+        })
+
+        test('should reject an invalid type filter', async () => {
+            setupAuth()
+
+            const response = await request(app)
+                .get(
+                    '/api/guilds/111111111111111111/moderation/cases?type=not-a-real-type',
+                )
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(400)
+
+            expect(response.body.error).toBe('Validation failed')
+        })
+
+        test('should reject a page number above the bounded maximum', async () => {
+            setupAuth()
+
+            const response = await request(app)
+                .get(
+                    '/api/guilds/111111111111111111/moderation/cases?page=100001',
+                )
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(400)
+
+            expect(response.body.error).toBe('Validation failed')
+        })
+
+        test('should reject a limit above the bounded maximum', async () => {
+            setupAuth()
+
+            const response = await request(app)
+                .get(
+                    '/api/guilds/111111111111111111/moderation/cases?limit=501',
+                )
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(400)
+
+            expect(response.body.error).toBe('Validation failed')
         })
 
         test('should return 401 when not authenticated', async () => {
@@ -159,7 +229,7 @@ describe('Moderation Routes Integration', () => {
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
             >
-            mockModerationService.getRecentCases.mockRejectedValue(
+            mockModerationService.getFilteredCases.mockRejectedValue(
                 new Error('Service error'),
             )
 

@@ -167,6 +167,62 @@ export class ModerationService {
         })
     }
 
+    /** Retrieves a page of moderation cases for a guild, filtered by type and/or
+     *  a search term matched against the user, moderator, and reason, along with
+     *  the total count of matching cases (for pagination).
+     */
+    async getFilteredCases(
+        guildId: string,
+        options: {
+            page?: number
+            limit?: number
+            type?: string
+            search?: string
+        } = {},
+    ): Promise<{ cases: ModerationCase[]; total: number }> {
+        const prisma = getPrismaClient()
+        const limit = options.limit ?? 25
+        const page = options.page ?? 1
+        const where = {
+            guildId,
+            ...(options.type && { type: options.type }),
+            ...(options.search && {
+                OR: [
+                    {
+                        username: {
+                            contains: options.search,
+                            mode: 'insensitive' as const,
+                        },
+                    },
+                    {
+                        moderatorName: {
+                            contains: options.search,
+                            mode: 'insensitive' as const,
+                        },
+                    },
+                    {
+                        reason: {
+                            contains: options.search,
+                            mode: 'insensitive' as const,
+                        },
+                    },
+                ],
+            }),
+        }
+
+        const [cases, total] = await Promise.all([
+            prisma.moderationCase.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                take: limit,
+                skip: (page - 1) * limit,
+            }),
+            prisma.moderationCase.count({ where }),
+        ])
+
+        return { cases, total }
+    }
+
     /** Retrieves all moderation cases created after the given date. */
     async getCasesSince(
         guildId: string,
