@@ -35,7 +35,7 @@ gets a host port:
 docker run --rm -it \
   --network lucky-network \
   -p 127.0.0.1:3000:3000 \
-  alpine/socat TCP-LISTEN:3000,fork TCP:grafana:3000
+  alpine/socat:1.8.1.1 TCP-LISTEN:3000,fork TCP:grafana:3000
 ```
 
 Then, if you're on the same machine, open `http://localhost:3000`. If the

@@ -13,7 +13,7 @@ O Grafana não expõe porta no host (por segurança). Para abrir o painel:
 docker run --rm -it \
   --network lucky-network \
   -p 127.0.0.1:3000:3000 \
-  alpine/socat TCP-LISTEN:3000,fork TCP:grafana:3000
+  alpine/socat:1.8.1.1 TCP-LISTEN:3000,fork TCP:grafana:3000
 ```
 
 Se o Compose roda no homelab e você está em outra máquina, abra um túnel SSH
