@@ -135,6 +135,23 @@ describe('heartbeat', () => {
         expect(fetchSpy).toHaveBeenCalledTimes(2)
     })
 
+    it('treats an explicit empty-string HEARTBEAT_PING_URL as unset (falls back to legacy)', () => {
+        // docker-compose.yml's ${VAR:-} substitution sets the container env
+        // var to an empty string rather than leaving it undefined when the
+        // service-specific var is unset. Confirm the `||` fallback chain
+        // still reaches HEALTHCHECK_URL in that case.
+        process.env.HEARTBEAT_PING_URL = ''
+        process.env.HEALTHCHECK_URL = 'https://hc.example/ping/legacy'
+        const fetchSpy = jest
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValue({ ok: true, status: 200 } as unknown as Response)
+
+        startHeartbeat({ serviceName: 'bot' })
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1)
+        expect(fetchSpy.mock.calls[0][0]).toBe('https://hc.example/ping/legacy')
+    })
+
     it('never throws when fetch rejects', async () => {
         jest.useFakeTimers()
         process.env.HEARTBEAT_PING_URL = 'https://hc.example/ping/a'

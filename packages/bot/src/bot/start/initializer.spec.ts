@@ -193,6 +193,27 @@ describe('BotInitializer', () => {
             )
         })
 
+        it('isReady callback passed to startHeartbeat reflects the client gateway state', async () => {
+            const isReadyMock = jest.fn().mockReturnValue(true)
+            createClientMock.mockResolvedValue({
+                removeAllListeners: jest.fn(),
+                destroy: jest.fn().mockResolvedValue(undefined),
+                player: undefined,
+                isReady: isReadyMock,
+            } as unknown as CustomClient)
+
+            await initializer.initializeBot()
+
+            const options = heartbeatServiceStartMock.mock.calls[0][0] as {
+                isReady: () => boolean
+            }
+            expect(options.isReady()).toBe(true)
+            expect(isReadyMock).toHaveBeenCalled()
+
+            isReadyMock.mockReturnValue(false)
+            expect(options.isReady()).toBe(false)
+        })
+
         it('returns cached client if already initialized', async () => {
             const firstResult = await initializer.initializeBot()
             const firstClientCallCount = createClientMock.mock.calls.length

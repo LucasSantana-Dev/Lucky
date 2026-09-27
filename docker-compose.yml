@@ -123,9 +123,13 @@ services:
             # (HEARTBEAT_PING_URL_BOT / _BACKEND) so a URL-keyed external
             # monitor (e.g. healthchecks.io) can tell bot and backend apart;
             # sharing one URL would let the backend's unconditional pings
-            # mask a dead/zombie bot forever.
-            HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL_BOT:-}
-            HEARTBEAT_PING_URL_EXTERNAL: ${HEARTBEAT_PING_URL_BOT_EXTERNAL:-}
+            # mask a dead/zombie bot forever. Falls back to the generic
+            # HEARTBEAT_PING_URL(_EXTERNAL) when the per-service var is
+            # unset, so a deployment that has not migrated to the
+            # per-service vars yet keeps its heartbeat instead of getting
+            # an empty string here that would shadow the generic value.
+            HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL_BOT:-${HEARTBEAT_PING_URL:-}}
+            HEARTBEAT_PING_URL_EXTERNAL: ${HEARTBEAT_PING_URL_BOT_EXTERNAL:-${HEARTBEAT_PING_URL_EXTERNAL:-}}
             HEARTBEAT_INTERVAL_MS: ${HEARTBEAT_INTERVAL_MS:-}
             LASTFM_SESSION_KEY: ${LASTFM_SESSION_KEY:-}
             PLAYER_CONNECTION_TIMEOUT: ${PLAYER_CONNECTION_TIMEOUT:-15000}
@@ -197,9 +201,11 @@ services:
             # Same heartbeat contract as bot (ADR 2026-09-26 / #2390): the
             # backend has no "ready" gate, so it pings unconditionally. Its
             # own source vars (HEARTBEAT_PING_URL_BACKEND / _EXTERNAL) keep
-            # it distinguishable from the bot on a URL-keyed monitor.
-            HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL_BACKEND:-}
-            HEARTBEAT_PING_URL_EXTERNAL: ${HEARTBEAT_PING_URL_BACKEND_EXTERNAL:-}
+            # it distinguishable from the bot on a URL-keyed monitor, with
+            # the same generic HEARTBEAT_PING_URL(_EXTERNAL) fallback as
+            # the bot above for a deployment not yet migrated.
+            HEARTBEAT_PING_URL: ${HEARTBEAT_PING_URL_BACKEND:-${HEARTBEAT_PING_URL:-}}
+            HEARTBEAT_PING_URL_EXTERNAL: ${HEARTBEAT_PING_URL_BACKEND_EXTERNAL:-${HEARTBEAT_PING_URL_EXTERNAL:-}}
             HEARTBEAT_INTERVAL_MS: ${HEARTBEAT_INTERVAL_MS:-}
             LUCKY_NOTIFY_API_KEY: ${LUCKY_NOTIFY_API_KEY:-}
             CLIENT_SECRET: ${CLIENT_SECRET}

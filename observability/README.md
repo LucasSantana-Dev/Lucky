@@ -107,9 +107,10 @@ native `${VAR}` expansion. Two mechanisms are used together:
 - **envsubst for everything else:** the non-secret fields (SMTP host/port/
   from address, the `to:` address for alerts) have no `_file` equivalent in
   Alertmanager's schema, so a small one-shot `alertmanager-config` service
-  (plain `alpine` image, installs `gettext` at start) renders
-  `observability/alertmanager/alertmanager.yml.tmpl` into a shared Docker
-  volume with `envsubst` before `alertmanager` starts (`depends_on:
+  (built from `observability/alertmanager/Dockerfile`, which bakes `gettext`
+  into the image at build time instead of installing it on every start)
+  renders `observability/alertmanager/alertmanager.yml.tmpl` into a shared
+  Docker volume with `envsubst` before `alertmanager` starts (`depends_on:
   condition: service_completed_successfully`).
 
 ## cAdvisor
