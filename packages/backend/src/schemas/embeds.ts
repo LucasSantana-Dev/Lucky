@@ -13,8 +13,8 @@ const embedDataSchema = z.object({
         .regex(/^#[0-9a-fA-F]{6}$/)
         .optional(),
     url: z.string().url().max(2048).optional(),
-    thumbnail: z.object({ url: z.string().url().max(2048) }).optional(),
-    image: z.object({ url: z.string().url().max(2048) }).optional(),
+    thumbnail: z.string().url().max(2048).optional(),
+    image: z.string().url().max(2048).optional(),
     author: z
         .object({
             name: z.string().max(256).optional(),
@@ -22,12 +22,7 @@ const embedDataSchema = z.object({
             url: z.string().url().max(2048).optional(),
         })
         .optional(),
-    footer: z
-        .object({
-            text: z.string().max(2048).optional(),
-            icon_url: z.string().url().max(2048).optional(),
-        })
-        .optional(),
+    footer: z.string().max(2048).optional(),
     fields: z
         .array(
             z.object({
@@ -46,11 +41,24 @@ const createEmbedBody = z.object({
     description: z.string().max(500).optional(),
 })
 
-const updateEmbedBody = z
-    .object({
-        embedData: embedDataSchema.optional(),
-        description: z.string().max(500).optional(),
+// Flat, matching what EmbedBuilder.tsx sends and what
+// EmbedBuilderService.updateTemplate persists directly (no `embedData`
+// wrapper). See #2407. `author`/`url` are omitted: EmbedTemplate has no
+// columns for them (kept in embedDataSchema only for #2444) and letting
+// them through here 500s on the Prisma update. `description` is inherited
+// from embedDataSchema (max 4096, matching createEmbedBody's embedData.description
+// and the DB column) rather than redeclared - a stricter override here would
+// reject edits to a template whose description create had already accepted.
+// thumbnail/image/footer are widened to nullable here only: null explicitly
+// clears an existing value on PATCH, which only makes sense once a template
+// exists - createEmbedBody keeps them non-nullable (#2445 review).
+const updateEmbedBody = embedDataSchema
+    .omit({ author: true, url: true })
+    .extend({
         name: z.string().min(1).max(100).optional(),
+        thumbnail: z.string().url().max(2048).nullable().optional(),
+        image: z.string().url().max(2048).nullable().optional(),
+        footer: z.string().max(2048).nullable().optional(),
     })
     .strict()
 

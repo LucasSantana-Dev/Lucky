@@ -619,6 +619,7 @@
         "description": "Descrição",
         "descriptionPlaceholder": "Descrição do embed (suporta markdown)",
         "thumbnailUrl": "URL da Miniatura",
+        "thumbnailAlt": "miniatura do embed",
         "imageUrl": "URL da Imagem",
         "urlPlaceholder": "https://...",
         "footer": "Rodapé",

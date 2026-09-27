@@ -36,6 +36,7 @@ const DEFAULT_FORM: FormState = {
 }
 
 function EmbedPreview({ form }: { form: FormState }) {
+    const { t } = useTranslation()
     const borderColor = form.color || '#5865F2'
     return (
         <div
@@ -72,6 +73,20 @@ function EmbedPreview({ form }: { form: FormState }) {
                         ))}
                     </div>
                 )}
+                {form.thumbnail && (
+                    <img
+                        src={form.thumbnail}
+                        alt={t('embedBuilder.thumbnailAlt')}
+                        className='rounded max-w-[80px]'
+                        onError={(e) => {
+                            ;(e.target as HTMLImageElement).style.display =
+                                'none'
+                        }}
+                        onLoad={(e) => {
+                            ;(e.target as HTMLImageElement).style.display = ''
+                        }}
+                    />
+                )}
                 {form.image && (
                     <img
                         src={form.image}
@@ -80,6 +95,9 @@ function EmbedPreview({ form }: { form: FormState }) {
                         onError={(e) => {
                             ;(e.target as HTMLImageElement).style.display =
                                 'none'
+                        }}
+                        onLoad={(e) => {
+                            ;(e.target as HTMLImageElement).style.display = ''
                         }}
                     />
                 )}
@@ -322,10 +340,14 @@ function EmbedFormModal({
 
                         <div className='grid grid-cols-2 gap-4'>
                             <div className='space-y-1.5'>
-                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
+                                <Label
+                                    htmlFor='embed-thumbnail-url'
+                                    className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'
+                                >
                                     {t('embedBuilder.thumbnailUrl')}
                                 </Label>
                                 <Input
+                                    id='embed-thumbnail-url'
                                     type='url'
                                     value={form.thumbnail}
                                     onChange={set('thumbnail')}
@@ -380,7 +402,10 @@ function EmbedFormModal({
                         </p>
                         {form.title ||
                         form.description ||
-                        form.fields.length > 0 ? (
+                        form.fields.length > 0 ||
+                        form.thumbnail ||
+                        form.image ||
+                        form.footer ? (
                             <EmbedPreview form={form} />
                         ) : (
                             <p className='type-body-sm text-lucky-text-tertiary'>
@@ -441,9 +466,12 @@ export default function EmbedBuilder() {
                 title: form.title || undefined,
                 description: form.description || undefined,
                 color: form.color || undefined,
-                footer: form.footer || undefined,
-                thumbnail: form.thumbnail || undefined,
-                image: form.image || undefined,
+                // null (not undefined) so a blanked field explicitly clears
+                // the existing value on the template instead of the PATCH
+                // silently omitting the key and leaving it unchanged (#2407 review).
+                footer: form.footer || null,
+                thumbnail: form.thumbnail || null,
+                image: form.image || null,
                 fields: form.fields.length > 0 ? form.fields : undefined,
             })
         } else {

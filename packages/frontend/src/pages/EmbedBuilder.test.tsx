@@ -365,6 +365,35 @@ describe('EmbedBuilder', () => {
         })
     })
 
+    test('renders thumbnail in the preview for a thumbnail-only embed (#2407)', async () => {
+        const user = userEvent.setup()
+        mockGuildStore()
+        vi.mocked(api.embeds.list).mockResolvedValue([])
+
+        render(
+            <MemoryRouter>
+                <EmbedBuilder />
+            </MemoryRouter>,
+        )
+
+        await waitFor(() => screen.getByText('No embed templates'))
+
+        const newButton = screen.getAllByText(/New Template/)[0]
+        await user.click(newButton)
+
+        // No title/description/fields set - only the thumbnail - to also
+        // cover the preview pane showing up for a thumbnail-only embed.
+        const thumbnailInput = screen.getByLabelText('Thumbnail URL')
+        await user.type(thumbnailInput, 'https://example.com/thumb.png')
+
+        await waitFor(() => {
+            expect(screen.getByAltText('embed thumbnail')).toHaveAttribute(
+                'src',
+                'https://example.com/thumb.png',
+            )
+        })
+    })
+
     test('handles API error when loading templates', async () => {
         mockGuildStore()
         vi.mocked(api.embeds.list).mockRejectedValue(new Error('Network error'))
