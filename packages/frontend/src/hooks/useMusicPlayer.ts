@@ -239,6 +239,11 @@ export function useMusicPlayer(guildId: string | undefined) {
                             refreshError instanceof Error
                                 ? refreshError.message
                                 : 'Unknown error'
+                        // A command error now owns `error`; if an initial-load
+                        // failure set it first, invalidate that marker so the
+                        // next heartbeat/state doesn't wipe out this newer,
+                        // unrelated error thinking it's still the old one.
+                        initialLoadFailedRef.current = false
                         setError(
                             `${commandError}. Queue refresh failed: ${refreshMessage}`,
                         )
@@ -246,7 +251,10 @@ export function useMusicPlayer(guildId: string | undefined) {
                     }
                 }
 
-                if (isLiveCommand()) setError(commandError)
+                if (isLiveCommand()) {
+                    initialLoadFailedRef.current = false
+                    setError(commandError)
+                }
             } finally {
                 const wasLive = activeCommandsRef.current.has(commandId)
                 activeCommandsRef.current.delete(commandId)
