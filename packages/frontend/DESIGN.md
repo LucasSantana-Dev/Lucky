@@ -221,9 +221,10 @@ route, dependency, or palette value.
    `lyrics.noServerSelected` key, description unchanged). The idle
    ("search for lyrics") and no-results states were separate plain-text
    blocks; merged into one `EmptyState` (`bare`) keyed off `hasSearched`,
-   each with a distinct title + description (`findLyricsTitle` /
-   `noLyricsFound`, `searchForLyrics` / `noLyricsFoundDescription`, both new
-   keys) so a failed search reads differently from an unstarted one. The
+   each with a distinct title + description: idle state is `findLyricsTitle`
+   (new) / `searchForLyrics` (pre-existing), no-results state is
+   `noLyricsFound` (pre-existing) / `noLyricsFoundDescription` (new), so a
+   failed search reads differently from an unstarted one. The
    result panel (title/artist + lyrics body) merged from two stacked
    `surface-panel`s into one panel with an internal divider -- one focal
    block instead of two.
