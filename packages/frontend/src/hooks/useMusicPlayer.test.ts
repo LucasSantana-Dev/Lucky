@@ -411,6 +411,40 @@ describe('useMusicPlayer', () => {
         expect(result.current.error).not.toBeNull()
     })
 
+    test('does not let a command error taken right after a failed initial load get wiped by the next heartbeat', async () => {
+        // Initial REST load fails (sets error + initialLoadFailedRef), then
+        // before any SSE signal arrives a command also fails and overwrites
+        // `error` with its own message. sendCommand never touched the ref,
+        // so the next heartbeat would otherwise still treat that newer,
+        // unrelated error as the stale load-failure message and clear it.
+        const { sse, listeners } = makeMockSSE()
+        mockCreateSSEConnection.mockReturnValue(sse)
+        mockGetState.mockRejectedValue(new Error('network down'))
+
+        const { result } = renderHook(() => useMusicPlayer('guild-1'))
+        await waitFor(() => expect(result.current.error).not.toBeNull())
+
+        const action = createDeferred<unknown>()
+        act(() => {
+            void sendCommand(() => action.promise, undefined, 'volume')
+        })
+        await act(async () => {
+            action.reject(new Error('command failed'))
+            await Promise.resolve()
+        })
+        await waitFor(() =>
+            expect(result.current.error).toContain('command failed'),
+        )
+
+        act(() => {
+            listeners.onmessage?.({
+                data: JSON.stringify({ type: 'heartbeat' }),
+            })
+        })
+
+        expect(result.current.error).toContain('command failed')
+    })
+
     test('resets lastStateUpdate to null when switching guilds', async () => {
         const firstSSE = makeMockSSE()
         const secondSSE = makeMockSSE()
