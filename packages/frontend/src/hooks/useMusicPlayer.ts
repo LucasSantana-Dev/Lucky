@@ -61,6 +61,11 @@ export function useMusicPlayer(guildId: string | undefined) {
             { guildId: string | undefined; actionKey?: MusicActionKey }
         >(),
     )
+    // True only while `error` holds the "initial load failed" message (set
+    // below) and no live signal has arrived since. Scopes the auto-clear to
+    // that one message so a real command-failure error (set elsewhere) is
+    // never silently cleared by an unrelated heartbeat or state payload.
+    const initialLoadFailedRef = useRef(false)
 
     useLayoutEffect(() => {
         guildRef.current = guildId
@@ -69,6 +74,7 @@ export function useMusicPlayer(guildId: string | undefined) {
         setError(null)
         setPendingAction(null)
         setIsLoading(false)
+        initialLoadFailedRef.current = false
         // Without this, switching from guild A (which already has a
         // timestamp) straight to guild B renders the freshly-reset
         // EMPTY_STATE as "loaded" (lastStateUpdate !== null) instead of
@@ -76,10 +82,20 @@ export function useMusicPlayer(guildId: string | undefined) {
         setLastStateUpdate(null)
     }, [guildId])
 
-    const applyState = useCallback((next: QueueState) => {
-        setState(next)
-        setLastStateUpdate(Date.now())
+    const clearInitialLoadFailure = useCallback(() => {
+        if (!initialLoadFailedRef.current) return
+        initialLoadFailedRef.current = false
+        setError(null)
     }, [])
+
+    const applyState = useCallback(
+        (next: QueueState) => {
+            setState(next)
+            setLastStateUpdate(Date.now())
+            clearInitialLoadFailure()
+        },
+        [clearInitialLoadFailure],
+    )
 
     useEffect(() => {
         if (!guildId) {
@@ -112,6 +128,7 @@ export function useMusicPlayer(guildId: string | undefined) {
                     // Heartbeat is liveness only; do not clobber queue state.
                     if (payload?.type === 'heartbeat') {
                         setLastStateUpdate(Date.now())
+                        clearInitialLoadFailure()
                         return
                     }
                     applyState(payload)
@@ -153,8 +170,12 @@ export function useMusicPlayer(guildId: string | undefined) {
                 // (stamping lastStateUpdate) lets the existing "no track" /
                 // "empty queue" UI take over instead of a stuck skeleton,
                 // and setError surfaces the reason via the existing error
-                // banner.
+                // banner. initialLoadFailedRef marks this specific error so
+                // it clears itself the moment SSE actually delivers
+                // something (state or heartbeat) instead of outliving a
+                // recovered connection.
                 setLastStateUpdate(Date.now())
+                initialLoadFailedRef.current = true
                 setError(
                     'Could not load the music player. Check your connection and try refreshing the page.',
                 )
@@ -167,7 +188,7 @@ export function useMusicPlayer(guildId: string | undefined) {
             if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
             setIsConnected(false)
         }
-    }, [guildId, applyState])
+    }, [guildId, applyState, clearInitialLoadFailure])
 
     const sendCommand = useCallback(
         async (

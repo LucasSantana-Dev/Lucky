@@ -340,6 +340,77 @@ describe('useMusicPlayer', () => {
         expect(result.current.isConnected).toBe(false)
     })
 
+    test('clears the initial-load-failure error once SSE recovers with a heartbeat', async () => {
+        const { sse, listeners } = makeMockSSE()
+        mockCreateSSEConnection.mockReturnValue(sse)
+        mockGetState.mockRejectedValue(new Error('network down'))
+
+        const { result } = renderHook(() => useMusicPlayer('guild-1'))
+
+        await waitFor(() => expect(result.current.error).not.toBeNull())
+
+        act(() => {
+            listeners.onopen?.()
+            listeners.onmessage?.({
+                data: JSON.stringify({ type: 'heartbeat' }),
+            })
+        })
+
+        await waitFor(() => expect(result.current.error).toBeNull())
+    })
+
+    test('clears the initial-load-failure error once SSE delivers real state', async () => {
+        const { sse, listeners } = makeMockSSE()
+        mockCreateSSEConnection.mockReturnValue(sse)
+        mockGetState.mockRejectedValue(new Error('network down'))
+
+        const { result } = renderHook(() => useMusicPlayer('guild-1'))
+
+        await waitFor(() => expect(result.current.error).not.toBeNull())
+
+        act(() => {
+            listeners.onopen?.()
+            listeners.onmessage?.({
+                data: JSON.stringify(makeState('guild-1', 42)),
+            })
+        })
+
+        await waitFor(() => expect(result.current.error).toBeNull())
+        expect(result.current.state.volume).toBe(42)
+    })
+
+    test('does not clear an unrelated command-failure error on a later heartbeat', async () => {
+        const { sse, listeners } = makeMockSSE()
+        mockCreateSSEConnection.mockReturnValue(sse)
+        mockGetState.mockResolvedValue({ data: makeState('guild-1') })
+
+        const { result } = renderHook(() => useMusicPlayer('guild-1'))
+        await waitFor(() =>
+            expect(result.current.lastStateUpdate).toEqual(expect.any(Number)),
+        )
+
+        const action = createDeferred<unknown>()
+        act(() => {
+            void sendCommand(() => action.promise, undefined, 'volume')
+        })
+        await act(async () => {
+            action.reject(new Error('command failed'))
+            await Promise.resolve()
+        })
+        await waitFor(() => expect(result.current.error).not.toBeNull())
+
+        act(() => {
+            listeners.onmessage?.({
+                data: JSON.stringify({ type: 'heartbeat' }),
+            })
+        })
+
+        // A heartbeat after a genuine command failure must not silently
+        // erase that error — only the initial-load-failure message is
+        // scoped to auto-clear.
+        expect(result.current.error).not.toBeNull()
+    })
+
     test('resets lastStateUpdate to null when switching guilds', async () => {
         const firstSSE = makeMockSSE()
         const secondSSE = makeMockSSE()
