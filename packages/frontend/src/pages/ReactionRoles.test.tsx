@@ -77,13 +77,14 @@ describe('ReactionRoles', () => {
 
     test('renders empty state when no guild is selected', () => {
         mockGuildStore(null)
-        render(<ReactionRoles />)
+        const { container } = render(<ReactionRoles />)
         expect(screen.getByText('No server selected')).toBeInTheDocument()
         expect(
             screen.getByText(
                 'Select a server from the sidebar to view reaction roles.',
             ),
         ).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('renders loading skeletons initially', () => {
