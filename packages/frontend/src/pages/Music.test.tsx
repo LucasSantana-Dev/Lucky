@@ -422,6 +422,10 @@ describe('MusicPage', () => {
                 <MusicPage />
             </MemoryRouter>,
         )
+        expect(screen.getByTestId('queue-list')).toHaveAttribute(
+            'data-disabled',
+            'false',
+        )
         fireEvent.click(screen.getByText('remove-track'))
         fireEvent.click(screen.getByText('move-track'))
         fireEvent.click(screen.getByText('clear-queue'))
@@ -448,6 +452,10 @@ describe('MusicPage', () => {
             <MemoryRouter>
                 <MusicPage />
             </MemoryRouter>,
+        )
+        expect(screen.getByTestId('queue-list')).toHaveAttribute(
+            'data-disabled',
+            'true',
         )
         fireEvent.click(screen.getByText('remove-track'))
         fireEvent.click(screen.getByText('move-track'))
