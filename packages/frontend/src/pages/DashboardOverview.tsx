@@ -286,6 +286,7 @@ export default function DashboardOverview() {
     if (!selectedGuild) {
         return (
             <EmptyState
+                headingLevel='h1'
                 icon={<Activity className='h-10 w-10' />}
                 title={t('dashboardOverview.selectAServer')}
                 description={t('dashboardOverview.chooseServerFromSidebar')}

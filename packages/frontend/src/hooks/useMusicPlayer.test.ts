@@ -319,6 +319,27 @@ describe('useMusicPlayer', () => {
         })
     })
 
+    test('records a failed initial load instead of leaving the skeleton stuck forever', async () => {
+        // SSE never opens (API down / 403) and the REST fallback also
+        // rejects: previously lastStateUpdate stayed null forever, so the
+        // hero and queue skeletons never resolved and nothing told the user
+        // why.
+        const { sse } = makeMockSSE()
+        mockCreateSSEConnection.mockReturnValue(sse)
+        mockGetState.mockRejectedValue(new Error('network down'))
+
+        const { result } = renderHook(() => useMusicPlayer('guild-1'))
+
+        expect(result.current.lastStateUpdate).toBeNull()
+
+        await waitFor(() =>
+            expect(result.current.lastStateUpdate).toEqual(expect.any(Number)),
+        )
+        expect(result.current.error).toEqual(expect.any(String))
+        expect(result.current.error).not.toBeNull()
+        expect(result.current.isConnected).toBe(false)
+    })
+
     test('resets lastStateUpdate to null when switching guilds', async () => {
         const firstSSE = makeMockSSE()
         const secondSSE = makeMockSSE()

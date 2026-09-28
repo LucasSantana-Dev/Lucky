@@ -40,7 +40,12 @@ export function useMusicPlayer(guildId: string | undefined) {
     )
     const [isConnected, setIsConnected] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    /** Wall-clock ms of the last successful state payload (SSE or REST). */
+    /**
+     * Wall-clock ms of the last state payload (SSE or REST), OR of a failed
+     * initial-load attempt. Stays null only while the first attempt for the
+     * current guild is still in flight — the UI treats null as "loading"
+     * and non-null as "done, render what we have" (state, or an error).
+     */
     const [lastStateUpdate, setLastStateUpdate] = useState<number | null>(null)
     const sseRef = useRef<EventSource | null>(null)
     const retryRef = useRef(0)
@@ -138,7 +143,22 @@ export function useMusicPlayer(guildId: string | undefined) {
             .then((res) => {
                 if (!cancelled) applyState(res.data)
             })
-            .catch(() => {})
+            .catch(() => {
+                if (cancelled) return
+                // SSE alone can't be trusted to ever open (API down, 403,
+                // etc.), so a swallowed failure here previously left
+                // lastStateUpdate null forever: the hero and queue skeletons
+                // never resolved and nothing told the user why. Recording
+                // the failure the same way a successful load is recorded
+                // (stamping lastStateUpdate) lets the existing "no track" /
+                // "empty queue" UI take over instead of a stuck skeleton,
+                // and setError surfaces the reason via the existing error
+                // banner.
+                setLastStateUpdate(Date.now())
+                setError(
+                    'Could not load the music player. Check your connection and try refreshing the page.',
+                )
+            })
 
         return () => {
             cancelled = true

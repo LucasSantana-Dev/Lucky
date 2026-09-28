@@ -128,6 +128,7 @@ export default function TrackHistoryPage() {
     if (!selectedGuild) {
         return (
             <EmptyState
+                headingLevel='h1'
                 icon={<History className='h-10 w-10' aria-hidden='true' />}
                 title={t('trackHistory.noServerSelected')}
                 description={t('trackHistory.selectServerToViewHistory')}

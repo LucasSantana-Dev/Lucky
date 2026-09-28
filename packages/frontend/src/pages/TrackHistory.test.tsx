@@ -123,11 +123,12 @@ describe('TrackHistoryPage', () => {
 
     test('shows select server message when no guild selected', () => {
         mockGuildSelection(null)
-        renderPage()
+        const { container } = renderPage()
 
         expect(
             screen.getByText('Select a server to view track history'),
         ).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('shows loading skeletons while fetching', () => {
