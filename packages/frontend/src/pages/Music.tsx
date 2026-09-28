@@ -68,6 +68,7 @@ export default function MusicPage() {
     if (!selectedGuild) {
         return (
             <EmptyState
+                headingLevel='h1'
                 icon={<Music2 className='h-10 w-10' aria-hidden='true' />}
                 title={t('music.noServerSelected')}
                 description={t('music.selectServerToControlMusic')}
@@ -246,7 +247,10 @@ function NowPlayingHero({
     // as an empty player first.
     if (lastStateUpdate === null) {
         return (
-            <div className='surface-panel rounded-xl p-4 sm:p-6 border border-lucky-border'>
+            <div
+                data-testid='now-playing-skeleton'
+                className='surface-panel rounded-xl p-4 sm:p-6 border border-lucky-border'
+            >
                 <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 items-start'>
                     <Skeleton className='sm:col-span-1 aspect-square w-full rounded-lg' />
                     <div className='sm:col-span-2 space-y-3'>

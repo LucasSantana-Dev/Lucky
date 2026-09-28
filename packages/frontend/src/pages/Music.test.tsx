@@ -14,9 +14,32 @@ vi.mock('@/components/Music/ImportPlaylist', () => ({
     default: () => <div data-testid='import-playlist'>ImportPlaylist</div>,
 }))
 vi.mock('@/components/Music/QueueList', () => ({
-    default: ({ isLoading }: { isLoading?: boolean }) => (
-        <div data-testid='queue-list' data-loading={String(Boolean(isLoading))}>
+    // `disabled` is deliberately NOT wired to the native `disabled` attribute:
+    // Music.tsx's own `if (!controlsEnabled) return` guard (not QueueList's)
+    // is what these tests exercise, so the buttons must stay clickable
+    // regardless of `disabled` to prove the guard itself blocks the call.
+    default: ({
+        isLoading,
+        disabled,
+        onRemove,
+        onMove,
+        onClear,
+    }: {
+        isLoading?: boolean
+        disabled?: boolean
+        onRemove: (i: number) => void
+        onMove: (from: number, to: number) => void
+        onClear: () => void
+    }) => (
+        <div
+            data-testid='queue-list'
+            data-loading={String(Boolean(isLoading))}
+            data-disabled={String(Boolean(disabled))}
+        >
             QueueList
+            <button onClick={() => onRemove(0)}>remove-track</button>
+            <button onClick={() => onMove(0, 1)}>move-track</button>
+            <button onClick={onClear}>clear-queue</button>
         </div>
     ),
 }))
@@ -92,7 +115,7 @@ describe('MusicPage', () => {
         vi.mocked(useGuildSelection).mockReturnValue({
             selectedGuild: null,
         } as any)
-        render(
+        const { container } = render(
             <MemoryRouter>
                 <MusicPage />
             </MemoryRouter>,
@@ -100,6 +123,10 @@ describe('MusicPage', () => {
         expect(
             screen.getByText('Select a server to control music playback'),
         ).toBeInTheDocument()
+        // This EmptyState is the page's only content when no guild is
+        // selected (Layout no longer provides a fallback heading), so it
+        // must render an h1, not its default h2.
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('renders music player components when guild selected', () => {
@@ -165,6 +192,7 @@ describe('MusicPage', () => {
                 <MusicPage />
             </MemoryRouter>,
         )
+        expect(screen.getByTestId('now-playing-skeleton')).toBeInTheDocument()
         expect(screen.queryByText('Nothing playing')).not.toBeInTheDocument()
     })
 
@@ -372,6 +400,61 @@ describe('MusicPage', () => {
         )
         fireEvent.click(screen.getByRole('button', { name: 'Pause' }))
         expect(mockPause).toHaveBeenCalledOnce()
+    })
+
+    test('wires queue remove/move/clear to the player when controls are enabled', () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        const mockRemoveTrack = vi.fn()
+        const mockMoveTrack = vi.fn()
+        const mockClearQueue = vi.fn()
+        vi.mocked(useMusicPlayer).mockReturnValue({
+            ...mockPlayer,
+            isConnected: true,
+            isLoading: false,
+            removeTrack: mockRemoveTrack,
+            moveTrack: mockMoveTrack,
+            clearQueue: mockClearQueue,
+        } as any)
+        render(
+            <MemoryRouter>
+                <MusicPage />
+            </MemoryRouter>,
+        )
+        fireEvent.click(screen.getByText('remove-track'))
+        fireEvent.click(screen.getByText('move-track'))
+        fireEvent.click(screen.getByText('clear-queue'))
+        expect(mockRemoveTrack).toHaveBeenCalledWith(0)
+        expect(mockMoveTrack).toHaveBeenCalledWith(0, 1)
+        expect(mockClearQueue).toHaveBeenCalledOnce()
+    })
+
+    test('blocks queue remove/move/clear when controls are disabled (SSE disconnected)', () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        const mockRemoveTrack = vi.fn()
+        const mockMoveTrack = vi.fn()
+        const mockClearQueue = vi.fn()
+        vi.mocked(useMusicPlayer).mockReturnValue({
+            ...mockPlayer,
+            isConnected: false,
+            removeTrack: mockRemoveTrack,
+            moveTrack: mockMoveTrack,
+            clearQueue: mockClearQueue,
+        } as any)
+        render(
+            <MemoryRouter>
+                <MusicPage />
+            </MemoryRouter>,
+        )
+        fireEvent.click(screen.getByText('remove-track'))
+        fireEvent.click(screen.getByText('move-track'))
+        fireEvent.click(screen.getByText('clear-queue'))
+        expect(mockRemoveTrack).not.toHaveBeenCalled()
+        expect(mockMoveTrack).not.toHaveBeenCalled()
+        expect(mockClearQueue).not.toHaveBeenCalled()
     })
 
     test('calls previous when previous track button clicked', () => {

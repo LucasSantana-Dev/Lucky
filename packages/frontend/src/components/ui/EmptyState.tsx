@@ -13,6 +13,14 @@ interface EmptyStateProps {
      * that already provides its own surface — e.g. embedded in a table Card.
      */
     bare?: boolean
+    /**
+     * Heading level for the title. Defaults to `h2` because most call sites
+     * embed this inside a page that already owns its own `<h1>` (e.g. via
+     * `SectionHeader`). Pass `h1` only when this is the page's *entire*
+     * content and nothing else renders a heading — otherwise the page ends
+     * up with zero `<h1>` elements.
+     */
+    headingLevel?: 'h1' | 'h2'
 }
 
 export default function EmptyState({
@@ -22,7 +30,9 @@ export default function EmptyState({
     action,
     className,
     bare = false,
+    headingLevel = 'h2',
 }: EmptyStateProps) {
+    const Heading = headingLevel
     return (
         <section
             className={cn(
@@ -41,7 +51,9 @@ export default function EmptyState({
                     </div>
                 </div>
             )}
-            <h2 className='type-h2 text-lucky-text-primary'>{title}</h2>
+            <Heading className='type-h2 text-lucky-text-primary'>
+                {title}
+            </Heading>
             <p className='mt-3 max-w-lg type-body text-lucky-text-secondary'>
                 {description}
             </p>

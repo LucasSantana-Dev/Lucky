@@ -179,7 +179,20 @@ describe('useMusicPlayer', () => {
     test('sets lastStateUpdate from initial REST state', async () => {
         const { sse } = makeMockSSE()
         mockCreateSSEConnection.mockReturnValue(sse)
-        const restState = { guildId: 'guild-1', isPlaying: true, tracks: [], currentTrack: null, isPaused: false, volume: 60, repeatMode: 'off', shuffled: false, position: 0, voiceChannelId: null, voiceChannelName: null, timestamp: 0 }
+        const restState = {
+            guildId: 'guild-1',
+            isPlaying: true,
+            tracks: [],
+            currentTrack: null,
+            isPaused: false,
+            volume: 60,
+            repeatMode: 'off',
+            shuffled: false,
+            position: 0,
+            voiceChannelId: null,
+            voiceChannelName: null,
+            timestamp: 0,
+        }
         mockGetState.mockResolvedValue({ data: restState })
 
         const { result } = renderHook(() => useMusicPlayer('guild-1'))
@@ -220,7 +233,9 @@ describe('useMusicPlayer', () => {
         expect(result.current.state.volume).toBe(volumeBefore)
         expect(result.current.lastStateUpdate).toEqual(expect.any(Number))
         if (before !== null) {
-            expect(result.current.lastStateUpdate).toBeGreaterThanOrEqual(before)
+            expect(result.current.lastStateUpdate).toBeGreaterThanOrEqual(
+                before,
+            )
         }
     })
 
@@ -302,6 +317,41 @@ describe('useMusicPlayer', () => {
         await waitFor(() => {
             expect(result.current.state.volume).toBe(60)
         })
+    })
+
+    test('resets lastStateUpdate to null when switching guilds', async () => {
+        const firstSSE = makeMockSSE()
+        const secondSSE = makeMockSSE()
+        mockCreateSSEConnection
+            .mockReturnValueOnce(firstSSE.sse)
+            .mockReturnValueOnce(secondSSE.sse)
+
+        const secondGuildState = createDeferred<{ data: QueueState }>()
+        mockGetState
+            .mockResolvedValueOnce({ data: makeState('guild-1') })
+            .mockReturnValueOnce(secondGuildState.promise)
+
+        const { result, rerender } = renderHook(
+            ({ guildId }) => useMusicPlayer(guildId),
+            { initialProps: { guildId: 'guild-1' } },
+        )
+
+        await waitFor(() =>
+            expect(result.current.lastStateUpdate).toEqual(expect.any(Number)),
+        )
+
+        rerender({ guildId: 'guild-2' })
+
+        // Guild 2's own getState/SSE payload has not resolved yet — without
+        // the reset, this would still hold guild 1's stale timestamp and the
+        // UI would render the freshly-cleared EMPTY_STATE as "loaded"
+        // instead of showing a loading skeleton.
+        expect(result.current.lastStateUpdate).toBeNull()
+
+        secondGuildState.resolve({ data: makeState('guild-2', 40) })
+        await waitFor(() =>
+            expect(result.current.lastStateUpdate).toEqual(expect.any(Number)),
+        )
     })
 
     test('does not let an old guild rollback update a new visit to that guild', async () => {
