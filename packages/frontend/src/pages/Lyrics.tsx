@@ -48,6 +48,7 @@ export default function LyricsPage() {
     if (!selectedGuild) {
         return (
             <EmptyState
+                headingLevel='h1'
                 icon={<MicVocal className='h-10 w-10' aria-hidden='true' />}
                 title={t('noServerSelected')}
                 description={t('selectServerToSearch')}

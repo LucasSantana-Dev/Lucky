@@ -44,7 +44,7 @@ describe('PreferredArtistsPage heading structure', () => {
             selectedGuild: null,
         } as any)
         renderPage()
-        expect(document.querySelectorAll('h1')).toHaveLength(0)
+        expect(document.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('renders exactly one h1 with a server selected', () => {
