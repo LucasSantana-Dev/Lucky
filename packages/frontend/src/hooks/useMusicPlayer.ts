@@ -64,6 +64,11 @@ export function useMusicPlayer(guildId: string | undefined) {
         setError(null)
         setPendingAction(null)
         setIsLoading(false)
+        // Without this, switching from guild A (which already has a
+        // timestamp) straight to guild B renders the freshly-reset
+        // EMPTY_STATE as "loaded" (lastStateUpdate !== null) instead of
+        // showing the loading skeleton while B's first payload is in flight.
+        setLastStateUpdate(null)
     }, [guildId])
 
     const applyState = useCallback((next: QueueState) => {
