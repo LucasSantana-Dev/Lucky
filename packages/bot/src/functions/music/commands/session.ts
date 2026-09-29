@@ -225,8 +225,9 @@ export default new Command({
                 name,
                 interaction.user,
             )
+            const skippedYoutubeCount = result.skippedYoutubeCount ?? 0
 
-            if (result.restoredCount === 0) {
+            if (result.restoredCount === 0 && skippedYoutubeCount === 0) {
                 await interactionReply({
                     interaction,
                     content: {
@@ -242,13 +243,36 @@ export default new Command({
                 return
             }
 
+            // Skipped YouTube-only tracks (HOSTED_YOUTUBE_ENABLED=false, #2486)
+            // must be surfaced, never silently dropped from the restored count.
+            const skippedNote =
+                skippedYoutubeCount > 0
+                    ? ` (${skippedYoutubeCount} skipped: YouTube is currently disabled)`
+                    : ''
+
+            if (result.restoredCount === 0) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            createWarningEmbed(
+                                'No tracks restored',
+                                `Could not restore any tracks from **${name}**${skippedNote}.`,
+                            ),
+                        ],
+                        ephemeral: true,
+                    },
+                })
+                return
+            }
+
             await interactionReply({
                 interaction,
                 content: {
                     embeds: [
                         createSuccessEmbed(
                             'Session restored',
-                            `Restored ${result.restoredCount} tracks from **${name}**.`,
+                            `Restored ${result.restoredCount} tracks from **${name}**${skippedNote}.`,
                         ),
                     ],
                 },

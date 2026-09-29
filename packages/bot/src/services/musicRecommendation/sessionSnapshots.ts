@@ -2,10 +2,17 @@ import type { GuildQueue, Track } from 'discord-player'
 import { QueryType } from 'discord-player'
 import type { User } from 'discord.js'
 import { randomUUID } from 'crypto'
-import { getPrismaClient, debugLog, errorLog } from '@lucky/shared/utils'
+import {
+    getPrismaClient,
+    debugLog,
+    errorLog,
+    infoLog,
+} from '@lucky/shared/utils'
 import type { Prisma } from '@lucky/shared/utils'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { trackSource } from '../../utils/music/trackFields'
+import { isHostedYoutubeEnabled } from '../../config/featureFlags'
+import { isHost } from '../../utils/general/urlHost'
 
 /**
  * Extracts the structured Prisma error fields (`code` + `meta`) for logging.
@@ -44,6 +51,12 @@ export type QueueSessionSnapshot = {
 export type SnapshotRestoreResult = {
     restoredCount: number
     sessionSnapshotId: string | null
+    /**
+     * Tracks skipped because they're youtube.com/youtu.be entries and
+     * HOSTED_YOUTUBE_ENABLED is false (no YouTube extractor registered, so a
+     * search for them is a guaranteed miss). See #2486.
+     */
+    skippedYoutubeCount: number
 }
 
 const MAX_SNAPSHOT_TRACKS = 25
@@ -289,12 +302,20 @@ export class MusicSessionSnapshotService {
     ): Promise<SnapshotRestoreResult> {
         try {
             if (queue.currentTrack || queue.tracks.size > 0) {
-                return { restoredCount: 0, sessionSnapshotId: null }
+                return {
+                    restoredCount: 0,
+                    sessionSnapshotId: null,
+                    skippedYoutubeCount: 0,
+                }
             }
 
             const snapshot = await this.getSnapshot(queue.guild.id)
             if (!snapshot) {
-                return { restoredCount: 0, sessionSnapshotId: null }
+                return {
+                    restoredCount: 0,
+                    sessionSnapshotId: null,
+                    skippedYoutubeCount: 0,
+                }
             }
 
             // Staleness guard: reject snapshots older than maxAgeMs.
@@ -310,7 +331,11 @@ export class MusicSessionSnapshotService {
                         maxAgeMs: maxAge,
                     },
                 })
-                return { restoredCount: 0, sessionSnapshotId: null }
+                return {
+                    restoredCount: 0,
+                    sessionSnapshotId: null,
+                    skippedYoutubeCount: 0,
+                }
             }
 
             const searchOptions: SearchOptions = {
@@ -328,6 +353,7 @@ export class MusicSessionSnapshotService {
             ]
 
             let restoredCount = 0
+            let skippedYoutubeCount = 0
             // Tracks THIS restore added, so an abort can undo exactly those — never
             // tracks a user may have queued during the (racing) restore window.
             const restoredTracks: Track[] = []
@@ -347,7 +373,22 @@ export class MusicSessionSnapshotService {
                     // moved on with an empty queue.
                     if (options.signal?.aborted) {
                         undoRestoredTracks()
-                        return { restoredCount: 0, sessionSnapshotId: null }
+                        return {
+                            restoredCount: 0,
+                            sessionSnapshotId: null,
+                            skippedYoutubeCount: 0,
+                        }
+                    }
+                    // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-positioning.md
+                    // point 3): no YouTube extractor is registered, so AUTO is a
+                    // guaranteed miss for a youtube.com/youtu.be entry. Skip the
+                    // search and count it instead of silently dropping it (#2486).
+                    if (
+                        !isHostedYoutubeEnabled() &&
+                        isHost(entry.url, 'youtube.com', 'youtu.be')
+                    ) {
+                        skippedYoutubeCount += 1
+                        continue
                     }
                     const query =
                         entry.url || `${entry.title} ${entry.author}`.trim()
@@ -359,7 +400,11 @@ export class MusicSessionSnapshotService {
                     // the search, so don't enqueue this track post-abort.
                     if (options.signal?.aborted) {
                         undoRestoredTracks()
-                        return { restoredCount: 0, sessionSnapshotId: null }
+                        return {
+                            restoredCount: 0,
+                            sessionSnapshotId: null,
+                            skippedYoutubeCount: 0,
+                        }
                     }
                     const track = result.tracks[0]
                     if (!track) continue
@@ -383,7 +428,11 @@ export class MusicSessionSnapshotService {
                         'Failed to restore track during restore loop; rolling back queue',
                     error: loopError,
                 })
-                return { restoredCount: 0, sessionSnapshotId: null }
+                return {
+                    restoredCount: 0,
+                    sessionSnapshotId: null,
+                    skippedYoutubeCount: 0,
+                }
             }
 
             if (restoredCount > 0) {
@@ -398,7 +447,11 @@ export class MusicSessionSnapshotService {
                 // already gone from the database.
                 if (options.signal?.aborted) {
                     undoRestoredTracks()
-                    return { restoredCount: 0, sessionSnapshotId: null }
+                    return {
+                        restoredCount: 0,
+                        sessionSnapshotId: null,
+                        skippedYoutubeCount: 0,
+                    }
                 }
 
                 if (!queue.node.isPlaying()) {
@@ -409,6 +462,17 @@ export class MusicSessionSnapshotService {
                 // already underway), so it cannot be applied again on the
                 // next connection event.
                 await this.deleteSnapshot(queue.guild.id)
+            }
+
+            if (skippedYoutubeCount > 0) {
+                infoLog({
+                    message:
+                        'Music session snapshot restore skipped YouTube-only tracks (HOSTED_YOUTUBE_ENABLED=false)',
+                    data: {
+                        guildId: queue.guild.id,
+                        skippedYoutubeCount,
+                    },
+                })
             }
 
             debugLog({
@@ -424,13 +488,18 @@ export class MusicSessionSnapshotService {
                 restoredCount,
                 sessionSnapshotId:
                     restoredCount > 0 ? snapshot.sessionSnapshotId : null,
+                skippedYoutubeCount,
             }
         } catch (error) {
             errorLog({
                 message: 'Failed to restore music session snapshot',
                 error,
             })
-            return { restoredCount: 0, sessionSnapshotId: null }
+            return {
+                restoredCount: 0,
+                sessionSnapshotId: null,
+                skippedYoutubeCount: 0,
+            }
         }
     }
 }
