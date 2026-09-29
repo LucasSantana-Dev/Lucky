@@ -4,7 +4,7 @@ import {
     type ChatInputCommandInteraction,
 } from 'discord.js'
 import Command from '../../../models/Command'
-import { runBulkMemberAction } from './bulkMemberActionCommand'
+import { runBulkMemberAction } from '../helpers/bulkMemberAction'
 
 export default new Command({
     data: new SlashCommandBuilder()
