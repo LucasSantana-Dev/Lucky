@@ -410,6 +410,31 @@ describe('collectLastFmCandidates', () => {
         expect(calculateRecommendationScoreMock).toHaveBeenCalled()
     })
 
+    it('scores profile-seeded loved and similar tracks with the strict genre guard', async () => {
+        // Seeds come from the user's Last.fm profile, not the session seed, so
+        // they must not get the relaxed seed-neighborhood guard (a Mozart
+        // scrobble leaking into a pagode session).
+        consumeLastFmSeedSliceMock.mockResolvedValue([
+            { title: 'T1', artist: 'A1' },
+        ])
+        getSimilarTracksMock.mockResolvedValue([
+            { title: 'S1', artist: 'B1', match: 0.9 },
+        ])
+        const track = createTrack('T1', 'A1')
+        const queue = createQueue({ tracks: [track] })
+        const ctx = createAutoplayContext({ queue })
+
+        await collectLastFmCandidates(ctx, createUser(), new Map())
+
+        expect(calculateRecommendationScoreMock).toHaveBeenCalledTimes(2)
+        for (const [scoringCtx] of calculateRecommendationScoreMock.mock
+            .calls) {
+            expect(scoringCtx).toEqual(
+                expect.objectContaining({ seedDerived: false }),
+            )
+        }
+    })
+
     it('skips disliked tracks (weight > 0.5)', async () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([
             { title: 'T1', artist: 'A1' },
