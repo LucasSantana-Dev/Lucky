@@ -19,6 +19,7 @@ const handleButtonInteractionMock = jest.fn()
 const handleFeedbackReportButtonMock = jest.fn()
 const createOnboardingStationRowMock = jest.fn(async () => ({}))
 const handleOnboardingStationButtonMock = jest.fn()
+const executeCommandMock = jest.fn()
 const executeContextMenuMock = jest.fn()
 const handleMoveMessageSelectMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -83,6 +84,7 @@ jest.mock('./onboardingStation', () => ({
 }))
 
 jest.mock('./commandsHandler', () => ({
+    executeCommand: (...args: unknown[]) => executeCommandMock(...args),
     executeContextMenu: (...args: unknown[]) => executeContextMenuMock(...args),
 }))
 
@@ -266,14 +268,13 @@ describe('eventHandler', () => {
         })
     })
 
-    it('monitors command execution (activation telemetry) for a chat-input command', async () => {
+    it('routes a chat-input command through executeCommand (spam-cooldown, feature-toggle and permission guard, #2483)', async () => {
         const { client, onMock } = createMockClient()
-        const executeMock = jest.fn().mockResolvedValue(undefined)
-        client.commands.set('play', { execute: executeMock })
+        client.commands.set('play', { execute: jest.fn() })
         handleEvents(client as unknown as never)
 
         const interactionHandler = getInteractionCreateHandler(onMock)
-        interactionHandler?.({
+        const interaction = {
             isAutocomplete: () => false,
             isButton: () => false,
             isMessageContextMenuCommand: () => false,
@@ -285,19 +286,17 @@ describe('eventHandler', () => {
             user: { id: 'user-1' },
             replied: false,
             deferred: false,
-        } as unknown as Interaction)
+        } as unknown as Interaction
 
+        interactionHandler?.(interaction)
         await flushAsyncHandlers()
 
-        expect(monitorCommandExecutionMock).toHaveBeenCalledWith(
-            'play',
-            'user-1',
-            'guild-9',
-        )
-        expect(executeMock).toHaveBeenCalled()
+        // Slash commands must go through the same guard executeContextMenu
+        // already goes through, not call command.execute() directly.
+        expect(executeCommandMock).toHaveBeenCalledWith({ interaction, client })
     })
 
-    it('does not monitor execution when the command is not found', async () => {
+    it('does not call executeCommand when the command is not found', async () => {
         const { client, onMock } = createMockClient()
         handleEvents(client as unknown as never)
         const interactionHandler = getInteractionCreateHandler(onMock)
@@ -316,7 +315,7 @@ describe('eventHandler', () => {
 
         await flushAsyncHandlers()
 
-        expect(monitorCommandExecutionMock).not.toHaveBeenCalled()
+        expect(executeCommandMock).not.toHaveBeenCalled()
     })
 
     it('routes a message context-menu interaction to executeContextMenu', async () => {
@@ -368,9 +367,11 @@ describe('eventHandler', () => {
 
     it('sends user-friendly error reply when command execution fails', async () => {
         const { client, onMock } = createMockClient()
-        client.commands.set('broken', {
-            execute: jest.fn().mockRejectedValue(new Error('raw failure')),
-        })
+        client.commands.set('broken', { execute: jest.fn() })
+        // executeCommand normally swallows command errors itself; this
+        // simulates it rethrowing to exercise the generic safety-net catch
+        // in runInteraction.
+        executeCommandMock.mockRejectedValueOnce(new Error('raw failure'))
         handleEvents(client as unknown as never)
 
         const interactionHandler = getInteractionCreateHandler(onMock)
@@ -405,9 +406,8 @@ describe('eventHandler', () => {
     it('captures command error to Sentry and attempts to reply', async () => {
         const { client, onMock } = createMockClient()
         const originalError = new Error('original command failure')
-        client.commands.set('broken', {
-            execute: jest.fn().mockRejectedValue(originalError),
-        })
+        client.commands.set('broken', { execute: jest.fn() })
+        executeCommandMock.mockRejectedValueOnce(originalError)
         const replyError = new Error('Discord API unavailable')
         interactionReplyMock.mockRejectedValueOnce(replyError)
 
@@ -456,9 +456,8 @@ describe('eventHandler', () => {
     it('does not crash when createUserFriendlyError throws', async () => {
         const { client, onMock } = createMockClient()
         const originalError = new Error('original command failure')
-        client.commands.set('broken', {
-            execute: jest.fn().mockRejectedValue(originalError),
-        })
+        client.commands.set('broken', { execute: jest.fn() })
+        executeCommandMock.mockRejectedValueOnce(originalError)
         // Make createUserFriendlyError throw
         createUserFriendlyErrorMock.mockImplementation(() => {
             throw new Error('Failed to sanitize error')
