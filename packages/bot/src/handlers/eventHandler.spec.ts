@@ -27,7 +27,6 @@ const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const telemetryLogMock = jest.fn()
 const captureExceptionMock = jest.fn()
-const monitorCommandExecutionMock = jest.fn()
 const namedSessionListMock = jest.fn()
 const cleanupGuildStateMock = jest.fn()
 const aiDevToolkitStartMock = jest.fn()
@@ -91,11 +90,6 @@ jest.mock('./commandsHandler', () => ({
 jest.mock('./feedbackButtonHandler', () => ({
     handleFeedbackReportButton: (...args: unknown[]) =>
         handleFeedbackReportButtonMock(...args),
-}))
-
-jest.mock('../utils/monitoring', () => ({
-    monitorCommandExecution: (...args: unknown[]) =>
-        monitorCommandExecutionMock(...args),
 }))
 
 jest.mock('./moveMessageHandler', () => ({
