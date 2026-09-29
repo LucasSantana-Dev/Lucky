@@ -292,69 +292,53 @@ async function postFeedbackToChannel(
  * deliver to the feedback channel, reply with thanks + the support invite.
  * Never stores a user id (#2477 acceptance) — nothing but guildId, category,
  * text, and the context payload reaches the database or the channel embed. */
-export async function submitFeedback(
+/** Every user-facing reply from this pipeline is ephemeral with mentions
+ * suppressed — factored out so submitFeedback reads as named pipeline steps
+ * instead of five near-identical interactionReply blocks. */
+async function replyEphemeral(
     modalSubmit: ModalSubmitInteraction,
-    context: FeedbackSubmissionContext,
-    t: TFunction,
+    content: string,
 ): Promise<void> {
-    const guildId = modalSubmit.guildId
-    if (!guildId) {
-        await interactionReply({
-            interaction: modalSubmit,
-            content: {
-                content: t('feedback.errors.guildOnly'),
-                ephemeral: true,
-                allowedMentions: { parse: [] },
-            },
-        })
-        return
-    }
+    await interactionReply({
+        interaction: modalSubmit,
+        content: { content, ephemeral: true, allowedMentions: { parse: [] } },
+    })
+}
 
-    const rateLimitKey = `feedback:${modalSubmit.user.id}`
-    const rateLimitResult = await getFeedbackDatabaseService().checkRateLimit(
-        rateLimitKey,
+/** 3/hour/user, fail-open on a database error (a rate-limit check that can't
+ * reach the database must never block a real submission). */
+async function isWithinFeedbackRateLimit(userId: string): Promise<boolean> {
+    const result = await getFeedbackDatabaseService().checkRateLimit(
+        `feedback:${userId}`,
         FEEDBACK_RATE_LIMIT,
         FEEDBACK_RATE_LIMIT_WINDOW_MS,
     )
-    // Fail-open: a rate-limit check that can't reach the database must never
-    // block a real feedback submission (worse outcome than an occasional
-    // over-limit send).
-    if (rateLimitResult.isSuccess() && rateLimitResult.getData() === false) {
-        await interactionReply({
-            interaction: modalSubmit,
-            content: {
-                content: t('feedback.errors.rateLimited'),
-                ephemeral: true,
-                allowedMentions: { parse: [] },
-            },
-        })
-        return
-    }
-    if (rateLimitResult.isFailure()) {
+    if (result.isFailure()) {
         errorLog({
             message: 'Feedback rate limit check failed; proceeding (fail-open)',
-            error: rateLimitResult.getError(),
+            error: result.getError(),
         })
+        return true
     }
+    return result.getData() !== false
+}
 
-    // Discord's own client can only submit one of the three options this
-    // modal defines, but a forged/replayed interaction is not bound by that —
-    // validate before it reaches the Prisma enum column (#2477 review).
+type ParsedFeedbackFields = {
+    category: FeedbackCategoryValue
+    text: string
+}
+
+/** Parses and validates the modal's fields. Returns `null` when the category
+ * is outside bug/idea/other — a forged/replayed interaction is not bound by
+ * the modal's own select options (#2477 review). */
+function extractFeedbackFields(
+    modalSubmit: ModalSubmitInteraction,
+): ParsedFeedbackFields | null {
     const rawCategory = modalSubmit.fields.getStringSelectValues(
         FEEDBACK_CATEGORY_FIELD_ID,
     )[0]
-    if (!isFeedbackCategoryValue(rawCategory)) {
-        await interactionReply({
-            interaction: modalSubmit,
-            content: {
-                content: t('feedback.errors.invalidCategory'),
-                ephemeral: true,
-                allowedMentions: { parse: [] },
-            },
-        })
-        return
-    }
-    const category = rawCategory
+    if (!isFeedbackCategoryValue(rawCategory)) return null
+
     const whatHappened = modalSubmit.fields.getTextInputValue(
         FEEDBACK_WHAT_HAPPENED_FIELD_ID,
     )
@@ -366,11 +350,20 @@ export async function submitFeedback(
     } catch {
         expected = ''
     }
-    const text = expected
-        ? `${whatHappened}\n\nExpected: ${expected}`
-        : whatHappened
 
-    const feedbackContext: Record<string, unknown> = {
+    return {
+        category: rawCategory,
+        text: expected
+            ? `${whatHappened}\n\nExpected: ${expected}`
+            : whatHappened,
+    }
+}
+
+function buildFeedbackContext(
+    modalSubmit: ModalSubmitInteraction,
+    context: FeedbackSubmissionContext,
+): Record<string, unknown> {
+    return {
         guildMemberCount: modalSubmit.guild?.memberCount,
         locale: modalSubmit.locale,
         ...(context.commandName ? { command: context.commandName } : {}),
@@ -378,32 +371,61 @@ export async function submitFeedback(
             ? { sentryEventId: context.sentryEventId }
             : {}),
     }
+}
 
+/** The two delivery side effects: the durable row, then the (best-effort)
+ * channel post. */
+async function persistFeedback(
+    modalSubmit: ModalSubmitInteraction,
+    guildId: string,
+    fields: ParsedFeedbackFields,
+    feedbackContext: Record<string, unknown>,
+): Promise<void> {
     const prisma = getPrismaClient()
     await prisma.userFeedback.create({
         data: {
             guildId,
-            category,
-            text,
+            category: fields.category,
+            text: fields.text,
             context: feedbackContext as unknown as Prisma.InputJsonValue,
         },
     })
 
     await postFeedbackToChannel(modalSubmit.client, {
         guildId,
-        category,
-        text,
+        category: fields.category,
+        text: fields.text,
         context: feedbackContext,
     })
+}
 
-    await interactionReply({
-        interaction: modalSubmit,
-        content: {
-            content: t('feedback.thankYou', {
-                url: SUPPORT_SERVER_INVITE_URL,
-            }),
-            ephemeral: true,
-            allowedMentions: { parse: [] },
-        },
-    })
+export async function submitFeedback(
+    modalSubmit: ModalSubmitInteraction,
+    context: FeedbackSubmissionContext,
+    t: TFunction,
+): Promise<void> {
+    const guildId = modalSubmit.guildId
+    if (!guildId) {
+        await replyEphemeral(modalSubmit, t('feedback.errors.guildOnly'))
+        return
+    }
+
+    if (!(await isWithinFeedbackRateLimit(modalSubmit.user.id))) {
+        await replyEphemeral(modalSubmit, t('feedback.errors.rateLimited'))
+        return
+    }
+
+    const fields = extractFeedbackFields(modalSubmit)
+    if (!fields) {
+        await replyEphemeral(modalSubmit, t('feedback.errors.invalidCategory'))
+        return
+    }
+
+    const feedbackContext = buildFeedbackContext(modalSubmit, context)
+    await persistFeedback(modalSubmit, guildId, fields, feedbackContext)
+
+    await replyEphemeral(
+        modalSubmit,
+        t('feedback.thankYou', { url: SUPPORT_SERVER_INVITE_URL }),
+    )
 }
