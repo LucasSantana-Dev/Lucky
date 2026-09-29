@@ -223,7 +223,7 @@ describe('App authenticated routing', () => {
             memberContextLoading: false,
         })
 
-        renderAt('/moderation')
+        const { container } = renderAt('/moderation')
 
         expect(await screen.findByText('Access denied')).toBeInTheDocument()
         expect(
@@ -231,6 +231,10 @@ describe('App authenticated routing', () => {
                 'You do not have permission to view the moderation module for this server.',
             ),
         ).toBeInTheDocument()
+        // The forbidden view is the page's only content on this route
+        // (Layout no longer provides a fallback heading), so it must own
+        // the page's single h1 rather than EmptyState's default h2.
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('guards /features route with automation module access', async () => {
@@ -354,9 +358,7 @@ describe('App authenticated routing', () => {
 
         renderAt('/')
 
-        expect(
-            await screen.findByTestId('layout'),
-        ).toBeInTheDocument()
+        expect(await screen.findByTestId('layout')).toBeInTheDocument()
     })
 
     test('redirects unauthenticated user accessing /dashboard to the landing page', async () => {
@@ -384,7 +386,9 @@ describe('App authenticated routing', () => {
     })
 
     test('handles auth check errors gracefully during init', async () => {
-        const checkAuth = vi.fn().mockRejectedValue(new Error('Connection failed'))
+        const checkAuth = vi
+            .fn()
+            .mockRejectedValue(new Error('Connection failed'))
         mockAuthStore({ checkAuth })
         mockGuildStore()
 
@@ -400,13 +404,17 @@ describe('App authenticated routing', () => {
     })
 
     test('shows page loader while auth is loading', async () => {
-        const checkAuth = vi.fn<() => Promise<void>>(() => new Promise(() => {}))
+        const checkAuth = vi.fn<() => Promise<void>>(
+            () => new Promise(() => {}),
+        )
         mockAuthStore({ isLoading: true, checkAuth })
 
         renderAt('/')
 
         expect(screen.getByRole('status')).toBeInTheDocument()
-        expect(screen.queryByRole('heading', { name: /Landing Page|Dashboard/ })).not.toBeInTheDocument()
+        expect(
+            screen.queryByRole('heading', { name: /Landing Page|Dashboard/ }),
+        ).not.toBeInTheDocument()
     })
 
     test('authenticated user landing on wildcard route gets redirected to dashboard', async () => {

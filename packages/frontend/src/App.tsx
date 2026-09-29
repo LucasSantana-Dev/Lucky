@@ -91,6 +91,7 @@ function ForbiddenModulePage({ module }: { module: ModuleKey }) {
     const moduleLabel = t(`modules.${module}`, { defaultValue: module })
     return (
         <EmptyState
+            headingLevel='h1'
             icon={<ShieldAlert className='h-10 w-10' />}
             title={t('common.accessDenied')}
             description={t('common.accessDeniedDescription', {

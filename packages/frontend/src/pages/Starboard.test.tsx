@@ -133,11 +133,12 @@ describe('Starboard', () => {
 
     test('renders empty state when no guild is selected', () => {
         mockGuildStore(null)
-        render(<Starboard />)
+        const { container } = render(<Starboard />)
         expect(screen.getByText('No server selected')).toBeInTheDocument()
         expect(
             screen.getByText('Select a server to view starboard settings'),
         ).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('renders loading skeletons initially', () => {
@@ -145,11 +146,12 @@ describe('Starboard', () => {
         const { container } = render(<Starboard />)
         const skeletons = container.querySelectorAll('.animate-pulse')
         expect(skeletons.length).toBeGreaterThan(0)
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('loads and displays starboard entries', async () => {
         mockGuildStore()
-        render(<Starboard />)
+        const { container } = render(<Starboard />)
 
         await waitFor(() => {
             expect(api.starboard.getTopEntries).toHaveBeenCalledWith(
@@ -164,6 +166,7 @@ describe('Starboard', () => {
         expect(screen.getByText('Another starred message')).toBeInTheDocument()
         expect(screen.getByText('15')).toBeInTheDocument()
         expect(screen.getByText('8')).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('displays empty state when no entries exist', async () => {

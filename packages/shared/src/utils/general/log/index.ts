@@ -1,4 +1,5 @@
 import { LogService } from './service'
+import { runWithLogContext } from './context'
 import type { LogParams, LogConfig, LogLevelType } from './types'
 
 /** Provides logging functionality with multiple severity levels and customizable output. */
@@ -71,6 +72,37 @@ export const successLog = (params: LogParams): void => {
 /** Logs a debug message using the global log instance. */
 export const debugLog = (params: LogParams): void => {
     log.debug(params)
+}
+
+/**
+ * Emits a low-cardinality activation-telemetry event as a single info-level
+ * log line: `{event, ...fields}`. Always runs inside a FRESH log context
+ * (`runWithLogContext({}, ...)`).
+ *
+ * `LogService` merges the ambient AsyncLocalStorage context into `data` for
+ * any identity field (`correlationId`/`guildId`/`userId`) the caller does not
+ * explicitly provide, AND hoists a `userId`/`correlationId` key found inside
+ * `data` itself to a top-level JSON field (see `log/service.ts`'s
+ * `extractJsonFields`). Resetting the context only closes the first path —
+ * a caller that (accidentally) passes `userId`/`correlationId` in `fields`
+ * would still have it hoisted and logged. These events are read in aggregate
+ * (Grafana panels) and must never carry a per-user identifier or free-text
+ * content, so both paths are closed here: the context is reset to empty, AND
+ * `userId`/`correlationId` are stripped from `fields` before they ever reach
+ * `data`.
+ */
+export const telemetryLog = (
+    event: string,
+    fields: Record<string, string | boolean | undefined> = {},
+): void => {
+    const {
+        userId: _userId,
+        correlationId: _correlationId,
+        ...safeFields
+    } = fields
+    runWithLogContext({}, () => {
+        infoLog({ message: event, data: { event, ...safeFields } })
+    })
 }
 
 export { LogLevel } from './types'

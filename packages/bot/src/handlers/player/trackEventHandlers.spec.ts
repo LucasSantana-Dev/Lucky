@@ -106,11 +106,21 @@ jest.mock('@lucky/shared/config', () => ({
     constants: { VOLUME: 50 },
 }))
 
+const telemetryLogMock = jest.fn()
+
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
+    telemetryLog: (...args: unknown[]) => telemetryLogMock(...args),
+}))
+
+const resolveActualStreamSourceMock = jest.fn().mockReturnValue('youtube')
+
+jest.mock('./streamSourceResolver', () => ({
+    resolveActualStreamSource: (...args: unknown[]) =>
+        resolveActualStreamSourceMock(...args),
 }))
 
 const recordGuildImplicitDislikeMock = jest.fn()
@@ -217,6 +227,21 @@ describe('trackHandlers autoplay replenishment', () => {
 
     afterEach(() => {
         jest.useRealTimers()
+    })
+
+    it('logs track_stream_source telemetry on playerStart with guildId and resolved source', async () => {
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.OFF)
+        const track = createTrack()
+        resolveActualStreamSourceMock.mockReturnValueOnce('soundcloud-bridge')
+
+        await handlers.playerStart(queue, track)
+
+        expect(resolveActualStreamSourceMock).toHaveBeenCalledWith(track)
+        expect(telemetryLogMock).toHaveBeenCalledWith('track_stream_source', {
+            guildId: 'guild-1',
+            source: 'soundcloud-bridge',
+        })
     })
 
     it('does not record feedback on playerFinish when track played < 80%', async () => {

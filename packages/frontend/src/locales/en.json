@@ -571,6 +571,8 @@
         "manageCommunityHighlights": "Manage community highlights.",
         "recentMusic": "Recent Music",
         "latestTracksPlayed": "Latest tracks played",
+        "lastPlayed": "Last played",
+        "unknownListener": "Unknown",
         "noTracksPlayedYet": "No tracks played yet",
         "trackHistoryWillAppearWhenMusicPlayed": "Track history will appear here when music is played",
         "community": "Community",
@@ -710,6 +712,7 @@
         "failedToLoadSettings": "Failed to load level settings"
     },
     "lyrics": {
+        "noServerSelected": "No Server Selected",
         "selectServerToSearch": "Select a server to search lyrics",
         "lyricsSearch": "Lyrics Search",
         "songTitle": "Song Title",
@@ -721,6 +724,8 @@
         "searching": "Searching...",
         "failedToFetchLyrics": "Failed to fetch lyrics. Please try again.",
         "noLyricsFound": "No lyrics found",
+        "noLyricsFoundDescription": "Try a different title or check the spelling.",
+        "findLyricsTitle": "Find lyrics for any track",
         "searchForLyrics": "Search for lyrics by entering a song title"
     },
     "moderation": {
@@ -782,7 +787,7 @@
         "nowPlaying": "Now Playing",
         "unknown": "Unknown",
         "nothingPlaying": "Nothing playing",
-        "searchOrImportToGetStarted": "Search or import to get started",
+        "searchOrImportToGetStarted": "Start playback from Discord with /play, or search and import below.",
         "queue": "Queue",
         "volume": "Volume",
         "shuffle": "Shuffle",

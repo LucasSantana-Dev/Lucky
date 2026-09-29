@@ -172,13 +172,14 @@ describe('DashboardOverview', () => {
     test('shows select server when no guild', () => {
         mockGuildStoreFn(null)
         setupQueryHookMocks()
-        renderPage()
+        const { container } = renderPage()
         expect(screen.getByText('Select a Server')).toBeInTheDocument()
         expect(
             screen.getByText(
                 'Choose a server from the sidebar to view its dashboard',
             ),
         ).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('shows loading skeletons when loading', () => {
@@ -297,6 +298,19 @@ describe('DashboardOverview', () => {
         renderPage()
         expect(screen.getByText('Dashboard')).toBeInTheDocument()
         expect(screen.getByText(/Overview of Test Guild/)).toBeInTheDocument()
+    })
+
+    test('renders exactly one h1', () => {
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(document.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('renders recent cases', () => {

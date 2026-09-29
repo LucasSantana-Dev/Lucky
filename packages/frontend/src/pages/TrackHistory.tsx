@@ -7,6 +7,7 @@ import { hasModuleAccess } from '@/lib/rbac'
 import { api } from '@/services/api'
 import StatTile from '@/components/ui/StatTile'
 import EmptyState from '@/components/ui/EmptyState'
+import SectionHeader from '@/components/ui/SectionHeader'
 
 interface TrackEntry {
     trackId: string
@@ -127,6 +128,7 @@ export default function TrackHistoryPage() {
     if (!selectedGuild) {
         return (
             <EmptyState
+                headingLevel='h1'
                 icon={<History className='h-10 w-10' aria-hidden='true' />}
                 title={t('trackHistory.noServerSelected')}
                 description={t('trackHistory.selectServerToViewHistory')}
@@ -136,23 +138,23 @@ export default function TrackHistoryPage() {
 
     return (
         <div className='space-y-6 px-1 sm:px-0'>
-            <header className='flex items-center justify-between'>
-                <div className='flex items-center gap-3'>
-                    <History className='h-6 w-6 text-lucky-error' />
-                    <h1 className='type-h2 text-lucky-text-primary'>
-                        {t('trackHistory.trackHistory')}
-                    </h1>
-                </div>
-                {history.length > 0 && canManageMusic && (
-                    <button
-                        onClick={handleClear}
-                        className='flex items-center gap-2 px-3 min-h-[44px] type-body-sm rounded-sm bg-lucky-error/10 text-lucky-error hover:bg-lucky-error/20 transition-colors font-semibold uppercase'
-                    >
-                        <Trash2 className='w-4 h-4' />
-                        {t('trackHistory.clear')}
-                    </button>
-                )}
-            </header>
+            <SectionHeader
+                eyebrow={t('sidebar.sections.media')}
+                title={t('trackHistory.trackHistory')}
+                description={t('layout.routes.trackHistory.subtitle')}
+                actions={
+                    history.length > 0 &&
+                    canManageMusic && (
+                        <button
+                            onClick={handleClear}
+                            className='flex min-h-[44px] items-center gap-2 rounded-sm bg-lucky-error/10 px-3 type-body-sm font-semibold uppercase text-lucky-error transition-colors hover:bg-lucky-error/20'
+                        >
+                            <Trash2 className='h-4 w-4' />
+                            {t('trackHistory.clear')}
+                        </button>
+                    )
+                }
+            />
 
             {error && (
                 <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error type-body-sm'>
@@ -354,9 +356,7 @@ function RankingCard({
     const max = items[0]?.count ?? 1
     return (
         <div className='p-4 rounded-sm bg-lucky-bg-tertiary border border-lucky-border'>
-            <h3 className='type-title text-lucky-text-primary uppercase tracking-wide mb-3 font-semibold'>
-                {title}
-            </h3>
+            <h3 className='type-title mb-3 text-lucky-text-primary'>{title}</h3>
             <div className='space-y-2'>
                 {items.slice(0, 5).map((item, i) => (
                     <div key={item.label} className='flex items-center gap-2'>

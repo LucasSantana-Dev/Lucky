@@ -20,7 +20,7 @@ describe('LyricsPage', () => {
         vi.mocked(useGuildSelection).mockReturnValue({
             selectedGuild: null,
         } as any)
-        render(
+        const { container } = render(
             <MemoryRouter>
                 <LyricsPage />
             </MemoryRouter>,
@@ -28,6 +28,7 @@ describe('LyricsPage', () => {
         expect(
             screen.getByText('Select a server to search lyrics'),
         ).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('renders search form when guild selected', () => {
@@ -45,6 +46,18 @@ describe('LyricsPage', () => {
         expect(
             screen.getByRole('button', { name: /Search/ }),
         ).toBeInTheDocument()
+    })
+
+    test('renders exactly one h1', () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        render(
+            <MemoryRouter>
+                <LyricsPage />
+            </MemoryRouter>,
+        )
+        expect(document.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('shows initial help text before searching', () => {

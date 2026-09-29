@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express'
 import { timingSafeEqual } from 'node:crypto'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, telemetryLog } from '@lucky/shared/utils'
 import { discordOAuthService } from '../services/DiscordOAuthService'
 import { sessionService } from '../services/SessionService'
 import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
@@ -150,6 +150,10 @@ export async function handleOAuthCallback(
                 cookieSet: !!res.getHeader('Set-Cookie'),
             },
         })
+
+        // Activation telemetry (#2471): counts logins per week; no raw
+        // Discord user id, no other fields.
+        telemetryLog('dashboard_login')
 
         res.redirect(`${frontendUrl}/?authenticated=true`)
     } catch (error) {

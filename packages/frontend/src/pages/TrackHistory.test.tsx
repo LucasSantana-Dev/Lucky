@@ -123,11 +123,12 @@ describe('TrackHistoryPage', () => {
 
     test('shows select server message when no guild selected', () => {
         mockGuildSelection(null)
-        renderPage()
+        const { container } = renderPage()
 
         expect(
             screen.getByText('Select a server to view track history'),
         ).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('shows loading skeletons while fetching', () => {
@@ -173,6 +174,22 @@ describe('TrackHistoryPage', () => {
             screen.getAllByText('Rick Astley').length,
         ).toBeGreaterThanOrEqual(1)
         expect(screen.getAllByText('3:32').length).toBeGreaterThanOrEqual(1)
+    })
+
+    test('renders exactly one h1', async () => {
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.trackHistory.getHistory).mockResolvedValue({
+            data: { history: mockHistory },
+        } as any)
+        vi.mocked(api.trackHistory.getStats).mockResolvedValue({
+            data: { stats: mockStats },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(document.querySelectorAll('h1')).toHaveLength(1)
+        })
     })
 
     test('renders ranking cards for top tracks and artists', async () => {

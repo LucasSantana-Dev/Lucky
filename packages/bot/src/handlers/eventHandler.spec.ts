@@ -23,7 +23,9 @@ const handleMoveMessageSelectMock = jest.fn()
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
+const telemetryLogMock = jest.fn()
 const captureExceptionMock = jest.fn()
+const monitorCommandExecutionMock = jest.fn()
 const namedSessionListMock = jest.fn()
 const cleanupGuildStateMock = jest.fn()
 const aiDevToolkitStartMock = jest.fn()
@@ -83,6 +85,11 @@ jest.mock('./commandsHandler', () => ({
     executeContextMenu: (...args: unknown[]) => executeContextMenuMock(...args),
 }))
 
+jest.mock('../utils/monitoring', () => ({
+    monitorCommandExecution: (...args: unknown[]) =>
+        monitorCommandExecutionMock(...args),
+}))
+
 jest.mock('./moveMessageHandler', () => ({
     handleMoveMessageSelect: (...args: unknown[]) =>
         handleMoveMessageSelectMock(...args),
@@ -118,6 +125,7 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
+    telemetryLog: (...args: unknown[]) => telemetryLogMock(...args),
     captureException: (...args: unknown[]) => captureExceptionMock(...args),
     // Pass-through: the eventHandler test is not about Sentry scoping or
     // AsyncLocalStorage, it only needs the interaction body to run. Isolation behaviour is
@@ -250,6 +258,59 @@ describe('eventHandler', () => {
                 ephemeral: true,
             },
         })
+    })
+
+    it('monitors command execution (activation telemetry) for a chat-input command', async () => {
+        const { client, onMock } = createMockClient()
+        const executeMock = jest.fn().mockResolvedValue(undefined)
+        client.commands.set('play', { execute: executeMock })
+        handleEvents(client as unknown as never)
+
+        const interactionHandler = getInteractionCreateHandler(onMock)
+        interactionHandler?.({
+            isAutocomplete: () => false,
+            isButton: () => false,
+            isMessageContextMenuCommand: () => false,
+            isChannelSelectMenu: () => false,
+            isStringSelectMenu: () => false,
+            isChatInputCommand: () => true,
+            commandName: 'play',
+            guildId: 'guild-9',
+            user: { id: 'user-1' },
+            replied: false,
+            deferred: false,
+        } as unknown as Interaction)
+
+        await flushAsyncHandlers()
+
+        expect(monitorCommandExecutionMock).toHaveBeenCalledWith(
+            'play',
+            'user-1',
+            'guild-9',
+        )
+        expect(executeMock).toHaveBeenCalled()
+    })
+
+    it('does not monitor execution when the command is not found', async () => {
+        const { client, onMock } = createMockClient()
+        handleEvents(client as unknown as never)
+        const interactionHandler = getInteractionCreateHandler(onMock)
+
+        interactionHandler?.({
+            isAutocomplete: () => false,
+            isButton: () => false,
+            isMessageContextMenuCommand: () => false,
+            isChannelSelectMenu: () => false,
+            isStringSelectMenu: () => false,
+            isChatInputCommand: () => true,
+            commandName: 'unknown',
+            replied: false,
+            deferred: false,
+        } as unknown as Interaction)
+
+        await flushAsyncHandlers()
+
+        expect(monitorCommandExecutionMock).not.toHaveBeenCalled()
     })
 
     it('routes a message context-menu interaction to executeContextMenu', async () => {
@@ -883,9 +944,14 @@ describe('eventHandler', () => {
                 // #2473: the one-click station row rides along on the same message
                 expect(createOnboardingStationRowMock).toHaveBeenCalledTimes(1)
                 expect(sentPayload.components).toHaveLength(1)
+                expect(telemetryLogMock).toHaveBeenCalledWith('onboarding', {
+                    guildId: 'g-onboard',
+                    delivered: true,
+                    reason: 'ok',
+                })
             })
 
-            it('skips onboarding when the bot cannot post (no throw)', async () => {
+            it('skips onboarding when the bot cannot post (no throw), and logs delivered:false', async () => {
                 const { client, onMock } = createMockClient()
                 client.guilds = { cache: { size: 5 } } as any
                 const sendMock = jest.fn()
@@ -908,6 +974,48 @@ describe('eventHandler', () => {
                 await new Promise<void>((resolve) => setImmediate(resolve))
 
                 expect(sendMock).not.toHaveBeenCalled()
+                expect(telemetryLogMock).toHaveBeenCalledWith('onboarding', {
+                    guildId: 'g-nopost',
+                    delivered: false,
+                    reason: 'no_postable_channel',
+                })
+            })
+
+            it('logs delivered:false with reason send_failed when channel.send rejects', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = { cache: { size: 5 } } as any
+                const sendMock = jest
+                    .fn<() => Promise<void>>()
+                    .mockRejectedValue(new Error('Missing Access'))
+                const systemChannel = {
+                    type: ChannelType.GuildText,
+                    send: sendMock,
+                    permissionsFor: jest.fn(() => ({ has: () => true })),
+                }
+
+                handleEvents(client as unknown as never)
+                getGuildCreateHandler(onMock)?.({
+                    id: 'g-send-fail',
+                    name: 'Send Fail Guild',
+                    memberCount: 9,
+                    members: { me: { id: 'bot' } },
+                    systemChannel,
+                    channels: { cache: { find: () => undefined } },
+                })
+
+                await new Promise<void>((resolve) => setImmediate(resolve))
+
+                expect(telemetryLogMock).toHaveBeenCalledWith('onboarding', {
+                    guildId: 'g-send-fail',
+                    delivered: false,
+                    reason: 'send_failed',
+                })
+                // The rejection still surfaces to the existing error-log path.
+                expect(errorLogMock).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        message: 'Error sending onboarding message',
+                    }),
+                )
             })
         })
 

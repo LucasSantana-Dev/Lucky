@@ -492,6 +492,7 @@ export default function RolesPage() {
     if (!selectedGuild) {
         return (
             <EmptyState
+                headingLevel='h1'
                 icon={<Users className='h-10 w-10' />}
                 title={t('common.selectServer') || 'Select a server'}
                 description={

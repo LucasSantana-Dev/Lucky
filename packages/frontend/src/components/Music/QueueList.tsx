@@ -121,7 +121,10 @@ export default memo(function QueueList({
 
             {tracks.length === 0 ? (
                 <EmptyState
-                    icon={<ListMusic className='h-10 w-10' aria-hidden='true' />}
+                    bare
+                    icon={
+                        <ListMusic className='h-10 w-10' aria-hidden='true' />
+                    }
                     title='Queue is empty'
                     description='Search for a song or import a playlist to get started'
                     className='min-h-[180px]'
@@ -191,7 +194,6 @@ function QueueSkeleton() {
     )
 }
 
-
 const QueueItem = memo(function QueueItem({
     track,
     index,
@@ -242,7 +244,9 @@ const QueueItem = memo(function QueueItem({
             <TrackThumbnail thumbnail={track.thumbnail} />
 
             <div className='flex-1 min-w-0'>
-                <p className='type-body text-lucky-text-primary truncate'>{track.title}</p>
+                <p className='type-body text-lucky-text-primary truncate'>
+                    {track.title}
+                </p>
                 <p className='type-meta text-lucky-text-secondary truncate'>
                     {track.author}
                 </p>
