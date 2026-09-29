@@ -277,8 +277,8 @@ export const PAGES: DocsPage[] = [
                 <ul>
                     <li>
                         <code>/play tame impala let it happen</code> — join
-                        voice and queue a track. Works with Spotify, YouTube,
-                        and SoundCloud URLs too.
+                        voice and queue a track. Also works by pasting a link
+                        instead of searching by name.
                     </li>
                     <li>
                         <code>/autoplay on</code> — keep music going when the
@@ -958,25 +958,16 @@ docker compose up -d <service>`}</code>
         content: () => (
             <>
                 <p>
-                    Lucky plays from Spotify, YouTube, and SoundCloud. It uses{' '}
-                    <code>yt-dlp</code> for extraction and bundles its own Opus
-                    encoder, so no Lavalink server or external audio service is
-                    required.
+                    Lucky plays from a link or a search. It bundles its own
+                    audio engine, so no Lavalink server or external audio
+                    service is required.
                 </p>
                 <h2 id='sources'>Sources</h2>
                 <ul>
                     <li>
-                        <strong>Spotify.</strong> Paste a track, album, or
-                        playlist URL. Lucky resolves the metadata through the
-                        Spotify API, then streams audio from a matched source.
-                    </li>
-                    <li>
-                        <strong>YouTube.</strong> Paste a video or playlist URL,
-                        or search by title and artist. Returns the top result.
-                    </li>
-                    <li>
-                        <strong>SoundCloud.</strong> Paste a track URL. Useful
-                        for sets, bootlegs, and unreleased mixes.
+                        <strong>Paste a link.</strong> Paste a track, album, or
+                        playlist link. Lucky resolves the metadata and streams
+                        audio from a matched source.
                     </li>
                     <li>
                         <strong>Search.</strong>{' '}
