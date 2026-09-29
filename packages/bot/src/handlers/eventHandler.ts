@@ -7,6 +7,7 @@ import {
     type Guild,
     type GuildBasedChannel,
     type Interaction,
+    type ButtonInteraction,
     type ChatInputCommandInteraction,
     type RepliableInteraction,
 } from 'discord.js'
@@ -30,6 +31,11 @@ import { handleExternalScrobbler } from './externalScrobbler'
 import { handleReactionEvents } from './reactionHandler'
 import { scheduledEventNotificationService } from '../services/ScheduledEventNotificationService'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
+import {
+    createOnboardingStationRow,
+    handleOnboardingStationButton,
+    ONBOARDING_STATION_BUTTON_PREFIX,
+} from './onboardingStation'
 import { executeContextMenu } from './commandsHandler'
 import { monitorCommandExecution } from '../utils/monitoring'
 import {
@@ -112,6 +118,8 @@ const ONBOARDING_EMBED = new EmbedBuilder()
             '`/play <song or url>` — play music in your voice channel',
             '`/queue` — see the current and upcoming tracks',
             '`/help` — browse every command',
+            '',
+            '🎧 Or join a voice channel and pick a station below to start listening now:',
         ].join('\n'),
     )
     .setFooter({ text: 'Lucky' })
@@ -147,7 +155,10 @@ async function sendOnboardingMessage(guild: Guild): Promise<void> {
         return
     }
     try {
-        await channel.send({ embeds: [ONBOARDING_EMBED] })
+        await channel.send({
+            embeds: [ONBOARDING_EMBED],
+            components: [await createOnboardingStationRow(guild)],
+        })
         telemetryLog('onboarding', {
             guildId: guild.id,
             delivered: true,
@@ -341,8 +352,8 @@ async function handleInteractionCreate(
     )
 }
 
-async function routeButtonInteraction(
-    interaction: Parameters<typeof handleMusicButtonInteraction>[0],
+async function dispatchButtonInteraction(
+    interaction: ButtonInteraction,
 ): Promise<void> {
     const id = interaction.customId
     if (
@@ -351,6 +362,10 @@ async function routeButtonInteraction(
         id.startsWith('leaderboard_page')
     ) {
         await handleMusicButtonInteraction(interaction)
+        return
+    }
+    if (id.startsWith(ONBOARDING_STATION_BUTTON_PREFIX)) {
+        await handleOnboardingStationButton(interaction)
         return
     }
     // `/vaga` preview buttons are handled by that command's own
@@ -379,7 +394,7 @@ async function runInteraction(
         }
 
         if (interaction.isButton()) {
-            await routeButtonInteraction(interaction)
+            await dispatchButtonInteraction(interaction)
             return
         }
 
