@@ -38,9 +38,14 @@ describe('moderation command loader', () => {
 
         for (const file of entries) {
             const source = fs.readFileSync(path.join(__dirname, file), 'utf8')
+            // Matches the loader's own contract (getCommandsFromDirectory.ts:
+            // `commandModule.default ?? commandModule.command`): a default
+            // export, `export const command`, or `command` appearing in a
+            // named export list (`export { command }` / `export { x as command }`).
             const hasCommandExport =
                 /export\s+default\b/.test(source) ||
-                /\bexport\s+const\s+command\b/.test(source)
+                /\bexport\s+const\s+command\b/.test(source) ||
+                /\bexport\s*\{[^}]*\bcommand\b[^}]*\}/s.test(source)
             expect({ file, hasCommandExport }).toEqual({
                 file,
                 hasCommandExport: true,
