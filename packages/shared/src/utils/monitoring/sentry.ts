@@ -121,16 +121,19 @@ function logSentrySkip(message: string): void {
  * Capture an exception in Sentry
  * @param error The error to capture
  * @param extras Additional data to include with the exception
+ * @returns The Sentry event id, or `undefined` when Sentry is disabled. Lets
+ * callers (e.g. the "Report this" button on command errors, #2477) carry the
+ * event id as user-visible context without a separate Sentry lookup.
  */
 export function captureException(
     error: Error,
     extras?: Record<string, unknown>,
-): void {
+): string | undefined {
     if (!isSentryEnabled()) {
-        return
+        return undefined
     }
 
-    Sentry.captureException(error, { extra: getSanitizedExtra(extras) })
+    return Sentry.captureException(error, { extra: getSanitizedExtra(extras) })
 }
 
 /**

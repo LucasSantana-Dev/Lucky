@@ -56,6 +56,8 @@ import {
 } from '../utils/monitoring/prometheus'
 import { handleForumThreadCreate } from './forumThreadHandler'
 import { startBatchJobWorker } from '../workers/batchJobWorker'
+import { handleFeedbackReportButton } from './feedbackButtonHandler'
+import { FEEDBACK_REPORT_BUTTON_PREFIX } from '../services/feedbackService'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -339,6 +341,33 @@ async function handleInteractionCreate(
     )
 }
 
+async function routeButtonInteraction(
+    interaction: Parameters<typeof handleMusicButtonInteraction>[0],
+): Promise<void> {
+    const id = interaction.customId
+    if (
+        id.startsWith('music_') ||
+        id.startsWith('queue_page') ||
+        id.startsWith('leaderboard_page')
+    ) {
+        await handleMusicButtonInteraction(interaction)
+        return
+    }
+    // `/vaga` preview buttons are handled by that command's own
+    // awaitMessageComponent collector — don't route them to the
+    // reaction-role handler (would double-ack the interaction).
+    if (id.startsWith('vaga_')) {
+        return
+    }
+    // "Report this" button on a command-error reply (#2477) — see
+    // commandsHandler.ts's replyExecutionError.
+    if (id.startsWith(FEEDBACK_REPORT_BUTTON_PREFIX)) {
+        await handleFeedbackReportButton(interaction)
+        return
+    }
+    await reactionRolesService.handleButtonInteraction(interaction)
+}
+
 async function runInteraction(
     client: Client,
     interaction: Interaction,
@@ -350,22 +379,7 @@ async function runInteraction(
         }
 
         if (interaction.isButton()) {
-            const id = interaction.customId
-            if (
-                id.startsWith('music_') ||
-                id.startsWith('queue_page') ||
-                id.startsWith('leaderboard_page')
-            ) {
-                await handleMusicButtonInteraction(interaction)
-                return
-            }
-            // `/vaga` preview buttons are handled by that command's own
-            // awaitMessageComponent collector — don't route them to the
-            // reaction-role handler (would double-ack the interaction).
-            if (id.startsWith('vaga_')) {
-                return
-            }
-            await reactionRolesService.handleButtonInteraction(interaction)
+            await routeButtonInteraction(interaction)
             return
         }
 

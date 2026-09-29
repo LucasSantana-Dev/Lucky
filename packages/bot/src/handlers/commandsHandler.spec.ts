@@ -153,13 +153,20 @@ describe('commandsHandler', () => {
             expect(createUserFriendlyError).toHaveBeenCalledWith(
                 expect.any(Error),
             )
+            // #2477: the error reply carries a "Report this" button so the
+            // user can turn the failure straight into feedback.
             expect(interactionReply).toHaveBeenCalledWith({
                 interaction,
                 content: {
                     content: 'An error occurred',
                     ephemeral: true,
+                    components: [expect.any(Object)],
                 },
             })
+            const [[{ content }]] = (interactionReply as jest.Mock).mock.calls
+            const row = content.components[0].toJSON()
+            expect(row.components[0].custom_id).toBe('feedback_report:test:')
+            expect(row.components[0].label).toBe('Report this')
         })
 
         it('should handle error reply failures', async () => {

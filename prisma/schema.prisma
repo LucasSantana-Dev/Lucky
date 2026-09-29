@@ -1370,3 +1370,29 @@ model GiveawayEntry {
   @@unique([giveawayId, userId])
   @@map("giveaway_entries")
 }
+
+// User feedback pipeline (#2477): /feedback command + "Report this" button on
+// command errors, both funneling into this one table. No user id is stored by
+// design (the issue is explicit: nothing beyond what the user typed plus the
+// context below), so a row can never be used to identify who sent it.
+// `context` carries whatever accompanies the submission: command name, Sentry
+// event id, guild member count, locale. Pruned after 180 days by the existing
+// DataRetentionScheduler (DatabaseService.cleanupOldData).
+enum FeedbackCategory {
+  bug
+  idea
+  other
+}
+
+model UserFeedback {
+  id        String           @id @default(cuid())
+  guildId   String
+  category  FeedbackCategory
+  text      String
+  context   Json?
+  createdAt DateTime         @default(now())
+
+  @@index([guildId])
+  @@index([createdAt])
+  @@map("user_feedback")
+}

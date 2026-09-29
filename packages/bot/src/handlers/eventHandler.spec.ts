@@ -16,6 +16,7 @@ const handleExternalScrobblerMock = jest.fn()
 const handleReactionEventsMock = jest.fn()
 const handleMusicButtonInteractionMock = jest.fn()
 const handleButtonInteractionMock = jest.fn()
+const handleFeedbackReportButtonMock = jest.fn()
 const executeContextMenuMock = jest.fn()
 const handleMoveMessageSelectMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -73,6 +74,11 @@ jest.mock('./musicButtonHandler', () => ({
 
 jest.mock('./commandsHandler', () => ({
     executeContextMenu: (...args: unknown[]) => executeContextMenuMock(...args),
+}))
+
+jest.mock('./feedbackButtonHandler', () => ({
+    handleFeedbackReportButton: (...args: unknown[]) =>
+        handleFeedbackReportButtonMock(...args),
 }))
 
 jest.mock('../utils/monitoring', () => ({
@@ -639,6 +645,14 @@ describe('eventHandler', () => {
         it('routes other buttons to reactionRolesService', async () => {
             await dispatchButton('reaction_role_123')
             expect(handleButtonInteractionMock).toHaveBeenCalledTimes(1)
+            expect(handleMusicButtonInteractionMock).not.toHaveBeenCalled()
+        })
+
+        it('routes feedback_report: buttons to handleFeedbackReportButton (#2477)', async () => {
+            handleFeedbackReportButtonMock.mockResolvedValue(undefined)
+            await dispatchButton('feedback_report:play:sentry-evt-1')
+            expect(handleFeedbackReportButtonMock).toHaveBeenCalledTimes(1)
+            expect(handleButtonInteractionMock).not.toHaveBeenCalled()
             expect(handleMusicButtonInteractionMock).not.toHaveBeenCalled()
         })
     })

@@ -4,6 +4,24 @@
             "menuNotYours": "Este menú no es tuyo. Ejecuta el comando tú mismo para explorar las categorías."
         }
     },
+    "feedback": {
+        "modal": {
+            "title": "Enviar comentarios",
+            "whatHappenedLabel": "¿Qué pasó?",
+            "expectedLabel": "¿Qué esperabas? (opcional)",
+            "categoryLabel": "Categoría"
+        },
+        "categories": {
+            "bug": "🐛 Error",
+            "idea": "💡 Idea",
+            "other": "💬 Otro"
+        },
+        "errors": {
+            "guildOnly": "Esto solo funciona dentro de un servidor.",
+            "rateLimited": "Ya enviaste algunos reportes. Intenta de nuevo en un rato."
+        },
+        "thankYou": "¡Gracias por tus comentarios! ¿Necesitas hablar con nosotros directamente? Únete al servidor de soporte: {{url}}"
+    },
     "music": {
         "common": {
             "error": "Error",
