@@ -16,6 +16,8 @@ const handleExternalScrobblerMock = jest.fn()
 const handleReactionEventsMock = jest.fn()
 const handleMusicButtonInteractionMock = jest.fn()
 const handleButtonInteractionMock = jest.fn()
+const createOnboardingStationRowMock = jest.fn(async () => ({}))
+const handleOnboardingStationButtonMock = jest.fn()
 const executeContextMenuMock = jest.fn()
 const handleMoveMessageSelectMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -69,6 +71,14 @@ jest.mock('./reactionHandler', () => ({
 jest.mock('./musicButtonHandler', () => ({
     handleMusicButtonInteraction: (...args: unknown[]) =>
         handleMusicButtonInteractionMock(...args),
+}))
+
+jest.mock('./onboardingStation', () => ({
+    createOnboardingStationRow: (...args: unknown[]) =>
+        createOnboardingStationRowMock(...args),
+    handleOnboardingStationButton: (...args: unknown[]) =>
+        handleOnboardingStationButtonMock(...args),
+    ONBOARDING_STATION_BUTTON_PREFIX: 'station_',
 }))
 
 jest.mock('./commandsHandler', () => ({
@@ -618,6 +628,14 @@ describe('eventHandler', () => {
         beforeEach(() => {
             handleMusicButtonInteractionMock.mockResolvedValue(undefined)
             handleButtonInteractionMock.mockResolvedValue(undefined)
+            handleOnboardingStationButtonMock.mockResolvedValue(undefined)
+        })
+
+        it('routes station_ buttons to handleOnboardingStationButton (#2473)', async () => {
+            await dispatchButton('station_lofi')
+            expect(handleOnboardingStationButtonMock).toHaveBeenCalledTimes(1)
+            expect(handleMusicButtonInteractionMock).not.toHaveBeenCalled()
+            expect(handleButtonInteractionMock).not.toHaveBeenCalled()
         })
 
         it('routes music_ buttons to handleMusicButtonInteraction', async () => {
@@ -914,13 +932,18 @@ describe('eventHandler', () => {
                 await new Promise<void>((resolve) => setImmediate(resolve))
 
                 expect(sendMock).toHaveBeenCalledTimes(1)
-                const embed = (
-                    sendMock.mock.calls[0][0] as { embeds: { toJSON(): any }[] }
-                ).embeds[0].toJSON()
+                const sentPayload = sendMock.mock.calls[0][0] as {
+                    embeds: { toJSON(): any }[]
+                    components: unknown[]
+                }
+                const embed = sentPayload.embeds[0].toJSON()
                 // verification-safety: pure utility, no invite/vote CTA
                 expect(String(embed.description).toLowerCase()).not.toMatch(
                     /invite|vote/,
                 )
+                // #2473: the one-click station row rides along on the same message
+                expect(createOnboardingStationRowMock).toHaveBeenCalledTimes(1)
+                expect(sentPayload.components).toHaveLength(1)
                 expect(telemetryLogMock).toHaveBeenCalledWith('onboarding', {
                     guildId: 'g-onboard',
                     delivered: true,
