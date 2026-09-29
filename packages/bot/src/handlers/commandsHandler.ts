@@ -1,5 +1,8 @@
 import {
     Collection,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
     type ChatInputCommandInteraction,
     type MessageContextMenuCommandInteraction,
     PermissionsBitField,
@@ -15,6 +18,7 @@ import type { CommandCategory } from '../config/constants'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
+import { buildFeedbackReportCustomId } from '../services/feedbackService'
 
 const CATEGORY_FLAG_MAP: Partial<Record<CommandCategory, FeatureToggleName>> = {
     moderation: 'MODERATION',
@@ -54,8 +58,7 @@ type GroupCommandsParams = {
  */
 const enforceBotPermissions = async (
     interaction:
-        | ChatInputCommandInteraction
-        | MessageContextMenuCommandInteraction,
+        ChatInputCommandInteraction | MessageContextMenuCommandInteraction,
     botPermissions: bigint[] | undefined,
 ): Promise<boolean> => {
     if (!botPermissions?.length) return true
@@ -96,8 +99,7 @@ const enforceBotPermissions = async (
 const isFeatureEnabledOrReply = async (
     category: CommandCategory,
     interaction:
-        | ChatInputCommandInteraction
-        | MessageContextMenuCommandInteraction,
+        ChatInputCommandInteraction | MessageContextMenuCommandInteraction,
 ): Promise<boolean> => {
     const categoryFlag = CATEGORY_FLAG_MAP[category]
     if (!categoryFlag) return true
@@ -119,22 +121,40 @@ const isFeatureEnabledOrReply = async (
 }
 
 /**
+ * "Report this" button attached to a command-error reply, carrying the failed
+ * command's name and its Sentry event id (when available) so the follow-up
+ * feedback modal (#2477) arrives with context instead of a bare complaint.
+ * Routed by feedbackButtonHandler.ts via the `feedback_report:` prefix.
+ */
+const buildReportThisRow = (
+    commandName: string,
+    sentryEventId: string | undefined,
+): ActionRowBuilder<ButtonBuilder> =>
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+            .setCustomId(
+                buildFeedbackReportCustomId(commandName, sentryEventId),
+            )
+            .setLabel('Report this')
+            .setStyle(ButtonStyle.Secondary),
+    )
+
+/**
  * Uniform failure handling for an interaction execution: log, capture to
- * Sentry with context, and surface a user-friendly ephemeral error. Shared by
- * slash + context-menu execution.
+ * Sentry with context, and surface a user-friendly ephemeral error with a
+ * "Report this" button. Shared by slash + context-menu execution.
  */
 const replyExecutionError = async (
     error: unknown,
     interaction:
-        | ChatInputCommandInteraction
-        | MessageContextMenuCommandInteraction,
+        ChatInputCommandInteraction | MessageContextMenuCommandInteraction,
     context: string,
 ): Promise<void> => {
     errorLog({
         message: `Error executing ${interaction.commandName}:`,
         error,
     })
-    captureException(
+    const sentryEventId = captureException(
         error instanceof Error ? error : new Error(String(error)),
         {
             context,
@@ -143,12 +163,19 @@ const replyExecutionError = async (
             userId: interaction.user.id,
         },
     )
+    // Guild-only: the button's modal replies with a "guild only" error for a
+    // DM interaction (submitFeedback checks guildId), so a DM error reply
+    // would advertise a dead-end action. Only attach it where it works.
+    const components = interaction.guild
+        ? [buildReportThisRow(interaction.commandName, sentryEventId)]
+        : []
     try {
         await interactionReply({
             interaction,
             content: {
                 content: createUserFriendlyError(error),
                 ephemeral: true,
+                components,
             },
         })
     } catch (replyError) {

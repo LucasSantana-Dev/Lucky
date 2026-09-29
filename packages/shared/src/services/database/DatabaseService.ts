@@ -622,26 +622,39 @@ export class DatabaseService {
         }, 'get_top_artists')
     }
 
-    /** Deletes track history, expired rate limit records, and server logs older than 30 days. */
+    /** Deletes track history, expired rate limit records, and server logs older than 30 days,
+     * and user feedback (#2477) older than its own 180-day retention window. */
     async cleanupOldData(): Promise<Result<number>> {
         return this.executeWithFallback(async () => {
             const thirtyDaysAgo = new Date(
                 Date.now() - 30 * 24 * 60 * 60 * 1000,
             )
+            const oneHundredEightyDaysAgo = new Date(
+                Date.now() - 180 * 24 * 60 * 60 * 1000,
+            )
 
-            const [tracks, rateLimits, serverLogs] = await Promise.all([
-                this.prisma.trackHistory.deleteMany({
-                    where: { playedAt: { lt: thirtyDaysAgo } },
-                }),
-                this.prisma.rateLimit.deleteMany({
-                    where: { resetAt: { lt: new Date() } },
-                }),
-                this.prisma.serverLog.deleteMany({
-                    where: { createdAt: { lt: thirtyDaysAgo } },
-                }),
-            ])
+            const [tracks, rateLimits, serverLogs, userFeedback] =
+                await Promise.all([
+                    this.prisma.trackHistory.deleteMany({
+                        where: { playedAt: { lt: thirtyDaysAgo } },
+                    }),
+                    this.prisma.rateLimit.deleteMany({
+                        where: { resetAt: { lt: new Date() } },
+                    }),
+                    this.prisma.serverLog.deleteMany({
+                        where: { createdAt: { lt: thirtyDaysAgo } },
+                    }),
+                    this.prisma.userFeedback.deleteMany({
+                        where: { createdAt: { lt: oneHundredEightyDaysAgo } },
+                    }),
+                ])
 
-            return tracks.count + rateLimits.count + serverLogs.count
+            return (
+                tracks.count +
+                rateLimits.count +
+                serverLogs.count +
+                userFeedback.count
+            )
         }, 'cleanup_old_data')
     }
 

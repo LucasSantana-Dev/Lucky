@@ -16,6 +16,7 @@ const mockRateLimitUpsert = jest.fn<(args?: any) => Promise<any>>()
 const mockRateLimitUpdate = jest.fn<(args?: any) => Promise<any>>()
 const mockRateLimitDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockServerLogDeleteMany = jest.fn<(args?: any) => Promise<any>>()
+const mockUserFeedbackDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockGetPrismaClient = jest.fn<() => any>()
 
 jest.mock('../../utils/database/prismaClient', () => ({
@@ -69,8 +70,12 @@ describe('DatabaseService', () => {
             serverLog: {
                 deleteMany: mockServerLogDeleteMany,
             },
+            userFeedback: {
+                deleteMany: mockUserFeedbackDeleteMany,
+            },
         })
         mockServerLogDeleteMany.mockResolvedValue({ count: 0 })
+        mockUserFeedbackDeleteMany.mockResolvedValue({ count: 0 })
         service = new DatabaseService(TEST_CONFIG)
     })
 
@@ -762,18 +767,46 @@ describe('DatabaseService', () => {
     })
 
     describe('cleanupOldData', () => {
-        it('deletes old tracks, rate limits, and server logs, returns total count', async () => {
+        it('deletes old tracks, rate limits, server logs, and user feedback, returns total count', async () => {
             mockTrackHistoryDeleteMany.mockResolvedValue({ count: 50 })
             mockRateLimitDeleteMany.mockResolvedValue({ count: 30 })
             mockServerLogDeleteMany.mockResolvedValue({ count: 20 })
+            mockUserFeedbackDeleteMany.mockResolvedValue({ count: 5 })
 
             const result = await service.cleanupOldData()
 
             expect(result.isSuccess()).toBe(true)
-            expect(result.getData()).toBe(100)
+            expect(result.getData()).toBe(105)
             expect(mockTrackHistoryDeleteMany).toHaveBeenCalled()
             expect(mockRateLimitDeleteMany).toHaveBeenCalled()
             expect(mockServerLogDeleteMany).toHaveBeenCalled()
+            expect(mockUserFeedbackDeleteMany).toHaveBeenCalled()
+        })
+
+        it('deletes user feedback older than 180 days (#2477 retention)', async () => {
+            mockTrackHistoryDeleteMany.mockResolvedValue({ count: 0 })
+            mockRateLimitDeleteMany.mockResolvedValue({ count: 0 })
+            mockServerLogDeleteMany.mockResolvedValue({ count: 0 })
+            mockUserFeedbackDeleteMany.mockResolvedValue({ count: 7 })
+
+            const before = Date.now()
+            const result = await service.cleanupOldData()
+            const after = Date.now()
+
+            expect(result.isSuccess()).toBe(true)
+            expect(result.getData()).toBe(7)
+            expect(mockUserFeedbackDeleteMany).toHaveBeenCalledWith({
+                where: { createdAt: { lt: expect.any(Date) } },
+            })
+            const cutoff = mockUserFeedbackDeleteMany.mock.calls[0]?.[0].where
+                .createdAt.lt as Date
+            const oneHundredEightyDaysMs = 180 * 24 * 60 * 60 * 1000
+            expect(cutoff.getTime()).toBeGreaterThanOrEqual(
+                before - oneHundredEightyDaysMs - 1000,
+            )
+            expect(cutoff.getTime()).toBeLessThanOrEqual(
+                after - oneHundredEightyDaysMs + 1000,
+            )
         })
 
         it('deletes server logs older than 30 days', async () => {
@@ -972,11 +1005,12 @@ describe('DatabaseService', () => {
             mockTrackHistoryDeleteMany.mockResolvedValue({ count: 3 })
             mockRateLimitDeleteMany.mockResolvedValue({ count: 2 })
             mockServerLogDeleteMany.mockResolvedValue({ count: 4 })
+            mockUserFeedbackDeleteMany.mockResolvedValue({ count: 1 })
 
             const result = await service.cleanupOldData()
 
-            // 3 + 2 + 4 = 9 (kills the + -> - arithmetic mutant)
-            expect(result.getData()).toBe(9)
+            // 3 + 2 + 4 + 1 = 10 (kills the + -> - arithmetic mutant)
+            expect(result.getData()).toBe(10)
             expect(mockTrackHistoryDeleteMany).toHaveBeenCalledWith({
                 where: { playedAt: { lt: expect.any(Date) } },
             })

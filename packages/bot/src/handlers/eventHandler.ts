@@ -62,6 +62,8 @@ import {
 } from '../utils/monitoring/prometheus'
 import { handleForumThreadCreate } from './forumThreadHandler'
 import { startBatchJobWorker } from '../workers/batchJobWorker'
+import { handleFeedbackReportButton } from './feedbackButtonHandler'
+import { FEEDBACK_REPORT_BUTTON_PREFIX } from '../services/feedbackService'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -370,6 +372,12 @@ async function dispatchButtonInteraction(
     // awaitMessageComponent collector — don't route them to the
     // reaction-role handler (would double-ack the interaction).
     if (id.startsWith('vaga_')) {
+        return
+    }
+    // "Report this" button on a command-error reply (#2477) — see
+    // commandsHandler.ts's replyExecutionError.
+    if (id.startsWith(FEEDBACK_REPORT_BUTTON_PREFIX)) {
+        await handleFeedbackReportButton(interaction)
         return
     }
     await reactionRolesService.handleButtonInteraction(interaction)

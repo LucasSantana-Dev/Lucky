@@ -4,6 +4,25 @@
             "menuNotYours": "This menu isn't yours to use. Run the command yourself to browse categories."
         }
     },
+    "feedback": {
+        "modal": {
+            "title": "Send feedback",
+            "whatHappenedLabel": "What happened?",
+            "expectedLabel": "What did you expect? (optional)",
+            "categoryLabel": "Category"
+        },
+        "categories": {
+            "bug": "🐛 Bug",
+            "idea": "💡 Idea",
+            "other": "💬 Other"
+        },
+        "errors": {
+            "guildOnly": "This only works inside a server.",
+            "rateLimited": "You've sent a few reports already. Try again in a bit.",
+            "invalidCategory": "Something went wrong with that submission. Please try again."
+        },
+        "thankYou": "Thanks for the feedback! Need to talk to us directly? Join the support server: {{url}}"
+    },
     "music": {
         "common": {
             "error": "Error",
