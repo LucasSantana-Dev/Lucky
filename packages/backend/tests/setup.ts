@@ -270,6 +270,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     infoLog: jest.fn(),
     warnLog: jest.fn(),
+    telemetryLog: jest.fn(),
     captureException: jest.fn(),
     getPrismaClient: jest.fn(() => ({
         $connect: jest.fn(),
