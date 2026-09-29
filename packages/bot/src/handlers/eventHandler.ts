@@ -36,8 +36,7 @@ import {
     handleOnboardingStationButton,
     ONBOARDING_STATION_BUTTON_PREFIX,
 } from './onboardingStation'
-import { executeContextMenu } from './commandsHandler'
-import { monitorCommandExecution } from '../utils/monitoring'
+import { executeCommand, executeContextMenu } from './commandsHandler'
 import {
     handleMoveMessageSelect,
     MOVE_MESSAGE_SELECT_PREFIX,
@@ -231,16 +230,11 @@ async function handleCommandExecution(
         return
     }
 
-    // Same monitoring chokepoint executeContextMenu already calls for
-    // context-menu commands (commandsHandler.ts) — this is the live dispatch
-    // path for slash commands, which never went through it (#2471).
-    monitorCommandExecution(
-        interaction.commandName,
-        interaction.user.id,
-        interaction.guildId ?? undefined,
-    )
-
-    await command.execute({
+    // Delegate to the same guard executeContextMenu already goes through
+    // (commandsHandler.ts): spam-cooldown alerting, feature-toggle gating,
+    // bot-permission enforcement, and monitoring/telemetry. Slash commands
+    // used to call command.execute() directly here, bypassing all of it (#2483).
+    await executeCommand({
         client: client as CustomClient,
         interaction,
     })
@@ -319,7 +313,7 @@ async function handleAutocomplete(interaction: Interaction): Promise<void> {
     }
 }
 
-async function handleInteractionCreate(
+function handleInteractionCreate(
     client: Client,
     interaction: Interaction,
 ): Promise<void> {
