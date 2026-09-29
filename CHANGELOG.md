@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.47.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.0...v2.47.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **bot:** apply strict genre guard to last.fm profile seeds ([#2511](https://github.com/LucasSantana-Dev/Lucky/issues/2511)) ([035adc6](https://github.com/LucasSantana-Dev/Lucky/commit/035adc6ee8f158afb9cc97da4f5c20b936bcf060))
+* **bot:** move bulk member action helper out of commands directory ([#2504](https://github.com/LucasSantana-Dev/Lucky/issues/2504)) ([9fb8878](https://github.com/LucasSantana-Dev/Lucky/commit/9fb88782c13ac22502a47d5ccae80353d1469a08))
+* **bot:** surface skipped youtube tracks on session restore ([#2506](https://github.com/LucasSantana-Dev/Lucky/issues/2506)) ([a756105](https://github.com/LucasSantana-Dev/Lucky/commit/a7561053e68c15511cc74cdb4ae252622700a9c2))
+* **dashboard:** stop advertising audio sources in music and docs copy ([#2502](https://github.com/LucasSantana-Dev/Lucky/issues/2502)) ([00c7677](https://github.com/LucasSantana-Dev/Lucky/commit/00c7677b21ea9c9cbdb314de8ef2eb60756edb7f))
+* route slash command dispatch through the shared command guard ([#2503](https://github.com/LucasSantana-Dev/Lucky/issues/2503)) ([681c7ba](https://github.com/LucasSantana-Dev/Lucky/commit/681c7ba514dd6625f9b32e6414564edbd7a6fff4))
+
 ## [2.47.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.46.0...v2.47.0) (2026-09-29)
 
 
