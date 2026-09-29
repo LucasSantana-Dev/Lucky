@@ -332,7 +332,13 @@ describe('MusicSessionSnapshotService', () => {
 
                 expect(result.restoredCount).toBe(1)
                 expect(result.skippedYoutubeCount).toBe(1)
+                // Must be the non-YouTube entry that was actually searched,
+                // not just any single call (cubic review on #2486).
                 expect(queue.player.search).toHaveBeenCalledTimes(1)
+                expect(queue.player.search).toHaveBeenCalledWith(
+                    'https://example.com/recovered',
+                    expect.anything(),
+                )
             })
 
             it('reports 0 restored with a skipped count when every entry is youtube-only', async () => {

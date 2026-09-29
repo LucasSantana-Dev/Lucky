@@ -238,8 +238,14 @@ describe('NamedSessionService', () => {
 
                 expect(result.restoredCount).toBe(1)
                 expect(result.skippedYoutubeCount).toBe(1)
-                // Only the non-YouTube entry should ever hit search().
+                // Only the non-YouTube entry should ever hit search(), and it
+                // must be that entry specifically, not just any single call
+                // (cubic review on #2486).
                 expect(queue.player.search).toHaveBeenCalledTimes(1)
+                expect(queue.player.search).toHaveBeenCalledWith(
+                    'https://example.com/2',
+                    expect.anything(),
+                )
             })
 
             it('reports 0 restored with a skipped count when every entry is youtube-only', async () => {
