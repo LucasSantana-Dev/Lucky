@@ -44,7 +44,7 @@ export const PUBLIC_ROUTES: RouteMeta[] = [
         path: '/docs',
         title: 'Documentation — Lucky',
         description:
-            'Setup, configuration, music, moderation, and dashboard documentation for Lucky, the open-source self-hostable Discord bot.',
+            'Setup, configuration, music, moderation, and dashboard documentation for Lucky, the Discord bot.',
     },
     {
         path: '/changelog',

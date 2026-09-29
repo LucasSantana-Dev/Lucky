@@ -788,6 +788,8 @@
         "unknown": "Unknown",
         "nothingPlaying": "Nothing playing",
         "searchOrImportToGetStarted": "Start playback from Discord with /play, or search and import below.",
+        "searchDescription": "Search for a song or paste a link",
+        "importDescription": "Import a playlist by pasting a link",
         "queue": "Queue",
         "volume": "Volume",
         "shuffle": "Shuffle",

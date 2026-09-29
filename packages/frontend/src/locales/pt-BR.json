@@ -784,6 +784,8 @@
         "unknown": "Desconhecido",
         "nothingPlaying": "Nada tocando",
         "searchOrImportToGetStarted": "Comece a tocar pelo Discord com /play, ou pesquise e importe abaixo.",
+        "searchDescription": "Pesquise uma música ou cole um link",
+        "importDescription": "Importe uma playlist colando um link",
         "queue": "Fila",
         "volume": "Volume",
         "shuffle": "Aleatório",

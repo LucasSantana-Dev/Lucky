@@ -1,4 +1,5 @@
 import { memo, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Import } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -10,22 +11,11 @@ interface ImportPlaylistProps {
     disabled?: boolean
 }
 
-const SOURCES = [
-    {
-        label: 'Spotify',
-        cls: 'bg-green-500/10 text-green-400 border-green-500/20',
-    },
-    { label: 'YouTube', cls: 'bg-red-500/10 text-red-400 border-red-500/20' },
-    {
-        label: 'SoundCloud',
-        cls: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-    },
-]
-
 export default memo(function ImportPlaylist({
     onImport,
     disabled = false,
 }: ImportPlaylistProps) {
+    const { t } = useTranslation()
     const [url, setUrl] = useState('')
     const [isImporting, setIsImporting] = useState(false)
 
@@ -55,7 +45,7 @@ export default memo(function ImportPlaylist({
                 </h3>
             </div>
             <p className='type-body-sm text-lucky-text-secondary mb-3 sm:mb-4'>
-                Import from Spotify, YouTube, or SoundCloud
+                {t('music.importDescription')}
             </p>
             <form
                 className='flex flex-col sm:flex-row gap-2'
@@ -85,19 +75,6 @@ export default memo(function ImportPlaylist({
                     Import
                 </Button>
             </form>
-            <div
-                className='flex flex-wrap gap-1.5 sm:gap-2 mt-3'
-                aria-label='Supported platforms'
-            >
-                {SOURCES.map((s) => (
-                    <span
-                        key={s.label}
-                        className={`type-meta px-2 py-1 rounded border ${s.cls}`}
-                    >
-                        {s.label}
-                    </span>
-                ))}
-            </div>
         </Card>
     )
 })

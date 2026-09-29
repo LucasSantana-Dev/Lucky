@@ -1,4 +1,5 @@
 import { memo, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Play, Search } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -14,6 +15,7 @@ export default memo(function SearchBar({
     onPlay,
     disabled = false,
 }: SearchBarProps) {
+    const { t } = useTranslation()
     const [query, setQuery] = useState('')
     const [isSearching, setIsSearching] = useState(false)
 
@@ -43,7 +45,7 @@ export default memo(function SearchBar({
                 </h3>
             </div>
             <p className='type-body-sm text-lucky-text-secondary mb-3 sm:mb-4'>
-                Search for a song or paste a YouTube/Spotify URL
+                {t('music.searchDescription')}
             </p>
             <form
                 className='flex flex-col sm:flex-row gap-2'
