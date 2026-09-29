@@ -173,7 +173,10 @@ export async function collectLastFmCandidates(
                 dislikedWeights: ctx.dislikedWeights,
                 sessionMood: ctx.sessionMood,
                 skipNoveltyBoost: true,
-                seedDerived: true,
+                // Seeds are the user's Last.fm profile, not the session seed,
+                // so these are not inside the session's safe radius: keep the
+                // strict genre guard (ADR 2026-06-07, addendum 2026-09-29).
+                seedDerived: false,
                 genreContext: {
                     candidateTags: tags,
                     currentTrackTags,
@@ -237,7 +240,7 @@ export async function collectLastFmCandidates(
                     dislikedWeights: ctx.dislikedWeights,
                     sessionMood: ctx.sessionMood,
                     skipNoveltyBoost: true,
-                    seedDerived: true,
+                    seedDerived: false,
                     genreContext: {
                         candidateTags: tags,
                         currentTrackTags,
