@@ -288,10 +288,6 @@ async function postFeedbackToChannel(
     }
 }
 
-/** Core submission path shared by both entry points: rate limit, persist,
- * deliver to the feedback channel, reply with thanks + the support invite.
- * Never stores a user id (#2477 acceptance) — nothing but guildId, category,
- * text, and the context payload reaches the database or the channel embed. */
 /** Every user-facing reply from this pipeline is ephemeral with mentions
  * suppressed — factored out so submitFeedback reads as named pipeline steps
  * instead of five near-identical interactionReply blocks. */
@@ -399,6 +395,10 @@ async function persistFeedback(
     })
 }
 
+/** Core submission path shared by both entry points: rate limit, persist,
+ * deliver to the feedback channel, reply with thanks + the support invite.
+ * Never stores a user id (#2477 acceptance) — nothing but guildId, category,
+ * text, and the context payload reaches the database or the channel embed. */
 export async function submitFeedback(
     modalSubmit: ModalSubmitInteraction,
     context: FeedbackSubmissionContext,
