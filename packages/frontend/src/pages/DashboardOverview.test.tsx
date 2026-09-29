@@ -300,6 +300,19 @@ describe('DashboardOverview', () => {
         expect(screen.getByText(/Overview of Test Guild/)).toBeInTheDocument()
     })
 
+    test('renders exactly one h1', () => {
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(document.querySelectorAll('h1')).toHaveLength(1)
+    })
+
     test('renders recent cases', () => {
         mockGuildStoreFn(mockGuild)
         setupQueryHookMocks(

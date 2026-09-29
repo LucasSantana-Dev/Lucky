@@ -182,3 +182,139 @@ Added the same assertion to every render-branch test in `Levels.test.tsx`,
 matching each page's actual branches), so a future change that removes or
 duplicates a page's `SectionHeader` fails a unit test immediately, without
 needing a full-route Playwright harness.
+
+## Round 4 (unit 2: DashboardOverview, TrackHistory, Lyrics, PreferredArtists)
+
+Same mode as before: redesign-preserve. Tokens, `SectionHeader`, `EmptyState`,
+and `Skeleton` come from this file's existing lock; nothing here adds a font,
+route, dependency, or palette value.
+
+1. **`DashboardOverview.tsx` leads with music.** The existing "Recent Music"
+   section (built on `useRecentTracks`, already fetched at `limit=5`, no new
+   query added) moved from the bottom of the page to directly under the
+   page's `SectionHeader`, ahead of the member/case stats grid. The most
+   recent track renders as a small hero row (icon tile + title + artist,
+   `type-h2` sized) labeled "Last played" (historical data, not live state
+   -- deliberately not called "Now Playing" so the copy stays honest about
+   what it is); the remaining tracks list below it, unchanged in content.
+   Considered wiring `useMusicPlayer` (Music.tsx's live SSE hook) in for a
+   true now-playing widget, but that would open a new SSE connection on a
+   page that has never had one -- out of scope for a visual reposition and
+   excluded by the "no new API calls" brief constraint. The empty state
+   ("No tracks played yet") now reuses the shared `EmptyState` component
+   (`bare`) instead of a bespoke centered `div`, matching every other empty
+   state on this page.
+2. **`TrackHistory.tsx` / `Lyrics.tsx` header cohesion.** Both pages
+   predated the `SectionHeader` convention Round 3 applied to
+   Levels/RoleGroups/Starboard and used a plain icon+`<h1>` header with no
+   eyebrow or description -- visibly inconsistent with their own Media-nav
+   siblings (`PreferredArtists.tsx`, `LastFm.tsx`), which already use
+   `SectionHeader`. Converted both to `SectionHeader`, eyebrow
+   `sidebar.sections.media` ("Media"), description reusing the existing
+   `layout.routes.<page>.subtitle` copy the old `Layout.tsx` header used for
+   the same route (no new copy for the header itself). `Lyrics.tsx` needed a
+   second `useTranslation()` call (`tCommon`) alongside its
+   `useTranslation('lyrics')` one to reach those cross-namespace keys --
+   same pattern Round 3 used for `RoleGroups.tsx`.
+3. **`Lyrics.tsx` state honesty.** The no-server-selected branch was a
+   one-off centered `div`; switched to the shared `EmptyState` (added
+   `lyrics.noServerSelected` key, description unchanged). The idle
+   ("search for lyrics") and no-results states were separate plain-text
+   blocks; merged into one `EmptyState` (`bare`) keyed off `hasSearched`,
+   each with a distinct title + description: idle state is `findLyricsTitle`
+   (new) / `searchForLyrics` (pre-existing), no-results state is
+   `noLyricsFound` (pre-existing) / `noLyricsFoundDescription` (new), so a
+   failed search reads differently from an unstarted one. The
+   result panel (title/artist + lyrics body) merged from two stacked
+   `surface-panel`s into one panel with an internal divider -- one focal
+   block instead of two.
+4. **`PreferredArtists.tsx` -- no changes.** Already on `SectionHeader`,
+   already single-panel-per-tab, nav label already "Musical Taste"; carries
+   the Round-3 language without modification.
+
+New copy (`en.json` / `pt-BR.json`, no `es.json` in this repo): `dashboardOverview.lastPlayed`,
+`dashboardOverview.unknownListener`, `lyrics.noServerSelected`,
+`lyrics.findLyricsTitle`, `lyrics.noLyricsFoundDescription`. No audio-source
+names (YouTube/SoundCloud) introduced anywhere (see #2491).
+
+Single-H1 test coverage extended to all four pages: `DashboardOverview.test.tsx`
+and `TrackHistory.test.tsx` gained a `querySelectorAll('h1')` assertion using
+their real (unmocked) `SectionHeader`; `Lyrics.test.tsx` (pre-existing file)
+gained the same. `PreferredArtists.test.tsx` mocks `SectionHeader` out for its
+interaction tests, so a separate `PreferredArtists.a11y.test.tsx` was added
+that renders the real component tree and asserts the h1 count instead of
+weakening or bypassing the existing mock.
+
+Axe (axe-core, installed `--no-save` for this verification pass only, not a
+project dependency): 0 critical violations on all four pages, both with data
+and empty. Serious `color-contrast` violations remain (16-36 nodes per page)
+-- the same locked-token-palette gap Round 2 already recorded for
+Dashboard/Music; tokens are locked for this pass and were not touched.
+
+## Known pre-existing bugs found in this pass, not fixed (out of scope)
+
+- `TrackHistory.tsx`'s "Clear" button (`handleClear`) calls
+  `api.trackHistory.clearHistory` and wipes the list immediately, with no
+  confirm dialog and no undo. Pre-existing on `main` (confirmed via
+  `git show main:...TrackHistory.tsx`, predates this branch). Filed as a
+  GitHub issue rather than fixed here, since the brief scoped this pass to
+  visual/structural changes with existing handlers preserved.
+- `PreferredArtists.tsx`'s `ArtistTile` renders a `<button>` (the tile) with
+  nested `<button>` elements (`Prefer`/`Block`, ~lines 124-153) inside it --
+  invalid HTML and a real keyboard/AT hazard (nested interactive elements).
+  Surfaced by React's own DOM-nesting warning during the existing test
+  suite. Pre-existing on `main`. Filed as a GitHub issue; not fixed here
+  since `PreferredArtists.tsx` was left untouched this pass.
+
+## Round 5 (owner review of Round 4: nav active state, lyrics typography)
+
+Two fixes found reviewing `u2-after-*.png` / `u2b-after-*.png`:
+
+1. **Nav active state root cause.** `useNavigation.ts`'s `isActive` matched
+   any pathname that started with a nav item's path, with a single
+   hardcoded exception for `/music/artists`. On `/music/history` this lit
+   up both "Music Player" (`/music`) and "Track History" (`/music/history`).
+   Replaced with a general rule derived from `navConfig`'s own path list: a
+   prefix match is active unless some other known nav path is a longer,
+   equally valid match for the current pathname -- that item is the more
+   specific owner of the route. The `/music/artists` special case is now
+   redundant and removed. Covered by four `Sidebar.test.tsx` cases:
+   `/music`, `/music/history`, `/music/artists`, and a non-music nested
+   route (`/settings/advanced`).
+2. **`Lyrics.tsx` typography.** The result body rendered in JetBrains Mono
+   via a `<pre>` (lyrics are prose, not code). Switched to the body face:
+   `<p className="type-body max-w-prose whitespace-pre-line ...">` (no
+   `font-mono`), keeping line breaks and blank lines between verses via
+   `whitespace-pre-line`, with `max-w-prose` for a readable line length.
+
+This round also attempted a first pass at DashboardOverview's inconsistent
+section headings by normalizing every one of them to `type-h2`. That
+flattened a real hierarchy -- panel titles inside cards became visually
+identical to the standalone section headings above them. See Round 6 for
+the corrected two-level system.
+
+## Round 6 (two-level heading system, replacing Round 5's flat type-h2 pass)
+
+Round 5's "one style for every section title" fix was wrong: it made panel
+titles nested inside cards ("Level Leaderboard", "Starboard Highlights",
+"Recent Cases") the same size as standalone section headings ("Community")
+sitting above them, so the page read as one flat wall of large headings.
+
+**The two levels, now documented so they don't drift apart again:**
+
+| Level           | Where it appears                                                                   | Class        | Case                           | Example                                                                                                  |
+| --------------- | ---------------------------------------------------------------------------------- | ------------ | ------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Section heading | Standalone, outside any card                                                       | `type-h2`    | Sentence case                  | "Community", "Cases by Type", "Quick Actions"                                                            |
+| Panel title     | The header row inside a card, paired with a muted `type-body-sm` subtitle below it | `type-title` | Sentence case, never uppercase | "Recent Music", "Recent Cases", "Level Leaderboard", "Starboard Highlights", "Top Tracks", "Top Artists" |
+
+Uppercase stays only on `type-meta` eyebrows and stat labels (e.g.
+"TRACKS PLAYED", "RECENT TRACKS") -- never on a `type-title` panel title.
+
+Applied to `DashboardOverview.tsx` (`Recent Music`, `Recent Cases`,
+`Level Leaderboard`, `Starboard Highlights` demoted from `type-h2` back to
+`type-title`; `Quick Actions`, `Community`, `Cases by Type` stay `type-h2`)
+and `TrackHistory.tsx` (`RankingCard`'s `<h3>` title -- "Top Tracks" /
+"Top Artists" -- dropped `uppercase tracking-wide`, now plain `type-title`
+sentence case, matching the Dashboard panel titles). The music block still
+stands out through its hero row and top-of-page position, not through a
+one-off heading size.

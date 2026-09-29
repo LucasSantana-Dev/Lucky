@@ -304,6 +304,145 @@ export default function DashboardOverview() {
                 eyebrow={t('dashboardOverview.serverAnalytics')}
             />
 
+            {hasModuleAccess(effectiveAccess, 'music', 'view') && (
+                <motion.section
+                    className='surface-panel overflow-hidden border border-lucky-border'
+                    initial={
+                        prefersReducedMotion ? false : { opacity: 0, y: 12 }
+                    }
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0 }}
+                >
+                    <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3 sm:px-6'>
+                        <div>
+                            <h2 className='type-title text-lucky-text-primary'>
+                                {t('dashboardOverview.recentMusic')}
+                            </h2>
+                            <p className='type-body-sm text-lucky-text-tertiary'>
+                                {t('dashboardOverview.latestTracksPlayed')}
+                            </p>
+                        </div>
+                        <Link
+                            to='/music/history'
+                            className='type-body-sm inline-flex items-center gap-1 text-lucky-brand transition-colors hover:text-lucky-brand-strong'
+                        >
+                            {t('dashboardOverview.viewAll')}
+                            <ArrowRight className='h-3.5 w-3.5' />
+                        </Link>
+                    </div>
+
+                    {tracksLoading ? (
+                        <div className='space-y-4 p-4 sm:p-6'>
+                            <div className='flex items-center gap-4'>
+                                <Skeleton className='h-14 w-14 shrink-0 rounded-lg' />
+                                <div className='flex-1 space-y-2'>
+                                    <Skeleton className='h-5 w-1/2' />
+                                    <Skeleton className='h-4 w-1/3' />
+                                </div>
+                            </div>
+                            <div className='space-y-3'>
+                                {Array.from({ length: 3 }).map((_, i) => (
+                                    <Skeleton key={i} className='h-4 w-full' />
+                                ))}
+                            </div>
+                        </div>
+                    ) : recentTracksData && recentTracksData.length > 0 ? (
+                        <div className='p-4 sm:p-6'>
+                            <div className='flex items-center gap-4 rounded-lg bg-lucky-bg-active/40 p-4'>
+                                <span
+                                    className='flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-lucky-brand/15 text-lucky-brand'
+                                    aria-hidden='true'
+                                >
+                                    <Music className='h-6 w-6' />
+                                </span>
+                                <div className='min-w-0 flex-1'>
+                                    <p className='type-meta mb-1 font-semibold uppercase tracking-wide text-lucky-text-tertiary'>
+                                        {t('dashboardOverview.lastPlayed')}
+                                    </p>
+                                    <p className='type-h2 truncate text-lucky-text-primary'>
+                                        {recentTracksData[0].title}
+                                    </p>
+                                    <p className='type-body-sm truncate text-lucky-text-tertiary'>
+                                        {recentTracksData[0].author}
+                                    </p>
+                                </div>
+                                <p className='type-body-sm shrink-0 text-right text-lucky-text-tertiary'>
+                                    {timeAgo(
+                                        new Date(
+                                            recentTracksData[0].timestamp,
+                                        ).toISOString(),
+                                    )}
+                                </p>
+                            </div>
+
+                            {recentTracksData.length > 1 && (
+                                <div className='mt-2 divide-y divide-lucky-border/50'>
+                                    {recentTracksData
+                                        .slice(1)
+                                        .map((track, index) => (
+                                            <motion.div
+                                                key={track.trackId}
+                                                initial={
+                                                    prefersReducedMotion
+                                                        ? false
+                                                        : { opacity: 0, x: -8 }
+                                                }
+                                                animate={{
+                                                    opacity: 1,
+                                                    x: 0,
+                                                }}
+                                                transition={{
+                                                    duration: 0.2,
+                                                    delay: prefersReducedMotion
+                                                        ? 0
+                                                        : index * 0.05,
+                                                }}
+                                                className='grid grid-cols-1 gap-2 px-1 py-3 transition-colors hover:bg-lucky-bg-tertiary/50 sm:grid-cols-3'
+                                            >
+                                                <div className='min-w-0'>
+                                                    <p className='type-body-sm truncate text-lucky-text-primary'>
+                                                        {track.title}
+                                                    </p>
+                                                    <p className='type-body-sm truncate text-lucky-text-tertiary'>
+                                                        {track.author}
+                                                    </p>
+                                                </div>
+                                                <p className='type-body-sm text-lucky-text-secondary'>
+                                                    {track.playedBy ||
+                                                        t(
+                                                            'dashboardOverview.unknownListener',
+                                                        )}
+                                                </p>
+                                                <p className='text-right text-xs text-lucky-text-tertiary'>
+                                                    {timeAgo(
+                                                        new Date(
+                                                            track.timestamp,
+                                                        ).toISOString(),
+                                                    )}
+                                                </p>
+                                            </motion.div>
+                                        ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <EmptyState
+                            bare
+                            icon={
+                                <Music
+                                    className='h-10 w-10'
+                                    aria-hidden='true'
+                                />
+                            }
+                            title={t('dashboardOverview.noTracksPlayedYet')}
+                            description={t(
+                                'dashboardOverview.trackHistoryWillAppearWhenMusicPlayed',
+                            )}
+                        />
+                    )}
+                </motion.section>
+            )}
+
             <div className='grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]'>
                 {loading ? (
                     <>
@@ -390,7 +529,7 @@ export default function DashboardOverview() {
                 >
                     <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
                         <div>
-                            <h2 className='type-title text-lucky-text-primary uppercase tracking-wide'>
+                            <h2 className='type-title text-lucky-text-primary'>
                                 {t('dashboardOverview.recentCases')}
                             </h2>
                             <p className='type-body-sm text-lucky-text-tertiary'>
@@ -459,7 +598,7 @@ export default function DashboardOverview() {
                 >
                     <h2
                         id='quick-actions-heading'
-                        className='type-title text-lucky-text-primary'
+                        className='type-h2 text-lucky-text-primary'
                     >
                         {t('dashboardOverview.quickActions')}
                     </h2>
@@ -494,102 +633,6 @@ export default function DashboardOverview() {
                 </motion.section>
             </div>
 
-            {hasModuleAccess(effectiveAccess, 'music', 'view') && (
-                <motion.section
-                    className='surface-panel overflow-hidden border border-lucky-border'
-                    initial={
-                        prefersReducedMotion ? false : { opacity: 0, y: 12 }
-                    }
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                        duration: 0.3,
-                        delay: prefersReducedMotion ? 0 : 0.4,
-                    }}
-                >
-                    <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
-                        <div>
-                            <h2 className='type-title text-lucky-text-primary'>
-                                {t('dashboardOverview.recentMusic')}
-                            </h2>
-                            <p className='type-body-sm text-lucky-text-tertiary'>
-                                {t('dashboardOverview.latestTracksPlayed')}
-                            </p>
-                        </div>
-                        <Link
-                            to='/music/history'
-                            className='type-body-sm inline-flex items-center gap-1 text-lucky-brand transition-colors hover:text-lucky-brand-strong'
-                        >
-                            {t('dashboardOverview.viewAll')}
-                            <ArrowRight className='h-3.5 w-3.5' />
-                        </Link>
-                    </div>
-
-                    <div className='divide-y divide-lucky-border/50'>
-                        {tracksLoading ? (
-                            Array.from({ length: 4 }).map((_, index) => (
-                                <div
-                                    key={index}
-                                    className='grid grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-2'
-                                >
-                                    <Skeleton className='h-4 w-32' />
-                                    <Skeleton className='h-4 w-24' />
-                                </div>
-                            ))
-                        ) : recentTracksData && recentTracksData.length > 0 ? (
-                            recentTracksData.map((track, index) => (
-                                <motion.div
-                                    key={track.trackId}
-                                    initial={
-                                        prefersReducedMotion
-                                            ? false
-                                            : { opacity: 0, x: -8 }
-                                    }
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{
-                                        duration: 0.2,
-                                        delay: prefersReducedMotion
-                                            ? 0
-                                            : index * 0.05,
-                                    }}
-                                    className='grid grid-cols-1 gap-2 px-4 py-3 transition-colors hover:bg-lucky-bg-tertiary/50 sm:grid-cols-3'
-                                >
-                                    <div className='min-w-0'>
-                                        <p className='type-body-sm truncate text-lucky-text-primary'>
-                                            {track.title}
-                                        </p>
-                                        <p className='type-body-sm truncate text-lucky-text-tertiary'>
-                                            {track.author}
-                                        </p>
-                                    </div>
-                                    <p className='type-body-sm text-lucky-text-secondary'>
-                                        {track.playedBy || 'Unknown'}
-                                    </p>
-                                    <p className='text-xs text-lucky-text-tertiary text-right'>
-                                        {timeAgo(
-                                            new Date(
-                                                track.timestamp,
-                                            ).toISOString(),
-                                        )}
-                                    </p>
-                                </motion.div>
-                            ))
-                        ) : (
-                            <div className='px-4 py-10 text-center'>
-                                <Music className='mx-auto mb-3 h-10 w-10 text-lucky-text-tertiary' />
-                                <p className='type-body text-lucky-text-secondary'>
-                                    {t('dashboardOverview.noTracksPlayedYet')}
-                                </p>
-                                <p className='type-body-sm text-lucky-text-tertiary'>
-                                    {t(
-                                        'dashboardOverview.trackHistoryWillAppearWhenMusicPlayed',
-                                    )}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </motion.section>
-            )}
-
             {hasModuleAccess(effectiveAccess, 'settings', 'view') && (
                 <motion.section
                     className='space-y-4'
@@ -602,13 +645,13 @@ export default function DashboardOverview() {
                         delay: prefersReducedMotion ? 0 : 0.5,
                     }}
                 >
-                    <h2 className='type-title text-lucky-text-primary'>
+                    <h2 className='type-h2 text-lucky-text-primary'>
                         {t('dashboardOverview.community')}
                     </h2>
                     <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
                         <div className='surface-panel overflow-hidden border border-lucky-border'>
                             <div className='border-b border-lucky-border px-4 py-3'>
-                                <h3 className='type-body-sm font-semibold text-lucky-text-primary uppercase tracking-wide'>
+                                <h3 className='type-title text-lucky-text-primary'>
                                     {t('dashboardOverview.levelLeaderboard')}
                                 </h3>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
@@ -676,7 +719,7 @@ export default function DashboardOverview() {
 
                         <div className='surface-panel overflow-hidden border border-lucky-border'>
                             <div className='border-b border-lucky-border px-4 py-3'>
-                                <h3 className='type-body-sm font-semibold text-lucky-text-primary uppercase tracking-wide'>
+                                <h3 className='type-title text-lucky-text-primary'>
                                     {t('dashboardOverview.starboardHighlights')}
                                 </h3>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
@@ -748,7 +791,7 @@ export default function DashboardOverview() {
 
             {Object.keys(stats?.casesByType ?? {}).length > 0 && (
                 <section className='space-y-4'>
-                    <h2 className='type-title text-lucky-text-primary'>
+                    <h2 className='type-h2 text-lucky-text-primary'>
                         {t('dashboardOverview.casesByType')}
                     </h2>
                     <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
