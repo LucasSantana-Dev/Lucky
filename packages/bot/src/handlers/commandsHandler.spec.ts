@@ -133,6 +133,10 @@ describe('commandsHandler', () => {
             ;(createUserFriendlyError as jest.Mock).mockReturnValue(
                 'An error occurred',
             )
+            // Sentry enabled and returning a real event id — asserts the
+            // event-id propagation into the button's custom id, not just the
+            // Sentry-disabled default path.
+            ;(captureException as jest.Mock).mockReturnValue('evt-abc123')
             const interaction = createMockInteraction()
             const client = createMockClient()
             client.commands.set('test', command)
@@ -165,8 +169,27 @@ describe('commandsHandler', () => {
             })
             const [[{ content }]] = (interactionReply as jest.Mock).mock.calls
             const row = content.components[0].toJSON()
-            expect(row.components[0].custom_id).toBe('feedback_report:test:')
+            expect(row.components[0].custom_id).toBe(
+                'feedback_report:test:evt-abc123',
+            )
             expect(row.components[0].label).toBe('Report this')
+        })
+
+        it('omits the "Report this" button for a DM interaction (no guild)', async () => {
+            const command = createMockCommand()
+            ;(command.execute as jest.Mock).mockRejectedValue(
+                new Error('Command failed'),
+            )
+            const interaction = createMockInteraction({ guild: null })
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({ interaction, client })
+
+            expect(interactionReply).toHaveBeenCalledWith({
+                interaction,
+                content: expect.objectContaining({ components: [] }),
+            })
         })
 
         it('should handle error reply failures', async () => {

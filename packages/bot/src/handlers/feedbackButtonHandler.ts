@@ -1,8 +1,8 @@
 import type { ButtonInteraction } from 'discord.js'
-import { translatorForInteraction } from '../i18n/translatorForInteraction'
 import {
     openFeedbackModalAndAwaitSubmit,
     parseFeedbackReportCustomId,
+    resolveFeedbackTranslator,
     submitFeedback,
 } from '../services/feedbackService'
 
@@ -21,7 +21,7 @@ export async function handleFeedbackReportButton(
 
     const parsed = parseFeedbackReportCustomId(interaction.customId)
 
-    const t = await translatorForInteraction(interaction)
+    const t = await resolveFeedbackTranslator(interaction)
     const modalSubmit = await openFeedbackModalAndAwaitSubmit(interaction, t)
     if (!modalSubmit) return
 

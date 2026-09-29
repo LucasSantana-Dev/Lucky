@@ -1,14 +1,11 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 
-const mockTranslatorForInteraction = jest.fn<(...args: any[]) => any>()
-jest.mock('../../../i18n/translatorForInteraction', () => ({
-    translatorForInteraction: mockTranslatorForInteraction,
-}))
-
+const mockResolveFeedbackTranslator = jest.fn<(...args: any[]) => any>()
 const mockOpenFeedbackModalAndAwaitSubmit = jest.fn<(...args: any[]) => any>()
 const mockSubmitFeedback = jest.fn<(...args: any[]) => any>()
 jest.mock('../../../services/feedbackService', () => ({
     openFeedbackModalAndAwaitSubmit: mockOpenFeedbackModalAndAwaitSubmit,
+    resolveFeedbackTranslator: mockResolveFeedbackTranslator,
     submitFeedback: mockSubmitFeedback,
 }))
 
@@ -29,7 +26,7 @@ function makeInteraction(overrides: Record<string, unknown> = {}) {
 describe('/feedback command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        mockTranslatorForInteraction.mockResolvedValue(t)
+        mockResolveFeedbackTranslator.mockResolvedValue(t)
     })
 
     it('rejects DM usage without opening the modal (no DMs, per in-bot-growth ADR)', async () => {

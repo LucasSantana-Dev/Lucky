@@ -18,8 +18,13 @@ import {
 } from '@lucky/shared/utils'
 import type { Prisma } from '@lucky/shared/utils'
 import { DatabaseService } from '@lucky/shared/services'
-import { SUPPORT_SERVER_INVITE_URL } from '@lucky/shared/constants'
+import {
+    SUPPORT_SERVER_INVITE_URL,
+    DEFAULT_BOT_LANGUAGE,
+} from '@lucky/shared/constants'
 import { interactionReply } from '../utils/general/interactionReply'
+import { translatorForInteraction } from '../i18n/translatorForInteraction'
+import { translatorFor } from '../i18n'
 
 // Two entry points (`/feedback`, and the "Report this" button on a command
 // error — see commandsHandler.ts) funnel into this one module (#2477).
@@ -57,6 +62,16 @@ function getFeedbackDatabaseService(): DatabaseService {
 }
 
 export type FeedbackCategoryValue = 'bug' | 'idea' | 'other'
+const FEEDBACK_CATEGORY_VALUES: readonly FeedbackCategoryValue[] = [
+    'bug',
+    'idea',
+    'other',
+]
+function isFeedbackCategoryValue(
+    value: string | undefined,
+): value is FeedbackCategoryValue {
+    return (FEEDBACK_CATEGORY_VALUES as readonly string[]).includes(value ?? '')
+}
 
 export type FeedbackSubmissionContext = {
     commandName?: string
@@ -64,6 +79,28 @@ export type FeedbackSubmissionContext = {
 }
 
 type ModalSourceInteraction = ChatInputCommandInteraction | ButtonInteraction
+
+const TRANSLATOR_RESOLUTION_DEADLINE_MS = 1500
+
+/**
+ * Resolves the interaction's translator with a hard deadline, falling back to
+ * the bot's default-language translator if resolution doesn't finish in time.
+ * `translatorForInteraction` is cached per guild but occasionally does a real
+ * database read on a cold cache; both /feedback and the "Report this" button
+ * must call `showModal()` inside Discord's ~3s interaction-ack window, so a
+ * slow lookup here must never eat into that budget (#2477 review).
+ */
+export async function resolveFeedbackTranslator(
+    interaction: Parameters<typeof translatorForInteraction>[0],
+): Promise<TFunction> {
+    const timeout = new Promise<TFunction>((resolve) => {
+        setTimeout(
+            () => resolve(translatorFor(DEFAULT_BOT_LANGUAGE)),
+            TRANSLATOR_RESOLUTION_DEADLINE_MS,
+        )
+    })
+    return Promise.race([translatorForInteraction(interaction), timeout])
+}
 
 /** Builds the `feedback_report:<commandName>:<sentryEventId>` custom id for the
  * "Report this" button. `sentryEventId` is omitted (empty segment) when Sentry
@@ -300,9 +337,24 @@ export async function submitFeedback(
         })
     }
 
-    const category = modalSubmit.fields.getStringSelectValues(
+    // Discord's own client can only submit one of the three options this
+    // modal defines, but a forged/replayed interaction is not bound by that —
+    // validate before it reaches the Prisma enum column (#2477 review).
+    const rawCategory = modalSubmit.fields.getStringSelectValues(
         FEEDBACK_CATEGORY_FIELD_ID,
-    )[0] as FeedbackCategoryValue
+    )[0]
+    if (!isFeedbackCategoryValue(rawCategory)) {
+        await interactionReply({
+            interaction: modalSubmit,
+            content: {
+                content: t('feedback.errors.invalidCategory'),
+                ephemeral: true,
+                allowedMentions: { parse: [] },
+            },
+        })
+        return
+    }
+    const category = rawCategory
     const whatHappened = modalSubmit.fields.getTextInputValue(
         FEEDBACK_WHAT_HAPPENED_FIELD_ID,
     )

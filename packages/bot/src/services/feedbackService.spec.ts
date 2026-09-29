@@ -22,6 +22,7 @@ jest.mock('@lucky/shared/services', () => ({
 
 jest.mock('@lucky/shared/constants', () => ({
     SUPPORT_SERVER_INVITE_URL: 'https://discord.gg/test-support',
+    DEFAULT_BOT_LANGUAGE: 'en',
 }))
 
 const mockInteractionReply = jest.fn<(...args: any[]) => any>()
@@ -29,11 +30,22 @@ jest.mock('../utils/general/interactionReply', () => ({
     interactionReply: mockInteractionReply,
 }))
 
+const mockTranslatorForInteraction = jest.fn<(...args: any[]) => any>()
+jest.mock('../i18n/translatorForInteraction', () => ({
+    translatorForInteraction: mockTranslatorForInteraction,
+}))
+
+const mockTranslatorFor = jest.fn<(...args: any[]) => any>()
+jest.mock('../i18n', () => ({
+    translatorFor: mockTranslatorFor,
+}))
+
 import { Result } from '@lucky/shared/types'
 import {
     submitFeedback,
     buildFeedbackReportCustomId,
     parseFeedbackReportCustomId,
+    resolveFeedbackTranslator,
     FEEDBACK_REPORT_BUTTON_PREFIX,
 } from './feedbackService'
 
@@ -105,6 +117,44 @@ describe('feedbackService', () => {
 
         it('returns null for a customId with a different prefix', () => {
             expect(parseFeedbackReportCustomId('vaga_publish')).toBeNull()
+        })
+    })
+
+    describe('resolveFeedbackTranslator', () => {
+        beforeEach(() => {
+            jest.useFakeTimers()
+        })
+
+        afterEach(() => {
+            jest.useRealTimers()
+        })
+
+        it('returns the interaction translator when it resolves before the deadline', async () => {
+            const fastTranslator = (() => 'fast') as any
+            mockTranslatorForInteraction.mockResolvedValue(fastTranslator)
+
+            const result = await resolveFeedbackTranslator({
+                guildId: 'guild-1',
+            } as any)
+
+            expect(result).toBe(fastTranslator)
+            expect(mockTranslatorFor).not.toHaveBeenCalled()
+        })
+
+        it('falls back to the default-language translator when resolution exceeds the deadline (#2477 review: showModal has a ~3s budget)', async () => {
+            const fallbackTranslator = (() => 'fallback') as any
+            mockTranslatorFor.mockReturnValue(fallbackTranslator)
+            // Never resolves — simulates a slow cold-cache guild-settings read.
+            mockTranslatorForInteraction.mockReturnValue(new Promise(() => {}))
+
+            const resultPromise = resolveFeedbackTranslator({
+                guildId: 'guild-1',
+            } as any)
+            await jest.advanceTimersByTimeAsync(1500)
+            const result = await resultPromise
+
+            expect(result).toBe(fallbackTranslator)
+            expect(mockTranslatorFor).toHaveBeenCalledWith('en')
         })
     })
 
@@ -215,6 +265,32 @@ describe('feedbackService', () => {
                     content: expect.objectContaining({ ephemeral: true }),
                 }),
             )
+        })
+
+        it('rejects a category outside bug/idea/other before the Prisma write (forged interaction)', async () => {
+            const modalSubmit = createMockModalSubmit({
+                fields: {
+                    getStringSelectValues: jest
+                        .fn()
+                        .mockReturnValue(['not-a-real-category']),
+                    getTextInputValue: jest
+                        .fn()
+                        .mockImplementation((id: string) =>
+                            id === 'feedback_what_happened' ? 'It broke' : '',
+                        ),
+                },
+            })
+
+            await submitFeedback(modalSubmit, {}, t)
+
+            expect(mockUserFeedbackCreate).not.toHaveBeenCalled()
+            expect(mockInteractionReply).toHaveBeenCalledWith({
+                interaction: modalSubmit,
+                content: expect.objectContaining({
+                    content: 'feedback.errors.invalidCategory',
+                    ephemeral: true,
+                }),
+            })
         })
 
         it('blocks submission and replies with the rate-limit message when over the limit', async () => {

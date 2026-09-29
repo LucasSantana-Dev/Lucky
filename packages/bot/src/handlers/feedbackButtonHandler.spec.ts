@@ -1,10 +1,6 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 
-const mockTranslatorForInteraction = jest.fn<(...args: any[]) => any>()
-jest.mock('../i18n/translatorForInteraction', () => ({
-    translatorForInteraction: mockTranslatorForInteraction,
-}))
-
+const mockResolveFeedbackTranslator = jest.fn<(...args: any[]) => any>()
 const mockOpenFeedbackModalAndAwaitSubmit = jest.fn<(...args: any[]) => any>()
 const mockSubmitFeedback = jest.fn<(...args: any[]) => any>()
 const mockParseFeedbackReportCustomId = jest.fn<(...args: any[]) => any>()
@@ -15,6 +11,7 @@ const mockParseFeedbackReportCustomId = jest.fn<(...args: any[]) => any>()
 jest.mock('../services/feedbackService', () => ({
     openFeedbackModalAndAwaitSubmit: mockOpenFeedbackModalAndAwaitSubmit,
     parseFeedbackReportCustomId: mockParseFeedbackReportCustomId,
+    resolveFeedbackTranslator: mockResolveFeedbackTranslator,
     submitFeedback: mockSubmitFeedback,
 }))
 
@@ -38,7 +35,7 @@ function makeButtonInteraction(
 describe('handleFeedbackReportButton', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        mockTranslatorForInteraction.mockResolvedValue(t)
+        mockResolveFeedbackTranslator.mockResolvedValue(t)
     })
 
     it('carries the failed command name and Sentry event id into the feedback context', async () => {

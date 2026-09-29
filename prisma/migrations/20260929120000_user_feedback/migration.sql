@@ -1,5 +1,5 @@
 -- User feedback pipeline (#2477). Additive only: one new enum, one new table,
--- one index. No existing table or column is touched.
+-- two indexes. No existing table or column is touched.
 
 -- CreateEnum. CREATE TYPE has no IF NOT EXISTS; swallow duplicate_object so a
 -- prior partial run that already created the enum is tolerated.

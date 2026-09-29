@@ -18,7 +18,8 @@
         },
         "errors": {
             "guildOnly": "This only works inside a server.",
-            "rateLimited": "You've sent a few reports already. Try again in a bit."
+            "rateLimited": "You've sent a few reports already. Try again in a bit.",
+            "invalidCategory": "Something went wrong with that submission. Please try again."
         },
         "thankYou": "Thanks for the feedback! Need to talk to us directly? Join the support server: {{url}}"
     },

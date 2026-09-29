@@ -163,15 +163,19 @@ const replyExecutionError = async (
             userId: interaction.user.id,
         },
     )
+    // Guild-only: the button's modal replies with a "guild only" error for a
+    // DM interaction (submitFeedback checks guildId), so a DM error reply
+    // would advertise a dead-end action. Only attach it where it works.
+    const components = interaction.guild
+        ? [buildReportThisRow(interaction.commandName, sentryEventId)]
+        : []
     try {
         await interactionReply({
             interaction,
             content: {
                 content: createUserFriendlyError(error),
                 ephemeral: true,
-                components: [
-                    buildReportThisRow(interaction.commandName, sentryEventId),
-                ],
+                components,
             },
         })
     } catch (replyError) {

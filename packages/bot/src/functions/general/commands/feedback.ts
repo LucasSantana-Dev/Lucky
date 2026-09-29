@@ -3,9 +3,9 @@ import {
     type ChatInputCommandInteraction,
 } from 'discord.js'
 import Command from '../../../models/Command'
-import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
 import {
     openFeedbackModalAndAwaitSubmit,
+    resolveFeedbackTranslator,
     submitFeedback,
 } from '../../../services/feedbackService'
 
@@ -30,7 +30,7 @@ export default new Command({
             return
         }
 
-        const t = await translatorForInteraction(chat)
+        const t = await resolveFeedbackTranslator(chat)
         const modalSubmit = await openFeedbackModalAndAwaitSubmit(chat, t)
         if (!modalSubmit) return
 
