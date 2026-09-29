@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.47.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.46.0...v2.47.0) (2026-09-29)
+
+
+### Features
+
+* **bot:** add user feedback pipeline with /feedback and report button ([#2499](https://github.com/LucasSantana-Dev/Lucky/issues/2499)) ([825cff2](https://github.com/LucasSantana-Dev/Lucky/commit/825cff24b22c3739d9204b0e5827f47630a247c9))
+* **bot:** add youtube kill switch and music-first help command ([#2481](https://github.com/LucasSantana-Dev/Lucky/issues/2481)) ([80ad63e](https://github.com/LucasSantana-Dev/Lucky/commit/80ad63e95e743d0298f4368e97946d893949e3cd))
+* **bot:** one-click music station on join onboarding ([#2487](https://github.com/LucasSantana-Dev/Lucky/issues/2487)) ([f7e0c42](https://github.com/LucasSantana-Dev/Lucky/commit/f7e0c4202e9a126aa45e6c1a0aa3e3bbbe3dc4ff))
+* **frontend:** lead overview with music, unify media page headers ([#2496](https://github.com/LucasSantana-Dev/Lucky/issues/2496)) ([84f720b](https://github.com/LucasSantana-Dev/Lucky/commit/84f720bbd6cc3150308fbc0ea0d2c0c5236bb1bb))
+* **frontend:** music-first landing copy, drop self-host promotion ([#2479](https://github.com/LucasSantana-Dev/Lucky/issues/2479)) ([7d3f023](https://github.com/LucasSantana-Dev/Lucky/commit/7d3f023f8aa7af6a53b5c3826ebe7c6881517e03))
+* **frontend:** repaint dashboard shell and music page ([#2493](https://github.com/LucasSantana-Dev/Lucky/issues/2493)) ([8a367f6](https://github.com/LucasSantana-Dev/Lucky/commit/8a367f6da7c33960ccf4b3550a9f55af7165fe2b))
+* **observability:** add activation telemetry for bot and dashboard ([#2482](https://github.com/LucasSantana-Dev/Lucky/issues/2482)) ([03f4ea1](https://github.com/LucasSantana-Dev/Lucky/commit/03f4ea196f0e0d2c71fe00bf4eaa55c037f307c4))
+
+
+### Bug Fixes
+
+* **deploy:** keep tunnel and webhook on lucky-network ([#2469](https://github.com/LucasSantana-Dev/Lucky/issues/2469)) ([8e500d6](https://github.com/LucasSantana-Dev/Lucky/commit/8e500d6aafbb2798fb7fc1886f12fe61cd890204))
+
 ## [2.46.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.45.3...v2.46.0) (2026-09-27)
 
 
