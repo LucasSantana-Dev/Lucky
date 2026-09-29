@@ -461,5 +461,66 @@ describe('session command', () => {
                 },
             })
         })
+
+        it('notes skipped YouTube-only tracks in the success message (#2486)', async () => {
+            ;(resolveGuildQueue as jest.Mock).mockReturnValue({
+                queue: { id: 'queue-1' },
+            })
+            ;(namedSessionService.restore as jest.Mock).mockResolvedValue({
+                restoredCount: 4,
+                skippedYoutubeCount: 2,
+            })
+
+            await execute({
+                client: {},
+                interaction: createInteraction('restore', {
+                    name: 'party-mix',
+                }) as any,
+            })
+
+            expect(interactionReply).toHaveBeenCalledWith({
+                interaction: expect.anything(),
+                content: {
+                    embeds: [
+                        expect.objectContaining({
+                            title: 'Session restored',
+                            description:
+                                'Restored 4 tracks from **party-mix** (2 skipped: YouTube is currently disabled).',
+                        }),
+                    ],
+                },
+            })
+        })
+
+        it('reports no tracks restored (not "not found") when every track was YouTube-only (#2486)', async () => {
+            ;(resolveGuildQueue as jest.Mock).mockReturnValue({
+                queue: { id: 'queue-1' },
+            })
+            ;(namedSessionService.restore as jest.Mock).mockResolvedValue({
+                restoredCount: 0,
+                skippedYoutubeCount: 3,
+            })
+
+            await execute({
+                client: {},
+                interaction: createInteraction('restore', {
+                    name: 'party-mix',
+                }) as any,
+            })
+
+            expect(interactionReply).toHaveBeenCalledWith({
+                interaction: expect.anything(),
+                content: {
+                    embeds: [
+                        expect.objectContaining({
+                            title: 'No tracks restored',
+                            description:
+                                'Could not restore any tracks from **party-mix** (3 skipped: YouTube is currently disabled).',
+                        }),
+                    ],
+                    ephemeral: true,
+                },
+            })
+        })
     })
 })

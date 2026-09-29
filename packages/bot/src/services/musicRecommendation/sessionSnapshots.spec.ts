@@ -7,6 +7,7 @@ jest.mock('@lucky/shared/utils', () => ({
     getPrismaClient: jest.fn(),
     debugLog: jest.fn(),
     errorLog: jest.fn(),
+    infoLog: jest.fn(),
 }))
 
 jest.mock('@lucky/shared/config', () => ({
@@ -284,6 +285,86 @@ describe('MusicSessionSnapshotService', () => {
             expect(queue.addTrack).toHaveBeenCalledTimes(1)
             expect(mockDeleteMany).toHaveBeenCalledWith({
                 where: { guildId: 'guild-2' },
+            })
+        })
+
+        describe('HOSTED_YOUTUBE_ENABLED = false (#2486)', () => {
+            const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
+
+            beforeEach(() => {
+                process.env.HOSTED_YOUTUBE_ENABLED = 'false'
+            })
+
+            afterEach(() => {
+                if (originalEnv === undefined) {
+                    delete process.env.HOSTED_YOUTUBE_ENABLED
+                } else {
+                    process.env.HOSTED_YOUTUBE_ENABLED = originalEnv
+                }
+            })
+
+            it('skips a youtube.com entry without searching and counts it', async () => {
+                mockFindUnique.mockResolvedValueOnce(
+                    snapshotRow({
+                        currentTrack: null,
+                        upcomingTracks: [
+                            {
+                                title: 'YT Song',
+                                author: 'Artist',
+                                url: 'https://www.youtube.com/watch?v=abc123',
+                                duration: '3:00',
+                                source: 'youtube',
+                            },
+                            {
+                                title: 'Recovered Song',
+                                author: 'Recovered Artist',
+                                url: 'https://example.com/recovered',
+                                duration: '3:00',
+                                source: 'soundcloud',
+                            },
+                        ],
+                    }),
+                )
+                const service = new MusicSessionSnapshotService()
+                const queue = restoringQueue('guild-yt-skip')
+
+                const result = await service.restoreSnapshot(queue)
+
+                expect(result.restoredCount).toBe(1)
+                expect(result.skippedYoutubeCount).toBe(1)
+                // Must be the non-YouTube entry that was actually searched,
+                // not just any single call (cubic review on #2486).
+                expect(queue.player.search).toHaveBeenCalledTimes(1)
+                expect(queue.player.search).toHaveBeenCalledWith(
+                    'https://example.com/recovered',
+                    expect.anything(),
+                )
+            })
+
+            it('reports 0 restored with a skipped count when every entry is youtube-only', async () => {
+                mockFindUnique.mockResolvedValueOnce(
+                    snapshotRow({
+                        currentTrack: null,
+                        upcomingTracks: [
+                            {
+                                title: 'YT Song',
+                                author: 'Artist',
+                                url: 'https://youtu.be/abc123',
+                                duration: '3:00',
+                                source: 'youtube',
+                            },
+                        ],
+                    }),
+                )
+                const service = new MusicSessionSnapshotService()
+                const queue = restoringQueue('guild-yt-all-skip')
+
+                const result = await service.restoreSnapshot(queue)
+
+                expect(result.restoredCount).toBe(0)
+                expect(result.skippedYoutubeCount).toBe(1)
+                expect(queue.player.search).not.toHaveBeenCalled()
+                expect(queue.node.play).not.toHaveBeenCalled()
             })
         })
 

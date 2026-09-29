@@ -7,6 +7,7 @@ jest.mock('@lucky/shared/utils', () => ({
     getPrismaClient: jest.fn(),
     debugLog: jest.fn(),
     errorLog: jest.fn(),
+    infoLog: jest.fn(),
 }))
 
 jest.mock('../musicRecommendation/sessionSnapshots', () => ({
@@ -195,6 +196,80 @@ describe('NamedSessionService', () => {
                 }
             },
         )
+
+        describe('HOSTED_YOUTUBE_ENABLED = false (#2486)', () => {
+            const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
+
+            beforeEach(() => {
+                process.env.HOSTED_YOUTUBE_ENABLED = 'false'
+            })
+
+            afterEach(() => {
+                if (originalEnv === undefined) {
+                    delete process.env.HOSTED_YOUTUBE_ENABLED
+                } else {
+                    process.env.HOSTED_YOUTUBE_ENABLED = originalEnv
+                }
+            })
+
+            it('skips a youtube.com entry without searching and counts it', async () => {
+                mockFindUnique.mockResolvedValueOnce(
+                    row({
+                        currentTrack: {
+                            title: 'YT Song',
+                            author: 'Artist',
+                            url: 'https://www.youtube.com/watch?v=abc123',
+                            duration: '3:00',
+                            source: 'youtube',
+                        },
+                        upcomingTracks: [
+                            {
+                                title: 'Song 2',
+                                author: 'Artist',
+                                url: 'https://example.com/2',
+                                duration: '3:00',
+                                source: 'spotify',
+                            },
+                        ],
+                    }),
+                )
+
+                const result = await service.restore(queue, 'party-mix')
+
+                expect(result.restoredCount).toBe(1)
+                expect(result.skippedYoutubeCount).toBe(1)
+                // Only the non-YouTube entry should ever hit search(), and it
+                // must be that entry specifically, not just any single call
+                // (cubic review on #2486).
+                expect(queue.player.search).toHaveBeenCalledTimes(1)
+                expect(queue.player.search).toHaveBeenCalledWith(
+                    'https://example.com/2',
+                    expect.anything(),
+                )
+            })
+
+            it('reports 0 restored with a skipped count when every entry is youtube-only', async () => {
+                mockFindUnique.mockResolvedValueOnce(
+                    row({
+                        currentTrack: {
+                            title: 'YT Song',
+                            author: 'Artist',
+                            url: 'https://youtu.be/abc123',
+                            duration: '3:00',
+                            source: 'youtube',
+                        },
+                        upcomingTracks: [],
+                    }),
+                )
+
+                const result = await service.restore(queue, 'party-mix')
+
+                expect(result.restoredCount).toBe(0)
+                expect(result.skippedYoutubeCount).toBe(1)
+                expect(queue.player.search).not.toHaveBeenCalled()
+                expect(queue.node.play).not.toHaveBeenCalled()
+            })
+        })
     })
 
     describe('list', () => {

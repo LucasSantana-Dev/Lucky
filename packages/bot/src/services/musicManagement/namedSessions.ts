@@ -1,12 +1,19 @@
 import type { GuildQueue, Track } from 'discord-player'
 import { QueryType } from 'discord-player'
 import type { User } from 'discord.js'
-import { getPrismaClient, debugLog, errorLog } from '@lucky/shared/utils'
+import {
+    getPrismaClient,
+    debugLog,
+    errorLog,
+    infoLog,
+} from '@lucky/shared/utils'
 import type { Prisma } from '@lucky/shared/utils'
 import {
     toSnapshotTrack,
     type SnapshotTrack,
 } from '../musicRecommendation/sessionSnapshots'
+import { isHostedYoutubeEnabled } from '../../config/featureFlags'
+import { isHost } from '../../utils/general/urlHost'
 
 export type NamedSession = {
     name: string
@@ -188,13 +195,13 @@ export class NamedSessionService {
         queue: GuildQueue,
         name: string,
         requestedBy?: User,
-    ): Promise<{ restoredCount: number }> {
+    ): Promise<{ restoredCount: number; skippedYoutubeCount: number }> {
         try {
             const guildId = queue.guild.id
             const session = await this.get(guildId, name)
 
             if (!session) {
-                return { restoredCount: 0 }
+                return { restoredCount: 0, skippedYoutubeCount: 0 }
             }
 
             const searchOptions: SearchOptions = {
@@ -208,7 +215,19 @@ export class NamedSessionService {
             ]
 
             let restoredCount = 0
+            let skippedYoutubeCount = 0
             for (const entry of tracksToRestore) {
+                // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-positioning.md
+                // point 3): no YouTube extractor is registered, so AUTO is a
+                // guaranteed miss for a youtube.com/youtu.be entry. Skip the
+                // search and count it instead of silently dropping it (#2486).
+                if (
+                    !isHostedYoutubeEnabled() &&
+                    isHost(entry.url, 'youtube.com', 'youtu.be')
+                ) {
+                    skippedYoutubeCount += 1
+                    continue
+                }
                 const query =
                     entry.url || `${entry.title} ${entry.author}`.trim()
                 const result = await queue.player.search(query, searchOptions)
@@ -230,18 +249,26 @@ export class NamedSessionService {
                 await queue.node.play()
             }
 
+            if (skippedYoutubeCount > 0) {
+                infoLog({
+                    message:
+                        'Named session restore skipped YouTube-only tracks (HOSTED_YOUTUBE_ENABLED=false)',
+                    data: { guildId, name, skippedYoutubeCount },
+                })
+            }
+
             debugLog({
                 message: 'Named session restored',
                 data: { guildId, name, restoredCount },
             })
 
-            return { restoredCount }
+            return { restoredCount, skippedYoutubeCount }
         } catch (error) {
             errorLog({
                 message: 'Failed to restore named music session',
                 error,
             })
-            return { restoredCount: 0 }
+            return { restoredCount: 0, skippedYoutubeCount: 0 }
         }
     }
 
