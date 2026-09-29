@@ -17,7 +17,7 @@ export default function Docs() {
 
     usePageMetadata({
         title: `${page.title} — Lucky docs`,
-        description: `${page.title} documentation for Lucky, the open-source self-hostable Discord bot.`,
+        description: `${page.title} documentation for Lucky, the Discord bot.`,
     })
 
     const Content = page.content
