@@ -313,7 +313,7 @@ async function handleAutocomplete(interaction: Interaction): Promise<void> {
     }
 }
 
-async function handleInteractionCreate(
+function handleInteractionCreate(
     client: Client,
     interaction: Interaction,
 ): Promise<void> {
