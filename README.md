@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <b>🎵 The Discord music bot that can't be shut down — because you host it.</b><br>
-  <strong>Self-hosted · Open-source · TypeScript monorepo · No paywall, no premium tier</strong>
+  <b>🎵 The Discord music bot that learns your server's taste and keeps the call playing.</b><br>
+  <strong>Free · Open source · English and Português · No paywall, no premium tier</strong>
 </p>
 
 <p align="center">
@@ -31,9 +31,9 @@
 
 ## 🎯 What is Lucky?
 
-Lucky is a **production-grade, self-hosted Discord music bot** — built as a TypeScript monorepo with a React 19 dashboard, full moderation suite, and a leveling system. Supports **YouTube, Spotify, and SoundCloud** with smart autoplay powered by listening history recommendations.
+Lucky is a **free Discord music bot** that learns what your server likes. Search by name or paste a Spotify link, and smart autoplay keeps the queue going from your server's listening history. Add it in one click; every feature is included, with no paywall and no premium tier.
 
-Unlike Groovy, Rythm, or Hydra (all shut down by third-party enforcement), Lucky can't be taken offline because **you host it.** Every feature is included — no paywall, no premium tier.
+The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 
 - **Live demo**: [lucky.lucassantana.tech](https://lucky.lucassantana.tech)  
 - **Invite to your server**: [Add Lucky now](https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge)
@@ -48,7 +48,7 @@ Unlike Groovy, Rythm, or Hydra (all shut down by third-party enforcement), Lucky
 </p>
 
 ### 🎵 Music Player
-- **Multi-source playback**: YouTube, Spotify, SoundCloud
+- **Spotify-first search**: find tracks by name or paste Spotify links
 - **Smart autoplay**: Recommendations based on your listening history
 - **Queue management**: Shuffle, repeat, clear, skip, pause/resume
 - **Session save/restore**: Pick up where you left off
@@ -84,22 +84,6 @@ Unlike Groovy, Rythm, or Hydra (all shut down by third-party enforcement), Lucky
 
 ---
 
-## 🚀 Why Self-Host?
-
-**Groovy, Rythm, and Hydra were all killed by YouTube API enforcement.** Cloud-only bots have a single point of failure — if the hosting service shuts down, so does your bot.
-
-Lucky solves this:
-
-| Feature | Lucky | Cloud Bots |
-|---------|-------|-----------|
-| **Uptime** | Your control | Service-dependent |
-| **Feature parity** | Full suite included | Pay-to-unlock model |
-| **Data privacy** | On your servers | Third-party storage |
-| **Customization** | Modify the source code | Limited options |
-| **Shutdown risk** | None | High (enforcement, API changes) |
-
----
-
 ## 📦 Tech Stack
 
 | Layer | Technology |
@@ -115,7 +99,9 @@ Lucky solves this:
 
 ---
 
-## 🔧 Quick Start
+## 🔧 Running your own copy
+
+Lucky is meant to be added from the invite link above. Running your own copy is possible but **unsupported**: no help with setup, hosting or upgrades.
 
 ### Prerequisites
 

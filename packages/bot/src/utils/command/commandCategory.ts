@@ -44,7 +44,16 @@ export function getCommandCategory(command: Command): CommandCategory {
         return 'general'
     }
 
-    return getCategoryFromCommandName(command.data.name.toLowerCase())
+    // Trust the category the command declares on itself (`category: 'music'`
+    // etc. in its `new Command({...})` definition) over prefix-guessing the
+    // name: several real music commands (artist, album, seek, nowplaying,
+    // spotify, voteskip, session, history, previous, replay, djrole, effects)
+    // don't start with any prefix in COMMAND_CATEGORIES.music.prefixes and
+    // were silently miscategorized as 'general' by name-based matching alone.
+    return (
+        command.category ??
+        getCategoryFromCommandName(command.data.name.toLowerCase())
+    )
 }
 
 export function getCategoryEmoji(category: CommandCategory): string {

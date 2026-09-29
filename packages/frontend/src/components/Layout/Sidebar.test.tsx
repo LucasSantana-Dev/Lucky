@@ -120,12 +120,46 @@ describe('Sidebar', () => {
         expect(dashboardLink).toHaveAttribute('data-active', 'false')
     })
 
-    test('activates parent route for sub-routes using slash boundary', () => {
+    test('activates the exact-match child route, not its parent, on /music/history', () => {
         renderSidebar('/music/history')
 
         const musicLink = screen.getByText('Music Player').closest('a')
+        const historyLink = screen.getByText('Track History').closest('a')
+        expect(musicLink).toHaveAttribute('data-active', 'false')
+        expect(musicLink).not.toHaveAttribute('aria-current')
+        expect(historyLink).toHaveAttribute('data-active', 'true')
+        expect(historyLink).toHaveAttribute('aria-current', 'page')
+    })
+
+    test('activates only Music Player on /music', () => {
+        renderSidebar('/music')
+
+        const musicLink = screen.getByText('Music Player').closest('a')
+        const historyLink = screen.getByText('Track History').closest('a')
+        const artistsLink = screen.getByText('Musical Taste').closest('a')
         expect(musicLink).toHaveAttribute('data-active', 'true')
-        expect(musicLink).toHaveAttribute('aria-current', 'page')
+        expect(historyLink).toHaveAttribute('data-active', 'false')
+        expect(artistsLink).toHaveAttribute('data-active', 'false')
+    })
+
+    test('activates only Musical Taste on /music/artists', () => {
+        renderSidebar('/music/artists')
+
+        const musicLink = screen.getByText('Music Player').closest('a')
+        const artistsLink = screen.getByText('Musical Taste').closest('a')
+        expect(musicLink).toHaveAttribute('data-active', 'false')
+        expect(artistsLink).toHaveAttribute('data-active', 'true')
+        expect(artistsLink).toHaveAttribute('aria-current', 'page')
+    })
+
+    test('activates a non-music parent route via prefix on a nested sub-route (/settings/advanced)', () => {
+        renderSidebar('/settings/advanced')
+
+        const settingsLink = screen.getByText('Server Settings').closest('a')
+        const dashboardLink = screen.getByText('Dashboard').closest('a')
+        expect(settingsLink).toHaveAttribute('data-active', 'true')
+        expect(settingsLink).toHaveAttribute('aria-current', 'page')
+        expect(dashboardLink).toHaveAttribute('data-active', 'false')
     })
 
     test('hides Guild Automation nav item without settings manage access', () => {

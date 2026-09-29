@@ -967,6 +967,7 @@ export default function ReactionRoles() {
     if (!selectedGuild) {
         return (
             <EmptyState
+                headingLevel='h1'
                 icon={<Users className='h-10 w-10' />}
                 title={t('reactionRoles.noServerSelected')}
                 description={t('reactionRoles.selectServerDescription')}

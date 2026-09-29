@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import Skeleton from '@/components/ui/Skeleton'
+import SectionHeader from '@/components/ui/SectionHeader'
 import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
@@ -16,6 +17,7 @@ import type { StarboardConfig, StarboardEntry } from '@/services/starboardApi'
 
 function Starboard() {
     const { t } = useTranslation('starboard')
+    const { t: tCommon } = useTranslation()
     const { selectedGuild } = useGuildStore()
     const [loading, setLoading] = useState(true)
     const [entries, setEntries] = useState<StarboardEntry[]>([])
@@ -127,16 +129,26 @@ function Starboard() {
         }
     }
 
+    const header = (
+        <SectionHeader
+            title={tCommon('layout.routes.starboard.title')}
+            description={tCommon('layout.routes.starboard.subtitle')}
+        />
+    )
+
     if (!selectedGuild) {
         return (
-            <div className='flex flex-col items-center justify-center py-12'>
-                <div className='text-center'>
-                    <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
-                        {t('noServerSelected')}
-                    </p>
-                    <p className='text-sm text-lucky-text-secondary'>
-                        {t('selectServerToView')}
-                    </p>
+            <div className='space-y-6'>
+                {header}
+                <div className='flex flex-col items-center justify-center py-12'>
+                    <div className='text-center'>
+                        <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
+                            {t('noServerSelected')}
+                        </p>
+                        <p className='text-sm text-lucky-text-secondary'>
+                            {t('selectServerToView')}
+                        </p>
+                    </div>
                 </div>
             </div>
         )
@@ -144,10 +156,13 @@ function Starboard() {
 
     if (loading) {
         return (
-            <div className='space-y-4'>
-                <Skeleton className='h-16 rounded' />
-                <Skeleton className='h-32 rounded' />
-                <Skeleton className='h-32 rounded' />
+            <div className='space-y-6'>
+                {header}
+                <div className='space-y-4'>
+                    <Skeleton className='h-16 rounded' />
+                    <Skeleton className='h-32 rounded' />
+                    <Skeleton className='h-32 rounded' />
+                </div>
             </div>
         )
     }
@@ -163,6 +178,7 @@ function Starboard() {
 
     return (
         <div className='space-y-6'>
+            {header}
             {}
             <section>
                 <h2 className='type-title text-lucky-text-primary uppercase tracking-wide mb-4'>

@@ -1,4 +1,9 @@
 {
+    "general": {
+        "errors": {
+            "menuNotYours": "Esse menu não é seu. Rode o comando você mesmo para navegar pelas categorias."
+        }
+    },
     "music": {
         "common": {
             "error": "Erro",
@@ -18,7 +23,9 @@
         "errors": {
             "notInGuild": "Este comando só funciona dentro de um servidor.",
             "notInVoice": "Entre em um canal de voz primeiro.",
-            "nothingPlaying": "Nada está tocando no momento."
+            "nothingPlaying": "Nada está tocando no momento.",
+            "youtubeDisabledTitle": "YouTube indisponível",
+            "youtubeDisabledDescription": "O YouTube não está disponível neste bot no momento. Tente um link do Spotify ou SoundCloud, ou busque pelo nome da música e do artista."
         },
         "nowPlaying": "Tocando agora {{title}}, não pare",
         "queue": {

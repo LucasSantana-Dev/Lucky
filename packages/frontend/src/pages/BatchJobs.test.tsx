@@ -169,12 +169,13 @@ describe('BatchJobsPage', () => {
 
     test('shows no server selected message when no guild selected', () => {
         mockGuildStore(null)
-        renderPage()
+        const { container } = renderPage()
 
         expect(screen.getByText('No Server Selected')).toBeInTheDocument()
         expect(
             screen.getByText('Select a server to view batch jobs'),
         ).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('shows loading skeletons while fetching', () => {

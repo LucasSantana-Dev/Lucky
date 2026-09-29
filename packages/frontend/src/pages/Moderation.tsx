@@ -371,9 +371,9 @@ export default function ModerationPage() {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <Shield className='w-16 h-16 text-lucky-text-tertiary mb-4' />
-                <h2 className='type-h2 text-lucky-text-primary mb-2'>
+                <h1 className='type-h2 text-lucky-text-primary mb-2'>
                     {t('noServerSelected')}
-                </h2>
+                </h1>
                 <p className='type-body text-lucky-text-secondary'>
                     {t('selectServerToViewCases')}
                 </p>

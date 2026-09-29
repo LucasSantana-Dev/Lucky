@@ -227,3 +227,51 @@ describe('streamViaYtDlpSearch', () => {
         )
     })
 })
+
+// ---------------------------------------------------------------------------
+// HOSTED_YOUTUBE_ENABLED = false (#2475 follow-up)
+// ---------------------------------------------------------------------------
+
+describe('HOSTED_YOUTUBE_ENABLED = false', () => {
+    const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
+    const validUrl = 'https://www.youtube.com/watch?v=abc123'
+
+    beforeEach(() => {
+        process.env.HOSTED_YOUTUBE_ENABLED = 'false'
+    })
+
+    afterEach(() => {
+        if (originalEnv === undefined) {
+            delete process.env.HOSTED_YOUTUBE_ENABLED
+        } else {
+            process.env.HOSTED_YOUTUBE_ENABLED = originalEnv
+        }
+    })
+
+    it('streamViaYtDlp rejects without spawning yt-dlp', async () => {
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow(
+            'YouTube disabled',
+        )
+        expect(mockSpawn).not.toHaveBeenCalled()
+    })
+
+    it('streamViaYtDlpSearch rejects without spawning yt-dlp', async () => {
+        await expect(streamViaYtDlpSearch('some song')).rejects.toThrow(
+            'YouTube disabled',
+        )
+        expect(mockSpawn).not.toHaveBeenCalled()
+    })
+
+    // The kill switch is YouTube-only: this function also streams the
+    // allowlisted SoundCloud domains via yt-dlp, and that has nothing to do
+    // with YouTube being disabled.
+    it('still spawns yt-dlp for a SoundCloud URL', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
+        await expect(
+            streamViaYtDlp('https://soundcloud.com/artist/track'),
+        ).resolves.toBeDefined()
+        expect(mockSpawn).toHaveBeenCalled()
+    })
+})

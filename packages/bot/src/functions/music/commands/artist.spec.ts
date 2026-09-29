@@ -144,6 +144,46 @@ describe('artist command search fallback', () => {
         )
     })
 
+    describe('HOSTED_YOUTUBE_ENABLED = false (#2475)', () => {
+        const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
+
+        beforeEach(() => {
+            process.env.HOSTED_YOUTUBE_ENABLED = 'false'
+        })
+
+        afterEach(() => {
+            if (originalEnv === undefined) {
+                delete process.env.HOSTED_YOUTUBE_ENABLED
+            } else {
+                process.env.HOSTED_YOUTUBE_ENABLED = originalEnv
+            }
+        })
+
+        it('skips the YouTube arm and falls straight to SoundCloud', async () => {
+            const queenTracks = [createTrack('Bohemian Rhapsody', 'Queen')]
+            const search = jest
+                .fn()
+                .mockResolvedValueOnce({ tracks: [] })
+                .mockResolvedValueOnce({ tracks: queenTracks })
+            const play = jest.fn(async () => ({ track: queenTracks[0] }))
+            const interaction = createInteraction()
+
+            await artistCommand.execute({
+                client: { player: { search, play } },
+                interaction,
+            } as never)
+
+            // Only 2 arms attempted (Spotify, SoundCloud): YouTube skipped.
+            expect(search).toHaveBeenCalledTimes(2)
+            expect(search.mock.calls[0][1]).toMatchObject({
+                searchEngine: 'SPOTIFY_SEARCH',
+            })
+            expect(search.mock.calls[1][1]).toMatchObject({
+                searchEngine: 'SOUNDCLOUD_SEARCH',
+            })
+        })
+    })
+
     it('keeps only the artist match even when fewer than three tracks match', async () => {
         // Production 2026-08-21: Spotify's results for "queen" included
         // "Queencard" by i-dle. The old `>= 3` threshold dropped the author

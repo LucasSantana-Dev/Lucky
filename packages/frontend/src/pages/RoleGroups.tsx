@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import Skeleton from '@/components/ui/Skeleton'
+import SectionHeader from '@/components/ui/SectionHeader'
 import EmojiPicker from '@/components/ui/EmojiPicker'
 import { Plus, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -33,6 +34,7 @@ function toStorageColor(hexInput: string): string {
 
 function RoleGroups() {
     const { t } = useTranslation('roleGroups')
+    const { t: tCommon } = useTranslation()
     const { selectedGuild } = useGuildStore()
     const [loading, setLoading] = useState(true)
     const [groups, setGroups] = useState<RoleGroup[]>([])
@@ -71,53 +73,72 @@ function RoleGroups() {
         }
     }, [selectedGuild, load])
 
+    const header = (
+        <SectionHeader
+            title={tCommon('layout.routes.roleGroups.title')}
+            description={tCommon('layout.routes.roleGroups.subtitle')}
+        />
+    )
+
     if (!selectedGuild) {
         return (
-            <div className='flex-center min-h-[40vh] flex-col gap-2 text-center'>
-                <h2 className='type-title text-lucky-text-primary'>
-                    {t('noServerSelected')}
-                </h2>
-                <p className='type-body-sm text-lucky-text-tertiary'>
-                    {t('selectServerToView')}
-                </p>
+            <div className='space-y-6'>
+                {header}
+                <div className='flex-center min-h-[40vh] flex-col gap-2 text-center'>
+                    <h2 className='type-title text-lucky-text-primary'>
+                        {t('noServerSelected')}
+                    </h2>
+                    <p className='type-body-sm text-lucky-text-tertiary'>
+                        {t('selectServerToView')}
+                    </p>
+                </div>
             </div>
         )
     }
 
     if (loading) {
         return (
-            <div className='space-y-4' role='status' aria-live='polite'>
-                {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className='h-40 w-full rounded-lg' />
-                ))}
+            <div className='space-y-6'>
+                {header}
+                <div className='space-y-4' role='status' aria-live='polite'>
+                    {Array.from({ length: 3 }).map((_, i) => (
+                        <Skeleton key={i} className='h-40 w-full rounded-lg' />
+                    ))}
+                </div>
             </div>
         )
     }
 
     if (groups.length === 0) {
         return (
-            <Card className='border border-lucky-border p-8 text-center'>
-                <h2 className='type-title text-lucky-text-primary'>
-                    {t('noGroupsYet')}
-                </h2>
-                <p className='type-body-sm text-lucky-text-tertiary mt-2'>
-                    {t('noGroupsHint')}
-                </p>
-            </Card>
+            <div className='space-y-6'>
+                {header}
+                <Card className='border border-lucky-border p-8 text-center'>
+                    <h2 className='type-title text-lucky-text-primary'>
+                        {t('noGroupsYet')}
+                    </h2>
+                    <p className='type-body-sm text-lucky-text-tertiary mt-2'>
+                        {t('noGroupsHint')}
+                    </p>
+                </Card>
+            </div>
         )
     }
 
     return (
-        <div className='space-y-4'>
-            {groups.map((group) => (
-                <RoleGroupCard
-                    key={group.id}
-                    group={group}
-                    guildId={selectedGuild.id}
-                    message={messages.find((m) => m.groupId === group.id)}
-                    onChanged={load}
-                />
-            ))}
+        <div className='space-y-6'>
+            {header}
+            <div className='space-y-4'>
+                {groups.map((group) => (
+                    <RoleGroupCard
+                        key={group.id}
+                        group={group}
+                        guildId={selectedGuild.id}
+                        message={messages.find((m) => m.groupId === group.id)}
+                        onChanged={load}
+                    />
+                ))}
+            </div>
         </div>
     )
 }

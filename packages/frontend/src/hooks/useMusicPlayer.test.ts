@@ -179,7 +179,20 @@ describe('useMusicPlayer', () => {
     test('sets lastStateUpdate from initial REST state', async () => {
         const { sse } = makeMockSSE()
         mockCreateSSEConnection.mockReturnValue(sse)
-        const restState = { guildId: 'guild-1', isPlaying: true, tracks: [], currentTrack: null, isPaused: false, volume: 60, repeatMode: 'off', shuffled: false, position: 0, voiceChannelId: null, voiceChannelName: null, timestamp: 0 }
+        const restState = {
+            guildId: 'guild-1',
+            isPlaying: true,
+            tracks: [],
+            currentTrack: null,
+            isPaused: false,
+            volume: 60,
+            repeatMode: 'off',
+            shuffled: false,
+            position: 0,
+            voiceChannelId: null,
+            voiceChannelName: null,
+            timestamp: 0,
+        }
         mockGetState.mockResolvedValue({ data: restState })
 
         const { result } = renderHook(() => useMusicPlayer('guild-1'))
@@ -220,7 +233,9 @@ describe('useMusicPlayer', () => {
         expect(result.current.state.volume).toBe(volumeBefore)
         expect(result.current.lastStateUpdate).toEqual(expect.any(Number))
         if (before !== null) {
-            expect(result.current.lastStateUpdate).toBeGreaterThanOrEqual(before)
+            expect(result.current.lastStateUpdate).toBeGreaterThanOrEqual(
+                before,
+            )
         }
     })
 
@@ -302,6 +317,167 @@ describe('useMusicPlayer', () => {
         await waitFor(() => {
             expect(result.current.state.volume).toBe(60)
         })
+    })
+
+    test('records a failed initial load instead of leaving the skeleton stuck forever', async () => {
+        // SSE never opens (API down / 403) and the REST fallback also
+        // rejects: previously lastStateUpdate stayed null forever, so the
+        // hero and queue skeletons never resolved and nothing told the user
+        // why.
+        const { sse } = makeMockSSE()
+        mockCreateSSEConnection.mockReturnValue(sse)
+        mockGetState.mockRejectedValue(new Error('network down'))
+
+        const { result } = renderHook(() => useMusicPlayer('guild-1'))
+
+        expect(result.current.lastStateUpdate).toBeNull()
+
+        await waitFor(() =>
+            expect(result.current.lastStateUpdate).toEqual(expect.any(Number)),
+        )
+        expect(result.current.error).toEqual(expect.any(String))
+        expect(result.current.error).not.toBeNull()
+        expect(result.current.isConnected).toBe(false)
+    })
+
+    test('clears the initial-load-failure error once SSE recovers with a heartbeat', async () => {
+        const { sse, listeners } = makeMockSSE()
+        mockCreateSSEConnection.mockReturnValue(sse)
+        mockGetState.mockRejectedValue(new Error('network down'))
+
+        const { result } = renderHook(() => useMusicPlayer('guild-1'))
+
+        await waitFor(() => expect(result.current.error).not.toBeNull())
+
+        act(() => {
+            listeners.onopen?.()
+            listeners.onmessage?.({
+                data: JSON.stringify({ type: 'heartbeat' }),
+            })
+        })
+
+        await waitFor(() => expect(result.current.error).toBeNull())
+    })
+
+    test('clears the initial-load-failure error once SSE delivers real state', async () => {
+        const { sse, listeners } = makeMockSSE()
+        mockCreateSSEConnection.mockReturnValue(sse)
+        mockGetState.mockRejectedValue(new Error('network down'))
+
+        const { result } = renderHook(() => useMusicPlayer('guild-1'))
+
+        await waitFor(() => expect(result.current.error).not.toBeNull())
+
+        act(() => {
+            listeners.onopen?.()
+            listeners.onmessage?.({
+                data: JSON.stringify(makeState('guild-1', 42)),
+            })
+        })
+
+        await waitFor(() => expect(result.current.error).toBeNull())
+        expect(result.current.state.volume).toBe(42)
+    })
+
+    test('does not clear an unrelated command-failure error on a later heartbeat', async () => {
+        const { sse, listeners } = makeMockSSE()
+        mockCreateSSEConnection.mockReturnValue(sse)
+        mockGetState.mockResolvedValue({ data: makeState('guild-1') })
+
+        const { result } = renderHook(() => useMusicPlayer('guild-1'))
+        await waitFor(() =>
+            expect(result.current.lastStateUpdate).toEqual(expect.any(Number)),
+        )
+
+        const action = createDeferred<unknown>()
+        act(() => {
+            void sendCommand(() => action.promise, undefined, 'volume')
+        })
+        await act(async () => {
+            action.reject(new Error('command failed'))
+            await Promise.resolve()
+        })
+        await waitFor(() => expect(result.current.error).not.toBeNull())
+
+        act(() => {
+            listeners.onmessage?.({
+                data: JSON.stringify({ type: 'heartbeat' }),
+            })
+        })
+
+        // A heartbeat after a genuine command failure must not silently
+        // erase that error — only the initial-load-failure message is
+        // scoped to auto-clear.
+        expect(result.current.error).not.toBeNull()
+    })
+
+    test('does not let a command error taken right after a failed initial load get wiped by the next heartbeat', async () => {
+        // Initial REST load fails (sets error + initialLoadFailedRef), then
+        // before any SSE signal arrives a command also fails and overwrites
+        // `error` with its own message. sendCommand never touched the ref,
+        // so the next heartbeat would otherwise still treat that newer,
+        // unrelated error as the stale load-failure message and clear it.
+        const { sse, listeners } = makeMockSSE()
+        mockCreateSSEConnection.mockReturnValue(sse)
+        mockGetState.mockRejectedValue(new Error('network down'))
+
+        const { result } = renderHook(() => useMusicPlayer('guild-1'))
+        await waitFor(() => expect(result.current.error).not.toBeNull())
+
+        const action = createDeferred<unknown>()
+        act(() => {
+            void sendCommand(() => action.promise, undefined, 'volume')
+        })
+        await act(async () => {
+            action.reject(new Error('command failed'))
+            await Promise.resolve()
+        })
+        await waitFor(() =>
+            expect(result.current.error).toContain('command failed'),
+        )
+
+        act(() => {
+            listeners.onmessage?.({
+                data: JSON.stringify({ type: 'heartbeat' }),
+            })
+        })
+
+        expect(result.current.error).toContain('command failed')
+    })
+
+    test('resets lastStateUpdate to null when switching guilds', async () => {
+        const firstSSE = makeMockSSE()
+        const secondSSE = makeMockSSE()
+        mockCreateSSEConnection
+            .mockReturnValueOnce(firstSSE.sse)
+            .mockReturnValueOnce(secondSSE.sse)
+
+        const secondGuildState = createDeferred<{ data: QueueState }>()
+        mockGetState
+            .mockResolvedValueOnce({ data: makeState('guild-1') })
+            .mockReturnValueOnce(secondGuildState.promise)
+
+        const { result, rerender } = renderHook(
+            ({ guildId }) => useMusicPlayer(guildId),
+            { initialProps: { guildId: 'guild-1' } },
+        )
+
+        await waitFor(() =>
+            expect(result.current.lastStateUpdate).toEqual(expect.any(Number)),
+        )
+
+        rerender({ guildId: 'guild-2' })
+
+        // Guild 2's own getState/SSE payload has not resolved yet — without
+        // the reset, this would still hold guild 1's stale timestamp and the
+        // UI would render the freshly-cleared EMPTY_STATE as "loaded"
+        // instead of showing a loading skeleton.
+        expect(result.current.lastStateUpdate).toBeNull()
+
+        secondGuildState.resolve({ data: makeState('guild-2', 40) })
+        await waitFor(() =>
+            expect(result.current.lastStateUpdate).toEqual(expect.any(Number)),
+        )
     })
 
     test('does not let an old guild rollback update a new visit to that guild', async () => {

@@ -38,16 +38,18 @@ describe('RoleGroups', () => {
 
     test('shows no-server state when no guild selected', () => {
         mockStore(null)
-        render(<RoleGroups />)
+        const { container } = render(<RoleGroups />)
         expect(screen.getByText('noServerSelected')).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('renders empty state when there are no groups', async () => {
         mockStore({ id: 'g1' })
         vi.mocked(api.roleGroups.list).mockResolvedValue([])
         vi.mocked(api.reactionRoles.list).mockResolvedValue([])
-        render(<RoleGroups />)
+        const { container } = render(<RoleGroups />)
         expect(await screen.findByText('noGroupsYet')).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('renders a group card with its name and cross-referenced roles', async () => {
@@ -81,19 +83,21 @@ describe('RoleGroups', () => {
                 ],
             },
         ] as never)
-        render(<RoleGroups />)
+        const { container } = render(<RoleGroups />)
         expect(await screen.findByText('Tecnologias')).toBeInTheDocument()
         await waitFor(() =>
             expect(screen.getByText('Python')).toBeInTheDocument(),
         )
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('shows loading skeleton while fetching', () => {
         mockStore({ id: 'g1' })
         vi.mocked(api.roleGroups.list).mockReturnValue(new Promise(() => {}))
         vi.mocked(api.reactionRoles.list).mockReturnValue(new Promise(() => {}))
-        render(<RoleGroups />)
+        const { container } = render(<RoleGroups />)
         expect(screen.getByRole('status')).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     const groupFixture = {
