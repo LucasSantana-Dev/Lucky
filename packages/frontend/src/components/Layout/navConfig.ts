@@ -56,6 +56,35 @@ export const navSections: NavSection[] = [
         ],
     },
     {
+        titleKey: 'sidebar.sections.media',
+        items: [
+            {
+                path: '/music',
+                labelKey: 'sidebar.nav.musicPlayer',
+                icon: Music,
+                module: 'music',
+            },
+            {
+                path: '/music/history',
+                labelKey: 'sidebar.nav.trackHistory',
+                icon: History,
+                module: 'music',
+            },
+            {
+                path: '/lyrics',
+                labelKey: 'sidebar.nav.lyrics',
+                icon: MicVocal,
+                module: 'music',
+            },
+            {
+                path: '/music/artists',
+                labelKey: 'sidebar.nav.musicalTaste',
+                icon: Heart,
+                module: 'music',
+            },
+        ],
+    },
+    {
         titleKey: 'sidebar.sections.moderation',
         items: [
             {
@@ -140,35 +169,6 @@ export const navSections: NavSection[] = [
                 labelKey: 'sidebar.nav.starboard',
                 icon: Star,
                 module: 'settings',
-            },
-        ],
-    },
-    {
-        titleKey: 'sidebar.sections.media',
-        items: [
-            {
-                path: '/music',
-                labelKey: 'sidebar.nav.musicPlayer',
-                icon: Music,
-                module: 'music',
-            },
-            {
-                path: '/music/history',
-                labelKey: 'sidebar.nav.trackHistory',
-                icon: History,
-                module: 'music',
-            },
-            {
-                path: '/lyrics',
-                labelKey: 'sidebar.nav.lyrics',
-                icon: MicVocal,
-                module: 'music',
-            },
-            {
-                path: '/music/artists',
-                labelKey: 'sidebar.nav.musicalTaste',
-                icon: Heart,
-                module: 'music',
             },
         ],
     },

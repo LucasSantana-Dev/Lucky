@@ -47,11 +47,12 @@ describe('AutoMessagesPage', () => {
 
     test('shows no server selected when no guild', () => {
         mockGuildStoreFn(null)
-        renderPage()
+        const { container } = renderPage()
         expect(screen.getByText('No Server Selected')).toBeInTheDocument()
         expect(
             screen.getByText('Select a server to manage auto messages'),
         ).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('shows loading skeletons initially', () => {
@@ -100,7 +101,9 @@ describe('AutoMessagesPage', () => {
         renderPage()
 
         await waitFor(() => {
-            expect(screen.getByText('No auto messages configured')).toBeInTheDocument()
+            expect(
+                screen.getByText('No auto messages configured'),
+            ).toBeInTheDocument()
         })
     })
 

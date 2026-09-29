@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import Skeleton from '@/components/ui/Skeleton'
+import SectionHeader from '@/components/ui/SectionHeader'
 import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
@@ -166,14 +167,20 @@ function Levels() {
 
     if (!selectedGuild) {
         return (
-            <div className='flex flex-col items-center justify-center py-12'>
-                <div className='text-center'>
-                    <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
-                        {t('levels.noServerSelected')}
-                    </p>
-                    <p className='text-sm text-lucky-text-secondary'>
-                        {t('levels.selectServerToView')}
-                    </p>
+            <div className='space-y-6'>
+                <SectionHeader
+                    title={t('layout.routes.levels.title')}
+                    description={t('layout.routes.levels.subtitle')}
+                />
+                <div className='flex flex-col items-center justify-center py-12'>
+                    <div className='text-center'>
+                        <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
+                            {t('levels.noServerSelected')}
+                        </p>
+                        <p className='text-sm text-lucky-text-secondary'>
+                            {t('levels.selectServerToView')}
+                        </p>
+                    </div>
                 </div>
             </div>
         )
@@ -181,10 +188,16 @@ function Levels() {
 
     if (loading) {
         return (
-            <div className='space-y-4'>
-                <Skeleton className='h-16 rounded' />
-                <Skeleton className='h-32 rounded' />
-                <Skeleton className='h-32 rounded' />
+            <div className='space-y-6'>
+                <SectionHeader
+                    title={t('layout.routes.levels.title')}
+                    description={t('layout.routes.levels.subtitle')}
+                />
+                <div className='space-y-4'>
+                    <Skeleton className='h-16 rounded' />
+                    <Skeleton className='h-32 rounded' />
+                    <Skeleton className='h-32 rounded' />
+                </div>
             </div>
         )
     }
@@ -196,6 +209,10 @@ function Levels() {
 
     return (
         <div className='space-y-6'>
+            <SectionHeader
+                title={t('layout.routes.levels.title')}
+                description={t('layout.routes.levels.subtitle')}
+            />
             {/* Leaderboard */}
             <section>
                 <h2 className='type-title text-lucky-text-primary mb-4'>

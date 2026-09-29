@@ -782,7 +782,7 @@
         "nowPlaying": "Now Playing",
         "unknown": "Unknown",
         "nothingPlaying": "Nothing playing",
-        "searchOrImportToGetStarted": "Search or import to get started",
+        "searchOrImportToGetStarted": "Start playback from Discord with /play, or search and import below.",
         "queue": "Queue",
         "volume": "Volume",
         "shuffle": "Shuffle",

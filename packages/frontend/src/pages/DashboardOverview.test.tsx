@@ -172,13 +172,14 @@ describe('DashboardOverview', () => {
     test('shows select server when no guild', () => {
         mockGuildStoreFn(null)
         setupQueryHookMocks()
-        renderPage()
+        const { container } = renderPage()
         expect(screen.getByText('Select a Server')).toBeInTheDocument()
         expect(
             screen.getByText(
                 'Choose a server from the sidebar to view its dashboard',
             ),
         ).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('shows loading skeletons when loading', () => {

@@ -67,15 +67,20 @@ vi.mock('@/components/ui/EmptyState', () => ({
     default: ({
         title,
         description,
+        headingLevel = 'h2',
     }: {
         title: string
         description: string
-    }) => (
-        <div data-testid='empty-state'>
-            <span>{title}</span>
-            <span>{description}</span>
-        </div>
-    ),
+        headingLevel?: 'h1' | 'h2'
+    }) => {
+        const Heading = headingLevel
+        return (
+            <div data-testid='empty-state'>
+                <Heading>{title}</Heading>
+                <span>{description}</span>
+            </div>
+        )
+    },
 }))
 
 vi.mock('react-i18next', () => ({
@@ -170,12 +175,13 @@ describe('PreferredArtistsPage', () => {
         vi.mocked(useGuildSelection).mockReturnValue({
             selectedGuild: null,
         } as any)
-        renderPage()
+        const { container } = renderPage()
         expect(screen.getByTestId('empty-state')).toBeInTheDocument()
         expect(screen.getByText('No Server Selected')).toBeInTheDocument()
         expect(
             screen.getByText('Select a server to manage preferred artists'),
         ).toBeInTheDocument()
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('renders page with search bar when guild selected', async () => {

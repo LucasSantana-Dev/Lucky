@@ -173,9 +173,7 @@ function MessageFormDialog({
                                         'autoMessages.triggerPlaceholder',
                                     )}
                                     value={trigger}
-                                    onChange={(e) =>
-                                        setTrigger(e.target.value)
-                                    }
+                                    onChange={(e) => setTrigger(e.target.value)}
                                     required
                                 />
                             </div>
@@ -292,9 +290,9 @@ export default function AutoMessagesPage() {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <MessageSquare className='w-16 h-16 text-lucky-text-tertiary mb-4' />
-                <h2 className='type-h2 text-lucky-text-primary mb-2'>
+                <h1 className='type-h2 text-lucky-text-primary mb-2'>
                     {t('autoMessages.noServerSelected')}
-                </h2>
+                </h1>
                 <p className='type-body text-lucky-text-secondary'>
                     {t('autoMessages.selectServerToManage')}
                 </p>
@@ -381,7 +379,11 @@ export default function AutoMessagesPage() {
                                                     />
                                                 </div>
                                                 <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
-                                                    {t(TYPE_LABEL_KEY[msg.type])}
+                                                    {t(
+                                                        TYPE_LABEL_KEY[
+                                                            msg.type
+                                                        ],
+                                                    )}
                                                 </h3>
                                             </div>
                                             <div className='flex items-center gap-1'>

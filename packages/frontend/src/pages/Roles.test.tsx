@@ -59,7 +59,7 @@ describe('RolesPage', () => {
             selectedGuild: null,
         } as any)
 
-        render(
+        const { container } = render(
             <MemoryRouter>
                 <RolesPage />
             </MemoryRouter>,
@@ -73,6 +73,9 @@ describe('RolesPage', () => {
                 )
             }),
         ).toBeInTheDocument()
+        // No-guild branch is the page's only content, so it must own the h1
+        // rather than EmptyState's default h2.
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
 
     test('renders role list on successful API load', async () => {
