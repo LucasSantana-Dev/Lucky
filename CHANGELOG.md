@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.47.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.1...v2.47.2) (2026-09-30)
+
+
+### Bug Fixes
+
+* **bot:** look up genre tags by primary artist for multi-artist credits ([#2514](https://github.com/LucasSantana-Dev/Lucky/issues/2514)) ([833cbb6](https://github.com/LucasSantana-Dev/Lucky/commit/833cbb67e467ecc7de13b6c95ff906777049143e))
+* **deps:** bump brace-expansion override to 5.0.12 ([#2515](https://github.com/LucasSantana-Dev/Lucky/issues/2515)) ([8aede56](https://github.com/LucasSantana-Dev/Lucky/commit/8aede56d66171dba6c54bd1e0d953bfac05fe796))
+
 ## [2.47.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.0...v2.47.1) (2026-09-29)
 
 
