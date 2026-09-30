@@ -113,10 +113,14 @@ describe('createArtistTagFetcher', () => {
                 'bossa nova',
             ])
         }
-        expect(getArtistTopTags).toHaveBeenCalledWith(
+        expect(getArtistTopTags.mock.calls.map(([a]: [string]) => a)).toEqual([
             'Elis Regina, Antônio Carlos Jobim',
-        )
-        expect(getArtistTopTags).toHaveBeenCalledWith('Elis Regina')
+            'Elis Regina',
+            'Elis Regina feat Tom Jobim',
+            'Elis Regina',
+            'Elis Regina - Topic',
+            'Elis Regina',
+        ])
         expect(spotifyFallback).not.toHaveBeenCalled()
     })
 
