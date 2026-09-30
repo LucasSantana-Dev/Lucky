@@ -77,25 +77,30 @@ describe('sessionMood', () => {
             expect(mood.deepDiveArtist).toBe(expected)
         })
 
-        it('checks only last 8 tracks', () => {
+        it('checks only the 8 most recent tracks (history is newest-first)', () => {
             const history = [
-                { author: 'X', durationMS: 200000, isAutoplay: false },
-                { author: 'X', durationMS: 200000, isAutoplay: false },
-                { author: 'X', durationMS: 200000, isAutoplay: false },
-                { author: 'X', durationMS: 200000, isAutoplay: false },
-                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
+                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
+                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
                 { author: 'Z', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'Artist A', durationMS: 200000, isAutoplay: false },
-                { author: 'C', durationMS: 200000, isAutoplay: false },
-                { author: 'C', durationMS: 200000, isAutoplay: false },
-                { author: 'C', durationMS: 200000, isAutoplay: false },
                 { author: 'Y', durationMS: 200000, isAutoplay: false },
                 { author: 'Y', durationMS: 200000, isAutoplay: false },
+                { author: 'C', durationMS: 200000, isAutoplay: false },
+                { author: 'C', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
+                { author: 'X', durationMS: 200000, isAutoplay: false },
             ]
 
             expect(detectSessionMood(history).deepDiveArtist).toBe('artist a')
+
+            // A 3rd 'A' at position 8 only counts if the window grows past 8.
+            const boundary = ['A', 'A', 'B', 'B', 'C', 'C', 'D', 'D', 'A'].map(
+                (author) => ({ author, durationMS: 200000, isAutoplay: false }),
+            )
+            expect(detectSessionMood(boundary).deepDiveArtist).toBeNull()
         })
     })
 
@@ -131,6 +136,20 @@ describe('sessionMood', () => {
             const mood = detectSessionMood(tracks[_ as keyof typeof tracks])
             expect(mood.preferLong).toBe(expectedLong)
             expect(mood.preferShort).toBe(expectedShort)
+        })
+
+        it('uses the 5 most recent tracks in a long session (history is newest-first)', () => {
+            const recent = Array.from({ length: 5 }, (_, i) => ({
+                author: `Recent ${i}`,
+                durationMS: 400000,
+            }))
+            const old = Array.from({ length: 15 }, (_, i) => ({
+                author: `Old ${i}`,
+                durationMS: 100000,
+            }))
+            const mood = detectSessionMood([...recent, ...old])
+            expect(mood.preferLong).toBe(true)
+            expect(mood.preferShort).toBe(false)
         })
 
         it('parses duration strings (m:ss and h:mm:ss)', () => {
@@ -205,7 +224,7 @@ describe('sessionMood', () => {
             expect(mood.restless).toBe(expected)
         })
 
-        it('requires 5+ tracks and checks last 10', () => {
+        it('requires 5+ tracks and checks the 10 most recent', () => {
             const short = [
                 { author: 'A', durationMS: 200000, isAutoplay: false },
                 { author: 'B', durationMS: 200000, isAutoplay: true },
@@ -232,7 +251,7 @@ describe('sessionMood', () => {
                 { author: 'I', durationMS: 200000, isAutoplay: false },
                 { author: 'J', durationMS: 200000, isAutoplay: false },
             ]
-            expect(detectSessionMood([...old, ...recent]).restless).toBe(true)
+            expect(detectSessionMood([...recent, ...old]).restless).toBe(true)
         })
     })
 
@@ -354,8 +373,11 @@ describe('sessionMood', () => {
                 durationMS: 200000,
             }))
             expect(
-                detectSessionMood([...old, ...recent]).dominantLocale,
+                detectSessionMood([...recent, ...old]).dominantLocale,
             ).toBeNull()
+            expect(detectSessionMood([...old, ...recent]).dominantLocale).toBe(
+                'spanish',
+            )
         })
     })
 
