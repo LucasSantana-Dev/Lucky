@@ -38,6 +38,7 @@ function getDurationMs(track: {
     return 0
 }
 
+/** `historyTracks` is discord-player's history, newest first. */
 export function detectSessionMood(
     historyTracks: {
         author?: string
@@ -60,7 +61,7 @@ export function detectSessionMood(
     }
 
     let deepDiveArtist: string | null = null
-    const recentForDeepDive = historyTracks.slice(-8)
+    const recentForDeepDive = historyTracks.slice(0, 8)
     const artistCounts = new Map<string, number>()
     for (const track of recentForDeepDive) {
         if (track.author) {
@@ -77,7 +78,7 @@ export function detectSessionMood(
 
     let preferLong = false
     let preferShort = false
-    const recentForDuration = historyTracks.slice(-5)
+    const recentForDuration = historyTracks.slice(0, 5)
     if (recentForDuration.length >= 1) {
         const durations = recentForDuration
             .map((t) => getDurationMs(t))
@@ -95,7 +96,7 @@ export function detectSessionMood(
     }
 
     let restless = false
-    const recentForRestless = historyTracks.slice(-10)
+    const recentForRestless = historyTracks.slice(0, 10)
     if (recentForRestless.length >= 5) {
         const autoplayCount = recentForRestless.filter(
             (t) => t.isAutoplay === true,
@@ -115,7 +116,7 @@ export function detectSessionMood(
         restless = true
     }
 
-    const recentForLocale = historyTracks.slice(-15)
+    const recentForLocale = historyTracks.slice(0, 15)
     const sessionLanguage = detectSessionLanguageMarkers(
         recentForLocale.map((t) => ({
             title: t.title,
