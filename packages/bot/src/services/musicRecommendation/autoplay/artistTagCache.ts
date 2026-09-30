@@ -29,17 +29,24 @@ export function createArtistTagFetcher(
 ): ArtistTagFetcher {
     const cache = new Map<string, Promise<string[]>>()
 
-    return async (author) => {
-        if (!author) return []
-        // Last.fm has no entry for a Spotify multi-artist credit ("A, B"), so
-        // the raw author returns no tags and every genre guard fails open.
-        const artist = primaryArtist(author)
-        const key = artist.toLowerCase()
+    return async (artist) => {
+        if (!artist) return []
+        const key = artist.toLowerCase().trim()
         if (!key) return []
         const cached = cache.get(key)
         if (cached) return cached
+        // Last.fm has no entry for a Spotify multi-artist credit ("A, B"), so
+        // the raw author returns no tags and every genre guard fails open.
+        // Retry with the first artist only after the raw name misses: names
+        // like "Tyler, The Creator" carry a comma and resolve as-is.
+        const primary = primaryArtist(artist)
         const pending = getArtistTopTags(artist)
             .catch(() => [])
+            .then((tags) =>
+                tags.length === 0 && primary && primary.toLowerCase() !== key
+                    ? getArtistTopTags(primary).catch(() => [])
+                    : tags,
+            )
             .then(async (tags) => {
                 if (tags.length === 0 && spotifyFallback) {
                     const result = await Promise.resolve(
