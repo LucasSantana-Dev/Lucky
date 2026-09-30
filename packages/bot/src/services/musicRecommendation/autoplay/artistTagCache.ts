@@ -1,4 +1,5 @@
 import { getArtistTopTags } from '../../../lastfm'
+import { primaryArtist } from '../../../utils/music/trackNormalization'
 
 export type ArtistTagFetcher = (artist: string | undefined) => Promise<string[]>
 
@@ -28,9 +29,12 @@ export function createArtistTagFetcher(
 ): ArtistTagFetcher {
     const cache = new Map<string, Promise<string[]>>()
 
-    return async (artist) => {
-        if (!artist) return []
-        const key = artist.toLowerCase().trim()
+    return async (author) => {
+        if (!author) return []
+        // Last.fm has no entry for a Spotify multi-artist credit ("A, B"), so
+        // the raw author returns no tags and every genre guard fails open.
+        const artist = primaryArtist(author)
+        const key = artist.toLowerCase()
         if (!key) return []
         const cached = cache.get(key)
         if (cached) return cached

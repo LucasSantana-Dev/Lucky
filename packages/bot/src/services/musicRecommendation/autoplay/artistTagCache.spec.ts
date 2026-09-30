@@ -93,6 +93,23 @@ describe('createArtistTagFetcher', () => {
         expect(result).toEqual([])
     })
 
+    it('looks up the primary artist of a multi-artist author', async () => {
+        getArtistTopTags.mockResolvedValue(['mpb', 'bossa nova'])
+        const spotifyFallback = jest
+            .fn<(artist: string) => Promise<string[]>>()
+            .mockResolvedValue([])
+
+        const fetcher = createArtistTagFetcher(spotifyFallback)
+        const result = await fetcher('Elis Regina, Antônio Carlos Jobim')
+        await fetcher('Elis Regina feat Tom Jobim')
+        await fetcher('Elis Regina - Topic')
+
+        expect(getArtistTopTags).toHaveBeenCalledTimes(1)
+        expect(getArtistTopTags).toHaveBeenCalledWith('Elis Regina')
+        expect(spotifyFallback).not.toHaveBeenCalled()
+        expect(result).toEqual(['mpb', 'bossa nova'])
+    })
+
     it('uses spotify fallback when Last.fm returns empty and fallback provided', async () => {
         getArtistTopTags.mockResolvedValue([])
         const spotifyFallback = jest

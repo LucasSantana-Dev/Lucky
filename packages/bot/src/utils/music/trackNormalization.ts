@@ -9,11 +9,14 @@ function stripFeaturing(author: string): string {
     return author
 }
 
+/** First credited artist: "A, B" / "A feat B" / "A - Topic" → "A". */
+export function primaryArtist(author: string): string {
+    return stripFeaturing(cleanAuthor(author).split(',')[0] ?? '').trim()
+}
+
 export function normalizeTrackKey(title?: string, author?: string): string {
     const cleanedTitle = title ? cleanTitle(title) : ''
-    const primaryAuthor = author
-        ? stripFeaturing(cleanAuthor(author).split(',')[0] ?? '').trim()
-        : ''
+    const primaryAuthor = author ? primaryArtist(author) : ''
     return `${normalizeText(cleanedTitle)}::${normalizeText(primaryAuthor)}`
 }
 
