@@ -126,7 +126,7 @@
     },
     "overrides": {
         "file-type": "$file-type",
-        "brace-expansion": "5.0.9",
+        "brace-expansion": "5.0.12",
         "handlebars": "4.7.9",
         "path-to-regexp": "8.4.2",
         "fast-xml-parser": ">=5.5.6",
