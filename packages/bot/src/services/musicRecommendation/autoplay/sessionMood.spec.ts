@@ -95,6 +95,12 @@ describe('sessionMood', () => {
             ]
 
             expect(detectSessionMood(history).deepDiveArtist).toBe('artist a')
+
+            // A 3rd 'A' at position 8 only counts if the window grows past 8.
+            const boundary = ['A', 'A', 'B', 'B', 'C', 'C', 'D', 'D', 'A'].map(
+                (author) => ({ author, durationMS: 200000, isAutoplay: false }),
+            )
+            expect(detectSessionMood(boundary).deepDiveArtist).toBeNull()
         })
     })
 
