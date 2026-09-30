@@ -625,6 +625,100 @@ describe('replenisher seam functions', () => {
             expect(fetcher).toHaveBeenCalledWith('Seed')
         })
 
+        describe('session genre families', () => {
+            // Each tag stands for its own family; artist name → tags.
+            const context = async (
+                history: string[],
+                tagsByArtist: Record<string, string[]>,
+                seed = 'Seed',
+            ) => {
+                const { getGenreFamilies } = require('./candidateScorer')
+                getGenreFamilies.mockImplementation(
+                    (tags: string[]) => new Set(tags),
+                )
+                const fetcher = jest.fn(
+                    async (artist?: string) => tagsByArtist[artist ?? ''] ?? [],
+                )
+                const result = await buildGenreTagContext(
+                    createGuildQueue(),
+                    createTrack({ author: seed }),
+                    history.map((author) => createTrack({ author })),
+                    null,
+                    fetcher,
+                )
+                return { families: result.sessionGenreFamilies, fetcher }
+            }
+
+            it('arms on a single-artist deep dive', async () => {
+                const { families, fetcher } = await context(
+                    ['MC X', 'MC X', 'MC X'],
+                    { 'MC X': ['rap'] },
+                )
+
+                expect(families).toEqual(new Set(['rap']))
+                expect(
+                    fetcher.mock.calls.filter(([a]) => a === 'MC X'),
+                ).toHaveLength(1)
+            })
+
+            it('reads the newest 10 tracks (history is newest first)', async () => {
+                const { families } = await context(
+                    [...Array(10).fill('Untagged'), 'K1', 'K2', 'K3'],
+                    { K1: ['rock'], K2: ['rock'], K3: ['rock'] },
+                )
+
+                expect(families).toEqual(new Set())
+            })
+
+            it('stays empty on a mixed session', async () => {
+                const { families } = await context(
+                    [
+                        'R1',
+                        'K1',
+                        'L1',
+                        'R2',
+                        'K2',
+                        'L2',
+                        'P1',
+                        'P2',
+                        'E1',
+                        'J1',
+                    ],
+                    {
+                        R1: ['rap'],
+                        R2: ['rap'],
+                        K1: ['rock'],
+                        K2: ['rock'],
+                        L1: ['latin'],
+                        L2: ['latin'],
+                        P1: ['pop'],
+                        E1: ['electronic'],
+                        J1: ['jazz'],
+                    },
+                )
+
+                expect(families).toEqual(new Set())
+            })
+
+            it('adds the playing track family once the session is armed', async () => {
+                const { families } = await context(['Rock', 'Rock', 'Rock'], {
+                    Rock: ['rock'],
+                    Seed: ['latin'],
+                })
+
+                expect(families).toEqual(new Set(['rock', 'latin']))
+            })
+
+            it('does not arm from the playing track alone', async () => {
+                const { families } = await context(['Rock'], {
+                    Rock: ['rock'],
+                    Seed: ['latin'],
+                })
+
+                expect(families).toEqual(new Set())
+            })
+        })
+
         it('logs genre context details', async () => {
             const { debugLog } = require('@lucky/shared/utils')
             debugLog.mockClear()

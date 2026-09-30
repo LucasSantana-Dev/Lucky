@@ -233,7 +233,7 @@ async function _replenishQueue(
             await buildGenreTagContext(
                 queue,
                 currentTrack,
-                historyTracks,
+                allHistoryTracks,
                 guildSettings,
                 getArtistTags,
             )
@@ -628,6 +628,14 @@ export async function buildGenreTagContext(
         getArtistTags(currentTrack.author),
         detectSessionGenreFamilies(historyTracks, getArtistTags),
     ])
+    // The playing track is the freshest signal: when the listener switches
+    // genre by hand, the history still holds the old family, and the veto
+    // must not reject candidates that match what is playing now.
+    if (sessionGenreFamilies.size > 0 && currentTrackTags.length > 0) {
+        for (const family of getGenreFamilies(currentTrackTags)) {
+            sessionGenreFamilies.add(family)
+        }
+    }
 
     // Preserve this guard exactly — replenisher.spec.ts:93-95 mocks artistTagCache
     // WITHOUT hasGenreTag and only passes because this guard short-circuits when
@@ -1012,38 +1020,40 @@ function buildRecentArtistIndices(
 }
 
 /**
- * Look up Last.fm tags for the most recent unique artists in history and
- * derive the dominant genre families. Returns a non-empty set only when at
- * least 3 of the recent tracks resolve to a single family — this matches
- * `sessionMood`'s "deep dive" threshold and prevents single-track outliers
- * from flipping the cross-genre veto on a genuinely mixed session.
+ * Look up Last.fm tags for the artists of the 10 most recent history tracks
+ * and derive the dominant genre families. A family is dominant when at least
+ * 3 of those tracks resolve to it — this matches `sessionMood`'s "deep dive"
+ * threshold and prevents single-track outliers from flipping the cross-genre
+ * veto on a genuinely mixed session. Counted per track, not per artist, so a
+ * single-artist deep dive arms the veto too.
+ *
+ * `historyTracks` is discord-player's history, newest first.
  */
 async function detectSessionGenreFamilies(
     historyTracks: { author?: string }[],
     getArtistTags: ArtistTagFetcher,
 ): Promise<Set<string>> {
-    if (historyTracks.length === 0) return new Set()
+    const recentAuthors = historyTracks
+        .slice(0, 10)
+        .map((t) => t.author?.trim())
+        .filter((a): a is string => !!a)
 
-    const recentArtists = Array.from(
-        new Set(
-            historyTracks
-                .slice(-10)
-                .map((t) => t.author?.trim())
-                .filter((a): a is string => !!a),
-        ),
-    ).slice(0, 8)
+    if (recentAuthors.length === 0) return new Set()
 
-    if (recentArtists.length === 0) return new Set()
-
+    const uniqueArtists = Array.from(new Set(recentAuthors))
     const artistTagSets = await Promise.all(
-        recentArtists.map((artist) => getArtistTags(artist)),
+        uniqueArtists.map((artist) => getArtistTags(artist)),
     )
+    const familiesByArtist = new Map<string, Set<string>>()
+    uniqueArtists.forEach((artist, i) => {
+        const tags = artistTagSets[i] ?? []
+        if (tags.length > 0)
+            familiesByArtist.set(artist, getGenreFamilies(tags))
+    })
 
     const familyCounts = new Map<string, number>()
-    for (const tags of artistTagSets) {
-        if (tags.length === 0) continue
-        const families = getGenreFamilies(tags)
-        for (const family of families) {
+    for (const author of recentAuthors) {
+        for (const family of familiesByArtist.get(author) ?? []) {
             familyCounts.set(family, (familyCounts.get(family) ?? 0) + 1)
         }
     }
