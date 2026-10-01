@@ -48,8 +48,33 @@ jobs:
             - name: Build shared package
               run: npm run build:shared
 
+            - name: Resolve Playwright version
+              id: pw
+              run: echo "version=$(node -p "require('playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+              working-directory: packages/frontend
+
+            # The browser download (and apt for --with-deps) can hang until the
+            # 20m job timeout (#2549). Cache the browser so most runs skip the
+            # download, and bound each attempt so a hang retries instead of
+            # eating the whole job.
+            - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              id: pw-cache
+              with:
+                  path: ~/.cache/ms-playwright
+                  key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
             - name: Install Playwright chromium
-              run: npx playwright install --with-deps chromium
+              timeout-minutes: 10
+              env:
+                  CACHE_HIT: ${{ steps.pw-cache.outputs.cache-hit }}
+              run: |
+                  args=(install --with-deps chromium)
+                  if [ "$CACHE_HIT" = 'true' ]; then args=(install-deps chromium); fi
+                  for attempt in 1 2 3; do
+                      timeout 3m npx playwright "${args[@]}" && exit 0
+                      echo "::warning::playwright ${args[*]} attempt $attempt failed or timed out"
+                  done
+                  exit 1
               working-directory: packages/frontend
 
             # visual/ is excluded: its baseline PNGs were captured on macOS
