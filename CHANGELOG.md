@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.47.6](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.5...v2.47.6) (2026-10-01)
+
+
+### Bug Fixes
+
+* **bot:** harden twitch eventsub reconnect ([#2540](https://github.com/LucasSantana-Dev/Lucky/issues/2540)) ([4a88de3](https://github.com/LucasSantana-Dev/Lucky/commit/4a88de3729973d135abaa9ff84d975c706841b26))
+* **deps:** bump ip-address and fast-uri overrides past open CVEs ([#2543](https://github.com/LucasSantana-Dev/Lucky/issues/2543)) ([e2d945b](https://github.com/LucasSantana-Dev/Lucky/commit/e2d945b32c59ca8254ed81f08d7a89e4aa0f6468))
+
 ## [2.47.5](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.4...v2.47.5) (2026-10-01)
 
 
