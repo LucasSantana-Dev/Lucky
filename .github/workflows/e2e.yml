@@ -48,8 +48,29 @@ jobs:
             - name: Build shared package
               run: npm run build:shared
 
+            - name: Resolve Playwright version
+              id: pw
+              run: echo "version=$(node -p "require('playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+              working-directory: packages/frontend
+
+            # No --with-deps: the runner image already ships Chromium's runtime
+            # libs, and the apt step only added fonts while the Azure mirror
+            # crawled at ~40 kB/s, stalling the job up to its 20m timeout
+            # (#2549). The browser CDN is fast; cache it anyway and bound each
+            # attempt so a stall retries instead of eating the job.
+            - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: ~/.cache/ms-playwright
+                  key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
             - name: Install Playwright chromium
-              run: npx playwright install --with-deps chromium
+              timeout-minutes: 10
+              run: |
+                  for attempt in 1 2 3; do
+                      timeout -k 30s 3m npx playwright install chromium && exit 0
+                      echo "::warning::playwright install attempt $attempt failed or timed out"
+                  done
+                  exit 1
               working-directory: packages/frontend
 
             # visual/ is excluded: its baseline PNGs were captured on macOS
