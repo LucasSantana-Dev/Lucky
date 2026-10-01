@@ -1046,6 +1046,8 @@
         "playMusicToSeeHistory": "Toque alguma música para ver seu histórico aqui",
         "loadMore": "Carregar Mais ({{remaining}} restantes)",
         "loading": "Carregando...",
+        "clearConfirmTitle": "Limpar histórico de músicas?",
+        "clearConfirmDescription": "Isso remove permanentemente o histórico e as estatísticas de músicas deste servidor. Não é possível desfazer.",
         "failedToClearHistory": "Falha ao limpar histórico",
         "playedBy": "Por <bold>{{user}}</bold>"
     },

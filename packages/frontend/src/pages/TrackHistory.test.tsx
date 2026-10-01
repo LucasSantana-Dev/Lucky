@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import TrackHistoryPage from './TrackHistory'
@@ -244,28 +244,73 @@ describe('TrackHistoryPage', () => {
         })
     })
 
-    test('clear button calls clearHistory and resets state', async () => {
-        const user = userEvent.setup()
-        mockGuildSelection(mockGuild)
-        vi.mocked(api.trackHistory.getHistory).mockResolvedValue({
-            data: { history: mockHistory },
-        } as any)
-        vi.mocked(api.trackHistory.getStats).mockResolvedValue({
-            data: { stats: mockStats },
-        } as any)
-        vi.mocked(api.trackHistory.clearHistory).mockResolvedValue({
-            data: { success: true },
-        } as any)
+    describe('clear confirmation', () => {
+        async function openClearDialog() {
+            const user = userEvent.setup()
+            mockGuildSelection(mockGuild)
+            vi.mocked(api.trackHistory.getHistory).mockResolvedValue({
+                data: { history: mockHistory },
+            } as any)
+            vi.mocked(api.trackHistory.getStats).mockResolvedValue({
+                data: { stats: mockStats },
+            } as any)
+            vi.mocked(api.trackHistory.clearHistory).mockResolvedValue({
+                data: { success: true },
+            } as any)
 
-        renderPage()
+            renderPage()
 
-        await waitFor(() => {
-            expect(screen.getByText('Clear')).toBeInTheDocument()
+            await waitFor(() => {
+                expect(screen.getByText('Clear')).toBeInTheDocument()
+            })
+            await user.click(screen.getByText('Clear'))
+            await screen.findByRole('dialog')
+            return user
+        }
+
+        test('clicking Clear asks for confirmation without clearing', async () => {
+            await openClearDialog()
+
+            expect(
+                screen.getByText('Clear track history?')
+            ).toBeInTheDocument()
+            expect(api.trackHistory.clearHistory).not.toHaveBeenCalled()
         })
 
-        await user.click(screen.getByText('Clear'))
+        test('cancel leaves history intact', async () => {
+            const user = await openClearDialog()
 
-        expect(api.trackHistory.clearHistory).toHaveBeenCalledWith('123')
+            await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+            await waitFor(() => {
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+            })
+            expect(api.trackHistory.clearHistory).not.toHaveBeenCalled()
+            expect(
+                screen.getAllByText('Never Gonna Give You Up').length
+            ).toBeGreaterThan(0)
+        })
+
+        test('confirm calls clearHistory and resets state', async () => {
+            const user = await openClearDialog()
+
+            await user.click(
+                within(screen.getByRole('dialog')).getByRole('button', {
+                    name: 'Clear',
+                })
+            )
+
+            await waitFor(() => {
+                expect(api.trackHistory.clearHistory).toHaveBeenCalledWith(
+                    '123'
+                )
+            })
+            await waitFor(() => {
+                expect(
+                    screen.queryByText('Never Gonna Give You Up')
+                ).not.toBeInTheDocument()
+            })
+        })
     })
 
     test('track links open in new tab', async () => {
