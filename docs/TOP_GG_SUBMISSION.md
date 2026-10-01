@@ -197,10 +197,10 @@ Done:
 - [x] Approved (2026-10-01 check; see the status note at the top)
 - [x] `TOPGG_TOKEN` set in production: `topggStatsScheduler` posts the server count
 - [x] Vote webhook live: votes are received since 2026-09-26
+- [x] `YouTube` category removed (§4)
 
 Open:
 
-- [x] Remove the `YouTube` category (§4)
 - [ ] Draft a pt-BR description variant (#2472). Portuguese is a listed
       language, but the copy is English only
 - [ ] Revisit imagery under the dashboard's `Appearance` section
