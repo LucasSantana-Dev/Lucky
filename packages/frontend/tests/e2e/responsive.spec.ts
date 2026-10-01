@@ -165,6 +165,8 @@ test.describe('Responsive Design', () => {
         const active = links.locator('xpath=self::*[@data-active="true"]')
         const inactive = links.locator('xpath=self::*[@data-active="false"]')
 
+        const dropShadow = 'rgba(0, 0, 0, 0.18) 0px 8px 24px 0px'
+
         for (const link of [active.first(), inactive.first()]) {
             await link.focus()
             await page.keyboard.press('Shift+Tab')
@@ -175,5 +177,10 @@ test.describe('Responsive Design', () => {
                 )
                 .toContain('rgb(88, 101, 242) 0px 0px 0px 3px')
         }
+
+        const activeShadow = await active
+            .first()
+            .evaluate((el) => getComputedStyle(el).boxShadow)
+        expect(activeShadow).toContain(dropShadow)
     })
 })
