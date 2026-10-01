@@ -85,10 +85,10 @@ Made in Brazil. Open source under the ISC license: https://github.com/LucasSanta
 
 ## 4. Categories
 
-Live: `autoplay`, `Music`, `Spotify`, `Web Dashboard`, `YouTube`.
+Live: `autoplay`, `Music`, `Spotify`, `Web Dashboard`.
 
-`YouTube` is still selected and should be removed: the ADR never names
-streaming sources (YouTube, SoundCloud) in the listing. Spotify stays because it
+`YouTube` was removed on 2026-10-01: the ADR never names streaming sources
+(YouTube, SoundCloud) in the listing. Spotify stays because it
 is a search and link feature, not where the audio streams from. `Automation`, `Moderation` and `Utility` were removed on
 2026-10-01: moderation is hidden from the hosted bot's onboarding.
 
@@ -200,7 +200,7 @@ Done:
 
 Open:
 
-- [ ] Remove the `YouTube` category (§4)
+- [x] Remove the `YouTube` category (§4)
 - [ ] Draft a pt-BR description variant (#2472). Portuguese is a listed
       language, but the copy is English only
 - [ ] Revisit imagery under the dashboard's `Appearance` section
