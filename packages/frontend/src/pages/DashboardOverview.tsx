@@ -607,7 +607,7 @@ export default function DashboardOverview() {
                             <Link
                                 key={action.href}
                                 to={action.href}
-                                className='group flex items-center gap-3 border-l-2 border-l-transparent px-4 py-2.5 transition-all hover:border-l-lucky-brand hover:bg-lucky-bg-active/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-lucky-brand/60'
+                                className='group flex items-center gap-3 border-l-2 border-l-transparent px-4 py-2.5 transition-all hover:border-l-lucky-brand hover:bg-lucky-bg-active/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-lucky-focus'
                             >
                                 <span
                                     className='flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-lucky-bg-tertiary text-lucky-text-secondary transition-colors group-hover:bg-lucky-brand/15 group-hover:text-lucky-brand-text'

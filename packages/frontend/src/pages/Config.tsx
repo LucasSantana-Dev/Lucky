@@ -117,7 +117,7 @@ export default function ConfigPage() {
                                     <button
                                         key={module.id}
                                         type='button'
-                                        className='group relative flex items-start gap-4 p-4 rounded-lg border border-lucky-border bg-lucky-surface-panel transition-colors duration-120 hover:border-lucky-border-strong hover:bg-lucky-surface-elevated focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-bg-primary'
+                                        className='group relative flex items-start gap-4 p-4 rounded-lg border border-lucky-border bg-lucky-surface-panel transition-colors duration-120 hover:border-lucky-border-strong hover:bg-lucky-surface-elevated focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-lucky-focus focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-bg-primary'
                                         onClick={() =>
                                             handleModuleClick(module.id)
                                         }

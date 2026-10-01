@@ -407,7 +407,7 @@ function NowPlayingHero({
                         <button
                             onClick={onPlayPause}
                             disabled={!controlsEnabled}
-                            className='h-12 w-12 rounded-full bg-lucky-brand text-lucky-bg-primary flex items-center justify-center hover:bg-lucky-brand-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-panel disabled:opacity-40 disabled:cursor-not-allowed'
+                            className='h-12 w-12 rounded-full bg-lucky-brand text-lucky-bg-primary flex items-center justify-center hover:bg-lucky-brand-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-focus focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-panel disabled:opacity-40 disabled:cursor-not-allowed'
                             aria-label={
                                 state.isPlaying
                                     ? t('music.pause')
@@ -488,7 +488,7 @@ function ControlButton({
                 active
                     ? 'bg-lucky-brand text-lucky-bg-primary'
                     : 'bg-lucky-bg-active text-lucky-text-secondary hover:bg-lucky-bg-active hover:text-lucky-text-primary'
-            } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand`}
+            } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-focus`}
             {...props}
         >
             {icon}

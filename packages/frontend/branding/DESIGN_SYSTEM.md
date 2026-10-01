@@ -99,7 +99,7 @@ The three fonts are self-hosted via `@fontsource/*` packages imported at the top
 
 ## Interaction & Motion
 
-- Focus ring: 3px blurple ring (`--lucky-shadow-focus: 0 0 0 3px rgb(88 101 242 / 0.4)`). 12 older focus rings still use pink `focus-visible:ring-lucky-brand`; migration tracked in #2560.
+- Focus ring: 3px blurple ring from the `--color-lucky-focus: #5865f2` token (`--lucky-shadow-focus` at 40% alpha; Tailwind rings use `focus-visible:ring-lucky-focus`). It clears 3:1 on canvas, sidebar, panel and elevated surfaces; against `bg-active` (`#2a3140`) it is 2.83:1, so keep the ring's outer edge on a darker surface.
 - Hover borders: upgrade from `border-soft` to `border-strong`
 - Active nav items: pink `border-lucky-brand/40` + `bg-lucky-bg-active` background
 - Allowed animations: `fade-up`, `fade-in`, `accordion-down/up`, `animate-spin` (loaders)
