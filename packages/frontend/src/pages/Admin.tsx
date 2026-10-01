@@ -34,7 +34,7 @@ export default function AdminPage() {
                 <div className='flex flex-col items-center gap-4 text-center max-w-sm'>
                     <div className='p-3 rounded-lg bg-lucky-surface-elevated'>
                         <ShieldCheck
-                            className='w-8 h-8 text-lucky-brand'
+                            className='w-8 h-8 text-lucky-brand-text'
                             aria-hidden='true'
                         />
                     </div>
@@ -111,7 +111,7 @@ export default function AdminPage() {
                 <div className='flex items-center justify-between gap-3'>
                     <div className='flex items-center gap-3'>
                         <ShieldCheck
-                            className='w-6 h-6 text-lucky-brand flex-shrink-0'
+                            className='w-6 h-6 text-lucky-brand-text flex-shrink-0'
                             aria-hidden='true'
                         />
                         <h1

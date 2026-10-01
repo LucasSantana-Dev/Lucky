@@ -29,7 +29,7 @@ export default function AdminSupportPage() {
         <div className='space-y-6 px-1 sm:px-0'>
             <header className='flex items-center gap-3'>
                 <LifeBuoy
-                    className='h-6 w-6 sm:h-7 sm:w-7 text-lucky-brand shrink-0'
+                    className='h-6 w-6 sm:h-7 sm:w-7 text-lucky-brand-text shrink-0'
                     aria-hidden='true'
                 />
                 <div>
@@ -174,7 +174,7 @@ function StatusBadge({ status }: { status: string }) {
     const { t } = useTranslation()
     const tone =
         status === 'new'
-            ? 'bg-lucky-brand/10 text-lucky-brand border-lucky-brand/20'
+            ? 'bg-lucky-brand/10 text-lucky-brand-text border-lucky-brand/20'
             : status === 'promoted'
               ? 'bg-lucky-success/10 text-lucky-success border-lucky-success/20'
               : status === 'dismissed'

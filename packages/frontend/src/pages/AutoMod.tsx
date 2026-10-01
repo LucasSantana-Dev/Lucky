@@ -66,7 +66,7 @@ function FilterRow({
                 className='w-full flex items-center justify-between px-6 py-3 hover:bg-lucky-bg-active/25 transition-colors'
             >
                 <div className='flex items-center gap-3 flex-1 text-left'>
-                    <Icon className='w-4 h-4 text-lucky-brand flex-shrink-0' />
+                    <Icon className='w-4 h-4 text-lucky-brand-text flex-shrink-0' />
                     <div>
                         <h3 className='text-sm font-semibold text-white'>
                             {title}

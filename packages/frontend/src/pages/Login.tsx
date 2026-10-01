@@ -82,7 +82,7 @@ export default function LoginPage() {
                             </h3>
                             <div className='grid grid-cols-3 gap-4'>
                                 <div className='text-center'>
-                                    <p className='text-2xl font-bold text-lucky-brand'>
+                                    <p className='text-2xl font-bold text-lucky-brand-text'>
                                         32+
                                     </p>
                                     <p className='text-xs text-lucky-text-tertiary mt-1'>
@@ -90,7 +90,7 @@ export default function LoginPage() {
                                     </p>
                                 </div>
                                 <div className='text-center'>
-                                    <p className='text-2xl font-bold text-lucky-brand'>
+                                    <p className='text-2xl font-bold text-lucky-brand-text'>
                                         100+
                                     </p>
                                     <p className='text-xs text-lucky-text-tertiary mt-1'>
@@ -98,7 +98,7 @@ export default function LoginPage() {
                                     </p>
                                 </div>
                                 <div className='text-center'>
-                                    <p className='text-2xl font-bold text-lucky-brand'>
+                                    <p className='text-2xl font-bold text-lucky-brand-text'>
                                         24/7
                                     </p>
                                     <p className='text-xs text-lucky-text-tertiary mt-1'>
@@ -151,7 +151,7 @@ export default function LoginPage() {
                                     key={labelKey}
                                     className='flex items-center gap-3 p-3 rounded-lg border border-lucky-border bg-lucky-bg-primary/40'
                                 >
-                                    <Icon className='h-4 w-4 text-lucky-brand flex-shrink-0' />
+                                    <Icon className='h-4 w-4 text-lucky-brand-text flex-shrink-0' />
                                     <p className='text-xs text-lucky-text-secondary'>
                                         {t(labelKey)}
                                     </p>

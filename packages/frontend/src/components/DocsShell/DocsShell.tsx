@@ -143,7 +143,7 @@ function DocsToc({ toc, activeId }: { toc: DocsTocItem[]; activeId: string | nul
                                     href={`#${item.id}`}
                                     className={`inline-block text-xs leading-snug transition-colors ${
                                         isActive
-                                            ? 'text-lucky-brand font-medium'
+                                            ? 'text-lucky-brand-text font-medium'
                                             : 'text-lucky-text-muted hover:text-lucky-text-strong'
                                     }`}
                                 >

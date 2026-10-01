@@ -57,7 +57,7 @@ export default function PublicHeader({
                     ) : null}
                     <Link
                         to='/'
-                        className='inline-flex items-center gap-2 text-lucky-text-strong hover:text-lucky-brand transition-colors'
+                        className='inline-flex items-center gap-2 text-lucky-text-strong hover:text-lucky-brand-text transition-colors'
                     >
                         <img
                             src='/lucky-logo.png'
@@ -68,7 +68,7 @@ export default function PublicHeader({
                             loading='eager'
                         />
                         <span className='font-mono text-sm font-semibold tracking-tight'>
-                            lucky<span className='text-lucky-brand'>.</span>
+                            lucky<span className='text-lucky-brand-text'>.</span>
                         </span>
                     </Link>
                     <span className='ml-1 hidden text-lucky-border-strong md:inline'>

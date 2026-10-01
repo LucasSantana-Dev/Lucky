@@ -87,6 +87,7 @@
   --color-lucky-brand: #ec4899;
   --color-lucky-brand-strong: #db2777;
   --color-lucky-brand-deep: #be185d;
+  --color-lucky-brand-text: #f472b6;
   --color-lucky-accent: #fb923c;
   --color-lucky-accent-soft: #fdba74;
 
@@ -628,7 +629,7 @@
     color: var(--color-lucky-text-body);
   }
   .docs-prose a {
-    color: var(--color-lucky-brand);
+    color: var(--color-lucky-brand-text);
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 3px;

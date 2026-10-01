@@ -136,7 +136,7 @@ export default function ConfigPage() {
                                             }}
                                             aria-hidden='true'
                                         >
-                                            <Icon className='w-5 h-5 text-lucky-brand' />
+                                            <Icon className='w-5 h-5 text-lucky-brand-text' />
                                         </div>
                                         <div className='flex-1 text-left space-y-1'>
                                             <h3

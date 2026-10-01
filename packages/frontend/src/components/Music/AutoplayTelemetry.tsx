@@ -64,7 +64,7 @@ export default function AutoplayTelemetry({ guildId }: AutoplayTelemetryProps) {
             <div className='flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-lucky-border'>
                 <div className='flex items-center gap-2'>
                     <BarChart3
-                        className='h-5 w-5 text-lucky-brand'
+                        className='h-5 w-5 text-lucky-brand-text'
                         aria-hidden='true'
                     />
                     <h3 className='type-title text-lucky-text-primary'>

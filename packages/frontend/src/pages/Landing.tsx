@@ -123,7 +123,7 @@ function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
             <div className='mx-auto flex h-14 max-w-6xl items-center justify-between px-4 md:px-8'>
                 <a
                     href='/'
-                    className='inline-flex items-center gap-2 text-lucky-text-strong hover:text-lucky-brand transition-colors'
+                    className='inline-flex items-center gap-2 text-lucky-text-strong hover:text-lucky-brand-text transition-colors'
                 >
                     <img
                         src='/lucky-logo.png'
@@ -134,7 +134,7 @@ function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
                         loading='eager'
                     />
                     <span className='font-mono text-sm font-semibold tracking-tight'>
-                        lucky<span className='text-lucky-brand'>.</span>
+                        lucky<span className='text-lucky-brand-text'>.</span>
                     </span>
                 </a>
                 <nav className='flex items-center gap-0.5 sm:gap-1 font-mono text-xs text-lucky-text-muted min-w-0'>
@@ -254,7 +254,7 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
                         <span className='block'>
                             {t('landing.hero.headlineLine1')}
                         </span>
-                        <span className='block text-lucky-brand'>
+                        <span className='block text-lucky-brand-text'>
                             {t('landing.hero.headlineLine2')}
                         </span>
                     </h1>
@@ -345,7 +345,7 @@ function FeatureGrid() {
                         return (
                             <li key={key} className={span}>
                                 <article className='surface-panel h-full flex flex-col gap-4 rounded-xl p-6 md:p-7'>
-                                    <span className='inline-flex h-10 w-10 items-center justify-center rounded-lg bg-lucky-surface-elevated text-lucky-brand'>
+                                    <span className='inline-flex h-10 w-10 items-center justify-center rounded-lg bg-lucky-surface-elevated text-lucky-brand-text'>
                                         <Icon size={18} aria-hidden />
                                     </span>
                                     <div>
@@ -548,10 +548,10 @@ function CommandList() {
     ] as const
 
     const kindColor: Record<string, string> = {
-        music: 'text-lucky-brand bg-lucky-brand/10 border-lucky-brand/30',
+        music: 'text-lucky-brand-text bg-lucky-brand/10 border-lucky-brand/30',
         mod: 'text-lucky-warning bg-lucky-warning/10 border-lucky-warning/30',
         custom: 'text-lucky-success bg-lucky-success/10 border-lucky-success/30',
-        música: 'text-lucky-brand bg-lucky-brand/10 border-lucky-brand/30',
+        música: 'text-lucky-brand-text bg-lucky-brand/10 border-lucky-brand/30',
         moderação:
             'text-lucky-warning bg-lucky-warning/10 border-lucky-warning/30',
     }
@@ -637,7 +637,7 @@ function StackList() {
                             key={key}
                             className='surface-panel flex items-start gap-3 rounded-lg p-4'
                         >
-                            <span className='mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-lucky-surface-elevated text-lucky-brand'>
+                            <span className='mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-lucky-surface-elevated text-lucky-brand-text'>
                                 <Icon size={15} aria-hidden />
                             </span>
                             <div>
@@ -692,7 +692,7 @@ function FooterSection() {
                 <div className='grid grid-cols-1 gap-10 md:grid-cols-[1.4fr_1fr_1fr] md:gap-12'>
                     <div className='space-y-3'>
                         <div className='inline-flex items-baseline gap-1.5 font-mono text-sm font-semibold text-lucky-text-strong'>
-                            lucky<span className='text-lucky-brand'>.</span>
+                            lucky<span className='text-lucky-brand-text'>.</span>
                         </div>
                         <p className='max-w-xs text-sm text-lucky-text-muted'>
                             {t('landing.footer.tagline')}
@@ -765,7 +765,7 @@ function FooterColumn({
                             {...(external
                                 ? { target: '_blank', rel: 'noreferrer' }
                                 : {})}
-                            className='inline-flex items-center gap-1 text-sm text-lucky-text-muted hover:text-lucky-brand transition-colors'
+                            className='inline-flex items-center gap-1 text-sm text-lucky-text-muted hover:text-lucky-brand-text transition-colors'
                         >
                             {label}
                             {external ? (

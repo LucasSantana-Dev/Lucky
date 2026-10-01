@@ -81,7 +81,7 @@ export default function MusicPage() {
             <header className='flex items-center justify-between gap-3'>
                 <div className='flex items-center gap-3 min-w-0'>
                     <Music2
-                        className='h-6 w-6 sm:h-7 sm:w-7 text-lucky-brand shrink-0'
+                        className='h-6 w-6 sm:h-7 sm:w-7 text-lucky-brand-text shrink-0'
                         aria-hidden='true'
                     />
                     <div className='min-w-0'>

@@ -438,7 +438,7 @@ export default function GuildAutomation() {
             {planResult && (
                 <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-3'>
                     <div className='flex items-center gap-2'>
-                        <GitBranch className='h-4 w-4 text-lucky-brand' />
+                        <GitBranch className='h-4 w-4 text-lucky-brand-text' />
                         <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
                             {t('planResult')}
                         </h2>
@@ -468,7 +468,7 @@ export default function GuildAutomation() {
                     className='w-full p-4 flex items-center justify-between gap-2 hover:bg-lucky-bg-active/30 transition-colors text-left'
                 >
                     <div className='flex items-center gap-2'>
-                        <FileJson className='h-4 w-4 text-lucky-brand' />
+                        <FileJson className='h-4 w-4 text-lucky-brand-text' />
                         <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
                             {t('manifest')}
                         </h2>

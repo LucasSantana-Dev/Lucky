@@ -90,7 +90,7 @@ function renderInlineMd(text: string): React.ReactNode {
                         href={`https://github.com/LucasSantana-Dev/Lucky/pull/${m[1]}`}
                         target='_blank'
                         rel='noreferrer'
-                        className='font-mono text-lucky-brand hover:underline'
+                        className='font-mono text-lucky-brand-text hover:underline'
                     >
                         #{m[1]}
                     </a>,
@@ -104,7 +104,7 @@ function renderInlineMd(text: string): React.ReactNode {
 }
 
 const sectionStyles: Record<string, string> = {
-    Added: 'text-lucky-brand',
+    Added: 'text-lucky-brand-text',
     Changed: 'text-amber-400',
     Fixed: 'text-emerald-400',
     Internal: 'text-lucky-text-muted',
@@ -177,7 +177,7 @@ export default function ChangelogPage() {
                             <p className='mt-3 text-sm text-lucky-text-body'>
                                 Notable changes per release. Source of truth:{' '}
                                 <a
-                                    className='text-lucky-brand hover:underline'
+                                    className='text-lucky-brand-text hover:underline'
                                     href='https://github.com/LucasSantana-Dev/Lucky/blob/main/CHANGELOG.md'
                                     target='_blank'
                                     rel='noreferrer'

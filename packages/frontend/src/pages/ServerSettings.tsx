@@ -900,7 +900,7 @@ export default function ServerSettingsPage() {
                     <div className='flex items-center justify-between'>
                         <div className='flex items-center gap-3'>
                             <div className='p-2 rounded-lg bg-lucky-brand/15'>
-                                <ListMusic className='w-4 h-4 text-lucky-brand' />
+                                <ListMusic className='w-4 h-4 text-lucky-brand-text' />
                             </div>
                             <div>
                                 <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
@@ -923,7 +923,7 @@ export default function ServerSettingsPage() {
                     <div className='flex items-center justify-between'>
                         <div className='flex items-center gap-3'>
                             <div className='p-2 rounded-lg bg-lucky-brand/15'>
-                                <Music className='w-4 h-4 text-lucky-brand' />
+                                <Music className='w-4 h-4 text-lucky-brand-text' />
                             </div>
                             <div>
                                 <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
@@ -971,7 +971,7 @@ export default function ServerSettingsPage() {
                     <div className='flex items-center justify-between gap-4'>
                         <div className='flex items-center gap-3'>
                             <div className='p-2 rounded-lg bg-lucky-brand/10'>
-                                <Shield className='w-5 h-5 text-lucky-brand' />
+                                <Shield className='w-5 h-5 text-lucky-brand-text' />
                             </div>
                             <div>
                                 <h2 className='type-title text-lucky-text-primary'>

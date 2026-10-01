@@ -469,7 +469,7 @@ export default function CustomCommandsPage() {
                                                 onClick={() =>
                                                     setModalCommand(cmd)
                                                 }
-                                                className='flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-lucky-text-secondary hover:text-lucky-brand hover:bg-lucky-bg-active/50 transition-colors'
+                                                className='flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-lucky-text-secondary hover:text-lucky-brand-text hover:bg-lucky-bg-active/50 transition-colors'
                                                 aria-label={t(
                                                     'customCommands.editAriaLabel',
                                                     { name: cmd.name },

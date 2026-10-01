@@ -117,7 +117,7 @@ export default function SupportPage() {
             <div className='max-w-lg w-full space-y-6'>
                 <header className='flex items-center gap-3'>
                     <LifeBuoy
-                        className='h-7 w-7 text-lucky-brand shrink-0'
+                        className='h-7 w-7 text-lucky-brand-text shrink-0'
                         aria-hidden='true'
                     />
                     <div>

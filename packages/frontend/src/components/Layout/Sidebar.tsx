@@ -79,7 +79,7 @@ function NavSections({
                                                     className={cn(
                                                         'h-4 w-4 shrink-0 transition-colors duration-120',
                                                         active
-                                                            ? 'text-lucky-brand'
+                                                            ? 'text-lucky-brand-text'
                                                             : 'text-lucky-text-subtle group-hover:text-lucky-text-tertiary',
                                                     )}
                                                     aria-hidden='true'
@@ -143,7 +143,7 @@ function NavSections({
                                         className={cn(
                                             'h-4 w-4 shrink-0 transition-colors duration-120',
                                             isActive('/admin')
-                                                ? 'text-lucky-brand'
+                                                ? 'text-lucky-brand-text'
                                                 : 'text-lucky-text-subtle group-hover:text-lucky-text-tertiary',
                                         )}
                                         aria-hidden='true'
@@ -165,7 +165,7 @@ function SidebarBrand() {
     return (
         <Link
             to='/'
-            className='lucky-focus-visible flex shrink-0 items-center gap-2.5 border-b border-lucky-border px-4 py-4 text-lucky-text-primary transition-colors hover:text-lucky-brand'
+            className='lucky-focus-visible flex shrink-0 items-center gap-2.5 border-b border-lucky-border px-4 py-4 text-lucky-text-primary transition-colors hover:text-lucky-brand-text'
         >
             <img
                 src='/lucky-logo.png'
@@ -179,7 +179,7 @@ function SidebarBrand() {
                 className='font-mono text-sm font-semibold tracking-tight'
                 aria-hidden='true'
             >
-                lucky<span className='text-lucky-brand'>.</span>
+                lucky<span className='text-lucky-brand-text'>.</span>
             </span>
         </Link>
     )

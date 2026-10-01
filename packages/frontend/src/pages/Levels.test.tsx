@@ -172,7 +172,7 @@ describe('Levels', () => {
 
         expect(await screen.findByText('Veteran')).toBeInTheDocument()
         expect(screen.getByText('Legend')).toBeInTheDocument()
-        const rewards = container.querySelectorAll('.text-lucky-brand')
+        const rewards = container.querySelectorAll('.text-lucky-brand-text')
         expect(rewards[0].textContent).toContain('Lv.5')
         expect(rewards[1].textContent).toContain('Lv.10')
     })
@@ -522,7 +522,7 @@ describe('Levels', () => {
         const { container } = render(<Levels />)
 
         expect(await screen.findByText('unknown-role')).toBeInTheDocument()
-        const rewards = container.querySelectorAll('.text-lucky-brand')
+        const rewards = container.querySelectorAll('.text-lucky-brand-text')
         expect(rewards[0].textContent).toContain('Lv.5')
     })
 
