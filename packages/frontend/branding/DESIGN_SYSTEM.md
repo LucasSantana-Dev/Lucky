@@ -99,7 +99,7 @@ The three fonts are self-hosted via `@fontsource/*` packages imported at the top
 
 ## Interaction & Motion
 
-- Focus ring: blurple, from the `--color-lucky-focus: #5865f2` token. Tailwind rings use `focus-visible:ring-2 focus-visible:ring-lucky-focus` (2px, full opacity); `lucky-focus-visible` / `lucky-focus-ring` use `--lucky-shadow-focus` (3px at 40% alpha). The full-opacity ring clears 3:1 on canvas, sidebar, panel and elevated surfaces; against `bg-active` (`#2a3140`) it is 2.83:1, so keep the ring's outer edge on a darker surface. The 40% shadow is only ~1.6:1 on every surface (#2563). Two `focus-within` rings are still pink (`ServerCard`, `ui/Card`; #2561).
+- Focus ring: blurple, from the `--color-lucky-focus: #5865f2` token. Tailwind rings use `focus-visible:ring-2 focus-visible:ring-lucky-focus` (2px, full opacity); `lucky-focus-visible` / `lucky-focus-ring` use `--lucky-shadow-focus` (3px at 40% alpha). The full-opacity ring clears 3:1 on canvas, sidebar, panel and elevated surfaces; against `bg-active` (`#2a3140`) it is 2.83:1, so keep the ring's outer edge on a darker surface. The 40% shadow is only ~1.6:1 on every surface (#2563). `ServerCard` uses a full `focus-within:ring-lucky-focus` ring with a 2px offset onto `bg-primary` (4.10:1). `ui/Card` adds a faint `focus-within` halo (`ring-lucky-focus/20`) around a card whose child has focus; it is decorative, the child's own ring is the indicator.
 - Hover borders: upgrade from `border-soft` to `border-strong`
 - Active nav items: pink `border-lucky-brand/40` + `bg-lucky-bg-active` background
 - Allowed animations: `fade-up`, `fade-in`, `accordion-down/up`, `animate-spin` (loaders)
