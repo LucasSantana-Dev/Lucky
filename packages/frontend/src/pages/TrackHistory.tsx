@@ -8,6 +8,15 @@ import { api } from '@/services/api'
 import StatTile from '@/components/ui/StatTile'
 import EmptyState from '@/components/ui/EmptyState'
 import SectionHeader from '@/components/ui/SectionHeader'
+import Button from '@/components/ui/Button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog'
 
 interface TrackEntry {
     trackId: string
@@ -57,6 +66,8 @@ export default function TrackHistoryPage() {
     const [history, setHistory] = useState<TrackEntry[]>([])
     const [stats, setStats] = useState<Stats | null>(null)
     const [isLoading, setIsLoading] = useState(false)
+    const [showClearDialog, setShowClearDialog] = useState(false)
+    const [isClearing, setIsClearing] = useState(false)
     const [isLoadingMore, setIsLoadingMore] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(1)
@@ -109,7 +120,8 @@ export default function TrackHistoryPage() {
     }, [page])
 
     const handleClear = async () => {
-        if (!guildId) return
+        if (!guildId || isClearing) return
+        setIsClearing(true)
         try {
             await api.trackHistory.clearHistory(guildId)
             setHistory([])
@@ -118,6 +130,9 @@ export default function TrackHistoryPage() {
             setPage(1)
         } catch {
             setError(t('trackHistory.failedToClearHistory'))
+        } finally {
+            setIsClearing(false)
+            setShowClearDialog(false)
         }
     }
 
@@ -146,7 +161,7 @@ export default function TrackHistoryPage() {
                     history.length > 0 &&
                     canManageMusic && (
                         <button
-                            onClick={handleClear}
+                            onClick={() => setShowClearDialog(true)}
                             className='flex min-h-[44px] items-center gap-2 rounded-sm bg-lucky-error/10 px-3 type-body-sm font-semibold uppercase text-lucky-error transition-colors hover:bg-lucky-error/20'
                         >
                             <Trash2 className='h-4 w-4' />
@@ -342,6 +357,38 @@ export default function TrackHistoryPage() {
                     </div>
                 </>
             )}
+
+            <Dialog
+                open={showClearDialog}
+                onOpenChange={(open) => !isClearing && setShowClearDialog(open)}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {t('trackHistory.clearConfirmTitle')}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {t('trackHistory.clearConfirmDescription')}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant='secondary'
+                            onClick={() => setShowClearDialog(false)}
+                            disabled={isClearing}
+                        >
+                            {t('common.cancel')}
+                        </Button>
+                        <Button
+                            variant='destructive'
+                            onClick={handleClear}
+                            disabled={isClearing}
+                        >
+                            {t('trackHistory.clear')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

@@ -2,6 +2,7 @@
  * Database service for managing PostgreSQL operations
  */
 
+import { randomUUID } from 'node:crypto'
 import { getPrismaClient } from '../../utils/database/prismaClient'
 import type { PrismaClient } from '@prisma/client'
 import { Result } from '../../types/common/BaseResult'
@@ -165,28 +166,6 @@ async function typedTrackHistoryFindMany(
     const result: unknown = await prisma.trackHistory.findMany(params)
     assertIsArray<TrackHistoryModel>(result)
     return result
-}
-
-async function typedRateLimitFindUnique(
-    prisma: PrismaClient,
-    params: { where: { key: string } },
-): Promise<{ resetAt: Date; count: number } | null> {
-    const result: unknown = await prisma.rateLimit.findUnique(params)
-    if (!result) return null
-    if (
-        typeof result !== 'object' ||
-        result === null ||
-        !('resetAt' in result) ||
-        !('count' in result)
-    ) {
-        throw new Error('Invalid rate limit result')
-    }
-    const resetAtValue = (result as { resetAt: unknown }).resetAt
-    const countValue = (result as { count: unknown }).count
-    if (!(resetAtValue instanceof Date) || typeof countValue !== 'number') {
-        throw new Error('Invalid rate limit values')
-    }
-    return { resetAt: resetAtValue, count: countValue }
 }
 
 /** Configuration options for the database connection pool. */
@@ -499,40 +478,31 @@ export class DatabaseService {
             const now = new Date()
             const resetAt = new Date(now.getTime() + windowMs)
 
-            const existing = await typedRateLimitFindUnique(this.prisma, {
-                where: { key },
-            })
-
-            if (!existing) {
-                await this.prisma.rateLimit.upsert({
-                    where: { key },
-                    update: { count: 1, resetAt },
-                    create: { key, count: 1, resetAt },
-                })
-                return true
+            // Single atomic statement: concurrent callers serialize on the
+            // row lock, so check and increment cannot interleave.
+            const rows: unknown = await this.prisma.$queryRaw`
+                INSERT INTO "rate_limits" ("id", "key", "count", "resetAt")
+                VALUES (${randomUUID()}, ${key}, 1, ${resetAt})
+                ON CONFLICT ("key") DO UPDATE SET
+                    "count" = CASE
+                        WHEN "rate_limits"."resetAt" < ${now}
+                        THEN 1
+                        ELSE "rate_limits"."count" + 1
+                    END,
+                    "resetAt" = CASE
+                        WHEN "rate_limits"."resetAt" < ${now}
+                        THEN ${resetAt}
+                        ELSE "rate_limits"."resetAt"
+                    END
+                RETURNING "count"
+            `
+            const count = Array.isArray(rows)
+                ? (rows[0] as { count?: unknown } | undefined)?.count
+                : undefined
+            if (typeof count !== 'number') {
+                throw new Error('Invalid rate limit result')
             }
-
-            const resetAtDate = existing.resetAt
-            if (resetAtDate < now) {
-                await this.prisma.rateLimit.upsert({
-                    where: { key },
-                    update: { count: 1, resetAt },
-                    create: { key, count: 1, resetAt },
-                })
-                return true
-            }
-
-            const count = existing.count
-            if (count >= limit) {
-                return false
-            }
-
-            await this.prisma.rateLimit.update({
-                where: { key },
-                data: { count: count + 1 },
-            })
-
-            return true
+            return count <= limit
         }, 'check_rate_limit')
     }
 

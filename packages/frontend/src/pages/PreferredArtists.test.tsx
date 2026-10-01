@@ -108,6 +108,8 @@ vi.mock('react-i18next', () => ({
                 noBlockedArtists: 'No blocked artists',
                 blockArtistsDescription:
                     "Block artists you don't want Lucky to autoplay.",
+                preferArtist: 'Prefer',
+                blockArtist: 'Block',
                 savePreferences: 'Save Preferences',
                 saving: 'Saving...',
             }
@@ -774,6 +776,34 @@ describe('PreferredArtistsPage', () => {
         await waitFor(() => {
             expect(screen.getByText('Pink Floyd')).toBeInTheDocument()
         })
+    })
+
+    test('reveals Prefer and Block on focus without nesting buttons', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        mockGetSuggestions.mockResolvedValue({
+            data: { artists: [mockArtist] },
+        })
+        mockGetPreferences.mockResolvedValue({ data: { preferences: [] } })
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByText('The Beatles')).toBeInTheDocument()
+        })
+
+        const tileButton = screen
+            .getAllByRole('button')
+            .find((b) => b.textContent?.includes('The Beatles'))!
+        expect(screen.queryByLabelText('Prefer')).not.toBeInTheDocument()
+        await act(async () => {
+            tileButton.focus()
+        })
+
+        expect(screen.getAllByLabelText('Prefer').length).toBeGreaterThan(0)
+        expect(screen.getAllByLabelText('Block').length).toBeGreaterThan(0)
+        for (const button of screen.getAllByRole('button')) {
+            expect(button.querySelector('button')).toBeNull()
+        }
     })
 
     test('hover block button queues a block preference; clicking prefer after overwrites it', async () => {

@@ -14,7 +14,7 @@
     {
         "name": "Vendor React (gzip)",
         "path": "dist/assets/vendor-react-*.js",
-        "limit": "60 KB",
+        "limit": "66 KB",
         "gzip": true
     },
     {

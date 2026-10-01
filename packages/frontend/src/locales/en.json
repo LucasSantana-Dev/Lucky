@@ -833,6 +833,8 @@
         "addFromDiscover": "Add some from Discover.",
         "noBlockedArtists": "No blocked artists",
         "blockArtistsDescription": "Block artists you don't want Lucky to autoplay.",
+        "preferArtist": "Prefer",
+        "blockArtist": "Block",
         "savePreferences": "Save Preferences ({{count}})",
         "saving": "Saving...",
         "prefer": "Prefer",
@@ -1050,6 +1052,8 @@
         "playMusicToSeeHistory": "Play some music to see your history here",
         "loadMore": "Load More ({{remaining}} remaining)",
         "loading": "Loading...",
+        "clearConfirmTitle": "Clear track history?",
+        "clearConfirmDescription": "This permanently removes the track history and stats for this server. This cannot be undone.",
         "failedToClearHistory": "Failed to clear history",
         "playedBy": "By <bold>{{user}}</bold>"
     },
