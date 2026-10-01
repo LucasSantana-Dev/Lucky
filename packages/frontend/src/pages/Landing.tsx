@@ -156,7 +156,7 @@ function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
                     </a>
                     <button
                         onClick={onOpenDashboard}
-                        className='hidden sm:inline-flex items-center rounded-md px-2.5 py-1.5 hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand'
+                        className='hidden sm:inline-flex items-center rounded-md px-2.5 py-1.5 hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-focus'
                     >
                         dashboard
                     </button>
@@ -166,7 +166,7 @@ function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
                             target='_blank'
                             rel='noopener noreferrer'
                             aria-label='Add to Discord'
-                            className='ml-1 inline-flex items-center gap-1 rounded-md bg-lucky-brand-strong px-2.5 py-1.5 sm:px-3 font-semibold text-white hover:bg-lucky-brand-deep transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas whitespace-nowrap'
+                            className='ml-1 inline-flex items-center gap-1 rounded-md bg-lucky-brand-strong px-2.5 py-1.5 sm:px-3 font-semibold text-white hover:bg-lucky-brand-deep transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-focus focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas whitespace-nowrap'
                         >
                             <span className='xs:hidden' aria-hidden>
                                 add
@@ -267,7 +267,7 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
                                 href={botInviteUrl}
                                 target='_blank'
                                 rel='noopener noreferrer'
-                                className='group inline-flex h-11 items-center justify-center gap-2 rounded-md bg-lucky-brand-strong px-5 font-semibold text-white shadow-[0_6px_24px_-8px_rgba(236,72,153,0.55)] hover:bg-lucky-brand-deep transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas active:scale-[0.98]'
+                                className='group inline-flex h-11 items-center justify-center gap-2 rounded-md bg-lucky-brand-strong px-5 font-semibold text-white shadow-[0_6px_24px_-8px_rgba(236,72,153,0.55)] hover:bg-lucky-brand-deep transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-focus focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas active:scale-[0.98]'
                             >
                                 {t('landing.hero.ctaPrimary')}
                                 <ArrowUpRight
@@ -488,7 +488,7 @@ function RepoCard({ stats, locale }: { stats: RepoStats; locale: string }) {
                     <button
                         onClick={handleCopy}
                         aria-label={t('landing.repoCard.copyClone')}
-                        className='shrink-0 inline-flex h-7 w-7 items-center justify-center rounded text-lucky-text-muted hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand'
+                        className='shrink-0 inline-flex h-7 w-7 items-center justify-center rounded text-lucky-text-muted hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-focus'
                     >
                         {copied ? (
                             <Check size={13} className='text-lucky-success' />
@@ -692,7 +692,8 @@ function FooterSection() {
                 <div className='grid grid-cols-1 gap-10 md:grid-cols-[1.4fr_1fr_1fr] md:gap-12'>
                     <div className='space-y-3'>
                         <div className='inline-flex items-baseline gap-1.5 font-mono text-sm font-semibold text-lucky-text-strong'>
-                            lucky<span className='text-lucky-brand-text'>.</span>
+                            lucky
+                            <span className='text-lucky-brand-text'>.</span>
                         </div>
                         <p className='max-w-xs text-sm text-lucky-text-muted'>
                             {t('landing.footer.tagline')}

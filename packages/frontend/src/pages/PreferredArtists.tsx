@@ -83,7 +83,7 @@ function ArtistTile({
                 type='button'
                 onClick={onClick}
                 className={cn(
-                    'flex flex-col items-center gap-2 rounded-xl p-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand',
+                    'flex flex-col items-center gap-2 rounded-xl p-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-lucky-focus',
                     active
                         ? 'bg-lucky-bg-active'
                         : isHovered

@@ -81,6 +81,7 @@
   --color-lucky-brand-strong: #db2777;
   --color-lucky-brand-deep: #be185d;
   --color-lucky-brand-text: #f472b6;
+  --color-lucky-focus: #5865f2;
   --color-lucky-accent: #fb923c;
   --color-lucky-accent-soft: #fdba74;
 
@@ -123,7 +124,7 @@
   /* Shadows */
   --color-lucky-shadow-soft: 0 4px 16px rgb(0 0 0 / 0.3);
   --color-lucky-shadow-panel: 0 8px 32px rgb(0 0 0 / 0.4);
-  --color-lucky-shadow-focus: 0 0 0 3px rgb(88 101 242 / 0.4);
+  --color-lucky-shadow-focus: 0 0 0 3px color-mix(in srgb, var(--color-lucky-focus) 40%, transparent);
 
   /* Legacy aliases for backward compat — re-pointed to brand pink so
      the old --lucky-red / --lucky-blue / --lucky-purple classes no longer
@@ -351,7 +352,7 @@
 @utility lucky-focus-ring {
   &:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgb(88 101 242 / 0.4);
+    box-shadow: var(--color-lucky-shadow-focus);
   }
 }
 
@@ -557,8 +558,8 @@
       pointer-events: auto;
       outline: none;
       transform: translateY(0);
-      border-color: rgb(88 101 242 / 0.55);
-      box-shadow: 0 0 0 3px rgb(88 101 242 / 0.25), var(--lucky-shadow-panel);
+      border-color: color-mix(in srgb, var(--color-lucky-focus) 55%, transparent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-lucky-focus) 25%, transparent), var(--lucky-shadow-panel);
     }
   }
 

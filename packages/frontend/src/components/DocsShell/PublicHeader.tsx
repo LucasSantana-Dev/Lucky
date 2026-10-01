@@ -35,7 +35,8 @@ export default function PublicHeader({
 
     const linkBase =
         'hidden sm:inline-flex items-center rounded-md px-2.5 py-1.5 transition-colors'
-    const linkInactive = 'hover:bg-lucky-surface-panel hover:text-lucky-text-strong'
+    const linkInactive =
+        'hover:bg-lucky-surface-panel hover:text-lucky-text-strong'
     const linkActive = 'bg-lucky-surface-panel text-lucky-text-strong'
 
     return (
@@ -50,7 +51,7 @@ export default function PublicHeader({
                                     ? 'Close navigation'
                                     : 'Open navigation'
                             }
-                            className='lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-md text-lucky-text-muted hover:bg-lucky-surface-panel hover:text-lucky-text-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand'
+                            className='lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-md text-lucky-text-muted hover:bg-lucky-surface-panel hover:text-lucky-text-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-focus'
                         >
                             {sidebarOpen ? <X size={16} /> : <Menu size={16} />}
                         </button>
@@ -68,7 +69,8 @@ export default function PublicHeader({
                             loading='eager'
                         />
                         <span className='font-mono text-sm font-semibold tracking-tight'>
-                            lucky<span className='text-lucky-brand-text'>.</span>
+                            lucky
+                            <span className='text-lucky-brand-text'>.</span>
                         </span>
                     </Link>
                     <span className='ml-1 hidden text-lucky-border-strong md:inline'>

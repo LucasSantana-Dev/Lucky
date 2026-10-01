@@ -152,7 +152,7 @@ export default function SupportPage() {
                             required
                             rows={6}
                             placeholder={t('support.form.contextPlaceholder')}
-                            className='w-full rounded-sm bg-lucky-bg-active border border-lucky-border text-lucky-text-primary type-body p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand'
+                            className='w-full rounded-sm bg-lucky-bg-active border border-lucky-border text-lucky-text-primary type-body p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-focus'
                         />
                     </div>
 
