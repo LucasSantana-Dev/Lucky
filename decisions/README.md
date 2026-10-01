@@ -1,10 +1,11 @@
 # Architecture Decision Records
 
-139 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
+140 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
-## Accepted (132)
+## Accepted (133)
 
+- [2026-10-01 - Discord blurple is the focus color only; pink is the single brand accent](2026-10-01-blurple-focus-only.md) - _Accepted (supersedes the dual accent of `2026-04-21-redesign-port-target.md`)_
 - [2026-09-27 - Lucky as a taste-learning music bot: one bounded 12-week test, decided 2026-12-20](2026-09-27-music-first-positioning.md)
 - [2026-09-26 - Lucky owns its observability stack as code, portable to any host](2026-09-26-lucky-owned-observability-stack.md)
 - [2026-09-05 - Skip-reason feedback UX redesign: deferred](2026-09-05-skip-feedback-redesign-deferred.md) - _Accepted (defer)_

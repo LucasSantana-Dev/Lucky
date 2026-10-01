@@ -2,7 +2,7 @@
 
 ## Overview
 
-Lucky uses a clean, neutral dark design system inspired by professional developer tools and Discord bots like Dyno and Carl-bot. The palette is dark greys/near-black with a **dual accent**: Discord blurple as the primary CTA color and neon pink as the secondary accent. See `decisions/2026-04-21-redesign-port-target.md` for the rationale.
+Lucky uses a clean, neutral dark design system inspired by professional developer tools and Discord bots like Dyno and Carl-bot. The palette is dark greys/near-black with a single **neon pink** accent. Discord blurple is kept only for keyboard focus rings. See `decisions/2026-10-01-blurple-focus-only.md` (which supersedes the dual accent of `decisions/2026-04-21-redesign-port-target.md`).
 
 ## Color Palette
 
@@ -44,16 +44,15 @@ Measured with WCAG relative luminance. Hue is unchanged from the previous values
 
 Every text token clears 4.5:1 on every surface, including `surface-highlight` (hover/active rows). Raising `text-subtle` that far puts it close to `text-muted`, so the two read as one tier; use weight or size, not color, when a third tier is needed.
 
-### Accent (dual accent — Discord Blurple + Neon Pink)
+### Accent (neon pink; blurple for focus only)
 
-| Token                        | Hex       | Usage                                                       |
-| ---------------------------- | --------- | ----------------------------------------------------------- |
-| `--color-brand-discord`      | `#5865f2` | Primary CTA, active nav, focus rings                        |
-| `--color-brand-accent`       | `#ec4899` | Secondary accent, live pings, gradient highlights           |
-| `--color-lucky-neon-pink`    | `#ec4899` | Alias for the secondary accent (used in token-bridge layer) |
-| `--color-lucky-brand-strong` | `#db2777` | Pink fill behind white text (4.60:1 on white)               |
-| `--color-lucky-brand-deep`   | `#be185d` | Pink fill hover behind white text (6.04:1 on white)         |
-| `--color-lucky-brand-text`   | `#f472b6` | Pink text and icons on any surface (4.92:1 or better)       |
+| Token                        | Hex       | Usage                                                    |
+| ---------------------------- | --------- | -------------------------------------------------------- |
+| `--color-brand-accent`       | `#ec4899` | Brand accent: fills, tints, borders, gradient highlights |
+| `--color-lucky-neon-pink`    | `#ec4899` | Alias for the brand accent (used in token-bridge layer)  |
+| `--color-lucky-brand-strong` | `#db2777` | Pink fill behind white text (4.60:1 on white)            |
+| `--color-lucky-brand-deep`   | `#be185d` | Pink fill hover behind white text (6.04:1 on white)      |
+| `--color-lucky-brand-text`   | `#f472b6` | Pink text and icons on any surface (4.92:1 or better)    |
 
 `#ec4899` is 3.53:1 against white, so it is never a fill behind white text. It is not used for text either: it clears 4.5:1 only on canvas, sidebar and panel (5.35, 4.90, 4.58), not on elevated (4.20) or highlight (3.69). Pink foreground (text and icons) uses `brand-text` (`#f472b6`), which clears AA on every surface (7.12, 6.53, 6.10, 5.60, 4.92). `#ec4899` stays for fills, tints and borders; the legacy `text-lucky-red/blue/purple` aliases also resolve to it, so use `text-lucky-brand-text` instead. Use `brand-strong` for filled pink buttons and badges.
 
@@ -102,7 +101,7 @@ The three fonts are self-hosted via `@fontsource/*` packages imported at the top
 
 - Focus ring: 3px blurple ring (`--lucky-shadow-focus: 0 0 0 3px rgb(88 101 242 / 0.4)`)
 - Hover borders: upgrade from `border-soft` to `border-strong`
-- Active nav items: blurple left-accent bar (2px) + `surface-highlight` background
+- Active nav items: pink `border-lucky-brand/40` + `bg-active` background
 - Allowed animations: `fade-up`, `fade-in`, `accordion-down/up`, `animate-spin` (loaders)
 - Removed: glow-pulse, float, shimmer, pulse-glow animations
 
@@ -111,12 +110,12 @@ The three fonts are self-hosted via `@fontsource/*` packages imported at the top
 - **Button primary**: `brand-strong` (pink `#db2777`) background, white text, hover → `brand-deep`
 - **Button secondary**: panel background, border, hover → active highlight
 - **Cards**: flat border, no gradient overlays, no box-shadow glow
-- **Nav items**: left accent bar on active (blurple), `type-meta` section labels in subtle color
-- **StatTile**: toned icon container (blurple/success/warning), no glow drop-shadow
+- **Nav items**: pink border on active, blurple ring only on focus, `type-meta` section labels in subtle color
+- **StatTile**: toned icon container (pink/success/warning), no glow drop-shadow
 
 ## Principles
 
-1. **Dual accent**: Discord blurple `#5865f2` for primary CTAs + active states; neon pink `#ec4899` for secondary accents and gradient highlights. No gold, no legacy-purple gradients.
+1. **Single accent**: neon pink for CTAs (`brand-strong` fills), active states, accents and gradient highlights. Discord blurple `#5865f2` appears only in focus rings. No gold, no legacy-purple gradients.
 2. **Flat panels**: No glassmorphism, no background radial gradients on pages.
 3. **Professional motion**: Only fade transitions. No glow-pulse, float, or shimmer.
 4. **Sora display + Manrope body + JetBrains Mono**: see Typography. All three are self-hosted.

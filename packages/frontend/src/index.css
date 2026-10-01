@@ -76,13 +76,6 @@
   --color-lucky-neon-orange: #fb923c;
   --color-lucky-neon-purple: #8b5cf6;
 
-  /* Discord blurple accent palette (legacy) */
-  --color-lucky-blurple-700: #4752c4;
-  --color-lucky-blurple-600: #5865f2;
-  --color-lucky-blurple-500: #6d7af4;
-  --color-lucky-blurple-400: #8891f6;
-  --color-lucky-blurple-200: #c0c5fb;
-
   /* Semantic brand tokens (now using neon pink) */
   --color-lucky-brand: #ec4899;
   --color-lucky-brand-strong: #db2777;
@@ -153,7 +146,6 @@
   --color-panel: #1c2129;
   --color-elevated: #222831;
   --color-highlight: #2a3140;
-  --color-brand-discord: #5865f2;
   --color-brand-accent: #ec4899;
   --color-text-strong: #e6edf3;
   --color-text-body: #adbac7;
@@ -508,7 +500,7 @@
   }
 
   ::selection {
-    background-color: rgb(88 101 242 / 0.3);
+    background-color: rgb(236 72 153 / 0.3);
     color: var(--lucky-text-primary);
   }
 }
