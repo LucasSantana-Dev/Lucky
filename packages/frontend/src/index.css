@@ -352,7 +352,7 @@
 @utility lucky-focus-ring {
   &:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-lucky-focus) 40%, transparent);
+    box-shadow: var(--color-lucky-shadow-focus);
   }
 }
 
