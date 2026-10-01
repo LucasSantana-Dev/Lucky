@@ -3,7 +3,7 @@ declare module '@prisma/client' {
         constructor(options?: unknown)
         $connect(): Promise<void>
         $disconnect(): Promise<void>
-        $queryRaw<T = unknown>(query: unknown): Promise<T>
+        $queryRaw<T = unknown>(query: unknown, ...values: unknown[]): Promise<T>
         user: {
             upsert(args: unknown): Promise<unknown>
             findUnique(args: unknown): Promise<unknown | null>

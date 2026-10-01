@@ -539,77 +539,82 @@ describe('DatabaseService', () => {
     })
 
     describe('checkRateLimit', () => {
-        it('allows request when under limit and no existing entry', async () => {
-            mockRateLimitFindUnique.mockResolvedValue(null)
-            mockRateLimitUpsert.mockResolvedValue({
-                key: 'user-123',
-                count: 1,
-                resetAt: new Date(Date.now() + 60000),
-            })
+        const hit = async (count: number, limit = 3) => {
+            mockQueryRaw.mockResolvedValue([{ count }])
+            return service.checkRateLimit('user-123', limit, 60000)
+        }
 
-            const result = await service.checkRateLimit('user-123', 10, 60000)
+        it('allows the first hit (new window)', async () => {
+            const result = await hit(1)
 
             expect(result.isSuccess()).toBe(true)
             expect(result.getData()).toBe(true)
-            expect(mockRateLimitUpsert).toHaveBeenCalled()
         })
 
         it('allows request when under limit', async () => {
-            const resetAt = new Date(Date.now() + 30000)
-            mockRateLimitFindUnique.mockResolvedValue({
-                resetAt,
-                count: 5,
-            })
-            mockRateLimitUpdate.mockResolvedValue({
-                key: 'user-123',
-                count: 6,
-                resetAt,
-            })
-
-            const result = await service.checkRateLimit('user-123', 10, 60000)
-
-            expect(result.isSuccess()).toBe(true)
-            expect(result.getData()).toBe(true)
-            expect(mockRateLimitUpdate).toHaveBeenCalled()
+            expect((await hit(2)).getData()).toBe(true)
         })
 
-        it('denies request when at or over limit', async () => {
-            const resetAt = new Date(Date.now() + 30000)
-            mockRateLimitFindUnique.mockResolvedValue({
-                resetAt,
-                count: 10,
-            })
+        it('allows the request that reaches the limit', async () => {
+            expect((await hit(3)).getData()).toBe(true)
+        })
 
-            const result = await service.checkRateLimit('user-123', 10, 60000)
+        it('denies request over the limit', async () => {
+            expect((await hit(4)).getData()).toBe(false)
+        })
 
-            expect(result.isSuccess()).toBe(true)
-            expect(result.getData()).toBe(false)
+        it('uses one atomic parameterized statement with no read/write split', async () => {
+            await hit(1)
+
+            expect(mockQueryRaw).toHaveBeenCalledTimes(1)
+            const [strings, ...values] = mockQueryRaw.mock
+                .calls[0] as unknown as [string[], ...unknown[]]
+            expect(strings.join('?').replace(/\s+/g, ' ').trim()).toBe(
+                'INSERT INTO "rate_limits" ("id", "key", "count", "resetAt") ' +
+                    'VALUES (?, ?, 1, ?) ' +
+                    'ON CONFLICT ("key") DO UPDATE SET ' +
+                    '"count" = CASE WHEN "rate_limits"."resetAt" < ? ' +
+                    'THEN 1 ELSE "rate_limits"."count" + 1 END, ' +
+                    '"resetAt" = CASE WHEN "rate_limits"."resetAt" < ? ' +
+                    'THEN ? ELSE "rate_limits"."resetAt" END ' +
+                    'RETURNING "count"',
+            )
+            // order: id, key, new resetAt, now, now, new resetAt
+            expect(values).toHaveLength(6)
+            expect(typeof values[0]).toBe('string')
+            expect(values[1]).toBe('user-123')
+            expect(values[2]).toBeInstanceOf(Date)
+            expect(values[3]).toBeInstanceOf(Date)
+            expect(values[4]).toBe(values[3])
+            expect(values[5]).toBe(values[2])
+            expect((values[2] as Date).getTime()).toBe(
+                (values[3] as Date).getTime() + 60000,
+            )
+            expect(mockRateLimitFindUnique).not.toHaveBeenCalled()
+            expect(mockRateLimitUpsert).not.toHaveBeenCalled()
             expect(mockRateLimitUpdate).not.toHaveBeenCalled()
         })
 
-        it('resets counter when window has expired', async () => {
-            const expiredResetAt = new Date(Date.now() - 10000)
-            mockRateLimitFindUnique.mockResolvedValue({
-                resetAt: expiredResetAt,
-                count: 10,
-            })
-            mockRateLimitUpsert.mockResolvedValue({
-                key: 'user-123',
-                count: 1,
-                resetAt: new Date(Date.now() + 60000),
-            })
+        it('resets and admits when the window expired (db returns count 1)', async () => {
+            const result = await hit(1, 1)
 
-            const result = await service.checkRateLimit('user-123', 10, 60000)
-
-            expect(result.isSuccess()).toBe(true)
             expect(result.getData()).toBe(true)
-            expect(mockRateLimitUpsert).toHaveBeenCalled()
+            const [strings] = mockQueryRaw.mock.calls[0] as unknown as [
+                string[],
+            ]
+            expect(strings.join('?')).toContain('THEN 1')
         })
 
         it('returns failure on database error', async () => {
-            mockRateLimitFindUnique.mockRejectedValue(
-                new Error('DB connection failed'),
-            )
+            mockQueryRaw.mockRejectedValue(new Error('DB connection failed'))
+
+            const result = await service.checkRateLimit('user-123', 10, 60000)
+
+            expect(result.isFailure()).toBe(true)
+        })
+
+        it('returns failure when the statement returns no row', async () => {
+            mockQueryRaw.mockResolvedValue([])
 
             const result = await service.checkRateLimit('user-123', 10, 60000)
 
@@ -1089,61 +1094,39 @@ describe('DatabaseService', () => {
     })
 
     describe('rate-limit branches (kill conditional/boundary mutants)', () => {
-        it('creates a fresh window when no record exists', async () => {
-            mockRateLimitFindUnique.mockResolvedValue(null)
-            mockRateLimitUpsert.mockResolvedValue({})
-
-            const result = await service.checkRateLimit('k', 5, 60000)
-
-            expect(result.getData()).toBe(true)
-            expect(mockRateLimitUpsert).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    where: { key: 'k' },
-                    update: expect.objectContaining({ count: 1 }),
-                    create: expect.objectContaining({ key: 'k', count: 1 }),
-                }),
-            )
-        })
-
-        it('resets the window when the existing record has expired', async () => {
-            mockRateLimitFindUnique.mockResolvedValue({
-                resetAt: new Date(Date.now() - 1000),
-                count: 99,
-            })
-            mockRateLimitUpsert.mockResolvedValue({})
-
-            const result = await service.checkRateLimit('k', 5, 60000)
-
-            expect(result.getData()).toBe(true)
-            expect(mockRateLimitUpsert).toHaveBeenCalled()
-        })
-
-        it('denies at the limit boundary (count === limit) without updating', async () => {
-            mockRateLimitFindUnique.mockResolvedValue({
-                resetAt: new Date(Date.now() + 60000),
-                count: 5,
-            })
+        it('denies just over the limit boundary (count === limit + 1)', async () => {
+            mockQueryRaw.mockResolvedValue([{ count: 6 }])
 
             const result = await service.checkRateLimit('k', 5, 60000)
 
             expect(result.getData()).toBe(false)
-            expect(mockRateLimitUpdate).not.toHaveBeenCalled()
         })
 
-        it('increments by one just under the limit (count === limit - 1)', async () => {
-            mockRateLimitFindUnique.mockResolvedValue({
-                resetAt: new Date(Date.now() + 60000),
-                count: 4,
-            })
-            mockRateLimitUpdate.mockResolvedValue({})
+        it('admits exactly at the limit boundary (count === limit)', async () => {
+            mockQueryRaw.mockResolvedValue([{ count: 5 }])
 
             const result = await service.checkRateLimit('k', 5, 60000)
 
             expect(result.getData()).toBe(true)
-            expect(mockRateLimitUpdate).toHaveBeenCalledWith({
-                where: { key: 'k' },
-                data: { count: 5 },
-            })
+        })
+
+        it('binds key and a window end of now + windowMs as parameters', async () => {
+            mockQueryRaw.mockResolvedValue([{ count: 1 }])
+            const before = Date.now()
+
+            await service.checkRateLimit('k', 5, 60000)
+
+            const values = (
+                mockQueryRaw.mock.calls[0] as unknown as [
+                    string[],
+                    ...unknown[],
+                ]
+            ).slice(1)
+            const dates = values.filter((v): v is Date => v instanceof Date)
+            expect(values).toContain('k')
+            expect(dates.length).toBeGreaterThanOrEqual(2)
+            const windowEnd = Math.max(...dates.map((d) => d.getTime()))
+            expect(windowEnd).toBeGreaterThanOrEqual(before + 60000)
         })
     })
 
@@ -1212,19 +1195,8 @@ describe('DatabaseService', () => {
             expect(result.isFailure()).toBe(true)
         })
 
-        it('checkRateLimit fails when the record is missing resetAt', async () => {
-            mockRateLimitFindUnique.mockResolvedValue({ count: 3 })
-
-            const result = await service.checkRateLimit('k', 5, 60000)
-
-            expect(result.isFailure()).toBe(true)
-        })
-
-        it('checkRateLimit fails when resetAt is not a Date', async () => {
-            mockRateLimitFindUnique.mockResolvedValue({
-                resetAt: 'soon',
-                count: 3,
-            })
+        it('checkRateLimit fails when the statement result is not an array', async () => {
+            mockQueryRaw.mockResolvedValue({ count: 3 })
 
             const result = await service.checkRateLimit('k', 5, 60000)
 
@@ -1232,10 +1204,7 @@ describe('DatabaseService', () => {
         })
 
         it('checkRateLimit fails when count is not a number', async () => {
-            mockRateLimitFindUnique.mockResolvedValue({
-                resetAt: new Date(Date.now() + 60000),
-                count: 'three',
-            })
+            mockQueryRaw.mockResolvedValue([{ count: 'three' }])
 
             const result = await service.checkRateLimit('k', 5, 60000)
 
