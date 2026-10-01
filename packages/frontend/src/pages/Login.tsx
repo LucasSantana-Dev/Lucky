@@ -73,7 +73,7 @@ export default function LoginPage() {
                     </div>
 
                     <section
-                        className='surface-panel p-8 space-y-6'
+                        className='surface-panel mt-8 p-8 space-y-6'
                         style={cardStyle}
                     >
                         <div className='space-y-4'>
