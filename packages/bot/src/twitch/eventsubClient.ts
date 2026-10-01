@@ -272,7 +272,12 @@ export class TwitchEventSubClient {
                         this.subscribedUpdateIds.clear()
                         this.subscribedRaidIds.clear()
                     }
-                    this.connect(safeUrl)
+                    this.connect(safeUrl).catch((err: unknown) =>
+                        errorLog({
+                            message: 'Twitch EventSub: reconnect failed',
+                            error: err,
+                        }),
+                    )
                 }
                 break
             }

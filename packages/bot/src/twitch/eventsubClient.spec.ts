@@ -30,12 +30,14 @@ const mockWsInstance = {
     readyState: 1,
 }
 const mockWsUrls: string[] = []
+let mockWsConstructorError: Error | null = null
 
 jest.mock('ws', () => {
     // Plain function (not jest.fn) so the bot suite's resetMocks/restoreMocks
     // can't strip the constructor's return value between tests.
     function MockWebSocket(url: string): typeof mockWsInstance {
         mockWsUrls.push(url)
+        if (mockWsConstructorError) throw mockWsConstructorError
         return mockWsInstance
     }
     // The client reads WebSocket.OPEN to gate the keepalive close.
@@ -108,6 +110,7 @@ describe('TwitchEventSubClient', () => {
             delete mockWsHandlers[key]
         mockWsInstance.readyState = 1
         mockWsUrls.length = 0
+        mockWsConstructorError = null
         mockWsInstance.on.mockImplementation((...args: unknown[]) => {
             const [event, cb] = args as [string, (...a: unknown[]) => void]
             mockWsHandlers[event] = cb
@@ -219,6 +222,26 @@ describe('TwitchEventSubClient', () => {
     })
 
     describe('session_reconnect url validation', () => {
+        it('logs instead of leaving an unhandled rejection when the reconnect socket cannot be created', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+
+            mockWsConstructorError = new Error('socket construction failed')
+            fireReconnect('wss://eventsub.wss.twitch.tv/ws?session=abc')
+            await new Promise(process.nextTick)
+
+            expect(errorLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Twitch EventSub: reconnect failed',
+                    error: mockWsConstructorError,
+                }),
+            )
+        })
+
         it('refuses a hostile reconnect url and reconnects to the known EventSub host instead', async () => {
             getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
 
