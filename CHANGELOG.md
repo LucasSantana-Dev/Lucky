@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.47.7](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.6...v2.47.7) (2026-10-01)
+
+
+### Bug Fixes
+
+* **frontend:** raise muted text tokens to wcag aa contrast ([#2546](https://github.com/LucasSantana-Dev/Lucky/issues/2546)) ([9543ab5](https://github.com/LucasSantana-Dev/Lucky/commit/9543ab5e30867be9d55c67e44a8fad4b5d812598))
+* **frontend:** use lighter pink for brand text to meet wcag aa ([#2553](https://github.com/LucasSantana-Dev/Lucky/issues/2553)) ([8d77a58](https://github.com/LucasSantana-Dev/Lucky/commit/8d77a58c3798d8fa88efd16a87a2d6498a229f7b))
+
 ## [2.47.6](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.5...v2.47.6) (2026-10-01)
 
 
