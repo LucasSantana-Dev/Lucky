@@ -71,7 +71,7 @@ jobs:
                   args=(install --with-deps chromium)
                   if [ "$CACHE_HIT" = 'true' ]; then args=(install-deps chromium); fi
                   for attempt in 1 2 3; do
-                      timeout 3m npx playwright "${args[@]}" && exit 0
+                      timeout -k 30s 3m npx playwright "${args[@]}" && exit 0
                       echo "::warning::playwright ${args[*]} attempt $attempt failed or timed out"
                   done
                   exit 1
