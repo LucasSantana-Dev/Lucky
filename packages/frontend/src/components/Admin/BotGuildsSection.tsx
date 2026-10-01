@@ -84,7 +84,10 @@ export default function BotGuildsSection() {
     return (
         <section>
             <div className='flex items-center gap-2 mb-4'>
-                <Server className='w-5 h-5 text-lucky-purple' aria-hidden='true' />
+                <Server
+                    className='w-5 h-5 text-lucky-brand-text'
+                    aria-hidden='true'
+                />
                 <h2 className='text-lg font-semibold text-white'>
                     Bot Servers
                 </h2>
@@ -104,7 +107,7 @@ export default function BotGuildsSection() {
             )}
 
             {error && (
-                <p className='text-sm text-lucky-red'>{error}</p>
+                <p className='text-sm text-lucky-brand-text'>{error}</p>
             )}
 
             {!loading && !error && guilds.length === 0 && (

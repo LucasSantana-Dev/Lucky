@@ -160,9 +160,9 @@ function ArtistTile({
                                 e.stopPropagation()
                                 onPrefer()
                             }}
-                            className='pointer-events-auto absolute top-2 left-2 rounded-full bg-lucky-bg-primary/90 p-1.5 ring-1 ring-lucky-border hover:bg-lucky-brand transition-colors'
+                            className='pointer-events-auto absolute top-2 left-2 rounded-full bg-lucky-bg-primary/90 p-1.5 ring-1 ring-lucky-border hover:bg-lucky-brand transition-colors group'
                         >
-                            <Heart className='h-4 w-4 text-lucky-brand-text' />
+                            <Heart className='h-4 w-4 text-lucky-brand-text group-hover:text-white' />
                         </button>
                     )}
                     {onBlock && (
@@ -489,7 +489,7 @@ export default function PreferredArtistsPage() {
                                             'inline-flex items-center justify-center h-5 px-1.5 rounded-full text-xs font-medium',
                                             currentTab === tab
                                                 ? 'bg-white/20 text-white'
-                                                : 'bg-lucky-brand/20 text-lucky-brand-text',
+                                                : 'bg-lucky-bg-primary text-lucky-brand-text',
                                         )}
                                     >
                                         {counts[tab]}
