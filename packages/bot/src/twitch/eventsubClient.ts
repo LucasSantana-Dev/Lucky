@@ -80,7 +80,7 @@ export class TwitchEventSubClient {
     // Twitch's session_reconnect message hands us a URL to reconnect to; only
     // trust it when it points at the real EventSub host, otherwise fall back
     // to the known-good constant (SSRF guard). On a match the returned URL is
-    // rebuilt from a fixed host literal (never from `parsed.host`/the raw
+    // rebuilt from the EVENTSUB_HOST literal (never from `parsed.host`/the raw
     // input) so the request's authority can never be attacker-controlled,
     // even though the path/query below still come from the validated input.
     // This breaks the taint path structurally for CodeQL js/request-forgery,
@@ -101,13 +101,8 @@ export class TwitchEventSubClient {
                 hostname === EVENTSUB_HOST &&
                 parsed.port === ''
             ) {
-                // Inline prefix ending in "/": CodeQL only treats a literal
-                // prefix that includes the path slash as fixing the host. A
-                // wss: URL's pathname always starts with "/", hence the slice.
                 return {
-                    url:
-                        'wss://eventsub.wss.twitch.tv/' +
-                        (parsed.pathname + parsed.search).slice(1),
+                    url: `wss://${EVENTSUB_HOST}${parsed.pathname}${parsed.search}`,
                     wasRejected: false,
                 }
             }
@@ -264,6 +259,11 @@ export class TwitchEventSubClient {
                 const p = msg.payload as ReconnectPayload
                 if (p.session.reconnect_url && this.ws) {
                     this.ws.close(1000)
+                    // The old session is over: drop its keepalive (it would
+                    // close the replacement socket) and its id (a refresh
+                    // during the handshake would subscribe against it).
+                    this.clearKeepalive()
+                    this.sessionId = null
                     const { url: safeUrl, wasRejected } =
                         this.resolveConnectUrl(p.session.reconnect_url)
                     if (wasRejected) {
@@ -285,7 +285,7 @@ export class TwitchEventSubClient {
                         // The old socket is already closing with 1000, which
                         // never reconnects, so start a fresh session here.
                         this.clearSubscribedIds()
-                        if (this.client) this.scheduleReconnect()
+                        this.scheduleReconnect()
                     })
                 }
                 break
@@ -306,12 +306,15 @@ export class TwitchEventSubClient {
 
     private scheduleReconnect(): void {
         setTimeout(() => {
-            this.connect(EVENTSUB_WS_URL).catch((err: unknown) =>
+            // stop() can't cancel this timer, so check here, not at scheduling.
+            if (!this.client) return
+            this.connect(EVENTSUB_WS_URL).catch((err: unknown) => {
                 errorLog({
                     message: 'Twitch EventSub: reconnect failed',
                     error: err,
-                }),
-            )
+                })
+                this.scheduleReconnect()
+            })
         }, 5000)
     }
 

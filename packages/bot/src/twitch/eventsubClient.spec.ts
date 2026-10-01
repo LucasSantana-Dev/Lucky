@@ -128,6 +128,7 @@ describe('TwitchEventSubClient', () => {
     })
 
     afterEach(() => {
+        jest.useRealTimers()
         jest.clearAllMocks()
         delete process.env.TWITCH_CLIENT_ID
     })
@@ -258,7 +259,44 @@ describe('TwitchEventSubClient', () => {
                 'wss://eventsub.wss.twitch.tv/ws?session=abc',
                 'wss://eventsub.wss.twitch.tv/ws',
             ])
-            jest.useRealTimers()
+        })
+
+        it('keeps retrying while the socket cannot be created, and stops after stop()', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+
+            jest.useFakeTimers()
+            mockWsConstructorError = new Error('socket construction failed')
+            fireReconnect('wss://eventsub.wss.twitch.tv/ws?session=abc')
+            await jest.advanceTimersByTimeAsync(5000)
+            await jest.advanceTimersByTimeAsync(5000)
+
+            // Initial socket, failed migration, then two failed retries.
+            expect(mockWsUrls).toHaveLength(4)
+
+            client.stop()
+            await jest.advanceTimersByTimeAsync(15000)
+
+            expect(mockWsUrls).toHaveLength(4)
+        })
+
+        it('does not subscribe against the old session while the migration handshake runs', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+            subscribeToStreamOnlineMock.mockClear()
+
+            fireReconnect('wss://eventsub.wss.twitch.tv/ws?session=abc')
+            await client.refreshSubscriptions()
+
+            expect(subscribeToStreamOnlineMock).not.toHaveBeenCalled()
         })
 
         it('keeps the new socket live when the replaced socket finishes closing', async () => {
