@@ -55,7 +55,7 @@ export default function ServerGrid() {
                                 className={cn(
                                     'px-4 py-1.5 rounded-lg transition-all duration-150 type-body-sm font-medium',
                                     filter === filterType
-                                        ? 'bg-lucky-brand text-white shadow-sm'
+                                        ? 'bg-lucky-brand-strong text-white shadow-sm'
                                         : 'bg-lucky-bg-secondary text-lucky-text-secondary border border-lucky-border hover:border-lucky-border-strong hover:text-lucky-text-primary',
                                 )}
                                 aria-pressed={filter === filterType}

@@ -29,8 +29,20 @@ Lucky uses a clean, neutral dark design system inspired by professional develope
 | --------------------- | --------- | ---------------- |
 | `--lucky-text-strong` | `#e6edf3` | Primary text     |
 | `--lucky-text-body`   | `#adbac7` | Body text        |
-| `--lucky-text-muted`  | `#768390` | Secondary labels |
-| `--lucky-text-subtle` | `#545d68` | Disabled / meta  |
+| `--lucky-text-muted`  | `#919ca7` | Secondary labels |
+| `--lucky-text-subtle` | `#8893a0` | Disabled / meta  |
+
+#### Text contrast (WCAG AA, 4.5:1 for body text)
+
+Measured with WCAG relative luminance. Hue is unchanged from the previous values (`#768390`, `#545d68`).
+
+| Token                 | Hex       | canvas | sidebar | panel | elevated | highlight |
+| --------------------- | --------- | ------ | ------- | ----- | -------- | --------- |
+| `--lucky-text-body`   | `#adbac7` | 9.55   | 8.75    | 8.18  | 7.50     | 6.59      |
+| `--lucky-text-muted`  | `#919ca7` | 6.75   | 6.19    | 5.79  | 5.31     | 4.66      |
+| `--lucky-text-subtle` | `#8893a0` | 6.05   | 5.54    | 5.18  | 4.75     | 4.17      |
+
+`text-subtle` stays at or above 4.5:1 on canvas through elevated. On `surface-highlight` (hover/active rows) use `text-muted`.
 
 ### Accent (dual accent — Discord Blurple + Neon Pink)
 
@@ -40,6 +52,10 @@ Lucky uses a clean, neutral dark design system inspired by professional develope
 | `--lucky-brand-strong`    | `#4752c4` | Primary hover                                               |
 | `--color-brand-accent`    | `#ec4899` | Secondary accent, live pings, gradient highlights           |
 | `--color-lucky-neon-pink` | `#ec4899` | Alias for the secondary accent (used in token-bridge layer) |
+| `--color-lucky-brand-strong` | `#db2777` | Pink fill behind white text (4.60:1 on white) |
+| `--color-lucky-brand-deep` | `#be185d` | Pink fill hover behind white text (6.04:1 on white) |
+
+`#ec4899` is 3.53:1 against white, so it is for text/icons on dark surfaces (4.20:1 or more) and never a fill behind white text. Use `brand-strong` for filled pink buttons and badges.
 
 Short-form `--color-*` aliases are added alongside the long-form `--lucky-*` tokens during the redesign migration; both names resolve to the same value, see `index.css`. Cleanup PR removing the duplicates is queued for after all page ports land.
 

@@ -474,7 +474,7 @@ export default function PreferredArtistsPage() {
                                     className={cn(
                                         'px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2',
                                         currentTab === tab
-                                            ? 'bg-lucky-brand text-white'
+                                            ? 'bg-lucky-brand-strong text-white'
                                             : 'bg-lucky-bg-tertiary text-lucky-text-secondary hover:bg-lucky-bg-active',
                                     )}
                                 >
@@ -657,7 +657,7 @@ export default function PreferredArtistsPage() {
                                     <button
                                         type='button'
                                         onClick={loadSuggestions}
-                                        className='lucky-focus-visible rounded-lg bg-lucky-brand px-4 py-2 type-body-sm font-medium text-white hover:bg-lucky-brand/90'
+                                        className='lucky-focus-visible rounded-lg bg-lucky-brand-strong px-4 py-2 type-body-sm font-medium text-white hover:bg-lucky-brand-deep'
                                     >
                                         Try again
                                     </button>
@@ -781,8 +781,8 @@ export default function PreferredArtistsPage() {
                         className={cn(
                             'lucky-focus-visible w-full rounded-lg px-4 py-2.5 type-body-sm font-medium transition-colors',
                             isSaving
-                                ? 'bg-lucky-brand/50 text-white'
-                                : 'bg-lucky-brand text-white hover:bg-lucky-brand/90',
+                                ? 'bg-lucky-brand-strong/50 text-white'
+                                : 'bg-lucky-brand-strong text-white hover:bg-lucky-brand-deep',
                         )}
                     >
                         {isSaving ? (

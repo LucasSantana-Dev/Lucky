@@ -90,7 +90,7 @@ function NavSections({
                                                 {item.badge !== undefined &&
                                                     item.badge > 0 && (
                                                         <span
-                                                            className='ml-auto inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-lucky-brand px-1 text-[11px] font-semibold text-white'
+                                                            className='ml-auto inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-lucky-brand-strong px-1 text-[11px] font-semibold text-white'
                                                             aria-label={`${item.badge} notifications`}
                                                         >
                                                             {item.badge > 99

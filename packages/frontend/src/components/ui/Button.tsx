@@ -30,7 +30,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                     'disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed',
                     'active:scale-[0.98]',
                     {
-                        'bg-lucky-brand text-white hover:bg-lucky-brand-strong':
+                        'bg-lucky-brand-strong text-white hover:bg-lucky-brand-deep':
                             variant === 'primary',
                         'bg-lucky-bg-tertiary border border-lucky-border text-lucky-text-primary hover:border-lucky-border-strong hover:bg-lucky-bg-active':
                             variant === 'secondary',
