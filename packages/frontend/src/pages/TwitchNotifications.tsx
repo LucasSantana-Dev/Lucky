@@ -372,7 +372,7 @@ export default function TwitchNotificationsPage() {
                             placeholder={t('twitchUrlPlaceholder')}
                             value={newTwitchInput}
                             onChange={(e) => setNewTwitchInput(e.target.value)}
-                            className='px-3 py-2 text-sm rounded-sm bg-lucky-bg-active border border-lucky-border text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:border-purple-500'
+                            className='px-3 py-2 text-sm rounded-sm bg-lucky-bg-active border border-lucky-border text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:border-lucky-focus focus-visible:ring-2 focus-visible:ring-lucky-focus'
                         />
                         <Select
                             value={newChannelId}
