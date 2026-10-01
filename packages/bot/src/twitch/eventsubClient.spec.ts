@@ -30,13 +30,20 @@ const mockWsInstance = {
     readyState: 1,
 }
 const mockWsUrls: string[] = []
+// Handlers registered on each constructed socket, in construction order.
+const mockWsSocketHandlers: Record<string, (...args: unknown[]) => void>[] = []
+let mockWsConstructorError: Error | null = null
 
 jest.mock('ws', () => {
     // Plain function (not jest.fn) so the bot suite's resetMocks/restoreMocks
     // can't strip the constructor's return value between tests.
     function MockWebSocket(url: string): typeof mockWsInstance {
         mockWsUrls.push(url)
-        return mockWsInstance
+        if (mockWsConstructorError) throw mockWsConstructorError
+        mockWsSocketHandlers.push({})
+        // A distinct object per socket so the client can tell an old socket
+        // from its replacement; the jest.fn members stay shared.
+        return { ...mockWsInstance }
     }
     // The client reads WebSocket.OPEN to gate the keepalive close.
     ;(MockWebSocket as unknown as { OPEN: number }).OPEN = 1
@@ -108,9 +115,12 @@ describe('TwitchEventSubClient', () => {
             delete mockWsHandlers[key]
         mockWsInstance.readyState = 1
         mockWsUrls.length = 0
+        mockWsSocketHandlers.length = 0
+        mockWsConstructorError = null
         mockWsInstance.on.mockImplementation((...args: unknown[]) => {
             const [event, cb] = args as [string, (...a: unknown[]) => void]
             mockWsHandlers[event] = cb
+            mockWsSocketHandlers[mockWsSocketHandlers.length - 1][event] = cb
         })
         client = new TwitchEventSubClient()
         mockDiscordClient = {}
@@ -118,6 +128,7 @@ describe('TwitchEventSubClient', () => {
     })
 
     afterEach(() => {
+        jest.useRealTimers()
         jest.clearAllMocks()
         delete process.env.TWITCH_CLIENT_ID
     })
@@ -215,6 +226,100 @@ describe('TwitchEventSubClient', () => {
             expect(setSizesAtCall).toEqual([0, 0])
 
             jest.useRealTimers()
+        })
+    })
+
+    describe('session_reconnect migration', () => {
+        it('logs and starts a fresh session when the reconnect socket cannot be created', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+
+            jest.useFakeTimers()
+            const constructorError = new Error('socket construction failed')
+            mockWsConstructorError = constructorError
+            fireReconnect('wss://eventsub.wss.twitch.tv/ws?session=abc')
+            await jest.advanceTimersByTimeAsync(0)
+
+            expect(errorLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Twitch EventSub: reconnect failed',
+                    error: constructorError,
+                }),
+            )
+
+            mockWsConstructorError = null
+            await jest.advanceTimersByTimeAsync(5000)
+
+            expect(mockWsUrls).toEqual([
+                'wss://eventsub.wss.twitch.tv/ws',
+                'wss://eventsub.wss.twitch.tv/ws?session=abc',
+                'wss://eventsub.wss.twitch.tv/ws',
+            ])
+        })
+
+        it('keeps retrying while the socket cannot be created, and stops after stop()', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+
+            jest.useFakeTimers()
+            mockWsConstructorError = new Error('socket construction failed')
+            fireReconnect('wss://eventsub.wss.twitch.tv/ws?session=abc')
+            await jest.advanceTimersByTimeAsync(5000)
+            await jest.advanceTimersByTimeAsync(5000)
+
+            // Initial socket, failed migration, then two failed retries.
+            expect(mockWsUrls).toHaveLength(4)
+
+            client.stop()
+            await jest.advanceTimersByTimeAsync(15000)
+
+            expect(mockWsUrls).toHaveLength(4)
+        })
+
+        it('does not subscribe against the old session while the migration handshake runs', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+            subscribeToStreamOnlineMock.mockClear()
+
+            fireReconnect('wss://eventsub.wss.twitch.tv/ws?session=abc')
+            await client.refreshSubscriptions()
+
+            expect(subscribeToStreamOnlineMock).not.toHaveBeenCalled()
+        })
+
+        it('keeps the new socket live when the replaced socket finishes closing', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+
+            fireReconnect('wss://eventsub.wss.twitch.tv/ws?session=abc')
+            fireWelcome('session-2')
+            // The old socket's close event lands after the migration.
+            mockWsSocketHandlers[0].close?.(1000, Buffer.from(''))
+
+            // A second migration must still be honoured, which needs this.ws.
+            fireReconnect('wss://eventsub.wss.twitch.tv/ws?session=def')
+
+            expect(mockWsUrls).toEqual([
+                'wss://eventsub.wss.twitch.tv/ws',
+                'wss://eventsub.wss.twitch.tv/ws?session=abc',
+                'wss://eventsub.wss.twitch.tv/ws?session=def',
+            ])
         })
     })
 

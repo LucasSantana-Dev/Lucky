@@ -119,11 +119,12 @@ export class TwitchEventSubClient {
 
     private async connect(url: string): Promise<void> {
         return new Promise((resolve) => {
-            this.ws = new WebSocket(url)
-            this.ws.on('open', () =>
+            const ws = new WebSocket(url)
+            this.ws = ws
+            ws.on('open', () =>
                 debugLog({ message: 'Twitch EventSub: WebSocket connected' }),
             )
-            this.ws.on('message', (data: WebSocket.RawData) => {
+            ws.on('message', (data: WebSocket.RawData) => {
                 try {
                     const msg = JSON.parse(data.toString()) as Message
                     this.handleMessage(msg)
@@ -136,10 +137,15 @@ export class TwitchEventSubClient {
                     })
                 }
             })
-            this.ws.on('close', (code, reason) => {
+            ws.on('close', (code, reason) => {
                 debugLog({
                     message: `Twitch EventSub: WebSocket closed code=${code} reason=${reason.toString()}`,
                 })
+                // A socket replaced by session_reconnect (or dropped by stop())
+                // finishes closing after this.ws already moved on. Touching the
+                // shared state then would null the live socket and wipe the new
+                // session's keepalive and id.
+                if (this.ws !== ws) return
                 this.clearKeepalive()
                 this.ws = null
                 this.sessionId = null
@@ -150,20 +156,17 @@ export class TwitchEventSubClient {
                     // register zero subscriptions, silently killing notifications.
                     // (session_reconnect migration closes with code 1000 and keeps
                     // its subscriptions, so it intentionally bypasses this reset.)
-                    this.subscribedUserIds.clear()
-                    this.subscribedOfflineIds.clear()
-                    this.subscribedUpdateIds.clear()
-                    this.subscribedRaidIds.clear()
-                    setTimeout(() => this.connect(EVENTSUB_WS_URL), 5000)
+                    this.clearSubscribedIds()
+                    this.scheduleReconnect()
                 }
             })
-            this.ws.on('error', (err) =>
+            ws.on('error', (err) =>
                 errorLog({
                     message: 'Twitch EventSub: WebSocket error',
                     error: err,
                 }),
             )
-            this.ws.on('ping', () => this.ws?.pong())
+            ws.on('ping', () => ws.pong())
         })
     }
 
@@ -256,6 +259,11 @@ export class TwitchEventSubClient {
                 const p = msg.payload as ReconnectPayload
                 if (p.session.reconnect_url && this.ws) {
                     this.ws.close(1000)
+                    // The old session is over: drop its keepalive (it would
+                    // close the replacement socket) and its id (a refresh
+                    // during the handshake would subscribe against it).
+                    this.clearKeepalive()
+                    this.sessionId = null
                     const { url: safeUrl, wasRejected } =
                         this.resolveConnectUrl(p.session.reconnect_url)
                     if (wasRejected) {
@@ -267,12 +275,18 @@ export class TwitchEventSubClient {
                         // subscriptions (same failure mode as the unexpected
                         // close reset below, and this path bypasses that one
                         // since it closes with code 1000).
-                        this.subscribedUserIds.clear()
-                        this.subscribedOfflineIds.clear()
-                        this.subscribedUpdateIds.clear()
-                        this.subscribedRaidIds.clear()
+                        this.clearSubscribedIds()
                     }
-                    this.connect(safeUrl)
+                    this.connect(safeUrl).catch((err: unknown) => {
+                        errorLog({
+                            message: 'Twitch EventSub: reconnect failed',
+                            error: err,
+                        })
+                        // The old socket is already closing with 1000, which
+                        // never reconnects, so start a fresh session here.
+                        this.clearSubscribedIds()
+                        this.scheduleReconnect()
+                    })
                 }
                 break
             }
@@ -288,6 +302,27 @@ export class TwitchEventSubClient {
                     data: msg.metadata.message_type,
                 })
         }
+    }
+
+    private scheduleReconnect(): void {
+        setTimeout(() => {
+            // stop() can't cancel this timer, so check here, not at scheduling.
+            if (!this.client) return
+            this.connect(EVENTSUB_WS_URL).catch((err: unknown) => {
+                errorLog({
+                    message: 'Twitch EventSub: reconnect failed',
+                    error: err,
+                })
+                this.scheduleReconnect()
+            })
+        }, 5000)
+    }
+
+    private clearSubscribedIds(): void {
+        this.subscribedUserIds.clear()
+        this.subscribedOfflineIds.clear()
+        this.subscribedUpdateIds.clear()
+        this.subscribedRaidIds.clear()
     }
 
     private scheduleKeepalive(ms: number): void {
