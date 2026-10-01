@@ -569,8 +569,27 @@ describe('DatabaseService', () => {
             expect(mockQueryRaw).toHaveBeenCalledTimes(1)
             const [strings, ...values] = mockQueryRaw.mock
                 .calls[0] as unknown as [string[], ...unknown[]]
-            expect(strings.join('?')).toContain('ON CONFLICT ("key")')
-            expect(values).toContain('user-123')
+            expect(strings.join('?').replace(/\s+/g, ' ').trim()).toBe(
+                'INSERT INTO "rate_limits" ("id", "key", "count", "resetAt") ' +
+                    'VALUES (?, ?, 1, ?) ' +
+                    'ON CONFLICT ("key") DO UPDATE SET ' +
+                    '"count" = CASE WHEN "rate_limits"."resetAt" < ? ' +
+                    'THEN 1 ELSE "rate_limits"."count" + 1 END, ' +
+                    '"resetAt" = CASE WHEN "rate_limits"."resetAt" < ? ' +
+                    'THEN ? ELSE "rate_limits"."resetAt" END ' +
+                    'RETURNING "count"',
+            )
+            // order: id, key, new resetAt, now, now, new resetAt
+            expect(values).toHaveLength(6)
+            expect(typeof values[0]).toBe('string')
+            expect(values[1]).toBe('user-123')
+            expect(values[2]).toBeInstanceOf(Date)
+            expect(values[3]).toBeInstanceOf(Date)
+            expect(values[4]).toBe(values[3])
+            expect(values[5]).toBe(values[2])
+            expect((values[2] as Date).getTime()).toBe(
+                (values[3] as Date).getTime() + 60000,
+            )
             expect(mockRateLimitFindUnique).not.toHaveBeenCalled()
             expect(mockRateLimitUpsert).not.toHaveBeenCalled()
             expect(mockRateLimitUpdate).not.toHaveBeenCalled()
