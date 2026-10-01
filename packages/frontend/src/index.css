@@ -118,13 +118,13 @@
   --color-lucky-text-strong: #e6edf3;
   --color-lucky-text-body: #adbac7;
   --color-lucky-text-muted: #919ca7;
-  --color-lucky-text-subtle: #8893a0;
+  --color-lucky-text-subtle: #8f99a6;
 
   /* Tailwind-compatible text-lucky-* aliases */
   --color-lucky-text-primary: #e6edf3;
   --color-lucky-text-secondary: #adbac7;
   --color-lucky-text-tertiary: #919ca7;
-  --color-lucky-text-disabled: #8893a0;
+  --color-lucky-text-disabled: #8f99a6;
 
   /* Shadows */
   --color-lucky-shadow-soft: 0 4px 16px rgb(0 0 0 / 0.3);
@@ -157,7 +157,7 @@
   --color-text-strong: #e6edf3;
   --color-text-body: #adbac7;
   --color-text-muted: #919ca7;
-  --color-text-subtle: #8893a0;
+  --color-text-subtle: #8f99a6;
   --shadow-soft: 0 4px 16px rgb(0 0 0 / 0.3);
   --shadow-panel: 0 8px 32px rgb(0 0 0 / 0.4);
 
@@ -635,7 +635,7 @@
     transition: color 150ms ease;
   }
   .docs-prose a:hover {
-    color: var(--color-lucky-brand-strong);
+    color: var(--color-lucky-text-strong);
   }
   .docs-prose ul,
   .docs-prose ol {
