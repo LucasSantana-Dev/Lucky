@@ -72,7 +72,7 @@ Queue a couple of songs and Lucky takes it from there. Autoplay picks what comes
 Every feature is free. No premium tier, no paywall on volume, filters or playlists.
 
 **Light on permissions**
-Lucky never asks for Administrator. The invite requests only what playing music and replying in chat need.
+Lucky never asks for Administrator. The invite uses a short, curated permission list.
 
 **Get started**
 
@@ -87,8 +87,9 @@ Made in Brazil. Open source under the ISC license: https://github.com/LucasSanta
 
 Live: `autoplay`, `Music`, `Spotify`, `Web Dashboard`, `YouTube`.
 
-`YouTube` is still selected and should be removed, since the listing never
-names audio sources. `Automation`, `Moderation` and `Utility` were removed on
+`YouTube` is still selected and should be removed: the ADR never names
+streaming sources (YouTube, SoundCloud) in the listing. Spotify stays because it
+is a search and link feature, not where the audio streams from. `Automation`, `Moderation` and `Utility` were removed on
 2026-10-01: moderation is hidden from the hosted bot's onboarding.
 
 ## 5. Listing fields (as the form actually exists)
@@ -145,33 +146,30 @@ keys it sketched. The real implementation:
 | Server-count posting         | `packages/bot/src/utils/general/topggStatsScheduler.ts`      |
 | Dashboard badge              | `packages/frontend/src/components/Layout/VoteBadge.tsx`      |
 
-Verified reaching the backend in production on v2.39.8:
+Live in production: an unauthenticated POST answers `401` (checked
+2026-10-01), so `TOPGG_AUTH_TOKEN` is set and `verifyTopggAuth` is enforcing.
 
 ```console
-$ curl -s -i -X POST -H "Content-Type: application/json" \
+$ curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Content-Type: application/json" \
     -d '{"type":"test"}' https://lucky-api.lucassantana.tech/webhooks/topgg-votes
-HTTP/2 503
-content-type: application/json; charset=utf-8
-{"error":"TOPGG_AUTH_TOKEN not configured"}
+401
 ```
 
-The 503 comes from `verifyTopggAuth` and is the expected state until the token
-is set. Before #2089 this same request returned a `405 Not Allowed` HTML page
-from nginx, because `/webhooks/` had no `location` block and fell through to the
-SPA (#2086). If it ever returns HTML again, that routing regressed, not the
-handler.
+A `503 {"error":"TOPGG_AUTH_TOKEN not configured"}` means the token was lost
+from the production env. An HTML `405` means the nginx `/webhooks/` routing
+regressed (#2086, fixed in #2089), not the handler.
 
-### Order of operations, once approved
+### Order of operations, if the token is ever rotated
 
-The sequence matters. Configuring the webhook URL before the token exists makes
-top.gg receive a 503 and mark the endpoint as failing.
+The sequence matters. Pointing top.gg at the endpoint while the token is
+missing makes top.gg receive a 503 and mark the endpoint as failing.
 
 1. Get the token from `https://top.gg/bot/962198089161134131/webhooks`.
 2. Set `TOPGG_AUTH_TOKEN` in production (and `TOPGG_TOKEN` for stats posting).
    Both are declared but commented out in `.env.example`.
-3. Confirm the endpoint now answers `401` rather than `503` for an unauthenticated POST.
-4. Only then paste `https://lucky-api.lucassantana.tech/webhooks/topgg-votes`
-   into top.gg's webhook field.
+3. Confirm the endpoint answers `401` rather than `503` for an unauthenticated POST.
+4. Only then save `https://lucky-api.lucassantana.tech/webhooks/topgg-votes`
+   in top.gg's webhook field.
 
 Note the hostname: `lucky-api.lucassantana.tech`. `api.lucky.lucassantana.tech`
 has no DNS record and an earlier version of this doc named it (#2088).
@@ -200,6 +198,8 @@ Done:
 Open:
 
 - [ ] Remove the `YouTube` category (§4)
+- [ ] Draft a pt-BR description variant (#2472). Portuguese is a listed
+      language, but the copy is English only
 - [ ] Revisit imagery under the dashboard's `Appearance` section
 - [ ] Announce the listing in the support Discord and a GitHub release note
 
