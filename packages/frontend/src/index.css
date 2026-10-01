@@ -124,7 +124,7 @@
   /* Shadows */
   --color-lucky-shadow-soft: 0 4px 16px rgb(0 0 0 / 0.3);
   --color-lucky-shadow-panel: 0 8px 32px rgb(0 0 0 / 0.4);
-  --color-lucky-shadow-focus: 0 0 0 3px color-mix(in srgb, var(--color-lucky-focus) 40%, transparent);
+  --color-lucky-shadow-focus: 0 0 0 3px var(--color-lucky-focus);
 
   /* Legacy aliases for backward compat — re-pointed to brand pink so
      the old --lucky-red / --lucky-blue / --lucky-purple classes no longer
