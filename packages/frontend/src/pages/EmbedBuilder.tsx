@@ -172,7 +172,7 @@ function FieldEditor({
                             updateField(i, { value: e.target.value })
                         }
                         rows={2}
-                        className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-md px-3 py-2 type-body-sm text-lucky-text-primary resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+                        className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-md px-3 py-2 type-body-sm text-lucky-text-primary resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                     />
                     <Label className='flex items-center gap-2 type-meta text-lucky-text-secondary cursor-pointer font-normal'>
                         <input
@@ -334,7 +334,7 @@ function EmbedFormModal({
                                     'embedBuilder.descriptionPlaceholder',
                                 )}
                                 rows={4}
-                                className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-md px-3 py-2 type-body-sm text-lucky-text-primary resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+                                className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-md px-3 py-2 type-body-sm text-lucky-text-primary resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                             />
                         </div>
 
