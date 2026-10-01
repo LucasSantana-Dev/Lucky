@@ -57,7 +57,7 @@ Every text token clears 4.5:1 on every surface, including `surface-highlight` (h
 
 `#ec4899` is 3.53:1 against white, so it is never a fill behind white text. It is not used for text either: it clears 4.5:1 only on canvas, sidebar and panel (5.35, 4.90, 4.58), not on elevated (4.20) or highlight (3.69). Pink foreground (text and icons) uses `brand-text` (`#f472b6`), which clears AA on every surface (7.12, 6.53, 6.10, 5.60, 4.92). `#ec4899` stays for fills, tints and borders; the legacy `text-lucky-red/blue/purple` aliases also resolve to it, so use `text-lucky-brand-text` instead. Use `brand-strong` for filled pink buttons and badges.
 
-Short-form `--color-*` aliases are added alongside the long-form `--lucky-*` tokens during the redesign migration; both names resolve to the same value, see `index.css`. `brand-strong` exists only as `--color-lucky-brand-strong` (pink `#db2777`); the unused blurple `--lucky-brand-strong` was removed (#2548). The table above documents the `--color-*` (Tailwind) values. Cleanup PR removing the duplicates is queued for after all page ports land.
+Short-form `--color-*` aliases are added alongside the long-form `--lucky-*` tokens during the redesign migration; both names resolve to the same value, see `index.css`, except `brand`, `accent` and `accent-soft`: the `:root` `--lucky-*` forms are blurple while the `--color-lucky-*` forms are pink/orange (#2556; the `--lucky-*` forms have no live consumers). `brand-strong` exists only as `--color-lucky-brand-strong` (pink `#db2777`); the unused blurple `--lucky-brand-strong` was removed (#2548). The table above documents the `--color-*` (Tailwind) values. Cleanup PR removing the duplicates is queued for after all page ports land.
 
 ### Status
 
@@ -108,7 +108,7 @@ The three fonts are self-hosted via `@fontsource/*` packages imported at the top
 
 ## Component Rules
 
-- **Button primary/accent**: blurple background, white text, hover → `brand-strong`
+- **Button primary**: `brand-strong` (pink `#db2777`) background, white text, hover → `brand-deep`
 - **Button secondary**: panel background, border, hover → active highlight
 - **Cards**: flat border, no gradient overlays, no box-shadow glow
 - **Nav items**: left accent bar on active (blurple), `type-meta` section labels in subtle color
