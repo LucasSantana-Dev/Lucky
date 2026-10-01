@@ -166,7 +166,7 @@ function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
                             target='_blank'
                             rel='noopener noreferrer'
                             aria-label='Add to Discord'
-                            className='ml-1 inline-flex items-center gap-1 rounded-md bg-lucky-brand px-2.5 py-1.5 sm:px-3 font-semibold text-white hover:bg-lucky-brand-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas whitespace-nowrap'
+                            className='ml-1 inline-flex items-center gap-1 rounded-md bg-lucky-brand-strong px-2.5 py-1.5 sm:px-3 font-semibold text-white hover:bg-lucky-brand-deep transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas whitespace-nowrap'
                         >
                             <span className='xs:hidden' aria-hidden>
                                 add
@@ -267,7 +267,7 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
                                 href={botInviteUrl}
                                 target='_blank'
                                 rel='noopener noreferrer'
-                                className='group inline-flex h-11 items-center justify-center gap-2 rounded-md bg-lucky-brand px-5 font-semibold text-white shadow-[0_6px_24px_-8px_rgba(236,72,153,0.55)] hover:bg-lucky-brand-strong transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas active:scale-[0.98]'
+                                className='group inline-flex h-11 items-center justify-center gap-2 rounded-md bg-lucky-brand-strong px-5 font-semibold text-white shadow-[0_6px_24px_-8px_rgba(236,72,153,0.55)] hover:bg-lucky-brand-deep transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas active:scale-[0.98]'
                             >
                                 {t('landing.hero.ctaPrimary')}
                                 <ArrowUpRight
