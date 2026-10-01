@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.47.5](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.4...v2.47.5) (2026-10-01)
+
+
+### Bug Fixes
+
+* **frontend:** confirm before clearing track history ([#2527](https://github.com/LucasSantana-Dev/Lucky/issues/2527)) ([0941b70](https://github.com/LucasSantana-Dev/Lucky/commit/0941b700154483acd0771c239fcf7f725c0e0941))
+* **frontend:** show sidebar focus ring and clear mobile menu button ([#2529](https://github.com/LucasSantana-Dev/Lucky/issues/2529)) ([74dcdac](https://github.com/LucasSantana-Dev/Lucky/commit/74dcdac6bcae179ac578e3e22a3f54aa9a8b609f))
+* **frontend:** stop nesting buttons in artist tile ([#2528](https://github.com/LucasSantana-Dev/Lucky/issues/2528)) ([0814e7e](https://github.com/LucasSantana-Dev/Lucky/commit/0814e7e7fe90c68fdbc1f5393ddb28dc03cd5782))
+* **shared:** make rate limit check and increment atomic ([#2532](https://github.com/LucasSantana-Dev/Lucky/issues/2532)) ([68e3092](https://github.com/LucasSantana-Dev/Lucky/commit/68e3092244f9d0b5620765a0c669a998b7b96ac3))
+
 ## [2.47.4](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.3...v2.47.4) (2026-10-01)
 
 
