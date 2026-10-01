@@ -27,7 +27,7 @@ function ServerCard({ guild }: ServerCardProps) {
             className={cn(
                 'surface-card group flex flex-col gap-4 p-5 transition-all duration-200',
                 'hover:border-lucky-border-strong hover:-translate-y-0.5',
-                'focus-within:ring-2 focus-within:ring-lucky-brand focus-within:ring-offset-2 focus-within:ring-offset-lucky-bg-primary',
+                'focus-within:ring-2 focus-within:ring-lucky-focus focus-within:ring-offset-2 focus-within:ring-offset-lucky-bg-primary',
             )}
             role='article'
             aria-labelledby={`server-${guild.id}-name`}
@@ -52,7 +52,10 @@ function ServerCard({ guild }: ServerCardProps) {
                             className='absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-lucky-bg-secondary bg-lucky-success'
                             aria-label='Bot is installed'
                         >
-                            <CheckCircle2 className='h-3 w-3 text-white' aria-hidden='true' />
+                            <CheckCircle2
+                                className='h-3 w-3 text-white'
+                                aria-hidden='true'
+                            />
                         </div>
                     )}
                 </div>
@@ -73,16 +76,26 @@ function ServerCard({ guild }: ServerCardProps) {
                                     ? 'bg-lucky-success/10 text-lucky-success border-lucky-success/30'
                                     : 'bg-lucky-error/10 text-lucky-error border-lucky-error/30',
                             )}
-                            aria-label={guild.botAdded ? 'Bot installed' : 'Bot not installed'}
+                            aria-label={
+                                guild.botAdded
+                                    ? 'Bot installed'
+                                    : 'Bot not installed'
+                            }
                         >
                             {guild.botAdded ? (
                                 <>
-                                    <CheckCircle2 className='h-3 w-3' aria-hidden='true' />
+                                    <CheckCircle2
+                                        className='h-3 w-3'
+                                        aria-hidden='true'
+                                    />
                                     Bot Active
                                 </>
                             ) : (
                                 <>
-                                    <XCircle className='h-3 w-3' aria-hidden='true' />
+                                    <XCircle
+                                        className='h-3 w-3'
+                                        aria-hidden='true'
+                                    />
                                     No Bot
                                 </>
                             )}
@@ -103,7 +116,10 @@ function ServerCard({ guild }: ServerCardProps) {
                         className='flex-1 gap-1.5'
                         aria-label={`Manage ${guild.name}`}
                     >
-                        <ExternalLink className='h-3.5 w-3.5' aria-hidden='true' />
+                        <ExternalLink
+                            className='h-3.5 w-3.5'
+                            aria-hidden='true'
+                        />
                         Manage
                     </Button>
                 ) : (
