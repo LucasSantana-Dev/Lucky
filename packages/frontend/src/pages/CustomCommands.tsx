@@ -167,7 +167,7 @@ function CommandFormModal({
                             }))
                         }
                         rows={3}
-                        className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-md px-3 py-2 type-body-sm text-lucky-text-primary resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+                        className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-md px-3 py-2 type-body-sm text-lucky-text-primary resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                     />
                 </div>
 
