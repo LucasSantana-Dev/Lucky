@@ -2,13 +2,12 @@
 
 Reference for the Lucky listing on https://top.gg.
 
-**Status: submitted, awaiting approval.** The dashboard at
-https://top.gg/discord/bots/962198089161134131/dashboard is the authority on
-listing state and reports "Your project is currently in review". Nothing in the
-add-bot wizard does: it renders the static line "Your bot is a draft now and
-whenever you are ready, you can submit it for review" regardless of state, and
-its submit button sits `disabled` with the label "Queued for Review" once the
-listing has been queued. Read the dashboard, not the wizard.
+**Status: approved and live.** The dashboard at
+https://top.gg/discord/bots/962198089161134131/dashboard no longer reports a
+review and shows `Appearance` and `Promote your Project`, which are gated on
+approval. Production posts the server count and receives votes since
+2026-09-26. The dashboard is the authority on listing state; the add-bot wizard
+renders static draft text regardless of state.
 
 Approval unlocks the public page, ad campaigns (`Promote your Project` is gated
 on it) and the `Appearance` section of the dashboard.
@@ -36,54 +35,62 @@ The curated set is `3173504` — View Audit Log, View Channels, Send Messages, M
 
 _Historical note:_ this file previously specified `36970496` and described it as ten permissions summing to 37022784, which is neither that integer nor a set the bot could work with. The real `36970496` is Manage Messages, Use External Emojis, Connect, Speak, Use Voice Activity — with **no** View Channels and **no** Send Messages, so a bot invited with it could not read or post in a channel. It also claimed the README used `permissions=8` (Administrator); that was removed in #1889.
 
-## 2. Short description (120 char cap)
+## 2. Headline (140 char cap)
 
-> **The live listing does not use the copy in §2 and §3.** What was actually
-> submitted is longer and leads on the self-hosting angle. Read and edit it at
-> the dashboard's `Edit Your Page`; treat the text below as the original draft,
-> kept for reference.
+Live copy since 2026-10-01 (#2472). The pitch follows
+`decisions/2026-09-27-music-first-positioning.md`: taste learning first, audio
+sources never named, self-hosting not promoted.
 
 ```text
-Self-hosted Discord music bot with autoplay, dashboard, and moderation. TypeScript, open source, no paywall.
+Lucky learns your server's taste and keeps the call playing, no DJ needed. Smart autoplay, Spotify links, and every feature free.
 ```
 
-Character count: 108.
+Character count: 129.
+
+Do not add the weekly recap ("Every Sunday, see what your server listened
+to") until Server Wrapped ships; the listing must not promise a feature the
+bot lacks.
 
 ## 3. Long description (Markdown supported)
 
 ```markdown
-# Lucky 🎵
+**Lucky learns your server's taste and keeps the call playing, no DJ needed.**
 
-**Self-hosted Discord music bot + React dashboard.** Production-grade TypeScript monorepo — music, moderation, engagement — fully open source under ISC.
+Queue a couple of songs and Lucky takes it from there. Autoplay picks what comes next from what your server actually plays, skips and likes, instead of looping a static playlist.
 
-## Highlights
+**What you get**
 
-- 🎵 **Music**: YouTube + Spotify + SoundCloud · autoplay with diversity-aware recommendations · `/queue smartshuffle` · `/session save|restore`
-- 🛡️ **Moderation**: warn · mute · kick · ban · case tracking · `/digest` weekly reports · automod presets
-- 📊 **Dashboard**: Discord OAuth · RBAC · guild management · feature toggles at [lucky.lucassantana.tech](https://lucky.lucassantana.tech)
-- 🎯 **Engagement**: leveling · starboard · Last.fm scrobbling · Twitch notifications
-- ⚡ **Reliability**: music watchdog auto-recovery · provider health cooldown · queue snapshot restore · cold-Redis survival
+- 🎶 Smart autoplay that adapts to your server. Use 👍 / 👎 on a track to steer it
+- 📻 One-click station to get music going the moment Lucky joins
+- 🟢 Spotify search and links: paste a track, album or playlist
+- 🎧 Last.fm scrobbling for everyone who links an account
+- 💾 Save a session and restore the queue later
+- 📝 Lyrics for the song that is playing
+- 🖥️ Web dashboard with music controls and server settings
 
-## Why pick Lucky
+**Free, for real**
+Every feature is free. No premium tier, no paywall on volume, filters or playlists.
 
-- Real autoplay — uses Spotify Discover + genre graphs, not a static playlist loop
-- Self-hostable in Docker — no vendor lock-in, no hidden costs
-- Active development — [releases every few days](https://github.com/LucasSantana-Dev/Lucky/releases)
-- Every PR runs lint, build, the full test suite and SonarCloud gates; a deploy that fails its health checks rolls back to the last good build
+**Light on permissions**
+Lucky never asks for Administrator. The invite uses a short, curated permission list.
 
-## Get started
+**Get started**
 
-- [Invite Lucky](https://lucky.lucassantana.tech/invite) to your server
-- [Star on GitHub](https://github.com/LucasSantana-Dev/Lucky) if you find it useful
-- Report issues on [GitHub Issues](https://github.com/LucasSantana-Dev/Lucky/issues)
+1. Invite Lucky: https://lucky.lucassantana.tech/invite
+2. Join a voice channel and type `/play` with a song name or a Spotify link
+3. Questions or ideas? Join the support server: https://discord.gg/f2rxBWvqeR
 
-Made with ❤️ in Brazil · Open source under [ISC](https://github.com/LucasSantana-Dev/Lucky/blob/main/LICENSE)
+Made in Brazil. Open source under the ISC license: https://github.com/LucasSantana-Dev/Lucky
 ```
 
-## 4. Tags
+## 4. Categories
 
-Primary (pick 3): `music`, `moderation`, `dashboard`
-Secondary (add up to 5): `typescript`, `open-source`, `self-hosted`, `autoplay`, `spotify`
+Live: `autoplay`, `Music`, `Spotify`, `Web Dashboard`, `YouTube`.
+
+`YouTube` is still selected and should be removed: the ADR never names
+streaming sources (YouTube, SoundCloud) in the listing. Spotify stays because it
+is a search and link feature, not where the audio streams from. `Automation`, `Moderation` and `Utility` were removed on
+2026-10-01: moderation is hidden from the hosted bot's onboarding.
 
 ## 5. Listing fields (as the form actually exists)
 
@@ -95,19 +102,19 @@ section, which is gated on approval, so this cannot be confirmed until then.
 
 The fields the wizard does have, in order:
 
-| Field               | Required              | Value used                                                                        |
-| ------------------- | --------------------- | --------------------------------------------------------------------------------- |
-| Headline            | yes, 140 char cap     | leads on self-hosting; see the note in §2                                         |
-| Long Description    | yes, 300 char minimum | Markdown, see §2 note                                                             |
-| Prefix              | yes                   | `/`                                                                               |
-| Categories          | yes, 1+               | Automation, autoplay, Moderation, Music, Spotify, Utility, Web Dashboard, YouTube |
-| Languages           | yes, 1+               | English                                                                           |
-| Note for reviewer   | no                    | empty                                                                             |
-| Invite URL          | no                    | `https://lucky.lucassantana.tech/invite?utm_source=topgg&utm_medium=direct`       |
-| Repository URL      | no                    | `LucasSantana-Dev/Lucky`                                                          |
-| Support URL         | no                    | `f2rxBWvqeR`                                                                      |
-| Website URL         | no                    | `https://lucky.lucassantana.tech`                                                 |
-| Support Server Link | no                    | empty                                                                             |
+| Field               | Required              | Value used                                                                  |
+| ------------------- | --------------------- | --------------------------------------------------------------------------- |
+| Headline            | yes, 140 char cap     | see §2                                                                      |
+| Long Description    | yes, 300 char minimum | Markdown, see §3                                                            |
+| Prefix              | yes                   | `/`                                                                         |
+| Categories          | yes, 1+               | see §4                                                                      |
+| Languages           | yes, 1+               | English, Portuguese, Spanish                                                |
+| Note for reviewer   | no                    | empty                                                                       |
+| Invite URL          | no                    | `https://lucky.lucassantana.tech/invite?utm_source=topgg&utm_medium=direct` |
+| Repository URL      | no                    | `LucasSantana-Dev/Lucky`                                                    |
+| Support URL         | no                    | `f2rxBWvqeR`                                                                |
+| Website URL         | no                    | `https://lucky.lucassantana.tech`                                           |
+| Support Server Link | no                    | empty                                                                       |
 
 **Repository URL and Support URL are prefixed fields.** The form renders
 `https://github.com/` and `https://discord.gg/` as static labels and appends
@@ -139,33 +146,33 @@ keys it sketched. The real implementation:
 | Server-count posting         | `packages/bot/src/utils/general/topggStatsScheduler.ts`      |
 | Dashboard badge              | `packages/frontend/src/components/Layout/VoteBadge.tsx`      |
 
-Verified reaching the backend in production on v2.39.8:
+Live in production: an unauthenticated POST answers `401` (checked
+2026-10-01), so webhook authentication is configured and `verifyTopggAuth` is
+enforcing. Either secret produces that `401`: `TOPGG_WEBHOOK_SECRET` (v1, signed
+deliveries, takes precedence) or the legacy `TOPGG_AUTH_TOKEN` (v0).
 
 ```console
-$ curl -s -i -X POST -H "Content-Type: application/json" \
+$ curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Content-Type: application/json" \
     -d '{"type":"test"}' https://lucky-api.lucassantana.tech/webhooks/topgg-votes
-HTTP/2 503
-content-type: application/json; charset=utf-8
-{"error":"TOPGG_AUTH_TOKEN not configured"}
+401
 ```
 
-The 503 comes from `verifyTopggAuth` and is the expected state until the token
-is set. Before #2089 this same request returned a `405 Not Allowed` HTML page
-from nginx, because `/webhooks/` had no `location` block and fell through to the
-SPA (#2086). If it ever returns HTML again, that routing regressed, not the
-handler.
+A `503 {"error":"TOPGG_AUTH_TOKEN not configured"}` means neither secret is set
+from the production env. An HTML `405` means the nginx `/webhooks/` routing
+regressed (#2086, fixed in #2089), not the handler.
 
-### Order of operations, once approved
+### Order of operations, if the token is ever rotated
 
-The sequence matters. Configuring the webhook URL before the token exists makes
-top.gg receive a 503 and mark the endpoint as failing.
+The sequence matters. Pointing top.gg at the endpoint while the token is
+missing makes top.gg receive a 503 and mark the endpoint as failing.
 
 1. Get the token from `https://top.gg/bot/962198089161134131/webhooks`.
-2. Set `TOPGG_AUTH_TOKEN` in production (and `TOPGG_TOKEN` for stats posting).
+2. Set `TOPGG_WEBHOOK_SECRET` (the `whs_` secret, v1) or the legacy
+   `TOPGG_AUTH_TOKEN` in production, and `TOPGG_TOKEN` for stats posting.
    Both are declared but commented out in `.env.example`.
-3. Confirm the endpoint now answers `401` rather than `503` for an unauthenticated POST.
-4. Only then paste `https://lucky-api.lucassantana.tech/webhooks/topgg-votes`
-   into top.gg's webhook field.
+3. Confirm the endpoint answers `401` rather than `503` for an unauthenticated POST.
+4. Only then save `https://lucky-api.lucassantana.tech/webhooks/topgg-votes`
+   in top.gg's webhook field.
 
 Note the hostname: `lucky-api.lucassantana.tech`. `api.lucky.lucassantana.tech`
 has no DNS record and an earlier version of this doc named it (#2088).
@@ -180,18 +187,22 @@ Done:
 
 - [x] Bot verified with Discord (`public_flags: 65536`, the `VERIFIED_BOT` bit)
 - [x] Headline and long description filled
-- [x] Categories selected (8) and language set
+- [x] Categories selected and languages set
 - [x] Prefix: `/` (slash commands only)
 - [x] Support server invite added, permanent
 - [x] Repository URL added, and the duplicated-prefix value corrected
 - [x] Website URL added
 - [x] Submitted for review
 
-Blocked on approval:
+- [x] Approved (2026-10-01 check; see the status note at the top)
+- [x] `TOPGG_TOKEN` set in production: `topggStatsScheduler` posts the server count
+- [x] Vote webhook live: votes are received since 2026-09-26
 
-- [ ] Get the webhook token and set `TOPGG_AUTH_TOKEN` in production
-- [ ] Set `TOPGG_TOKEN` in production so `topggStatsScheduler` can post the server count
-- [ ] Set the webhook URL in top.gg (only after `TOPGG_AUTH_TOKEN` is set)
+Open:
+
+- [ ] Remove the `YouTube` category (§4)
+- [ ] Draft a pt-BR description variant (#2472). Portuguese is a listed
+      language, but the copy is English only
 - [ ] Revisit imagery under the dashboard's `Appearance` section
 - [ ] Announce the listing in the support Discord and a GitHub release note
 
