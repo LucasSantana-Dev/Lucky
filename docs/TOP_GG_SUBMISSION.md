@@ -147,7 +147,9 @@ keys it sketched. The real implementation:
 | Dashboard badge              | `packages/frontend/src/components/Layout/VoteBadge.tsx`      |
 
 Live in production: an unauthenticated POST answers `401` (checked
-2026-10-01), so `TOPGG_AUTH_TOKEN` is set and `verifyTopggAuth` is enforcing.
+2026-10-01), so webhook authentication is configured and `verifyTopggAuth` is
+enforcing. Either secret produces that `401`: `TOPGG_WEBHOOK_SECRET` (v1, signed
+deliveries, takes precedence) or the legacy `TOPGG_AUTH_TOKEN` (v0).
 
 ```console
 $ curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Content-Type: application/json" \
@@ -155,7 +157,7 @@ $ curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Content-Type: application
 401
 ```
 
-A `503 {"error":"TOPGG_AUTH_TOKEN not configured"}` means the token was lost
+A `503 {"error":"TOPGG_AUTH_TOKEN not configured"}` means neither secret is set
 from the production env. An HTML `405` means the nginx `/webhooks/` routing
 regressed (#2086, fixed in #2089), not the handler.
 
@@ -165,7 +167,8 @@ The sequence matters. Pointing top.gg at the endpoint while the token is
 missing makes top.gg receive a 503 and mark the endpoint as failing.
 
 1. Get the token from `https://top.gg/bot/962198089161134131/webhooks`.
-2. Set `TOPGG_AUTH_TOKEN` in production (and `TOPGG_TOKEN` for stats posting).
+2. Set `TOPGG_WEBHOOK_SECRET` (the `whs_` secret, v1) or the legacy
+   `TOPGG_AUTH_TOKEN` in production, and `TOPGG_TOKEN` for stats posting.
    Both are declared but commented out in `.env.example`.
 3. Confirm the endpoint answers `401` rather than `503` for an unauthenticated POST.
 4. Only then save `https://lucky-api.lucassantana.tech/webhooks/topgg-votes`
