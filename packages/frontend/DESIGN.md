@@ -14,7 +14,7 @@ done in this pass and why, not the tokens themselves.
 
 This is a **preserve** redesign, not a rebuild: `DESIGN_SYSTEM.md` and
 `index.css` already own the tokens (OKLCH-equivalent HSL/hex bridge, Sora/
-Manrope/JetBrains Mono, blurple + pink dual accent, flat panels, fade-only
+Manrope/JetBrains Mono, pink accent with blurple focus rings, flat panels, fade-only
 motion). Nothing here invents a new palette, adds a font, or adds a
 dependency. All work is levers 2 and 5 from the modernization-lever priority
 order (spacing/rhythm, then hero/key-section recomposition) — the brief was

@@ -25,18 +25,18 @@
 
 ## Color System
 
-**Dual accent** (resolved 2026-04-21, see `decisions/2026-04-21-redesign-port-target.md`):
+**Single accent** (resolved 2026-10-01, see `decisions/2026-10-01-blurple-focus-only.md`, which supersedes the 2026-04-21 dual accent):
 
-- **Primary** (CTAs, active nav, focus rings): Discord Blurple `#5865f2`, hover `#4752c4`.
-- **Secondary** (live pings, highlights, gradient accents): Neon Pink `#ec4899`.
+- **Accent** (CTAs, active nav, live pings, highlights, gradient accents): Neon Pink `#ec4899`; filled buttons use `#db2777`, hover `#be185d`.
+- **Focus rings only**: Discord Blurple `#5865f2`. Some older focus rings are still pink (`focus-visible:ring-lucky-brand`); migration tracked in #2560.
 
 Removed gold family (`#d4a017`, etc.) and old purple (`#8b5cf6`, etc.) — not part of the brand palette.
 
 | Purpose                  | Color                                  |
 | ------------------------ | -------------------------------------- |
-| Primary accent / CTAs    | `#5865f2` (blurple)                    |
-| Primary hover            | `#4752c4` (blurple-strong)             |
-| Secondary accent         | `#ec4899` (neon pink)                  |
+| Accent                   | `#ec4899` (neon pink)                  |
+| CTA fill / hover         | `#db2777` / `#be185d`                  |
+| Focus ring               | `#5865f2` (blurple, focus only)        |
 | Landing gradient end     | `#fb923c` (neon orange — landing only) |
 | Success                  | `#23a55a`                              |
 | Error                    | `#f23f42`                              |
@@ -72,4 +72,4 @@ Removed gold family (`#d4a017`, etc.) and old purple (`#8b5cf6`, etc.) — not p
 - Flat panels: no glassmorphism, no radial gradients on page backgrounds, no shimmer/glow effects.
 - Borders use `--lucky-border-soft` by default, upgrade to `--lucky-border-strong` on hover.
 - Motion: only fade transitions (`fade-up`, `fade-in`). No floating, glowing, or pulsing effects.
-- Icons in colored contexts use blurple, success green, warning amber, or error red as appropriate.
+- Icons in colored contexts use pink, success green, warning amber, or error red as appropriate.
