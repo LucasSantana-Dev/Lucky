@@ -128,4 +128,52 @@ test.describe('Responsive Design', () => {
             expect(isVisible).toBe(false)
         }
     })
+
+    for (const width of [360, 390, 768, 1023]) {
+        test(`header content clears the menu button at ${width}px`, async ({
+            page,
+        }) => {
+            await page.setViewportSize({ width, height: 800 })
+            await navigateToDashboard(page)
+
+            const button = getMobileMenuButton(page)
+            await expect(button).toBeVisible()
+            const buttonBox = await button.boundingBox()
+
+            const headerChildren = page.locator(
+                '.lucky-shell-header > div:first-child > *',
+            )
+            const count = await headerChildren.count()
+            expect(count).toBeGreaterThan(0)
+            for (let i = 0; i < count; i++) {
+                const box = await headerChildren.nth(i).boundingBox()
+                if (!box || !buttonBox) continue
+                expect(box.x).toBeGreaterThanOrEqual(
+                    buttonBox.x + buttonBox.width,
+                )
+            }
+        })
+    }
+
+    test('sidebar links show a focus ring when active and inactive', async ({
+        page,
+    }) => {
+        await page.setViewportSize({ width: 1280, height: 800 })
+        await navigateToDashboard(page)
+
+        const links = getSidebar(page).locator('a[data-active]')
+        const active = links.locator('xpath=self::*[@data-active="true"]')
+        const inactive = links.locator('xpath=self::*[@data-active="false"]')
+
+        for (const link of [active.first(), inactive.first()]) {
+            await link.focus()
+            await page.keyboard.press('Shift+Tab')
+            await page.keyboard.press('Tab')
+            await expect
+                .poll(() =>
+                    link.evaluate((el) => getComputedStyle(el).boxShadow),
+                )
+                .toContain('rgb(88, 101, 242) 0px 0px 0px 3px')
+        }
+    })
 })
