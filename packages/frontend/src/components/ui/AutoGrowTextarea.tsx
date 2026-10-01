@@ -53,7 +53,7 @@ const AutoGrowTextarea = forwardRef<HTMLTextAreaElement, AutoGrowTextareaProps>(
                 ref={ref || textareaRef}
                 value={value}
                 onChange={onChange}
-                className={`resize-none rounded-md border border-lucky-border bg-lucky-bg-tertiary px-3 py-2 text-sm text-lucky-text-primary placeholder:text-lucky-text-tertiary focus:outline-none focus:ring-1 focus:ring-lucky-accent overflow-hidden ${className}`}
+                className={`resize-none rounded-md border border-lucky-border bg-lucky-bg-tertiary px-3 py-2 text-sm text-lucky-text-primary placeholder:text-lucky-text-tertiary focus:outline-none focus:ring-2 focus:ring-lucky-focus overflow-hidden ${className}`}
                 style={{
                     minHeight: `calc(${minRows} * 1.5em + 1rem)`,
                 }}
