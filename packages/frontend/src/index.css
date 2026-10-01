@@ -37,7 +37,7 @@
 
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
+  --color-ring: var(--color-lucky-focus);
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
 
@@ -384,7 +384,6 @@
 
     --border: 216 12% 18%;
     --input: 215 14% 13%;
-    --ring: 233 88% 62%;
 
     --radius: 0.5rem;
 
@@ -461,7 +460,6 @@
 
     --border: 216 12% 18%;
     --input: 215 14% 13%;
-    --ring: 233 88% 62%;
 
     --sidebar-background: 217 14% 10%;
     --sidebar-foreground: 210 17% 90%;
