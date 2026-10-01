@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.47.8](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.7...v2.47.8) (2026-10-01)
+
+
+### Bug Fixes
+
+* **frontend:** add space between the login header and its card ([#2569](https://github.com/LucasSantana-Dev/Lucky/issues/2569)) ([c260e3e](https://github.com/LucasSantana-Dev/Lucky/commit/c260e3e561f0cf984abce6bacbd264a3e7f85166))
+* **frontend:** make the shared focus shadow opaque ([#2567](https://github.com/LucasSantana-Dev/Lucky/issues/2567)) ([7d97b5a](https://github.com/LucasSantana-Dev/Lucky/commit/7d97b5ad35be3e844781050002843058f489fc72))
+* **frontend:** point the shadcn ring color at the focus token ([#2570](https://github.com/LucasSantana-Dev/Lucky/issues/2570)) ([7315876](https://github.com/LucasSantana-Dev/Lucky/commit/7315876f4ede039f43c4557c6f9c5b901f8ad546))
+* **frontend:** widen 1px focus rings to 2px ([#2572](https://github.com/LucasSantana-Dev/Lucky/issues/2572)) ([f37b659](https://github.com/LucasSantana-Dev/Lucky/commit/f37b659e0e0c1f35fbe2ff1d8e3a1f3c4886ebc2))
+
 ## [2.47.7](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.6...v2.47.7) (2026-10-01)
 
 
