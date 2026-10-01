@@ -30,6 +30,8 @@ const mockWsInstance = {
     readyState: 1,
 }
 const mockWsUrls: string[] = []
+// Handlers registered on each constructed socket, in construction order.
+const mockWsSocketHandlers: Record<string, (...args: unknown[]) => void>[] = []
 let mockWsConstructorError: Error | null = null
 
 jest.mock('ws', () => {
@@ -38,7 +40,10 @@ jest.mock('ws', () => {
     function MockWebSocket(url: string): typeof mockWsInstance {
         mockWsUrls.push(url)
         if (mockWsConstructorError) throw mockWsConstructorError
-        return mockWsInstance
+        mockWsSocketHandlers.push({})
+        // A distinct object per socket so the client can tell an old socket
+        // from its replacement; the jest.fn members stay shared.
+        return { ...mockWsInstance }
     }
     // The client reads WebSocket.OPEN to gate the keepalive close.
     ;(MockWebSocket as unknown as { OPEN: number }).OPEN = 1
@@ -110,10 +115,12 @@ describe('TwitchEventSubClient', () => {
             delete mockWsHandlers[key]
         mockWsInstance.readyState = 1
         mockWsUrls.length = 0
+        mockWsSocketHandlers.length = 0
         mockWsConstructorError = null
         mockWsInstance.on.mockImplementation((...args: unknown[]) => {
             const [event, cb] = args as [string, (...a: unknown[]) => void]
             mockWsHandlers[event] = cb
+            mockWsSocketHandlers[mockWsSocketHandlers.length - 1][event] = cb
         })
         client = new TwitchEventSubClient()
         mockDiscordClient = {}
@@ -221,8 +228,8 @@ describe('TwitchEventSubClient', () => {
         })
     })
 
-    describe('session_reconnect url validation', () => {
-        it('logs instead of leaving an unhandled rejection when the reconnect socket cannot be created', async () => {
+    describe('session_reconnect migration', () => {
+        it('logs and starts a fresh session when the reconnect socket cannot be created', async () => {
             getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
 
             const startPromise = client.start(mockDiscordClient as Client)
@@ -230,18 +237,55 @@ describe('TwitchEventSubClient', () => {
             fireWelcome('session-1')
             await startPromise
 
-            mockWsConstructorError = new Error('socket construction failed')
+            jest.useFakeTimers()
+            const constructorError = new Error('socket construction failed')
+            mockWsConstructorError = constructorError
             fireReconnect('wss://eventsub.wss.twitch.tv/ws?session=abc')
-            await new Promise(process.nextTick)
+            await jest.advanceTimersByTimeAsync(0)
 
             expect(errorLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: 'Twitch EventSub: reconnect failed',
-                    error: mockWsConstructorError,
+                    error: constructorError,
                 }),
             )
+
+            mockWsConstructorError = null
+            await jest.advanceTimersByTimeAsync(5000)
+
+            expect(mockWsUrls).toEqual([
+                'wss://eventsub.wss.twitch.tv/ws',
+                'wss://eventsub.wss.twitch.tv/ws?session=abc',
+                'wss://eventsub.wss.twitch.tv/ws',
+            ])
+            jest.useRealTimers()
         })
 
+        it('keeps the new socket live when the replaced socket finishes closing', async () => {
+            getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+
+            fireReconnect('wss://eventsub.wss.twitch.tv/ws?session=abc')
+            fireWelcome('session-2')
+            // The old socket's close event lands after the migration.
+            mockWsSocketHandlers[0].close?.(1000, Buffer.from(''))
+
+            // A second migration must still be honoured, which needs this.ws.
+            fireReconnect('wss://eventsub.wss.twitch.tv/ws?session=def')
+
+            expect(mockWsUrls).toEqual([
+                'wss://eventsub.wss.twitch.tv/ws',
+                'wss://eventsub.wss.twitch.tv/ws?session=abc',
+                'wss://eventsub.wss.twitch.tv/ws?session=def',
+            ])
+        })
+    })
+
+    describe('session_reconnect url validation', () => {
         it('refuses a hostile reconnect url and reconnects to the known EventSub host instead', async () => {
             getTwitchUserAccessTokenMock.mockResolvedValue('valid-token')
 
