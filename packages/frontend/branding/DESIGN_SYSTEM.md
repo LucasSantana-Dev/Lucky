@@ -57,7 +57,7 @@ Every text token clears 4.5:1 on every surface, including `surface-highlight` (h
 
 `#ec4899` is 3.53:1 against white, so it is never a fill behind white text. As text it clears 4.5:1 only on canvas, sidebar and panel (5.35, 4.90, 4.58); on elevated (4.26) and highlight (3.69) it does not, so keep pink text off those surfaces or use it for icons only. Use `brand-strong` for filled pink buttons and badges.
 
-Short-form `--color-*` aliases are added alongside the long-form `--lucky-*` tokens during the redesign migration; both names resolve to the same value, see `index.css`. Cleanup PR removing the duplicates is queued for after all page ports land.
+Short-form `--color-*` aliases are added alongside the long-form `--lucky-*` tokens during the redesign migration; both names resolve to the same value, see `index.css`, except `brand-strong`: `--color-lucky-brand-strong` is pink `#db2777` while `--lucky-brand-strong` is blurple `#4752c4` (#2548). The table above documents the `--color-*` (Tailwind) values. Cleanup PR removing the duplicates is queued for after all page ports land.
 
 ### Status
 
