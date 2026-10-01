@@ -74,7 +74,9 @@ export default function LyricsPage() {
                         className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'
                     >
                         {t('songTitle')}{' '}
-                        <span className='text-lucky-red'>{t('required')}</span>
+                        <span className='text-lucky-brand-text'>
+                            {t('required')}
+                        </span>
                     </label>
                     <input
                         id='title'

@@ -878,7 +878,7 @@ describe('PreferredArtistsPage', () => {
         const activeBadge = discoverBtn.querySelector('span.rounded-full')
         const inactiveBadge = preferredBtn.querySelector('span.rounded-full')
         expect(activeBadge?.className).toContain('text-white')
-        expect(inactiveBadge?.className).toContain('text-lucky-brand')
+        expect(inactiveBadge?.className).toContain('text-lucky-brand-text')
     })
 
     test('shows error + Try again on suggestions failure; retry re-fetches', async () => {

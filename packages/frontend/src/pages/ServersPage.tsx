@@ -74,7 +74,7 @@ export default function ServersPage() {
                         }
                         alt={user?.username || 'User avatar'}
                     />
-                    <AvatarFallback className='bg-lucky-brand/20 font-semibold text-lucky-brand'>
+                    <AvatarFallback className='bg-lucky-brand/20 font-semibold text-lucky-brand-text'>
                         {user?.username?.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                 </Avatar>
@@ -95,7 +95,7 @@ export default function ServersPage() {
                     <p className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
                         {t('totalServers')}
                     </p>
-                    <p className='text-2xl font-bold text-lucky-brand'>
+                    <p className='text-2xl font-bold text-lucky-brand-text'>
                         {guilds.length}
                     </p>
                 </div>
@@ -185,7 +185,7 @@ export default function ServersPage() {
                                         src={primaryGuild.icon || undefined}
                                         alt={primaryGuild.name}
                                     />
-                                    <AvatarFallback className='bg-lucky-brand/15 text-lucky-brand font-semibold'>
+                                    <AvatarFallback className='bg-lucky-brand/15 text-lucky-brand-text font-semibold'>
                                         {primaryGuild.name
                                             .substring(0, 2)
                                             .toUpperCase()}

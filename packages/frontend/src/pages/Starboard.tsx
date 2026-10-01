@@ -207,7 +207,7 @@ function Starboard() {
                                 )}
                                 <div className='flex items-center justify-between pt-2 border-t border-lucky-border text-xs'>
                                     <div className='flex items-center gap-3'>
-                                        <span className='font-semibold text-lucky-brand'>
+                                        <span className='font-semibold text-lucky-brand-text'>
                                             {entry.starCount}
                                         </span>
                                         <span className='text-lucky-text-secondary'>

@@ -32,7 +32,7 @@ export default function GlobalTogglesSection({
         <div className='space-y-4'>
             <div className='flex items-center gap-2 mb-4'>
                 <Globe
-                    className='w-5 h-5 text-lucky-purple'
+                    className='w-5 h-5 text-lucky-brand-text'
                     aria-hidden='true'
                 />
                 <h2
@@ -41,7 +41,7 @@ export default function GlobalTogglesSection({
                 >
                     Global Feature Toggles
                 </h2>
-                <Badge className='bg-lucky-purple/20 text-lucky-purple text-xs'>
+                <Badge className='bg-lucky-purple/20 text-lucky-brand-text text-xs'>
                     Admin Only
                 </Badge>
                 <Badge className='bg-lucky-bg-tertiary text-lucky-text-secondary text-xs'>

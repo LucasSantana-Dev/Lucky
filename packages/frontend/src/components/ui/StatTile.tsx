@@ -5,8 +5,8 @@ import { cn } from '@/lib/utils'
 type StatTone = 'brand' | 'accent' | 'success' | 'warning' | 'neutral'
 
 const toneIconClass: Record<StatTone, string> = {
-    brand: 'bg-lucky-brand/15 text-lucky-brand',
-    accent: 'bg-lucky-brand/15 text-lucky-brand',
+    brand: 'bg-lucky-brand/15 text-lucky-brand-text',
+    accent: 'bg-lucky-brand/15 text-lucky-brand-text',
     success: 'bg-lucky-success/15 text-lucky-success',
     warning: 'bg-lucky-warning/15 text-lucky-warning',
     neutral: 'bg-lucky-bg-active text-lucky-text-tertiary',

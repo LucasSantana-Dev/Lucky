@@ -74,8 +74,8 @@ function timeAgo(dateStr: string): string {
 type CompactStatTone = 'brand' | 'accent' | 'success' | 'warning' | 'neutral'
 
 const compactToneClass: Record<CompactStatTone, string> = {
-    brand: 'bg-lucky-brand/15 text-lucky-brand',
-    accent: 'bg-lucky-brand/15 text-lucky-brand',
+    brand: 'bg-lucky-brand/15 text-lucky-brand-text',
+    accent: 'bg-lucky-brand/15 text-lucky-brand-text',
     success: 'bg-lucky-success/15 text-lucky-success',
     warning: 'bg-lucky-warning/15 text-lucky-warning',
     neutral: 'bg-lucky-bg-active text-lucky-text-tertiary',
@@ -324,7 +324,7 @@ export default function DashboardOverview() {
                         </div>
                         <Link
                             to='/music/history'
-                            className='type-body-sm inline-flex items-center gap-1 text-lucky-brand transition-colors hover:text-lucky-brand-strong'
+                            className='type-body-sm inline-flex items-center gap-1 text-lucky-brand-text transition-colors hover:text-lucky-text-strong'
                         >
                             {t('dashboardOverview.viewAll')}
                             <ArrowRight className='h-3.5 w-3.5' />
@@ -350,7 +350,7 @@ export default function DashboardOverview() {
                         <div className='p-4 sm:p-6'>
                             <div className='flex items-center gap-4 rounded-lg bg-lucky-bg-active/40 p-4'>
                                 <span
-                                    className='flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-lucky-brand/15 text-lucky-brand'
+                                    className='flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-lucky-brand/15 text-lucky-brand-text'
                                     aria-hidden='true'
                                 >
                                     <Music className='h-6 w-6' />
@@ -470,7 +470,7 @@ export default function DashboardOverview() {
                                 <p className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-semibold'>
                                     {t('dashboardOverview.totalMembers')}
                                 </p>
-                                <span className='flex h-8 w-8 items-center justify-center rounded-md bg-lucky-brand/15 text-lucky-brand'>
+                                <span className='flex h-8 w-8 items-center justify-center rounded-md bg-lucky-brand/15 text-lucky-brand-text'>
                                     <Users
                                         className='h-4 w-4'
                                         aria-hidden='true'
@@ -538,7 +538,7 @@ export default function DashboardOverview() {
                         </div>
                         <Link
                             to='/moderation'
-                            className='type-body-sm inline-flex items-center gap-1 text-lucky-brand transition-colors hover:text-lucky-brand-strong'
+                            className='type-body-sm inline-flex items-center gap-1 text-lucky-brand-text transition-colors hover:text-lucky-text-strong'
                         >
                             {t('dashboardOverview.viewAll')}
                             <ArrowRight className='h-3.5 w-3.5' />
@@ -610,7 +610,7 @@ export default function DashboardOverview() {
                                 className='group flex items-center gap-3 border-l-2 border-l-transparent px-4 py-2.5 transition-all hover:border-l-lucky-brand hover:bg-lucky-bg-active/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-lucky-brand/60'
                             >
                                 <span
-                                    className='flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-lucky-bg-tertiary text-lucky-text-secondary transition-colors group-hover:bg-lucky-brand/15 group-hover:text-lucky-brand'
+                                    className='flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-lucky-bg-tertiary text-lucky-text-secondary transition-colors group-hover:bg-lucky-brand/15 group-hover:text-lucky-brand-text'
                                     aria-hidden='true'
                                 >
                                     {action.icon}
@@ -624,7 +624,7 @@ export default function DashboardOverview() {
                                     </p>
                                 </div>
                                 <ArrowRight
-                                    className='h-3.5 w-3.5 shrink-0 text-lucky-text-tertiary opacity-0 transition-all group-hover:opacity-100 group-hover:text-lucky-brand group-hover:translate-x-1'
+                                    className='h-3.5 w-3.5 shrink-0 text-lucky-text-tertiary opacity-0 transition-all group-hover:opacity-100 group-hover:text-lucky-brand-text group-hover:translate-x-1'
                                     aria-hidden='true'
                                 />
                             </Link>

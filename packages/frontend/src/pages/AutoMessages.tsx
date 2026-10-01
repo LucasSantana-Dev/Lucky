@@ -374,7 +374,7 @@ export default function AutoMessagesPage() {
                                             <div className='flex items-center gap-2'>
                                                 <div className='p-2 rounded-lg bg-lucky-brand/15'>
                                                     <MessageSquare
-                                                        className='w-4 h-4 text-lucky-brand'
+                                                        className='w-4 h-4 text-lucky-brand-text'
                                                         aria-hidden='true'
                                                     />
                                                 </div>
@@ -464,7 +464,7 @@ export default function AutoMessagesPage() {
                                                 variant='outline'
                                                 className={
                                                     msg.enabled
-                                                        ? 'type-meta uppercase font-semibold bg-lucky-brand/10 text-lucky-brand border-lucky-brand/20 rounded-sm'
+                                                        ? 'type-meta uppercase font-semibold bg-lucky-brand/10 text-lucky-brand-text border-lucky-brand/20 rounded-sm'
                                                         : 'type-meta uppercase font-semibold bg-lucky-bg-tertiary border-lucky-border text-lucky-text-tertiary rounded-sm'
                                                 }
                                             >

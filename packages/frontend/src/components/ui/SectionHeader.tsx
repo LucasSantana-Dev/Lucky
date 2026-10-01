@@ -19,8 +19,8 @@ export interface StatusBandTile {
 
 const TONE_TEXT: Record<StatusBandTone, string> = {
     success: 'text-lucky-success',
-    brand: 'text-lucky-brand',
-    accent: 'text-lucky-brand-strong',
+    brand: 'text-lucky-brand-text',
+    accent: 'text-lucky-brand-text',
     warning: 'text-lucky-warning',
     error: 'text-lucky-error',
     muted: 'text-lucky-text-tertiary',

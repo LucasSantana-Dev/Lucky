@@ -361,7 +361,7 @@ function Levels() {
                                     className='flex items-center justify-between p-3 rounded bg-lucky-bg-secondary/50'
                                 >
                                     <div className='flex-1'>
-                                        <p className='text-lucky-brand'>
+                                        <p className='text-lucky-brand-text'>
                                             Lv.{reward.level}
                                         </p>
                                         <p className='text-sm text-lucky-text-secondary'>
@@ -374,7 +374,7 @@ function Levels() {
                                         }
                                         className='p-1.5 hover:bg-lucky-bg-tertiary rounded transition-colors'
                                     >
-                                        <TrashIcon className='w-4 h-4 text-lucky-text-secondary hover:text-lucky-brand' />
+                                        <TrashIcon className='w-4 h-4 text-lucky-text-secondary hover:text-lucky-brand-text' />
                                     </button>
                                 </div>
                             ))

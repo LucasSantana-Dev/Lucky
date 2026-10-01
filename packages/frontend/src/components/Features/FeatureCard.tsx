@@ -65,10 +65,10 @@ function FeatureCard({
                             className={cn(
                                 'text-xs',
                                 isGlobal && !readOnly
-                                    ? 'bg-lucky-purple/20 text-lucky-purple'
+                                    ? 'bg-lucky-purple/20 text-lucky-brand-text'
                                     : isGlobal
                                       ? 'bg-lucky-bg-tertiary text-lucky-text-secondary'
-                                      : 'bg-lucky-blue/20 text-lucky-blue',
+                                      : 'bg-lucky-blue/20 text-lucky-brand-text',
                             )}
                             aria-label={
                                 isGlobal
