@@ -422,9 +422,6 @@
     --lucky-motion-standard: 180ms;
     --lucky-motion-slow: 280ms;
 
-    --lucky-brand: var(--color-lucky-blurple-600);
-    --lucky-accent: var(--color-lucky-blurple-600);
-    --lucky-accent-soft: var(--color-lucky-blurple-500);
     --lucky-success: var(--color-lucky-success);
     --lucky-error: var(--color-lucky-error);
     --lucky-warning: var(--color-lucky-warning);
@@ -433,7 +430,6 @@
     --lucky-gradient-brand: linear-gradient(135deg, #ec4899 0%, #fb923c 100%);
     --lucky-gradient-brand-soft: linear-gradient(135deg, rgb(236 72 153 / 0.15) 0%, rgb(251 146 60 / 0.05) 100%);
 
-    --lucky-red: var(--lucky-brand);
     --lucky-bg-primary: var(--lucky-surface-canvas);
     --lucky-bg-secondary: var(--lucky-surface-sidebar);
     --lucky-bg-tertiary: var(--lucky-surface-panel);
@@ -443,8 +439,6 @@
     --lucky-text-secondary: var(--lucky-text-body);
     --lucky-text-tertiary: var(--lucky-text-muted);
     --lucky-text-disabled: var(--lucky-text-subtle);
-    --lucky-blue: var(--lucky-brand);
-    --lucky-purple: var(--lucky-brand);
   }
 
   .dark {
@@ -579,10 +573,6 @@
   .lucky-focus-visible:focus-visible {
     outline: none;
     box-shadow: var(--lucky-shadow-focus);
-  }
-
-  .lucky-gradient-text {
-    color: var(--lucky-brand);
   }
 
   .lucky-header-accent-line {
