@@ -28,7 +28,7 @@
 **Single accent** (resolved 2026-10-01, see `decisions/2026-10-01-blurple-focus-only.md`, which supersedes the 2026-04-21 dual accent):
 
 - **Accent** (CTAs, active nav, live pings, highlights, gradient accents): Neon Pink `#ec4899`; filled buttons use `#db2777`, hover `#be185d`.
-- **Focus rings only**: Discord Blurple `#5865f2`.
+- **Focus rings only**: Discord Blurple `#5865f2`. Some older focus rings are still pink (`focus-visible:ring-lucky-brand`); migration tracked in #2560.
 
 Removed gold family (`#d4a017`, etc.) and old purple (`#8b5cf6`, etc.) — not part of the brand palette.
 

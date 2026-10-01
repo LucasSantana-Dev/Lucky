@@ -22,7 +22,8 @@ in `::selection`, and in tokens nobody consumed (`--color-lucky-blurple-*`,
 Pink is the single brand accent. Blurple is used only for keyboard focus indicators
 (`--color-lucky-shadow-focus`, `lucky-focus-ring`, the focus states in `index.css` and the
 `focus-visible` shadows in `Sidebar.tsx`). It keeps focus visually distinct from the pink
-active and selected states.
+active and selected states. Twelve older focus rings still use pink
+(`focus-visible:ring-lucky-brand`); moving them to blurple is #2560.
 
 - Delete the unused `--color-lucky-blurple-*` scale and `--color-brand-discord`.
 - `::selection` moves from blurple to pink.

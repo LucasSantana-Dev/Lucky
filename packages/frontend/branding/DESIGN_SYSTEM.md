@@ -99,9 +99,9 @@ The three fonts are self-hosted via `@fontsource/*` packages imported at the top
 
 ## Interaction & Motion
 
-- Focus ring: 3px blurple ring (`--lucky-shadow-focus: 0 0 0 3px rgb(88 101 242 / 0.4)`)
+- Focus ring: 3px blurple ring (`--lucky-shadow-focus: 0 0 0 3px rgb(88 101 242 / 0.4)`). 12 older focus rings still use pink `focus-visible:ring-lucky-brand`; migration tracked in #2560.
 - Hover borders: upgrade from `border-soft` to `border-strong`
-- Active nav items: pink `border-lucky-brand/40` + `bg-active` background
+- Active nav items: pink `border-lucky-brand/40` + `bg-lucky-bg-active` background
 - Allowed animations: `fade-up`, `fade-in`, `accordion-down/up`, `animate-spin` (loaders)
 - Removed: glow-pulse, float, shimmer, pulse-glow animations
 
