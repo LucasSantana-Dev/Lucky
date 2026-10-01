@@ -291,6 +291,30 @@ describe('TrackHistoryPage', () => {
             ).toBeGreaterThan(0)
         })
 
+        test('double click on confirm clears only once', async () => {
+            const user = await openClearDialog()
+            vi.mocked(api.trackHistory.clearHistory).mockImplementation(
+                () =>
+                    new Promise((resolve) =>
+                        setTimeout(
+                            () => resolve({ data: { success: true } } as any),
+                            50
+                        )
+                    )
+            )
+
+            await user.dblClick(
+                within(screen.getByRole('dialog')).getByRole('button', {
+                    name: 'Clear',
+                })
+            )
+
+            await waitFor(() => {
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+            })
+            expect(api.trackHistory.clearHistory).toHaveBeenCalledTimes(1)
+        })
+
         test('confirm calls clearHistory and resets state', async () => {
             const user = await openClearDialog()
 

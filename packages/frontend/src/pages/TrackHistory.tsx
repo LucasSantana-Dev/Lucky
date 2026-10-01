@@ -67,6 +67,7 @@ export default function TrackHistoryPage() {
     const [stats, setStats] = useState<Stats | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [showClearDialog, setShowClearDialog] = useState(false)
+    const [isClearing, setIsClearing] = useState(false)
     const [isLoadingMore, setIsLoadingMore] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(1)
@@ -119,8 +120,8 @@ export default function TrackHistoryPage() {
     }, [page])
 
     const handleClear = async () => {
-        if (!guildId) return
-        setShowClearDialog(false)
+        if (!guildId || isClearing) return
+        setIsClearing(true)
         try {
             await api.trackHistory.clearHistory(guildId)
             setHistory([])
@@ -129,6 +130,9 @@ export default function TrackHistoryPage() {
             setPage(1)
         } catch {
             setError(t('trackHistory.failedToClearHistory'))
+        } finally {
+            setIsClearing(false)
+            setShowClearDialog(false)
         }
     }
 
@@ -354,7 +358,10 @@ export default function TrackHistoryPage() {
                 </>
             )}
 
-            <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+            <Dialog
+                open={showClearDialog}
+                onOpenChange={(open) => !isClearing && setShowClearDialog(open)}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
@@ -368,10 +375,15 @@ export default function TrackHistoryPage() {
                         <Button
                             variant='secondary'
                             onClick={() => setShowClearDialog(false)}
+                            disabled={isClearing}
                         >
                             {t('common.cancel')}
                         </Button>
-                        <Button variant='destructive' onClick={handleClear}>
+                        <Button
+                            variant='destructive'
+                            onClick={handleClear}
+                            disabled={isClearing}
+                        >
                             {t('trackHistory.clear')}
                         </Button>
                     </DialogFooter>
