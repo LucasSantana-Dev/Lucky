@@ -833,6 +833,8 @@
         "addFromDiscover": "Add some from Discover.",
         "noBlockedArtists": "No blocked artists",
         "blockArtistsDescription": "Block artists you don't want Lucky to autoplay.",
+        "preferArtist": "Prefer",
+        "blockArtist": "Block",
         "savePreferences": "Save Preferences ({{count}})",
         "saving": "Saving...",
         "prefer": "Prefer",

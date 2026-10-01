@@ -34,6 +34,7 @@ function ArtistTile({
     onPrefer,
     onBlock,
 }: ArtistTileProps) {
+    const { t } = useTranslation('preferredArtists')
     const [isHovered, setIsHovered] = useState(false)
     const [isFocusWithin, setIsFocusWithin] = useState(false)
     const [imageBroken, setImageBroken] = useState(false)
@@ -154,7 +155,7 @@ function ArtistTile({
                     {onPrefer && (
                         <button
                             type='button'
-                            aria-label='Prefer'
+                            aria-label={t('preferArtist')}
                             onClick={(e) => {
                                 e.stopPropagation()
                                 onPrefer()
@@ -167,7 +168,7 @@ function ArtistTile({
                     {onBlock && (
                         <button
                             type='button'
-                            aria-label='Block'
+                            aria-label={t('blockArtist')}
                             onClick={(e) => {
                                 e.stopPropagation()
                                 onBlock()

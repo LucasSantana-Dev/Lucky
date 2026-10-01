@@ -829,6 +829,8 @@
         "addFromDiscover": "Adicione alguns da aba Descobrir.",
         "noBlockedArtists": "Nenhum artista bloqueado",
         "blockArtistsDescription": "Bloqueie artistas que não deseja que o Lucky reproduza automaticamente.",
+        "preferArtist": "Preferir",
+        "blockArtist": "Bloquear",
         "savePreferences": "Salvar Preferências ({{count}})",
         "saving": "Salvando...",
         "prefer": "Preferir",

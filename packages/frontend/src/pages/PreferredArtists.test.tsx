@@ -108,6 +108,8 @@ vi.mock('react-i18next', () => ({
                 noBlockedArtists: 'No blocked artists',
                 blockArtistsDescription:
                     "Block artists you don't want Lucky to autoplay.",
+                preferArtist: 'Prefer',
+                blockArtist: 'Block',
                 savePreferences: 'Save Preferences',
                 saving: 'Saving...',
             }
