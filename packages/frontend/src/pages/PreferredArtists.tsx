@@ -35,6 +35,7 @@ function ArtistTile({
     onBlock,
 }: ArtistTileProps) {
     const [isHovered, setIsHovered] = useState(false)
+    const [isFocusWithin, setIsFocusWithin] = useState(false)
     const [imageBroken, setImageBroken] = useState(false)
     const prefersReducedMotion = useReducedMotion()
 
@@ -66,105 +67,119 @@ function ArtistTile({
     }
 
     return (
-        <button
-            type='button'
-            onClick={onClick}
+        <div
+            className='relative'
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            className={cn(
-                'flex flex-col items-center gap-2 rounded-xl p-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand',
-                active
-                    ? 'bg-lucky-bg-active'
-                    : isHovered
-                      ? 'bg-lucky-bg-tertiary'
-                      : 'hover:bg-lucky-bg-tertiary',
-                !onClick && 'cursor-default',
-            )}
+            onFocus={() => setIsFocusWithin(true)}
+            onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                    setIsFocusWithin(false)
+                }
+            }}
         >
-            <div
+            <button
+                type='button'
+                onClick={onClick}
                 className={cn(
-                    'relative shrink-0 rounded-full overflow-hidden ring-2 transition-all duration-150',
-                    sizeClasses[size],
-                    getRingColor(),
-                    !prefersReducedMotion && isHovered && 'scale-105',
-                )}
-            >
-                {artist.imageUrl && !imageBroken ? (
-                    <img
-                        src={artist.imageUrl}
-                        alt={artist.name}
-                        className='w-full h-full object-cover'
-                        loading='lazy'
-                        referrerPolicy='no-referrer'
-                        onError={() => setImageBroken(true)}
-                    />
-                ) : (
-                    <div className='w-full h-full bg-lucky-bg-active flex items-center justify-center'>
-                        <span className='font-semibold text-lucky-text-secondary text-xl'>
-                            {initial}
-                        </span>
-                    </div>
-                )}
-                {}
-                {preference === 'prefer' && (
-                    <>
-                        <div className='absolute inset-0 bg-white/20 flex items-center justify-center'>
-                            <Check className='h-8 w-8 text-white drop-shadow-lg' />
-                        </div>
-                    </>
-                )}
-                {preference === 'block' && (
-                    <>
-                        <div className='absolute inset-0 bg-red-500/20 flex items-center justify-center'>
-                            <X className='h-8 w-8 text-white drop-shadow-lg' />
-                        </div>
-                    </>
-                )}
-                {}
-                {(onPrefer || onBlock) && isHovered && (
-                    <>
-                        {onPrefer && (
-                            <button
-                                type='button'
-                                aria-label='Prefer'
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    onPrefer()
-                                }}
-                                className='absolute top-2 left-2 rounded-full bg-lucky-bg-primary/90 p-1.5 ring-1 ring-lucky-border hover:bg-lucky-brand transition-colors'
-                            >
-                                <Heart className='h-4 w-4 text-lucky-brand' />
-                            </button>
-                        )}
-                        {onBlock && (
-                            <button
-                                type='button'
-                                aria-label='Block'
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    onBlock()
-                                }}
-                                className='absolute top-2 right-2 rounded-full bg-lucky-bg-primary/90 p-1.5 ring-1 ring-lucky-border hover:bg-lucky-error transition-colors'
-                            >
-                                <X className='h-4 w-4 text-lucky-error' />
-                            </button>
-                        )}
-                    </>
-                )}
-            </div>
-            <span
-                className={cn(
-                    'max-w-[80px] text-center leading-tight font-medium line-clamp-2',
-                    textSize[size],
+                    'flex flex-col items-center gap-2 rounded-xl p-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand',
                     active
-                        ? 'text-lucky-text-primary'
-                        : 'text-lucky-text-secondary transition-colors duration-150',
-                    isHovered && 'text-lucky-text-primary',
+                        ? 'bg-lucky-bg-active'
+                        : isHovered
+                          ? 'bg-lucky-bg-tertiary'
+                          : 'hover:bg-lucky-bg-tertiary',
+                    !onClick && 'cursor-default',
                 )}
             >
-                {artist.name}
-            </span>
-        </button>
+                <div
+                    className={cn(
+                        'relative shrink-0 rounded-full overflow-hidden ring-2 transition-all duration-150',
+                        sizeClasses[size],
+                        getRingColor(),
+                        !prefersReducedMotion && isHovered && 'scale-105',
+                    )}
+                >
+                    {artist.imageUrl && !imageBroken ? (
+                        <img
+                            src={artist.imageUrl}
+                            alt={artist.name}
+                            className='w-full h-full object-cover'
+                            loading='lazy'
+                            referrerPolicy='no-referrer'
+                            onError={() => setImageBroken(true)}
+                        />
+                    ) : (
+                        <div className='w-full h-full bg-lucky-bg-active flex items-center justify-center'>
+                            <span className='font-semibold text-lucky-text-secondary text-xl'>
+                                {initial}
+                            </span>
+                        </div>
+                    )}
+                    {}
+                    {preference === 'prefer' && (
+                        <>
+                            <div className='absolute inset-0 bg-white/20 flex items-center justify-center'>
+                                <Check className='h-8 w-8 text-white drop-shadow-lg' />
+                            </div>
+                        </>
+                    )}
+                    {preference === 'block' && (
+                        <>
+                            <div className='absolute inset-0 bg-red-500/20 flex items-center justify-center'>
+                                <X className='h-8 w-8 text-white drop-shadow-lg' />
+                            </div>
+                        </>
+                    )}
+                </div>
+                <span
+                    className={cn(
+                        'max-w-[80px] text-center leading-tight font-medium line-clamp-2',
+                        textSize[size],
+                        active
+                            ? 'text-lucky-text-primary'
+                            : 'text-lucky-text-secondary transition-colors duration-150',
+                        isHovered && 'text-lucky-text-primary',
+                    )}
+                >
+                    {artist.name}
+                </span>
+            </button>
+            {(onPrefer || onBlock) && (isHovered || isFocusWithin) && (
+                <div
+                    className={cn(
+                        'pointer-events-none absolute left-1/2 top-2 -translate-x-1/2',
+                        sizeClasses[size],
+                    )}
+                >
+                    {onPrefer && (
+                        <button
+                            type='button'
+                            aria-label='Prefer'
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onPrefer()
+                            }}
+                            className='pointer-events-auto absolute top-2 left-2 rounded-full bg-lucky-bg-primary/90 p-1.5 ring-1 ring-lucky-border hover:bg-lucky-brand transition-colors'
+                        >
+                            <Heart className='h-4 w-4 text-lucky-brand' />
+                        </button>
+                    )}
+                    {onBlock && (
+                        <button
+                            type='button'
+                            aria-label='Block'
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onBlock()
+                            }}
+                            className='pointer-events-auto absolute top-2 right-2 rounded-full bg-lucky-bg-primary/90 p-1.5 ring-1 ring-lucky-border hover:bg-lucky-error transition-colors'
+                        >
+                            <X className='h-4 w-4 text-lucky-error' />
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
     )
 }
 
