@@ -291,6 +291,17 @@ describe('TrackHistoryPage', () => {
             ).toBeGreaterThan(0)
         })
 
+        test('escape dismisses the dialog without clearing', async () => {
+            const user = await openClearDialog()
+
+            await user.keyboard('{Escape}')
+
+            await waitFor(() => {
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+            })
+            expect(api.trackHistory.clearHistory).not.toHaveBeenCalled()
+        })
+
         test('double click on confirm clears only once', async () => {
             const user = await openClearDialog()
             vi.mocked(api.trackHistory.clearHistory).mockImplementation(
