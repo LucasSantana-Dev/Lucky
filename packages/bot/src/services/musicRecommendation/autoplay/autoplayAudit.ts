@@ -22,6 +22,9 @@ interface SelectedTrack {
 /** Keeps one pass's single info log line bounded. */
 const MAX_EVALUATED_ENTRIES = 50
 
+/** A skipped source never ran; keep it distinct from "ran, found nothing". */
+type SourceCount = number | { skipped: true }
+
 export interface AutoplayAuditRecord {
     cycleId: string
     guildId: string
@@ -30,7 +33,7 @@ export interface AutoplayAuditRecord {
     sessionMoodSummary: string | null
     evaluated: EvaluatedCandidate[]
     selected: SelectedTrack[]
-    sourceCounts: Record<string, number>
+    sourceCounts: Record<string, SourceCount>
     durationMs: number
     /** Evaluated entries omitted from `evaluated` by the cap. */
     droppedCount: number
@@ -68,7 +71,7 @@ export class AutoplayAuditCollector {
         guildId: string,
         seed: string,
         sessionMood: SessionMood | null,
-        sourceCounts: Record<string, number>,
+        sourceCounts: Record<string, SourceCount>,
         durationMs: number,
     ): void {
         const now = Date.now()

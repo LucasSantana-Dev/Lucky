@@ -899,16 +899,11 @@ function emitAutoplayAudit(
     if (!collector) return
     try {
         collector.setFinalSelected(enriched)
-        // Skipped markers carry no count; the audit schema is numeric only.
-        const numericCounts: Record<string, number> = {}
-        for (const [source, count] of Object.entries(sourcesCounts)) {
-            numericCounts[source] = typeof count === 'number' ? count : 0
-        }
         collector.emit(
             autoplayContext.queue.guild.id,
             autoplayContext.currentTrack.title,
             autoplayContext.sessionMood,
-            numericCounts,
+            sourcesCounts,
             Date.now() - startTime,
         )
     } catch (error) {

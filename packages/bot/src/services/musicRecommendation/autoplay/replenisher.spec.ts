@@ -682,10 +682,18 @@ describe('replenishQueue', () => {
 
         await replenishQueue(queue)
 
+        const {
+            collectRecommendationCandidates,
+        } = require('./candidateCollector')
+        const recommendationCollector =
+            collectRecommendationCandidates.mock.calls[0][0].auditCollector
+        expect(recommendationCollector).toBeInstanceOf(AutoplayAuditCollector)
+
         const seedCollector = collectSeedSimilarCandidates.mock.calls[0][3]
         const lastFmCollector = collectLastFmCandidates.mock.calls[0][4]
         expect(seedCollector).toBeInstanceOf(AutoplayAuditCollector)
         expect(lastFmCollector).toBe(seedCollector)
+        expect(recommendationCollector).toBe(seedCollector)
 
         const auditCalls = infoLog.mock.calls.filter(
             ([arg]: [{ message: string }]) => arg.message === 'Autoplay audit',
@@ -724,7 +732,7 @@ describe('replenishQueue', () => {
         expect(genreCollector).toBe(fallbackCollector)
     })
 
-    it('emits the audit log with skipped sources mapped to 0 on the empty-selection path', async () => {
+    it('emits the audit log keeping skipped sources distinct on the empty-selection path', async () => {
         const { infoLog } = require('@lucky/shared/utils')
         const queue = createGuildQueue()
 
@@ -736,7 +744,12 @@ describe('replenishQueue', () => {
         expect(auditCalls).toHaveLength(1)
         expect(auditCalls[0][0].data.selected).toEqual([])
         expect(auditCalls[0][0].data.sourceCounts).toEqual(
-            expect.objectContaining({ seedSimilar: 0, lastfm: 0, genre: 0 }),
+            expect.objectContaining({
+                recommendation: 0,
+                seedSimilar: { skipped: true },
+                lastfm: { skipped: true },
+                genre: { skipped: true },
+            }),
         )
     })
 
