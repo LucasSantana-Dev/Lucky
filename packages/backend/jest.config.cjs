@@ -16,7 +16,6 @@ module.exports = {
     '!src/**/*.spec.ts',
     '!src/index.ts',
     '!src/server.ts',
-    '!src/middleware/index.ts',
     '!src/routes/music/**',
     'src/routes/music/playbackRoutes.ts',
     'src/routes/music/stateRoutes.ts',

@@ -40,6 +40,21 @@ describe('Middleware setup', () => {
             .set('Origin', 'https://evil.example')
 
         expect(res.status).toBe(403)
+        expect(res.body.error).toBe('Not allowed by CORS')
+        expect(res.headers['access-control-allow-origin']).toBeUndefined()
+    })
+
+    test('should answer 403 for a rejected CORS preflight', async () => {
+        const app = express()
+        setupMiddleware(app)
+        app.use(errorHandler)
+
+        const res = await request(app)
+            .options('/ping')
+            .set('Origin', 'https://evil.example')
+            .set('Access-Control-Request-Method', 'GET')
+
+        expect(res.status).toBe(403)
         expect(res.headers['access-control-allow-origin']).toBeUndefined()
     })
 })

@@ -8,6 +8,7 @@ jest.mock('../../../src/middleware/rateLimit', () => ({
     apiLimiter: jest.fn(),
 }))
 
+import { requireAuth } from '../../../src/middleware/auth'
 import { setupRolesRoutes } from '../../../src/routes/roles'
 
 type Registered = { method: string; path: string; handlers: unknown[] }
@@ -41,5 +42,22 @@ describe('roles routes write rate limiting', () => {
         )
         expect(route).toBeDefined()
         expect(route?.handlers).toContain(writeLimiter)
+    })
+
+    test('POST /reaction-roles limits after auth and before upload parsing', () => {
+        const route = routes.find(
+            (r) =>
+                r.method === 'post' &&
+                r.path === '/api/guilds/:guildId/reaction-roles',
+        )
+        const handlers = route?.handlers ?? []
+        const authIdx = handlers.indexOf(requireAuth)
+        const limiterIdx = handlers.indexOf(writeLimiter)
+        const uploadIdx = handlers.findIndex(
+            (h) => typeof h === 'function' && h.name === 'imageUploadHandler',
+        )
+        expect(authIdx).toBeGreaterThanOrEqual(0)
+        expect(uploadIdx).toBeGreaterThan(limiterIdx)
+        expect(limiterIdx).toBeGreaterThan(authIdx)
     })
 })
