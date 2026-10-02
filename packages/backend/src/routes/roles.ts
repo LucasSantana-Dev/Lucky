@@ -194,6 +194,7 @@ export function setupRolesRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/reaction-roles',
         requireAuth,
+        writeLimiter,
         validateParams(s.guildIdParam),
         imageUploadHandler,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {

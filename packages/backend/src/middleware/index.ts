@@ -10,6 +10,7 @@ import { requestLogger } from './requestLogger'
 import { metricsMiddleware } from './metrics'
 import { getFrontendOrigins } from '../utils/frontendOrigin'
 import { TOPGG_WEBHOOK_PATH } from '../utils/topggSignature'
+import { AppError } from '../errors/AppError'
 
 export function setupMiddleware(app: Express): void {
     const configuredOrigins = getFrontendOrigins()
@@ -112,7 +113,7 @@ export function setupMiddleware(app: Express): void {
                     return
                 }
 
-                callback(new Error('Not allowed by CORS'))
+                callback(AppError.forbidden('Not allowed by CORS'))
             },
             credentials: true,
             methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
