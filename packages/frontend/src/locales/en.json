@@ -21,6 +21,28 @@
         "color": "Color",
         "selectServerDesc": "Select a server to continue"
     },
+    "linkResult": {
+        "spotifyLinked": "Spotify account linked successfully.",
+        "lastfmLinked": "Last.fm account linked successfully.",
+        "errors": {
+            "generic": "Could not link your account. Please try again.",
+            "spotify_connect_error": "Could not start the Spotify connection. Please try again.",
+            "spotify_exchange_failed": "Could not complete Spotify authorization. Please try again.",
+            "spotify_invalid_state": "The Spotify link request expired or was invalid. Please try again.",
+            "spotify_missing_code": "Spotify did not return an authorization code. Please try again.",
+            "spotify_missing_state": "The Spotify link request was incomplete. Please try again.",
+            "spotify_not_configured": "Spotify linking is not configured on this server.",
+            "spotify_save_failed": "Spotify was authorized but we could not save the link. Please try again.",
+            "lastfm_callback_error": "Last.fm returned an error while linking. Please try again.",
+            "lastfm_connect_error": "Could not start the Last.fm connection. Please try again.",
+            "lastfm_exchange_failed": "Could not complete Last.fm authorization. Please try again.",
+            "lastfm_invalid_state": "The Last.fm link request expired or was invalid. Please try again.",
+            "lastfm_missing_state": "The Last.fm link request was incomplete. Please try again.",
+            "lastfm_missing_token": "Last.fm did not return an authorization token. Please try again.",
+            "lastfm_not_configured": "Last.fm linking is not configured on this server.",
+            "lastfm_save_failed": "Last.fm was authorized but we could not save the link. Please try again."
+        }
+    },
     "languages": {
         "en": "English",
         "pt-BR": "Português (Brasil)"

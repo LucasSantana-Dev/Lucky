@@ -21,6 +21,28 @@
         "color": "Color",
         "selectServerDesc": "Select a server to continue"
     },
+    "linkResult": {
+        "spotifyLinked": "Conta do Spotify vinculada com sucesso.",
+        "lastfmLinked": "Conta do Last.fm vinculada com sucesso.",
+        "errors": {
+            "generic": "Não foi possível vincular sua conta. Tente novamente.",
+            "spotify_connect_error": "Não foi possível iniciar a conexão com o Spotify. Tente novamente.",
+            "spotify_exchange_failed": "Não foi possível concluir a autorização do Spotify. Tente novamente.",
+            "spotify_invalid_state": "O pedido de vinculação do Spotify expirou ou era inválido. Tente novamente.",
+            "spotify_missing_code": "O Spotify não retornou um código de autorização. Tente novamente.",
+            "spotify_missing_state": "O pedido de vinculação do Spotify estava incompleto. Tente novamente.",
+            "spotify_not_configured": "A vinculação com o Spotify não está configurada neste servidor.",
+            "spotify_save_failed": "O Spotify foi autorizado, mas não conseguimos salvar a vinculação. Tente novamente.",
+            "lastfm_callback_error": "O Last.fm retornou um erro ao vincular. Tente novamente.",
+            "lastfm_connect_error": "Não foi possível iniciar a conexão com o Last.fm. Tente novamente.",
+            "lastfm_exchange_failed": "Não foi possível concluir a autorização do Last.fm. Tente novamente.",
+            "lastfm_invalid_state": "O pedido de vinculação do Last.fm expirou ou era inválido. Tente novamente.",
+            "lastfm_missing_state": "O pedido de vinculação do Last.fm estava incompleto. Tente novamente.",
+            "lastfm_missing_token": "O Last.fm não retornou um token de autorização. Tente novamente.",
+            "lastfm_not_configured": "A vinculação com o Last.fm não está configurada neste servidor.",
+            "lastfm_save_failed": "O Last.fm foi autorizado, mas não conseguimos salvar a vinculação. Tente novamente."
+        }
+    },
     "languages": {
         "en": "English",
         "pt-BR": "Português (Brasil)"

@@ -13,6 +13,7 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import { useAuthStore } from './stores/authStore'
 import { useGuildStore } from './stores/guildStore'
 import Layout from './components/Layout/Layout'
+import LinkResultToast from './components/LinkResultToast/LinkResultToast'
 import EmptyState from './components/ui/EmptyState'
 import { hasModuleAccess } from './lib/rbac'
 import type { AccessMode, ModuleKey } from './types'
@@ -304,7 +305,7 @@ function PublicRoutes() {
     )
 }
 
-function App() {
+function AppContent() {
     const location = useLocation()
     const { isAuthenticated, isLoading, checkAuth } = useAuthStore()
     const [isReady, setIsReady] = useState(false)
@@ -321,27 +322,27 @@ function App() {
 
     if (isPublicPath(location.pathname)) {
         return (
-            <div className='dark'>
+            <>
                 <ErrorBoundary>
                     <Suspense fallback={<PageLoader />}>
                         <PublicRoutes />
                     </Suspense>
                 </ErrorBoundary>
-            </div>
+            </>
         )
     }
 
     if (!isReady || isLoading) {
         return (
-            <div className='dark'>
+            <>
                 <PageLoader />
-            </div>
+            </>
         )
     }
 
     if (!isAuthenticated) {
         return (
-            <div className='dark'>
+            <>
                 <ErrorBoundary>
                     <Suspense fallback={<PageLoader />}>
                         <Routes>
@@ -358,12 +359,12 @@ function App() {
                         </Routes>
                     </Suspense>
                 </ErrorBoundary>
-            </div>
+            </>
         )
     }
 
     return (
-        <div className='dark'>
+        <>
             <ErrorBoundary>
                 <Layout>
                     <ErrorBoundary key={location.pathname}>
@@ -373,6 +374,15 @@ function App() {
                     </ErrorBoundary>
                 </Layout>
             </ErrorBoundary>
+        </>
+    )
+}
+
+function App() {
+    return (
+        <div className='dark'>
+            <LinkResultToast />
+            <AppContent />
         </div>
     )
 }
