@@ -1,10 +1,11 @@
 # Architecture Decision Records
 
-140 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
+141 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
-## Accepted (133)
+## Accepted (134)
 
+- [2026-10-01 - Batch merged work into fewer releases; the frontend ships with the release](2026-10-01-batched-releases.md) - _Accepted (supersedes the human ship-checkpoint of `2026-06-16-release-cadence-automate-releases.md`)_
 - [2026-10-01 - Discord blurple is the focus color only; pink is the single brand accent](2026-10-01-blurple-focus-only.md) - _Accepted (supersedes the dual accent of `2026-04-21-redesign-port-target.md`)_
 - [2026-09-27 - Lucky as a taste-learning music bot: one bounded 12-week test, decided 2026-12-20](2026-09-27-music-first-positioning.md)
 - [2026-09-26 - Lucky owns its observability stack as code, portable to any host](2026-09-26-lucky-owned-observability-stack.md)
@@ -56,7 +57,7 @@
 - [2026-06-17 - ADR: Reactivate Renovate (App) + add a dark-period health guard](2026-06-17-renovate-reactivation.md)
 - [2026-06-16 - Backend Stryker mutation gate: tiered incremental rollout, stays advisory, pilot-gated](2026-06-16-backend-mutation-gate-rollout.md) - _accepted (rollout plan with a cost-measurement gate)_
 - [2026-06-16 - Info/usage log storage: self-hosted Grafana Loki, adopted via a measurement-gated pilot](2026-06-16-info-log-aggregation-loki.md) - _accepted (adopt Loki) — implemented; the "stand up Loki" plan was largely moot, see the 2026-06-16 update below_
-- [2026-06-16 - Release cadence: automate releases with release-please, keep the deploy gate](2026-06-16-release-cadence-automate-releases.md) - _accepted (adopt release-please; pilot via dry-run before enabling on main)_
+- [2026-06-16 - Release cadence: automate releases with release-please, keep the deploy gate](2026-06-16-release-cadence-automate-releases.md) - _accepted (release-please enabled on main); human ship-checkpoint (no auto-merge) superseded by 2026-10-01-batched-releases.md_
 - [2026-06-14 - Autoplay mood clustering (#1095): hold and verify data first, don't override the Phase D gate](2026-06-14-autoplay-mood-clustering-1095-hold.md) - _accepted (defer with verification triggers)_
 - [2026-06-14 - Deploy status reporting: configure a homelab commit-status token (Option A)](2026-06-14-deploy-status-token.md)
 - [2026-06-13 - Message broker (RabbitMQ / Kafka): not adopted — keep Redis pub/sub](2026-06-13-message-broker-rabbitmq-kafka.md) - _accepted (no change)_
