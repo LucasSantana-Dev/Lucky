@@ -63,3 +63,5 @@ jobs:
   # rather than workflow jobs.
   danger:
     uses: LucasSantana-Dev/.github/.github/workflows/danger.yml@fa22667c1e0b6a5a27e7262c56b412db8b9f7c13 # v1
+    with:
+      node_version: '22'
