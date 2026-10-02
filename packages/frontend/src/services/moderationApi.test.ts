@@ -53,10 +53,13 @@ const mockModerationStats: ModerationStats = {
 
 const mockModerationSettings: ModerationSettings = {
     guildId: 'guild-1',
-    logChannelId: 'channel-1',
+    modLogChannelId: 'channel-1',
     muteRoleId: 'role-1',
+    modRoleIds: [],
+    autoModEnabled: false,
+    maxWarnings: 3,
     dmOnAction: true,
-    defaultAction: 'warn',
+    requireReason: true,
 }
 
 describe('createModerationApi', () => {
@@ -628,10 +631,13 @@ describe('createModerationApi', () => {
             const api = createModerationApi(apiClient)
             const customSettings: ModerationSettings = {
                 guildId: 'guild-2',
-                logChannelId: 'channel-logs',
+                modLogChannelId: 'channel-logs',
                 muteRoleId: null,
+                modRoleIds: [],
+                autoModEnabled: false,
+                maxWarnings: 3,
                 dmOnAction: false,
-                defaultAction: 'mute',
+                requireReason: true,
             }
             const mockResponse: AxiosResponse<{
                 settings: ModerationSettings
@@ -672,10 +678,10 @@ describe('createModerationApi', () => {
             const result = await api.getSettings('guild-1')
 
             expect(result.data.settings).toHaveProperty('guildId')
-            expect(result.data.settings).toHaveProperty('logChannelId')
+            expect(result.data.settings).toHaveProperty('modLogChannelId')
             expect(result.data.settings).toHaveProperty('muteRoleId')
             expect(result.data.settings).toHaveProperty('dmOnAction')
-            expect(result.data.settings).toHaveProperty('defaultAction')
+            expect(result.data.settings).toHaveProperty('maxWarnings')
         })
     })
 
@@ -711,10 +717,10 @@ describe('createModerationApi', () => {
         test('sends complete settings object in request body', async () => {
             const api = createModerationApi(apiClient)
             const updateData: Partial<ModerationSettings> = {
-                logChannelId: 'channel-new',
+                modLogChannelId: 'channel-new',
                 muteRoleId: 'role-new',
                 dmOnAction: true,
-                defaultAction: 'kick',
+                maxWarnings: 3,
             }
 
             vi.mocked(apiClient.patch).mockResolvedValue({
@@ -738,7 +744,7 @@ describe('createModerationApi', () => {
         test('handles partial settings update', async () => {
             const api = createModerationApi(apiClient)
             const updateData: Partial<ModerationSettings> = {
-                defaultAction: 'ban',
+                maxWarnings: 3,
             }
 
             vi.mocked(apiClient.patch).mockResolvedValue({
@@ -755,7 +761,7 @@ describe('createModerationApi', () => {
 
             expect(apiClient.patch).toHaveBeenCalledWith(
                 '/guilds/guild-1/moderation/settings',
-                { defaultAction: 'ban' },
+                { maxWarnings: 3 },
             )
         })
 
@@ -763,7 +769,7 @@ describe('createModerationApi', () => {
             const api = createModerationApi(apiClient)
             const updatedSettings: ModerationSettings = {
                 ...mockModerationSettings,
-                logChannelId: 'new-channel',
+                modLogChannelId: 'new-channel',
             }
             const mockResponse: AxiosResponse<{
                 settings: ModerationSettings
@@ -780,17 +786,17 @@ describe('createModerationApi', () => {
             vi.mocked(apiClient.patch).mockResolvedValue(mockResponse)
 
             const result = await api.updateSettings('guild-1', {
-                logChannelId: 'new-channel',
+                modLogChannelId: 'new-channel',
             })
 
-            expect(result.data.settings.logChannelId).toBe('new-channel')
+            expect(result.data.settings.modLogChannelId).toBe('new-channel')
             expect(result.status).toBe(200)
         })
 
         test('handles settings with null values', async () => {
             const api = createModerationApi(apiClient)
             const updateData: Partial<ModerationSettings> = {
-                logChannelId: null,
+                modLogChannelId: null,
                 muteRoleId: null,
             }
 

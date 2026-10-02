@@ -1,10 +1,5 @@
 export type ModerationActionType =
-    | 'warn'
-    | 'mute'
-    | 'kick'
-    | 'ban'
-    | 'unban'
-    | 'unmute'
+    'warn' | 'mute' | 'kick' | 'ban' | 'unban' | 'unmute'
 
 export interface ModerationCase {
     id: string
@@ -27,11 +22,15 @@ export interface ModerationCase {
 }
 
 export interface ModerationSettings {
+    id?: string
     guildId: string
-    logChannelId: string | null
+    modLogChannelId: string | null
     muteRoleId: string | null
+    modRoleIds: string[]
+    autoModEnabled: boolean
+    maxWarnings: number
     dmOnAction: boolean
-    defaultAction: ModerationActionType
+    requireReason: boolean
 }
 
 export interface ModerationStats {

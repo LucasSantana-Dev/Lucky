@@ -28,6 +28,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import Skeleton from '@/components/ui/Skeleton'
+import ModerationSettingsForm from '@/components/Moderation/ModerationSettingsForm'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 import { toast } from 'sonner'
@@ -391,6 +392,8 @@ export default function ModerationPage() {
                     {t('manageWarningsAndBans')}
                 </p>
             </header>
+
+            <ModerationSettingsForm guildId={selectedGuild.id} />
 
             {statsLoading ? (
                 <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3'>
