@@ -663,6 +663,7 @@ describe('Roles Routes', () => {
         beforeEach(() => {
             process.env.DISCORD_TOKEN = 'test-token'
             mockGetBotHighestRolePosition.mockResolvedValue(5)
+            mockListReactionRoles.mockResolvedValue([])
             mockGetFullGuildRoles.mockResolvedValue([
                 fullRole(LOW_ROLE, 2),
                 fullRole(HIGH_ROLE, 5),
@@ -677,7 +678,7 @@ describe('Roles Routes', () => {
                 .send(reactionPayload(HIGH_ROLE))
 
             expect(res.status).toBe(400)
-            expect(res.body.error).toMatch(/above|highest role of the bot/i)
+            expect(res.body.error).toMatch(/at or above the bot's highest role/)
             expect(mockCreateReactionRole).not.toHaveBeenCalled()
         })
 
@@ -719,6 +720,58 @@ describe('Roles Routes', () => {
             expect(res.status).toBe(400)
         })
 
+        test('PUT reaction-roles allows keeping an already bound role that is now above the bot', async () => {
+            authed()
+            mockListReactionRoles.mockResolvedValue([
+                {
+                    messageId: MESSAGE_ID,
+                    mappings: [{ roleId: HIGH_ROLE }],
+                },
+            ])
+            const updateMock = jest.fn<any>().mockResolvedValue({
+                messageId: MESSAGE_ID,
+            })
+            ;(
+                require('@lucky/shared/services').reactionRolesService as any
+            ).updateReactionRoleMessage = updateMock
+
+            const res = await request(app)
+                .put(`/api/guilds/${GUILD_ID}/reaction-roles/${MESSAGE_ID}`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({
+                    title: 'New title',
+                    description: 'D',
+                    roles: [{ roleId: HIGH_ROLE, label: 'L' }],
+                })
+
+            expect(res.status).toBe(200)
+            expect(updateMock).toHaveBeenCalled()
+        })
+
+        test('PUT reaction-roles still rejects adding a new role above the bot', async () => {
+            authed()
+            mockListReactionRoles.mockResolvedValue([
+                {
+                    messageId: MESSAGE_ID,
+                    mappings: [{ roleId: LOW_ROLE }],
+                },
+            ])
+
+            const res = await request(app)
+                .put(`/api/guilds/${GUILD_ID}/reaction-roles/${MESSAGE_ID}`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({
+                    title: 'T',
+                    description: 'D',
+                    roles: [
+                        { roleId: LOW_ROLE, label: 'L' },
+                        { roleId: HIGH_ROLE, label: 'H' },
+                    ],
+                })
+
+            expect(res.status).toBe(400)
+        })
+
         test('PATCH roles/manage rejects editing a role at or above the bot highest role', async () => {
             authed({ owner: true })
             const res = await request(app)
@@ -727,6 +780,7 @@ describe('Roles Routes', () => {
                 .send({ name: 'Renamed' })
 
             expect(res.status).toBe(400)
+            expect(res.body.error).toMatch(/at or above the bot's highest role/)
             expect(mockUpdateGuildRole).not.toHaveBeenCalled()
         })
     })

@@ -9,7 +9,9 @@ import {
     reactionRolesService,
     roleManagementService,
 } from '@lucky/shared/services'
+import { warnLog } from '@lucky/shared/utils'
 import { guildService } from '../services/GuildService'
+import type { GuildRoleManage } from '../services/RoleService'
 import multer from 'multer'
 import { paramToString as p } from '../utils/paramCoerce'
 import {
@@ -183,12 +185,16 @@ async function resolveHierarchyGuardContext(
 async function assertRolesBelowBot(
     guildId: string,
     roleIds: string[],
+    knownRoles?: GuildRoleManage[],
 ): Promise<void> {
     const botHighest = await guildService.getBotHighestRolePosition(guildId)
     if (botHighest === null) {
+        warnLog({
+            message: `Bot highest role unknown for guild ${guildId}; skipping role hierarchy check`,
+        })
         return
     }
-    const roles = await guildService.getFullGuildRoles(guildId)
+    const roles = knownRoles ?? (await guildService.getFullGuildRoles(guildId))
     for (const roleId of roleIds) {
         const role = roles.find((r) => r.id === roleId)
         if (role && role.position >= botHighest) {
@@ -299,9 +305,20 @@ export function setupRolesRoutes(app: Express): void {
             const { title, description, imageUrl, roles } =
                 validationResult.data
 
+            // Roles already bound to this message stay editable even if the
+            // bot has since been demoted: only newly added roles are checked.
+            const existing =
+                await reactionRolesService.listReactionRoleMessages(guildId)
+            const alreadyBound = new Set(
+                existing
+                    .filter((m) => m.messageId === messageId)
+                    .flatMap((m) => m.mappings.map((x) => x.roleId)),
+            )
             await assertRolesBelowBot(
                 guildId,
-                roles.map((r) => r.roleId),
+                roles
+                    .map((r) => r.roleId)
+                    .filter((id) => !alreadyBound.has(id)),
             )
 
             const imageFile = req.file
@@ -460,7 +477,7 @@ export function setupRolesRoutes(app: Express): void {
                 guildContext,
             )
             assertRoleHierarchyAllowed(hierarchyContext, roleId, existingRoles)
-            await assertRolesBelowBot(guildId, [roleId])
+            await assertRolesBelowBot(guildId, [roleId], existingRoles)
 
             try {
                 const role = await guildService.updateGuildRole(
