@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import App from './App'
+import appSource from './App.tsx?raw'
 import { useAuthStore } from '@/stores/authStore'
 import { useGuildStore } from '@/stores/guildStore'
 import type { EffectiveAccessMap } from '@/types/rbac'
@@ -137,6 +138,35 @@ describe('App authenticated routing', () => {
         expect(
             screen.queryByRole('heading', { name: 'Landing Page' }),
         ).not.toBeInTheDocument()
+    })
+
+    test('redirects authenticated /login to the dashboard instead of 404', async () => {
+        mockAuthStore({ isAuthenticated: true })
+        renderAt('/login')
+        expect(await screen.findByTestId('layout')).toBeInTheDocument()
+        expect(
+            screen.queryByRole('heading', { name: 'Page not found' }),
+        ).not.toBeInTheDocument()
+    })
+
+    test('AUTHENTICATED_PATHS lists every AuthenticatedRoutes path', () => {
+        const src = appSource
+        const routes = src.slice(
+            src.indexOf('function AuthenticatedRoutes'),
+            src.indexOf('function PublicRoutes'),
+        )
+        const routePaths = [...routes.matchAll(/path='(\/[^']*)'/g)]
+            .map((m) => m[1])
+            .filter((p) => p !== '/login' && p !== '/')
+        const listed = src.slice(
+            src.indexOf('const AUTHENTICATED_PATHS'),
+            src.indexOf('function AuthenticatedRoutes'),
+        )
+        const listedPaths = [...listed.matchAll(/'(\/[^']*)'/g)].map(
+            (m) => m[1],
+        )
+        expect(routePaths.length).toBeGreaterThan(10)
+        expect(listedPaths.sort()).toEqual(routePaths.sort())
     })
 
     test('renders the 404 page for unknown authenticated routes', async () => {

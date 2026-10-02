@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuthStore } from '@/stores/authStore'
 import { cn } from '@/lib/utils'
 import type { AccessMode, ModuleKey } from '@/types'
-import { navSections } from './navConfig'
+import { ADMIN_PATHS, navSections } from './navConfig'
 import { useNavigation } from './useNavigation'
 
 interface NavSectionsProps {
@@ -23,9 +23,9 @@ function NavSections({
 }: NavSectionsProps) {
     const { t } = useTranslation()
     const adminLinks = [
-        { to: '/admin', label: 'Admin Panel', icon: ShieldCheck },
+        { to: ADMIN_PATHS[0], label: 'Admin Panel', icon: ShieldCheck },
         {
-            to: '/admin/support',
+            to: ADMIN_PATHS[1],
             label: t('sidebar.nav.supportReports'),
             icon: LifeBuoy,
         },

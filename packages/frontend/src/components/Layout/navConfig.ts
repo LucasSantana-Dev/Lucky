@@ -39,6 +39,8 @@ export interface NavSection {
     items: NavItem[]
 }
 
+export const ADMIN_PATHS = ['/admin', '/admin/support']
+
 export const navSections: NavSection[] = [
     {
         titleKey: 'sidebar.sections.overview',

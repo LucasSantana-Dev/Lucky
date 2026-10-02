@@ -1,7 +1,7 @@
 import { useLocation } from 'react-router-dom'
 import { useGuildStore } from '@/stores/guildStore'
 import { hasModuleAccess } from '@/lib/rbac'
-import { navSections } from './navConfig'
+import { ADMIN_PATHS, navSections } from './navConfig'
 import type { AccessMode, ModuleKey } from '@/types'
 
 // Every path known to the sidebar, used to resolve which nav item "owns" a
@@ -9,7 +9,7 @@ import type { AccessMode, ModuleKey } from '@/types'
 // /music and /music/history both match /music/history).
 const ALL_NAV_PATHS = [
     ...navSections.flatMap((section) => section.items.map((item) => item.path)),
-    '/admin/support',
+    ...ADMIN_PATHS,
 ]
 
 /**

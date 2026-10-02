@@ -283,6 +283,7 @@ function AuthenticatedRoutes() {
                 path='/batch-jobs'
                 element={guardedRoute('moderation', <BatchJobsPage />)}
             />
+            <Route path='/login' element={<Navigate to='/' replace />} />
             <Route path='*' element={<NotFoundPage />} />
         </Routes>
     )

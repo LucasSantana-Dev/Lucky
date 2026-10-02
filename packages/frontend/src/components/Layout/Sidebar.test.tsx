@@ -2,6 +2,7 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { ADMIN_PATHS } from './navConfig'
 import Sidebar from './Sidebar'
 import { useAuthStore } from '@/stores/authStore'
 import { useGuildStore } from '@/stores/guildStore'
@@ -117,6 +118,10 @@ describe('Sidebar', () => {
         expect(
             screen.getByRole('link', { name: 'Batch Jobs' }),
         ).toHaveAttribute('href', '/batch-jobs')
+    })
+
+    test('ADMIN_PATHS covers the admin sidebar links', () => {
+        expect(ADMIN_PATHS).toEqual(['/admin', '/admin/support'])
     })
 
     test('hides the admin support link from non-developers', () => {
