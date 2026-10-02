@@ -135,11 +135,16 @@ export async function collectRecommendationCandidates(
                 replayFrequentTrackIds: ctx.replayFrequentTrackIds,
                 replayFrequentArtists: ctx.replayFrequentArtists,
             })
-            upsertScoredCandidate(candidates, candidate, {
-                score: rec.score,
-                source: 'spotify-rec',
-                signals: rec.signals,
-            })
+            upsertScoredCandidate(
+                candidates,
+                candidate,
+                {
+                    score: rec.score,
+                    source: 'spotify-rec',
+                    signals: rec.signals,
+                },
+                ctx.auditCollector,
+            )
         }
     }
 

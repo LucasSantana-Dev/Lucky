@@ -1,6 +1,7 @@
 import type { Track, GuildQueue } from 'discord-player'
 import type { SessionMood } from './sessionMood'
 import type { ArtistTagFetcher } from './artistTagCache'
+import type { AutoplayAuditCollector } from './autoplayAudit'
 
 /**
  * Universal context for autoplay candidate collection.
@@ -30,4 +31,6 @@ export interface AutoplayContext {
     replayFrequentTrackIds?: Set<string>
     replayFrequentArtists?: Set<string>
     recentArtistIndices?: Map<string, number>
+    /** One per replenish pass; emitted once in enqueueAndFinalize. */
+    auditCollector?: AutoplayAuditCollector
 }
