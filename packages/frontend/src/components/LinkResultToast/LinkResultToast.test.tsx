@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { StrictMode } from 'react'
 import { render } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -71,15 +72,32 @@ describe('LinkResultToast', () => {
     })
 
     test('shows the generic message for unknown codes without echoing them', () => {
-        renderAt('?error=<img src=x onerror=alert(1)>')
+        renderAt('?error=spotify_<img src=x onerror=alert(1)>')
         expect(toast.error).toHaveBeenCalledWith('linkResult.errors.generic')
         expect(toast.error).toHaveBeenCalledTimes(1)
     })
 
-    test('does not treat a non-link error code as a link result', () => {
-        const { getByTestId } = renderAt('?error=other')
+    test('shows the generic message for unknown spotify_ and lastfm_ codes and strips them', () => {
+        const { getByTestId } = renderAt('?error=lastfm_something_new')
         expect(toast.error).toHaveBeenCalledWith('linkResult.errors.generic')
         expect(getByTestId('loc').textContent).toBe('')
+    })
+
+    test('ignores non-link error values and leaves them in the URL', () => {
+        const { getByTestId } = renderAt('?error=access_denied')
+        expect(toast.error).not.toHaveBeenCalled()
+        expect(getByTestId('loc').textContent).toBe('?error=access_denied')
+    })
+
+    test('toasts once under StrictMode', () => {
+        render(
+            <StrictMode>
+                <MemoryRouter initialEntries={['/?spotify_linked=true']}>
+                    <LinkResultToast />
+                </MemoryRouter>
+            </StrictMode>,
+        )
+        expect(toast.success).toHaveBeenCalledTimes(1)
     })
 
     test('ignores *_linked values other than true', () => {

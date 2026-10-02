@@ -33,10 +33,13 @@ const SUCCESS_PARAMS = [
 export default function LinkResultToast() {
     const { t } = useTranslation()
     const [searchParams, setSearchParams] = useSearchParams()
-    const handled = useRef(false)
+    // StrictMode re-runs effects before the URL strip commits; remember the
+    // query string already handled so it is not toasted twice.
+    const handledSearch = useRef<string | null>(null)
 
     useEffect(() => {
-        if (handled.current) return
+        const search = searchParams.toString()
+        if (handledSearch.current === search) return
 
         const next = new URLSearchParams(searchParams)
         let touched = false
@@ -50,7 +53,11 @@ export default function LinkResultToast() {
         }
 
         const errorCode = searchParams.get('error')
-        if (errorCode !== null) {
+        if (
+            errorCode !== null &&
+            (errorCode.startsWith('spotify_') ||
+                errorCode.startsWith('lastfm_'))
+        ) {
             const key = KNOWN_ERROR_CODES.has(errorCode)
                 ? `linkResult.errors.${errorCode}`
                 : 'linkResult.errors.generic'
@@ -60,7 +67,7 @@ export default function LinkResultToast() {
         }
 
         if (!touched) return
-        handled.current = true
+        handledSearch.current = search
         setSearchParams(next, { replace: true })
     }, [searchParams, setSearchParams, t])
 

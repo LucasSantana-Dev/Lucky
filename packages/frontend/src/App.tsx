@@ -305,7 +305,7 @@ function PublicRoutes() {
     )
 }
 
-function App() {
+function AppContent() {
     const location = useLocation()
     const { isAuthenticated, isLoading, checkAuth } = useAuthStore()
     const [isReady, setIsReady] = useState(false)
@@ -322,27 +322,27 @@ function App() {
 
     if (isPublicPath(location.pathname)) {
         return (
-            <div className='dark'>
+            <>
                 <ErrorBoundary>
                     <Suspense fallback={<PageLoader />}>
                         <PublicRoutes />
                     </Suspense>
                 </ErrorBoundary>
-            </div>
+            </>
         )
     }
 
     if (!isReady || isLoading) {
         return (
-            <div className='dark'>
+            <>
                 <PageLoader />
-            </div>
+            </>
         )
     }
 
     if (!isAuthenticated) {
         return (
-            <div className='dark'>
+            <>
                 <ErrorBoundary>
                     <Suspense fallback={<PageLoader />}>
                         <Routes>
@@ -359,14 +359,13 @@ function App() {
                         </Routes>
                     </Suspense>
                 </ErrorBoundary>
-            </div>
+            </>
         )
     }
 
     return (
-        <div className='dark'>
+        <>
             <ErrorBoundary>
-                <LinkResultToast />
                 <Layout>
                     <ErrorBoundary key={location.pathname}>
                         <Suspense fallback={<PageLoader />}>
@@ -375,6 +374,15 @@ function App() {
                     </ErrorBoundary>
                 </Layout>
             </ErrorBoundary>
+        </>
+    )
+}
+
+function App() {
+    return (
+        <div className='dark'>
+            <LinkResultToast />
+            <AppContent />
         </div>
     )
 }
