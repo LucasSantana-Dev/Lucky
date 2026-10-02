@@ -382,6 +382,7 @@ function JobDetailPanel({
                                             </Button>
                                             <Button
                                                 variant='destructive'
+                                                disabled={cancelling}
                                                 onClick={() => {
                                                     setConfirmCancelOpen(false)
                                                     void onCancel(jobData.id)
@@ -413,9 +414,11 @@ export default function BatchJobsPage() {
     const [cancelllingJobId, setCancellingJobId] = useState<string | null>(null)
     const [selectedJob, setSelectedJob] = useState<BatchJob | null>(null)
     const limit = 15
+    const fetchRequestIdRef = useRef(0)
 
     const fetchJobs = useCallback(async () => {
         if (!selectedGuild?.id) return
+        const requestId = ++fetchRequestIdRef.current
         setLoading(true)
         try {
             const res = await api.batchJobs.list(selectedGuild.id, {
@@ -426,19 +429,20 @@ export default function BatchJobsPage() {
                 limit,
                 offset: (page - 1) * limit,
             })
+            if (requestId !== fetchRequestIdRef.current) return
             setJobs(res.data.jobs)
             setTotal(res.data.total ?? res.data.jobs.length)
         } catch {
+            if (requestId !== fetchRequestIdRef.current) return
             setJobs([])
-            setTotal(0)
         } finally {
-            setLoading(false)
+            if (requestId === fetchRequestIdRef.current) setLoading(false)
         }
     }, [selectedGuild?.id, page, statusFilter])
 
     const handleCancelJob = useCallback(
         async (jobId: string) => {
-            if (!selectedGuild?.id) return
+            if (!selectedGuild?.id || cancelllingJobId) return
 
             setCancellingJobId(jobId)
             try {
@@ -456,7 +460,7 @@ export default function BatchJobsPage() {
                 setCancellingJobId(null)
             }
         },
-        [selectedGuild?.id, fetchJobs, t],
+        [selectedGuild?.id, cancelllingJobId, fetchJobs, t],
     )
 
     useEffect(() => {
@@ -685,6 +689,7 @@ export default function BatchJobsPage() {
                                 size='sm'
                                 variant='ghost'
                                 disabled={page <= 1}
+                                aria-label={t('previousPage')}
                                 onClick={() => setPage((p) => p - 1)}
                                 className='h-8 w-8 p-0 text-lucky-text-secondary hover:text-lucky-text-primary'
                             >
@@ -697,6 +702,7 @@ export default function BatchJobsPage() {
                                 size='sm'
                                 variant='ghost'
                                 disabled={page >= totalPages}
+                                aria-label={t('nextPage')}
                                 onClick={() => setPage((p) => p + 1)}
                                 className='h-8 w-8 p-0 text-lucky-text-secondary hover:text-lucky-text-primary'
                             >

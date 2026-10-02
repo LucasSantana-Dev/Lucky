@@ -65,6 +65,8 @@ i18n.init({
                 refresh: 'Refresh',
                 cancel: 'Cancel',
                 cancelJob: 'Cancel Job',
+                previousPage: 'Previous page',
+                nextPage: 'Next page',
                 cancelJobConfirmTitle: 'Cancel this job?',
                 cancelJobConfirmDescription:
                     'Items already processed will not be reverted.',
@@ -401,8 +403,8 @@ describe('BatchJobsPage', () => {
 
         renderPage()
 
-        const pageLabel = await screen.findByText('1 / 3')
-        await user.click(pageLabel.nextElementSibling as HTMLElement)
+        await screen.findByText('1 / 3')
+        await user.click(screen.getByRole('button', { name: 'Next page' }))
 
         await waitFor(() => {
             expect(api.batchJobs.list).toHaveBeenCalledWith('123', {
@@ -436,12 +438,10 @@ describe('BatchJobsPage', () => {
 
         renderPage()
 
-        const next = (await screen.findByText('1 / 3')).nextElementSibling
-        await user.click(next as HTMLElement)
-        await user.click(
-            (await screen.findByText('2 / 3'))
-                .nextElementSibling as HTMLElement,
-        )
+        await screen.findByText('1 / 3')
+        await user.click(screen.getByRole('button', { name: 'Next page' }))
+        await screen.findByText('2 / 3')
+        await user.click(screen.getByRole('button', { name: 'Next page' }))
         await screen.findByText('3 / 3')
 
         const row = screen
@@ -456,6 +456,63 @@ describe('BatchJobsPage', () => {
         )
 
         expect(await screen.findByText('2 / 2')).toBeInTheDocument()
+    })
+
+    test('ignores a stale list response that resolves after a newer one', async () => {
+        const user = userEvent.setup()
+        mockGuildStore(mockGuild)
+        let resolveFirst: ((v: unknown) => void) | undefined
+        vi.mocked(api.batchJobs.list)
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    resolveFirst = resolve
+                }) as any,
+            )
+            .mockResolvedValue({
+                data: { jobs: [mockJobs[1]], total: 1 },
+            } as any)
+
+        renderPage()
+        await waitFor(() => {
+            expect(api.batchJobs.list).toHaveBeenCalledTimes(1)
+        })
+
+        await user.click(screen.getByRole('combobox'))
+        const options = await screen.findAllByText('Completed')
+        await user.click(options[options.length - 1])
+        await waitFor(() => {
+            expect(screen.getAllByText('channel_move').length).toBeGreaterThan(
+                0,
+            )
+        })
+
+        resolveFirst?.({ data: { jobs: mockJobs, total: 3 } })
+
+        await waitFor(() => {
+            expect(screen.getAllByText('channel_move').length).toBeGreaterThan(
+                0,
+            )
+        })
+        expect(screen.queryAllByText('bulk_ban')).toHaveLength(0)
+    })
+
+    test('keeps the current page when a later page fails to load', async () => {
+        const user = userEvent.setup()
+        mockGuildStore(mockGuild)
+        vi.mocked(api.batchJobs.list).mockResolvedValue({
+            data: { jobs: mockJobs, total: 40 },
+        } as any)
+
+        renderPage()
+        await screen.findByText('1 / 3')
+
+        vi.mocked(api.batchJobs.list).mockRejectedValue(new Error('boom'))
+        await user.click(screen.getByRole('button', { name: 'Next page' }))
+
+        await waitFor(() => {
+            expect(api.batchJobs.list).toHaveBeenCalledTimes(2)
+        })
+        expect(await screen.findByText('2 / 3')).toBeInTheDocument()
     })
 
     test('does not render a search input', async () => {

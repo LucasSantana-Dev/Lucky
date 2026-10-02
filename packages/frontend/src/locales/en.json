@@ -1134,6 +1134,8 @@
         "refresh": "Refresh",
         "cancel": "Cancel",
         "cancelJob": "Cancel Job",
+        "previousPage": "Previous page",
+        "nextPage": "Next page",
         "cancelJobConfirmTitle": "Cancel this job?",
         "cancelJobConfirmDescription": "Items already processed will not be reverted.",
         "cancelJobConfirm": "Yes, cancel job",

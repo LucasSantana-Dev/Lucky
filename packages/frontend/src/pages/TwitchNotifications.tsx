@@ -66,6 +66,8 @@ export default function TwitchNotificationsPage() {
 
     useEffect(() => {
         selectedGuildIdRef.current = guildId
+        setRemoveOpen(false)
+        setRemoveTarget(null)
     }, [guildId])
 
     useEffect(() => {
@@ -231,9 +233,11 @@ export default function TwitchNotificationsPage() {
     }
 
     const handleRemove = async (twitchUserId: string) => {
-        if (!guildId || removingIdsRef.current.has(twitchUserId)) return
-        removingIdsRef.current.add(twitchUserId)
+        if (!guildId) return
         const requestGuildId = guildId
+        const removeKey = `${requestGuildId}:${twitchUserId}`
+        if (removingIdsRef.current.has(removeKey)) return
+        removingIdsRef.current.add(removeKey)
         try {
             await api.twitch.remove(requestGuildId, twitchUserId)
             // Guard against a late response landing after the admin switched
@@ -256,7 +260,7 @@ export default function TwitchNotificationsPage() {
             }
             setError(getErrorMessage(error, t('failedToRemoveNotification')))
         } finally {
-            removingIdsRef.current.delete(twitchUserId)
+            removingIdsRef.current.delete(removeKey)
         }
     }
 
@@ -466,7 +470,10 @@ export default function TwitchNotificationsPage() {
                         <Button
                             variant='destructive'
                             onClick={() => {
-                                if (removeTarget) {
+                                if (
+                                    removeTarget &&
+                                    removeTarget.guildId === guildId
+                                ) {
                                     void handleRemove(removeTarget.twitchUserId)
                                 }
                                 setRemoveOpen(false)

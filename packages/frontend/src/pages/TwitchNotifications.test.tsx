@@ -404,6 +404,68 @@ describe('TwitchNotificationsPage', () => {
         expect(api.twitch.remove).toHaveBeenCalledTimes(1)
     })
 
+    test('closes the remove dialog without deleting when the guild changes', async () => {
+        const otherGuild = { id: '999', name: 'Other Server', botAdded: true }
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: mockNotifications },
+        } as any)
+
+        const { rerender } = renderPage()
+        await screen.findByText('shroud')
+        await userEvent.click(screen.getByLabelText('Remove shroud'))
+        await screen.findByRole('dialog')
+
+        mockGuildSelection(otherGuild)
+        rerender(
+            <I18nextProvider i18n={testI18n}>
+                <MemoryRouter>
+                    <TwitchNotificationsPage />
+                </MemoryRouter>
+            </I18nextProvider>,
+        )
+
+        await waitFor(() => {
+            expect(screen.queryByRole('dialog')).toBeNull()
+        })
+        expect(api.twitch.remove).not.toHaveBeenCalled()
+    })
+
+    test('allows the same twitch user to be removed in a different guild while one is in flight', async () => {
+        const otherGuild = { id: '999', name: 'Other Server', botAdded: true }
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: mockNotifications },
+        } as any)
+        vi.mocked(api.twitch.remove).mockReturnValue(new Promise(() => {}))
+
+        const { rerender } = renderPage()
+        await screen.findByText('shroud')
+        await confirmRemove('shroud')
+
+        mockGuildSelection(otherGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: {
+                notifications: mockNotifications.map((n) => ({
+                    ...n,
+                    guildId: '999',
+                })),
+            },
+        } as any)
+        rerender(
+            <I18nextProvider i18n={testI18n}>
+                <MemoryRouter>
+                    <TwitchNotificationsPage />
+                </MemoryRouter>
+            </I18nextProvider>,
+        )
+        await screen.findByText('shroud')
+        await confirmRemove('shroud')
+
+        expect(api.twitch.remove).toHaveBeenCalledTimes(2)
+        expect(api.twitch.remove).toHaveBeenLastCalledWith('999', 'tw1')
+    })
+
     test('remove button calls api and updates list', async () => {
         mockGuildSelection(mockGuild)
         vi.mocked(api.twitch.list).mockResolvedValue({

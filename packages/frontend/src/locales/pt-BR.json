@@ -1130,6 +1130,8 @@
         "refresh": "Atualizar",
         "cancel": "Cancelar",
         "cancelJob": "Cancelar Operação",
+        "previousPage": "Página anterior",
+        "nextPage": "Próxima página",
         "cancelJobConfirmTitle": "Cancelar esta operação?",
         "cancelJobConfirmDescription": "Os itens já processados não serão revertidos.",
         "cancelJobConfirm": "Sim, cancelar operação",
