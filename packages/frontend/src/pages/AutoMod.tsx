@@ -61,6 +61,7 @@ function FilterRow({
 }: FilterRowProps) {
     return (
         <div className='border-b border-lucky-border/50 last:border-b-0'>
+            {/* Keyboard users use the Switch; do not add role=button here (nests interactive elements). */}
             <div
                 data-testid='filter-row-header'
                 onClick={() => onToggle(!enabled)}

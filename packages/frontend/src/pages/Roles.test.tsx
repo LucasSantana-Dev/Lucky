@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import RolesPage from './Roles'
 import { useGuildStore } from '@/stores/guildStore'
+import { ApiError } from '@/services/ApiError'
 
 vi.mock('@/stores/guildStore')
 vi.mock('@/services/api', () => ({
@@ -275,7 +276,7 @@ describe('RolesPage', () => {
         const { toast } = await import('sonner')
         vi.mocked(api.rolesManage.list).mockResolvedValue([])
         vi.mocked(api.rolesManage.create).mockRejectedValue(
-            new Error('Missing Manage Roles permission'),
+            new ApiError(403, 'Missing Manage Roles permission'),
         )
 
         render(

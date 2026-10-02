@@ -9,12 +9,42 @@ describe('getApiErrorMessage', () => {
         ).toBe('Missing permission')
     })
 
-    test('falls back when the error has no message', () => {
-        expect(getApiErrorMessage(new Error(''), 'Generic')).toBe('Generic')
+    test('returns the message of a 4xx ApiError', () => {
+        expect(
+            getApiErrorMessage(new ApiError(403, 'Missing permission'), 'x'),
+        ).toBe('Missing permission')
+    })
+
+    test('uses the fallback for a plain Error', () => {
+        expect(getApiErrorMessage(new Error('timeout of 10000ms'), 'G')).toBe(
+            'G',
+        )
+    })
+
+    test('uses the fallback for a 5xx ApiError', () => {
+        expect(getApiErrorMessage(new ApiError(502, 'Bad gateway'), 'G')).toBe(
+            'G',
+        )
+    })
+
+    test('uses the fallback for status 0 ApiError', () => {
+        expect(
+            getApiErrorMessage(new ApiError(0, 'Unable to connect'), 'G'),
+        ).toBe('G')
+    })
+
+    test('uses the fallback for an empty 4xx message', () => {
+        expect(getApiErrorMessage(new ApiError(400, ''), 'G')).toBe('G')
+    })
+
+    test('uses the fallback for an over-long message', () => {
+        expect(
+            getApiErrorMessage(new ApiError(400, 'a'.repeat(201)), 'G'),
+        ).toBe('G')
     })
 
     test('falls back for non-error values', () => {
-        expect(getApiErrorMessage('boom', 'Generic')).toBe('Generic')
-        expect(getApiErrorMessage(undefined, 'Generic')).toBe('Generic')
+        expect(getApiErrorMessage('boom', 'G')).toBe('G')
+        expect(getApiErrorMessage(undefined, 'G')).toBe('G')
     })
 })

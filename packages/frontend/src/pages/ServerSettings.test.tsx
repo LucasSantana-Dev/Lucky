@@ -119,6 +119,19 @@ describe('ServerSettingsPage', () => {
         expect(screen.getByText(/view-only access/i)).toBeInTheDocument()
     })
 
+    test('view-only users never call updateSettings', async () => {
+        mockGuildStoreFn(mockGuild, {
+            effectiveAccess: { ...defaultAccess, settings: 'view' },
+            canManageRbac: false,
+        })
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByText('Server Settings')).toBeInTheDocument()
+        })
+        await userEvent.setup().type(screen.getByDisplayValue('!'), '?')
+        expect(api.guilds.updateSettings).not.toHaveBeenCalled()
+    })
+
     test('shows both save bars with settings manage access', async () => {
         mockGuildStoreFn(mockGuild)
         renderPage()

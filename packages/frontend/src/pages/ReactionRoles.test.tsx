@@ -2274,7 +2274,9 @@ test('create failure shows error message', async () => {
     fireEvent.click(submitBtn)
 
     await waitFor(() => {
-        const errorMessages = screen.queryAllByText(/Network error/)
+        const errorMessages = screen.queryAllByText(
+            /Failed to create reaction role message/,
+        )
         expect(errorMessages.length).toBeGreaterThan(0)
     })
 })

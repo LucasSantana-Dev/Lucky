@@ -311,7 +311,7 @@ export default function ServerSettingsPage() {
     }
 
     const handleSave = async () => {
-        if (!selectedGuild?.id) return
+        if (!selectedGuild?.id || !canManageSettings) return
         setSaving(true)
         try {
             const payload = pickEditableSettings(
