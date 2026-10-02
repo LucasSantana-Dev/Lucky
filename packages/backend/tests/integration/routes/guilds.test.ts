@@ -23,6 +23,7 @@ jest.mock('../../../src/services/GuildService', () => ({
         generateBotInviteUrl: jest.fn(),
         getGuildTextChannelOptions: jest.fn(),
         getGuildRoleOptions: jest.fn(),
+        getBotHighestRolePosition: jest.fn(),
     },
 }))
 
@@ -315,6 +316,7 @@ describe('Guilds Routes Integration', () => {
             const mockGuildService = guildService as jest.Mocked<
                 typeof guildService
             >
+            mockGuildService.getBotHighestRolePosition.mockResolvedValue(7)
             mockGuildService.getGuildRoleOptions.mockResolvedValue([
                 { id: '777777777777777777', name: '@Admin' },
                 { id: '888888888888888888', name: '@Moderator' },
@@ -332,6 +334,7 @@ describe('Guilds Routes Integration', () => {
                     { id: '888888888888888888', name: '@Moderator' },
                     { id: '999999999999999999', name: '@Member' },
                 ],
+                botHighestPosition: 7,
             })
             expect(mockGuildService.getGuildRoleOptions).toHaveBeenCalledWith(
                 '111111111111111111',
@@ -347,6 +350,7 @@ describe('Guilds Routes Integration', () => {
             const mockGuildService = guildService as jest.Mocked<
                 typeof guildService
             >
+            mockGuildService.getBotHighestRolePosition.mockResolvedValue(null)
             mockGuildService.getGuildRoleOptions.mockResolvedValue([])
 
             const response = await request(app)
@@ -354,7 +358,10 @@ describe('Guilds Routes Integration', () => {
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
-            expect(response.body).toEqual({ roles: [] })
+            expect(response.body).toEqual({
+                roles: [],
+                botHighestPosition: null,
+            })
         })
 
         test('should return 401 when not authenticated', async () => {

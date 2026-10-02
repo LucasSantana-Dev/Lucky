@@ -123,6 +123,34 @@ class GuildService {
         }
     }
 
+    /**
+     * Position of the bot's highest role in the guild, or null when it cannot
+     * be determined (no bot client, or the guild is not cached/fetchable).
+     * Discord rejects creating/assigning/editing any role at or above it.
+     */
+    async getBotHighestRolePosition(guildId: string): Promise<number | null> {
+        if (!isSnowflakeId(guildId)) {
+            return null
+        }
+        const client = this.getBotClient()
+        if (!client) {
+            return null
+        }
+        try {
+            const guild =
+                client.guilds.cache.get(guildId) ??
+                (await client.guilds.fetch(guildId))
+            const me = guild.members.me ?? (await guild.members.fetchMe())
+            return me.roles.highest.position
+        } catch (error) {
+            debugLog({
+                message: 'Failed to resolve bot highest role position',
+                error,
+            })
+            return null
+        }
+    }
+
     async getGuildRoleOptions(guildId: string): Promise<GuildRoleOption[]> {
         return roleService.getGuildRoleOptions(guildId)
     }

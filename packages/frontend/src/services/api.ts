@@ -208,7 +208,10 @@ export const api = {
                 `/guilds/${id}/channels`,
             ),
         getRoles: (id: string) =>
-            apiClient.get<{ roles: GuildRoleOption[] }>(`/guilds/${id}/roles`),
+            apiClient.get<{
+                roles: GuildRoleOption[]
+                botHighestPosition?: number | null
+            }>(`/guilds/${id}/roles`),
         getEmojis: (id: string) =>
             apiClient.get<{ emojis: GuildEmojiOption[] }>(
                 `/guilds/${id}/emojis`,

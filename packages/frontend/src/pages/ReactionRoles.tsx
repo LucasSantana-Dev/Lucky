@@ -316,7 +316,19 @@ function MessageForm({
     const { t } = useTranslation()
     const [channels, setChannels] = useState<GuildChannelOption[]>([])
     const [roles, setRoles] = useState<GuildRoleOption[]>([])
+    const [botHighestPosition, setBotHighestPosition] = useState<number | null>(
+        null,
+    )
     const [loadingOptions, setLoadingOptions] = useState(false)
+
+    const isAboveBot = (role: GuildRoleOption) =>
+        botHighestPosition !== null && role.position >= botHighestPosition
+
+    // Roles already bound to the message stay selectable in edit mode (the
+    // server only checks newly added roles).
+    const boundRoleIds = new Set(
+        initialMessage?.mappings.map((m) => m.roleId) ?? [],
+    )
 
     const [channelId, setChannelId] = useState('')
     const [title, setTitle] = useState('')
@@ -336,6 +348,7 @@ function MessageForm({
         if (!open) {
             setChannels([])
             setRoles([])
+            setBotHighestPosition(null)
             return
         }
         setLoadingOptions(true)
@@ -346,6 +359,7 @@ function MessageForm({
             .then(([ch, ro]) => {
                 setChannels(ch.data.channels)
                 setRoles(ro.data.roles)
+                setBotHighestPosition(ro.data.botHighestPosition ?? null)
             })
             .catch(() => setError('Failed to load channels/roles'))
             .finally(() => setLoadingOptions(false))
@@ -759,12 +773,34 @@ function MessageForm({
                                                         <SelectItem
                                                             key={r.id}
                                                             value={r.id}
+                                                            disabled={
+                                                                isAboveBot(r) &&
+                                                                !boundRoleIds.has(
+                                                                    r.id,
+                                                                )
+                                                            }
                                                         >
                                                             {r.name}
+                                                            {isAboveBot(r) &&
+                                                                ` ${t('reactionRoles.aboveBotSuffix')}`}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
+                                            {roles.some(
+                                                (r) =>
+                                                    r.id === entry.roleId &&
+                                                    isAboveBot(r),
+                                            ) && (
+                                                <p
+                                                    role='alert'
+                                                    className='text-xs text-lucky-warning'
+                                                >
+                                                    {t(
+                                                        'reactionRoles.roleAboveBot',
+                                                    )}
+                                                </p>
+                                            )}
                                         </div>
                                         <div className='space-y-1'>
                                             <Label className='text-xs'>

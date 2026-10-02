@@ -596,6 +596,65 @@ describe('ReactionRoles', () => {
         ).toBeInTheDocument()
     })
 
+    test('edit dialog warns when a bound role is above the bot highest role', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [{ id: 'channel-456', name: 'general' }] },
+        } as never)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: {
+                roles: [
+                    { id: 'role-111', name: 'Gamer', color: 0, position: 9 },
+                    { id: 'role-222', name: 'Music', color: 0, position: 1 },
+                ],
+                botHighestPosition: 5,
+            },
+        } as never)
+        vi.mocked(api.reactionRoles.list).mockResolvedValue([mockMessages[0]])
+        render(<ReactionRoles />)
+
+        const editButtons = await screen.findAllByRole('button', {
+            name: /edit/i,
+        })
+        fireEvent.click(editButtons[0])
+
+        const warnings = await screen.findAllByText(
+            /above the bot's highest role/i,
+        )
+        expect(warnings).toHaveLength(1)
+    })
+
+    test('create picker disables roles at or above the bot highest role', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as never)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: {
+                roles: [
+                    { id: 'role-high', name: 'Boss', color: 0, position: 9 },
+                    { id: 'role-low', name: 'Member', color: 0, position: 1 },
+                ],
+                botHighestPosition: 5,
+            },
+        } as never)
+        render(<ReactionRoles />)
+
+        fireEvent.click(screen.getByRole('button', { name: /create/i }))
+        await waitFor(() => expect(api.guilds.getRoles).toHaveBeenCalled())
+        Element.prototype.scrollIntoView = vi.fn()
+        const trigger = (await screen.findAllByRole('combobox')).find((el) =>
+            /select role/i.test(el.textContent ?? ''),
+        ) as HTMLElement
+        trigger.focus()
+        fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+
+        const high = await screen.findByRole('option', { name: /Boss/ })
+        const low = await screen.findByRole('option', { name: /Member/ })
+        expect(high).toHaveAttribute('aria-disabled', 'true')
+        expect(low).not.toHaveAttribute('aria-disabled', 'true')
+    })
+
     test('create dialog opens when Create button is clicked', async () => {
         mockGuildStore()
         vi.mocked(api.guilds.getChannels).mockResolvedValue({

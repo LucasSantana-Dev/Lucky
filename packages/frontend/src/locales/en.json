@@ -873,6 +873,8 @@
         "addRole": "Add role",
         "role": "Role",
         "selectRolePlaceholder": "Select role",
+        "roleAboveBot": "This role is at or above the bot's highest role. Discord will reject it; move the bot role higher in server settings.",
+        "aboveBotSuffix": "(at or above bot)",
         "buttonLabel": "Button label",
         "buttonLabelPlaceholder": "Label",
         "emojiOptional": "Emoji (optional)",
