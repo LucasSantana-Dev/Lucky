@@ -1,5 +1,7 @@
 import { describe, test, expect } from '@jest/globals'
 import express from 'express'
+import request from 'supertest'
+import { errorHandler } from '../../../src/middleware/errorHandler'
 import { setupMiddleware } from '../../../src/middleware'
 
 describe('Middleware setup', () => {
@@ -23,5 +25,36 @@ describe('Middleware setup', () => {
 
         expect(app.get('trust proxy')).not.toBe(1)
         process.env.NODE_ENV = originalNodeEnv
+    })
+
+    test('should answer 403 (not 500) for a rejected CORS origin', async () => {
+        const app = express()
+        setupMiddleware(app)
+        app.get('/ping', (_req, res) => {
+            res.json({ ok: true })
+        })
+        app.use(errorHandler)
+
+        const res = await request(app)
+            .get('/ping')
+            .set('Origin', 'https://evil.example')
+
+        expect(res.status).toBe(403)
+        expect(res.body.error).toBe('Not allowed by CORS')
+        expect(res.headers['access-control-allow-origin']).toBeUndefined()
+    })
+
+    test('should answer 403 for a rejected CORS preflight', async () => {
+        const app = express()
+        setupMiddleware(app)
+        app.use(errorHandler)
+
+        const res = await request(app)
+            .options('/ping')
+            .set('Origin', 'https://evil.example')
+            .set('Access-Control-Request-Method', 'GET')
+
+        expect(res.status).toBe(403)
+        expect(res.headers['access-control-allow-origin']).toBeUndefined()
     })
 })
