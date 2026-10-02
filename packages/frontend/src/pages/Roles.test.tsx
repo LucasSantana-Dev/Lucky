@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import RolesPage from './Roles'
 import { useGuildStore } from '@/stores/guildStore'
+import { ApiError } from '@/services/ApiError'
 
 vi.mock('@/stores/guildStore')
 vi.mock('@/services/api', () => ({
@@ -265,6 +266,39 @@ describe('RolesPage', () => {
         await waitFor(() => {
             expect(vi.mocked(toast).error).toHaveBeenCalledWith(
                 expect.stringContaining('Failed to create'),
+            )
+        })
+    })
+
+    test('shows the API error message when create throws', async () => {
+        const user = userEvent.setup()
+        const { api } = await import('@/services/api')
+        const { toast } = await import('sonner')
+        vi.mocked(api.rolesManage.list).mockResolvedValue([])
+        vi.mocked(api.rolesManage.create).mockRejectedValue(
+            new ApiError(403, 'Missing Manage Roles permission'),
+        )
+
+        render(
+            <MemoryRouter>
+                <RolesPage />
+            </MemoryRouter>,
+        )
+
+        await waitFor(() => {
+            expect(screen.getByText('No roles found')).toBeInTheDocument()
+        })
+
+        const createButtons = screen.getAllByRole('button', {
+            name: /Create Role/i,
+        })
+        await user.click(createButtons[0])
+        await user.type(screen.getByPlaceholderText('Role name'), 'NewRole')
+        await user.click(screen.getByRole('button', { name: /Save/i }))
+
+        await waitFor(() => {
+            expect(vi.mocked(toast).error).toHaveBeenCalledWith(
+                'Missing Manage Roles permission',
             )
         })
     })

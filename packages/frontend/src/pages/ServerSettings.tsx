@@ -44,11 +44,14 @@ import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
+import { hasModuleAccess } from '@/lib/rbac'
 import {
     SUPPORTED_BOT_LANGUAGES,
     DEFAULT_BOT_LANGUAGE,
     isBotLanguage,
 } from '@lucky/shared/constants'
+import type { Guild } from '@/types/guild'
+import type { GuildMemberContext } from '@/types/rbac'
 import { RBAC_MODULES, type RoleGrant, type ServerSettings } from '@/types'
 
 type SettingsLoadErrorKind = 'auth' | 'forbidden' | 'network' | 'upstream'
@@ -183,6 +186,23 @@ function classifySettingsLoadError(
     }
 }
 
+function resolveGuildPermissions(
+    memberContext: GuildMemberContext | null,
+    selectedGuild: Guild | null,
+) {
+    return {
+        canManageRbac:
+            memberContext?.canManageRbac ??
+            selectedGuild?.canManageRbac ??
+            false,
+        canManageSettings: hasModuleAccess(
+            memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess,
+            'settings',
+            'manage',
+        ),
+    }
+}
+
 export default function ServerSettingsPage() {
     const { t } = useTranslation()
     const { selectedGuild, memberContext } = useGuildStore()
@@ -204,8 +224,10 @@ export default function ServerSettingsPage() {
     const rbacRequestIdRef = useRef(0)
     const settingsRequestVersion = useRef(0)
 
-    const canManageRbac =
-        memberContext?.canManageRbac ?? selectedGuild?.canManageRbac ?? false
+    const { canManageRbac, canManageSettings } = resolveGuildPermissions(
+        memberContext,
+        selectedGuild,
+    )
 
     const loadRbac = useCallback(async (guildId: string) => {
         const requestId = rbacRequestIdRef.current + 1
@@ -305,7 +327,7 @@ export default function ServerSettingsPage() {
     }
 
     const handleSave = async () => {
-        if (!selectedGuild?.id) return
+        if (!selectedGuild?.id || !canManageSettings) return
         setSaving(true)
         try {
             const payload = pickEditableSettings(
@@ -621,18 +643,24 @@ export default function ServerSettingsPage() {
                     name: selectedGuild.name,
                 })}
                 actions={
-                    <Button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className='gap-2'
-                    >
-                        {saving ? (
-                            <Loader2 className='w-4 h-4 animate-spin' />
-                        ) : (
-                            <Save className='w-4 h-4' />
-                        )}
-                        {t('serverSettings.saveChanges')}
-                    </Button>
+                    canManageSettings ? (
+                        <Button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className='gap-2'
+                        >
+                            {saving ? (
+                                <Loader2 className='w-4 h-4 animate-spin' />
+                            ) : (
+                                <Save className='w-4 h-4' />
+                            )}
+                            {t('serverSettings.saveChanges')}
+                        </Button>
+                    ) : (
+                        <p className='text-sm text-lucky-text-tertiary'>
+                            {t('serverSettings.viewOnlyNotice')}
+                        </p>
+                    )
                 }
             />
 
@@ -947,20 +975,22 @@ export default function ServerSettingsPage() {
             </motion.div>
 
             {/* Mobile Save Bar */}
-            <div className='lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-lucky-bg-primary/95 backdrop-blur-sm border-t border-lucky-border z-30'>
-                <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className='w-full bg-lucky-red hover:bg-lucky-red/90 gap-2'
-                >
-                    {saving ? (
-                        <Loader2 className='w-4 h-4 animate-spin' />
-                    ) : (
-                        <Save className='w-4 h-4' />
-                    )}
-                    {t('serverSettings.saveChanges')}
-                </Button>
-            </div>
+            {canManageSettings && (
+                <div className='lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-lucky-bg-primary/95 backdrop-blur-sm border-t border-lucky-border z-30'>
+                    <Button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className='w-full bg-lucky-red hover:bg-lucky-red/90 gap-2'
+                    >
+                        {saving ? (
+                            <Loader2 className='w-4 h-4 animate-spin' />
+                        ) : (
+                            <Save className='w-4 h-4' />
+                        )}
+                        {t('serverSettings.saveChanges')}
+                    </Button>
+                </div>
+            )}
 
             <motion.div
                 initial={{ opacity: 0, y: 8 }}

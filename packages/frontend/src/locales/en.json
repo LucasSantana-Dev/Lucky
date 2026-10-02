@@ -929,6 +929,7 @@
         "description": "General configuration for {{name}}",
         "eyebrow": "Configuration",
         "saveChanges": "Save Changes",
+        "viewOnlyNotice": "You have view-only access to these settings. Changes cannot be saved.",
         "saving": "Saving…",
         "noServerSelected": "No Server Selected",
         "selectServerDescription": "Select a server to manage settings",

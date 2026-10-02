@@ -62,7 +62,9 @@ const makeManagerRbacPayload = (
 function mockGuildStoreFn(guild: typeof mockGuild | null, memberContext?: any) {
     vi.mocked(useGuildStore).mockReturnValue({
         guilds: guild ? [guild] : [],
-        selectedGuild: guild as any,
+        selectedGuild: guild
+            ? ({ effectiveAccess: defaultAccess, ...guild } as any)
+            : null,
         memberContext: memberContext ?? null,
         memberContextLoading: false,
         selectGuild: vi.fn(),
@@ -98,6 +100,37 @@ describe('ServerSettingsPage', () => {
         vi.mocked(api.guilds.updateRbac).mockResolvedValue({
             data: { success: true, grants: [] },
         } as any)
+    })
+
+    test('hides save controls and shows a view-only hint without settings manage access', async () => {
+        mockGuildStoreFn(mockGuild, {
+            effectiveAccess: { ...defaultAccess, settings: 'view' },
+            canManageRbac: false,
+        })
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Server Settings')).toBeInTheDocument()
+        })
+
+        expect(
+            screen.queryByRole('button', { name: /Save Changes/ }),
+        ).not.toBeInTheDocument()
+        expect(screen.getByText(/view-only access/i)).toBeInTheDocument()
+    })
+
+    test('shows both save bars with settings manage access', async () => {
+        mockGuildStoreFn(mockGuild)
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Server Settings')).toBeInTheDocument()
+        })
+
+        expect(
+            screen.getAllByRole('button', { name: /Save Changes/ }),
+        ).toHaveLength(2)
+        expect(screen.queryByText(/view-only access/i)).not.toBeInTheDocument()
     })
 
     test('shows no server selected when no guild', () => {

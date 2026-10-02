@@ -24,6 +24,7 @@ import { Switch } from '@/components/ui/switch'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 import { reportError } from '@/lib/sentry'
+import { getApiErrorMessage } from '@/lib/apiError'
 import type { GuildRoleManage, RoleUpsertData } from '@/services/rolesManageApi'
 
 const SKELETON_KEYS = ['role-loading-1', 'role-loading-2', 'role-loading-3']
@@ -315,6 +316,12 @@ export default function RolesPage() {
                     action: 'createRole',
                 })
             }
+            toast.error(
+                getApiErrorMessage(
+                    error,
+                    t('roles.failedToCreate') || 'Failed to create role',
+                ),
+            )
         } finally {
             setIsSaving(false)
         }
@@ -356,6 +363,12 @@ export default function RolesPage() {
                     action: 'updateRole',
                 })
             }
+            toast.error(
+                getApiErrorMessage(
+                    error,
+                    t('roles.failedToUpdate') || 'Failed to update role',
+                ),
+            )
         } finally {
             setIsSaving(false)
         }
@@ -387,6 +400,12 @@ export default function RolesPage() {
                     action: 'deleteRole',
                 })
             }
+            toast.error(
+                getApiErrorMessage(
+                    error,
+                    t('roles.failedToDelete') || 'Failed to delete role',
+                ),
+            )
         } finally {
             setIsSaving(false)
         }
@@ -416,6 +435,12 @@ export default function RolesPage() {
                     action: 'duplicateRole',
                 })
             }
+            toast.error(
+                getApiErrorMessage(
+                    error,
+                    t('roles.failedToDuplicate') || 'Failed to duplicate role',
+                ),
+            )
         }
     }
 
@@ -445,6 +470,10 @@ export default function RolesPage() {
                         }) || `Failed to delete ${result.failed.length} roles`,
                     )
                 }
+            } else {
+                toast.error(
+                    t('roles.failedToDelete') || 'Failed to delete role',
+                )
             }
         } catch (error) {
             if (error instanceof Error) {
@@ -453,6 +482,12 @@ export default function RolesPage() {
                     action: 'bulkDeleteRoles',
                 })
             }
+            toast.error(
+                getApiErrorMessage(
+                    error,
+                    t('roles.failedToDelete') || 'Failed to delete role',
+                ),
+            )
         } finally {
             setIsSaving(false)
         }

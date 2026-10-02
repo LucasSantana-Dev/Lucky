@@ -40,6 +40,7 @@ import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea'
 import FormattingToolbar from '@/components/ui/FormattingToolbar'
 import EmojiPicker from '@/components/ui/EmojiPicker'
 import { api } from '@/services/api'
+import { getApiErrorMessage } from '@/lib/apiError'
 import { useGuildStore } from '@/stores/guildStore'
 import type {
     ReactionRoleMessage,
@@ -523,12 +524,12 @@ function MessageForm({
             }
             resetForm()
             onSuccess()
-        } catch (_err) {
+        } catch (err) {
             const msg =
                 mode === 'create'
                     ? t('reactionRoles.createFailedError')
                     : t('reactionRoles.updateFailedError')
-            setError(msg)
+            setError(getApiErrorMessage(err, msg))
         } finally {
             setSubmitting(false)
         }
@@ -899,8 +900,10 @@ export default function ReactionRoles() {
         try {
             await api.reactionRoles.delete(selectedGuild!.id, messageId)
             setMessages((prev) => prev.filter((m) => m.messageId !== messageId))
-        } catch {
-            setDeleteError(t('reactionRoles.deleteFailedError'))
+        } catch (err) {
+            setDeleteError(
+                getApiErrorMessage(err, t('reactionRoles.deleteFailedError')),
+            )
         }
     }
 

@@ -157,6 +157,64 @@ describe('AutoModPage', () => {
         expect(spamSwitch).not.toBeChecked()
     })
 
+    test('no button contains a nested switch or another button (#2427)', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Spam Detection')).toBeInTheDocument()
+        })
+
+        for (const button of screen.getAllByRole('button')) {
+            expect(within(button).queryByRole('switch')).not.toBeInTheDocument()
+            expect(button.querySelectorAll('button').length).toBe(0)
+        }
+    })
+
+    test('switch is named after its filter and clicking the row toggles it', async () => {
+        const user = userEvent.setup()
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Spam Detection')).toBeInTheDocument()
+        })
+
+        const spamSwitch = screen.getByRole('switch', {
+            name: 'Spam Detection',
+        })
+        expect(spamSwitch).toBeChecked()
+
+        await user.click(screen.getByText('Spam Detection'))
+        expect(spamSwitch).not.toBeChecked()
+    })
+
+    test('switch exposes the filter description to assistive tech', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+
+        renderPage()
+
+        const spamSwitch = await screen.findByRole('switch', {
+            name: 'Spam Detection',
+        })
+        expect(spamSwitch).toHaveAccessibleDescription(/\S/)
+        const ids = screen
+            .getAllByRole('switch')
+            .map((el) => el.getAttribute('aria-describedby'))
+        expect(new Set(ids).size).toBe(ids.length)
+    })
+
     test('toggles caps filter and hides children', async () => {
         const user = userEvent.setup()
         mockGuildStore(mockGuild)
@@ -385,13 +443,9 @@ describe('AutoModPage', () => {
             expect(screen.getByText('Link Filtering')).toBeInTheDocument()
         })
 
-        const linkCard = screen
-            .getByRole('heading', { name: 'Link Filtering' })
-            .closest('button')
-
-        expect(linkCard).toBeTruthy()
-
-        const linkSwitch = within(linkCard as HTMLElement).getByRole('switch')
+        const linkSwitch = screen.getByRole('switch', {
+            name: 'Link Filtering',
+        })
         await user.click(linkSwitch)
 
         await waitFor(() => {
