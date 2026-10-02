@@ -309,6 +309,7 @@ export function setupRolesRoutes(app: Express): void {
     app.delete(
         '/api/guilds/:guildId/reaction-roles/:messageId',
         requireAuth,
+        writeLimiter,
         validateParams(s.messageIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)

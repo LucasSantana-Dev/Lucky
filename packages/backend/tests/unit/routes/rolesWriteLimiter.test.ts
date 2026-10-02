@@ -60,4 +60,27 @@ describe('roles routes write rate limiting', () => {
         expect(uploadIdx).toBeGreaterThan(limiterIdx)
         expect(limiterIdx).toBeGreaterThan(authIdx)
     })
+
+    test('DELETE /reaction-roles/:messageId limits after auth', () => {
+        const route = routes.find(
+            (r) =>
+                r.method === 'delete' &&
+                r.path === '/api/guilds/:guildId/reaction-roles/:messageId',
+        )
+        const handlers = route?.handlers ?? []
+        expect(route).toBeDefined()
+        expect(handlers).toContain(writeLimiter)
+        const authIdx = handlers.indexOf(requireAuth)
+        expect(authIdx).toBeGreaterThanOrEqual(0)
+        expect(handlers.indexOf(writeLimiter)).toBeGreaterThan(authIdx)
+    })
+
+    test('every mutating roles route uses the write limiter', () => {
+        const mutating = routes.filter((r) => r.method !== 'get')
+        expect(mutating.length).toBeGreaterThan(0)
+        const missing = mutating
+            .filter((r) => !r.handlers.includes(writeLimiter))
+            .map((r) => `${r.method} ${r.path}`)
+        expect(missing).toEqual([])
+    })
 })
