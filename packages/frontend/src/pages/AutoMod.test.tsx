@@ -197,6 +197,24 @@ describe('AutoModPage', () => {
         expect(spamSwitch).not.toBeChecked()
     })
 
+    test('switch exposes the filter description to assistive tech', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+
+        renderPage()
+
+        const spamSwitch = await screen.findByRole('switch', {
+            name: 'Spam Detection',
+        })
+        expect(spamSwitch).toHaveAccessibleDescription(/\S/)
+        const ids = screen
+            .getAllByRole('switch')
+            .map((el) => el.getAttribute('aria-describedby'))
+        expect(new Set(ids).size).toBe(ids.length)
+    })
+
     test('toggles caps filter and hides children', async () => {
         const user = userEvent.setup()
         mockGuildStore(mockGuild)

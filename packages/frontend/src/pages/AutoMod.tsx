@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId } from 'react'
 import { motion } from 'framer-motion'
 import {
     ShieldAlert,
@@ -59,32 +59,37 @@ function FilterRow({
     onToggle,
     children,
 }: FilterRowProps) {
+    const descriptionId = useId()
     return (
         <div className='border-b border-lucky-border/50 last:border-b-0'>
             {/* Keyboard users use the Switch (a sibling, never a child, of the
                 mouse-only button: do not nest interactive elements). */}
             <div className='flex items-center justify-between px-6 py-3 hover:bg-lucky-bg-active/25 transition-colors'>
-                <button
-                    type='button'
-                    tabIndex={-1}
-                    aria-hidden='true'
-                    onClick={() => onToggle(!enabled)}
-                    className='flex items-center gap-3 flex-1 text-left'
-                >
-                    <Icon className='w-4 h-4 text-lucky-brand-text flex-shrink-0' />
-                    <span className='block'>
-                        <span className='block text-sm font-semibold text-white'>
+                <div className='flex-1 min-w-0'>
+                    <button
+                        type='button'
+                        tabIndex={-1}
+                        aria-hidden='true'
+                        onClick={() => onToggle(!enabled)}
+                        className='flex items-center gap-3 text-left'
+                    >
+                        <Icon className='w-4 h-4 text-lucky-brand-text flex-shrink-0' />
+                        <span className='text-sm font-semibold text-white'>
                             {title}
                         </span>
-                        <span className='block text-xs text-lucky-text-tertiary mt-0.5'>
-                            {description}
-                        </span>
-                    </span>
-                </button>
+                    </button>
+                    <p
+                        id={descriptionId}
+                        className='text-xs text-lucky-text-tertiary mt-0.5 pl-7'
+                    >
+                        {description}
+                    </p>
+                </div>
                 <Switch
                     checked={enabled}
                     onCheckedChange={onToggle}
                     aria-label={title}
+                    aria-describedby={descriptionId}
                 />
             </div>
             {enabled && children && (
