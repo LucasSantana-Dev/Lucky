@@ -117,6 +117,7 @@ jest.mock('../../../src/services/GuildService', () => ({
         updateGuildRole: (...a: any[]) => mockUpdateGuildRole(...a),
         deleteGuildRole: (...a: any[]) => mockDeleteGuildRole(...a),
         getGuildRoleOptions: (...a: any[]) => mockGetGuildRoleOptions(...a),
+        getBotHighestRolePosition: async () => null,
     },
 }))
 

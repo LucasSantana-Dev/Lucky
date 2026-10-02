@@ -176,6 +176,29 @@ async function resolveHierarchyGuardContext(
     }
 }
 
+// Discord rejects binding, assigning or editing a role positioned at or above
+// the bot's own highest role. Surface that as a clear 400 up front (#2420).
+// Skipped when the bot's position cannot be determined; Discord stays the
+// source of truth in that case.
+async function assertRolesBelowBot(
+    guildId: string,
+    roleIds: string[],
+): Promise<void> {
+    const botHighest = await guildService.getBotHighestRolePosition(guildId)
+    if (botHighest === null) {
+        return
+    }
+    const roles = await guildService.getFullGuildRoles(guildId)
+    for (const roleId of roleIds) {
+        const role = roles.find((r) => r.id === roleId)
+        if (role && role.position >= botHighest) {
+            throw AppError.badRequest(
+                `Role "${role.name}" is at or above the bot's highest role. Move the bot's role above it in Discord server settings.`,
+            )
+        }
+    }
+}
+
 export function setupRolesRoutes(app: Express): void {
     // Guarded by the `/reaction-roles` prefix (automation) in
     // routes/index.ts, no separate module check here (#2409).
@@ -217,6 +240,11 @@ export function setupRolesRoutes(app: Express): void {
 
             const { channelId, title, description, imageUrl, roles } =
                 validationResult.data
+
+            await assertRolesBelowBot(
+                guildId,
+                roles.map((r) => r.roleId),
+            )
 
             const imageFile = req.file
                 ? {
@@ -270,6 +298,11 @@ export function setupRolesRoutes(app: Express): void {
 
             const { title, description, imageUrl, roles } =
                 validationResult.data
+
+            await assertRolesBelowBot(
+                guildId,
+                roles.map((r) => r.roleId),
+            )
 
             const imageFile = req.file
                 ? {
@@ -427,6 +460,7 @@ export function setupRolesRoutes(app: Express): void {
                 guildContext,
             )
             assertRoleHierarchyAllowed(hierarchyContext, roleId, existingRoles)
+            await assertRolesBelowBot(guildId, [roleId])
 
             try {
                 const role = await guildService.updateGuildRole(

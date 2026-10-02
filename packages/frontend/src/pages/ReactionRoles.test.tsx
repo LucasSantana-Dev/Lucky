@@ -596,6 +596,34 @@ describe('ReactionRoles', () => {
         ).toBeInTheDocument()
     })
 
+    test('edit dialog warns when a bound role is above the bot highest role', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [{ id: 'channel-456', name: 'general' }] },
+        } as never)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: {
+                roles: [
+                    { id: 'role-111', name: 'Gamer', color: 0, position: 9 },
+                    { id: 'role-222', name: 'Music', color: 0, position: 1 },
+                ],
+                botHighestPosition: 5,
+            },
+        } as never)
+        vi.mocked(api.reactionRoles.list).mockResolvedValue([mockMessages[0]])
+        render(<ReactionRoles />)
+
+        const editButtons = await screen.findAllByRole('button', {
+            name: /edit/i,
+        })
+        fireEvent.click(editButtons[0])
+
+        const warnings = await screen.findAllByText(
+            /above the bot's highest role/i,
+        )
+        expect(warnings).toHaveLength(1)
+    })
+
     test('create dialog opens when Create button is clicked', async () => {
         mockGuildStore()
         vi.mocked(api.guilds.getChannels).mockResolvedValue({
