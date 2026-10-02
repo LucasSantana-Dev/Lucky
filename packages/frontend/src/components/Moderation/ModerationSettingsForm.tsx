@@ -26,9 +26,9 @@ const SELECT_CLASS =
 
 export default function ModerationSettingsForm({
     guildId,
-}: {
+}: Readonly<{
     guildId: string
-}) {
+}>) {
     const { t } = useTranslation('moderation')
     const [loading, setLoading] = useState(true)
     const [loadError, setLoadError] = useState(false)
@@ -68,24 +68,36 @@ export default function ModerationSettingsForm({
             api.guilds.getChannels(guildId),
             api.guilds.getRoles(guildId),
             api.moderation.getSettings(guildId),
-        ]).then(([ch, ro, se]) => {
-            if (cancelled) return
-            const chList =
-                ch.status === 'fulfilled' ? ch.value?.data?.channels : undefined
-            const roList =
-                ro.status === 'fulfilled' ? ro.value?.data?.roles : undefined
-            const settingsData =
-                se.status === 'fulfilled' ? se.value?.data?.settings : undefined
-            setChannels(chList ?? [])
-            setRoles(roList ?? [])
-            setListErrors({ channels: !chList, roles: !roList })
-            if (settingsData) {
-                setForm(toForm(settingsData))
-            } else {
+        ])
+            .then(([ch, ro, se]) => {
+                if (cancelled) return
+                const chList =
+                    ch.status === 'fulfilled'
+                        ? ch.value?.data?.channels
+                        : undefined
+                const roList =
+                    ro.status === 'fulfilled'
+                        ? ro.value?.data?.roles
+                        : undefined
+                const settingsData =
+                    se.status === 'fulfilled'
+                        ? se.value?.data?.settings
+                        : undefined
+                setChannels(chList ?? [])
+                setRoles(roList ?? [])
+                setListErrors({ channels: !chList, roles: !roList })
+                if (settingsData) {
+                    setForm(toForm(settingsData))
+                } else {
+                    setLoadError(true)
+                }
+                setLoading(false)
+            })
+            .catch(() => {
+                if (cancelled) return
                 setLoadError(true)
-            }
-            setLoading(false)
-        })
+                setLoading(false)
+            })
         return () => {
             cancelled = true
         }
@@ -145,11 +157,11 @@ export default function ModerationSettingsForm({
     if (loading) {
         return (
             <Card className='p-4 border border-lucky-border'>
-                <div role='status' aria-label={t('settingsTitle')}>
+                <output aria-label={t('settingsTitle')} className='block'>
                     <Skeleton className='h-4 w-40' />
                     <Skeleton className='h-9 w-full mt-3' />
                     <Skeleton className='h-9 w-full mt-3' />
-                </div>
+                </output>
             </Card>
         )
     }
@@ -324,12 +336,9 @@ export default function ModerationSettingsForm({
                         {saving ? t('settingsSaving') : t('settingsSave')}
                     </Button>
                     {saveState === 'saved' && (
-                        <p
-                            role='status'
-                            className='type-body-sm text-green-400'
-                        >
+                        <output className='type-body-sm text-green-400'>
                             {t('settingsSaved')}
-                        </p>
+                        </output>
                     )}
                     {saveState === 'error' && (
                         <p role='alert' className='type-body-sm text-red-400'>
