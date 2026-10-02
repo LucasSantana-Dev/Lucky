@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { I18nextProvider } from 'react-i18next'
@@ -486,13 +486,12 @@ describe('BatchJobsPage', () => {
             )
         })
 
-        resolveFirst?.({ data: { jobs: mockJobs, total: 3 } })
-
-        await waitFor(() => {
-            expect(screen.getAllByText('channel_move').length).toBeGreaterThan(
-                0,
-            )
+        await act(async () => {
+            resolveFirst?.({ data: { jobs: mockJobs, total: 3 } })
+            await Promise.resolve()
         })
+
+        expect(screen.getAllByText('channel_move').length).toBeGreaterThan(0)
         expect(screen.queryAllByText('bulk_ban')).toHaveLength(0)
     })
 
