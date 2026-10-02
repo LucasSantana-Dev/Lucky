@@ -167,10 +167,14 @@ describe('GuildService', () => {
         })
 
         test('returns null for an invalid snowflake', async () => {
-            setBotClient({ guilds: { cache: new Map() } } as unknown as Client)
+            const fetchGuild = jest.fn()
+            setBotClient({
+                guilds: { cache: new Map(), fetch: fetchGuild },
+            } as unknown as Client)
             expect(
                 await guildService.getBotHighestRolePosition('nope'),
             ).toBeNull()
+            expect(fetchGuild).not.toHaveBeenCalled()
         })
 
         test('returns null when fetching the guild fails', async () => {

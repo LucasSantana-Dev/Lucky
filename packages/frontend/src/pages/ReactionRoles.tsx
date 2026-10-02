@@ -324,6 +324,12 @@ function MessageForm({
     const isAboveBot = (role: GuildRoleOption) =>
         botHighestPosition !== null && role.position >= botHighestPosition
 
+    // Roles already bound to the message stay selectable in edit mode (the
+    // server only checks newly added roles).
+    const boundRoleIds = new Set(
+        initialMessage?.mappings.map((m) => m.roleId) ?? [],
+    )
+
     const [channelId, setChannelId] = useState('')
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
@@ -767,6 +773,12 @@ function MessageForm({
                                                         <SelectItem
                                                             key={r.id}
                                                             value={r.id}
+                                                            disabled={
+                                                                isAboveBot(r) &&
+                                                                !boundRoleIds.has(
+                                                                    r.id,
+                                                                )
+                                                            }
                                                         >
                                                             {r.name}
                                                             {isAboveBot(r) &&

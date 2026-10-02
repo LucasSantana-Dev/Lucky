@@ -664,6 +664,12 @@ describe('Roles Routes', () => {
             process.env.DISCORD_TOKEN = 'test-token'
             mockGetBotHighestRolePosition.mockResolvedValue(5)
             mockListReactionRoles.mockResolvedValue([])
+            // A successful update, so a 400 can only come from the guard.
+            ;(
+                require('@lucky/shared/services').reactionRolesService as any
+            ).updateReactionRoleMessage = jest
+                .fn<any>()
+                .mockResolvedValue({ messageId: MESSAGE_ID })
             mockGetFullGuildRoles.mockResolvedValue([
                 fullRole(LOW_ROLE, 2),
                 fullRole(HIGH_ROLE, 5),
@@ -718,6 +724,7 @@ describe('Roles Routes', () => {
                 })
 
             expect(res.status).toBe(400)
+            expect(res.body.error).toMatch(/at or above the bot's highest role/)
         })
 
         test('PUT reaction-roles allows keeping an already bound role that is now above the bot', async () => {
@@ -770,6 +777,7 @@ describe('Roles Routes', () => {
                 })
 
             expect(res.status).toBe(400)
+            expect(res.body.error).toMatch(/at or above the bot's highest role/)
         })
 
         test('PATCH roles/manage rejects editing a role at or above the bot highest role', async () => {
