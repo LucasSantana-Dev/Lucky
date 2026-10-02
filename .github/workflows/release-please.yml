@@ -5,8 +5,11 @@ name: Release Please
 # semver bump + CHANGELOG from conventional commits. Merging that PR tags v*
 # and publishes a GitHub Release, whose `release: published` event triggers
 # deploy.yml (unchanged 30-min bake → homelab webhook → migrations → rollback).
-# No auto-merge: the one-click human merge is the deliberate "ship to prod"
-# checkpoint. Incident hotfixes still use the workflow_dispatch fast-path.
+# No auto-merge on push. Since decisions/2026-10-01-batched-releases.md the
+# release PR is merged by the owner or by the owner-authorized batch loop under
+# that ADR's release gate, so merged PRs reach prod in batches. deploy-frontend-cf.yml
+# follows a successful release deploy. Incident hotfixes still use the
+# workflow_dispatch fast-path.
 
 on:
     push:

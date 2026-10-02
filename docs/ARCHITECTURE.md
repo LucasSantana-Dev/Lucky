@@ -56,12 +56,12 @@ Config: `nginx/nginx.conf`.
 
 Production serves through **three independent layers**, each with its own config file. Editing the wrong one is a common mistake (fixing the `/invite` redirect took three PRs - #1889, #1893, #1895 - before landing in the file that actually served that host).
 
-| host                          | served by                                                                                 | config                                            |
-| ----------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `lucky.lucassantana.tech`     | **Cloudflare Pages**, project `lucky-webapp` (`.github/workflows/deploy-frontend-cf.yml`) | `packages/frontend/public/_redirects`, `_headers` |
-| `lucky-api.lucassantana.tech` | Cloudflare Tunnel → homelab nginx                                                         | `nginx/nginx.conf`                                |
-| self-hosted `docker compose`  | the same nginx image, serving frontend + API together                                     | `nginx/nginx.conf`                                |
-| preview deploys               | Vercel (legacy; production migrated off on 2026-06-25)                                    | `vercel.json`                                     |
+| host                          | served by                                                                                                           | config                                            |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `lucky.lucassantana.tech`     | **Cloudflare Pages**, project `lucky-webapp` (`.github/workflows/deploy-frontend-cf.yml`, after the release deploy) | `packages/frontend/public/_redirects`, `_headers` |
+| `lucky-api.lucassantana.tech` | Cloudflare Tunnel → homelab nginx                                                                                   | `nginx/nginx.conf`                                |
+| self-hosted `docker compose`  | the same nginx image, serving frontend + API together                                                               | `nginx/nginx.conf`                                |
+| preview deploys               | Vercel (legacy; production migrated off on 2026-06-25)                                                              | `vercel.json`                                     |
 
 **How to tell which layer answered a request.** Compare the CSP: `_headers` allows `https://static.cloudflareinsights.com` in `script-src` (Cloudflare injects that beacon); the other two do not.
 
