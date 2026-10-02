@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.47.10](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.9...v2.47.10) (2026-10-02)
+
+
+### Bug Fixes
+
+* **dashboard:** confirm batch cancel and twitch remove, page batch jobs ([#2599](https://github.com/LucasSantana-Dev/Lucky/issues/2599)) ([356abcf](https://github.com/LucasSantana-Dev/Lucky/commit/356abcf8ef38097840ed8556234bd85e264ae3e6))
+* **frontend:** add 404 page, nav entries and admin support guard ([#2593](https://github.com/LucasSantana-Dev/Lucky/issues/2593)) ([19b157c](https://github.com/LucasSantana-Dev/Lucky/commit/19b157cd9c5eba93f68111b725b378f2d62c217e))
+* **frontend:** add route error boundary and support seo meta ([#2598](https://github.com/LucasSantana-Dev/Lucky/issues/2598)) ([64a36be](https://github.com/LucasSantana-Dev/Lucky/commit/64a36be7301ab1d84d02a9f3758919b2b3a8548c))
+* **frontend:** fix nested buttons, show role errors, gate settings save ([#2596](https://github.com/LucasSantana-Dev/Lucky/issues/2596)) ([139782d](https://github.com/LucasSantana-Dev/Lucky/commit/139782d9456ab7f2104eec444ed7c556f91ef47f))
+
 ## [2.47.9](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.8...v2.47.9) (2026-10-02)
 
 
