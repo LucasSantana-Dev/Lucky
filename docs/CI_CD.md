@@ -246,8 +246,8 @@ If `Auth config smoke check` times out with repeated `HTTP 502`:
     - `upstream unavailable` counters in `Auth config smoke summary`
     - deploy-side service/log diagnostics from `scripts/deploy.sh`
 4. Confirm public probes recover:
-    - `https://lucky.lucassantana.tech/api/health` -> `200`
-    - `https://lucky.lucassantana.tech/api/health/auth-config` -> `200`
+    - `https://lucky-api.lucassantana.tech/api/health` -> `200`
+    - `https://lucky-api.lucassantana.tech/api/health/auth-config` -> `200`
     - `https://lucky.lucassantana.tech/api/auth/discord` -> `302`
 
 **Recommendation**: Configure branch protection for `main` so that the CI workflow must pass before merge. Deploy then runs only when CI has already succeeded.

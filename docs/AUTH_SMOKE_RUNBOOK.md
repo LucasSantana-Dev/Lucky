@@ -44,8 +44,8 @@ Timestamp (UTC): `2026-03-14T23:52:15Z`
 Deployment and auth pre-check evidence captured:
 
 - Deploy workflow success: `23099053025` (`workflow_run`) and `23099053968` (`workflow_dispatch`)
-- `https://lucky.lucassantana.tech/api/health` -> `HTTP 200`, body includes `"status":"ok"`
-- `https://lucky.lucassantana.tech/api/health/auth-config` -> `HTTP 200`, body includes auth contract payload
+- `https://lucky-api.lucassantana.tech/api/health` -> `HTTP 200`, body includes `"status":"ok"`
+- `https://lucky-api.lucassantana.tech/api/health/auth-config` -> `HTTP 200`, body includes auth contract payload
 - `https://lucky.lucassantana.tech/api/auth/discord` -> `HTTP 302` to Discord authorize URL
 - `https://lucky.lucassantana.tech/api/auth/status` -> `{"authenticated":false}` before manual login
 
