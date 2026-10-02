@@ -13,6 +13,7 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import { useAuthStore } from './stores/authStore'
 import { useGuildStore } from './stores/guildStore'
 import Layout from './components/Layout/Layout'
+import LinkResultToast from './components/LinkResultToast/LinkResultToast'
 import EmptyState from './components/ui/EmptyState'
 import { hasModuleAccess } from './lib/rbac'
 import type { AccessMode, ModuleKey } from './types'
@@ -365,6 +366,7 @@ function App() {
     return (
         <div className='dark'>
             <ErrorBoundary>
+                <LinkResultToast />
                 <Layout>
                     <ErrorBoundary key={location.pathname}>
                         <Suspense fallback={<PageLoader />}>
