@@ -699,6 +699,31 @@ describe('replenishQueue', () => {
         )
     })
 
+    it('passes the audit collector to the genre and fallback sources', async () => {
+        const {
+            collectBroadFallbackCandidates,
+            collectGenreCandidates,
+        } = require('../candidateFallback')
+        const { guildSettingsService } = require('@lucky/shared/services')
+        guildSettingsService.getGuildSettings.mockResolvedValue({
+            autoplayGenres: ['rock'],
+        })
+        const queue = createGuildQueue({
+            currentTrack: createTrack({
+                requestedBy: { id: 'user-123' } as import('discord.js').User,
+            }),
+        })
+
+        await replenishQueue(queue)
+
+        const fallbackCollector =
+            collectBroadFallbackCandidates.mock.calls[0][2]
+        const genreCollector =
+            collectGenreCandidates.mock.calls[0][3].auditCollector
+        expect(fallbackCollector).toBeDefined()
+        expect(genreCollector).toBe(fallbackCollector)
+    })
+
     it('emits the audit log with skipped sources mapped to 0 on the empty-selection path', async () => {
         const { infoLog } = require('@lucky/shared/utils')
         const queue = createGuildQueue()

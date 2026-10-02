@@ -784,6 +784,7 @@ export async function collectAllCandidates(
                     sessionGenreFamilies:
                         autoplayContext.genreContext.sessionGenreFamilies,
                 },
+                auditCollector: autoplayContext.auditCollector,
             },
         )
         sourcesCounts.genre = candidates.size - beforeGenre
@@ -803,7 +804,11 @@ export async function collectAllCandidates(
 
     if (candidates.size === 0 && autoplayContext.currentTrack) {
         const beforeFallback = candidates.size
-        await collectBroadFallbackCandidates(autoplayContext, candidates)
+        await collectBroadFallbackCandidates(
+            autoplayContext,
+            candidates,
+            autoplayContext.auditCollector,
+        )
         sourcesCounts.fallback = candidates.size - beforeFallback
         debugLog({
             message: 'Autoplay: broad fallback candidates',
@@ -880,9 +885,6 @@ export async function selectAndRerankCandidates(
     return enriched
 }
 
-/**
- * Enqueue selected tracks and log finalization, or log empty-result path.
- */
 function emitAutoplayAudit(
     autoplayContext: AutoplayContext,
     enriched: {
@@ -915,6 +917,9 @@ function emitAutoplayAudit(
     }
 }
 
+/**
+ * Enqueue selected tracks and log finalization, or log empty-result path.
+ */
 export async function enqueueAndFinalize(
     autoplayContext: AutoplayContext,
     enriched: {

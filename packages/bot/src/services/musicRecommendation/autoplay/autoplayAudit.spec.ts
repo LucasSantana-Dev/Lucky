@@ -2,6 +2,7 @@ import { jest } from '@jest/globals'
 import type { Track } from 'discord-player'
 import { AutoplayAuditCollector } from './autoplayAudit'
 import type { ScoredTrack } from './candidateCollector'
+import { upsertScoredCandidate } from './candidateContracts'
 import type { SessionMood } from './sessionMood'
 
 const infoLogMock = jest.fn()
@@ -11,6 +12,12 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
     warnLog: jest.fn(),
+}))
+
+// diversitySelector pulls in the prisma-backed services; upsertScoredCandidate
+// itself never calls it, only shouldIncludeCandidate does.
+jest.mock('./diversitySelector', () => ({
+    isDuplicateCandidate: jest.fn(() => false),
 }))
 
 function createTrack(overrides: Partial<Track> = {}): Track {
@@ -35,6 +42,52 @@ function createScoredTrack(overrides: Partial<ScoredTrack> = {}): ScoredTrack {
 
 describe('AutoplayAuditCollector', () => {
     let collector: AutoplayAuditCollector
+
+    describe('with the real upsertScoredCandidate (#2510)', () => {
+        it('records accepted and rejected candidates fed through the contract', () => {
+            const audit = new AutoplayAuditCollector()
+            const candidates = new Map<string, ScoredTrack>()
+            upsertScoredCandidate(
+                candidates,
+                createTrack({ title: 'Ok', author: 'A' }),
+                { score: 0.7, source: 'spotify-rec', signals: [] },
+                audit,
+            )
+            upsertScoredCandidate(
+                candidates,
+                createTrack({ title: 'Bad', author: 'B' }),
+                { score: -Infinity, source: 'spotify-rec', signals: [] },
+                audit,
+            )
+
+            const record = captureEmit(audit)
+            expect(record.evaluated.map((e) => e.status)).toEqual([
+                'accepted',
+                'rejected',
+            ])
+            expect(record.droppedCount).toBe(0)
+        })
+    })
+
+    describe('evaluated cap', () => {
+        it('keeps the top 50 by score and reports droppedCount', () => {
+            const audit = new AutoplayAuditCollector()
+            for (let i = 0; i < 60; i++) {
+                audit.recordEvaluated(
+                    createTrack({ title: `T${i}`, author: 'A' }),
+                    i,
+                    'r',
+                    'accepted',
+                )
+            }
+
+            const record = captureEmit(audit)
+            expect(record.evaluated).toHaveLength(50)
+            expect(record.droppedCount).toBe(10)
+            expect(record.evaluated[0]!.score).toBe(59)
+            expect(Math.min(...record.evaluated.map((e) => e.score))).toBe(10)
+        })
+    })
 
     beforeEach(() => {
         collector = new AutoplayAuditCollector()
@@ -250,6 +303,7 @@ function captureEmit(collector: AutoplayAuditCollector) {
             }>
             sourceCounts: Record<string, number>
             durationMs: number
+            droppedCount: number
         }
     }
     return call.data
