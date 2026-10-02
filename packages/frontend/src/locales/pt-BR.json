@@ -885,6 +885,8 @@
         "addRole": "Adicionar cargo",
         "role": "Cargo",
         "selectRolePlaceholder": "Selecione um cargo",
+        "roleAboveBot": "Este cargo está no mesmo nível ou acima do cargo mais alto do bot. O Discord vai recusar; suba o cargo do bot nas configurações do servidor.",
+        "aboveBotSuffix": "(no nível do bot ou acima)",
         "buttonLabel": "Rótulo do botão",
         "buttonLabelPlaceholder": "Rótulo",
         "emojiOptional": "Emoji (opcional)",

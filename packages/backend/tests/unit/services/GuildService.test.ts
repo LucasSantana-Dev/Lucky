@@ -156,6 +156,58 @@ describe('GuildService', () => {
         })
     })
 
+    describe('getBotHighestRolePosition', () => {
+        const GUILD = '111111111111111111'
+
+        test('returns null when no bot client is set', async () => {
+            setBotClient(null)
+            expect(
+                await guildService.getBotHighestRolePosition(GUILD),
+            ).toBeNull()
+        })
+
+        test('returns null for an invalid snowflake', async () => {
+            const fetchGuild = jest.fn()
+            setBotClient({
+                guilds: { cache: new Map(), fetch: fetchGuild },
+            } as unknown as Client)
+            expect(
+                await guildService.getBotHighestRolePosition('nope'),
+            ).toBeNull()
+            expect(fetchGuild).not.toHaveBeenCalled()
+        })
+
+        test('returns null when fetching the guild fails', async () => {
+            setBotClient({
+                guilds: {
+                    cache: new Map(),
+                    fetch: jest.fn<any>().mockRejectedValue(new Error('boom')),
+                },
+            } as unknown as Client)
+            expect(
+                await guildService.getBotHighestRolePosition(GUILD),
+            ).toBeNull()
+        })
+
+        test('returns the bot highest role position', async () => {
+            setBotClient({
+                guilds: {
+                    cache: new Map([
+                        [
+                            GUILD,
+                            {
+                                members: {
+                                    me: { roles: { highest: { position: 7 } } },
+                                },
+                            },
+                        ],
+                    ]),
+                },
+            } as unknown as Client)
+            expect(await guildService.getBotHighestRolePosition(GUILD)).toBe(7)
+        })
+    })
+
     describe('generateBotInviteUrl', () => {
         test('should generate invite URL with guild ID', () => {
             const guildId = '111111111111111111'

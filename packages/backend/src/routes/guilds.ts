@@ -138,8 +138,11 @@ export function setupGuildRoutes(app: Express): void {
         validateParams(guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = getGuildId(req)
-            const roles = await guildService.getGuildRoleOptions(guildId)
-            res.json({ roles })
+            const [roles, botHighestPosition] = await Promise.all([
+                guildService.getGuildRoleOptions(guildId),
+                guildService.getBotHighestRolePosition(guildId),
+            ])
+            res.json({ roles, botHighestPosition })
         }),
     )
 

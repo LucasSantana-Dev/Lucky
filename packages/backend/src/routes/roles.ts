@@ -9,7 +9,9 @@ import {
     reactionRolesService,
     roleManagementService,
 } from '@lucky/shared/services'
+import { warnLog } from '@lucky/shared/utils'
 import { guildService } from '../services/GuildService'
+import type { GuildRoleManage } from '../services/RoleService'
 import multer from 'multer'
 import { paramToString as p } from '../utils/paramCoerce'
 import {
@@ -176,6 +178,33 @@ async function resolveHierarchyGuardContext(
     }
 }
 
+// Discord rejects binding, assigning or editing a role positioned at or above
+// the bot's own highest role. Surface that as a clear 400 up front (#2420).
+// Skipped when the bot's position cannot be determined; Discord stays the
+// source of truth in that case.
+async function assertRolesBelowBot(
+    guildId: string,
+    roleIds: string[],
+    knownRoles?: GuildRoleManage[],
+): Promise<void> {
+    const botHighest = await guildService.getBotHighestRolePosition(guildId)
+    if (botHighest === null) {
+        warnLog({
+            message: `Bot highest role unknown for guild ${guildId}; skipping role hierarchy check`,
+        })
+        return
+    }
+    const roles = knownRoles ?? (await guildService.getFullGuildRoles(guildId))
+    for (const roleId of roleIds) {
+        const role = roles.find((r) => r.id === roleId)
+        if (role && role.position >= botHighest) {
+            throw AppError.badRequest(
+                `Role "${role.name}" is at or above the bot's highest role. Move the bot's role above it in Discord server settings.`,
+            )
+        }
+    }
+}
+
 export function setupRolesRoutes(app: Express): void {
     // Guarded by the `/reaction-roles` prefix (automation) in
     // routes/index.ts, no separate module check here (#2409).
@@ -217,6 +246,11 @@ export function setupRolesRoutes(app: Express): void {
 
             const { channelId, title, description, imageUrl, roles } =
                 validationResult.data
+
+            await assertRolesBelowBot(
+                guildId,
+                roles.map((r) => r.roleId),
+            )
 
             const imageFile = req.file
                 ? {
@@ -270,6 +304,22 @@ export function setupRolesRoutes(app: Express): void {
 
             const { title, description, imageUrl, roles } =
                 validationResult.data
+
+            // Roles already bound to this message stay editable even if the
+            // bot has since been demoted: only newly added roles are checked.
+            const existing =
+                await reactionRolesService.listReactionRoleMessages(guildId)
+            const alreadyBound = new Set(
+                existing
+                    .filter((m) => m.messageId === messageId)
+                    .flatMap((m) => m.mappings.map((x) => x.roleId)),
+            )
+            await assertRolesBelowBot(
+                guildId,
+                roles
+                    .map((r) => r.roleId)
+                    .filter((id) => !alreadyBound.has(id)),
+            )
 
             const imageFile = req.file
                 ? {
@@ -427,6 +477,7 @@ export function setupRolesRoutes(app: Express): void {
                 guildContext,
             )
             assertRoleHierarchyAllowed(hierarchyContext, roleId, existingRoles)
+            await assertRolesBelowBot(guildId, [roleId], existingRoles)
 
             try {
                 const role = await guildService.updateGuildRole(
