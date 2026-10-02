@@ -17,6 +17,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
     warnLog: jest.fn(),
+    infoLog: jest.fn(),
 }))
 
 // skipCircuitBreaker (imported transitively via replenisher) pulls in this shared
@@ -649,6 +650,107 @@ describe('replenishQueue', () => {
         await replenishQueue(queue)
 
         expect(collectSeedSimilarCandidates).toHaveBeenCalled()
+    })
+
+    // #2510: the collector existed but nothing ever created one, so the
+    // 'Autoplay audit' log never fired in production.
+    it('creates one audit collector per pass, shares it with the collectors, and emits once', async () => {
+        const { infoLog } = require('@lucky/shared/utils')
+        const {
+            collectSeedSimilarCandidates,
+        } = require('./seedSimilarityCollector')
+        const { collectLastFmCandidates } = require('./lastFmSeeder')
+        const { AutoplayAuditCollector } = require('./autoplayAudit')
+        const { selectDiverseCandidates } = require('./diversitySelector')
+        const { interleaveByArtist } = require('../candidateFallback')
+
+        const picked = [
+            {
+                track: createTrack({ id: 'a' }),
+                score: 0.8,
+                basis: { source: 'spotify-rec', signals: [] },
+            },
+        ]
+        selectDiverseCandidates.mockReturnValue(picked)
+        interleaveByArtist.mockReturnValue(picked)
+
+        const queue = createGuildQueue({
+            currentTrack: createTrack({
+                requestedBy: { id: 'user-123' } as import('discord.js').User,
+            }),
+        })
+
+        await replenishQueue(queue)
+
+        const {
+            collectRecommendationCandidates,
+        } = require('./candidateCollector')
+        const recommendationCollector =
+            collectRecommendationCandidates.mock.calls[0][0].auditCollector
+        expect(recommendationCollector).toBeInstanceOf(AutoplayAuditCollector)
+
+        const seedCollector = collectSeedSimilarCandidates.mock.calls[0][3]
+        const lastFmCollector = collectLastFmCandidates.mock.calls[0][4]
+        expect(seedCollector).toBeInstanceOf(AutoplayAuditCollector)
+        expect(lastFmCollector).toBe(seedCollector)
+        expect(recommendationCollector).toBe(seedCollector)
+
+        const auditCalls = infoLog.mock.calls.filter(
+            ([arg]: [{ message: string }]) => arg.message === 'Autoplay audit',
+        )
+        expect(auditCalls).toHaveLength(1)
+        const record = auditCalls[0][0].data
+        expect(record.guildId).toBe('guildid')
+        expect(record.selected).toHaveLength(1)
+        expect(record.sourceCounts).toEqual(
+            expect.objectContaining({ recommendation: 0 }),
+        )
+    })
+
+    it('passes the audit collector to the genre and fallback sources', async () => {
+        const {
+            collectBroadFallbackCandidates,
+            collectGenreCandidates,
+        } = require('../candidateFallback')
+        const { guildSettingsService } = require('@lucky/shared/services')
+        guildSettingsService.getGuildSettings.mockResolvedValue({
+            autoplayGenres: ['rock'],
+        })
+        const queue = createGuildQueue({
+            currentTrack: createTrack({
+                requestedBy: { id: 'user-123' } as import('discord.js').User,
+            }),
+        })
+
+        await replenishQueue(queue)
+
+        const fallbackCollector =
+            collectBroadFallbackCandidates.mock.calls[0][2]
+        const genreCollector =
+            collectGenreCandidates.mock.calls[0][3].auditCollector
+        expect(fallbackCollector).toBeDefined()
+        expect(genreCollector).toBe(fallbackCollector)
+    })
+
+    it('emits the audit log keeping skipped sources distinct on the empty-selection path', async () => {
+        const { infoLog } = require('@lucky/shared/utils')
+        const queue = createGuildQueue()
+
+        await replenishQueue(queue)
+
+        const auditCalls = infoLog.mock.calls.filter(
+            ([arg]: [{ message: string }]) => arg.message === 'Autoplay audit',
+        )
+        expect(auditCalls).toHaveLength(1)
+        expect(auditCalls[0][0].data.selected).toEqual([])
+        expect(auditCalls[0][0].data.sourceCounts).toEqual(
+            expect.objectContaining({
+                recommendation: 0,
+                seedSimilar: { skipped: true },
+                lastfm: { skipped: true },
+                genre: { skipped: true },
+            }),
+        )
     })
 
     it('skips the seed-similarity spine when no requester is resolvable', async () => {

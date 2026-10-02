@@ -2,6 +2,7 @@ import type { Track, GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import type { AutoplayContext } from './autoplayContext'
+import { AutoplayAuditCollector } from './autoplayAudit'
 import { recommendationFeedbackService } from '../feedbackService'
 import { recordRecommendationOutcome } from '../../../services/musicRecommendation/recommendationTelemetry'
 import {
@@ -260,6 +261,7 @@ async function _replenishQueue(
             replayFrequentTrackIds: replayFrequency?.trackIds ?? new Set(),
             replayFrequentArtists: replayFrequency?.artists ?? new Set(),
             recentArtistIndices,
+            auditCollector: new AutoplayAuditCollector(),
         }
 
         const { candidates, sourcesCounts: finalSourcesCounts } =
@@ -716,6 +718,7 @@ export async function collectAllCandidates(
             autoplayContext,
             requestedBy,
             candidates,
+            autoplayContext.auditCollector,
         )
         sourcesCounts.seedSimilar = candidates.size - beforeSeedSimilar
         debugLog({
@@ -738,6 +741,7 @@ export async function collectAllCandidates(
             requestedBy,
             candidates,
             contributionWeights,
+            autoplayContext.auditCollector,
         )
         sourcesCounts.lastfm = candidates.size - beforeLastFm
         debugLog({
@@ -780,6 +784,7 @@ export async function collectAllCandidates(
                     sessionGenreFamilies:
                         autoplayContext.genreContext.sessionGenreFamilies,
                 },
+                auditCollector: autoplayContext.auditCollector,
             },
         )
         sourcesCounts.genre = candidates.size - beforeGenre
@@ -799,7 +804,11 @@ export async function collectAllCandidates(
 
     if (candidates.size === 0 && autoplayContext.currentTrack) {
         const beforeFallback = candidates.size
-        await collectBroadFallbackCandidates(autoplayContext, candidates)
+        await collectBroadFallbackCandidates(
+            autoplayContext,
+            candidates,
+            autoplayContext.auditCollector,
+        )
         sourcesCounts.fallback = candidates.size - beforeFallback
         debugLog({
             message: 'Autoplay: broad fallback candidates',
@@ -876,6 +885,33 @@ export async function selectAndRerankCandidates(
     return enriched
 }
 
+function emitAutoplayAudit(
+    autoplayContext: AutoplayContext,
+    enriched: {
+        track: Track
+        score: number
+        basis: import('./recommendationBasis').RecommendationBasis
+    }[],
+    sourcesCounts: Record<string, number | { skipped: true }>,
+    startTime: number,
+): void {
+    const collector = autoplayContext.auditCollector
+    if (!collector) return
+    try {
+        collector.setFinalSelected(enriched)
+        collector.emit(
+            autoplayContext.queue.guild.id,
+            autoplayContext.currentTrack.title,
+            autoplayContext.sessionMood,
+            sourcesCounts,
+            Date.now() - startTime,
+        )
+    } catch (error) {
+        // Telemetry must never stop the queue from being refilled.
+        warnLog({ message: 'Autoplay audit emit failed', error })
+    }
+}
+
 /**
  * Enqueue selected tracks and log finalization, or log empty-result path.
  */
@@ -898,6 +934,9 @@ export async function enqueueAndFinalize(
     const autoplayMode = autoplayContext.autoplayMode
     const guildId = queue.guild.id
     const replenishCount = replenishCounters.get(guildId) ?? 0
+
+    // Emitted on the empty path too: that is exactly the pass worth auditing.
+    emitAutoplayAudit(autoplayContext, enriched, sourcesCounts, startTime)
 
     if (enriched.length === 0) {
         // The per-source breakdown has to ride on this warn, not on the

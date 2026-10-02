@@ -19,6 +19,12 @@ interface SelectedTrack {
     reason: string
 }
 
+/** Keeps one pass's single info log line bounded. */
+const MAX_EVALUATED_ENTRIES = 50
+
+/** A skipped source never ran; keep it distinct from "ran, found nothing". */
+type SourceCount = number | { skipped: true }
+
 export interface AutoplayAuditRecord {
     cycleId: string
     guildId: string
@@ -27,8 +33,10 @@ export interface AutoplayAuditRecord {
     sessionMoodSummary: string | null
     evaluated: EvaluatedCandidate[]
     selected: SelectedTrack[]
-    sourceCounts: Record<string, number>
+    sourceCounts: Record<string, SourceCount>
     durationMs: number
+    /** Evaluated entries omitted from `evaluated` by the cap. */
+    droppedCount: number
 }
 
 export class AutoplayAuditCollector {
@@ -63,20 +71,32 @@ export class AutoplayAuditCollector {
         guildId: string,
         seed: string,
         sessionMood: SessionMood | null,
-        sourceCounts: Record<string, number>,
+        sourceCounts: Record<string, SourceCount>,
         durationMs: number,
     ): void {
         const now = Date.now()
+        const droppedCount = Math.max(
+            0,
+            this.evaluated.length - MAX_EVALUATED_ENTRIES,
+        )
+        // Only reorder when trimming, so short passes keep evaluation order.
+        const evaluated =
+            droppedCount > 0
+                ? [...this.evaluated]
+                      .sort((a, b) => b.score - a.score)
+                      .slice(0, MAX_EVALUATED_ENTRIES)
+                : this.evaluated
         const record: AutoplayAuditRecord = {
             cycleId: `${guildId}-${now}`,
             guildId,
             timestamp: now,
             seed,
             sessionMoodSummary: sessionMood?.dominantLocale ?? null,
-            evaluated: this.evaluated,
+            evaluated,
             selected: this.selected,
             sourceCounts,
             durationMs,
+            droppedCount,
         }
         infoLog({ message: 'Autoplay audit', data: record })
     }
