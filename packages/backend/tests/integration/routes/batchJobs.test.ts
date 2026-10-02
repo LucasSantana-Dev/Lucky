@@ -8,6 +8,7 @@ import { errorHandler } from '../../../src/middleware/errorHandler'
 jest.mock('@lucky/shared/services', () => ({
     batchJobService: {
         listByGuild: jest.fn(),
+        countByGuild: jest.fn(),
         getById: jest.fn(),
         markCancelled: jest.fn(),
     },
@@ -113,6 +114,27 @@ describe('Batch Jobs Routes', () => {
                     offset: 0,
                     orderBy: 'newest',
                 }),
+            )
+        })
+
+        test('should return the total count alongside the page of jobs', async () => {
+            const { batchJobService } = await import('@lucky/shared/services')
+            const mockBatchJobService = batchJobService as jest.Mocked<
+                typeof batchJobService
+            >
+            mockBatchJobService.listByGuild.mockResolvedValue([MOCK_BATCH_JOB])
+            mockBatchJobService.countByGuild.mockResolvedValue(37)
+
+            const response = await request(app)
+                .get(`/api/guilds/${MOCK_GUILD_ID}/batch-jobs`)
+                .query({ status: 'pending' })
+                .expect(200)
+
+            expect(response.body.total).toBe(37)
+            expect(response.body.jobs).toHaveLength(1)
+            expect(mockBatchJobService.countByGuild).toHaveBeenCalledWith(
+                MOCK_GUILD_ID,
+                { status: 'pending' },
             )
         })
 
