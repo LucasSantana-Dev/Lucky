@@ -2,6 +2,7 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { ADMIN_PATHS } from './navConfig'
 import Sidebar from './Sidebar'
 import { useAuthStore } from '@/stores/authStore'
 import { useGuildStore } from '@/stores/guildStore'
@@ -106,6 +107,68 @@ describe('Sidebar', () => {
         expect(screen.getByText('Server Settings')).toBeInTheDocument()
         expect(screen.getByText('Features')).toBeInTheDocument()
         expect(screen.getByText('Music Player')).toBeInTheDocument()
+    })
+
+    test('links to config and batch jobs for everyone', () => {
+        renderSidebar()
+
+        expect(
+            screen.getByRole('link', { name: 'Configuration' }),
+        ).toHaveAttribute('href', '/config')
+        expect(
+            screen.getByRole('link', { name: 'Batch Jobs' }),
+        ).toHaveAttribute('href', '/batch-jobs')
+    })
+
+    test('ADMIN_PATHS covers the admin sidebar links', () => {
+        expect(ADMIN_PATHS).toEqual(['/admin', '/admin/support'])
+    })
+
+    test('hides the admin support link from non-developers', () => {
+        renderSidebar()
+
+        expect(
+            screen.queryByRole('link', { name: 'Support Reports' }),
+        ).not.toBeInTheDocument()
+    })
+
+    test('shows the admin support link to developers', () => {
+        vi.mocked(useAuthStore).mockReturnValue({
+            user: mockUser,
+            isAuthenticated: true,
+            isLoading: false,
+            isDeveloper: true,
+            login: vi.fn(),
+            logout: mockLogout,
+            checkAuth: vi.fn(),
+            checkDeveloperStatus: vi.fn(),
+        })
+        renderSidebar()
+
+        expect(
+            screen.getByRole('link', { name: 'Support Reports' }),
+        ).toHaveAttribute('href', '/admin/support')
+    })
+
+    test('highlights only the support link on /admin/support', () => {
+        vi.mocked(useAuthStore).mockReturnValue({
+            user: mockUser,
+            isAuthenticated: true,
+            isLoading: false,
+            isDeveloper: true,
+            login: vi.fn(),
+            logout: mockLogout,
+            checkAuth: vi.fn(),
+            checkDeveloperStatus: vi.fn(),
+        })
+        renderSidebar('/admin/support')
+
+        expect(
+            screen.getByRole('link', { name: 'Support Reports' }),
+        ).toHaveAttribute('data-active', 'true')
+        expect(
+            screen.getByRole('link', { name: 'Admin Panel' }),
+        ).toHaveAttribute('data-active', 'false')
     })
 
     test('highlights active link based on current route', () => {

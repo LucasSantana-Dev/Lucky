@@ -33,6 +33,11 @@
         "music": "música",
         "integrations": "integrações"
     },
+    "notFound": {
+        "title": "Página não encontrada",
+        "description": "A página que você procura não existe ou foi movida.",
+        "backHome": "Voltar ao início"
+    },
     "sidebar": {
         "activeGuild": "Servidor ativo",
         "switchServer": "Trocar servidor",
@@ -75,6 +80,9 @@
             "lastFm": "Last.fm",
             "twitch": "Twitch",
             "features": "Recursos",
+            "config": "Configuração",
+            "batchJobs": "Tarefas em lote",
+            "supportReports": "Relatórios de suporte",
             "roles": "Funções",
             "roleGroups": "Grupos de cargos"
         }

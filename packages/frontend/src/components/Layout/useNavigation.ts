@@ -1,15 +1,16 @@
 import { useLocation } from 'react-router-dom'
 import { useGuildStore } from '@/stores/guildStore'
 import { hasModuleAccess } from '@/lib/rbac'
-import { navSections } from './navConfig'
+import { ADMIN_PATHS, navSections } from './navConfig'
 import type { AccessMode, ModuleKey } from '@/types'
 
 // Every path known to the sidebar, used to resolve which nav item "owns" a
 // given pathname when more than one item's path is a prefix of it (e.g.
 // /music and /music/history both match /music/history).
-const ALL_NAV_PATHS = navSections.flatMap((section) =>
-    section.items.map((item) => item.path),
-)
+const ALL_NAV_PATHS = [
+    ...navSections.flatMap((section) => section.items.map((item) => item.path)),
+    ...ADMIN_PATHS,
+]
 
 /**
  * Active-route and module-visibility logic shared by the sidebar's nav

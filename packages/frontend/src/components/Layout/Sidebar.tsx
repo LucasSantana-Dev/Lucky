@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
-import { Menu, ShieldCheck } from 'lucide-react'
+import { LifeBuoy, Menu, ShieldCheck } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuthStore } from '@/stores/authStore'
 import { cn } from '@/lib/utils'
 import type { AccessMode, ModuleKey } from '@/types'
-import { navSections } from './navConfig'
+import { ADMIN_PATHS, navSections } from './navConfig'
 import { useNavigation } from './useNavigation'
 
 interface NavSectionsProps {
@@ -22,6 +22,14 @@ function NavSections({
     isDeveloper,
 }: NavSectionsProps) {
     const { t } = useTranslation()
+    const adminLinks = [
+        { to: ADMIN_PATHS[0], label: 'Admin Panel', icon: ShieldCheck },
+        {
+            to: ADMIN_PATHS[1],
+            label: t('sidebar.nav.supportReports'),
+            icon: LifeBuoy,
+        },
+    ]
     return (
         <ScrollArea className='flex-1 py-3'>
             <nav aria-label='Main navigation' className='space-y-4 px-2'>
@@ -114,45 +122,49 @@ function NavSections({
                             Admin
                         </p>
                         <ul className='space-y-0.5' role='list'>
-                            <li>
-                                <Link
-                                    to='/admin'
-                                    data-active={
-                                        isActive('/admin') ? 'true' : 'false'
-                                    }
-                                    aria-current={
-                                        isActive('/admin') ? 'page' : undefined
-                                    }
-                                    className={cn(
-                                        'lucky-focus-visible group relative flex min-h-[38px] items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-all duration-120',
-                                        isActive('/admin')
-                                            ? 'border-lucky-brand/40 bg-lucky-bg-active text-lucky-text-primary shadow-[0_8px_24px_rgb(0_0_0/0.18)] focus-visible:shadow-[0_0_0_3px_var(--color-lucky-focus),0_8px_24px_rgb(0_0_0/0.18)]'
-                                            : 'border-transparent text-lucky-text-tertiary hover:border-lucky-border hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary focus-visible:shadow-[0_0_0_3px_var(--color-lucky-focus)]',
-                                    )}
-                                >
-                                    <span
+                            {adminLinks.map((link) => (
+                                <li key={link.to}>
+                                    <Link
+                                        to={link.to}
+                                        data-active={
+                                            isActive(link.to) ? 'true' : 'false'
+                                        }
+                                        aria-current={
+                                            isActive(link.to)
+                                                ? 'page'
+                                                : undefined
+                                        }
                                         className={cn(
-                                            'absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r transition-all duration-120',
-                                            isActive('/admin')
-                                                ? 'bg-lucky-brand'
-                                                : 'bg-transparent',
+                                            'lucky-focus-visible group relative flex min-h-[38px] items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-all duration-120',
+                                            isActive(link.to)
+                                                ? 'border-lucky-brand/40 bg-lucky-bg-active text-lucky-text-primary shadow-[0_8px_24px_rgb(0_0_0/0.18)] focus-visible:shadow-[0_0_0_3px_var(--color-lucky-focus),0_8px_24px_rgb(0_0_0/0.18)]'
+                                                : 'border-transparent text-lucky-text-tertiary hover:border-lucky-border hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary focus-visible:shadow-[0_0_0_3px_var(--color-lucky-focus)]',
                                         )}
-                                        aria-hidden='true'
-                                    />
-                                    <ShieldCheck
-                                        className={cn(
-                                            'h-4 w-4 shrink-0 transition-colors duration-120',
-                                            isActive('/admin')
-                                                ? 'text-lucky-brand-text'
-                                                : 'text-lucky-text-subtle group-hover:text-lucky-text-tertiary',
-                                        )}
-                                        aria-hidden='true'
-                                    />
-                                    <span className='type-body-sm truncate font-medium'>
-                                        Admin Panel
-                                    </span>
-                                </Link>
-                            </li>
+                                    >
+                                        <span
+                                            className={cn(
+                                                'absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r transition-all duration-120',
+                                                isActive(link.to)
+                                                    ? 'bg-lucky-brand'
+                                                    : 'bg-transparent',
+                                            )}
+                                            aria-hidden='true'
+                                        />
+                                        <link.icon
+                                            className={cn(
+                                                'h-4 w-4 shrink-0 transition-colors duration-120',
+                                                isActive(link.to)
+                                                    ? 'text-lucky-brand-text'
+                                                    : 'text-lucky-text-subtle group-hover:text-lucky-text-tertiary',
+                                            )}
+                                            aria-hidden='true'
+                                        />
+                                        <span className='type-body-sm truncate font-medium'>
+                                            {link.label}
+                                        </span>
+                                    </Link>
+                                </li>
+                            ))}
                         </ul>
                     </div>
                 )}
