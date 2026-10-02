@@ -413,6 +413,51 @@ describe('BatchJobsPage', () => {
         })
     })
 
+    test('clamps to the last page when the total shrinks after a cancel', async () => {
+        const user = userEvent.setup()
+        mockGuildStore(mockGuild)
+        let total = 31
+        vi.mocked(api.batchJobs.list).mockImplementation(
+            async (_guildId, filters) =>
+                ({
+                    data: {
+                        jobs: filters?.offset === 30 ? [mockJobs[0]] : mockJobs,
+                        total,
+                    },
+                }) as any,
+        )
+        vi.mocked(api.batchJobs.getProgress).mockResolvedValue({
+            data: { progress: null },
+        } as any)
+        vi.mocked(api.batchJobs.cancel).mockImplementation(async () => {
+            total = 30
+            return { data: { job: mockJobs[0] } } as any
+        })
+
+        renderPage()
+
+        const next = (await screen.findByText('1 / 3')).nextElementSibling
+        await user.click(next as HTMLElement)
+        await user.click(
+            (await screen.findByText('2 / 3'))
+                .nextElementSibling as HTMLElement,
+        )
+        await screen.findByText('3 / 3')
+
+        const row = screen
+            .getAllByText('bulk_ban')[0]
+            .closest('[class*="grid"]')
+        await user.click(row!)
+        await user.click(await screen.findByText('Cancel Job'))
+        await user.click(
+            within(await screen.findByRole('dialog')).getByRole('button', {
+                name: 'Yes, cancel job',
+            }),
+        )
+
+        expect(await screen.findByText('2 / 2')).toBeInTheDocument()
+    })
+
     test('does not render a search input', async () => {
         mockGuildStore(mockGuild)
         vi.mocked(api.batchJobs.list).mockResolvedValue({

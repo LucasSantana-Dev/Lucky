@@ -366,6 +366,44 @@ describe('TwitchNotificationsPage', () => {
         expect(screen.getByText('shroud')).toBeInTheDocument()
     })
 
+    test('keeps the login in the dialog text while it closes', async () => {
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: mockNotifications },
+        } as any)
+
+        renderPage()
+        await screen.findByText('shroud')
+
+        await userEvent.click(screen.getByLabelText('Remove shroud'))
+        const dialog = await screen.findByRole('dialog')
+        expect(dialog).toHaveTextContent('shroud')
+        await userEvent.click(
+            within(dialog).getByRole('button', { name: 'Cancel' }),
+        )
+
+        expect(dialog).toHaveTextContent('shroud')
+    })
+
+    test('does not fire a second delete while one is in flight', async () => {
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: mockNotifications },
+        } as any)
+        vi.mocked(api.twitch.remove).mockReturnValue(new Promise(() => {}))
+
+        renderPage()
+        await screen.findByText('shroud')
+
+        await confirmRemove('shroud')
+        await waitFor(() => {
+            expect(screen.queryByRole('dialog')).toBeNull()
+        })
+        await confirmRemove('shroud')
+
+        expect(api.twitch.remove).toHaveBeenCalledTimes(1)
+    })
+
     test('remove button calls api and updates list', async () => {
         mockGuildSelection(mockGuild)
         vi.mocked(api.twitch.list).mockResolvedValue({

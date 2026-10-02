@@ -53,6 +53,8 @@ export default function TwitchNotificationsPage() {
     const [removeTarget, setRemoveTarget] = useState<TwitchNotification | null>(
         null,
     )
+    const [removeOpen, setRemoveOpen] = useState(false)
+    const removingIdsRef = useRef(new Set<string>())
     const [newTwitchInput, setNewTwitchInput] = useState('')
     const [newChannelId, setNewChannelId] = useState('')
     const [twitchConfigured, setTwitchConfigured] = useState<boolean | null>(
@@ -229,7 +231,8 @@ export default function TwitchNotificationsPage() {
     }
 
     const handleRemove = async (twitchUserId: string) => {
-        if (!guildId) return
+        if (!guildId || removingIdsRef.current.has(twitchUserId)) return
+        removingIdsRef.current.add(twitchUserId)
         const requestGuildId = guildId
         try {
             await api.twitch.remove(requestGuildId, twitchUserId)
@@ -252,6 +255,8 @@ export default function TwitchNotificationsPage() {
                 return
             }
             setError(getErrorMessage(error, t('failedToRemoveNotification')))
+        } finally {
+            removingIdsRef.current.delete(twitchUserId)
         }
     }
 
@@ -298,7 +303,10 @@ export default function TwitchNotificationsPage() {
                             </p>
                         </div>
                         <button
-                            onClick={() => setRemoveTarget(notif)}
+                            onClick={() => {
+                                setRemoveTarget(notif)
+                                setRemoveOpen(true)
+                            }}
                             className='lucky-focus-visible p-1.5 rounded-sm text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 cursor-pointer'
                             aria-label={t('removeAriaLabel', {
                                 login: notif.twitchLogin,
@@ -438,12 +446,7 @@ export default function TwitchNotificationsPage() {
 
             {renderNotifications()}
 
-            <Dialog
-                open={removeTarget !== null}
-                onOpenChange={(open) => {
-                    if (!open) setRemoveTarget(null)
-                }}
-            >
+            <Dialog open={removeOpen} onOpenChange={setRemoveOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{t('removeConfirmTitle')}</DialogTitle>
@@ -456,7 +459,7 @@ export default function TwitchNotificationsPage() {
                     <DialogFooter>
                         <Button
                             variant='secondary'
-                            onClick={() => setRemoveTarget(null)}
+                            onClick={() => setRemoveOpen(false)}
                         >
                             {t('cancel')}
                         </Button>
@@ -466,7 +469,7 @@ export default function TwitchNotificationsPage() {
                                 if (removeTarget) {
                                     void handleRemove(removeTarget.twitchUserId)
                                 }
-                                setRemoveTarget(null)
+                                setRemoveOpen(false)
                             }}
                         >
                             {t('remove')}
