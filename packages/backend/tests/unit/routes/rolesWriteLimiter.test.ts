@@ -70,9 +70,9 @@ describe('roles routes write rate limiting', () => {
         const handlers = route?.handlers ?? []
         expect(route).toBeDefined()
         expect(handlers).toContain(writeLimiter)
-        expect(handlers.indexOf(writeLimiter)).toBeGreaterThan(
-            handlers.indexOf(requireAuth),
-        )
+        const authIdx = handlers.indexOf(requireAuth)
+        expect(authIdx).toBeGreaterThanOrEqual(0)
+        expect(handlers.indexOf(writeLimiter)).toBeGreaterThan(authIdx)
     })
 
     test('every mutating roles route uses the write limiter', () => {
