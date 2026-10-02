@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { I18nextProvider } from 'react-i18next'
@@ -314,6 +314,58 @@ describe('TwitchNotificationsPage', () => {
         ).not.toBeInTheDocument()
     })
 
+    async function confirmRemove(login: string) {
+        await userEvent.click(screen.getByLabelText(`Remove ${login}`))
+        const dialog = await screen.findByRole('dialog')
+        await userEvent.click(
+            within(dialog).getByRole('button', { name: 'Remove' }),
+        )
+    }
+
+    test('remove button opens a confirm dialog without calling the api', async () => {
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: mockNotifications },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('shroud')).toBeInTheDocument()
+        })
+
+        await userEvent.click(screen.getByLabelText('Remove shroud'))
+
+        const dialog = await screen.findByRole('dialog')
+        expect(dialog).toHaveTextContent('Remove notification?')
+        expect(api.twitch.remove).not.toHaveBeenCalled()
+    })
+
+    test('dismissing the remove dialog does not call the api', async () => {
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: mockNotifications },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('shroud')).toBeInTheDocument()
+        })
+
+        await userEvent.click(screen.getByLabelText('Remove shroud'))
+        const dialog = await screen.findByRole('dialog')
+        await userEvent.click(
+            within(dialog).getByRole('button', { name: 'Cancel' }),
+        )
+
+        await waitFor(() => {
+            expect(screen.queryByRole('dialog')).toBeNull()
+        })
+        expect(api.twitch.remove).not.toHaveBeenCalled()
+        expect(screen.getByText('shroud')).toBeInTheDocument()
+    })
+
     test('remove button calls api and updates list', async () => {
         mockGuildSelection(mockGuild)
         vi.mocked(api.twitch.list).mockResolvedValue({
@@ -329,8 +381,7 @@ describe('TwitchNotificationsPage', () => {
             expect(screen.getByText('shroud')).toBeInTheDocument()
         })
 
-        const removeButton = screen.getByLabelText('Remove shroud')
-        await userEvent.click(removeButton)
+        await confirmRemove('shroud')
 
         expect(api.twitch.remove).toHaveBeenCalledWith('123', 'tw1')
     })
@@ -459,8 +510,7 @@ describe('TwitchNotificationsPage', () => {
             expect(screen.getByText('shroud')).toBeInTheDocument()
         })
 
-        const removeButton = screen.getByLabelText('Remove shroud')
-        await userEvent.click(removeButton)
+        await confirmRemove('shroud')
 
         await waitFor(() => {
             expect(screen.queryByText('shroud')).not.toBeInTheDocument()
@@ -490,8 +540,7 @@ describe('TwitchNotificationsPage', () => {
             expect(screen.getByText('shroud')).toBeInTheDocument()
         })
 
-        const removeButton = screen.getByLabelText('Remove shroud')
-        await userEvent.click(removeButton)
+        await confirmRemove('shroud')
 
         // Switch to a different guild while the remove request is still in
         // flight, then let the stale response for the old guild land.
@@ -530,8 +579,7 @@ describe('TwitchNotificationsPage', () => {
             expect(screen.getByText('shroud')).toBeInTheDocument()
         })
 
-        const removeButton = screen.getByLabelText('Remove shroud')
-        await userEvent.click(removeButton)
+        await confirmRemove('shroud')
 
         expect(
             await screen.findByText('Failed to remove Twitch notification'),

@@ -10,7 +10,7 @@ export interface BatchJobFilters {
 export function createBatchJobsApi(apiClient: AxiosInstance) {
     return {
         list: (guildId: string, filters?: BatchJobFilters) =>
-            apiClient.get<{ jobs: BatchJob[] }>(
+            apiClient.get<{ jobs: BatchJob[]; total: number }>(
                 `/guilds/${guildId}/batch-jobs`,
                 { params: filters },
             ),

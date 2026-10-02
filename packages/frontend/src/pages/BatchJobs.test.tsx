@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { I18nextProvider } from 'react-i18next'
@@ -31,7 +31,6 @@ i18n.init({
                 initiated: 'Initiated By',
                 progress: 'Progress',
                 date: 'Date',
-                searchByTypeOrInitiator: 'Search by job type or initiator...',
                 allStatuses: 'All statuses',
                 pending: 'Pending',
                 in_progress: 'In Progress',
@@ -66,6 +65,11 @@ i18n.init({
                 refresh: 'Refresh',
                 cancel: 'Cancel',
                 cancelJob: 'Cancel Job',
+                cancelJobConfirmTitle: 'Cancel this job?',
+                cancelJobConfirmDescription:
+                    'Items already processed will not be reverted.',
+                cancelJobConfirm: 'Yes, cancel job',
+                keepJob: 'Keep job',
                 cancelling: 'Cancelling...',
                 jobCancelled: 'Job cancelled',
                 failedToCancelJob: 'Failed to cancel job',
@@ -326,8 +330,7 @@ describe('BatchJobsPage', () => {
         expect(screen.getByText('100')).toBeInTheDocument()
     })
 
-    test('cancel job button calls cancel API', async () => {
-        const user = userEvent.setup()
+    async function openCancelDialog(user: ReturnType<typeof userEvent.setup>) {
         mockGuildStore(mockGuild)
         vi.mocked(api.batchJobs.list).mockResolvedValue({
             data: { jobs: mockJobs },
@@ -351,10 +354,77 @@ describe('BatchJobsPage', () => {
 
         const cancelButton = await screen.findByText('Cancel Job')
         await user.click(cancelButton)
+        return screen.findByRole('dialog')
+    }
+
+    test('cancel job opens a confirm dialog without calling the API', async () => {
+        const user = userEvent.setup()
+        const dialog = await openCancelDialog(user)
+
+        expect(dialog).toHaveTextContent('Cancel this job?')
+        expect(api.batchJobs.cancel).not.toHaveBeenCalled()
+    })
+
+    test('confirming the dialog calls the cancel API', async () => {
+        const user = userEvent.setup()
+        const dialog = await openCancelDialog(user)
+
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Yes, cancel job' }),
+        )
 
         await waitFor(() => {
             expect(api.batchJobs.cancel).toHaveBeenCalledWith('123', 'job1')
         })
+    })
+
+    test('dismissing the dialog does not call the cancel API', async () => {
+        const user = userEvent.setup()
+        const dialog = await openCancelDialog(user)
+
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Keep job' }),
+        )
+
+        await waitFor(() => {
+            expect(screen.queryByText('Cancel this job?')).toBeNull()
+        })
+        expect(api.batchJobs.cancel).not.toHaveBeenCalled()
+    })
+
+    test('pagination uses the total returned by the API', async () => {
+        const user = userEvent.setup()
+        mockGuildStore(mockGuild)
+        vi.mocked(api.batchJobs.list).mockResolvedValue({
+            data: { jobs: mockJobs, total: 40 },
+        } as any)
+
+        renderPage()
+
+        const pageLabel = await screen.findByText('1 / 3')
+        await user.click(pageLabel.nextElementSibling as HTMLElement)
+
+        await waitFor(() => {
+            expect(api.batchJobs.list).toHaveBeenCalledWith('123', {
+                status: undefined,
+                limit: 15,
+                offset: 15,
+            })
+        })
+    })
+
+    test('does not render a search input', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.batchJobs.list).mockResolvedValue({
+            data: { jobs: mockJobs, total: 3 },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getAllByText('bulk_ban').length).toBeGreaterThan(0)
+        })
+        expect(screen.queryByRole('textbox')).toBeNull()
     })
 
     test('filtering resets page to 1', async () => {
