@@ -214,12 +214,9 @@ export default function ChangelogPage() {
                             </p>
                         ) : null}
                         {changelogMd === null && !loadFailed ? (
-                            <p
-                                role='status'
-                                className='text-sm text-lucky-text-muted'
-                            >
+                            <output className='block text-sm text-lucky-text-muted'>
                                 Loading changelog...
-                            </p>
+                            </output>
                         ) : null}
 
                         <div className='relative'>
