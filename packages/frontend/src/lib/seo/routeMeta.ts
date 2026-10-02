@@ -52,6 +52,12 @@ export const PUBLIC_ROUTES: RouteMeta[] = [
         description: 'Release notes and version history for Lucky.',
     },
     {
+        path: '/support',
+        title: 'Support · Lucky',
+        description:
+            'Report a problem or get help with the Lucky Discord bot and web dashboard.',
+    },
+    {
         path: '/terms-of-service',
         title: 'Terms of Service · Lucky',
         description:

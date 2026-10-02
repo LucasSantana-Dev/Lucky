@@ -32,7 +32,11 @@ export function inferApiBase(
     }
 
     if (isLuckyManagedHost(hostname)) {
-        return '/api'
+        // No /api rewrite exists on this host: a relative base would be
+        // answered with index.html (200) instead of failing.
+        throw new Error(
+            `VITE_API_BASE_URL is not set for ${hostname}; refusing to fall back to a relative /api base`,
+        )
     }
 
     if (isHomeServerHost(hostname)) {

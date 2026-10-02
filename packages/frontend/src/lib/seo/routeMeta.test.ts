@@ -23,6 +23,7 @@ describe('routeMeta', () => {
                 '/docs',
                 '/privacy',
                 '/privacy-policy',
+                '/support',
                 '/terms',
                 '/terms-of-service',
             ].sort(),
@@ -54,6 +55,7 @@ describe('routeMeta', () => {
                 '/changelog',
                 '/docs',
                 '/privacy-policy',
+                '/support',
                 '/terms-of-service',
             ].sort(),
         )

@@ -366,9 +366,11 @@ function App() {
         <div className='dark'>
             <ErrorBoundary>
                 <Layout>
-                    <Suspense fallback={<PageLoader />}>
-                        <AuthenticatedRoutes />
-                    </Suspense>
+                    <ErrorBoundary key={location.pathname}>
+                        <Suspense fallback={<PageLoader />}>
+                            <AuthenticatedRoutes />
+                        </Suspense>
+                    </ErrorBoundary>
                 </Layout>
             </ErrorBoundary>
         </div>
