@@ -46,15 +46,18 @@ const updateReasonBody = z.object({
 
 const updateSettingsBody = z
     .object({
-        logChannelId: snowflakeId.optional(),
-        muteRoleId: snowflakeId.optional(),
-        modRoles: z.array(snowflakeId).optional(),
+        modLogChannelId: snowflakeId.nullable().optional(),
+        muteRoleId: snowflakeId.nullable().optional(),
+        modRoleIds: z.array(snowflakeId).max(50).optional(),
         autoModEnabled: z.boolean().optional(),
-        warnThreshold: z.number().int().min(1).max(50).optional(),
-        warnAction: z.enum(['mute', 'kick', 'ban']).optional(),
-        warnActionDuration: z.number().int().min(0).optional(),
+        maxWarnings: z.number().int().min(1).max(50).optional(),
+        dmOnAction: z.boolean().optional(),
+        requireReason: z.boolean().optional(),
     })
     .strict()
+    .refine((body) => Object.keys(body).length > 0, {
+        message: 'Provide at least one setting to update',
+    })
 
 export const moderationSchemas = {
     guildIdParam,
