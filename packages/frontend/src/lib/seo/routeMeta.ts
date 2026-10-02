@@ -5,7 +5,7 @@
  *  - the build-time prerender step (`scripts/prerender-seo.ts`), which writes the
  *    per-route `<head>` into the served HTML so non-JS crawlers + AI answer engines
  *    (which don't execute JS as of 2026) see distinct title/description/OG; and
- *  - the runtime on public pages (Changelog / Terms / Privacy call `usePageMetadata`
+ *  - the runtime on public pages (Changelog / Terms / Privacy / Support call `usePageMetadata`
  *    from this map), so the live tab title can't drift from the served HTML.
  *
  * Landing is i18n-driven at runtime (`t('landing.meta.*')`); its `/` entry below is
