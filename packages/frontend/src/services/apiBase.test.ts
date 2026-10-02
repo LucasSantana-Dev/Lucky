@@ -24,17 +24,14 @@ describe('inferApiBase', () => {
             hostname: 'panel.luk-homeserver.com.br',
             expected: 'https://api.luk-homeserver.com.br/api',
         },
-    ])(
-        'infers API base for $hostname',
-        ({ hostname, expected }) => {
-            const result = inferApiBase(undefined, {
-                protocol: 'https:',
-                hostname,
-            })
+    ])('infers API base for $hostname', ({ hostname, expected }) => {
+        const result = inferApiBase(undefined, {
+            protocol: 'https:',
+            hostname,
+        })
 
-            expect(result).toBe(expected)
-        },
-    )
+        expect(result).toBe(expected)
+    })
 
     test('falls back to /api when location is unavailable', () => {
         expect(inferApiBase()).toBe('/api')

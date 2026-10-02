@@ -24,6 +24,11 @@ beforeEach(() => {
 })
 
 describe('SupportPage', () => {
+    test('sets the registered public route title', () => {
+        renderAt('/support')
+        expect(document.title).toBe('Support · Lucky')
+    })
+
     test('renders the form with a disabled submit until context is filled', () => {
         renderAt('/support')
         expect(screen.getByText('Report a problem')).toBeInTheDocument()

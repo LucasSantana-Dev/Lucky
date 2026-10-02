@@ -124,6 +124,7 @@ describe('buildSitemap', () => {
                 'https://lucky.lucassantana.tech/changelog',
                 'https://lucky.lucassantana.tech/terms-of-service',
                 'https://lucky.lucassantana.tech/privacy-policy',
+                'https://lucky.lucassantana.tech/support',
             ].sort(),
         )
         // aliases excluded

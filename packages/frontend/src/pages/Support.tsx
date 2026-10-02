@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { LifeBuoy, Send, CheckCircle2, AlertCircle } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { api } from '@/services/api'
+import { usePageMetadata } from '@/hooks/usePageMetadata'
+import { metaFor } from '@/lib/seo/routeMeta'
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
@@ -13,6 +15,7 @@ type SubmitState = 'idle' | 'submitting' | 'success' | 'error'
 export default function SupportPage() {
     const { t } = useTranslation()
     const [searchParams] = useSearchParams()
+    usePageMetadata(metaFor('/support'))
 
     // Prefilled, read-only correlation/context carried from an error surface.
     // (The bot's link may also carry `command`; the intake only persists the
