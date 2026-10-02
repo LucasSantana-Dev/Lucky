@@ -1,25 +1,39 @@
 name: Deploy Frontend to Cloudflare Pages
 
+# Ships with the release, after the homelab deploy (deploy.yml) succeeds, so a
+# batch of merged PRs reaches production as one deploy and the UI never goes
+# live ahead of the API it calls. See decisions/2026-10-01-batched-releases.md.
+# Only release-triggered homelab deploys count: a rollback dispatch of
+# deploy.yml must not push main's unreleased frontend. For an out-of-band
+# frontend hotfix, run workflow_dispatch from the hotfix tag, not from main.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'packages/frontend/**'
-      - 'packages/shared/**'
-      - 'prisma/**'
-      - 'CHANGELOG.md'
-      - '.github/workflows/deploy-frontend-cf.yml'
+  workflow_run:
+    workflows: ['Deploy to Homelab']
+    types: [completed]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: deploy-frontend-cf
+  cancel-in-progress: false
+
 jobs:
   deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'release')
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # On workflow_run, github.sha is main's HEAD, not the release commit.
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       # This is a root-lockfile monorepo (workspaces: packages/*). Per-package
       # lockfiles are gitignored (.gitignore: packages/*/package-lock.json), so
@@ -49,7 +63,7 @@ jobs:
         env:
           VITE_API_BASE_URL: https://lucky-api.lucassantana.tech/api
           VITE_SENTRY_ENVIRONMENT: production
-          VITE_COMMIT_SHA: ${{ github.sha }}
+          VITE_COMMIT_SHA: ${{ env.DEPLOY_SHA }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}

@@ -1,6 +1,6 @@
 # Release cadence: automate releases with release-please, keep the deploy gate
 
-- Status: accepted (adopt release-please; pilot via dry-run before enabling on main)
+- Status: accepted (adopt release-please; pilot via dry-run before enabling on main); human ship-checkpoint (no auto-merge) superseded by 2026-10-01-batched-releases.md
 - Date: 2026-06-16
 
 ## Context
