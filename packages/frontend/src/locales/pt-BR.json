@@ -788,6 +788,7 @@
         "settingsChannelsFailed": "Falha ao carregar canais",
         "settingsRolesFailed": "Falha ao carregar cargos",
         "settingsRetry": "Tentar novamente",
+        "settingsModRolesLimit": "No máximo {{max}} cargos de moderador",
         "justNow": "Agora mesmo",
         "minutesAgo": "há {{minutes}}m",
         "hoursAgo": "há {{hours}}h",

@@ -792,6 +792,7 @@
         "settingsChannelsFailed": "Failed to load channels",
         "settingsRolesFailed": "Failed to load roles",
         "settingsRetry": "Retry",
+        "settingsModRolesLimit": "Up to {{max}} moderator roles",
         "justNow": "Just now",
         "minutesAgo": "{{minutes}}m ago",
         "hoursAgo": "{{hours}}h ago",

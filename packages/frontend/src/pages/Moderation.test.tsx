@@ -10,6 +10,9 @@ import { useGuildStore } from '@/stores/guildStore'
 
 vi.mock('@/services/api')
 vi.mock('@/stores/guildStore')
+vi.mock('@/components/Moderation/ModerationSettingsForm', () => ({
+    default: () => <div data-testid='settings-form' />,
+}))
 
 i18n.init({
     lng: 'en',
@@ -121,10 +124,16 @@ const mockCases = [
     },
 ]
 
-function mockGuildStore(guild: typeof mockGuild | null) {
+function mockGuildStore(
+    guild: typeof mockGuild | null,
+    effectiveAccess?: Record<string, string>,
+) {
     vi.mocked(useGuildStore).mockReturnValue({
         guilds: guild ? [guild] : [],
-        selectedGuild: guild as any,
+        selectedGuild: guild
+            ? ({ ...guild, effectiveAccess } as any)
+            : (null as any),
+        memberContext: null,
         selectGuild: vi.fn(),
         isLoading: false,
         error: null,
@@ -143,6 +152,21 @@ function renderPage() {
 }
 
 describe('ModerationPage', () => {
+    test('shows the settings form only with manage access', async () => {
+        vi.mocked(api.moderation.getCases).mockResolvedValue({
+            data: { cases: [], total: 0 },
+        } as any)
+        mockGuildStore(mockGuild, { moderation: 'manage' })
+        const { unmount } = renderPage()
+        expect(await screen.findByTestId('settings-form')).toBeInTheDocument()
+        unmount()
+
+        mockGuildStore(mockGuild, { moderation: 'view' })
+        renderPage()
+        await screen.findByText('Moderation Cases')
+        expect(screen.queryByTestId('settings-form')).not.toBeInTheDocument()
+    })
+
     beforeEach(() => {
         vi.clearAllMocks()
         Object.defineProperty(

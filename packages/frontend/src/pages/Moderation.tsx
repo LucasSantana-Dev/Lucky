@@ -31,6 +31,7 @@ import Skeleton from '@/components/ui/Skeleton'
 import ModerationSettingsForm from '@/components/Moderation/ModerationSettingsForm'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
+import { hasModuleAccess } from '@/lib/rbac'
 import { toast } from 'sonner'
 import { cn, formatDate, timeAgo } from '@/lib/utils'
 import type { ModerationCase, ModerationStats } from '@/types'
@@ -273,7 +274,10 @@ const CaseDetailModal = CaseDetailPanel
 export default function ModerationPage() {
     const { t } = useTranslation('moderation')
     const prefersReducedMotion = useReducedMotion()
-    const { selectedGuild } = useGuildStore()
+    const { selectedGuild, memberContext } = useGuildStore()
+    const effectiveAccess =
+        memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess
+    const canManage = hasModuleAccess(effectiveAccess, 'moderation', 'manage')
     const [cases, setCases] = useState<ModerationCase[]>([])
     const [total, setTotal] = useState(0)
     const [stats, setStats] = useState<ModerationStats | null>(null)
@@ -393,7 +397,7 @@ export default function ModerationPage() {
                 </p>
             </header>
 
-            <ModerationSettingsForm guildId={selectedGuild.id} />
+            {canManage && <ModerationSettingsForm guildId={selectedGuild.id} />}
 
             {statsLoading ? (
                 <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3'>

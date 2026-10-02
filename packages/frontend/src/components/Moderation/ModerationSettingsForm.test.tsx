@@ -32,6 +32,7 @@ i18n.init({
                 settingsChannelsFailed: 'Failed to load channels',
                 settingsRolesFailed: 'Failed to load roles',
                 settingsRetry: 'Retry',
+                settingsModRolesLimit: 'Role limit hint',
             },
         },
     },
@@ -239,24 +240,28 @@ describe('ModerationSettingsForm', () => {
         ).toBeGreaterThan(0)
     })
 
-    test('offers a retry when settings fail to load', async () => {
+    test('recovers from a settings load failure after Retry', async () => {
         const user = userEvent.setup()
-        setup()
-        vi.mocked(api.moderation.getSettings).mockRejectedValueOnce(
-            new Error('boom'),
-        )
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as any)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: { roles: [] },
+        } as any)
+        vi.mocked(api.moderation.getSettings)
+            .mockRejectedValueOnce(new Error('boom'))
+            .mockResolvedValueOnce({ data: { settings } } as any)
         render(
             <I18nextProvider i18n={i18n}>
                 <ModerationSettingsForm guildId='g1' />
             </I18nextProvider>,
         )
-        const retry = (
-            await screen.findAllByRole('button', { name: 'Retry' })
-        )[0]
-        await user.click(retry)
-        expect(
-            (await screen.findAllByLabelText('Log channel')).length,
-        ).toBeGreaterThan(0)
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Failed to load settings',
+        )
+        await user.click(screen.getByRole('button', { name: 'Retry' }))
+        expect(await screen.findByLabelText('Log channel')).toBeInTheDocument()
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
 
     test('keeps saved ids that are missing from the loaded lists', async () => {
@@ -286,5 +291,66 @@ describe('ModerationSettingsForm', () => {
                 }),
             ),
         )
+    })
+
+    test('disables fields while saving', async () => {
+        const user = userEvent.setup()
+        setup()
+        vi.mocked(api.moderation.updateSettings).mockReturnValue(
+            new Promise(() => {}) as any,
+        )
+        await user.click(
+            await screen.findByRole('button', { name: 'Save settings' }),
+        )
+        expect(screen.getByLabelText('Log channel')).toBeDisabled()
+        expect(screen.getByLabelText('Mute role')).toBeDisabled()
+        expect(screen.getByLabelText('Warnings before action')).toBeDisabled()
+        expect(screen.getByLabelText('Mods')).toBeDisabled()
+    })
+
+    test('does not leave Save disabled after a guild switch mid-save', async () => {
+        const user = userEvent.setup()
+        const { rerender } = setup()
+        vi.mocked(api.moderation.updateSettings).mockReturnValue(
+            new Promise((_, rej) =>
+                setTimeout(() => rej(new Error('x')), 30),
+            ) as any,
+        )
+        await user.click(
+            await screen.findByRole('button', { name: 'Save settings' }),
+        )
+        rerender(
+            <I18nextProvider i18n={i18n}>
+                <ModerationSettingsForm guildId='g2' />
+            </I18nextProvider>,
+        )
+        await waitFor(() =>
+            expect(
+                screen.getByRole('button', { name: 'Save settings' }),
+            ).toBeEnabled(),
+        )
+    })
+
+    test('caps moderator roles at 50 and shows a hint', async () => {
+        const roles = Array.from({ length: 52 }, (_, i) => ({
+            id: `r${i}`,
+            name: `Role ${i}`,
+            color: 0,
+            position: i,
+        }))
+        setup({ modRoleIds: roles.slice(0, 50).map((r) => r.id) })
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: { roles },
+        } as any)
+        render(
+            <I18nextProvider i18n={i18n}>
+                <ModerationSettingsForm guildId='g1' />
+            </I18nextProvider>,
+        )
+        expect(
+            (await screen.findAllByText('Role limit hint')).length,
+        ).toBeGreaterThan(0)
+        expect(screen.getAllByLabelText('Role 51')[0]).toBeDisabled()
+        expect(screen.getAllByLabelText('Role 0')[0]).toBeEnabled()
     })
 })

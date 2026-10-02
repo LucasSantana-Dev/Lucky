@@ -19,6 +19,8 @@ interface FormState {
     dmOnAction: boolean
 }
 
+const MAX_MOD_ROLES = 50
+
 const SELECT_CLASS =
     'w-full rounded-md bg-lucky-bg-tertiary border border-lucky-border text-lucky-text-primary px-3 py-2 type-body-sm'
 
@@ -127,7 +129,7 @@ export default function ModerationSettingsForm({
             if (guildRef.current !== requestGuild) return
             setSaveState('error')
         } finally {
-            if (guildRef.current === requestGuild) setSaving(false)
+            setSaving(false)
         }
     }
 
@@ -195,6 +197,7 @@ export default function ModerationSettingsForm({
                         <select
                             id='mod-settings-log-channel'
                             className={SELECT_CLASS}
+                            disabled={saving}
                             value={form.modLogChannelId}
                             onChange={(e) =>
                                 update({ modLogChannelId: e.target.value })
@@ -227,6 +230,7 @@ export default function ModerationSettingsForm({
                         <select
                             id='mod-settings-mute-role'
                             className={SELECT_CLASS}
+                            disabled={saving}
                             value={form.muteRoleId}
                             onChange={(e) =>
                                 update({ muteRoleId: e.target.value })
@@ -262,6 +266,7 @@ export default function ModerationSettingsForm({
                             min={1}
                             max={50}
                             className={SELECT_CLASS}
+                            disabled={saving}
                             value={form.maxWarnings}
                             onChange={(e) =>
                                 update({ maxWarnings: e.target.value })
@@ -272,6 +277,7 @@ export default function ModerationSettingsForm({
                     <label className='flex items-center gap-2 type-body-sm text-lucky-text-primary self-end pb-2'>
                         <input
                             type='checkbox'
+                            disabled={saving}
                             checked={form.dmOnAction}
                             onChange={(e) =>
                                 update({ dmOnAction: e.target.checked })
@@ -293,6 +299,12 @@ export default function ModerationSettingsForm({
                             >
                                 <input
                                     type='checkbox'
+                                    disabled={
+                                        saving ||
+                                        (!form.modRoleIds.includes(r.id) &&
+                                            form.modRoleIds.length >=
+                                                MAX_MOD_ROLES)
+                                    }
                                     checked={form.modRoleIds.includes(r.id)}
                                     onChange={() => toggleRole(r.id)}
                                 />
@@ -300,6 +312,11 @@ export default function ModerationSettingsForm({
                             </label>
                         ))}
                     </div>
+                    {form.modRoleIds.length >= MAX_MOD_ROLES && (
+                        <p className='type-body-sm text-yellow-400'>
+                            {t('settingsModRolesLimit', { max: MAX_MOD_ROLES })}
+                        </p>
+                    )}
                 </fieldset>
 
                 <div className='flex items-center gap-3'>

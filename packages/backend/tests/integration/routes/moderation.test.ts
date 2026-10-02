@@ -787,7 +787,7 @@ describe('Moderation Routes Integration', () => {
 
             const mockSettings = {
                 guildId: '111111111111111111',
-                logChannelId: '555555555555555555',
+                modLogChannelId: '555555555555555555',
                 muteRoleId: '666666666666666666',
                 autoModEnabled: false,
             }
@@ -806,7 +806,7 @@ describe('Moderation Routes Integration', () => {
                 .patch('/api/guilds/111111111111111111/moderation/settings')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .send({
-                    logChannelId: '555555555555555555',
+                    modLogChannelId: '555555555555555555',
                     autoModEnabled: false,
                 })
                 .expect(200)
@@ -815,7 +815,7 @@ describe('Moderation Routes Integration', () => {
             expect(mockModerationService.updateSettings).toHaveBeenCalledWith(
                 '111111111111111111',
                 {
-                    logChannelId: '555555555555555555',
+                    modLogChannelId: '555555555555555555',
                     autoModEnabled: false,
                 },
             )
@@ -824,7 +824,7 @@ describe('Moderation Routes Integration', () => {
                 {
                     setting: 'moderation',
                     newValue: {
-                        logChannelId: '555555555555555555',
+                        modLogChannelId: '555555555555555555',
                         autoModEnabled: false,
                     },
                 },
