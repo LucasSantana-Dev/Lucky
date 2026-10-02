@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { I18nextProvider } from 'react-i18next'
@@ -31,7 +31,6 @@ i18n.init({
                 initiated: 'Initiated By',
                 progress: 'Progress',
                 date: 'Date',
-                searchByTypeOrInitiator: 'Search by job type or initiator...',
                 allStatuses: 'All statuses',
                 pending: 'Pending',
                 in_progress: 'In Progress',
@@ -66,6 +65,13 @@ i18n.init({
                 refresh: 'Refresh',
                 cancel: 'Cancel',
                 cancelJob: 'Cancel Job',
+                previousPage: 'Previous page',
+                nextPage: 'Next page',
+                cancelJobConfirmTitle: 'Cancel this job?',
+                cancelJobConfirmDescription:
+                    'Items already processed will not be reverted.',
+                cancelJobConfirm: 'Yes, cancel job',
+                keepJob: 'Keep job',
                 cancelling: 'Cancelling...',
                 jobCancelled: 'Job cancelled',
                 failedToCancelJob: 'Failed to cancel job',
@@ -326,8 +332,7 @@ describe('BatchJobsPage', () => {
         expect(screen.getByText('100')).toBeInTheDocument()
     })
 
-    test('cancel job button calls cancel API', async () => {
-        const user = userEvent.setup()
+    async function openCancelDialog(user: ReturnType<typeof userEvent.setup>) {
         mockGuildStore(mockGuild)
         vi.mocked(api.batchJobs.list).mockResolvedValue({
             data: { jobs: mockJobs },
@@ -351,10 +356,176 @@ describe('BatchJobsPage', () => {
 
         const cancelButton = await screen.findByText('Cancel Job')
         await user.click(cancelButton)
+        return screen.findByRole('dialog')
+    }
+
+    test('cancel job opens a confirm dialog without calling the API', async () => {
+        const user = userEvent.setup()
+        const dialog = await openCancelDialog(user)
+
+        expect(dialog).toHaveTextContent('Cancel this job?')
+        expect(api.batchJobs.cancel).not.toHaveBeenCalled()
+    })
+
+    test('confirming the dialog calls the cancel API', async () => {
+        const user = userEvent.setup()
+        const dialog = await openCancelDialog(user)
+
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Yes, cancel job' }),
+        )
 
         await waitFor(() => {
             expect(api.batchJobs.cancel).toHaveBeenCalledWith('123', 'job1')
         })
+    })
+
+    test('dismissing the dialog does not call the cancel API', async () => {
+        const user = userEvent.setup()
+        const dialog = await openCancelDialog(user)
+
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Keep job' }),
+        )
+
+        await waitFor(() => {
+            expect(screen.queryByText('Cancel this job?')).toBeNull()
+        })
+        expect(api.batchJobs.cancel).not.toHaveBeenCalled()
+    })
+
+    test('pagination uses the total returned by the API', async () => {
+        const user = userEvent.setup()
+        mockGuildStore(mockGuild)
+        vi.mocked(api.batchJobs.list).mockResolvedValue({
+            data: { jobs: mockJobs, total: 40 },
+        } as any)
+
+        renderPage()
+
+        await screen.findByText('1 / 3')
+        await user.click(screen.getByRole('button', { name: 'Next page' }))
+
+        await waitFor(() => {
+            expect(api.batchJobs.list).toHaveBeenCalledWith('123', {
+                status: undefined,
+                limit: 15,
+                offset: 15,
+            })
+        })
+    })
+
+    test('clamps to the last page when the total shrinks after a cancel', async () => {
+        const user = userEvent.setup()
+        mockGuildStore(mockGuild)
+        let total = 31
+        vi.mocked(api.batchJobs.list).mockImplementation(
+            async (_guildId, filters) =>
+                ({
+                    data: {
+                        jobs: filters?.offset === 30 ? [mockJobs[0]] : mockJobs,
+                        total,
+                    },
+                }) as any,
+        )
+        vi.mocked(api.batchJobs.getProgress).mockResolvedValue({
+            data: { progress: null },
+        } as any)
+        vi.mocked(api.batchJobs.cancel).mockImplementation(async () => {
+            total = 30
+            return { data: { job: mockJobs[0] } } as any
+        })
+
+        renderPage()
+
+        await screen.findByText('1 / 3')
+        await user.click(screen.getByRole('button', { name: 'Next page' }))
+        await screen.findByText('2 / 3')
+        await user.click(screen.getByRole('button', { name: 'Next page' }))
+        await screen.findByText('3 / 3')
+
+        const row = screen
+            .getAllByText('bulk_ban')[0]
+            .closest('[class*="grid"]')
+        await user.click(row!)
+        await user.click(await screen.findByText('Cancel Job'))
+        await user.click(
+            within(await screen.findByRole('dialog')).getByRole('button', {
+                name: 'Yes, cancel job',
+            }),
+        )
+
+        expect(await screen.findByText('2 / 2')).toBeInTheDocument()
+    })
+
+    test('ignores a stale list response that resolves after a newer one', async () => {
+        const user = userEvent.setup()
+        mockGuildStore(mockGuild)
+        let resolveFirst: ((v: unknown) => void) | undefined
+        vi.mocked(api.batchJobs.list)
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    resolveFirst = resolve
+                }) as any,
+            )
+            .mockResolvedValue({
+                data: { jobs: [mockJobs[1]], total: 1 },
+            } as any)
+
+        renderPage()
+        await waitFor(() => {
+            expect(api.batchJobs.list).toHaveBeenCalledTimes(1)
+        })
+
+        await user.click(screen.getByRole('combobox'))
+        const options = await screen.findAllByText('Completed')
+        await user.click(options[options.length - 1])
+        await waitFor(() => {
+            expect(screen.getAllByText('channel_move').length).toBeGreaterThan(
+                0,
+            )
+        })
+
+        await act(async () => {
+            resolveFirst?.({ data: { jobs: mockJobs, total: 3 } })
+            await Promise.resolve()
+        })
+
+        expect(screen.getAllByText('channel_move').length).toBeGreaterThan(0)
+        expect(screen.queryAllByText('bulk_ban')).toHaveLength(0)
+    })
+
+    test('keeps the current page when a later page fails to load', async () => {
+        const user = userEvent.setup()
+        mockGuildStore(mockGuild)
+        vi.mocked(api.batchJobs.list).mockResolvedValue({
+            data: { jobs: mockJobs, total: 40 },
+        } as any)
+
+        renderPage()
+        await screen.findByText('1 / 3')
+
+        vi.mocked(api.batchJobs.list).mockRejectedValue(new Error('boom'))
+        await user.click(screen.getByRole('button', { name: 'Next page' }))
+
+        await waitFor(() => {
+            expect(api.batchJobs.list).toHaveBeenCalledTimes(2)
+        })
+        expect(await screen.findByText('2 / 3')).toBeInTheDocument()
+    })
+
+    test('does not render a search input', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.batchJobs.list).mockResolvedValue({
+            data: { jobs: mockJobs, total: 3 },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getAllByText('bulk_ban').length).toBeGreaterThan(0)
+        })
+        expect(screen.queryByRole('textbox')).toBeNull()
     })
 
     test('filtering resets page to 1', async () => {

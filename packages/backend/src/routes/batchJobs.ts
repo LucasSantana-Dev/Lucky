@@ -37,14 +37,17 @@ export function setupBatchJobRoutes(app: Express): void {
             const query = s.listQuery.parse(req.query)
             const { status, limit = 20, offset = 0 } = query
 
-            const jobs = await batchJobService.listByGuild(guildId, {
-                status,
-                limit,
-                offset,
-                orderBy: 'newest',
-            })
+            const [jobs, total] = await Promise.all([
+                batchJobService.listByGuild(guildId, {
+                    status,
+                    limit,
+                    offset,
+                    orderBy: 'newest',
+                }),
+                batchJobService.countByGuild(guildId, { status }),
+            ])
 
-            res.json({ jobs })
+            res.json({ jobs, total })
         }),
     )
 

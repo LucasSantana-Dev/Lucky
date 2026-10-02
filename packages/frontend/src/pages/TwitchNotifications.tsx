@@ -11,6 +11,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import Button from '@/components/ui/Button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import type { GuildChannelOption } from '@/types'
 
 interface TwitchNotification {
@@ -41,6 +50,11 @@ export default function TwitchNotificationsPage() {
     const [error, setError] = useState<string | null>(null)
     const [channelsError, setChannelsError] = useState<string | null>(null)
     const [showAdd, setShowAdd] = useState(false)
+    const [removeTarget, setRemoveTarget] = useState<TwitchNotification | null>(
+        null,
+    )
+    const [removeOpen, setRemoveOpen] = useState(false)
+    const removingIdsRef = useRef(new Set<string>())
     const [newTwitchInput, setNewTwitchInput] = useState('')
     const [newChannelId, setNewChannelId] = useState('')
     const [twitchConfigured, setTwitchConfigured] = useState<boolean | null>(
@@ -52,6 +66,8 @@ export default function TwitchNotificationsPage() {
 
     useEffect(() => {
         selectedGuildIdRef.current = guildId
+        setRemoveOpen(false)
+        setRemoveTarget(null)
     }, [guildId])
 
     useEffect(() => {
@@ -219,6 +235,9 @@ export default function TwitchNotificationsPage() {
     const handleRemove = async (twitchUserId: string) => {
         if (!guildId) return
         const requestGuildId = guildId
+        const removeKey = `${requestGuildId}:${twitchUserId}`
+        if (removingIdsRef.current.has(removeKey)) return
+        removingIdsRef.current.add(removeKey)
         try {
             await api.twitch.remove(requestGuildId, twitchUserId)
             // Guard against a late response landing after the admin switched
@@ -240,6 +259,8 @@ export default function TwitchNotificationsPage() {
                 return
             }
             setError(getErrorMessage(error, t('failedToRemoveNotification')))
+        } finally {
+            removingIdsRef.current.delete(removeKey)
         }
     }
 
@@ -286,7 +307,10 @@ export default function TwitchNotificationsPage() {
                             </p>
                         </div>
                         <button
-                            onClick={() => handleRemove(notif.twitchUserId)}
+                            onClick={() => {
+                                setRemoveTarget(notif)
+                                setRemoveOpen(true)
+                            }}
                             className='lucky-focus-visible p-1.5 rounded-sm text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 cursor-pointer'
                             aria-label={t('removeAriaLabel', {
                                 login: notif.twitchLogin,
@@ -425,6 +449,41 @@ export default function TwitchNotificationsPage() {
             )}
 
             {renderNotifications()}
+
+            <Dialog open={removeOpen} onOpenChange={setRemoveOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{t('removeConfirmTitle')}</DialogTitle>
+                        <DialogDescription>
+                            {t('removeConfirmDescription', {
+                                login: removeTarget?.twitchLogin,
+                            })}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant='secondary'
+                            onClick={() => setRemoveOpen(false)}
+                        >
+                            {t('cancel')}
+                        </Button>
+                        <Button
+                            variant='destructive'
+                            onClick={() => {
+                                if (
+                                    removeTarget &&
+                                    removeTarget.guildId === guildId
+                                ) {
+                                    void handleRemove(removeTarget.twitchUserId)
+                                }
+                                setRemoveOpen(false)
+                            }}
+                        >
+                            {t('remove')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

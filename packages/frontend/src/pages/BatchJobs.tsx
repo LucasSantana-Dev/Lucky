@@ -3,7 +3,6 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import {
     Clock,
-    Search,
     Filter,
     ChevronLeft,
     ChevronRight,
@@ -17,7 +16,6 @@ import {
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import EmptyState from '@/components/ui/EmptyState'
 import {
     Select,
@@ -27,6 +25,14 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import Skeleton from '@/components/ui/Skeleton'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 import { toast } from 'sonner'
@@ -103,6 +109,7 @@ function JobDetailPanel({
     const { t } = useTranslation('batchJobs')
     const [progress, setProgress] = useState<BatchProgress | null>(null)
     const [loadingProgress, setLoadingProgress] = useState(false)
+    const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
     const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const { selectedGuild } = useGuildStore()
 
@@ -340,7 +347,7 @@ function JobDetailPanel({
                             jobData.status === 'in_progress') && (
                             <div className='border-t border-lucky-border p-4'>
                                 <Button
-                                    onClick={() => onCancel(jobData.id)}
+                                    onClick={() => setConfirmCancelOpen(true)}
                                     disabled={cancelling}
                                     variant='destructive'
                                     className='w-full'
@@ -349,6 +356,43 @@ function JobDetailPanel({
                                         ? t('cancelling')
                                         : t('cancelJob')}
                                 </Button>
+                                <Dialog
+                                    open={confirmCancelOpen}
+                                    onOpenChange={setConfirmCancelOpen}
+                                >
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>
+                                                {t('cancelJobConfirmTitle')}
+                                            </DialogTitle>
+                                            <DialogDescription>
+                                                {t(
+                                                    'cancelJobConfirmDescription',
+                                                )}
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter>
+                                            <Button
+                                                variant='secondary'
+                                                onClick={() =>
+                                                    setConfirmCancelOpen(false)
+                                                }
+                                            >
+                                                {t('keepJob')}
+                                            </Button>
+                                            <Button
+                                                variant='destructive'
+                                                disabled={cancelling}
+                                                onClick={() => {
+                                                    setConfirmCancelOpen(false)
+                                                    void onCancel(jobData.id)
+                                                }}
+                                            >
+                                                {t('cancelJobConfirm')}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
                             </div>
                         )}
                     </motion.div>
@@ -370,9 +414,11 @@ export default function BatchJobsPage() {
     const [cancelllingJobId, setCancellingJobId] = useState<string | null>(null)
     const [selectedJob, setSelectedJob] = useState<BatchJob | null>(null)
     const limit = 15
+    const fetchRequestIdRef = useRef(0)
 
     const fetchJobs = useCallback(async () => {
         if (!selectedGuild?.id) return
+        const requestId = ++fetchRequestIdRef.current
         setLoading(true)
         try {
             const res = await api.batchJobs.list(selectedGuild.id, {
@@ -383,19 +429,20 @@ export default function BatchJobsPage() {
                 limit,
                 offset: (page - 1) * limit,
             })
+            if (requestId !== fetchRequestIdRef.current) return
             setJobs(res.data.jobs)
-            setTotal(res.data.jobs.length)
+            setTotal(res.data.total ?? res.data.jobs.length)
         } catch {
+            if (requestId !== fetchRequestIdRef.current) return
             setJobs([])
-            setTotal(0)
         } finally {
-            setLoading(false)
+            if (requestId === fetchRequestIdRef.current) setLoading(false)
         }
     }, [selectedGuild?.id, page, statusFilter])
 
     const handleCancelJob = useCallback(
         async (jobId: string) => {
-            if (!selectedGuild?.id) return
+            if (!selectedGuild?.id || cancelllingJobId) return
 
             setCancellingJobId(jobId)
             try {
@@ -413,7 +460,7 @@ export default function BatchJobsPage() {
                 setCancellingJobId(null)
             }
         },
-        [selectedGuild?.id, fetchJobs, t],
+        [selectedGuild?.id, cancelllingJobId, fetchJobs, t],
     )
 
     useEffect(() => {
@@ -425,6 +472,10 @@ export default function BatchJobsPage() {
     }, [statusFilter])
 
     const totalPages = Math.max(1, Math.ceil(total / limit))
+
+    useEffect(() => {
+        if (page > totalPages) setPage(totalPages)
+    }, [page, totalPages])
 
     if (!selectedGuild) {
         return (
@@ -454,14 +505,6 @@ export default function BatchJobsPage() {
             {}
             <Card className='p-4 border border-lucky-border'>
                 <div className='flex flex-col sm:flex-row gap-3'>
-                    <div className='relative flex-1'>
-                        <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lucky-text-tertiary' />
-                        <Input
-                            placeholder={t('searchByTypeOrInitiator')}
-                            disabled
-                            className='pl-9 bg-lucky-bg-tertiary border-lucky-border text-white placeholder:text-lucky-text-tertiary'
-                        />
-                    </div>
                     <div className='flex items-center gap-2'>
                         <Filter className='w-4 h-4 text-lucky-text-tertiary shrink-0' />
                         <Select
@@ -646,6 +689,7 @@ export default function BatchJobsPage() {
                                 size='sm'
                                 variant='ghost'
                                 disabled={page <= 1}
+                                aria-label={t('previousPage')}
                                 onClick={() => setPage((p) => p - 1)}
                                 className='h-8 w-8 p-0 text-lucky-text-secondary hover:text-lucky-text-primary'
                             >
@@ -658,6 +702,7 @@ export default function BatchJobsPage() {
                                 size='sm'
                                 variant='ghost'
                                 disabled={page >= totalPages}
+                                aria-label={t('nextPage')}
                                 onClick={() => setPage((p) => p + 1)}
                                 className='h-8 w-8 p-0 text-lucky-text-secondary hover:text-lucky-text-primary'
                             >

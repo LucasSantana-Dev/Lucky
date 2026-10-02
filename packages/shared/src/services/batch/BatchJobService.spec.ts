@@ -135,6 +135,39 @@ describe('BatchJobService', () => {
         })
     })
 
+    describe('countByGuild', () => {
+        it('counts jobs for a guild filtered by status', async () => {
+            // @ts-ignore
+            const mockCount = jest.fn().mockResolvedValue(42)
+            mockGetPrismaClient.mockReturnValue({
+                batchJob: { count: mockCount },
+            })
+
+            const result = await service.countByGuild('guild-1', {
+                status: 'pending',
+            })
+
+            expect(result).toBe(42)
+            expect(mockCount).toHaveBeenCalledWith({
+                where: { guildId: 'guild-1', status: 'pending' },
+            })
+        })
+
+        it('counts all jobs for a guild without a status filter', async () => {
+            // @ts-ignore
+            const mockCount = jest.fn().mockResolvedValue(7)
+            mockGetPrismaClient.mockReturnValue({
+                batchJob: { count: mockCount },
+            })
+
+            await service.countByGuild('guild-1')
+
+            expect(mockCount).toHaveBeenCalledWith({
+                where: { guildId: 'guild-1' },
+            })
+        })
+    })
+
     describe('markInProgress', () => {
         it('updates job status to in_progress', async () => {
             const updatedJob = {

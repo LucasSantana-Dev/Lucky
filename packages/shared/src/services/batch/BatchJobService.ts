@@ -86,6 +86,20 @@ export class BatchJobService {
     }
 
     /**
+     * Counts batch jobs for a guild, optionally filtered by status.
+     */
+    async countByGuild(guildId: string, options?: { status?: BatchJobStatus }) {
+        const prisma = getPrismaClient()
+
+        const where: Record<string, unknown> = { guildId }
+        if (options?.status) {
+            where.status = options.status
+        }
+
+        return await prisma.batchJob.count({ where })
+    }
+
+    /**
      * Marks a batch job as in-progress.
      */
     async markInProgress(jobId: string) {
