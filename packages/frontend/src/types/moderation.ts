@@ -22,7 +22,6 @@ export interface ModerationCase {
 }
 
 export interface ModerationSettings {
-    id?: string
     guildId: string
     modLogChannelId: string | null
     muteRoleId: string | null
@@ -39,3 +38,16 @@ export interface ModerationStats {
     recentCases: number
     casesByType: Record<ModerationActionType, number>
 }
+
+export type ModerationSettingsUpdate = Partial<
+    Pick<
+        ModerationSettings,
+        | 'modLogChannelId'
+        | 'muteRoleId'
+        | 'modRoleIds'
+        | 'autoModEnabled'
+        | 'maxWarnings'
+        | 'dmOnAction'
+        | 'requireReason'
+    >
+>

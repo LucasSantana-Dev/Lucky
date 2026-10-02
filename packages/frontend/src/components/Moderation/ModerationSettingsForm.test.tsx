@@ -29,6 +29,9 @@ i18n.init({
                 settingsSaved: 'Settings saved',
                 settingsLoadFailed: 'Failed to load settings',
                 settingsSaveFailed: 'Failed to save settings',
+                settingsChannelsFailed: 'Failed to load channels',
+                settingsRolesFailed: 'Failed to load roles',
+                settingsRetry: 'Retry',
             },
         },
     },
@@ -46,7 +49,7 @@ const settings = {
     requireReason: true,
 }
 
-function setup() {
+function setup(override: Record<string, unknown> = {}) {
     vi.mocked(api.guilds.getChannels).mockResolvedValue({
         data: {
             channels: [
@@ -64,7 +67,7 @@ function setup() {
         },
     } as any)
     vi.mocked(api.moderation.getSettings).mockResolvedValue({
-        data: { settings },
+        data: { settings: { ...settings, ...override } },
     } as any)
     return render(
         <I18nextProvider i18n={i18n}>
@@ -165,6 +168,123 @@ describe('ModerationSettingsForm', () => {
         )
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'Failed to load settings',
+        )
+    })
+
+    test('shows the server value returned by the save response', async () => {
+        const user = userEvent.setup()
+        setup()
+        vi.mocked(api.moderation.updateSettings).mockResolvedValue({
+            data: { settings: { ...settings, maxWarnings: 4 } },
+        } as any)
+
+        await user.clear(await screen.findByLabelText('Warnings before action'))
+        await user.type(screen.getByLabelText('Warnings before action'), '5')
+        await user.click(screen.getByRole('button', { name: 'Save settings' }))
+
+        await waitFor(() =>
+            expect(screen.getByLabelText('Warnings before action')).toHaveValue(
+                4,
+            ),
+        )
+    })
+
+    test('ignores a save result that resolves after the guild changed', async () => {
+        const user = userEvent.setup()
+        let resolveSave: (v: unknown) => void = () => {}
+        const { rerender } = setup()
+        vi.mocked(api.moderation.updateSettings).mockReturnValue(
+            new Promise((r) => {
+                resolveSave = r
+            }) as any,
+        )
+        vi.mocked(api.moderation.getSettings).mockResolvedValue({
+            data: { settings: { ...settings, guildId: 'g2', maxWarnings: 7 } },
+        } as any)
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Save settings' }),
+        )
+        rerender(
+            <I18nextProvider i18n={i18n}>
+                <ModerationSettingsForm guildId='g2' />
+            </I18nextProvider>,
+        )
+        await waitFor(() =>
+            expect(screen.getByLabelText('Warnings before action')).toHaveValue(
+                7,
+            ),
+        )
+        resolveSave({ data: { settings: { ...settings, maxWarnings: 1 } } })
+        await new Promise((r) => setTimeout(r, 20))
+
+        expect(screen.getByLabelText('Warnings before action')).toHaveValue(7)
+        expect(screen.queryByText('Settings saved')).not.toBeInTheDocument()
+    })
+
+    test('keeps the form editable when channels fail to load', async () => {
+        setup()
+        vi.mocked(api.guilds.getChannels).mockRejectedValue(new Error('x'))
+        render(
+            <I18nextProvider i18n={i18n}>
+                <ModerationSettingsForm guildId='g1' />
+            </I18nextProvider>,
+        )
+        const warnings = await screen.findAllByLabelText(
+            'Warnings before action',
+        )
+        expect(warnings.length).toBeGreaterThan(0)
+        expect(
+            (await screen.findAllByText('Failed to load channels')).length,
+        ).toBeGreaterThan(0)
+    })
+
+    test('offers a retry when settings fail to load', async () => {
+        const user = userEvent.setup()
+        setup()
+        vi.mocked(api.moderation.getSettings).mockRejectedValueOnce(
+            new Error('boom'),
+        )
+        render(
+            <I18nextProvider i18n={i18n}>
+                <ModerationSettingsForm guildId='g1' />
+            </I18nextProvider>,
+        )
+        const retry = (
+            await screen.findAllByRole('button', { name: 'Retry' })
+        )[0]
+        await user.click(retry)
+        expect(
+            (await screen.findAllByLabelText('Log channel')).length,
+        ).toBeGreaterThan(0)
+    })
+
+    test('keeps saved ids that are missing from the loaded lists', async () => {
+        const user = userEvent.setup()
+        setup({
+            modLogChannelId: 'gone-channel',
+            muteRoleId: 'gone-role',
+            modRoleIds: ['gone-mod'],
+        })
+        vi.mocked(api.moderation.updateSettings).mockResolvedValue({
+            data: { settings },
+        } as any)
+
+        expect(await screen.findByLabelText('Log channel')).toHaveValue(
+            'gone-channel',
+        )
+        expect(screen.getByLabelText('Mute role')).toHaveValue('gone-role')
+        expect(screen.getByLabelText('gone-mod')).toBeChecked()
+        await user.click(screen.getByRole('button', { name: 'Save settings' }))
+        await waitFor(() =>
+            expect(api.moderation.updateSettings).toHaveBeenCalledWith(
+                'g1',
+                expect.objectContaining({
+                    modLogChannelId: 'gone-channel',
+                    muteRoleId: 'gone-role',
+                    modRoleIds: ['gone-mod'],
+                }),
+            ),
         )
     })
 })

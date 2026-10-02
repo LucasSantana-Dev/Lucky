@@ -55,6 +55,9 @@ const updateSettingsBody = z
         requireReason: z.boolean().optional(),
     })
     .strict()
+    .refine((body) => Object.keys(body).length > 0, {
+        message: 'Provide at least one setting to update',
+    })
 
 export const moderationSchemas = {
     guildIdParam,

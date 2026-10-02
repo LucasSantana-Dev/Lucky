@@ -2,6 +2,7 @@ import type { AxiosInstance } from 'axios'
 import type {
     ModerationCase,
     ModerationSettings,
+    ModerationSettingsUpdate,
     ModerationStats,
     ModerationActionType,
 } from '@/types'
@@ -44,10 +45,7 @@ export function createModerationApi(apiClient: AxiosInstance) {
             apiClient.get<{ settings: ModerationSettings }>(
                 `/guilds/${guildId}/moderation/settings`,
             ),
-        updateSettings: (
-            guildId: string,
-            settings: Partial<ModerationSettings>,
-        ) =>
+        updateSettings: (guildId: string, settings: ModerationSettingsUpdate) =>
             apiClient.patch<{ settings: ModerationSettings }>(
                 `/guilds/${guildId}/moderation/settings`,
                 settings,

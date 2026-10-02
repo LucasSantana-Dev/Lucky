@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Skeleton from '@/components/ui/Skeleton'
 import { api } from '@/services/api'
-import type { GuildChannelOption, GuildRoleOption } from '@/types'
+import type {
+    GuildChannelOption,
+    GuildRoleOption,
+    ModerationSettings,
+} from '@/types'
 
 interface FormState {
     modLogChannelId: string
@@ -34,39 +38,56 @@ export default function ModerationSettingsForm({
     const [roles, setRoles] = useState<GuildRoleOption[]>([])
     const [form, setForm] = useState<FormState | null>(null)
 
+    const [listErrors, setListErrors] = useState({
+        channels: false,
+        roles: false,
+    })
+    const [reloadKey, setReloadKey] = useState(0)
+    const guildRef = useRef(guildId)
+    guildRef.current = guildId
+
+    const toForm = (s: ModerationSettings): FormState => ({
+        modLogChannelId: s.modLogChannelId ?? '',
+        muteRoleId: s.muteRoleId ?? '',
+        modRoleIds: s.modRoleIds ?? [],
+        maxWarnings: String(s.maxWarnings),
+        dmOnAction: s.dmOnAction,
+    })
+
+    const retry = useCallback(() => setReloadKey((k) => k + 1), [])
+
     useEffect(() => {
         let cancelled = false
         setLoading(true)
         setLoadError(false)
         setSaveState('idle')
-        Promise.all([
+        setForm(null)
+        Promise.allSettled([
             api.guilds.getChannels(guildId),
             api.guilds.getRoles(guildId),
             api.moderation.getSettings(guildId),
-        ])
-            .then(([ch, ro, se]) => {
-                if (cancelled) return
-                const s = se.data.settings
-                setChannels(ch.data.channels)
-                setRoles(ro.data.roles)
-                setForm({
-                    modLogChannelId: s.modLogChannelId ?? '',
-                    muteRoleId: s.muteRoleId ?? '',
-                    modRoleIds: s.modRoleIds ?? [],
-                    maxWarnings: String(s.maxWarnings),
-                    dmOnAction: s.dmOnAction,
-                })
-            })
-            .catch(() => {
-                if (!cancelled) setLoadError(true)
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false)
-            })
+        ]).then(([ch, ro, se]) => {
+            if (cancelled) return
+            const chList =
+                ch.status === 'fulfilled' ? ch.value?.data?.channels : undefined
+            const roList =
+                ro.status === 'fulfilled' ? ro.value?.data?.roles : undefined
+            const settingsData =
+                se.status === 'fulfilled' ? se.value?.data?.settings : undefined
+            setChannels(chList ?? [])
+            setRoles(roList ?? [])
+            setListErrors({ channels: !chList, roles: !roList })
+            if (settingsData) {
+                setForm(toForm(settingsData))
+            } else {
+                setLoadError(true)
+            }
+            setLoading(false)
+        })
         return () => {
             cancelled = true
         }
-    }, [guildId])
+    }, [guildId, reloadKey])
 
     const update = (patch: Partial<FormState>) => {
         setSaveState('idle')
@@ -85,10 +106,11 @@ export default function ModerationSettingsForm({
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
         if (!form) return
+        const requestGuild = guildId
         setSaving(true)
         setSaveState('idle')
         try {
-            await api.moderation.updateSettings(guildId, {
+            const res = await api.moderation.updateSettings(guildId, {
                 modLogChannelId: form.modLogChannelId || null,
                 muteRoleId: form.muteRoleId || null,
                 modRoleIds: form.modRoleIds,
@@ -98,13 +120,25 @@ export default function ModerationSettingsForm({
                 ),
                 dmOnAction: form.dmOnAction,
             })
+            if (guildRef.current !== requestGuild) return
+            setForm(toForm(res.data.settings))
             setSaveState('saved')
         } catch {
+            if (guildRef.current !== requestGuild) return
             setSaveState('error')
         } finally {
-            setSaving(false)
+            if (guildRef.current === requestGuild) setSaving(false)
         }
     }
+
+    const roleChoices = form
+        ? [
+              ...roles,
+              ...form.modRoleIds
+                  .filter((id) => !roles.some((r) => r.id === id))
+                  .map((id) => ({ id, name: id })),
+          ]
+        : roles
 
     if (loading) {
         return (
@@ -124,6 +158,9 @@ export default function ModerationSettingsForm({
                 <p role='alert' className='type-body-sm text-red-400'>
                     {t('settingsLoadFailed')}
                 </p>
+                <Button type='button' onClick={retry} className='mt-3'>
+                    {t('settingsRetry')}
+                </Button>
             </Card>
         )
     }
@@ -134,6 +171,18 @@ export default function ModerationSettingsForm({
                 <h2 className='type-title text-lucky-text-primary'>
                     {t('settingsTitle')}
                 </h2>
+
+                {(listErrors.channels || listErrors.roles) && (
+                    <div role='alert' className='type-body-sm text-yellow-400'>
+                        {listErrors.channels && (
+                            <p>{t('settingsChannelsFailed')}</p>
+                        )}
+                        {listErrors.roles && <p>{t('settingsRolesFailed')}</p>}
+                        <Button type='button' onClick={retry}>
+                            {t('settingsRetry')}
+                        </Button>
+                    </div>
+                )}
 
                 <div className='grid gap-4 sm:grid-cols-2'>
                     <div className='space-y-1'>
@@ -157,6 +206,14 @@ export default function ModerationSettingsForm({
                                     #{c.name}
                                 </option>
                             ))}
+                            {form.modLogChannelId &&
+                                !channels.some(
+                                    (c) => c.id === form.modLogChannelId,
+                                ) && (
+                                    <option value={form.modLogChannelId}>
+                                        {form.modLogChannelId}
+                                    </option>
+                                )}
                         </select>
                     </div>
 
@@ -181,6 +238,14 @@ export default function ModerationSettingsForm({
                                     {r.name}
                                 </option>
                             ))}
+                            {form.muteRoleId &&
+                                !roles.some(
+                                    (r) => r.id === form.muteRoleId,
+                                ) && (
+                                    <option value={form.muteRoleId}>
+                                        {form.muteRoleId}
+                                    </option>
+                                )}
                         </select>
                     </div>
 
@@ -221,7 +286,7 @@ export default function ModerationSettingsForm({
                         {t('settingsModRoles')}
                     </legend>
                     <div className='flex flex-wrap gap-x-4 gap-y-2'>
-                        {roles.map((r) => (
+                        {roleChoices.map((r) => (
                             <label
                                 key={r.id}
                                 className='flex items-center gap-2 type-body-sm text-lucky-text-primary'
