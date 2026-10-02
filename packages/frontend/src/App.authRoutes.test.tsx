@@ -25,6 +25,10 @@ vi.mock('./pages/Login', () => ({
     default: () => <h1>Login Page</h1>,
 }))
 
+vi.mock('./pages/DashboardOverview', () => ({
+    default: () => <h1>Dashboard Page</h1>,
+}))
+
 vi.mock('./pages/ServersPage', () => ({
     default: () => <h1>Servers Page</h1>,
 }))
