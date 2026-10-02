@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.48.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.10...v2.48.0) (2026-10-02)
+
+
+### Features
+
+* **dashboard:** add moderation settings page ([#2601](https://github.com/LucasSantana-Dev/Lucky/issues/2601)) ([8d0a6db](https://github.com/LucasSantana-Dev/Lucky/commit/8d0a6dbe9c8c114a0263234a411b7a83c86555dd))
+* **dashboard:** warn when a role is above the bot highest role ([#2602](https://github.com/LucasSantana-Dev/Lucky/issues/2602)) ([7ffeae3](https://github.com/LucasSantana-Dev/Lucky/commit/7ffeae3ecf35ceae746e188d7a5ad6e09a373038))
+
+
+### Bug Fixes
+
+* **frontend:** show spotify and last.fm link results ([#2605](https://github.com/LucasSantana-Dev/Lucky/issues/2605)) ([0b49b25](https://github.com/LucasSantana-Dev/Lucky/commit/0b49b25409a90a429bd53ab4eaa0b2ad4cf26860))
+
+
+### Performance Improvements
+
+* **frontend:** lazy load the changelog and check frontend locale parity ([#2606](https://github.com/LucasSantana-Dev/Lucky/issues/2606)) ([2bc662c](https://github.com/LucasSantana-Dev/Lucky/commit/2bc662ca5ffe6ec3b08d6ff727a5638f6029ada6))
+
 ## [2.47.10](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.9...v2.47.10) (2026-10-02)
 
 
