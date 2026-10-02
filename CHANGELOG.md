@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.47.9](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.8...v2.47.9) (2026-10-02)
+
+
+### Bug Fixes
+
+* **api:** rate limit reaction role delete ([#2592](https://github.com/LucasSantana-Dev/Lucky/issues/2592)) ([f534549](https://github.com/LucasSantana-Dev/Lucky/commit/f534549ef1a8a8b2b3ad637bddcf1a0f308abf26))
+* **api:** return 403 on cors reject and limit reaction role create ([#2591](https://github.com/LucasSantana-Dev/Lucky/issues/2591)) ([53ff48c](https://github.com/LucasSantana-Dev/Lucky/commit/53ff48c4c728de9cd9813a16798fe5e2d0bf1fc0))
+* **frontend:** add the hsts header and run the danger job on node 22 ([#2588](https://github.com/LucasSantana-Dev/Lucky/issues/2588)) ([63d6265](https://github.com/LucasSantana-Dev/Lucky/commit/63d6265dde8a5429caaad0e71194098c19e7cf42))
+* **frontend:** move the last off-token focus colors to lucky-focus ([#2578](https://github.com/LucasSantana-Dev/Lucky/issues/2578)) ([7a0c41e](https://github.com/LucasSantana-Dev/Lucky/commit/7a0c41e57dcfe8fa15f5b677549cfbb4e3629449))
+* **frontend:** use focus-visible on the badge ring and point smoke docs at the api host ([#2587](https://github.com/LucasSantana-Dev/Lucky/issues/2587)) ([c473e09](https://github.com/LucasSantana-Dev/Lucky/commit/c473e09831d1c0d421170dad60cb151dd8e90dc4))
+
 ## [2.47.8](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.7...v2.47.8) (2026-10-01)
 
 
