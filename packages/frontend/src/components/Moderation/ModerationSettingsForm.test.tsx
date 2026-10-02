@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { I18nextProvider } from 'react-i18next'
 import i18n from 'i18next'
@@ -311,10 +311,11 @@ describe('ModerationSettingsForm', () => {
     test('does not leave Save disabled after a guild switch mid-save', async () => {
         const user = userEvent.setup()
         const { rerender } = setup()
+        let rejectSave: (reason: Error) => void = () => {}
         vi.mocked(api.moderation.updateSettings).mockReturnValue(
-            new Promise((_, rej) =>
-                setTimeout(() => rej(new Error('x')), 30),
-            ) as any,
+            new Promise((_, rej) => {
+                rejectSave = rej
+            }) as any,
         )
         await user.click(
             await screen.findByRole('button', { name: 'Save settings' }),
@@ -324,6 +325,9 @@ describe('ModerationSettingsForm', () => {
                 <ModerationSettingsForm guildId='g2' />
             </I18nextProvider>,
         )
+        await act(async () => {
+            rejectSave(new Error('x'))
+        })
         await waitFor(() =>
             expect(
                 screen.getByRole('button', { name: 'Save settings' }),
