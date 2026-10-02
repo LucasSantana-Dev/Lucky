@@ -470,6 +470,10 @@ export default function RolesPage() {
                         }) || `Failed to delete ${result.failed.length} roles`,
                     )
                 }
+            } else {
+                toast.error(
+                    t('roles.failedToDelete') || 'Failed to delete role',
+                )
             }
         } catch (error) {
             if (error instanceof Error) {

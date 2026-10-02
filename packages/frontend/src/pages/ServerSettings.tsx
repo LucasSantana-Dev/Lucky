@@ -50,6 +50,8 @@ import {
     DEFAULT_BOT_LANGUAGE,
     isBotLanguage,
 } from '@lucky/shared/constants'
+import type { Guild } from '@/types/guild'
+import type { GuildMemberContext } from '@/types/rbac'
 import { RBAC_MODULES, type RoleGrant, type ServerSettings } from '@/types'
 
 type SettingsLoadErrorKind = 'auth' | 'forbidden' | 'network' | 'upstream'
@@ -184,6 +186,23 @@ function classifySettingsLoadError(
     }
 }
 
+function resolveGuildPermissions(
+    memberContext: GuildMemberContext | null,
+    selectedGuild: Guild | null,
+) {
+    return {
+        canManageRbac:
+            memberContext?.canManageRbac ??
+            selectedGuild?.canManageRbac ??
+            false,
+        canManageSettings: hasModuleAccess(
+            memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess,
+            'settings',
+            'manage',
+        ),
+    }
+}
+
 export default function ServerSettingsPage() {
     const { t } = useTranslation()
     const { selectedGuild, memberContext } = useGuildStore()
@@ -205,12 +224,9 @@ export default function ServerSettingsPage() {
     const rbacRequestIdRef = useRef(0)
     const settingsRequestVersion = useRef(0)
 
-    const canManageRbac =
-        memberContext?.canManageRbac ?? selectedGuild?.canManageRbac ?? false
-    const canManageSettings = hasModuleAccess(
-        memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess,
-        'settings',
-        'manage',
+    const { canManageRbac, canManageSettings } = resolveGuildPermissions(
+        memberContext,
+        selectedGuild,
     )
 
     const loadRbac = useCallback(async (guildId: string) => {

@@ -1,4 +1,17 @@
 import type { AxiosInstance } from 'axios'
+import { ApiError } from './ApiError'
+
+// 4xx errors carry a user-facing message the page should show; everything
+// else keeps the null/false sentinel.
+function rethrowClientError(error: unknown): void {
+    if (
+        error instanceof ApiError &&
+        error.status >= 400 &&
+        error.status < 500
+    ) {
+        throw error
+    }
+}
 
 export interface GuildRoleManage {
     id: string
@@ -27,7 +40,8 @@ export function createRolesManageApi(client: AxiosInstance) {
                     `/guilds/${guildId}/roles/manage`,
                 )
                 return res.data.roles
-            } catch {
+            } catch (error) {
+                rethrowClientError(error)
                 return null
             }
         },
@@ -42,7 +56,8 @@ export function createRolesManageApi(client: AxiosInstance) {
                     data,
                 )
                 return res.data.role
-            } catch {
+            } catch (error) {
+                rethrowClientError(error)
                 return null
             }
         },
@@ -58,19 +73,18 @@ export function createRolesManageApi(client: AxiosInstance) {
                     data,
                 )
                 return res.data.role
-            } catch {
+            } catch (error) {
+                rethrowClientError(error)
                 return null
             }
         },
 
-        delete: async (
-            guildId: string,
-            roleId: string,
-        ): Promise<boolean> => {
+        delete: async (guildId: string, roleId: string): Promise<boolean> => {
             try {
                 await client.delete(`/guilds/${guildId}/roles/manage/${roleId}`)
                 return true
-            } catch {
+            } catch (error) {
+                rethrowClientError(error)
                 return false
             }
         },
@@ -84,7 +98,8 @@ export function createRolesManageApi(client: AxiosInstance) {
                     `/guilds/${guildId}/roles/manage/${roleId}/duplicate`,
                 )
                 return res.data.role
-            } catch {
+            } catch (error) {
+                rethrowClientError(error)
                 return null
             }
         },
@@ -99,7 +114,8 @@ export function createRolesManageApi(client: AxiosInstance) {
                     failed: string[]
                 }>(`/guilds/${guildId}/roles/manage/bulk-delete`, { roleIds })
                 return res.data
-            } catch {
+            } catch (error) {
+                rethrowClientError(error)
                 return null
             }
         },

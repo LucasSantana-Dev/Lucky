@@ -61,27 +61,29 @@ function FilterRow({
 }: FilterRowProps) {
     return (
         <div className='border-b border-lucky-border/50 last:border-b-0'>
-            {/* Keyboard users use the Switch; do not add role=button here (nests interactive elements). */}
-            <div
-                data-testid='filter-row-header'
-                onClick={() => onToggle(!enabled)}
-                className='w-full flex items-center justify-between px-6 py-3 cursor-pointer hover:bg-lucky-bg-active/25 transition-colors'
-            >
-                <div className='flex items-center gap-3 flex-1 text-left'>
+            {/* Keyboard users use the Switch (a sibling, never a child, of the
+                mouse-only button: do not nest interactive elements). */}
+            <div className='flex items-center justify-between px-6 py-3 hover:bg-lucky-bg-active/25 transition-colors'>
+                <button
+                    type='button'
+                    tabIndex={-1}
+                    aria-hidden='true'
+                    onClick={() => onToggle(!enabled)}
+                    className='flex items-center gap-3 flex-1 text-left'
+                >
                     <Icon className='w-4 h-4 text-lucky-brand-text flex-shrink-0' />
-                    <div>
-                        <h3 className='text-sm font-semibold text-white'>
+                    <span className='block'>
+                        <span className='block text-sm font-semibold text-white'>
                             {title}
-                        </h3>
-                        <p className='text-xs text-lucky-text-tertiary mt-0.5'>
+                        </span>
+                        <span className='block text-xs text-lucky-text-tertiary mt-0.5'>
                             {description}
-                        </p>
-                    </div>
-                </div>
+                        </span>
+                    </span>
+                </button>
                 <Switch
                     checked={enabled}
                     onCheckedChange={onToggle}
-                    onClick={(e) => e.stopPropagation()}
                     aria-label={title}
                 />
             </div>

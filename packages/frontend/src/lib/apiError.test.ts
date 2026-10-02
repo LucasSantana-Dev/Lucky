@@ -3,10 +3,11 @@ import { ApiError } from '@/services/ApiError'
 import { getApiErrorMessage } from './apiError'
 
 describe('getApiErrorMessage', () => {
-    test('returns the message of an ApiError', () => {
-        expect(
-            getApiErrorMessage(new ApiError(403, 'Missing permission'), 'x'),
-        ).toBe('Missing permission')
+    test('keeps a message of exactly 200 chars on the 499 boundary', () => {
+        const message = 'a'.repeat(200)
+        expect(getApiErrorMessage(new ApiError(499, message), 'G')).toBe(
+            message,
+        )
     })
 
     test('returns the message of a 4xx ApiError', () => {

@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { createRolesManageApi } from './rolesManageApi'
+import { ApiError } from './ApiError'
 
 describe('createRolesManageApi', () => {
     const get = vi.fn()
@@ -29,6 +30,25 @@ describe('createRolesManageApi', () => {
         const result = await api.list('g1')
         expect(get).toHaveBeenCalledWith('/guilds/g1/roles/manage')
         expect(result).toEqual([ROLE])
+    })
+
+    test('client (4xx) ApiErrors propagate so callers can show the message', async () => {
+        const api = createRolesManageApi(apiClient as any)
+        const err = new ApiError(403, 'Missing Manage Roles permission')
+        post.mockRejectedValue(err)
+        patch.mockRejectedValue(err)
+        del.mockRejectedValue(err)
+        await expect(api.create('g1', { name: 'Mod' })).rejects.toBe(err)
+        await expect(api.update('g1', '1', { name: 'Mod' })).rejects.toBe(err)
+        await expect(api.delete('g1', '1')).rejects.toBe(err)
+        await expect(api.duplicate('g1', '1')).rejects.toBe(err)
+        await expect(api.bulkDelete('g1', ['1'])).rejects.toBe(err)
+    })
+
+    test('5xx ApiErrors still resolve to the null/false sentinel', async () => {
+        const api = createRolesManageApi(apiClient as any)
+        del.mockRejectedValue(new ApiError(502, 'bad gateway'))
+        expect(await api.delete('g1', '1')).toBe(false)
     })
 
     test('list returns null on error', async () => {

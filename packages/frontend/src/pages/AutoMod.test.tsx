@@ -425,13 +425,9 @@ describe('AutoModPage', () => {
             expect(screen.getByText('Link Filtering')).toBeInTheDocument()
         })
 
-        const linkCard = screen
-            .getByRole('heading', { name: 'Link Filtering' })
-            .closest('[data-testid="filter-row-header"]')
-
-        expect(linkCard).toBeTruthy()
-
-        const linkSwitch = within(linkCard as HTMLElement).getByRole('switch')
+        const linkSwitch = screen.getByRole('switch', {
+            name: 'Link Filtering',
+        })
         await user.click(linkSwitch)
 
         await waitFor(() => {
