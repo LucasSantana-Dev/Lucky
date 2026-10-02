@@ -61,9 +61,10 @@ function FilterRow({
 }: FilterRowProps) {
     return (
         <div className='border-b border-lucky-border/50 last:border-b-0'>
-            <button
+            <div
+                data-testid='filter-row-header'
                 onClick={() => onToggle(!enabled)}
-                className='w-full flex items-center justify-between px-6 py-3 hover:bg-lucky-bg-active/25 transition-colors'
+                className='w-full flex items-center justify-between px-6 py-3 cursor-pointer hover:bg-lucky-bg-active/25 transition-colors'
             >
                 <div className='flex items-center gap-3 flex-1 text-left'>
                     <Icon className='w-4 h-4 text-lucky-brand-text flex-shrink-0' />
@@ -76,8 +77,13 @@ function FilterRow({
                         </p>
                     </div>
                 </div>
-                <Switch checked={enabled} onCheckedChange={onToggle} />
-            </button>
+                <Switch
+                    checked={enabled}
+                    onCheckedChange={onToggle}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={title}
+                />
+            </div>
             {enabled && children && (
                 <motion.div
                     initial={{ height: 0, opacity: 0 }}

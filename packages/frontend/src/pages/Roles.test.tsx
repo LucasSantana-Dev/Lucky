@@ -269,6 +269,39 @@ describe('RolesPage', () => {
         })
     })
 
+    test('shows the API error message when create throws', async () => {
+        const user = userEvent.setup()
+        const { api } = await import('@/services/api')
+        const { toast } = await import('sonner')
+        vi.mocked(api.rolesManage.list).mockResolvedValue([])
+        vi.mocked(api.rolesManage.create).mockRejectedValue(
+            new Error('Missing Manage Roles permission'),
+        )
+
+        render(
+            <MemoryRouter>
+                <RolesPage />
+            </MemoryRouter>,
+        )
+
+        await waitFor(() => {
+            expect(screen.getByText('No roles found')).toBeInTheDocument()
+        })
+
+        const createButtons = screen.getAllByRole('button', {
+            name: /Create Role/i,
+        })
+        await user.click(createButtons[0])
+        await user.type(screen.getByPlaceholderText('Role name'), 'NewRole')
+        await user.click(screen.getByRole('button', { name: /Save/i }))
+
+        await waitFor(() => {
+            expect(vi.mocked(toast).error).toHaveBeenCalledWith(
+                'Missing Manage Roles permission',
+            )
+        })
+    })
+
     test('sorts roles by position descending', async () => {
         const { api } = await import('@/services/api')
         const roles = [

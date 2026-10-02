@@ -925,6 +925,7 @@
         "description": "Configuração geral para {{name}}",
         "eyebrow": "Configuração",
         "saveChanges": "Salvar Alterações",
+        "viewOnlyNotice": "Você tem acesso somente leitura a estas configurações. Não é possível salvar alterações.",
         "saving": "Salvando…",
         "noServerSelected": "Nenhum Servidor Selecionado",
         "selectServerDescription": "Selecione um servidor para gerenciar configurações",

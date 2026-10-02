@@ -157,6 +157,46 @@ describe('AutoModPage', () => {
         expect(spamSwitch).not.toBeChecked()
     })
 
+    test('no button contains a nested switch or another button (#2427)', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Spam Detection')).toBeInTheDocument()
+        })
+
+        for (const button of screen.getAllByRole('button')) {
+            expect(within(button).queryByRole('switch')).not.toBeInTheDocument()
+            expect(button.querySelectorAll('button').length).toBe(0)
+        }
+    })
+
+    test('switch is named after its filter and clicking the row toggles it', async () => {
+        const user = userEvent.setup()
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Spam Detection')).toBeInTheDocument()
+        })
+
+        const spamSwitch = screen.getByRole('switch', {
+            name: 'Spam Detection',
+        })
+        expect(spamSwitch).toBeChecked()
+
+        await user.click(screen.getByText('Spam Detection'))
+        expect(spamSwitch).not.toBeChecked()
+    })
+
     test('toggles caps filter and hides children', async () => {
         const user = userEvent.setup()
         mockGuildStore(mockGuild)
@@ -387,7 +427,7 @@ describe('AutoModPage', () => {
 
         const linkCard = screen
             .getByRole('heading', { name: 'Link Filtering' })
-            .closest('button')
+            .closest('[data-testid="filter-row-header"]')
 
         expect(linkCard).toBeTruthy()
 

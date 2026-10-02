@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ReactionRoles from './ReactionRoles'
 import { useGuildStore } from '@/stores/guildStore'
 import { api } from '@/services/api'
+import { ApiError } from '@/services/ApiError'
 import type { ReactionRoleMessage } from '@/services/reactionRolesApi'
 
 vi.mock('@/stores/guildStore')
@@ -530,9 +531,7 @@ describe('ReactionRoles', () => {
 
     test('delete error shows error message', async () => {
         mockGuildStore()
-        vi.mocked(api.reactionRoles.delete).mockRejectedValue(
-            new Error('Delete failed'),
-        )
+        vi.mocked(api.reactionRoles.delete).mockRejectedValue({})
         render(<ReactionRoles />)
 
         await waitFor(() => {
@@ -549,6 +548,52 @@ describe('ReactionRoles', () => {
                 screen.getByText('Failed to delete reaction role message.'),
             ).toBeInTheDocument()
         })
+    })
+
+    test('delete error surfaces the API message', async () => {
+        mockGuildStore()
+        vi.mocked(api.reactionRoles.delete).mockRejectedValue(
+            new ApiError(403, 'Missing Manage Roles permission'),
+        )
+        render(<ReactionRoles />)
+
+        const deleteButtons = await screen.findAllByRole('button', {
+            name: /delete/i,
+        })
+        fireEvent.click(deleteButtons[0])
+
+        expect(
+            await screen.findByText('Missing Manage Roles permission'),
+        ).toBeInTheDocument()
+    })
+
+    test('edit failure surfaces the API message', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [{ id: 'channel-456', name: 'general' }] },
+        } as never)
+        vi.mocked(api.guilds.getRoles).mockResolvedValue({
+            data: { roles: [{ id: 'role-111', name: 'Gamer' }] },
+        } as never)
+        vi.mocked(api.reactionRoles.update).mockRejectedValue(
+            new ApiError(400, 'Role is above the bot role'),
+        )
+        vi.mocked(api.reactionRoles.list).mockResolvedValue([
+            { ...mockMessages[0], title: 'Pick', description: 'Choose' },
+        ])
+        render(<ReactionRoles />)
+
+        const editButtons = await screen.findAllByRole('button', {
+            name: /edit/i,
+        })
+        fireEvent.click(editButtons[0])
+        fireEvent.click(
+            await screen.findByRole('button', { name: /^update$/i }),
+        )
+
+        expect(
+            await screen.findByText('Role is above the bot role'),
+        ).toBeInTheDocument()
     })
 
     test('create dialog opens when Create button is clicked', async () => {
@@ -2229,9 +2274,7 @@ test('create failure shows error message', async () => {
     fireEvent.click(submitBtn)
 
     await waitFor(() => {
-        const errorMessages = screen.queryAllByText(
-            /Failed to create reaction role message/,
-        )
+        const errorMessages = screen.queryAllByText(/Network error/)
         expect(errorMessages.length).toBeGreaterThan(0)
     })
 })
