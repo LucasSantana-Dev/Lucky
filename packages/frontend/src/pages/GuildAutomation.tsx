@@ -505,7 +505,7 @@ export default function GuildAutomation() {
                                         }
                                         rows={16}
                                         spellCheck={false}
-                                        className='w-full rounded-lg bg-lucky-bg-primary/80 border border-lucky-border text-lucky-text-body font-mono text-xs p-3 resize-y focus:outline-none focus:border-lucky-brand transition-colors'
+                                        className='w-full rounded-lg bg-lucky-bg-primary/80 border border-lucky-border text-lucky-text-body font-mono text-xs p-3 resize-y focus:outline-none focus:border-lucky-focus focus-visible:ring-2 focus-visible:ring-lucky-focus transition-colors'
                                         placeholder={t('manifestPlaceholder')}
                                     />
                                     {manifestError && (

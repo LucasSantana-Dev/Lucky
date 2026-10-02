@@ -512,7 +512,7 @@ export default function PreferredArtistsPage() {
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 placeholder={t('searchForArtist')}
-                                className='lucky-focus-visible w-full rounded-lg border border-lucky-border bg-lucky-bg-tertiary py-2.5 pl-9 pr-10 type-body-sm text-lucky-text-primary placeholder:text-lucky-text-subtle focus:border-lucky-brand focus:bg-lucky-bg-primary'
+                                className='lucky-focus-visible w-full rounded-lg border border-lucky-border bg-lucky-bg-tertiary py-2.5 pl-9 pr-10 type-body-sm text-lucky-text-primary placeholder:text-lucky-text-subtle focus:border-lucky-focus focus:bg-lucky-bg-primary'
                             />
                             {query && (
                                 <button

@@ -84,7 +84,7 @@ export default function LyricsPage() {
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder={t('enterSongTitle')}
-                        className='w-full px-3 py-2 rounded-lg bg-lucky-bg-active border border-lucky-border text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:ring-2 focus:ring-lucky-red/50 transition-all'
+                        className='w-full px-3 py-2 rounded-lg bg-lucky-bg-active border border-lucky-border text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:ring-2 focus:ring-lucky-focus transition-all'
                         required
                     />
                 </div>
@@ -102,7 +102,7 @@ export default function LyricsPage() {
                         value={artist}
                         onChange={(e) => setArtist(e.target.value)}
                         placeholder={t('enterArtistName')}
-                        className='w-full px-3 py-2 rounded-lg bg-lucky-bg-active border border-lucky-border text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:ring-2 focus:ring-lucky-red/50 transition-all'
+                        className='w-full px-3 py-2 rounded-lg bg-lucky-bg-active border border-lucky-border text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:ring-2 focus:ring-lucky-focus transition-all'
                     />
                 </div>
 

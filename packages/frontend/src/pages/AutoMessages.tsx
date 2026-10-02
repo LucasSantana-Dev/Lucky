@@ -149,7 +149,7 @@ function MessageFormDialog({
                         </Label>
                         <textarea
                             id='am-message'
-                            className='w-full rounded-lg border border-lucky-border bg-lucky-bg-tertiary px-3 py-2 type-body-sm text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:border-lucky-brand resize-none'
+                            className='w-full rounded-lg border border-lucky-border bg-lucky-bg-tertiary px-3 py-2 type-body-sm text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:border-lucky-focus focus-visible:ring-2 focus-visible:ring-lucky-focus resize-none'
                             placeholder={t('autoMessages.messagePlaceholder')}
                             rows={3}
                             value={message}
