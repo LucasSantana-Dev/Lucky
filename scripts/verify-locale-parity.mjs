@@ -1,8 +1,10 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { diffKeySets, flattenKeys as flatten } from './locale-parity-keys.mjs'
 
-// Verifies the bot's locale catalogues carry the same key set.
+// Verifies the bot's locale catalogues (and the frontend en/pt-BR pair) carry
+// the same key set.
 //
 // A key present in en.json and missing from pt-BR.json does NOT break at
 // runtime: i18next's fallbackLng quietly serves the English string. That is the
@@ -62,19 +64,6 @@ const INTENTIONALLY_ENGLISH_ONLY = new Map([
             'assertion back into a no-op that passes with fallback broken.',
     ],
 ])
-
-function flatten(obj, prefix = '') {
-    const out = []
-    for (const [key, value] of Object.entries(obj)) {
-        const full = prefix ? `${prefix}.${key}` : key
-        if (value && typeof value === 'object' && !Array.isArray(value)) {
-            out.push(...flatten(value, full))
-        } else {
-            out.push(full)
-        }
-    }
-    return out
-}
 
 const failures = []
 const keysByLocale = new Map()
@@ -156,6 +145,45 @@ if (failures.length === 0) {
     }
 }
 
+// --- Frontend catalogues (en vs pt-BR) ------------------------------------
+const FRONTEND_LOCALES_DIR = path.join(
+    repoRoot,
+    'packages/frontend/src/locales',
+)
+const frontendKeys = new Map()
+for (const locale of ['en', 'pt-BR']) {
+    try {
+        const parsed = JSON.parse(
+            await readFile(
+                path.join(FRONTEND_LOCALES_DIR, `${locale}.json`),
+                'utf8',
+            ),
+        )
+        const keys = new Set(flatten(parsed))
+        if (keys.size === 0) {
+            failures.push(`frontend ${locale}.json parsed to ZERO keys`)
+        }
+        frontendKeys.set(locale, keys)
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        failures.push(`cannot read frontend ${locale}.json: ${message}`)
+    }
+}
+if (frontendKeys.size === 2) {
+    const { missing, extra } = diffKeySets(
+        frontendKeys.get('en'),
+        frontendKeys.get('pt-BR'),
+    )
+    for (const key of missing) {
+        failures.push(`frontend pt-BR.json is missing "${key}"`)
+    }
+    for (const key of extra) {
+        failures.push(
+            `frontend pt-BR.json has "${key}", which does not exist in frontend en.json`,
+        )
+    }
+}
+
 if (failures.length > 0) {
     console.error('locale parity check FAILED\n')
     for (const failure of failures) console.error(`- ${failure}`)
@@ -170,5 +198,6 @@ if (failures.length > 0) {
 const total = keysByLocale.get(REFERENCE).size
 console.log(
     `locale parity check passed (${LOCALES.length} catalogues, ${total} keys in ${REFERENCE}, ` +
-        `${INTENTIONALLY_ENGLISH_ONLY.size} documented exemption(s)).`,
+        `${INTENTIONALLY_ENGLISH_ONLY.size} documented exemption(s)); ` +
+        `frontend en/pt-BR parity ok (${frontendKeys.get('en').size} keys).`,
 )

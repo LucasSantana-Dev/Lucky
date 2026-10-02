@@ -16,9 +16,9 @@
         "accessDeniedDescription": "Você não tem permissão para visualizar o módulo {{module}} deste servidor.",
         "logout": "Sair",
         "language": "Idioma",
-        "name": "Name",
-        "error": "Error",
-        "color": "Color",
+        "name": "Nome",
+        "error": "Erro",
+        "color": "Cor",
         "selectServerDesc": "Select a server to continue"
     },
     "linkResult": {
@@ -152,6 +152,10 @@
                 "subtitle": "Atribua cargos com base nas reações de emoji dos membros."
             },
             "guildAutomation": {
+                "roles": {
+                    "title": "Cargos",
+                    "subtitle": "Gerencie os cargos do Discord do seu servidor"
+                },
                 "title": "Automação do servidor",
                 "subtitle": "Configure fluxos automatizados de gerenciamento do servidor."
             },
