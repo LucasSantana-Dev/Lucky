@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import changelogMd from '../../../../CHANGELOG.md?raw'
+import { useEffect, useMemo, useState } from 'react'
+import { loadChangelogSource } from '@/lib/changelogSource'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { metaFor } from '@/lib/seo/routeMeta'
 import PublicHeader from '@/components/DocsShell/PublicHeader'
@@ -116,7 +116,26 @@ const sectionStyles: Record<string, string> = {
 export default function ChangelogPage() {
     usePageMetadata(metaFor('/changelog'))
 
-    const entries = useMemo(() => parseChangelog(changelogMd), [])
+    const [changelogMd, setChangelogMd] = useState<string | null>(null)
+    const [loadFailed, setLoadFailed] = useState(false)
+    useEffect(() => {
+        let active = true
+        loadChangelogSource()
+            .then((md) => {
+                if (active) setChangelogMd(md)
+            })
+            .catch(() => {
+                if (active) setLoadFailed(true)
+            })
+        return () => {
+            active = false
+        }
+    }, [])
+
+    const entries = useMemo(
+        () => (changelogMd === null ? [] : parseChangelog(changelogMd)),
+        [changelogMd],
+    )
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const ids = useMemo(() => entries.map((e) => `v-${e.version}`), [entries])
     const activeId = useActiveHeading(ids)
@@ -187,6 +206,18 @@ export default function ChangelogPage() {
                                 .
                             </p>
                         </header>
+
+                        {loadFailed ? (
+                            <p role='alert' className='text-sm text-rose-400'>
+                                Could not load the changelog. Reload the page to
+                                try again.
+                            </p>
+                        ) : null}
+                        {changelogMd === null && !loadFailed ? (
+                            <output className='block text-sm text-lucky-text-muted'>
+                                Loading changelog...
+                            </output>
+                        ) : null}
 
                         <div className='relative'>
                             <div
