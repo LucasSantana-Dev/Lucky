@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import AdminSupportPage from './AdminSupport'
 import { api } from '@/services/api'
+import { useAuthStore } from '@/stores/authStore'
+
+vi.mock('@/stores/authStore')
 
 vi.mock('@/services/api', () => ({
     api: {
@@ -43,11 +46,30 @@ const row = {
     status: 'new',
 }
 
+function mockAuth(isDeveloper: boolean, isAuthenticated = true) {
+    vi.mocked(useAuthStore).mockImplementation((selector?: unknown) => {
+        const state = { isDeveloper, isAuthenticated }
+        return typeof selector === 'function'
+            ? (selector as (s: typeof state) => unknown)(state)
+            : state
+    })
+}
+
 beforeEach(() => {
     vi.clearAllMocks()
+    mockAuth(true)
 })
 
 describe('AdminSupportPage', () => {
+    test('shows access denied and skips the fetch for non-developers', () => {
+        mockAuth(false)
+        renderPage()
+        expect(
+            screen.getByRole('heading', { name: 'Access Denied' }),
+        ).toBeInTheDocument()
+        expect(listMock).not.toHaveBeenCalled()
+    })
+
     test('renders a report list', async () => {
         listMock.mockResolvedValue([row])
         renderPage()

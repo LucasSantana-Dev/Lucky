@@ -108,6 +108,64 @@ describe('Sidebar', () => {
         expect(screen.getByText('Music Player')).toBeInTheDocument()
     })
 
+    test('links to config and batch jobs for everyone', () => {
+        renderSidebar()
+
+        expect(
+            screen.getByRole('link', { name: 'Configuration' }),
+        ).toHaveAttribute('href', '/config')
+        expect(
+            screen.getByRole('link', { name: 'Batch Jobs' }),
+        ).toHaveAttribute('href', '/batch-jobs')
+    })
+
+    test('hides the admin support link from non-developers', () => {
+        renderSidebar()
+
+        expect(
+            screen.queryByRole('link', { name: 'Support Reports' }),
+        ).not.toBeInTheDocument()
+    })
+
+    test('shows the admin support link to developers', () => {
+        vi.mocked(useAuthStore).mockReturnValue({
+            user: mockUser,
+            isAuthenticated: true,
+            isLoading: false,
+            isDeveloper: true,
+            login: vi.fn(),
+            logout: mockLogout,
+            checkAuth: vi.fn(),
+            checkDeveloperStatus: vi.fn(),
+        })
+        renderSidebar()
+
+        expect(
+            screen.getByRole('link', { name: 'Support Reports' }),
+        ).toHaveAttribute('href', '/admin/support')
+    })
+
+    test('highlights only the support link on /admin/support', () => {
+        vi.mocked(useAuthStore).mockReturnValue({
+            user: mockUser,
+            isAuthenticated: true,
+            isLoading: false,
+            isDeveloper: true,
+            login: vi.fn(),
+            logout: mockLogout,
+            checkAuth: vi.fn(),
+            checkDeveloperStatus: vi.fn(),
+        })
+        renderSidebar('/admin/support')
+
+        expect(
+            screen.getByRole('link', { name: 'Support Reports' }),
+        ).toHaveAttribute('data-active', 'true')
+        expect(
+            screen.getByRole('link', { name: 'Admin Panel' }),
+        ).toHaveAttribute('data-active', 'false')
+    })
+
     test('highlights active link based on current route', () => {
         renderSidebar('/features')
 

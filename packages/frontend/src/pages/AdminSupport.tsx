@@ -1,14 +1,33 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { LifeBuoy, ImageIcon } from 'lucide-react'
+import { LifeBuoy, ImageIcon, ShieldAlert } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { api } from '@/services/api'
+import { useAuthStore } from '@/stores/authStore'
 import type { SupportReportListItem } from '@/services/supportApi'
 
 const STATUS_FILTERS = ['all', 'new', 'triaged', 'promoted', 'dismissed']
 
 export default function AdminSupportPage() {
+    const isDeveloper = useAuthStore((state) => state.isDeveloper)
+    if (!isDeveloper) return <AdminSupportDenied />
+    return <AdminSupportContent />
+}
+
+function AdminSupportDenied() {
+    const { t } = useTranslation()
+    return (
+        <EmptyState
+            headingLevel='h1'
+            icon={<ShieldAlert className='h-10 w-10' aria-hidden='true' />}
+            title={t('admin.accessDenied')}
+            description={t('admin.accessDeniedDesc')}
+        />
+    )
+}
+
+function AdminSupportContent() {
     const { t } = useTranslation()
     const [status, setStatus] = useState('all')
     const [selectedId, setSelectedId] = useState<string | null>(null)

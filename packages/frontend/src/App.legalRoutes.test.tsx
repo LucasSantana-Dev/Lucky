@@ -56,6 +56,14 @@ describe('App legal routes', () => {
         ).not.toBeInTheDocument()
     })
 
+    test('renders the 404 page for unknown paths under a public prefix', async () => {
+        renderAt('/docs/not-a-real-doc')
+
+        expect(
+            await screen.findByRole('heading', { name: 'Page not found' }),
+        ).toBeInTheDocument()
+    })
+
     test('renders terms page for alias path', async () => {
         renderAt('/terms')
 

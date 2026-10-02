@@ -33,6 +33,11 @@
         "music": "music",
         "integrations": "integrations"
     },
+    "notFound": {
+        "title": "Page not found",
+        "description": "The page you are looking for does not exist or was moved.",
+        "backHome": "Back to home"
+    },
     "sidebar": {
         "activeGuild": "Active guild",
         "switchServer": "Switch server",
@@ -76,6 +81,9 @@
             "lastFm": "Last.fm",
             "twitch": "Twitch",
             "features": "Features",
+            "config": "Configuration",
+            "batchJobs": "Batch Jobs",
+            "supportReports": "Support Reports",
             "roleGroups": "Role Groups"
         }
     },

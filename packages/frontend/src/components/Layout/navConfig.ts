@@ -20,6 +20,8 @@ import {
     Users,
     Disc3,
     Boxes,
+    Cog,
+    ListChecks,
 } from 'lucide-react'
 import type { AccessMode, ModuleKey } from '@/types'
 
@@ -51,6 +53,12 @@ export const navSections: NavSection[] = [
                 path: '/settings',
                 labelKey: 'sidebar.nav.serverSettings',
                 icon: Settings,
+                module: 'settings',
+            },
+            {
+                path: '/config',
+                labelKey: 'sidebar.nav.config',
+                icon: Cog,
                 module: 'settings',
             },
         ],
@@ -103,6 +111,12 @@ export const navSections: NavSection[] = [
                 path: '/logs',
                 labelKey: 'sidebar.nav.serverLogs',
                 icon: ScrollText,
+                module: 'moderation',
+            },
+            {
+                path: '/batch-jobs',
+                labelKey: 'sidebar.nav.batchJobs',
+                icon: ListChecks,
                 module: 'moderation',
             },
         ],

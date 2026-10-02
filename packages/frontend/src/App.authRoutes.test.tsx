@@ -129,6 +129,24 @@ describe('App authenticated routing', () => {
         ).toBeInTheDocument()
     })
 
+    test('renders the 404 page for unknown unauthenticated routes', async () => {
+        renderAt('/definitely-not-a-page')
+        expect(
+            await screen.findByRole('heading', { name: 'Page not found' }),
+        ).toBeInTheDocument()
+        expect(
+            screen.queryByRole('heading', { name: 'Landing Page' }),
+        ).not.toBeInTheDocument()
+    })
+
+    test('renders the 404 page for unknown authenticated routes', async () => {
+        mockAuthStore({ isAuthenticated: true })
+        renderAt('/definitely-not-a-page')
+        expect(
+            await screen.findByRole('heading', { name: 'Page not found' }),
+        ).toBeInTheDocument()
+    })
+
     test('renders login page for unauthenticated /login route', async () => {
         renderAt('/login')
         expect(
@@ -361,11 +379,11 @@ describe('App authenticated routing', () => {
         expect(await screen.findByTestId('layout')).toBeInTheDocument()
     })
 
-    test('redirects unauthenticated user accessing /dashboard to the landing page', async () => {
+    test('shows the 404 page for unknown /dashboard path when unauthenticated', async () => {
         renderAt('/dashboard')
 
         expect(
-            await screen.findByRole('heading', { name: 'Landing Page' }),
+            await screen.findByRole('heading', { name: 'Page not found' }),
         ).toBeInTheDocument()
     })
 

@@ -69,6 +69,7 @@ const DocsPage = lazy(() => import('./pages/Docs'))
 const ChangelogPage = lazy(() => import('./pages/Changelog'))
 const SupportPage = lazy(() => import('./pages/Support'))
 const AdminSupportPage = lazy(() => import('./pages/AdminSupport'))
+const NotFoundPage = lazy(() => import('./pages/NotFound'))
 
 const PUBLIC_PATH_PREFIXES = [
     '/terms-of-service',
@@ -143,6 +144,35 @@ function guardedRoute(
         </RouteModuleGuard>
     )
 }
+
+const AUTHENTICATED_PATHS = [
+    '/servers',
+    '/features',
+    '/admin',
+    '/admin/support',
+    '/config',
+    '/settings',
+    '/moderation',
+    '/automod',
+    '/logs',
+    '/commands',
+    '/automessages',
+    '/embed-builder',
+    '/reaction-roles',
+    '/role-groups',
+    '/roles',
+    '/guild-automation',
+    '/levels',
+    '/starboard',
+    '/music',
+    '/music/history',
+    '/lyrics',
+    '/music/artists',
+    '/twitch',
+    '/lastfm',
+    '/spotify',
+    '/batch-jobs',
+]
 
 function AuthenticatedRoutes() {
     return (
@@ -253,7 +283,7 @@ function AuthenticatedRoutes() {
                 path='/batch-jobs'
                 element={guardedRoute('moderation', <BatchJobsPage />)}
             />
-            <Route path='*' element={<Navigate to='/' replace />} />
+            <Route path='*' element={<NotFoundPage />} />
         </Routes>
     )
 }
@@ -268,10 +298,7 @@ function PublicRoutes() {
             <Route path='/docs' element={<DocsPage />} />
             <Route path='/changelog' element={<ChangelogPage />} />
             <Route path='/support' element={<SupportPage />} />
-            <Route
-                path='*'
-                element={<Navigate to='/terms-of-service' replace />}
-            />
+            <Route path='*' element={<NotFoundPage />} />
         </Routes>
     )
 }
@@ -319,10 +346,14 @@ function App() {
                         <Routes>
                             <Route path='/' element={<LandingPage />} />
                             <Route path='/login' element={<LoginPage />} />
-                            <Route
-                                path='*'
-                                element={<Navigate to='/' replace />}
-                            />
+                            {AUTHENTICATED_PATHS.map((p) => (
+                                <Route
+                                    key={p}
+                                    path={p}
+                                    element={<Navigate to='/' replace />}
+                                />
+                            ))}
+                            <Route path='*' element={<NotFoundPage />} />
                         </Routes>
                     </Suspense>
                 </ErrorBoundary>
