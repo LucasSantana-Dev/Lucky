@@ -1,7 +1,11 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { diffKeySets, flattenKeys as flatten } from './locale-parity-keys.mjs'
+import {
+    diffKeySets,
+    flattenKeys as flatten,
+    missingRequired,
+} from './locale-parity-keys.mjs'
 
 // Verifies the bot's locale catalogues (and the frontend en/pt-BR pair) carry
 // the same key set.
@@ -150,8 +154,29 @@ const FRONTEND_LOCALES_DIR = path.join(
     repoRoot,
     'packages/frontend/src/locales',
 )
+const FRONTEND_REQUIRED_LOCALES = ['en', 'pt-BR']
 const frontendKeys = new Map()
-for (const locale of ['en', 'pt-BR']) {
+let frontendLocales = []
+try {
+    const entries = await readdir(FRONTEND_LOCALES_DIR, { withFileTypes: true })
+    frontendLocales = entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+        .map((entry) => entry.name.slice(0, -'.json'.length))
+        .sort()
+} catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    failures.push(`cannot read frontend locales dir: ${message}`)
+}
+for (const locale of missingRequired(
+    frontendLocales,
+    FRONTEND_REQUIRED_LOCALES,
+)) {
+    failures.push(
+        `required frontend catalogue ${locale}.json is missing. Update ` +
+            'FRONTEND_REQUIRED_LOCALES on purpose if it was removed.',
+    )
+}
+for (const locale of frontendLocales) {
     try {
         const parsed = JSON.parse(
             await readFile(
@@ -169,18 +194,18 @@ for (const locale of ['en', 'pt-BR']) {
         failures.push(`cannot read frontend ${locale}.json: ${message}`)
     }
 }
-if (frontendKeys.size === 2) {
-    const { missing, extra } = diffKeySets(
-        frontendKeys.get('en'),
-        frontendKeys.get('pt-BR'),
-    )
-    for (const key of missing) {
-        failures.push(`frontend pt-BR.json is missing "${key}"`)
-    }
-    for (const key of extra) {
-        failures.push(
-            `frontend pt-BR.json has "${key}", which does not exist in frontend en.json`,
-        )
+if (frontendKeys.has('en')) {
+    for (const [locale, keys] of frontendKeys) {
+        if (locale === 'en') continue
+        const { missing, extra } = diffKeySets(frontendKeys.get('en'), keys)
+        for (const key of missing) {
+            failures.push(`frontend ${locale}.json is missing "${key}"`)
+        }
+        for (const key of extra) {
+            failures.push(
+                `frontend ${locale}.json has "${key}", which does not exist in frontend en.json`,
+            )
+        }
     }
 }
 
@@ -199,5 +224,5 @@ const total = keysByLocale.get(REFERENCE).size
 console.log(
     `locale parity check passed (${LOCALES.length} catalogues, ${total} keys in ${REFERENCE}, ` +
         `${INTENTIONALLY_ENGLISH_ONLY.size} documented exemption(s)); ` +
-        `frontend en/pt-BR parity ok (${frontendKeys.get('en').size} keys).`,
+        `frontend parity ok (${frontendKeys.size} catalogues, ${frontendKeys.get('en').size} keys in en).`,
 )

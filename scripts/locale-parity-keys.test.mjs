@@ -1,6 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { flattenKeys, diffKeySets } from './locale-parity-keys.mjs'
+import {
+    flattenKeys,
+    diffKeySets,
+    missingRequired,
+} from './locale-parity-keys.mjs'
 
 test('flattens nested objects into dotted keys', () => {
     assert.deepEqual(flattenKeys({ a: { b: 'x', c: { d: 'y' } }, e: 'z' }), [
@@ -34,4 +38,15 @@ test('reports nothing when the key sets match', () => {
         missing: [],
         extra: [],
     })
+})
+
+test('reports required locales that are not present', () => {
+    assert.deepEqual(missingRequired(['en'], ['en', 'pt-BR']), ['pt-BR'])
+})
+
+test('accepts extra discovered locales beyond the required set', () => {
+    assert.deepEqual(
+        missingRequired(['en', 'fr', 'pt-BR'], ['en', 'pt-BR']),
+        [],
+    )
 })

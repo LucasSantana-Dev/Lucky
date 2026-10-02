@@ -17,3 +17,8 @@ export function diffKeySets(reference, other) {
         extra: [...other].filter((key) => !reference.has(key)),
     }
 }
+
+export function missingRequired(discovered, required) {
+    const present = new Set(discovered)
+    return required.filter((locale) => !present.has(locale))
+}
