@@ -12,6 +12,7 @@ import type {
     ApplyResult,
 } from '@/services/automationApi'
 import { toast } from 'sonner'
+import i18n from '@/lib/i18n'
 
 vi.mock('@/stores/guildStore')
 vi.mock('@/services/api', () => ({
@@ -688,5 +689,47 @@ describe('GuildAutomation', () => {
         expect(planButton).toBeDisabled()
         expect(applyButton).toBeDisabled()
         expect(reconcileButton).toBeDisabled()
+    })
+
+    test('pluralizes applied and failed counts in both languages', async () => {
+        const user = userEvent.setup()
+        mockGuildStore()
+        vi.mocked(api.automation.getStatus).mockResolvedValue({
+            status: 'applied',
+            runs: [],
+        })
+        vi.mocked(api.automation.getManifest).mockResolvedValue(mockManifest)
+        vi.mocked(api.automation.apply).mockResolvedValue({
+            ...mockApplyResult,
+            applied: 1,
+            failed: 2,
+        })
+
+        render(
+            <MemoryRouter>
+                <GuildAutomation />
+            </MemoryRouter>,
+        )
+
+        await user.click(await screen.findByText('Record Plan'))
+
+        expect(await screen.findByText('1 applied')).toBeInTheDocument()
+        expect(screen.getByText('2 failed')).toBeInTheDocument()
+
+        const previous = i18n.language
+        await i18n.changeLanguage('pt-BR')
+        try {
+            expect(i18n.t('guildAutomation.appliedCount', { count: 1 })).toBe(
+                '1 aplicada',
+            )
+            expect(i18n.t('guildAutomation.appliedCount', { count: 2 })).toBe(
+                '2 aplicadas',
+            )
+            expect(i18n.t('guildAutomation.failedCount', { count: 2 })).toBe(
+                '2 com falha',
+            )
+        } finally {
+            await i18n.changeLanguage(previous)
+        }
     })
 })

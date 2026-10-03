@@ -19,8 +19,8 @@ const CommandsConfig = lazy(() => import('@/components/Config/CommandsConfig'))
 export default function ConfigPage() {
     const { t } = useTranslation()
     usePageMetadata({
-        title: 'Configuration - Lucky',
-        description: 'Configure modules and commands for your Discord servers',
+        title: t('config.pageTitle'),
+        description: t('config.pageDescription'),
     })
     const [selectedModule, setSelectedModule] = useState<string | null>(null)
     const { selectedGuild } = useGuildSelection()
@@ -30,8 +30,7 @@ export default function ConfigPage() {
         {
             id: 'music',
             name: t('config.musicModule'),
-            description:
-                'Configure music playback, queue management, and audio settings',
+            description: t('config.configureMusic'),
             icon: Music,
         },
         {
@@ -43,8 +42,7 @@ export default function ConfigPage() {
         {
             id: 'moderation',
             name: t('config.moderation'),
-            description:
-                'Set up auto-moderation, filters, and moderation actions',
+            description: t('config.setupAutoModeration'),
             icon: Shield,
         },
     ]
@@ -89,13 +87,13 @@ export default function ConfigPage() {
                         className='text-xl font-semibold text-lucky-text-primary uppercase tracking-wide'
                         style={{ fontFamily: 'Sora' }}
                     >
-                        Configuration
+                        {t('config.configuration')}
                     </h1>
                     <p
                         className='text-xs text-lucky-text-tertiary'
                         style={{ fontFamily: 'Manrope' }}
                     >
-                        Server:{' '}
+                        {t('config.server')}{' '}
                         <span className='text-lucky-text-secondary font-medium'>
                             {selectedGuild.name}
                         </span>
@@ -193,7 +191,7 @@ export default function ConfigPage() {
                                 <div
                                     className='flex justify-center py-12'
                                     role='status'
-                                    aria-label='Loading...'
+                                    aria-label={t('common.loading')}
                                     aria-live='polite'
                                 >
                                     <Loader2

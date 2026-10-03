@@ -271,9 +271,7 @@ describe('TrackHistoryPage', () => {
         test('clicking Clear asks for confirmation without clearing', async () => {
             await openClearDialog()
 
-            expect(
-                screen.getByText('Clear track history?')
-            ).toBeInTheDocument()
+            expect(screen.getByText('Clear track history?')).toBeInTheDocument()
             expect(api.trackHistory.clearHistory).not.toHaveBeenCalled()
         })
 
@@ -287,7 +285,7 @@ describe('TrackHistoryPage', () => {
             })
             expect(api.trackHistory.clearHistory).not.toHaveBeenCalled()
             expect(
-                screen.getAllByText('Never Gonna Give You Up').length
+                screen.getAllByText('Never Gonna Give You Up').length,
             ).toBeGreaterThan(0)
         })
 
@@ -309,15 +307,15 @@ describe('TrackHistoryPage', () => {
                     new Promise((resolve) =>
                         setTimeout(
                             () => resolve({ data: { success: true } } as any),
-                            50
-                        )
-                    )
+                            50,
+                        ),
+                    ),
             )
 
             await user.dblClick(
                 within(screen.getByRole('dialog')).getByRole('button', {
                     name: 'Clear',
-                })
+                }),
             )
 
             await waitFor(() => {
@@ -332,17 +330,17 @@ describe('TrackHistoryPage', () => {
             await user.click(
                 within(screen.getByRole('dialog')).getByRole('button', {
                     name: 'Clear',
-                })
+                }),
             )
 
             await waitFor(() => {
                 expect(api.trackHistory.clearHistory).toHaveBeenCalledWith(
-                    '123'
+                    '123',
                 )
             })
             await waitFor(() => {
                 expect(
-                    screen.queryByText('Never Gonna Give You Up')
+                    screen.queryByText('Never Gonna Give You Up'),
                 ).not.toBeInTheDocument()
             })
         })
@@ -471,5 +469,38 @@ describe('TrackHistoryPage', () => {
         expect(playedByName.closest('p')?.textContent).toBe(
             'Requested by Alice',
         )
+    })
+
+    test('formats relative times for every range', async () => {
+        mockGuildSelection(mockGuild)
+        const now = Date.now()
+        const at = (id: string, ms: number) => ({
+            ...mockHistory[0],
+            trackId: id,
+            title: `Song ${id}`,
+            timestamp: now - ms,
+        })
+        vi.mocked(api.trackHistory.getHistory).mockResolvedValue({
+            data: {
+                history: [
+                    at('a', 1000),
+                    at('b', 5 * 60000),
+                    at('c', 3 * 3600000),
+                    at('d', 2 * 86400000),
+                ],
+            },
+        } as any)
+        vi.mocked(api.trackHistory.getStats).mockResolvedValue({
+            data: { stats: mockStats },
+        } as any)
+
+        renderPage()
+
+        expect((await screen.findAllByText('Just now')).length).toBeGreaterThan(
+            0,
+        )
+        expect(screen.getAllByText('5m ago').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('3h ago').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('2d ago').length).toBeGreaterThan(0)
     })
 })

@@ -33,6 +33,7 @@ vi.mock('zustand/middleware', async () => {
 })
 
 import { api } from '@/services/api'
+import { toast } from 'sonner'
 import type { User } from '@/types'
 import { useAuthStore } from './authStore'
 
@@ -184,5 +185,31 @@ describe('authStore', () => {
         await expect(useAuthStore.getState().checkAuth()).resolves.toBe(true)
         expect(api.auth.checkStatus).toHaveBeenCalledTimes(2)
         expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    })
+
+    test('logout toasts success and clears the session', async () => {
+        vi.mocked(api.auth.logout).mockResolvedValue(undefined as never)
+        useAuthStore.setState({ isAuthenticated: true })
+
+        await useAuthStore.getState().logout()
+
+        expect(toast.success).toHaveBeenCalledWith('Logged out successfully')
+        expect(useAuthStore.getState().isAuthenticated).toBe(false)
+    })
+
+    test('logout surfaces an Error message', async () => {
+        vi.mocked(api.auth.logout).mockRejectedValue(new Error('boom'))
+
+        await useAuthStore.getState().logout()
+
+        expect(toast.error).toHaveBeenCalledWith('boom')
+    })
+
+    test('logout falls back to the translated message for non-Error rejections', async () => {
+        vi.mocked(api.auth.logout).mockRejectedValue('nope')
+
+        await useAuthStore.getState().logout()
+
+        expect(toast.error).toHaveBeenCalledWith('Failed to log out')
     })
 })

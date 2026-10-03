@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { History, BarChart3, Music2, User, Trash2, Clock } from 'lucide-react'
 import { Trans, useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { useGuildStore } from '@/stores/guildStore'
 import { hasModuleAccess } from '@/lib/rbac'
@@ -43,14 +44,14 @@ function formatPlayTime(seconds: number): string {
     return `${mins}m`
 }
 
-function formatTimeAgo(timestamp: number): string {
+function formatTimeAgo(timestamp: number, t: TFunction): string {
     const diff = Date.now() - timestamp
     const mins = Math.floor(diff / 60000)
-    if (mins < 1) return 'Just now'
-    if (mins < 60) return `${mins}m ago`
+    if (mins < 1) return t('trackHistory.justNow')
+    if (mins < 60) return t('trackHistory.minutesAgo', { minutes: mins })
     const hrs = Math.floor(mins / 60)
-    if (hrs < 24) return `${hrs}h ago`
-    return `${Math.floor(hrs / 24)}d ago`
+    if (hrs < 24) return t('trackHistory.hoursAgo', { hours: hrs })
+    return t('trackHistory.daysAgo', { days: Math.floor(hrs / 24) })
 }
 
 const PAGE_SIZE = 50
@@ -326,13 +327,17 @@ export default function TrackHistoryPage() {
                                                     <span className='type-body-sm text-lucky-text-tertiary'>
                                                         {formatTimeAgo(
                                                             track.timestamp,
+                                                            t,
                                                         )}
                                                     </span>
                                                 </div>
                                             </div>
 
                                             <span className='type-body-sm text-lucky-text-tertiary sm:hidden shrink-0'>
-                                                {formatTimeAgo(track.timestamp)}
+                                                {formatTimeAgo(
+                                                    track.timestamp,
+                                                    t,
+                                                )}
                                             </span>
                                         </div>
                                     ))}

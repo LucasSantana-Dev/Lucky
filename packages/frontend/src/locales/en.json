@@ -362,7 +362,22 @@
             "fastSetup": "Fast setup",
             "liveControls": "Live controls"
         },
-        "copyright": "© 2026 Lucky. All rights reserved."
+        "copyright": "© 2026 Lucky. All rights reserved.",
+        "loggedOut": "Logged out successfully",
+        "logoutFailed": "Failed to log out",
+        "authenticated": "Successfully authenticated!",
+        "verifyFailed": "Failed to verify authentication",
+        "errors": {
+            "auth_failed": "Authentication failed. Please try again.",
+            "missing_code": "Missing authorization code. Please try again.",
+            "missing_state": "Security validation failed. Please try again.",
+            "invalid_state": "Invalid security token. Please try again.",
+            "session_failed": "Failed to create session. Please try again.",
+            "authentication_error": "An error occurred during authentication. Please try again.",
+            "client_id_not_configured": "Authentication service is not properly configured. Please contact support.",
+            "redirect_error": "Failed to redirect to authentication service. Please try again.",
+            "generic": "An error occurred"
+        }
     },
     "support": {
         "title": "Report a problem",
@@ -519,7 +534,9 @@
         "manageCommandPermissions": "Manage command permissions, aliases, and behavior",
         "moderation": "Moderation",
         "setupAutoModeration": "Set up auto-moderation, filters, and moderation actions",
-        "back": "Back"
+        "back": "Back",
+        "pageTitle": "Configuration - Lucky",
+        "pageDescription": "Configure modules and commands for your Discord servers"
     },
     "customCommands": {
         "title": "Custom Commands",
@@ -677,7 +694,21 @@
         "runHistory": "Run History",
         "noRunsYet": "No runs yet",
         "runPlanOrApply": "Run a plan or apply to see results here.",
-        "invalidJsonError": "Invalid JSON — please fix syntax errors before saving."
+        "invalidJsonError": "Invalid JSON — please fix syntax errors before saving.",
+        "noChangesDetected": "No changes detected.",
+        "appliedCount_one": "{{count}} applied",
+        "appliedCount_other": "{{count}} applied",
+        "failedCount_one": "{{count}} failed",
+        "failedCount_other": "{{count}} failed",
+        "manifestSaved": "Manifest saved successfully.",
+        "manifestSaveFailed": "Failed to save manifest.",
+        "planGenerated": "Plan generated.",
+        "planFailed": "Failed to generate plan.",
+        "planRecorded": "Plan recorded. Apply changes using /guildconfig apply in Discord.",
+        "planRecordFailed": "Failed to record plan.",
+        "reconcileRecorded": "Drift reconciliation recorded. Apply changes using /guildconfig reconcile in Discord.",
+        "reconcileFailed": "Failed to record reconciliation.",
+        "expandManifest": "Expand"
     },
     "lastFm": {
         "musicIdentityEyebrow": "Music identity",
@@ -1110,7 +1141,11 @@
         "clearConfirmTitle": "Clear track history?",
         "clearConfirmDescription": "This permanently removes the track history and stats for this server. This cannot be undone.",
         "failedToClearHistory": "Failed to clear history",
-        "playedBy": "By <bold>{{user}}</bold>"
+        "playedBy": "By <bold>{{user}}</bold>",
+        "justNow": "Just now",
+        "minutesAgo": "{{minutes}}m ago",
+        "hoursAgo": "{{hours}}h ago",
+        "daysAgo": "{{days}}d ago"
     },
     "twitch": {
         "selectServerToManage": "Select a server to manage Twitch notifications",
