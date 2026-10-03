@@ -353,7 +353,7 @@ describe('Starboard', () => {
         ).toBeInTheDocument()
     })
 
-    test('shows the raw id when the channel list comes back empty', async () => {
+    test('lets you type a channel id when the channel list is empty', async () => {
         mockGuildStore()
         vi.mocked(api.starboard.getConfig).mockResolvedValue({
             ...mockConfig,
@@ -364,12 +364,15 @@ describe('Starboard', () => {
         } as never)
         render(<Starboard />)
 
-        const select = (await screen.findByLabelText(
+        const input = (await screen.findByLabelText(
             'Channel ID',
-        )) as HTMLSelectElement
-        expect(select.value).toBe('555')
-        expect(screen.getByRole('option', { name: '555' })).toBeInTheDocument()
+        )) as HTMLInputElement
+        expect(input.tagName).toBe('INPUT')
+        expect(input.value).toBe('555')
         expect(screen.queryByText(/Deleted channel/)).not.toBeInTheDocument()
+        fireEvent.change(input, { target: { value: '424242' } })
+        expect(input.value).toBe('424242')
+        expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
     })
 
     test('shows the saved channel id when channels fail to load', async () => {

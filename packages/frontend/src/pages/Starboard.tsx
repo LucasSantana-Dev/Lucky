@@ -265,7 +265,7 @@ function Starboard() {
                         >
                             {t('channelId')}
                         </Label>
-                        {channelsError ? (
+                        {channelsError || channels.length === 0 ? (
                             <Input
                                 id='channel'
                                 type='text'

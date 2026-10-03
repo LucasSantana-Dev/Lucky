@@ -407,7 +407,7 @@ function Levels() {
                             <Label htmlFor='newRole' className='text-sm'>
                                 {t('levels.roleIdLabel')}
                             </Label>
-                            {rolesError ? (
+                            {rolesError || roles.length === 0 ? (
                                 <Input
                                     id='newRole'
                                     type='text'

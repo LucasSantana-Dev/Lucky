@@ -600,6 +600,24 @@ describe('Levels', () => {
         ).toBeDisabled()
     })
 
+    test('lets you type a role id when the role list is empty', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: { roles: [] },
+        } as never)
+        render(<Levels />)
+
+        const roleInput = await screen.findByLabelText('Role ID')
+        expect(roleInput.tagName).toBe('INPUT')
+        fireEvent.change(screen.getByPlaceholderText('e.g. 5'), {
+            target: { value: '15' },
+        })
+        fireEvent.change(roleInput, { target: { value: '424242' } })
+        expect(
+            screen.getByRole('button', { name: /add reward/i }),
+        ).toBeEnabled()
+    })
+
     test('lets you type a role id when roles fail to load', async () => {
         mockGuildStore()
         vi.mocked(api.guilds.getRbac).mockRejectedValue(new Error('boom'))
