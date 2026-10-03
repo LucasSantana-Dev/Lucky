@@ -45,6 +45,7 @@ function Starboard() {
         const loadData = async () => {
             setLoading(true)
             setChannelsError(false)
+            setChannels([])
             try {
                 const [configData, entriesData, channelsRes] =
                     await Promise.all([
@@ -191,9 +192,12 @@ function Starboard() {
         })
     }
 
-    const orphanChannelLabel = channelsError
-        ? channelId
-        : t('deletedChannel', { id: channelId })
+    // An empty list with no error means the backend could not reach Discord
+    // (it answers 200 with []), so only claim "deleted" against a real list.
+    const orphanChannelLabel =
+        channelsError || channels.length === 0
+            ? channelId
+            : t('deletedChannel', { id: channelId })
 
     return (
         <div className='space-y-6'>
@@ -270,7 +274,7 @@ function Starboard() {
                             <option value=''>{t('selectChannel')}</option>
                             {channels.map((c) => (
                                 <option key={c.id} value={c.id}>
-                                    #{c.name}
+                                    {c.name}
                                 </option>
                             ))}
                             {channelId &&

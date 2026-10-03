@@ -135,8 +135,8 @@ describe('Starboard', () => {
         vi.mocked(api.guilds.getChannels).mockResolvedValue({
             data: {
                 channels: [
-                    { id: '999', name: 'stars' },
-                    { id: 'c2', name: 'other' },
+                    { id: '999', name: '#stars' },
+                    { id: 'c2', name: '#other' },
                 ],
             },
         } as never)
@@ -351,6 +351,25 @@ describe('Starboard', () => {
         expect(
             screen.getByRole('option', { name: 'Deleted channel (gone-chan)' }),
         ).toBeInTheDocument()
+    })
+
+    test('shows the raw id when the channel list comes back empty', async () => {
+        mockGuildStore()
+        vi.mocked(api.starboard.getConfig).mockResolvedValue({
+            ...mockConfig,
+            channelId: '555',
+        })
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as never)
+        render(<Starboard />)
+
+        const select = (await screen.findByLabelText(
+            'Channel ID',
+        )) as HTMLSelectElement
+        expect(select.value).toBe('555')
+        expect(screen.getByRole('option', { name: '555' })).toBeInTheDocument()
+        expect(screen.queryByText(/Deleted channel/)).not.toBeInTheDocument()
     })
 
     test('shows the saved channel id when channels fail to load', async () => {

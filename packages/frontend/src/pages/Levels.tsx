@@ -206,7 +206,8 @@ function Levels() {
     }
 
     const getRoleName = (roleId: string): string => {
-        if (rolesError) return roleId
+        // Empty list without an error: backend had no Discord access.
+        if (rolesError || roles.length === 0) return roleId
         const role = roles.find((r) => r.id === roleId)
         return role?.name ?? t('levels.deletedRole', { id: roleId })
     }

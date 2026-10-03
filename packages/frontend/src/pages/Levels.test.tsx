@@ -563,6 +563,17 @@ describe('Levels', () => {
         ).toBeInTheDocument()
     })
 
+    test('shows the raw role id when the role list comes back empty', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: { roles: [] },
+        } as never)
+        render(<Levels />)
+
+        expect(await screen.findByText('role-1')).toBeInTheDocument()
+        expect(screen.queryByText(/Deleted role/)).not.toBeInTheDocument()
+    })
+
     test('shows the raw role id when the roles failed to load', async () => {
         mockGuildStore()
         vi.mocked(api.guilds.getRbac).mockRejectedValue(new Error('boom'))
