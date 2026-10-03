@@ -30,6 +30,9 @@ declare module '@prisma/client' {
         userFeedback: {
             deleteMany(args: unknown): Promise<{ count: number }>
         }
+        commandEvent: {
+            deleteMany(args: unknown): Promise<{ count: number }>
+        }
         reactionRoleMessage: {
             create(args: unknown): Promise<unknown>
             findUnique(args: unknown): Promise<unknown | null>

@@ -3,6 +3,7 @@ import {
     collectDefaultMetrics,
     Counter,
     Gauge,
+    Histogram,
     type CollectFunction,
 } from 'prom-client'
 import { getPrismaClient, errorLog } from '@lucky/shared/utils'
@@ -80,6 +81,35 @@ export const guildAutomationUsageTotal = new Counter<'operation'>({
     name: 'lucky_guild_automation_usage_total',
     help: 'Count of Guild Automation plan/apply/reconcile attempts via the Discord /guildconfig command, labelled by operation type.',
     labelNames: ['operation'],
+    registers: [registry],
+})
+
+/**
+ * Counter: handled slash/context interactions (#2391). Cardinality is bounded:
+ * `command` is a registered command name or "unknown", never raw user input.
+ * Guild and user ids stay in command_events rows, not labels.
+ */
+export const commandsTotal = new Counter<'command' | 'kind' | 'outcome'>({
+    name: 'lucky_bot_commands_total',
+    help: 'Count of handled command interactions by command, kind (slash|context|component) and outcome (ok|user_error|error|denied).',
+    labelNames: ['command', 'kind', 'outcome'],
+    registers: [registry],
+})
+
+/** Histogram: command handling latency in seconds, labelled by command only. */
+export const commandDurationSeconds = new Histogram<'command'>({
+    name: 'lucky_bot_command_duration_seconds',
+    help: 'Command handling duration in seconds, labelled by command.',
+    labelNames: ['command'],
+    buckets: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
+    registers: [registry],
+})
+
+/** Counter: command events lost before reaching the database (reason: overflow|flush_failure). */
+export const commandEventsDroppedTotal = new Counter<'reason'>({
+    name: 'lucky_bot_command_events_dropped_total',
+    help: 'Count of command events dropped before persisting, by reason (overflow|flush_failure).',
+    labelNames: ['reason'],
     registers: [registry],
 })
 

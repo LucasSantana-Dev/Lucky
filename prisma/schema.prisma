@@ -875,6 +875,28 @@ model ServerLog {
   @@map("server_logs")
 }
 
+/// Command telemetry (obs P1, #2391). One row per handled slash/context
+/// interaction, written by a buffered createMany. No FK to Guild on purpose:
+/// events must survive guild deletion and never block on it. Retention 180d.
+model CommandEvent {
+  id         String   @id @default(cuid())
+  occurredAt DateTime @default(now())
+  guildId    String?
+  userId     String
+  command    String
+  subcommand String?
+  kind       String // slash | context | component
+  outcome    String // ok | user_error | error | denied
+  latencyMs  Int
+  errorClass String?
+  shardId    Int      @default(0)
+
+  @@index([occurredAt])
+  @@index([guildId, occurredAt])
+  @@index([command, occurredAt])
+  @@map("command_events")
+}
+
 model LogSettings {
   id                String   @id @default(cuid())
   guildId           String   @unique

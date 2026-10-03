@@ -1,4 +1,4 @@
-import { PrismaPg } from '@prisma/adapter-pg'
+import { createPgAdapter } from './pgAdapter'
 import type { PrismaClient } from '../../generated/prisma/client.js'
 import { createRequire } from 'module'
 
@@ -6,7 +6,6 @@ let _require: NodeRequire
 try {
     _require = createRequire(import.meta.url)
 } catch {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     _require = require
 }
 
@@ -24,9 +23,7 @@ export function getPrismaClient(): PrismaClient {
         if (!databaseUrl) {
             throw new Error('DATABASE_URL environment variable is required')
         }
-        const adapter = new PrismaPg({
-            connectionString: databaseUrl,
-        })
+        const adapter = createPgAdapter(databaseUrl)
         prismaInstance = new PrismaClientConstructor({ adapter })
     }
     return prismaInstance

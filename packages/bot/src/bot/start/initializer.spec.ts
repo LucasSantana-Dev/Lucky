@@ -48,6 +48,10 @@ jest.mock('../../handlers/clientHandler/service', () => ({
     stopPresenceRotation: jest.fn(),
 }))
 
+jest.mock('../../utils/monitoring/commandEventBuffer', () => ({
+    stopCommandEventBuffer: jest.fn().mockResolvedValue(undefined),
+}))
+
 jest.mock('../../handlers/player', () => ({
     createPlayerWithHandlers: (...args: unknown[]) => createPlayerMock(...args),
 }))

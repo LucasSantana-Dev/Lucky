@@ -42,6 +42,7 @@ import { weeklyDigestService } from '../../services/WeeklyDigestService'
 import { stopTwitchService } from '../../twitch'
 import { stopBatchJobWorker } from '../../workers/batchJobWorker'
 import { setClient } from '../clientStore'
+import { stopCommandEventBuffer } from '../../utils/monitoring/commandEventBuffer'
 import { stopRssBridgeService } from '../../services/RssBridgeService'
 import type {
     BotInitializationOptions,
@@ -366,6 +367,12 @@ export class BotInitializer {
                 message: 'Error stopping watchdog periodic scan:',
                 error,
             })
+        }
+
+        try {
+            await stopCommandEventBuffer()
+        } catch (error) {
+            errorLog({ message: 'Error flushing command events:', error })
         }
 
         if (this.client) {

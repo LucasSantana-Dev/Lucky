@@ -18,6 +18,12 @@ import type { CommandCategory } from '../config/constants'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
+import { recordCommandEvent } from '../utils/monitoring/recordCommandEvent'
+import {
+    classifyOutcome,
+    type CommandKind,
+    type CommandStopReason,
+} from '../utils/monitoring/commandOutcome'
 import { buildFeedbackReportCustomId } from '../services/feedbackService'
 
 const CATEGORY_FLAG_MAP: Partial<Record<CommandCategory, FeatureToggleName>> = {
@@ -183,6 +189,48 @@ const replyExecutionError = async (
     }
 }
 
+type DispatchTarget = {
+    category: CommandCategory
+    botPermissions?: bigint[]
+}
+
+/**
+ * Shared gate chain for slash and context-menu dispatch. Returns the stop
+ * reason when the interaction was answered by a gate instead of the command.
+ */
+const runGates = async (
+    interaction:
+        ChatInputCommandInteraction | MessageContextMenuCommandInteraction,
+    target: DispatchTarget,
+): Promise<CommandStopReason | null> => {
+    if (!(await isFeatureEnabledOrReply(target.category, interaction))) {
+        return 'feature_disabled'
+    }
+    if (!(await enforceBotPermissions(interaction, target.botPermissions))) {
+        return 'missing_bot_permissions'
+    }
+    return null
+}
+
+const recordHandled = (
+    interaction:
+        ChatInputCommandInteraction | MessageContextMenuCommandInteraction,
+    kind: CommandKind,
+    startedAt: number,
+    known: boolean,
+    signal: { error?: unknown; reason?: CommandStopReason },
+): void => {
+    const { outcome, errorClass } = classifyOutcome(signal)
+    recordCommandEvent({
+        interaction,
+        kind,
+        outcome,
+        startedAt,
+        known,
+        errorClass,
+    })
+}
+
 export const executeCommand = async ({
     interaction,
     client,
@@ -210,28 +258,34 @@ export const executeCommand = async ({
         })
     }
 
+    const startedAt = Date.now()
+    let known = false
     try {
         const command = client.commands.get(interaction.commandName)
         if (!command) {
             debugLog({
                 message: `Command not found: ${interaction.commandName}`,
             })
+            recordHandled(interaction, 'slash', startedAt, false, {
+                reason: 'not_found',
+            })
             return
         }
+        known = true
 
-        if (!(await isFeatureEnabledOrReply(command.category, interaction))) {
-            return
-        }
-
-        if (
-            !(await enforceBotPermissions(interaction, command.botPermissions))
-        ) {
+        const stopped = await runGates(interaction, command)
+        if (stopped) {
+            recordHandled(interaction, 'slash', startedAt, true, {
+                reason: stopped,
+            })
             return
         }
 
         debugLog({ message: `Executing command: ${interaction.commandName}` })
         await command.execute({ interaction, client })
+        recordHandled(interaction, 'slash', startedAt, true, {})
     } catch (error) {
+        recordHandled(interaction, 'slash', startedAt, known, { error })
         await replyExecutionError(
             error,
             interaction,
@@ -250,27 +304,26 @@ export const executeContextMenu = async ({
         interaction.guild?.id,
     )
 
+    const startedAt = Date.now()
+    let known = false
     try {
         const contextMenu = client.contextMenus.get(interaction.commandName)
         if (!contextMenu) {
             debugLog({
                 message: `Context menu not found: ${interaction.commandName}`,
             })
+            recordHandled(interaction, 'context', startedAt, false, {
+                reason: 'not_found',
+            })
             return
         }
+        known = true
 
-        if (
-            !(await isFeatureEnabledOrReply(contextMenu.category, interaction))
-        ) {
-            return
-        }
-
-        if (
-            !(await enforceBotPermissions(
-                interaction,
-                contextMenu.botPermissions,
-            ))
-        ) {
+        const stopped = await runGates(interaction, contextMenu)
+        if (stopped) {
+            recordHandled(interaction, 'context', startedAt, true, {
+                reason: stopped,
+            })
             return
         }
 
@@ -278,7 +331,9 @@ export const executeContextMenu = async ({
             message: `Executing context menu: ${interaction.commandName}`,
         })
         await contextMenu.execute({ interaction, client })
+        recordHandled(interaction, 'context', startedAt, true, {})
     } catch (error) {
+        recordHandled(interaction, 'context', startedAt, known, { error })
         await replyExecutionError(
             error,
             interaction,

@@ -16,7 +16,13 @@ jest.mock('../../bot/clientStore', () => ({
     getStoredClient: () => getStoredClientMock(),
 }))
 
-import { registry, renderMetrics } from './prometheus'
+import {
+    registry,
+    renderMetrics,
+    commandsTotal,
+    commandDurationSeconds,
+    commandEventsDroppedTotal,
+} from './prometheus'
 
 describe('prometheus registry', () => {
     beforeEach(() => {
@@ -78,6 +84,28 @@ describe('prometheus registry', () => {
         const text = await renderMetrics()
 
         expect(text).toMatch(/lucky_bot_gateway_connected(\{[^}]*\})?\s+0/)
+    })
+
+    it('command metrics use bounded labels and no guild/user labels (#2391)', async () => {
+        countMock.mockResolvedValue(0)
+        commandsTotal.inc({ command: 'play', kind: 'slash', outcome: 'ok' })
+        commandDurationSeconds.observe({ command: 'play' }, 0.2)
+        commandEventsDroppedTotal.inc({ reason: 'overflow' })
+
+        const text = await renderMetrics()
+
+        const line = (name: string) =>
+            text.split('\n').find((l) => l.startsWith(name)) ?? ''
+        expect(line('lucky_bot_commands_total{')).toMatch(/command="play"/)
+        expect(line('lucky_bot_commands_total{')).toMatch(/kind="slash"/)
+        expect(line('lucky_bot_commands_total{')).toMatch(/outcome="ok"/)
+        expect(line('lucky_bot_command_duration_seconds_bucket{')).toMatch(
+            /command="play"/,
+        )
+        expect(line('lucky_bot_command_events_dropped_total{')).toMatch(
+            /reason="overflow"/,
+        )
+        expect(text).not.toMatch(/lucky_bot_command\w*\{[^}]*(guild|user)/)
     })
 
     it('reports lucky_bot_gateway_connected=0 when no client is stored yet', async () => {
