@@ -192,8 +192,7 @@ export class ReminderScheduler extends IntervalScheduler {
             .setTitle('⏰ Reminder')
             .setDescription(reminder.message)
             .setColor(COLOR.LUCKY_PURPLE)
-            .setFooter({ text: `Set for: ${reminder.remindAt.toISOString()}` })
-            .setTimestamp()
+            .setTimestamp(reminder.remindAt)
 
         // Recurring reminders carry a Stop button so the owner can end them
         // from the message itself; one-time reminders have nothing to stop.
