@@ -11,6 +11,7 @@ const mockPrisma = {
     reminder: {
         create: jest.fn() as jest.MockedFunction<any>,
         findMany: jest.fn() as jest.MockedFunction<any>,
+        findUnique: jest.fn() as jest.MockedFunction<any>,
         delete: jest.fn() as jest.MockedFunction<any>,
         deleteMany: jest.fn() as jest.MockedFunction<any>,
         update: jest.fn() as jest.MockedFunction<any>,
@@ -181,6 +182,65 @@ describe('ReminderService', () => {
             mockPrisma.reminder.deleteMany.mockResolvedValue({ count: 0 })
             const ok = await service.deleteOwned('g', 'u', 'other')
             expect(ok).toBe(false)
+        })
+    })
+
+    describe('null guildId (cross-guild, owner-scoped)', () => {
+        test('listPending drops only the guildId filter', async () => {
+            mockPrisma.reminder.findMany.mockResolvedValue([])
+            await service.listPending(null, 'user-1', 5)
+            const where = mockPrisma.reminder.findMany.mock.calls[0][0].where
+            expect(where).toEqual({ userId: 'user-1', delivered: false })
+            expect('guildId' in where).toBe(false)
+        })
+
+        test('findPendingByIdPrefix drops only the guildId filter', async () => {
+            mockPrisma.reminder.findMany.mockResolvedValue([])
+            await service.findPendingByIdPrefix(null, 'user-1', 'abc')
+            const where = mockPrisma.reminder.findMany.mock.calls[0][0].where
+            expect(where).toEqual({
+                userId: 'user-1',
+                delivered: false,
+                id: { startsWith: 'abc' },
+            })
+            expect('guildId' in where).toBe(false)
+        })
+
+        test('deleteOwned drops only the guildId filter', async () => {
+            mockPrisma.reminder.deleteMany.mockResolvedValue({ count: 1 })
+            const ok = await service.deleteOwned(null, 'user-1', 'r1')
+            const where = mockPrisma.reminder.deleteMany.mock.calls[0][0].where
+            expect(where).toEqual({ id: 'r1', userId: 'user-1' })
+            expect('guildId' in where).toBe(false)
+            expect(ok).toBe(true)
+        })
+
+        test('string guildId keeps the guild filter on all three', async () => {
+            mockPrisma.reminder.findMany.mockResolvedValue([])
+            mockPrisma.reminder.deleteMany.mockResolvedValue({ count: 0 })
+            await service.listPending('g1', 'u1')
+            await service.findPendingByIdPrefix('g1', 'u1', 'p')
+            await service.deleteOwned('g1', 'u1', 'r1')
+            expect(
+                mockPrisma.reminder.findMany.mock.calls[0][0].where.guildId,
+            ).toBe('g1')
+            expect(
+                mockPrisma.reminder.findMany.mock.calls[1][0].where.guildId,
+            ).toBe('g1')
+            expect(
+                mockPrisma.reminder.deleteMany.mock.calls[0][0].where.guildId,
+            ).toBe('g1')
+        })
+    })
+
+    describe('findById', () => {
+        test('looks the row up by id only', async () => {
+            mockPrisma.reminder.findUnique.mockResolvedValue({ id: 'r1' })
+            const row = await service.findById('r1')
+            expect(mockPrisma.reminder.findUnique).toHaveBeenCalledWith({
+                where: { id: 'r1' },
+            })
+            expect(row).toEqual({ id: 'r1' })
         })
     })
 

@@ -64,6 +64,10 @@ import { handleForumThreadCreate } from './forumThreadHandler'
 import { startBatchJobWorker } from '../workers/batchJobWorker'
 import { handleFeedbackReportButton } from './feedbackButtonHandler'
 import { FEEDBACK_REPORT_BUTTON_PREFIX } from '../services/feedbackService'
+import {
+    handleReminderStopButton,
+    REMINDER_STOP_BUTTON_PREFIX,
+} from '../functions/general/reminderStopButton'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -383,6 +387,11 @@ async function dispatchButtonInteraction(
     // commandsHandler.ts's replyExecutionError.
     if (id.startsWith(FEEDBACK_REPORT_BUTTON_PREFIX)) {
         await handleFeedbackReportButton(interaction)
+        return
+    }
+    // "Stop this reminder" button on a recurring reminder (#2619).
+    if (id.startsWith(REMINDER_STOP_BUTTON_PREFIX)) {
+        await handleReminderStopButton(interaction)
         return
     }
     await reactionRolesService.handleButtonInteraction(interaction)
