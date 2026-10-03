@@ -103,6 +103,19 @@ describe('ReminderScheduler.tick', () => {
         expect(reminderServiceMock.recordFailedAttempt).not.toHaveBeenCalled()
     })
 
+    it('shows the reminder time as a localized timestamp with no ISO footer', async () => {
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        const remindAt = new Date('2026-07-03T10:00:00Z')
+        await runTick(deliveringClient(send), [makeReminder({ remindAt })])
+
+        const payload = send.mock.calls[0][0] as {
+            embeds: { footer?: unknown; timestamp?: string }[]
+        }
+        const json = payload.embeds[0]
+        expect(json.footer).toBeUndefined()
+        expect(json.timestamp).toBe(remindAt.toISOString())
+    })
+
     it('re-arms a recurring reminder instead of marking it delivered', async () => {
         const next = new Date('2026-07-04T23:00:00Z')
         computeNextOccurrenceMock.mockReturnValue(next)
