@@ -115,6 +115,7 @@ function RunCard({ run }: { run: AutomationRun }) {
 }
 
 function PlanResultView({ result }: { result: PlanResult }) {
+    const { t } = useTranslation('guildAutomation')
     return (
         <div className='space-y-3'>
             <p className='text-sm text-lucky-text-body'>{result.summary}</p>
@@ -147,7 +148,7 @@ function PlanResultView({ result }: { result: PlanResult }) {
                 </div>
             ) : (
                 <p className='text-sm text-lucky-text-muted'>
-                    No changes detected.
+                    {t('noChangesDetected')}
                 </p>
             )}
         </div>
@@ -155,15 +156,16 @@ function PlanResultView({ result }: { result: PlanResult }) {
 }
 
 function ApplyResultView({ result }: { result: ApplyResult }) {
+    const { t } = useTranslation('guildAutomation')
     return (
         <div className='space-y-3'>
             <div className='flex gap-4'>
                 <span className='text-sm text-green-400'>
-                    {result.applied} applied
+                    {t('appliedCount', { applied: result.applied })}
                 </span>
                 {result.failed > 0 && (
                     <span className='text-sm text-red-400'>
-                        {result.failed} failed
+                        {t('failedCount', { failed: result.failed })}
                     </span>
                 )}
             </div>
@@ -263,14 +265,14 @@ export default function GuildAutomation() {
         setActionLoading('save')
         try {
             await api.automation.updateManifest(selectedGuild.id, parsed)
-            toast.success('Manifest saved successfully.')
+            toast.success(t('manifestSaved'))
             await fetchData()
         } catch {
-            toast.error('Failed to save manifest.')
+            toast.error(t('manifestSaveFailed'))
         } finally {
             setActionLoading(null)
         }
-    }, [selectedGuild, manifestJson, fetchData])
+    }, [selectedGuild, manifestJson, fetchData, t])
 
     const handlePlan = useCallback(async () => {
         if (!selectedGuild) return
@@ -280,13 +282,13 @@ export default function GuildAutomation() {
         try {
             const result = await api.automation.plan(selectedGuild.id)
             setPlanResult(result)
-            toast.success('Plan generated.')
+            toast.success(t('planGenerated'))
         } catch {
-            toast.error('Failed to generate plan.')
+            toast.error(t('planFailed'))
         } finally {
             setActionLoading(null)
         }
-    }, [selectedGuild])
+    }, [selectedGuild, t])
 
     const handleApply = useCallback(async () => {
         if (!selectedGuild) return
@@ -296,16 +298,14 @@ export default function GuildAutomation() {
         try {
             const result = await api.automation.apply(selectedGuild.id)
             setApplyResult(result)
-            toast.success(
-                'Plan recorded. Apply changes using /guildconfig apply in Discord.',
-            )
+            toast.success(t('planRecorded'))
             await fetchData()
         } catch {
-            toast.error('Failed to record plan.')
+            toast.error(t('planRecordFailed'))
         } finally {
             setActionLoading(null)
         }
-    }, [selectedGuild, fetchData])
+    }, [selectedGuild, fetchData, t])
 
     const handleReconcile = useCallback(async () => {
         if (!selectedGuild) return
@@ -315,16 +315,14 @@ export default function GuildAutomation() {
         try {
             const result = await api.automation.reconcile(selectedGuild.id)
             setApplyResult(result)
-            toast.success(
-                'Drift reconciliation recorded. Apply changes using /guildconfig reconcile in Discord.',
-            )
+            toast.success(t('reconcileRecorded'))
             await fetchData()
         } catch {
-            toast.error('Failed to record reconciliation.')
+            toast.error(t('reconcileFailed'))
         } finally {
             setActionLoading(null)
         }
-    }, [selectedGuild, fetchData])
+    }, [selectedGuild, fetchData, t])
 
     if (!selectedGuild) {
         return (
@@ -464,7 +462,7 @@ export default function GuildAutomation() {
             <div className='surface-panel rounded-lg border border-lucky-border overflow-hidden'>
                 <button
                     onClick={() => setManifestExpanded(!manifestExpanded)}
-                    aria-label='Expand'
+                    aria-label={t('expandManifest')}
                     className='w-full p-4 flex items-center justify-between gap-2 hover:bg-lucky-bg-active/30 transition-colors text-left'
                 >
                     <div className='flex items-center gap-2'>

@@ -362,7 +362,22 @@
             "fastSetup": "Configuração rápida",
             "liveControls": "Controles em tempo real"
         },
-        "copyright": "© 2026 Lucky. Todos os direitos reservados."
+        "copyright": "© 2026 Lucky. Todos os direitos reservados.",
+        "loggedOut": "Sessão encerrada com sucesso",
+        "logoutFailed": "Falha ao sair",
+        "authenticated": "Autenticado com sucesso!",
+        "verifyFailed": "Falha ao verificar a autenticação",
+        "errors": {
+            "auth_failed": "Falha na autenticação. Tente novamente.",
+            "missing_code": "Código de autorização ausente. Tente novamente.",
+            "missing_state": "Falha na validação de segurança. Tente novamente.",
+            "invalid_state": "Token de segurança inválido. Tente novamente.",
+            "session_failed": "Falha ao criar a sessão. Tente novamente.",
+            "authentication_error": "Ocorreu um erro durante a autenticação. Tente novamente.",
+            "client_id_not_configured": "O serviço de autenticação não está configurado corretamente. Entre em contato com o suporte.",
+            "redirect_error": "Falha ao redirecionar para o serviço de autenticação. Tente novamente.",
+            "generic": "Ocorreu um erro"
+        }
     },
     "support": {
         "title": "Relatar um problema",
@@ -519,7 +534,9 @@
         "manageCommandPermissions": "Gerencie permissões de comandos, aliases e comportamento",
         "moderation": "Moderação",
         "setupAutoModeration": "Configure auto-moderação, filtros e ações de moderação",
-        "back": "Voltar"
+        "back": "Voltar",
+        "pageTitle": "Configuração - Lucky",
+        "pageDescription": "Configure módulos e comandos para seus servidores do Discord"
     },
     "customCommands": {
         "title": "Comandos Personalizados",
@@ -677,7 +694,19 @@
         "runHistory": "Histórico de Execuções",
         "noRunsYet": "Nenhuma execução ainda",
         "runPlanOrApply": "Execute um plano ou aplique para ver resultados aqui.",
-        "invalidJsonError": "JSON inválido — por favor, corrija erros de sintaxe antes de salvar."
+        "invalidJsonError": "JSON inválido — por favor, corrija erros de sintaxe antes de salvar.",
+        "noChangesDetected": "Nenhuma alteração detectada.",
+        "appliedCount": "{{applied}} aplicadas",
+        "failedCount": "{{failed}} com falha",
+        "manifestSaved": "Manifesto salvo com sucesso.",
+        "manifestSaveFailed": "Falha ao salvar o manifesto.",
+        "planGenerated": "Plano gerado.",
+        "planFailed": "Falha ao gerar o plano.",
+        "planRecorded": "Plano registrado. Aplique as alterações usando /guildconfig apply no Discord.",
+        "planRecordFailed": "Falha ao registrar o plano.",
+        "reconcileRecorded": "Reconciliação de desvios registrada. Aplique as alterações usando /guildconfig reconcile no Discord.",
+        "reconcileFailed": "Falha ao registrar a reconciliação.",
+        "expandManifest": "Expandir"
     },
     "lastFm": {
         "musicIdentityEyebrow": "Identidade musical",
@@ -1104,7 +1133,11 @@
         "clearConfirmTitle": "Limpar histórico de músicas?",
         "clearConfirmDescription": "Isso remove permanentemente o histórico e as estatísticas de músicas deste servidor. Não é possível desfazer.",
         "failedToClearHistory": "Falha ao limpar histórico",
-        "playedBy": "Por <bold>{{user}}</bold>"
+        "playedBy": "Por <bold>{{user}}</bold>",
+        "justNow": "Agora há pouco",
+        "minutesAgo": "há {{minutes}} min",
+        "hoursAgo": "há {{hours}} h",
+        "daysAgo": "há {{days}} d"
     },
     "twitch": {
         "selectServerToManage": "Selecione um servidor para gerenciar notificações do Twitch",

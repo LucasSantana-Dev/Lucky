@@ -325,8 +325,8 @@ export default function AutoMessagesPage() {
                         className='gap-2'
                         onClick={openCreate}
                     >
-                        <Plus className='w-4 h-4' aria-hidden='true' /> New
-                        Message
+                        <Plus className='w-4 h-4' aria-hidden='true' />{' '}
+                        {t('autoMessages.newMessage')}
                     </Button>
                 </div>
 
@@ -488,8 +488,8 @@ export default function AutoMessagesPage() {
                                 aria-hidden='true'
                             />
                         }
-                        title='No auto messages configured'
-                        description='Create scheduled messages that are posted automatically to your server'
+                        title={t('autoMessages.noAutoMessagesConfigured')}
+                        description={t('autoMessages.createScheduledMessages')}
                         action={
                             <Button
                                 variant='primary'
@@ -497,7 +497,7 @@ export default function AutoMessagesPage() {
                                 onClick={openCreate}
                             >
                                 <Plus className='w-4 h-4' aria-hidden='true' />{' '}
-                                Create Auto Message
+                                {t('autoMessages.createAutoMessage')}
                             </Button>
                         }
                     />
