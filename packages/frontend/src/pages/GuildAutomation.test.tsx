@@ -12,6 +12,8 @@ import type {
     ApplyResult,
 } from '@/services/automationApi'
 import { toast } from 'sonner'
+import { createInstance } from 'i18next'
+import ptBR from '@/locales/pt-BR.json'
 
 vi.mock('@/stores/guildStore')
 vi.mock('@/services/api', () => ({
@@ -688,5 +690,49 @@ describe('GuildAutomation', () => {
         expect(planButton).toBeDisabled()
         expect(applyButton).toBeDisabled()
         expect(reconcileButton).toBeDisabled()
+    })
+
+    test('pluralizes applied and failed counts in both languages', async () => {
+        const user = userEvent.setup()
+        mockGuildStore()
+        vi.mocked(api.automation.getStatus).mockResolvedValue({
+            status: 'applied',
+            runs: [],
+        })
+        vi.mocked(api.automation.getManifest).mockResolvedValue(mockManifest)
+        vi.mocked(api.automation.apply).mockResolvedValue({
+            ...mockApplyResult,
+            applied: 1,
+            failed: 2,
+        })
+
+        render(
+            <MemoryRouter>
+                <GuildAutomation />
+            </MemoryRouter>,
+        )
+
+        await user.click(await screen.findByText('Record Plan'))
+
+        expect(await screen.findByText('1 applied')).toBeInTheDocument()
+        expect(screen.getByText('2 failed')).toBeInTheDocument()
+
+        // A standalone instance: the app instance does not resolve pt-BR
+        // under nonExplicitSupportedLngs (see #2618).
+        const pt = createInstance()
+        await pt.init({
+            lng: 'pt-BR',
+            resources: { 'pt-BR': { translation: ptBR } },
+            interpolation: { escapeValue: false },
+        })
+        expect(pt.t('guildAutomation.appliedCount', { count: 1 })).toBe(
+            '1 aplicada',
+        )
+        expect(pt.t('guildAutomation.appliedCount', { count: 2 })).toBe(
+            '2 aplicadas',
+        )
+        expect(pt.t('guildAutomation.failedCount', { count: 2 })).toBe(
+            '2 com falha',
+        )
     })
 })

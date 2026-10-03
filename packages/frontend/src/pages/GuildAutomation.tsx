@@ -161,11 +161,11 @@ function ApplyResultView({ result }: { result: ApplyResult }) {
         <div className='space-y-3'>
             <div className='flex gap-4'>
                 <span className='text-sm text-green-400'>
-                    {t('appliedCount', { applied: result.applied })}
+                    {t('appliedCount', { count: result.applied })}
                 </span>
                 {result.failed > 0 && (
                     <span className='text-sm text-red-400'>
-                        {t('failedCount', { failed: result.failed })}
+                        {t('failedCount', { count: result.failed })}
                     </span>
                 )}
             </div>
