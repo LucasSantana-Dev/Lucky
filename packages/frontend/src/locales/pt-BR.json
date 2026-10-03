@@ -19,7 +19,7 @@
         "name": "Nome",
         "error": "Erro",
         "color": "Cor",
-        "selectServerDesc": "Select a server to continue"
+        "selectServerDesc": "Selecione um servidor para continuar"
     },
     "linkResult": {
         "spotifyLinked": "Conta do Spotify vinculada com sucesso.",
@@ -520,6 +520,20 @@
         "selectRolePlaceholder": "Selecione uma função...",
         "channelsUnavailable": "Canais indisponíveis, insira IDs manualmente abaixo",
         "rolesUnavailable": "Funções indisponíveis, insira IDs manualmente abaixo",
+        "bannedWordsLabel": "Palavras proibidas",
+        "channelIdPlaceholder": "ID do canal...",
+        "roleIdPlaceholder": "ID da função...",
+        "failedToLoadSettings": "Falha ao carregar as configurações de auto-moderação. O salvamento fica desativado até as configurações carregarem.",
+        "failedToLoadTemplates": "Falha ao carregar os modelos",
+        "failedToLoadChannels": "Falha ao carregar os canais do Discord",
+        "failedToLoadRoles": "Falha ao carregar as funções do Discord",
+        "settingsSaved": "Configurações de auto-moderação salvas!",
+        "failedToSave": "Falha ao salvar as configurações",
+        "templateApplied": "Modelo de auto-moderação aplicado",
+        "failedToApplyTemplate": "Falha ao aplicar o modelo",
+        "applyTemplate": "Aplicar modelo",
+        "applyTemplateAria": "Aplicar o modelo {{name}}",
+        "applyingTemplateAria": "Aplicando o modelo {{name}}",
         "noServerSelected": "Nenhum Servidor Selecionado",
         "selectServerToConfigure": "Selecione um servidor para configurar a auto-moderação"
     },

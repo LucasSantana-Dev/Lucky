@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach } from 'vitest'
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
@@ -7,6 +7,7 @@ import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
 import type { AutoModSettings } from '@/types'
+import i18n from '@/lib/i18n'
 
 vi.mock('@/services/api')
 vi.mock('@/stores/guildStore')
@@ -761,5 +762,176 @@ describe('AutoModPage', () => {
                 screen.getByText('Failed to load Discord roles'),
             ).toBeInTheDocument()
         })
+    })
+})
+
+describe('AutoModPage in pt-BR', () => {
+    let previousLanguage: string
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        previousLanguage = i18n.language
+        await i18n.changeLanguage('pt-BR')
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as any)
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: { roles: [] },
+        } as any)
+        vi.mocked(api.automod.listTemplates).mockResolvedValue({
+            data: { templates: [] },
+        } as any)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+    })
+
+    afterEach(async () => {
+        await i18n.changeLanguage(previousLanguage)
+    })
+
+    test('translates the empty server state', () => {
+        mockGuildStore(null)
+        renderPage()
+        expect(
+            screen.getByText('Nenhum Servidor Selecionado'),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByText(
+                'Selecione um servidor para configurar a auto-moderação',
+            ),
+        ).toBeInTheDocument()
+    })
+
+    test('translates the page chrome and filter rows', async () => {
+        mockGuildStore(mockGuild)
+        renderPage()
+        expect(await screen.findByText('Detecção de Spam')).toBeInTheDocument()
+        expect(screen.getByText('Auto-moderação')).toBeInTheDocument()
+        expect(
+            screen.getByText(
+                'Configure filtros automáticos de conteúdo para Test Guild',
+            ),
+        ).toBeInTheDocument()
+        expect(screen.getByText('Modelos')).toBeInTheDocument()
+        expect(
+            screen.getByText('Nenhum modelo disponível no momento.'),
+        ).toBeInTheDocument()
+        expect(screen.getByText('Filtros de Conteúdo')).toBeInTheDocument()
+        expect(screen.getByText('Isenções')).toBeInTheDocument()
+        expect(screen.getByText('Canais Isentos')).toBeInTheDocument()
+        expect(screen.getByText('Funções Isentas')).toBeInTheDocument()
+        expect(
+            screen.getByText(
+                'Canais indisponíveis, insira IDs manualmente abaixo',
+            ),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByText(
+                'Funções indisponíveis, insira IDs manualmente abaixo',
+            ),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByPlaceholderText('ID do canal...'),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByPlaceholderText('ID da função...'),
+        ).toBeInTheDocument()
+        expect(
+            screen.getAllByRole('button', { name: /Salvar Alterações/ }).length,
+        ).toBeGreaterThan(0)
+    })
+
+    test('translates the load error banners', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.guilds.getChannels).mockRejectedValue(new Error('boom'))
+        vi.mocked(api.guilds.getRbac).mockRejectedValue(new Error('boom'))
+        vi.mocked(api.automod.listTemplates).mockRejectedValue(
+            new Error('boom'),
+        )
+        renderPage()
+        expect(
+            await screen.findByText('Falha ao carregar os modelos'),
+        ).toBeInTheDocument()
+        expect(
+            await screen.findByText('Falha ao carregar os canais do Discord'),
+        ).toBeInTheDocument()
+        expect(
+            await screen.findByText('Falha ao carregar as funções do Discord'),
+        ).toBeInTheDocument()
+    })
+
+    test('translates the settings load error', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockRejectedValue(new Error('boom'))
+        renderPage()
+        expect(
+            await screen.findByText(
+                /Falha ao carregar as configurações de auto-moderação/,
+            ),
+        ).toBeInTheDocument()
+    })
+
+    test('translates the save toasts', async () => {
+        mockGuildStore(mockGuild)
+        const { toast } = await import('sonner')
+        vi.mocked(api.automod.updateSettings).mockResolvedValueOnce({} as any)
+        const user = userEvent.setup()
+        renderPage()
+        await screen.findByText('Detecção de Spam')
+        await user.click(
+            screen.getAllByRole('button', { name: /Salvar Alterações/ })[0],
+        )
+        await waitFor(() =>
+            expect(toast.success).toHaveBeenCalledWith(
+                'Configurações de auto-moderação salvas!',
+            ),
+        )
+        vi.mocked(api.automod.updateSettings).mockRejectedValueOnce(
+            new Error('boom'),
+        )
+        await user.click(
+            screen.getAllByRole('button', { name: /Salvar Alterações/ })[0],
+        )
+        await waitFor(() =>
+            expect(toast.error).toHaveBeenCalledWith(
+                'Falha ao salvar as configurações',
+            ),
+        )
+    })
+
+    test('translates the template button and toasts', async () => {
+        mockGuildStore(mockGuild)
+        const { toast } = await import('sonner')
+        vi.mocked(api.automod.listTemplates).mockResolvedValue({
+            data: {
+                templates: [{ id: 't1', name: 'Basic', description: 'd' }],
+            },
+        } as any)
+        vi.mocked(api.automod.applyTemplate)
+            .mockResolvedValueOnce({ data: { settings: mockSettings } } as any)
+            .mockRejectedValueOnce(new Error('boom'))
+        const user = userEvent.setup()
+        renderPage()
+        const button = await screen.findByRole('button', {
+            name: 'Aplicar o modelo Basic',
+        })
+        expect(within(button).getByText('Aplicar modelo')).toBeInTheDocument()
+        await user.click(button)
+        await waitFor(() =>
+            expect(toast.success).toHaveBeenCalledWith(
+                'Modelo de auto-moderação aplicado',
+            ),
+        )
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Aplicar o modelo Basic',
+            }),
+        )
+        await waitFor(() =>
+            expect(toast.error).toHaveBeenCalledWith(
+                'Falha ao aplicar o modelo',
+            ),
+        )
     })
 })
