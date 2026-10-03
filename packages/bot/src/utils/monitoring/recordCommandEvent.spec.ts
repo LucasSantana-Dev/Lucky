@@ -31,7 +31,13 @@ const interaction = (over: Record<string, unknown> = {}) =>
     }) as any
 
 describe('recordCommandEvent', () => {
-    beforeEach(() => jest.clearAllMocks())
+    beforeEach(() => {
+        jest.clearAllMocks()
+        pushMock.mockReset()
+        incMock.mockReset()
+        observeMock.mockReset()
+        warnLogMock.mockReset()
+    })
 
     it('pushes a row and updates metrics without guild/user labels', () => {
         recordCommandEvent({

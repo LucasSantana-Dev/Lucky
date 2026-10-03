@@ -87,6 +87,11 @@ jest.mock('./commandsHandler', () => ({
     executeContextMenu: (...args: unknown[]) => executeContextMenuMock(...args),
 }))
 
+const recordCommandEventMock = jest.fn()
+jest.mock('../utils/monitoring/recordCommandEvent', () => ({
+    recordCommandEvent: (...args: unknown[]) => recordCommandEventMock(...args),
+}))
+
 jest.mock('./feedbackButtonHandler', () => ({
     handleFeedbackReportButton: (...args: unknown[]) =>
         handleFeedbackReportButtonMock(...args),
@@ -260,6 +265,13 @@ describe('eventHandler', () => {
                 ephemeral: true,
             },
         })
+        expect(recordCommandEventMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                kind: 'slash',
+                outcome: 'user_error',
+                known: false,
+            }),
+        )
     })
 
     it('routes a chat-input command through executeCommand (spam-cooldown, feature-toggle and permission guard, #2483)', async () => {

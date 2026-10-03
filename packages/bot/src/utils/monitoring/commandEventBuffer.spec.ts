@@ -215,4 +215,51 @@ describe('commandEventBuffer', () => {
         await buf.stop()
         await small.stop()
     })
+
+    it('push after stop never throws even if the logger throws', async () => {
+        const buf = createCommandEventBuffer({ flush: flushFn })
+        await buf.stop()
+        warnLogMock.mockImplementation(() => {
+            throw new Error('logger down')
+        })
+        expect(() => buf.push(row())).not.toThrow()
+        warnLogMock.mockReset()
+    })
+
+    it('start() re-arms a stopped buffer', async () => {
+        const buf = createCommandEventBuffer({ flush: flushFn, flushSize: 1 })
+        await buf.stop()
+        buf.start()
+        buf.push(row())
+        await jest.advanceTimersByTimeAsync(0)
+        expect(flushFn).toHaveBeenCalledTimes(1)
+        await buf.stop()
+    })
+
+    it('throttles warnings per reason', async () => {
+        const buf = createCommandEventBuffer({
+            flush: flushFn,
+            maxSize: 1,
+            flushSize: 100,
+        })
+        buf.push(row(1))
+        buf.push(row(2)) // overflow warn
+        await buf.stop()
+        buf.push(row(3)) // stopped warn, distinct key
+        expect(warnLogMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('counts abandoned rows when stop times out', async () => {
+        flushFn.mockImplementation(() => new Promise(() => undefined))
+        const buf = createCommandEventBuffer({
+            flush: flushFn,
+            stopTimeoutMs: 100,
+        })
+        buf.push(row())
+        buf.push(row())
+        const p = buf.stop()
+        await jest.advanceTimersByTimeAsync(100)
+        await p
+        expect(incMock).toHaveBeenCalledWith({ reason: 'stop_timeout' }, 2)
+    })
 })

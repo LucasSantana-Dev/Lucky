@@ -240,6 +240,62 @@ const recordHandled = (
     }
 }
 
+type DispatchParams = {
+    interaction:
+        ChatInputCommandInteraction | MessageContextMenuCommandInteraction
+    client: CustomClient
+    kind: CommandKind
+    label: string
+    target: (DispatchTarget & { execute: unknown }) | undefined
+    failureTag: string
+}
+
+/**
+ * Shared slash/context dispatch: gates, execute, error reply, and exactly one
+ * recorded event. Recording happens outside the try so a recorder bug cannot
+ * add a second error event or error reply for a command that already ran.
+ */
+const dispatchAndRecord = async ({
+    interaction,
+    client,
+    kind,
+    label,
+    target,
+    failureTag,
+}: DispatchParams): Promise<void> => {
+    const startedAt = Date.now()
+    let known = false
+    let signal: HandledSignal = {}
+    try {
+        if (!target) {
+            debugLog({
+                message: `${label} not found: ${interaction.commandName}`,
+            })
+            signal = { reason: 'not_found' }
+        } else {
+            known = true
+            const stopped = await runGates(interaction, target)
+            if (stopped) {
+                signal = { reason: stopped }
+            } else {
+                debugLog({
+                    message: `Executing ${label.toLowerCase()}: ${interaction.commandName}`,
+                })
+                await (
+                    target.execute as (p: {
+                        interaction: unknown
+                        client: CustomClient
+                    }) => Promise<unknown>
+                )({ interaction, client })
+            }
+        }
+    } catch (error) {
+        signal = { error }
+        await replyExecutionError(error, interaction, failureTag)
+    }
+    recordHandled(interaction, kind, startedAt, known, signal)
+}
+
 export const executeCommand = async ({
     interaction,
     client,
@@ -267,39 +323,14 @@ export const executeCommand = async ({
         })
     }
 
-    const startedAt = Date.now()
-    let known = false
-    let signal: HandledSignal = {}
-    try {
-        const target = client.commands.get(interaction.commandName)
-        if (!target) {
-            debugLog({
-                message: `Command not found: ${interaction.commandName}`,
-            })
-            signal = { reason: 'not_found' }
-        } else {
-            known = true
-            const stopped = await runGates(interaction, target)
-            if (stopped) {
-                signal = { reason: stopped }
-            } else {
-                debugLog({
-                    message: `Executing command: ${interaction.commandName}`,
-                })
-                await target.execute({ interaction, client } as never)
-            }
-        }
-    } catch (error) {
-        signal = { error }
-        await replyExecutionError(
-            error,
-            interaction,
-            'command-execution-failure',
-        )
-    }
-    // Recorded outside the try so a recorder bug cannot add a second error
-    // event or error reply for a command that already ran.
-    recordHandled(interaction, 'slash', startedAt, known, signal)
+    await dispatchAndRecord({
+        interaction,
+        client,
+        kind: 'slash',
+        label: 'Command',
+        target: client.commands.get(interaction.commandName),
+        failureTag: 'command-execution-failure',
+    })
 }
 
 export const executeContextMenu = async ({
@@ -312,39 +343,14 @@ export const executeContextMenu = async ({
         interaction.guild?.id,
     )
 
-    const startedAt = Date.now()
-    let known = false
-    let signal: HandledSignal = {}
-    try {
-        const target = client.contextMenus.get(interaction.commandName)
-        if (!target) {
-            debugLog({
-                message: `Context menu not found: ${interaction.commandName}`,
-            })
-            signal = { reason: 'not_found' }
-        } else {
-            known = true
-            const stopped = await runGates(interaction, target)
-            if (stopped) {
-                signal = { reason: stopped }
-            } else {
-                debugLog({
-                    message: `Executing context menu: ${interaction.commandName}`,
-                })
-                await target.execute({ interaction, client } as never)
-            }
-        }
-    } catch (error) {
-        signal = { error }
-        await replyExecutionError(
-            error,
-            interaction,
-            'context-menu-execution-failure',
-        )
-    }
-    // Recorded outside the try so a recorder bug cannot add a second error
-    // event or error reply for a command that already ran.
-    recordHandled(interaction, 'context', startedAt, known, signal)
+    await dispatchAndRecord({
+        interaction,
+        client,
+        kind: 'context',
+        label: 'Context menu',
+        target: client.contextMenus.get(interaction.commandName),
+        failureTag: 'context-menu-execution-failure',
+    })
 }
 
 export async function setCommands({

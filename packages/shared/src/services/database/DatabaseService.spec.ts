@@ -821,6 +821,9 @@ describe('DatabaseService', () => {
 
         it('deletes command events older than 180 days and counts them (#2391)', async () => {
             mockTrackHistoryDeleteMany.mockResolvedValue({ count: 1 })
+            mockRateLimitDeleteMany.mockResolvedValue({ count: 0 })
+            mockServerLogDeleteMany.mockResolvedValue({ count: 0 })
+            mockUserFeedbackDeleteMany.mockResolvedValue({ count: 0 })
             mockCommandEventDeleteMany.mockResolvedValue({ count: 9 })
 
             const before = Date.now()

@@ -22,3 +22,6 @@ CREATE TABLE IF NOT EXISTS "command_events" (
 CREATE INDEX IF NOT EXISTS "command_events_occurredAt_idx" ON "command_events"("occurredAt");
 CREATE INDEX IF NOT EXISTS "command_events_guildId_occurredAt_idx" ON "command_events"("guildId", "occurredAt");
 CREATE INDEX IF NOT EXISTS "command_events_command_occurredAt_idx" ON "command_events"("command", "occurredAt");
+
+-- Enable RLS (default-deny, no policies; matches log_settings and the baseline tables)
+ALTER TABLE "public"."command_events" ENABLE ROW LEVEL SECURITY;

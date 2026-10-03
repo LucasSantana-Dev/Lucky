@@ -1,11 +1,4 @@
-import {
-    describe,
-    it,
-    expect,
-    beforeEach,
-    afterEach,
-    jest,
-} from '@jest/globals'
+import { describe, it, expect, afterEach, jest } from '@jest/globals'
 
 const mockPrismaPg = jest.fn()
 
@@ -30,6 +23,9 @@ describe('pgAdapter pool size', () => {
         ['0', 10],
         ['-3', 10],
         ['2.5', 10],
+        ['1e2', 10],
+        [' 5', 10],
+        ['0x10', 10],
         ['25', 25],
         ['100', 100],
         ['101', 10],

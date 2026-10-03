@@ -49,6 +49,7 @@ jest.mock('../../handlers/clientHandler/service', () => ({
 }))
 
 jest.mock('../../utils/monitoring/commandEventBuffer', () => ({
+    startCommandEventBuffer: jest.fn(),
     stopCommandEventBuffer: jest.fn().mockResolvedValue(undefined),
 }))
 
@@ -382,6 +383,32 @@ describe('BotInitializer', () => {
             expect(result.success).toBe(true)
 
             expect(initializer.getClient()).toBeDefined()
+        })
+    })
+
+    describe('command event buffer lifecycle', () => {
+        it('re-arms the buffer on init and flushes it after client.destroy on shutdown', async () => {
+            const buffer = jest.requireMock(
+                '../../utils/monitoring/commandEventBuffer',
+            ) as {
+                startCommandEventBuffer: jest.Mock
+                stopCommandEventBuffer: jest.Mock
+            }
+            buffer.startCommandEventBuffer.mockClear()
+            buffer.stopCommandEventBuffer.mockClear()
+
+            const initResult = await initializer.initializeBot()
+            expect(initResult.success).toBe(true)
+            expect(buffer.startCommandEventBuffer).toHaveBeenCalledTimes(1)
+
+            const client = initializer.getClient()
+            await initializer.shutdown()
+
+            const destroyOrder = (client?.destroy as jest.Mock).mock
+                .invocationCallOrder[0]
+            const stopOrder =
+                buffer.stopCommandEventBuffer.mock.invocationCallOrder[0]
+            expect(destroyOrder).toBeLessThan(stopOrder)
         })
     })
 

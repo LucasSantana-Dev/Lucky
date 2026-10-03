@@ -91,7 +91,7 @@ export const guildAutomationUsageTotal = new Counter<'operation'>({
  */
 export const commandsTotal = new Counter<'command' | 'kind' | 'outcome'>({
     name: 'lucky_bot_commands_total',
-    help: 'Count of handled command interactions by command, kind (slash|context|component) and outcome (ok|user_error|error|denied).',
+    help: 'Count of handled command interactions by command, kind (slash|context; component is deferred) and outcome (ok|user_error|error|denied).',
     labelNames: ['command', 'kind', 'outcome'],
     registers: [registry],
 })
@@ -108,7 +108,7 @@ export const commandDurationSeconds = new Histogram<'command'>({
 /** Counter: command events lost before reaching the database (reason: overflow|flush_failure|stopped|internal_error). */
 export const commandEventsDroppedTotal = new Counter<'reason'>({
     name: 'lucky_bot_command_events_dropped_total',
-    help: 'Count of command events dropped before persisting, by reason (overflow|flush_failure|stopped|internal_error).',
+    help: 'Count of command events dropped before persisting, by reason (overflow|flush_failure|stopped|internal_error|stop_timeout).',
     labelNames: ['reason'],
     registers: [registry],
 })

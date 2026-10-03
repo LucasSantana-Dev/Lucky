@@ -48,4 +48,17 @@ describe('classifyOutcome', () => {
             }).outcome,
         ).toBe('error')
     })
+
+    it('treats a thrown undefined as an error', () => {
+        expect(classifyOutcome({ error: undefined })).toEqual({
+            outcome: 'error',
+            errorClass: 'undefined',
+        })
+    })
+
+    it('never classifies an unknown stop reason as ok', () => {
+        expect(classifyOutcome({ reason: 'weird' as never }).outcome).toBe(
+            'error',
+        )
+    })
 })

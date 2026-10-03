@@ -27,6 +27,8 @@ export type CommandEventBuffer = {
     push: (row: CommandEventRow) => void
     flush: () => Promise<void>
     stop: () => Promise<void>
+    /** Re-arms a stopped buffer (initializeBot after a previous shutdown). */
+    start: () => void
     size: () => number
 }
 
@@ -59,16 +61,21 @@ export function createCommandEventBuffer(
     let stopped = false
     let timer: ReturnType<typeof setInterval> | null = null
     let inFlight: Promise<void> = Promise.resolve()
-    let lastWarnAt = Number.NEGATIVE_INFINITY
+    const lastWarnAtByKey = new Map<string, number>()
     let suppressed = 0
 
-    const warnThrottled = (message: string, data: Record<string, unknown>) => {
+    const warnThrottled = (
+        key: string,
+        message: string,
+        data: Record<string, unknown>,
+    ) => {
         const now = Date.now()
-        if (now - lastWarnAt < warnIntervalMs) {
+        const last = lastWarnAtByKey.get(key) ?? Number.NEGATIVE_INFINITY
+        if (now - last < warnIntervalMs) {
             suppressed++
             return
         }
-        lastWarnAt = now
+        lastWarnAtByKey.set(key, now)
         const extra =
             suppressed > 0 ? { suppressedSinceLastWarn: suppressed } : {}
         suppressed = 0
@@ -83,11 +90,16 @@ export function createCommandEventBuffer(
                 { reason: 'flush_failure' },
                 batch.length,
             )
-            warnThrottled('Command event flush failed, batch dropped', {
-                reason: 'flush_failure',
-                batchSize: batch.length,
-                error: error instanceof Error ? error.message : String(error),
-            })
+            warnThrottled(
+                'flush_failure',
+                'Command event flush failed, batch dropped',
+                {
+                    reason: 'flush_failure',
+                    batchSize: batch.length,
+                    error:
+                        error instanceof Error ? error.message : String(error),
+                },
+            )
         } finally {
             unsettled -= batch.length
         }
@@ -112,17 +124,17 @@ export function createCommandEventBuffer(
 
     const drop = (reason: string, message: string) => {
         commandEventsDroppedTotal.inc({ reason })
-        warnThrottled(message, { reason, maxSize })
+        warnThrottled(reason, message, { reason, maxSize })
     }
 
     return {
         push(row) {
-            if (stopped) {
-                drop('stopped', 'Command event pushed after stop, dropped')
-                return
-            }
             let enqueued = false
             try {
+                if (stopped) {
+                    drop('stopped', 'Command event pushed after stop, dropped')
+                    return
+                }
                 if (rows.length + unsettled >= maxSize) {
                     drop('overflow', 'Command event buffer full, event dropped')
                     return
@@ -135,15 +147,28 @@ export function createCommandEventBuffer(
                 if (!enqueued) {
                     commandEventsDroppedTotal.inc({ reason: 'internal_error' })
                 }
-                warnThrottled('Command event buffer internal error', {
-                    reason: 'internal_error',
-                    enqueued,
-                    error:
-                        error instanceof Error ? error.message : String(error),
-                })
+                try {
+                    warnThrottled(
+                        'internal_error',
+                        'Command event buffer internal error',
+                        {
+                            reason: 'internal_error',
+                            enqueued,
+                            error:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
+                        },
+                    )
+                } catch {
+                    // Logger itself failed; the drop is already counted above.
+                }
             }
         },
         flush,
+        start() {
+            stopped = false
+        },
         async stop() {
             stopped = true
             if (timer) {
@@ -157,6 +182,10 @@ export function createCommandEventBuffer(
             try {
                 const result = await Promise.race([flush(), timedOut])
                 if (result === 'timeout') {
+                    commandEventsDroppedTotal.inc(
+                        { reason: 'stop_timeout' },
+                        unsettled + rows.length,
+                    )
                     warnLog({
                         message: 'Command event buffer stop timed out',
                         data: { unsettled, buffered: rows.length },
@@ -179,6 +208,11 @@ export function getCommandEventBuffer(): CommandEventBuffer {
             getPrismaClient().commandEvent.createMany({ data: rows }),
     })
     return defaultBuffer
+}
+
+/** Re-arms the process-wide buffer after a shutdown. */
+export function startCommandEventBuffer(): void {
+    getCommandEventBuffer().start()
 }
 
 /** Flushes the remaining rows and stops the timer; call from graceful shutdown. */
