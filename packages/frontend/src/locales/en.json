@@ -738,6 +738,7 @@
         "rewardRemoved": "Reward removed",
         "failedToRemoveReward": "Failed to remove reward",
         "levelPlaceholder": "e.g. 5",
+        "roleIdPlaceholder": "Role ID",
         "selectRole": "Select a role",
         "deletedRole": "Deleted role ({{id}})",
         "failedToLoadSettings": "Failed to load level settings"

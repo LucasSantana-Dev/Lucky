@@ -265,25 +265,38 @@ function Starboard() {
                         >
                             {t('channelId')}
                         </Label>
-                        <select
-                            id='channel'
-                            className={SELECT_CLASS}
-                            value={channelId}
-                            onChange={(e) => setChannelId(e.target.value)}
-                        >
-                            <option value=''>{t('selectChannel')}</option>
-                            {channels.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                    {c.name}
-                                </option>
-                            ))}
-                            {channelId &&
-                                !channels.some((c) => c.id === channelId) && (
-                                    <option value={channelId}>
-                                        {orphanChannelLabel}
+                        {channelsError ? (
+                            <Input
+                                id='channel'
+                                type='text'
+                                value={channelId}
+                                onChange={(e) => setChannelId(e.target.value)}
+                                placeholder='Channel ID'
+                                className='mt-1.5'
+                            />
+                        ) : (
+                            <select
+                                id='channel'
+                                className={SELECT_CLASS}
+                                value={channelId}
+                                onChange={(e) => setChannelId(e.target.value)}
+                            >
+                                <option value=''>{t('selectChannel')}</option>
+                                {channels.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name}
                                     </option>
-                                )}
-                        </select>
+                                ))}
+                                {channelId &&
+                                    !channels.some(
+                                        (c) => c.id === channelId,
+                                    ) && (
+                                        <option value={channelId}>
+                                            {orphanChannelLabel}
+                                        </option>
+                                    )}
+                            </select>
+                        )}
                         {channelsError && (
                             <p className='mt-1.5 text-sm text-lucky-text-secondary'>
                                 {t('couldNotLoadChannels')}

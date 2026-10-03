@@ -574,6 +574,48 @@ describe('Levels', () => {
         expect(screen.queryByText(/Deleted role/)).not.toBeInTheDocument()
     })
 
+    test('resets the add form when the selected guild changes', async () => {
+        mockGuildStore()
+        const { rerender } = render(<Levels />)
+
+        fireEvent.change(await screen.findByLabelText('Role ID'), {
+            target: { value: 'role-3' },
+        })
+        fireEvent.change(screen.getByPlaceholderText('e.g. 5'), {
+            target: { value: '15' },
+        })
+
+        mockGuildStore({ ...mockGuild, id: '777', name: 'Other Guild' })
+        rerender(<Levels />)
+
+        await waitFor(() => {
+            expect(api.levels.getRewards).toHaveBeenCalledWith('777')
+        })
+        const select = (await screen.findByLabelText(
+            'Role ID',
+        )) as HTMLSelectElement
+        await waitFor(() => expect(select.value).toBe(''))
+        expect(
+            screen.getByRole('button', { name: /add reward/i }),
+        ).toBeDisabled()
+    })
+
+    test('lets you type a role id when roles fail to load', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getRbac).mockRejectedValue(new Error('boom'))
+        render(<Levels />)
+
+        const roleInput = await screen.findByLabelText('Role ID')
+        expect(roleInput.tagName).toBe('INPUT')
+        fireEvent.change(screen.getByPlaceholderText('e.g. 5'), {
+            target: { value: '15' },
+        })
+        fireEvent.change(roleInput, { target: { value: '424242' } })
+        expect(
+            screen.getByRole('button', { name: /add reward/i }),
+        ).toBeEnabled()
+    })
+
     test('shows the raw role id when the roles failed to load', async () => {
         mockGuildStore()
         vi.mocked(api.guilds.getRbac).mockRejectedValue(new Error('boom'))

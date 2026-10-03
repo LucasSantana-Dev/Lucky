@@ -738,6 +738,7 @@
         "rewardRemoved": "Recompensa removida",
         "failedToRemoveReward": "Falha ao remover recompensa",
         "levelPlaceholder": "por ex. 5",
+        "roleIdPlaceholder": "ID do Cargo",
         "selectRole": "Selecione um cargo",
         "deletedRole": "Cargo excluído ({{id}})",
         "failedToLoadSettings": "Falha ao carregar as configurações de nível"

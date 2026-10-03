@@ -49,6 +49,8 @@ function Levels() {
         const loadData = async () => {
             setLoading(true)
             setRolesError(false)
+            setNewLevel('')
+            setNewRoleId('')
             try {
                 const [configData, leaderboardData, rewardsData, rbacData] =
                     await Promise.all([
@@ -405,21 +407,36 @@ function Levels() {
                             <Label htmlFor='newRole' className='text-sm'>
                                 {t('levels.roleIdLabel')}
                             </Label>
-                            <select
-                                id='newRole'
-                                className={SELECT_CLASS}
-                                value={newRoleId}
-                                onChange={(e) => setNewRoleId(e.target.value)}
-                            >
-                                <option value=''>
-                                    {t('levels.selectRole')}
-                                </option>
-                                {roles.map((r) => (
-                                    <option key={r.id} value={r.id}>
-                                        {r.name}
+                            {rolesError ? (
+                                <Input
+                                    id='newRole'
+                                    type='text'
+                                    placeholder={t('levels.roleIdPlaceholder')}
+                                    value={newRoleId}
+                                    onChange={(e) =>
+                                        setNewRoleId(e.target.value)
+                                    }
+                                    className='mt-1.5'
+                                />
+                            ) : (
+                                <select
+                                    id='newRole'
+                                    className={SELECT_CLASS}
+                                    value={newRoleId}
+                                    onChange={(e) =>
+                                        setNewRoleId(e.target.value)
+                                    }
+                                >
+                                    <option value=''>
+                                        {t('levels.selectRole')}
                                     </option>
-                                ))}
-                            </select>
+                                    {roles.map((r) => (
+                                        <option key={r.id} value={r.id}>
+                                            {r.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
 
                         <Button

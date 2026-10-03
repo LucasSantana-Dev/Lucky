@@ -379,10 +379,23 @@ describe('Starboard', () => {
 
         const select = (await screen.findByLabelText(
             'Channel ID',
-        )) as HTMLSelectElement
+        )) as HTMLInputElement
         expect(select.value).toBe('999')
-        expect(screen.getByRole('option', { name: '999' })).toBeInTheDocument()
         expect(screen.getByText('Could not load channels')).toBeInTheDocument()
+    })
+
+    test('lets you type a channel id when channels fail to load', async () => {
+        mockGuildStore()
+        vi.mocked(api.starboard.getConfig).mockResolvedValue(null as never)
+        vi.mocked(api.guilds.getChannels).mockRejectedValue(new Error('boom'))
+        render(<Starboard />)
+
+        const input = await screen.findByLabelText('Channel ID')
+        expect(input.tagName).toBe('INPUT')
+        const save = screen.getByRole('button', { name: 'Save' })
+        expect(save).toBeDisabled()
+        fireEvent.change(input, { target: { value: '424242' } })
+        expect(save).toBeEnabled()
     })
 
     test('save sends the selected channel id', async () => {
