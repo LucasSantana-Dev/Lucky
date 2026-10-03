@@ -54,8 +54,9 @@ export class ReminderScheduler extends IntervalScheduler {
                     reminder.targetType === 'channel' ||
                     reminder.targetType === 'role'
                 ) {
-                    await this.deliverBroadcastOnce(reminder)
-                    deliveredCount++
+                    if (await this.deliverBroadcastOnce(reminder)) {
+                        deliveredCount++
+                    }
                     continue
                 }
 
@@ -162,7 +163,9 @@ export class ReminderScheduler extends IntervalScheduler {
         const guild = this.client.guilds.cache.get(reminder.guildId)
         if (!guild) return 'bot_left_guild'
         try {
-            await guild.members.fetch(reminder.userId)
+            // force: bypass the member cache, which can be stale after a missed
+            // GuildMemberRemove and would hide that the user left.
+            await guild.members.fetch({ user: reminder.userId, force: true })
         } catch (error) {
             if (
                 (error as { code?: unknown })?.code ===
@@ -253,10 +256,10 @@ export class ReminderScheduler extends IntervalScheduler {
         channelId: string
         targetType: string
         roleId: string | null
-    }): Promise<void> {
+    }): Promise<boolean> {
         if (await this.deliverBroadcast(reminder)) {
             await reminderService.markDelivered(reminder.id)
-            return
+            return true
         }
         warnLog({
             message:
@@ -268,6 +271,7 @@ export class ReminderScheduler extends IntervalScheduler {
             },
         })
         await reminderService.markDeliveryFailed(reminder.id)
+        return false
     }
 
     private async deliverBroadcast(reminder: {

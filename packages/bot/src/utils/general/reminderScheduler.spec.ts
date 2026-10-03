@@ -245,7 +245,7 @@ describe('ReminderScheduler.tick', () => {
         const client = deliveringClient(send, memberGuilds(fetch))
         await runTick(client, [makeReminder({ recurrenceRule: RULE })])
 
-        expect(fetch).toHaveBeenCalledWith('u1')
+        expect(fetch).toHaveBeenCalledWith({ user: 'u1', force: true })
         expect(reminderServiceMock.markDelivered).toHaveBeenCalledWith('r1')
         expect(reminderServiceMock.rescheduleRecurring).not.toHaveBeenCalled()
         expect(send).not.toHaveBeenCalled()
@@ -383,5 +383,20 @@ describe('ReminderScheduler.tick', () => {
 
         expect(fetch).not.toHaveBeenCalled()
         expect(send).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not count a failed broadcast in the delivered log', async () => {
+        await runTick(failingClient(), [
+            makeReminder({ targetType: 'channel' }),
+        ])
+
+        expect(reminderServiceMock.markDeliveryFailed).toHaveBeenCalledWith(
+            'r1',
+        )
+        expect(infoLog).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('delivered'),
+            }),
+        )
     })
 })
