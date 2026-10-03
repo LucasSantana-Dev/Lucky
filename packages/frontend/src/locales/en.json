@@ -738,7 +738,8 @@
         "rewardRemoved": "Reward removed",
         "failedToRemoveReward": "Failed to remove reward",
         "levelPlaceholder": "e.g. 5",
-        "roleIdPlaceholder": "Role ID",
+        "selectRole": "Select a role",
+        "deletedRole": "Deleted role ({{id}})",
         "failedToLoadSettings": "Failed to load level settings"
     },
     "lyrics": {
@@ -1080,7 +1081,10 @@
         "failedToLoadSettings": "Failed to load starboard settings",
         "failedToSaveSettings": "Failed to save settings",
         "starboardDisabled": "Starboard disabled",
-        "failedToDeleteConfig": "Failed to delete starboard config"
+        "failedToDeleteConfig": "Failed to delete starboard config",
+        "selectChannel": "Select a channel",
+        "deletedChannel": "Deleted channel ({{id}})",
+        "couldNotLoadChannels": "Could not load this server's channels. Refresh to retry."
     },
     "trackHistory": {
         "noServerSelected": "No Server Selected",

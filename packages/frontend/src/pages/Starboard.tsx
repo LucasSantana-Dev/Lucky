@@ -13,7 +13,11 @@ import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
+import type { GuildChannelOption } from '@/types'
 import type { StarboardConfig, StarboardEntry } from '@/services/starboardApi'
+
+const SELECT_CLASS =
+    'mt-1.5 w-full rounded-md bg-lucky-bg-tertiary border border-lucky-border text-lucky-text-primary px-3 py-2 type-body-sm'
 
 function Starboard() {
     const { t } = useTranslation('starboard')
@@ -23,6 +27,8 @@ function Starboard() {
     const [entries, setEntries] = useState<StarboardEntry[]>([])
     const [config, setConfig] = useState<StarboardConfig | null>(null)
     const [saving, setSaving] = useState(false)
+    const [channels, setChannels] = useState<GuildChannelOption[]>([])
+    const [channelsError, setChannelsError] = useState(false)
     const [channelId, setChannelId] = useState('')
     const [emoji, setEmoji] = useState('⭐')
     const [threshold, setThreshold] = useState(3)
@@ -38,15 +44,24 @@ function Starboard() {
 
         const loadData = async () => {
             setLoading(true)
+            setChannelsError(false)
             try {
-                const [configData, entriesData] = await Promise.all([
-                    api.starboard.getConfig(selectedGuild.id),
-                    api.starboard.getTopEntries(selectedGuild.id, 20),
-                ])
+                const [configData, entriesData, channelsRes] =
+                    await Promise.all([
+                        api.starboard.getConfig(selectedGuild.id),
+                        api.starboard.getTopEntries(selectedGuild.id, 20),
+                        // Channel failure is isolated so it can't blank the
+                        // page; channelsError lets the picker show raw ids.
+                        api.guilds.getChannels(selectedGuild.id).catch(() => {
+                            if (mounted) setChannelsError(true)
+                            return null
+                        }),
+                    ])
 
                 if (!mounted) return
 
                 setEntries(entriesData)
+                setChannels(channelsRes?.data?.channels ?? [])
 
                 if (configData) {
                     setConfig(configData)
@@ -176,6 +191,10 @@ function Starboard() {
         })
     }
 
+    const orphanChannelLabel = channelsError
+        ? channelId
+        : t('deletedChannel', { id: channelId })
+
     return (
         <div className='space-y-6'>
             {header}
@@ -242,14 +261,30 @@ function Starboard() {
                         >
                             {t('channelId')}
                         </Label>
-                        <Input
+                        <select
                             id='channel'
-                            type='text'
+                            className={SELECT_CLASS}
                             value={channelId}
                             onChange={(e) => setChannelId(e.target.value)}
-                            placeholder='Channel ID'
-                            className='mt-1.5'
-                        />
+                        >
+                            <option value=''>{t('selectChannel')}</option>
+                            {channels.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                    #{c.name}
+                                </option>
+                            ))}
+                            {channelId &&
+                                !channels.some((c) => c.id === channelId) && (
+                                    <option value={channelId}>
+                                        {orphanChannelLabel}
+                                    </option>
+                                )}
+                        </select>
+                        {channelsError && (
+                            <p className='mt-1.5 text-sm text-lucky-text-secondary'>
+                                {t('couldNotLoadChannels')}
+                            </p>
+                        )}
                     </div>
 
                     <div>
@@ -311,7 +346,7 @@ function Starboard() {
                     <div className='flex gap-2 pt-4'>
                         <Button
                             onClick={handleSave}
-                            disabled={saving}
+                            disabled={saving || !channelId}
                             className='flex-1'
                         >
                             {saving ? t('saving') : t('save')}

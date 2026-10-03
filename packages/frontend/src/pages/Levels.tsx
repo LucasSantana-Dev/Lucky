@@ -16,6 +16,9 @@ import { TrashIcon } from 'lucide-react'
 import type { MemberXP, LevelReward } from '@/services/levelsApi'
 import type { GuildRoleOption } from '@/types'
 
+const SELECT_CLASS =
+    'mt-1.5 w-full rounded-md bg-lucky-bg-tertiary border border-lucky-border text-lucky-text-primary px-3 py-2 type-body-sm'
+
 function Levels() {
     const { t } = useTranslation()
     const { selectedGuild } = useGuildStore()
@@ -203,8 +206,9 @@ function Levels() {
     }
 
     const getRoleName = (roleId: string): string => {
+        if (rolesError) return roleId
         const role = roles.find((r) => r.id === roleId)
-        return role?.name || roleId
+        return role?.name ?? t('levels.deletedRole', { id: roleId })
     }
 
     return (
@@ -400,14 +404,21 @@ function Levels() {
                             <Label htmlFor='newRole' className='text-sm'>
                                 {t('levels.roleIdLabel')}
                             </Label>
-                            <Input
+                            <select
                                 id='newRole'
-                                type='text'
-                                placeholder={t('levels.roleIdPlaceholder')}
+                                className={SELECT_CLASS}
                                 value={newRoleId}
                                 onChange={(e) => setNewRoleId(e.target.value)}
-                                className='mt-1.5'
-                            />
+                            >
+                                <option value=''>
+                                    {t('levels.selectRole')}
+                                </option>
+                                {roles.map((r) => (
+                                    <option key={r.id} value={r.id}>
+                                        {r.name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <Button
