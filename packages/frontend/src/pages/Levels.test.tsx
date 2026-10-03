@@ -54,6 +54,7 @@ const mockRewards: LevelReward[] = [
 const mockRoles: GuildRoleOption[] = [
     { id: 'role-1', name: 'Veteran', color: 0, position: 1 },
     { id: 'role-2', name: 'Legend', color: 0, position: 2 },
+    { id: 'role-3', name: 'Champion', color: 0, position: 3 },
 ]
 
 const mockConfig: LevelConfig = {
@@ -170,8 +171,12 @@ describe('Levels', () => {
             expect(api.levels.getRewards).toHaveBeenCalledWith('123456')
         })
 
-        expect(await screen.findByText('Veteran')).toBeInTheDocument()
-        expect(screen.getByText('Legend')).toBeInTheDocument()
+        expect(
+            await screen.findByText('Veteran', { selector: 'p' }),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByText('Legend', { selector: 'p' }),
+        ).toBeInTheDocument()
         const rewards = container.querySelectorAll('.text-lucky-brand-text')
         expect(rewards[0].textContent).toContain('Lv.5')
         expect(rewards[1].textContent).toContain('Lv.10')
@@ -335,7 +340,7 @@ describe('Levels', () => {
         })
 
         const levelInput = screen.getByPlaceholderText('e.g. 5')
-        const roleInput = screen.getByPlaceholderText('Role ID')
+        const roleInput = screen.getByLabelText('Role ID')
         const addButton = screen.getByRole('button', { name: /add reward/i })
 
         fireEvent.change(levelInput, { target: { value: '15' } })
@@ -380,11 +385,11 @@ describe('Levels', () => {
         })
 
         const levelInput = screen.getByPlaceholderText('e.g. 5')
-        const roleInput = screen.getByPlaceholderText('Role ID')
+        const roleInput = screen.getByLabelText('Role ID')
         const addButton = screen.getByRole('button', { name: /add reward/i })
 
         fireEvent.change(levelInput, { target: { value: '20' } })
-        fireEvent.change(roleInput, { target: { value: 'role-4' } })
+        fireEvent.change(roleInput, { target: { value: 'role-3' } })
         fireEvent.click(addButton)
 
         await waitFor(() => {
@@ -400,7 +405,9 @@ describe('Levels', () => {
         const { container } = render(<Levels />)
 
         await waitFor(() => {
-            expect(screen.getByText('Veteran')).toBeInTheDocument()
+            expect(
+                screen.getByText('Veteran', { selector: 'p' }),
+            ).toBeInTheDocument()
         })
 
         const deleteIcons = container.querySelectorAll('svg')
@@ -433,7 +440,9 @@ describe('Levels', () => {
         const { container } = render(<Levels />)
 
         await waitFor(() => {
-            expect(screen.getByText('Veteran')).toBeInTheDocument()
+            expect(
+                screen.getByText('Veteran', { selector: 'p' }),
+            ).toBeInTheDocument()
         })
 
         const deleteIcons = container.querySelectorAll('svg')
@@ -510,7 +519,134 @@ describe('Levels', () => {
         expect(await screen.findByText('111')).toBeInTheDocument()
     })
 
-    test('displays role ID when role name is not found', async () => {
+    test('role picker lists the guild roles', async () => {
+        mockGuildStore()
+        render(<Levels />)
+
+        const select = await screen.findByLabelText('Role ID')
+        expect(select.tagName).toBe('SELECT')
+        const options = Array.from((select as HTMLSelectElement).options).map(
+            (o) => o.textContent,
+        )
+        expect(options).toEqual([
+            'Select a role',
+            'Veteran',
+            'Legend',
+            'Champion',
+        ])
+    })
+
+    test('add reward stays disabled until a role is selected', async () => {
+        mockGuildStore()
+        render(<Levels />)
+
+        const levelInput = await screen.findByPlaceholderText('e.g. 5')
+        const addButton = screen.getByRole('button', { name: /add reward/i })
+        fireEvent.change(levelInput, { target: { value: '15' } })
+        expect(addButton).toBeDisabled()
+
+        fireEvent.change(screen.getByLabelText('Role ID'), {
+            target: { value: 'role-3' },
+        })
+        expect(addButton).toBeEnabled()
+    })
+
+    test('shows a deleted-role fallback for a reward whose role is gone', async () => {
+        mockGuildStore()
+        vi.mocked(api.levels.getRewards).mockResolvedValue([
+            { id: '1', guildId: '123456', level: 5, roleId: 'gone-role' },
+        ])
+        render(<Levels />)
+
+        expect(
+            await screen.findByText('Deleted role (gone-role)'),
+        ).toBeInTheDocument()
+    })
+
+    test('shows the raw role id when the role list comes back empty', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: { roles: [] },
+        } as never)
+        render(<Levels />)
+
+        expect(await screen.findByText('role-1')).toBeInTheDocument()
+        expect(screen.queryByText(/Deleted role/)).not.toBeInTheDocument()
+    })
+
+    test('resets the add form when the selected guild changes', async () => {
+        mockGuildStore()
+        const { rerender } = render(<Levels />)
+
+        fireEvent.change(await screen.findByLabelText('Role ID'), {
+            target: { value: 'role-3' },
+        })
+        fireEvent.change(screen.getByPlaceholderText('e.g. 5'), {
+            target: { value: '15' },
+        })
+
+        mockGuildStore({ ...mockGuild, id: '777', name: 'Other Guild' })
+        rerender(<Levels />)
+
+        await waitFor(() => {
+            expect(api.levels.getRewards).toHaveBeenCalledWith('777')
+        })
+        const select = (await screen.findByLabelText(
+            'Role ID',
+        )) as HTMLSelectElement
+        await waitFor(() => expect(select.value).toBe(''))
+        expect(
+            screen.getByRole('button', { name: /add reward/i }),
+        ).toBeDisabled()
+        expect(
+            (screen.getByPlaceholderText('e.g. 5') as HTMLInputElement).value,
+        ).toBe('')
+    })
+
+    test('lets you type a role id when the role list is empty', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: { roles: [] },
+        } as never)
+        render(<Levels />)
+
+        const roleInput = await screen.findByLabelText('Role ID')
+        expect(roleInput.tagName).toBe('INPUT')
+        fireEvent.change(screen.getByPlaceholderText('e.g. 5'), {
+            target: { value: '15' },
+        })
+        fireEvent.change(roleInput, { target: { value: '424242' } })
+        expect(
+            screen.getByRole('button', { name: /add reward/i }),
+        ).toBeEnabled()
+    })
+
+    test('lets you type a role id when roles fail to load', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getRbac).mockRejectedValue(new Error('boom'))
+        render(<Levels />)
+
+        const roleInput = await screen.findByLabelText('Role ID')
+        expect(roleInput.tagName).toBe('INPUT')
+        fireEvent.change(screen.getByPlaceholderText('e.g. 5'), {
+            target: { value: '15' },
+        })
+        fireEvent.change(roleInput, { target: { value: '424242' } })
+        expect(
+            screen.getByRole('button', { name: /add reward/i }),
+        ).toBeEnabled()
+    })
+
+    test('shows the raw role id when the roles failed to load', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getRbac).mockRejectedValue(new Error('boom'))
+        render(<Levels />)
+
+        expect(await screen.findByText('role-1')).toBeInTheDocument()
+        expect(screen.queryByText(/Deleted role/)).not.toBeInTheDocument()
+    })
+
+    test('displays deleted-role fallback when role name is not found', async () => {
         mockGuildStore()
         const rewardWithUnknownRole: LevelReward[] = [
             { id: '1', guildId: '123456', level: 5, roleId: 'unknown-role' },
@@ -521,7 +657,9 @@ describe('Levels', () => {
 
         const { container } = render(<Levels />)
 
-        expect(await screen.findByText('unknown-role')).toBeInTheDocument()
+        expect(
+            await screen.findByText('Deleted role (unknown-role)'),
+        ).toBeInTheDocument()
         const rewards = container.querySelectorAll('.text-lucky-brand-text')
         expect(rewards[0].textContent).toContain('Lv.5')
     })
@@ -563,7 +701,7 @@ describe('Levels', () => {
         })
 
         const levelInput = screen.getByPlaceholderText('e.g. 5')
-        const roleInput = screen.getByPlaceholderText('Role ID')
+        const roleInput = screen.getByLabelText('Role ID')
         const addButton = screen.getByRole('button', { name: /add reward/i })
 
         fireEvent.change(levelInput, { target: { value: '15' } })

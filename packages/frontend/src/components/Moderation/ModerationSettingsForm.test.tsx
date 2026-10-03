@@ -54,8 +54,8 @@ function setup(override: Record<string, unknown> = {}) {
     vi.mocked(api.guilds.getChannels).mockResolvedValue({
         data: {
             channels: [
-                { id: 'c1', name: 'mod-log' },
-                { id: 'c2', name: 'staff' },
+                { id: 'c1', name: '#mod-log' },
+                { id: 'c2', name: '#staff' },
             ],
         },
     } as any)
