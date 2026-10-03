@@ -204,6 +204,7 @@ function handleGuildCreate(client: Client): void {
 
 async function handleCommandNotFound(
     interaction: ChatInputCommandInteraction,
+    startedAt: number,
 ): Promise<void> {
     infoLog({
         message: `Command ${interaction.commandName} not found`,
@@ -213,7 +214,7 @@ async function handleCommandNotFound(
         interaction,
         kind: 'slash',
         outcome: 'user_error',
-        startedAt: Date.now(),
+        startedAt,
         known: false,
     })
     if (!interaction.replied && !interaction.deferred) {
@@ -231,11 +232,12 @@ async function handleCommandExecution(
     client: Client,
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
+    const startedAt = Date.now()
     const command = (client as CustomClient).commands.get(
         interaction.commandName,
     )
     if (!command) {
-        await handleCommandNotFound(interaction)
+        await handleCommandNotFound(interaction, startedAt)
         return
     }
 
