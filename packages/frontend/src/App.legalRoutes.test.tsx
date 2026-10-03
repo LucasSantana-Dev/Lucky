@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import App from './App'
@@ -7,6 +7,16 @@ import { useAuthStore } from '@/stores/authStore'
 vi.mock('@/stores/authStore')
 
 describe('App legal routes', () => {
+    beforeAll(async () => {
+        // Warm the lazy pages so Suspense resolves from the module cache
+        // instead of racing the findBy timeout on a cold dynamic import.
+        await Promise.all([
+            import('./pages/TermsOfService'),
+            import('./pages/PrivacyPolicy'),
+            import('./pages/NotFound'),
+        ])
+    })
+
     beforeEach(() => {
         vi.clearAllMocks()
 

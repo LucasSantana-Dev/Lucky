@@ -398,6 +398,9 @@ describe('TwitchNotificationsPage', () => {
         await confirmRemove('shroud')
         await waitFor(() => {
             expect(screen.queryByRole('dialog')).toBeNull()
+            // Radix restores body pointer-events as the dialog unmounts;
+            // clicking before that makes user-event throw.
+            expect(document.body.style.pointerEvents).not.toBe('none')
         })
         await confirmRemove('shroud')
 

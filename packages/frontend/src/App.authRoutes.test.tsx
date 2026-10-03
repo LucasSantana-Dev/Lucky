@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
@@ -121,6 +121,14 @@ function renderAt(path: string) {
 }
 
 describe('App authenticated routing', () => {
+    beforeAll(async () => {
+        // Warm the unmocked lazy pages so Suspense resolves from the module cache.
+        await Promise.all([
+            import('./pages/NotFound'),
+            import('./pages/TermsOfService'),
+        ])
+    })
+
     beforeEach(() => {
         vi.clearAllMocks()
         mockAuthStore()
@@ -490,8 +498,9 @@ describe('App authenticated routing', () => {
     test('legal routes (/terms, /privacy) work for unauthenticated users', async () => {
         renderAt('/terms')
 
-        await waitFor(() => {
-            expect(screen.queryByRole('status')).not.toBeInTheDocument()
-        })
+        expect(
+            await screen.findByRole('heading', { name: /terms of service/i }),
+        ).toBeInTheDocument()
+        expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
 })

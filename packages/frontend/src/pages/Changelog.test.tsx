@@ -1,4 +1,4 @@
-import { describe, test, expect, vi } from 'vitest'
+import { beforeAll, describe, test, expect, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Changelog from './Changelog'
@@ -23,6 +23,12 @@ function renderPage() {
 }
 
 describe('Changelog', { timeout: 20000 }, () => {
+    beforeAll(async () => {
+        // Load the large CHANGELOG chunk once so each test's findBy (1s) does
+        // not race a cold dynamic import.
+        await loadChangelogSource()
+    })
+
     test('renders page title', () => {
         renderPage()
         expect(
