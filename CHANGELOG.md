@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.49.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.48.0...v2.49.0) (2026-10-03)
+
+
+### Features
+
+* **bot:** record command events with a buffered writer ([#2612](https://github.com/LucasSantana-Dev/Lucky/issues/2612)) ([deb77b7](https://github.com/LucasSantana-Dev/Lucky/commit/deb77b7972eb7cf4c5975a4c848fb491d0ad9e5c))
+
+
+### Bug Fixes
+
+* **bot:** wire the autoplay audit collector into replenish passes ([#2607](https://github.com/LucasSantana-Dev/Lucky/issues/2607)) ([956e98b](https://github.com/LucasSantana-Dev/Lucky/commit/956e98bb82f427f1ae3fb40c93c65114f03f1369))
+
 ## [2.48.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.47.10...v2.48.0) (2026-10-02)
 
 
